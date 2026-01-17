@@ -18,6 +18,15 @@ import type {
   Note,
   MarkingPreferences,
 } from '@/types/annotation';
+import type { KeyWordDefinition } from '@/types/keyWord';
+
+/** API configuration for Bible APIs */
+export interface ApiConfigRecord {
+  provider: 'biblia' | 'esv' | 'sword';
+  apiKey?: string;
+  baseUrl?: string;
+  enabled: boolean;
+}
 
 /** Installed module record */
 interface ModuleRecord {
@@ -49,7 +58,7 @@ interface ChapterCache {
 }
 
 /** User preferences */
-interface UserPreferences {
+export interface UserPreferences {
   id: string;                    // 'main' for singleton
   currentModuleId?: string;
   currentBook?: string;
@@ -57,6 +66,7 @@ interface UserPreferences {
   marking: MarkingPreferences;
   fontSize: 'sm' | 'base' | 'lg' | 'xl';
   theme: 'dark' | 'light' | 'auto';
+  apiConfigs?: ApiConfigRecord[];  // Bible API configurations
 }
 
 /** Reading history entry */
@@ -77,6 +87,7 @@ class BibleStudyDB extends Dexie {
   sectionHeadings!: EntityTable<SectionHeading, 'id'>;
   chapterTitles!: EntityTable<ChapterTitle, 'id'>;
   notes!: EntityTable<Note, 'id'>;
+  keyWords!: EntityTable<KeyWordDefinition, 'id'>;
   preferences!: EntityTable<UserPreferences, 'id'>;
   readingHistory!: EntityTable<ReadingHistory, 'id'>;
 
@@ -94,6 +105,20 @@ class BibleStudyDB extends Dexie {
       preferences: 'id',
       readingHistory: 'id, moduleId, timestamp',
     });
+    
+    // Version 2: Add keyWords table
+    this.version(2).stores({
+      modules: 'id, status',
+      moduleFiles: 'id, moduleId',
+      chapterCache: 'id, moduleId',
+      annotations: 'id, moduleId, type, createdAt',
+      sectionHeadings: 'id, moduleId',
+      chapterTitles: 'id, moduleId',
+      notes: 'id, moduleId',
+      keyWords: 'id, word, category',
+      preferences: 'id',
+      readingHistory: 'id, moduleId, timestamp',
+    });
   }
 }
 
@@ -106,11 +131,9 @@ export async function getPreferences(): Promise<UserPreferences> {
   let prefs = await db.preferences.get('main');
   
   if (!prefs) {
-    prefs = {
+    const newPrefs: UserPreferences = {
       id: 'main',
       marking: {
-        favoriteColors: ['yellow', 'green', 'blue', 'pink'],
-        favoriteSymbols: ['cross', 'triangle', 'circle', 'crown'],
         recentColors: [],
         recentSymbols: [],
         defaultTool: 'highlight',
@@ -122,7 +145,8 @@ export async function getPreferences(): Promise<UserPreferences> {
       fontSize: 'base',
       theme: 'dark',
     };
-    await db.preferences.put(prefs);
+    await db.preferences.put(newPrefs);
+    return newPrefs;
   }
   
   return prefs;
@@ -298,15 +322,33 @@ export async function addToHistory(
  * Get installed modules
  */
 export async function getInstalledModules(): Promise<InstalledModule[]> {
-  const records = await db.modules.toArray();
-  return records.map(r => ({
-    config: r.config,
-    status: r.status,
-    installedAt: r.installedAt,
-    updatedAt: r.updatedAt,
-    size: r.size,
-    error: r.error,
-  }));
+  const records = await db.modules
+    .where('status')
+    .equals('installed')
+    .toArray();
+  
+  // Verify modules actually have files installed
+  const verified: InstalledModule[] = [];
+  for (const record of records) {
+    const fileCount = await db.moduleFiles
+      .where('moduleId')
+      .equals(record.id)
+      .count();
+    
+    // Only include modules that have at least one file
+    if (fileCount > 0) {
+      verified.push({
+        config: record.config,
+        status: record.status,
+        installedAt: record.installedAt,
+        updatedAt: record.updatedAt,
+        size: record.size,
+        error: record.error,
+      });
+    }
+  }
+  
+  return verified;
 }
 
 /**
@@ -354,9 +396,75 @@ export async function clearDatabase(): Promise<void> {
     db.sectionHeadings.clear(),
     db.chapterTitles.clear(),
     db.notes.clear(),
+    db.keyWords.clear(),
     db.chapterCache.clear(),
     db.moduleFiles.clear(),
     db.readingHistory.clear(),
     // Don't clear modules or preferences - those are system data
   ]);
+}
+
+// ============================================================================
+// Key Word Functions
+// ============================================================================
+
+/**
+ * Get all key words
+ */
+export async function getAllKeyWords(): Promise<KeyWordDefinition[]> {
+  return db.keyWords.toArray();
+}
+
+/**
+ * Get key words by category
+ */
+export async function getKeyWordsByCategory(category: string): Promise<KeyWordDefinition[]> {
+  return db.keyWords.where('category').equals(category).toArray();
+}
+
+/**
+ * Get a specific key word by ID
+ */
+export async function getKeyWord(id: string): Promise<KeyWordDefinition | undefined> {
+  return db.keyWords.get(id);
+}
+
+/**
+ * Save a key word (create or update)
+ */
+export async function saveKeyWord(keyWord: KeyWordDefinition): Promise<string> {
+  return db.keyWords.put(keyWord);
+}
+
+/**
+ * Delete a key word
+ */
+export async function deleteKeyWord(id: string): Promise<void> {
+  await db.keyWords.delete(id);
+}
+
+/**
+ * Increment the usage count for a key word
+ */
+export async function incrementKeyWordUsage(id: string): Promise<void> {
+  const keyWord = await db.keyWords.get(id);
+  if (keyWord) {
+    await db.keyWords.update(id, {
+      usageCount: (keyWord.usageCount || 0) + 1,
+      updatedAt: new Date(),
+    });
+  }
+}
+
+/**
+ * Search key words by text (matches word or variants)
+ */
+export async function searchKeyWords(text: string): Promise<KeyWordDefinition[]> {
+  const lowerText = text.toLowerCase().trim();
+  const allKeyWords = await db.keyWords.toArray();
+  
+  return allKeyWords.filter(kw => {
+    if (kw.word.toLowerCase() === lowerText) return true;
+    return kw.variants.some(v => v.toLowerCase() === lowerText);
+  });
 }

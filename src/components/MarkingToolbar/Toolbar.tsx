@@ -4,13 +4,17 @@
  * Bottom toolbar for Precept-style marking with colors, highlights, and symbols.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAnnotationStore } from '@/stores/annotationStore';
+import { useKeyWordStore } from '@/stores/keyWordStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
 import { ColorPicker } from './ColorPicker';
 import { SymbolPicker } from './SymbolPicker';
+import { ModuleManager } from './ModuleManager';
+import { KeyWordManager } from '@/components/KeyWords';
 import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
 import { clearDatabase, updatePreferences } from '@/lib/db';
+import { findMatchingKeyWords } from '@/types/keyWord';
 import type { AnnotationType, TextAnnotation, SymbolAnnotation } from '@/types/annotation';
 
 const TOOLS: { type: AnnotationType | 'symbol'; icon: string; label: string }[] = [
@@ -31,8 +35,6 @@ export function Toolbar() {
     selection,
     clearSelection,
     toolbarVisible,
-    toolbarExpanded,
-    setToolbarExpanded,
     preferences,
     annotations,
     fontSize,
@@ -40,10 +42,18 @@ export function Toolbar() {
   } = useAnnotationStore();
 
   const { applyCurrentTool, createTextAnnotation, createSymbolAnnotation } = useAnnotations();
+  const { keyWords, loadKeyWords, markKeyWordUsed } = useKeyWordStore();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showSymbolPicker, setShowSymbolPicker] = useState(false);
   const [showSystemMenu, setShowSystemMenu] = useState(false);
+  const [showModuleManager, setShowModuleManager] = useState(false);
+  const [showKeyWordManager, setShowKeyWordManager] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+
+  // Load key words on mount
+  useEffect(() => {
+    loadKeyWords();
+  }, [loadKeyWords]);
 
   const handleClearDatabase = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -87,18 +97,35 @@ export function Toolbar() {
     { size: 'xl', label: 'Extra Large' },
   ];
 
-  // Find previous annotations for the selected word/phrase
+  // Find previous annotations and key words for the selected word/phrase
   const previousAnnotations = useMemo(() => {
     if (!selection?.text) return [];
 
     const normalizedSelection = selection.text.trim().toLowerCase();
     const suggestions: Array<{
-      type: 'highlight' | 'textColor' | 'underline' | 'symbol';
+      type: 'highlight' | 'textColor' | 'underline' | 'symbol' | 'keyWord';
       color?: string;
       symbol?: string;
       label: string;
       icon: string;
+      keyWordId?: string;
     }> = [];
+
+    // Check for matching key words
+    const matchingKeyWords = findMatchingKeyWords(selection.text.trim(), keyWords);
+    for (const kw of matchingKeyWords) {
+      if (kw.autoSuggest) {
+        const symbol = kw.symbol ? SYMBOLS[kw.symbol] : '🔑';
+        suggestions.push({
+          type: 'keyWord',
+          symbol: kw.symbol,
+          color: kw.color,
+          label: `Key Word: ${kw.word}`,
+          icon: symbol,
+          keyWordId: kw.id,
+        });
+      }
+    }
 
     for (const ann of annotations) {
       if (ann.type === 'symbol') {
@@ -129,7 +156,6 @@ export function Toolbar() {
               s => s.type === textAnn.type && s.color === textAnn.color
             );
             if (!exists) {
-              const colorHex = HIGHLIGHT_COLORS[textAnn.color];
               const icon = textAnn.type === 'highlight' ? '🖍' : textAnn.type === 'textColor' ? 'A' : 'U̲';
               const label = textAnn.type === 'highlight' ? 'Highlight' : 
                           textAnn.type === 'textColor' ? 'Text Color' : 'Underline';
@@ -147,11 +173,35 @@ export function Toolbar() {
     }
 
     return suggestions;
-  }, [selection?.text, annotations]);
+  }, [selection?.text, annotations, keyWords]);
 
   // Apply suggestion with one click
   const handleApplySuggestion = async (suggestion: typeof previousAnnotations[0]) => {
     if (!selection) return;
+    
+    if (suggestion.type === 'keyWord' && suggestion.keyWordId) {
+      // Apply key word style
+      const keyWord = keyWords.find(kw => kw.id === suggestion.keyWordId);
+      if (keyWord) {
+        // Mark as used
+        await markKeyWordUsed(keyWord.id);
+        
+        // Apply the key word's style
+        if (keyWord.symbol) {
+          setActiveTool('symbol');
+          setActiveSymbol(keyWord.symbol);
+          if (keyWord.color) {
+            setActiveColor(keyWord.color);
+          }
+          await createSymbolAnnotation(keyWord.symbol, 'center', keyWord.color, 'overlay');
+        } else if (keyWord.color) {
+          setActiveTool('highlight');
+          setActiveColor(keyWord.color);
+          await createTextAnnotation('highlight', keyWord.color);
+        }
+      }
+      return;
+    }
     
     if (suggestion.type === 'symbol' && suggestion.symbol) {
       // suggestion.symbol is already the SymbolKey (e.g., 'cross')
@@ -163,12 +213,12 @@ export function Toolbar() {
       }
       // Create symbol annotation directly
       await createSymbolAnnotation(suggestion.symbol as any, 'center', suggestion.color as any, 'overlay');
-    } else if (suggestion.color) {
+    } else if (suggestion.type !== 'keyWord' && suggestion.color) {
       // Update state for consistency
-      setActiveTool(suggestion.type);
+      setActiveTool(suggestion.type as AnnotationType);
       setActiveColor(suggestion.color as any);
       // Create text annotation directly
-      await createTextAnnotation(suggestion.type, suggestion.color as any);
+      await createTextAnnotation(suggestion.type as 'highlight' | 'textColor' | 'underline', suggestion.color as any);
     }
   };
 
@@ -345,6 +395,44 @@ export function Toolbar() {
                 </div>
               </div>
 
+              {/* Bible Translations */}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowModuleManager(true);
+                  setShowSystemMenu(false);
+                }}
+                className="w-full px-4 py-2.5 text-left rounded-xl bg-scripture-elevated/50 
+                         hover:bg-scripture-elevated text-scripture-text transition-all 
+                         duration-200 flex items-center gap-2 text-sm font-ui font-medium 
+                         border border-scripture-border/30 hover:border-scripture-border/50 
+                         shadow-sm hover:shadow"
+                title="Manage Bible translations"
+              >
+                <span>📖</span>
+                <span>Bible Translations</span>
+              </button>
+
+              {/* Key Words */}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowKeyWordManager(true);
+                  setShowSystemMenu(false);
+                }}
+                className="w-full px-4 py-2.5 text-left rounded-xl bg-scripture-elevated/50 
+                         hover:bg-scripture-elevated text-scripture-text transition-all 
+                         duration-200 flex items-center gap-2 text-sm font-ui font-medium 
+                         border border-scripture-border/30 hover:border-scripture-border/50 
+                         shadow-sm hover:shadow"
+                title="Manage key words"
+              >
+                <span>🔑</span>
+                <span>Key Words</span>
+              </button>
+
               {/* Clear Database Button */}
               <button
                 onClick={(e) => {
@@ -363,6 +451,29 @@ export function Toolbar() {
                 <span>{isClearing ? 'Clearing...' : 'Clear Database'}</span>
               </button>
             </div>
+          </div>
+        </>
+      )}
+
+      {/* Module Manager */}
+      {showModuleManager && (
+        <ModuleManager onClose={() => setShowModuleManager(false)} />
+      )}
+
+      {/* Key Word Manager */}
+      {showKeyWordManager && (
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setShowKeyWordManager(false)}
+          />
+          <div 
+            className="fixed inset-x-4 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50
+                       bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl
+                       max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <KeyWordManager onClose={() => setShowKeyWordManager(false)} />
           </div>
         </>
       )}
