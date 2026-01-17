@@ -22,11 +22,18 @@
   /* Scripture text styling */
   .scripture-text {
     @apply font-scripture text-scripture-base leading-relaxed;
+    letter-spacing: 0.01em;
   }
 
   /* Verse number styling */
   .verse-number {
-    @apply text-scripture-accent font-ui text-sm align-super mr-1 select-none;
+    @apply text-scripture-accent font-ui text-sm mr-1.5 select-none;
+    vertical-align: baseline;
+    display: inline-block;
+    font-size: 0.875em;
+    line-height: inherit;
+    font-weight: 600;
+    opacity: 0.9;
   }
 
   /* Selection styling */

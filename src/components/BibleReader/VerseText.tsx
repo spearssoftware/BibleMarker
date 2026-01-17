@@ -13,6 +13,8 @@ interface VerseTextProps {
   annotations: Annotation[];
   isSelected?: boolean;
   onRemoveAnnotation?: (id: string) => void;
+  onVerseNumberClick?: (verseNum: number) => void;
+  verseMenu?: React.ReactNode;
 }
 
 // Helper to extract plain text from HTML (removes tags but keeps text)
@@ -23,7 +25,7 @@ function extractPlainText(html: string): string {
   return temp.textContent || temp.innerText || '';
 }
 
-export function VerseText({ verse, annotations, isSelected, onRemoveAnnotation }: VerseTextProps) {
+export function VerseText({ verse, annotations, isSelected, onRemoveAnnotation, onVerseNumberClick, verseMenu }: VerseTextProps) {
   // Separate annotation types
   const textAnnotations = annotations.filter(
     (a): a is TextAnnotation => a.type !== 'symbol'
@@ -379,8 +381,23 @@ export function VerseText({ verse, annotations, isSelected, onRemoveAnnotation }
         </span>
       ))}
 
-      {/* Verse number */}
-      <sup className="verse-number">{verse.ref.verse}</sup>
+      {/* Verse number with menu */}
+      <span className="relative inline-block">
+        <span 
+          className="verse-number cursor-pointer hover:text-scripture-text transition-colors relative inline-block"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (onVerseNumberClick) {
+              onVerseNumberClick(verse.ref.verse);
+            }
+          }}
+          title={onVerseNumberClick ? "Click to add section heading or note" : undefined}
+        >
+          {verse.ref.verse}
+        </span>
+        {verseMenu}
+      </span>
 
       {/* Verse text with styling */}
       <span 

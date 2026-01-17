@@ -7,16 +7,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Deep, contemplative color palette
+        // Warm, neutral color palette
         scripture: {
-          bg: '#0f0f1a',
-          surface: '#1a1a2e',
-          elevated: '#252542',
-          border: '#3d3d5c',
+          bg: '#0f0f0f',
+          surface: '#1a1a1a',
+          elevated: '#252525',
+          border: '#3a3a3a',
           text: '#e8e6e3',
           muted: '#9ca3af',
-          accent: '#c9a227',
-          accentMuted: '#8b7355',
+          accent: '#d97706',
+          accentMuted: '#92400e',
         },
         // Highlight colors for annotations
         highlight: {

@@ -12,6 +12,7 @@ import type {
   AnnotationType,
   MarkingPreferences,
   SectionHeading,
+  Note,
 } from '@/types/annotation';
 import { DEFAULT_MARKING_PREFERENCES } from '@/types/annotation';
 
@@ -31,9 +32,11 @@ interface TextSelection {
   endVerseText?: string;   // Full text of end verse (for finding offset)
 }
 
+type FontSize = 'sm' | 'base' | 'lg' | 'xl';
+
 interface AnnotationState {
   // Tool state
-  activeTool: AnnotationType | 'symbol' | null;
+  activeTool: AnnotationType | 'symbol' | 'note' | null;
   activeColor: HighlightColor;
   activeSymbol: SymbolKey;
   
@@ -44,31 +47,36 @@ interface AnnotationState {
   // Current chapter annotations (loaded from DB)
   annotations: Annotation[];
   sectionHeadings: SectionHeading[];
+  chapterTitle: ChapterTitle | null;
+  chapterTitle: SectionHeading | null; // Using SectionHeading type for now, will be ChapterTitle
+  notes: Note[];
   
   // Preferences
   preferences: MarkingPreferences;
+  fontSize: FontSize;
   
   // Toolbar visibility
   toolbarVisible: boolean;
   toolbarExpanded: boolean;
   
   // Actions
-  setActiveTool: (tool: AnnotationType | 'symbol' | null) => void;
+  setActiveTool: (tool: AnnotationType | 'symbol' | 'note' | null) => void;
   setActiveColor: (color: HighlightColor) => void;
   setActiveSymbol: (symbol: SymbolKey) => void;
   setSelection: (selection: TextSelection | null) => void;
   setIsSelecting: (selecting: boolean) => void;
   setAnnotations: (annotations: Annotation[]) => void;
   setSectionHeadings: (headings: SectionHeading[]) => void;
+  setChapterTitle: (title: ChapterTitle | null) => void;
+  setNotes: (notes: Note[]) => void;
   setPreferences: (prefs: MarkingPreferences) => void;
+  setFontSize: (size: FontSize) => void;
   setToolbarVisible: (visible: boolean) => void;
   setToolbarExpanded: (expanded: boolean) => void;
   
   // Color/symbol tracking
   addRecentColor: (color: HighlightColor) => void;
   addRecentSymbol: (symbol: SymbolKey) => void;
-  toggleFavoriteColor: (color: HighlightColor) => void;
-  toggleFavoriteSymbol: (symbol: SymbolKey) => void;
   
   // Clear selection after applying annotation
   clearSelection: () => void;
@@ -82,7 +90,10 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   isSelecting: false,
   annotations: [],
   sectionHeadings: [],
+  chapterTitle: null,
+  notes: [],
   preferences: DEFAULT_MARKING_PREFERENCES,
+  fontSize: 'base',
   toolbarVisible: true,
   toolbarExpanded: false,
   
@@ -105,8 +116,12 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   setAnnotations: (annotations) => set({ annotations }),
   
   setSectionHeadings: (sectionHeadings) => set({ sectionHeadings }),
+  setChapterTitle: (chapterTitle) => set({ chapterTitle }),
+  setNotes: (notes) => set({ notes }),
   
   setPreferences: (preferences) => set({ preferences }),
+  
+  setFontSize: (fontSize) => set({ fontSize }),
   
   setToolbarVisible: (toolbarVisible) => set({ toolbarVisible }),
   
@@ -128,25 +143,6 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
     });
   },
   
-  toggleFavoriteColor: (color) => {
-    const { preferences } = get();
-    const favorites = preferences.favoriteColors.includes(color)
-      ? preferences.favoriteColors.filter(c => c !== color)
-      : [...preferences.favoriteColors, color];
-    set({
-      preferences: { ...preferences, favoriteColors: favorites }
-    });
-  },
-  
-  toggleFavoriteSymbol: (symbol) => {
-    const { preferences } = get();
-    const favorites = preferences.favoriteSymbols.includes(symbol)
-      ? preferences.favoriteSymbols.filter(s => s !== symbol)
-      : [...preferences.favoriteSymbols, symbol];
-    set({
-      preferences: { ...preferences, favoriteSymbols: favorites }
-    });
-  },
   
   clearSelection: () => set({ selection: null, isSelecting: false }),
 }));

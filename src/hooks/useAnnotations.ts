@@ -7,8 +7,8 @@
 import { useCallback } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
-import { db, saveAnnotation, deleteAnnotation, getChapterAnnotations } from '@/lib/db';
-import type { Annotation, TextAnnotation, SymbolAnnotation, AnnotationType, HighlightColor, SymbolKey } from '@/types/annotation';
+import { db, saveAnnotation, deleteAnnotation, getChapterAnnotations, getChapterHeadings, saveSectionHeading, deleteSectionHeading, getChapterTitle, saveChapterTitle, deleteChapterTitle, getChapterNotes, saveNote, deleteNote } from '@/lib/db';
+import type { Annotation, TextAnnotation, SymbolAnnotation, AnnotationType, HighlightColor, SymbolKey, SectionHeading, ChapterTitle, Note } from '@/types/annotation';
 
 export function useAnnotations() {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
@@ -18,6 +18,9 @@ export function useAnnotations() {
     activeSymbol, 
     activeTool,
     setAnnotations,
+    setSectionHeadings,
+    setChapterTitle,
+    setNotes,
     clearSelection,
     addRecentColor,
     addRecentSymbol,
@@ -36,6 +39,48 @@ export function useAnnotations() {
     );
     setAnnotations(annotations);
   }, [currentModuleId, currentBook, currentChapter, setAnnotations]);
+
+  /**
+   * Load section headings for the current chapter
+   */
+  const loadSectionHeadings = useCallback(async () => {
+    if (!currentModuleId) return;
+    
+    const headings = await getChapterHeadings(
+      currentModuleId,
+      currentBook,
+      currentChapter
+    );
+    setSectionHeadings(headings);
+  }, [currentModuleId, currentBook, currentChapter, setSectionHeadings]);
+
+  /**
+   * Load chapter title for the current chapter
+   */
+  const loadChapterTitle = useCallback(async () => {
+    if (!currentModuleId) return;
+    
+    const title = await getChapterTitle(
+      currentModuleId,
+      currentBook,
+      currentChapter
+    );
+    setChapterTitle(title || null);
+  }, [currentModuleId, currentBook, currentChapter, setChapterTitle]);
+
+  /**
+   * Load notes for the current chapter
+   */
+  const loadNotes = useCallback(async () => {
+    if (!currentModuleId) return;
+    
+    const notes = await getChapterNotes(
+      currentModuleId,
+      currentBook,
+      currentChapter
+    );
+    setNotes(notes);
+  }, [currentModuleId, currentBook, currentChapter, setNotes]);
 
   /**
    * Create a highlight, text color, or underline annotation
@@ -190,6 +235,94 @@ export function useAnnotations() {
   }, [loadAnnotations]);
 
   /**
+   * Create a section heading
+   */
+  const createSectionHeading = useCallback(async (
+    verseNum: number,
+    title: string
+  ): Promise<SectionHeading | null> => {
+    if (!currentModuleId || !title.trim()) return null;
+
+    const heading: SectionHeading = {
+      id: crypto.randomUUID(),
+      moduleId: currentModuleId,
+      beforeRef: {
+        book: currentBook,
+        chapter: currentChapter,
+        verse: verseNum,
+      },
+      title: title.trim(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await saveSectionHeading(heading);
+    await loadSectionHeadings();
+    return heading;
+  }, [currentModuleId, currentBook, currentChapter, loadSectionHeadings]);
+
+  /**
+   * Update a section heading
+   */
+  const updateSectionHeading = useCallback(async (heading: SectionHeading) => {
+    const updated = {
+      ...heading,
+      updatedAt: new Date(),
+    };
+    await saveSectionHeading(updated);
+    await loadSectionHeadings();
+  }, [loadSectionHeadings]);
+
+  /**
+   * Delete a section heading
+   */
+  const removeSectionHeading = useCallback(async (id: string) => {
+    await deleteSectionHeading(id);
+    await loadSectionHeadings();
+  }, [loadSectionHeadings]);
+
+  /**
+   * Create a chapter title
+   */
+  const createChapterTitle = useCallback(async (title: string): Promise<ChapterTitle | null> => {
+    if (!currentModuleId || !title.trim()) return null;
+
+    const chapterTitle: ChapterTitle = {
+      id: crypto.randomUUID(),
+      moduleId: currentModuleId,
+      book: currentBook,
+      chapter: currentChapter,
+      title: title.trim(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await saveChapterTitle(chapterTitle);
+    await loadChapterTitle();
+    return chapterTitle;
+  }, [currentModuleId, currentBook, currentChapter, loadChapterTitle]);
+
+  /**
+   * Update a chapter title
+   */
+  const updateChapterTitle = useCallback(async (title: ChapterTitle) => {
+    const updated = {
+      ...title,
+      updatedAt: new Date(),
+    };
+    await saveChapterTitle(updated);
+    await loadChapterTitle();
+  }, [loadChapterTitle]);
+
+  /**
+   * Delete a chapter title
+   */
+  const removeChapterTitle = useCallback(async (id: string) => {
+    await deleteChapterTitle(id);
+    await loadChapterTitle();
+  }, [loadChapterTitle]);
+
+  /**
    * Quick highlight with a specific color (no tool selection needed)
    */
   const quickHighlight = useCallback(async (color: HighlightColor) => {
@@ -197,12 +330,84 @@ export function useAnnotations() {
     await createTextAnnotation('highlight', color);
   }, [selection, createTextAnnotation]);
 
+  /**
+   * Create a note
+   */
+  const createNote = useCallback(async (
+    verseNum: number,
+    content: string,
+    range?: { startVerse: number; endVerse: number }
+  ): Promise<Note | null> => {
+    if (!currentModuleId) return null;
+
+    const note: Note = {
+      id: crypto.randomUUID(),
+      moduleId: currentModuleId,
+      ref: {
+        book: currentBook,
+        chapter: currentChapter,
+        verse: verseNum,
+      },
+      range: range ? {
+        start: {
+          book: currentBook,
+          chapter: currentChapter,
+          verse: range.startVerse,
+        },
+        end: {
+          book: currentBook,
+          chapter: currentChapter,
+          verse: range.endVerse,
+        },
+      } : undefined,
+      content,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await saveNote(note);
+    await loadNotes();
+    return note;
+  }, [currentModuleId, currentBook, currentChapter, loadNotes]);
+
+  /**
+   * Update a note
+   */
+  const updateNote = useCallback(async (note: Note): Promise<void> => {
+    const updated = {
+      ...note,
+      updatedAt: new Date(),
+    };
+    await saveNote(updated);
+    await loadNotes();
+  }, [loadNotes]);
+
+  /**
+   * Remove a note
+   */
+  const removeNote = useCallback(async (id: string): Promise<void> => {
+    await deleteNote(id);
+    await loadNotes();
+  }, [loadNotes]);
+
   return {
     loadAnnotations,
+    loadSectionHeadings,
+    loadChapterTitle,
+    loadNotes,
     createTextAnnotation,
     createSymbolAnnotation,
     applyCurrentTool,
     removeAnnotation,
     quickHighlight,
+    createSectionHeading,
+    updateSectionHeading,
+    removeSectionHeading,
+    createChapterTitle,
+    updateChapterTitle,
+    removeChapterTitle,
+    createNote,
+    updateNote,
+    removeNote,
   };
 }

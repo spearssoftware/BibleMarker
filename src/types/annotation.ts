@@ -8,54 +8,82 @@ import type { VerseRef, VerseRange } from './sword';
 /** Available highlight colors */
 export const HIGHLIGHT_COLORS = {
   red: '#ef4444',
+  rose: '#f43f5e',
+  salmon: '#ff9c9c',
+  coral: '#ff7875',
+  pink: '#ec4899',
   orange: '#f97316',
   amber: '#f59e0b',
   yellow: '#eab308',
   lime: '#84cc16',
   green: '#22c55e',
+  emerald: '#10b981',
+  mint: '#36cfc9',
   teal: '#14b8a6',
   cyan: '#06b6d4',
+  sky: '#0ea5e9',
   blue: '#3b82f6',
   indigo: '#6366f1',
+  violet: '#8b5cf6',
   purple: '#a855f7',
-  pink: '#ec4899',
+  lavender: '#b37feb',
+  fuchsia: '#d946ef',
 } as const;
 
 export type HighlightColor = keyof typeof HIGHLIGHT_COLORS;
 
-/** Available symbols for marking */
+/** Available symbols for marking - Based on Precept Bible Study Method */
 export const SYMBOLS = {
-  // Precept-style symbols
-  cross: '✝',
-  triangle: '△',
-  circle: '○',
-  square: '□',
-  diamond: '◇',
-  star: '★',
-  starOutline: '☆',
-  hexagon: '⬡',
+  // Identity - God, Jesus, Holy Spirit (Key words from Precept method)
+  triangle: '▲',      // God / LORD / Jehovah
+  cross: '✝',        // Jesus / Christ / Messiah
+  dove: '🕊',        // Holy Spirit / Spirit
+  flame: '🔥',       // Holy Spirit (alternative)
   
-  // Concept symbols
-  crown: '👑',
-  dove: '🕊',
-  water: '💧',
-  fire: '🔥',
-  lightning: '⚡',
-  skull: '💀',
-  heart: '❤',
-  prayer: '🙏',
-  book: '📖',
+  // People & Characters
+  person: '👤',      // Person / Character
+  crown: '👑',       // King / Authority / Title
+  prayer: '🙏',      // Prayer / Worship
   
-  // Time/sequence symbols
-  clock: '⏰',
-  calendar: '📅',
-  hourglass: '⏳',
-  arrowRight: '→',
-  arrowLeft: '←',
-  arrowUp: '↑',
-  arrowDown: '↓',
+  // Concepts & Themes
+  star: '★',         // Promise / Covenant
+  starOutline: '☆',  // Promise (lighter)
+  heart: '❤',        // Love / Compassion
+  lightning: '⚡',    // Judgment / Power / Conflict
+  skull: '💀',       // Death / Sin
+  shield: '🛡',      // Protection / Faith
   
-  // Numbered markers
+  // Scripture & Teaching
+  scroll: '📜',      // Law / Commandment / Scripture
+  book: '📖',        // Gospel / Word / Teaching
+  tablet: '⛰',      // Commandments (alternative to scroll)
+  
+  // Time & Sequence
+  clock: '🕐',       // Time / When / Chronology
+  calendar: '📅',    // Date / Season
+  hourglass: '⏳',   // Duration / Waiting
+  arrowRight: '→',   // Therefore / Therefore / Conclusion
+  arrowLeft: '←',    // Because / Cause
+  doubleArrow: '⇔',  // Comparison / Contrast
+  
+  // Geography & Place
+  mapPin: '📍',      // Place / Location / Geography
+  mountain: '⛰',     // Mountain / Place (alternative)
+  globe: '🌍',       // World / Earth
+  
+  // Actions & States
+  water: '💧',       // Baptism / Cleansing
+  fire: '🔥',       // Refining / Testing
+  check: '✓',       // Fulfilled / Completed
+  x: '✗',          // Rejected / Removed
+  
+  // Shapes for general marking (Precept-style)
+  circle: '○',       // General marker
+  square: '□',       // General marker
+  diamond: '◇',      // General marker
+  hexagon: '⬡',     // General marker
+  
+  // Numbered & Lettered markers
   num1: '①',
   num2: '②',
   num3: '③',
@@ -68,8 +96,6 @@ export const SYMBOLS = {
   // Punctuation markers
   question: '?',
   exclamation: '!',
-  check: '✓',
-  x: '✗',
 } as const;
 
 export type SymbolKey = keyof typeof SYMBOLS;
@@ -158,6 +184,22 @@ export interface SectionHeading {
   updatedAt: Date;
 }
 
+/** User-created chapter title */
+export interface ChapterTitle {
+  id: string;
+  moduleId: string;
+  
+  // Position - chapter this title belongs to
+  book: string;
+  chapter: number;
+  
+  // Content
+  title: string;
+  
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 /** Note attached to a verse or range */
 export interface Note {
   id: string;
@@ -176,11 +218,6 @@ export interface Note {
 
 /** User preferences for marking tools */
 export interface MarkingPreferences {
-  // Favorite colors (shown first in picker)
-  favoriteColors: HighlightColor[];
-  
-  // Favorite symbols (shown first in picker)
-  favoriteSymbols: SymbolKey[];
   
   // Recently used (auto-tracked)
   recentColors: HighlightColor[];
@@ -198,8 +235,6 @@ export interface MarkingPreferences {
 
 /** Default marking preferences */
 export const DEFAULT_MARKING_PREFERENCES: MarkingPreferences = {
-  favoriteColors: ['yellow', 'green', 'blue', 'pink'],
-  favoriteSymbols: ['cross', 'triangle', 'circle', 'crown'],
   recentColors: [],
   recentSymbols: [],
   defaultTool: 'highlight',

@@ -1,31 +1,30 @@
 /**
- * Section Heading Editor
+ * Chapter Title Editor Component
  * 
- * Displays and allows editing of user-created section headings.
+ * Displays and allows editing of user-created chapter titles.
  */
 
 import { useState } from 'react';
-import type { SectionHeading } from '@/types/annotation';
+import type { ChapterTitle } from '@/types/annotation';
 
-interface SectionHeadingEditorProps {
-  heading: SectionHeading;
-  verseNum: number;
-  onSave?: (heading: SectionHeading) => void;
+interface ChapterTitleEditorProps {
+  title: ChapterTitle;
+  onSave?: (title: ChapterTitle) => void;
   onDelete?: (id: string) => void;
 }
 
-export function SectionHeadingEditor({ 
-  heading, 
+export function ChapterTitleEditor({ 
+  title, 
   onSave, 
   onDelete 
-}: SectionHeadingEditorProps) {
+}: ChapterTitleEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState(heading.title);
+  const [editText, setEditText] = useState(title.title);
 
   const handleSave = () => {
     if (editText.trim() && onSave) {
       onSave({
-        ...heading,
+        ...title,
         title: editText.trim(),
         updatedAt: new Date(),
       });
@@ -37,14 +36,14 @@ export function SectionHeadingEditor({
     if (e.key === 'Enter') {
       handleSave();
     } else if (e.key === 'Escape') {
-      setEditText(heading.title);
+      setEditText(title.title);
       setIsEditing(false);
     }
   };
 
   if (isEditing) {
     return (
-      <div className="section-heading my-4 flex items-center gap-2">
+      <div className="chapter-title-editor mb-4 flex items-center gap-2">
         <input
           type="text"
           value={editText}
@@ -52,8 +51,8 @@ export function SectionHeadingEditor({
           onKeyDown={handleKeyDown}
           onBlur={handleSave}
           className="flex-1 bg-scripture-elevated border border-scripture-border rounded px-3 py-2
-                     text-scripture-text font-ui text-sm focus:outline-none focus:border-scripture-accent"
-          placeholder="Enter section heading..."
+                     text-scripture-text font-ui text-base focus:outline-none focus:border-scripture-accent"
+          placeholder="Enter chapter title..."
           autoFocus
         />
         <button
@@ -64,7 +63,7 @@ export function SectionHeadingEditor({
         </button>
         {onDelete && (
           <button
-            onClick={() => onDelete(heading.id)}
+            onClick={() => onDelete(title.id)}
             className="p-2 text-highlight-red hover:bg-scripture-elevated rounded"
           >
             ✗
@@ -75,14 +74,18 @@ export function SectionHeadingEditor({
   }
 
   return (
-    <h3 
-      className="section-heading my-3 py-1.5 text-scripture-text/80 font-ui text-base font-medium
-                 border-b border-scripture-border/60 cursor-pointer hover:text-scripture-text
-                 hover:border-scripture-accent/60 transition-all duration-200 italic"
+    <div 
+      className="chapter-title mb-6 py-3 px-4 bg-scripture-accent/10 rounded-xl border-2 border-scripture-accent/30 
+                 font-ui text-2xl font-bold text-scripture-accent cursor-pointer 
+                 hover:bg-scripture-accent/15 hover:border-scripture-accent/50
+                 transition-all duration-200 flex items-center justify-between group shadow-sm"
       onClick={() => setIsEditing(true)}
       title="Click to edit"
     >
-      {heading.title}
-    </h3>
+      <span className="tracking-wide">{title.title}</span>
+      <span className="text-xs text-scripture-muted opacity-0 group-hover:opacity-100 transition-opacity font-normal">
+        Edit
+      </span>
+    </div>
   );
 }

@@ -14,6 +14,7 @@ import type {
 import type { 
   Annotation, 
   SectionHeading, 
+  ChapterTitle,
   Note,
   MarkingPreferences,
 } from '@/types/annotation';
@@ -74,6 +75,7 @@ class BibleStudyDB extends Dexie {
   chapterCache!: EntityTable<ChapterCache, 'id'>;
   annotations!: EntityTable<Annotation, 'id'>;
   sectionHeadings!: EntityTable<SectionHeading, 'id'>;
+  chapterTitles!: EntityTable<ChapterTitle, 'id'>;
   notes!: EntityTable<Note, 'id'>;
   preferences!: EntityTable<UserPreferences, 'id'>;
   readingHistory!: EntityTable<ReadingHistory, 'id'>;
@@ -87,6 +89,7 @@ class BibleStudyDB extends Dexie {
       chapterCache: 'id, moduleId',
       annotations: 'id, moduleId, type, createdAt',
       sectionHeadings: 'id, moduleId',
+      chapterTitles: 'id, moduleId',
       notes: 'id, moduleId',
       preferences: 'id',
       readingHistory: 'id, moduleId, timestamp',
@@ -203,6 +206,68 @@ export async function deleteSectionHeading(id: string): Promise<void> {
 }
 
 /**
+ * Get chapter title for a chapter
+ */
+export async function getChapterTitle(
+  moduleId: string,
+  book: string,
+  chapter: number
+): Promise<ChapterTitle | undefined> {
+  const allTitles = await db.chapterTitles
+    .where('moduleId')
+    .equals(moduleId)
+    .toArray();
+  
+  return allTitles.find(t => t.book === book && t.chapter === chapter);
+}
+
+/**
+ * Save a chapter title
+ */
+export async function saveChapterTitle(title: ChapterTitle): Promise<string> {
+  return db.chapterTitles.put(title);
+}
+
+/**
+ * Delete a chapter title
+ */
+export async function deleteChapterTitle(id: string): Promise<void> {
+  await db.chapterTitles.delete(id);
+}
+
+/**
+ * Get notes for a chapter
+ */
+export async function getChapterNotes(
+  moduleId: string,
+  book: string,
+  chapter: number
+): Promise<Note[]> {
+  const allNotes = await db.notes
+    .where('moduleId')
+    .equals(moduleId)
+    .toArray();
+  
+  return allNotes.filter(note => 
+    note.ref.book === book && note.ref.chapter === chapter
+  );
+}
+
+/**
+ * Save a note
+ */
+export async function saveNote(note: Note): Promise<string> {
+  return db.notes.put(note);
+}
+
+/**
+ * Delete a note
+ */
+export async function deleteNote(id: string): Promise<void> {
+  await db.notes.delete(id);
+}
+
+/**
  * Add to reading history
  */
 export async function addToHistory(
@@ -287,6 +352,7 @@ export async function clearDatabase(): Promise<void> {
   await Promise.all([
     db.annotations.clear(),
     db.sectionHeadings.clear(),
+    db.chapterTitles.clear(),
     db.notes.clear(),
     db.chapterCache.clear(),
     db.moduleFiles.clear(),

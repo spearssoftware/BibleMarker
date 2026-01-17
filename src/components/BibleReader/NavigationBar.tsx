@@ -7,7 +7,6 @@
 import { useState } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { BIBLE_BOOKS, getBookById, getOTBooks, getNTBooks } from '@/types/bible';
-import { clearDatabase } from '@/lib/db';
 
 export function NavigationBar() {
   const {
@@ -22,42 +21,23 @@ export function NavigationBar() {
 
   const [showBookPicker, setShowBookPicker] = useState(false);
   const [showChapterPicker, setShowChapterPicker] = useState(false);
-  const [isClearing, setIsClearing] = useState(false);
 
   const bookInfo = getBookById(currentBook);
 
-  const handleClearDatabase = async () => {
-    if (!confirm('Are you sure you want to clear all annotations, notes, and cache? This cannot be undone.')) {
-      return;
-    }
-    
-    setIsClearing(true);
-    try {
-      await clearDatabase();
-      alert('Database cleared successfully!');
-      // Reload the page to refresh the UI
-      window.location.reload();
-    } catch (error) {
-      console.error('Error clearing database:', error);
-      alert('Error clearing database. Check console for details.');
-    } finally {
-      setIsClearing(false);
-    }
-  };
-
   return (
-    <nav className="navigation-bar bg-scripture-surface border-b border-scripture-border">
-      <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+    <nav className="navigation-bar bg-scripture-surface/95 backdrop-blur-sm border-b border-scripture-border/50 shadow-sm sticky top-0 z-20">
+      <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-between">
         {/* Previous button */}
         <button
           onClick={previousChapter}
           disabled={!canGoPrevious()}
-          className="p-2 rounded-lg hover:bg-scripture-elevated disabled:opacity-30
-                     disabled:cursor-not-allowed transition-colors touch-target"
+          className="p-2 rounded-xl hover:bg-scripture-elevated disabled:opacity-30
+                     disabled:cursor-not-allowed transition-all duration-200 touch-target
+                     hover:scale-105 active:scale-95"
           aria-label="Previous chapter"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
 
@@ -70,8 +50,10 @@ export function NavigationBar() {
                 setShowBookPicker(!showBookPicker);
                 setShowChapterPicker(false);
               }}
-              className="px-4 py-2 rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                         font-ui font-medium transition-colors"
+              className="px-4 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
+                         font-ui font-semibold text-sm transition-all duration-200
+                         border border-scripture-border/30 hover:border-scripture-border/50
+                         shadow-sm hover:shadow"
             >
               {bookInfo?.name || currentBook}
             </button>
@@ -95,8 +77,10 @@ export function NavigationBar() {
                 setShowChapterPicker(!showChapterPicker);
                 setShowBookPicker(false);
               }}
-              className="px-4 py-2 rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                         font-ui font-medium transition-colors min-w-[60px]"
+              className="px-4 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
+                         font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
+                         border border-scripture-border/30 hover:border-scripture-border/50
+                         shadow-sm hover:shadow"
             >
               {currentChapter}
             </button>
@@ -119,27 +103,14 @@ export function NavigationBar() {
         <button
           onClick={nextChapter}
           disabled={!canGoNext()}
-          className="p-2 rounded-lg hover:bg-scripture-elevated disabled:opacity-30
-                     disabled:cursor-not-allowed transition-colors touch-target"
+          className="p-2 rounded-xl hover:bg-scripture-elevated disabled:opacity-30
+                     disabled:cursor-not-allowed transition-all duration-200 touch-target
+                     hover:scale-105 active:scale-95"
           aria-label="Next chapter"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
-        </button>
-
-        {/* Clear Database button (testing only) */}
-        <button
-          onClick={handleClearDatabase}
-          disabled={isClearing}
-          className="px-3 py-1.5 text-xs font-ui rounded-lg bg-red-600/20 
-                     hover:bg-red-600/30 text-red-400 disabled:opacity-50 
-                     disabled:cursor-not-allowed transition-colors touch-target
-                     border border-red-600/30"
-          title="Clear all annotations and cache (for testing)"
-          aria-label="Clear database"
-        >
-          {isClearing ? 'Clearing...' : '🗑️ Clear DB'}
         </button>
       </div>
     </nav>
@@ -165,9 +136,9 @@ function BookPicker({ currentBook, onSelect, onClose }: BookPickerProps) {
       />
       
       {/* Picker */}
-      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50
-                      bg-scripture-surface border border-scripture-border rounded-xl shadow-xl
-                      w-[340px] max-h-[70vh] overflow-hidden animate-scale-in">
+      <div className="absolute top-full left-0 mt-2 z-50
+                      bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl
+                      w-[340px] max-h-[70vh] overflow-hidden animate-scale-in backdrop-blur-sm">
         <div className="overflow-y-auto max-h-[70vh] custom-scrollbar p-4">
           {/* Old Testament */}
           <h4 className="text-xs font-ui font-semibold text-scripture-muted uppercase tracking-wider mb-2">
@@ -178,10 +149,10 @@ function BookPicker({ currentBook, onSelect, onClose }: BookPickerProps) {
               <button
                 key={book.id}
                 onClick={() => onSelect(book.id)}
-                className={`px-2 py-1.5 text-xs font-ui rounded transition-colors
+                className={`px-2 py-1.5 text-xs font-ui rounded-lg transition-all duration-200
                           ${book.id === currentBook 
-                            ? 'bg-scripture-accent text-scripture-bg' 
-                            : 'hover:bg-scripture-elevated'}`}
+                            ? 'bg-scripture-accent text-scripture-bg shadow-sm' 
+                            : 'hover:bg-scripture-elevated hover:shadow-sm'}`}
               >
                 {book.shortName}
               </button>
@@ -197,10 +168,10 @@ function BookPicker({ currentBook, onSelect, onClose }: BookPickerProps) {
               <button
                 key={book.id}
                 onClick={() => onSelect(book.id)}
-                className={`px-2 py-1.5 text-xs font-ui rounded transition-colors
+                className={`px-2 py-1.5 text-xs font-ui rounded-lg transition-all duration-200
                           ${book.id === currentBook 
-                            ? 'bg-scripture-accent text-scripture-bg' 
-                            : 'hover:bg-scripture-elevated'}`}
+                            ? 'bg-scripture-accent text-scripture-bg shadow-sm' 
+                            : 'hover:bg-scripture-elevated hover:shadow-sm'}`}
               >
                 {book.shortName}
               </button>
@@ -231,19 +202,19 @@ function ChapterPicker({ chapters, currentChapter, onSelect, onClose }: ChapterP
       />
       
       {/* Picker */}
-      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50
-                      bg-scripture-surface border border-scripture-border rounded-xl shadow-xl
-                      w-[280px] max-h-[50vh] overflow-hidden animate-scale-in">
+      <div className="absolute top-full left-0 mt-2 z-50
+                      bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl
+                      w-[280px] max-h-[50vh] overflow-hidden animate-scale-in backdrop-blur-sm">
         <div className="overflow-y-auto max-h-[50vh] custom-scrollbar p-3">
-          <div className="grid grid-cols-6 gap-1">
+          <div className="grid grid-cols-6 gap-1.5">
             {chapterNumbers.map((num) => (
               <button
                 key={num}
                 onClick={() => onSelect(num)}
-                className={`w-10 h-10 text-sm font-ui rounded-lg transition-colors
+                className={`w-10 h-10 text-sm font-ui rounded-lg transition-all duration-200
                           ${num === currentChapter 
-                            ? 'bg-scripture-accent text-scripture-bg' 
-                            : 'hover:bg-scripture-elevated'}`}
+                            ? 'bg-scripture-accent text-scripture-bg shadow-sm scale-105' 
+                            : 'hover:bg-scripture-elevated hover:shadow-sm hover:scale-105'}`}
               >
                 {num}
               </button>

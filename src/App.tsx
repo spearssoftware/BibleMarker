@@ -6,14 +6,32 @@
 
 import { useEffect } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
+import { useAnnotationStore } from '@/stores/annotationStore';
 import { NavigationBar, ChapterView } from '@/components/BibleReader';
 import { Toolbar } from '@/components/MarkingToolbar';
 import { loadSampleData } from '@/lib/sampleData';
+import { getPreferences } from '@/lib/db';
 
 export default function App() {
   const { setChapter, currentBook, currentChapter, setLoading, setError } = useBibleStore();
 
   const { setCurrentModule } = useBibleStore();
+  const { setFontSize } = useAnnotationStore();
+
+  // Load preferences on mount
+  useEffect(() => {
+    async function loadPrefs() {
+      try {
+        const prefs = await getPreferences();
+        if (prefs.fontSize) {
+          setFontSize(prefs.fontSize);
+        }
+      } catch (err) {
+        console.error('Error loading preferences:', err);
+      }
+    }
+    loadPrefs();
+  }, [setFontSize]);
 
   // Load sample data on mount
   useEffect(() => {

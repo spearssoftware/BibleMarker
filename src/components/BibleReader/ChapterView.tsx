@@ -11,10 +11,27 @@ import { useAnnotationStore } from '@/stores/annotationStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
 import { VerseText } from './VerseText';
 import { SectionHeadingEditor } from './SectionHeadingEditor';
+import { SectionHeadingCreator } from './SectionHeadingCreator';
+import { ChapterTitleEditor } from './ChapterTitleEditor';
+import { ChapterTitleCreator } from './ChapterTitleCreator';
 import { AnnotationLegend } from './AnnotationLegend';
+import { NoteEditor } from './NoteEditor';
+import { NoteCreator } from './NoteCreator';
+import { VerseNumberMenu } from './VerseNumberMenu';
 import { getBookById } from '@/types/bible';
 import type { Verse } from '@/types/sword';
-import type { Annotation, SectionHeading } from '@/types/annotation';
+import type { Annotation, SectionHeading, Note } from '@/types/annotation';
+
+// Map fontSize to Tailwind class
+function getFontSizeClass(fontSize: 'sm' | 'base' | 'lg' | 'xl'): string {
+  const sizeMap = {
+    sm: 'text-scripture-sm',
+    base: 'text-scripture-base',
+    lg: 'text-scripture-lg',
+    xl: 'text-scripture-xl',
+  };
+  return sizeMap[fontSize];
+}
 
 export function ChapterView() {
   const { 
@@ -29,22 +46,48 @@ export function ChapterView() {
   const { 
     annotations, 
     sectionHeadings,
+    chapterTitle,
+    notes,
     selection,
     setSelection,
     setIsSelecting,
+    fontSize,
   } = useAnnotationStore();
 
-  const { loadAnnotations, removeAnnotation } = useAnnotations();
+  const { 
+    loadAnnotations, 
+    loadSectionHeadings,
+    loadChapterTitle,
+    loadNotes,
+    removeAnnotation,
+    createSectionHeading,
+    updateSectionHeading,
+    removeSectionHeading,
+    createChapterTitle,
+    updateChapterTitle,
+    removeChapterTitle,
+    createNote,
+    updateNote,
+    removeNote,
+  } = useAnnotations();
   const bookInfo = getBookById(currentBook);
   
   const [showLegend, setShowLegend] = useState(false);
+  const [creatingHeadingAt, setCreatingHeadingAt] = useState<number | null>(null);
+  const [creatingChapterTitle, setCreatingChapterTitle] = useState(false);
+  const [creatingNoteAt, setCreatingNoteAt] = useState<number | null>(null);
+  const [verseMenuAt, setVerseMenuAt] = useState<number | null>(null);
 
-  // Load annotations when chapter changes
+  // Load annotations, section headings, chapter title, and notes when chapter changes
   useEffect(() => {
     if (currentModuleId) {
       loadAnnotations();
+      loadSectionHeadings();
+      loadChapterTitle();
+      loadNotes();
     }
-  }, [currentModuleId, currentBook, currentChapter, loadAnnotations]);
+  }, [currentModuleId, currentBook, currentChapter, loadAnnotations, loadSectionHeadings, loadChapterTitle, loadNotes]);
+
 
   // Split text into words (preserves whitespace/punctuation position info)
   function splitIntoWords(text: string): Array<{ word: string; startIndex: number; endIndex: number }> {
@@ -208,13 +251,19 @@ export function ChapterView() {
     };
   }
 
-  // Expand selection to word boundaries
+  // Expand selection to word boundaries, excluding trailing punctuation
   function expandToWordBoundaries(range: Range): Range {
     const expandedRange = range.cloneRange();
     
-    // Helper to check if a character is a word character (letter, digit, underscore)
+    // Helper to check if a character is a word character (letter, digit, underscore, apostrophe)
     function isWordChar(char: string): boolean {
-      return /\w/.test(char);
+      return /\w/.test(char) || char === "'";
+    }
+    
+    // Helper to check if a character is trailing punctuation (to exclude)
+    function isTrailingPunctuation(char: string): boolean {
+      // Exclude common punctuation but keep apostrophes
+      return /[.,;:!?)\]}]/.test(char);
     }
     
     // Expand start to beginning of word
@@ -233,7 +282,7 @@ export function ChapterView() {
       }
     }
     
-    // Expand end to end of word
+    // Expand end to end of word, but exclude trailing punctuation
     const endContainer = expandedRange.endContainer;
     if (endContainer.nodeType === Node.TEXT_NODE) {
       const text = endContainer.textContent || '';
@@ -245,7 +294,30 @@ export function ChapterView() {
         while (wordEnd < text.length && isWordChar(text[wordEnd])) {
           wordEnd++;
         }
+        
+        // Skip trailing punctuation
+        while (wordEnd < text.length && isTrailingPunctuation(text[wordEnd])) {
+          wordEnd++;
+        }
+        
         expandedRange.setEnd(endContainer, wordEnd);
+      } else if (offset < text.length && isTrailingPunctuation(text[offset])) {
+        // If we're at punctuation, don't include it - find the word before it
+        let wordEnd = offset;
+        // Skip backwards over punctuation
+        while (wordEnd > 0 && isTrailingPunctuation(text[wordEnd - 1])) {
+          wordEnd--;
+        }
+        // Now find the end of the word
+        while (wordEnd > 0 && isWordChar(text[wordEnd - 1])) {
+          wordEnd--;
+        }
+        // Find the actual end of the word
+        let actualWordEnd = wordEnd;
+        while (actualWordEnd < text.length && isWordChar(text[actualWordEnd])) {
+          actualWordEnd++;
+        }
+        expandedRange.setEnd(endContainer, actualWordEnd);
       }
     }
     
@@ -264,6 +336,29 @@ export function ChapterView() {
     
     // Expand to word boundaries
     const expandedRange = expandToWordBoundaries(originalRange);
+    
+    // Trim trailing punctuation from the range (but keep apostrophes)
+    function isTrailingPunctuation(char: string): boolean {
+      return /[.,;:!?)\]}]/.test(char);
+    }
+    
+    // Adjust the range end to exclude trailing punctuation
+    const rangeEndContainer = expandedRange.endContainer;
+    if (rangeEndContainer.nodeType === Node.TEXT_NODE) {
+      const endText = rangeEndContainer.textContent || '';
+      let endOffset = expandedRange.endOffset;
+      
+      // Move end backwards to skip trailing punctuation
+      while (endOffset > expandedRange.startOffset && 
+             endOffset > 0 &&
+             isTrailingPunctuation(endText[endOffset - 1])) {
+        endOffset--;
+      }
+      
+      if (endOffset !== expandedRange.endOffset) {
+        expandedRange.setEnd(rangeEndContainer, endOffset);
+      }
+    }
     
     // Update the selection to the expanded range
     sel.removeAllRanges();
@@ -306,7 +401,7 @@ export function ChapterView() {
           startVerseText = originalStartText;
           endVerseText = originalEndText;
           
-          if (startVerse === endVerse && originalStartText) {
+          if (startVerse !== null && startVerse === endVerse && originalStartText) {
             // Single verse selection - use word-based indexing
             try {
               // Word-based indexing approach:
@@ -403,6 +498,16 @@ export function ChapterView() {
     return sectionHeadings.find(h => h.beforeRef.verse === verseNum);
   }
 
+  // Get notes for a specific verse
+  function getVerseNotes(verseNum: number): Note[] {
+    return notes.filter(note => {
+      if (note.range) {
+        return verseNum >= note.range.start.verse && verseNum <= note.range.end.verse;
+      }
+      return note.ref.verse === verseNum;
+    });
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -434,17 +539,44 @@ export function ChapterView() {
 
   return (
     <div 
-      className="chapter-view px-4 md:px-8 py-6 max-w-3xl mx-auto"
+      className="chapter-view px-4 md:px-8 py-6 md:py-8 max-w-3xl mx-auto"
       onMouseUp={handleMouseUp}
     >
       {/* Chapter header */}
-      <header className="mb-8 text-center">
-        <h1 className="font-scripture text-3xl md:text-4xl text-scripture-text mb-2">
+      <header className="mb-6 md:mb-8 text-center">
+        <h1 className="font-scripture text-3xl md:text-4xl text-scripture-text mb-2 font-medium tracking-tight">
           {bookInfo?.name || currentBook}
         </h1>
-        <h2 className="text-scripture-accent text-xl font-ui">
+        <h2 className="text-scripture-accent text-lg md:text-xl font-ui mb-4 font-semibold">
           Chapter {currentChapter}
         </h2>
+        
+        {/* Chapter title */}
+        {chapterTitle ? (
+          <ChapterTitleEditor
+            title={chapterTitle}
+            onSave={updateChapterTitle}
+            onDelete={removeChapterTitle}
+          />
+        ) : creatingChapterTitle ? (
+          <ChapterTitleCreator
+            onSave={async (title) => {
+              await createChapterTitle(title);
+              setCreatingChapterTitle(false);
+            }}
+            onCancel={() => setCreatingChapterTitle(false)}
+          />
+        ) : (
+          <button
+            onClick={() => setCreatingChapterTitle(true)}
+            className="text-sm text-scripture-muted hover:text-scripture-accent 
+                     transition-all duration-200 flex items-center gap-1.5 mx-auto
+                     px-3 py-1.5 rounded-lg hover:bg-scripture-surface/50"
+          >
+            <span className="text-base leading-none">+</span>
+            <span>Add chapter title</span>
+          </button>
+        )}
       </header>
 
       {/* Annotation Legend */}
@@ -452,13 +584,14 @@ export function ChapterView() {
         <div className="mb-6">
           <button
             onClick={() => setShowLegend(!showLegend)}
-            className="w-full text-left px-4 py-2 rounded-lg bg-scripture-surface border border-scripture-border 
-                     hover:bg-scripture-elevated transition-colors flex items-center justify-between"
+            className="w-full text-left px-4 py-2.5 rounded-xl bg-scripture-surface/50 border border-scripture-border/50 
+                     hover:bg-scripture-elevated/50 transition-all duration-200 flex items-center justify-between
+                     shadow-sm hover:shadow"
           >
-            <span className="text-sm font-ui text-scripture-text">
+            <span className="text-xs font-ui text-scripture-text">
               📋 Annotation Legend
             </span>
-            <span className="text-scripture-muted">
+            <span className="text-scripture-muted text-xs">
               {showLegend ? '▼' : '▶'}
             </span>
           </button>
@@ -471,7 +604,7 @@ export function ChapterView() {
       )}
 
       {/* Verses */}
-      <div className="scripture-text space-y-1">
+      <div className={`scripture-text ${getFontSizeClass(fontSize)} space-y-2 md:space-y-2.5`}>
         {chapter.verses.map((verse: Verse) => (
           <div key={verse.ref.verse}>
             {/* Section heading if exists */}
@@ -479,24 +612,21 @@ export function ChapterView() {
               <SectionHeadingEditor
                 heading={getHeadingBefore(verse.ref.verse)!}
                 verseNum={verse.ref.verse}
+                onSave={updateSectionHeading}
+                onDelete={removeSectionHeading}
               />
             )}
             
-            {/* Add heading button (shown on hover) */}
-            {!getHeadingBefore(verse.ref.verse) && (
-              <div className="add-heading-zone group h-0 relative">
-                <button
-                  className="absolute -top-3 left-0 opacity-0 group-hover:opacity-100 
-                           transition-opacity text-xs text-scripture-muted hover:text-scripture-accent
-                           flex items-center gap-1"
-                  onClick={() => {
-                    // TODO: Add heading creation
-                  }}
-                >
-                  <span className="text-lg leading-none">+</span>
-                  <span>Add heading</span>
-                </button>
-              </div>
+            {/* Section heading creator (shown when selected from menu) */}
+            {creatingHeadingAt === verse.ref.verse && (
+              <SectionHeadingCreator
+                verseNum={verse.ref.verse}
+                onSave={async (title) => {
+                  await createSectionHeading(verse.ref.verse, title);
+                  setCreatingHeadingAt(null);
+                }}
+                onCancel={() => setCreatingHeadingAt(null)}
+              />
             )}
 
             {/* Verse */}
@@ -509,13 +639,78 @@ export function ChapterView() {
                 verse.ref.verse <= selection.endVerse
               }
               onRemoveAnnotation={removeAnnotation}
+              onVerseNumberClick={(verseNum) => {
+                // Show menu with options: section heading or note
+                // Only show menu if no heading exists already
+                if (!getHeadingBefore(verseNum)) {
+                  setVerseMenuAt(verseNum);
+                } else {
+                  // If heading exists, just allow adding note
+                  setCreatingNoteAt(verseNum);
+                }
+              }}
+              verseMenu={
+                verseMenuAt === verse.ref.verse && !getHeadingBefore(verse.ref.verse) ? (
+                  <VerseNumberMenu
+                    verseNum={verse.ref.verse}
+                    onAddHeading={() => {
+                      setCreatingHeadingAt(verse.ref.verse);
+                      setVerseMenuAt(null);
+                    }}
+                    onAddNote={() => {
+                      setCreatingNoteAt(verse.ref.verse);
+                      setVerseMenuAt(null);
+                    }}
+                    onClose={() => setVerseMenuAt(null)}
+                  />
+                ) : undefined
+              }
             />
+
+            {/* Notes for this verse */}
+            {getVerseNotes(verse.ref.verse).map((note) => (
+              <NoteEditor
+                key={note.id}
+                note={note}
+                verseNum={verse.ref.verse}
+                book={currentBook}
+                chapter={currentChapter}
+                onSave={updateNote}
+                onDelete={removeNote}
+              />
+            ))}
+
+            {/* Note creator (shown when creating note) */}
+            {creatingNoteAt === verse.ref.verse && (
+              <NoteCreator
+                verseNum={verse.ref.verse}
+                range={
+                  selection && 
+                  selection.startVerse === verse.ref.verse && 
+                  selection.endVerse !== verse.ref.verse
+                    ? { startVerse: selection.startVerse, endVerse: selection.endVerse }
+                    : undefined
+                }
+                onSave={async (content) => {
+                  const range = selection && 
+                    selection.startVerse === verse.ref.verse && 
+                    selection.endVerse !== verse.ref.verse
+                      ? { startVerse: selection.startVerse, endVerse: selection.endVerse }
+                      : undefined;
+                  await createNote(verse.ref.verse, content, range);
+                  setCreatingNoteAt(null);
+                }}
+                onCancel={() => {
+                  setCreatingNoteAt(null);
+                }}
+              />
+            )}
           </div>
         ))}
       </div>
 
       {/* Bottom padding for toolbar */}
-      <div className="h-32" />
+      <div className="h-24" />
     </div>
   );
 }

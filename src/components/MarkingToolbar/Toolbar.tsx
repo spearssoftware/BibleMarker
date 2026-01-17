@@ -10,6 +10,7 @@ import { useAnnotations } from '@/hooks/useAnnotations';
 import { ColorPicker } from './ColorPicker';
 import { SymbolPicker } from './SymbolPicker';
 import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
+import { clearDatabase, updatePreferences } from '@/lib/db';
 import type { AnnotationType, TextAnnotation, SymbolAnnotation } from '@/types/annotation';
 
 const TOOLS: { type: AnnotationType | 'symbol'; icon: string; label: string }[] = [
@@ -34,11 +35,57 @@ export function Toolbar() {
     setToolbarExpanded,
     preferences,
     annotations,
+    fontSize,
+    setFontSize,
   } = useAnnotationStore();
 
   const { applyCurrentTool, createTextAnnotation, createSymbolAnnotation } = useAnnotations();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showSymbolPicker, setShowSymbolPicker] = useState(false);
+  const [showSystemMenu, setShowSystemMenu] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+
+  const handleClearDatabase = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('Clear database button clicked');
+    
+    if (!confirm('Are you sure you want to clear all annotations, notes, and cache? This cannot be undone.')) {
+      return;
+    }
+    
+    setIsClearing(true);
+    try {
+      console.log('Clearing database...');
+      await clearDatabase();
+      console.log('Database cleared successfully');
+      alert('Database cleared successfully!');
+      // Reload the page to refresh the UI
+      window.location.reload();
+    } catch (error) {
+      console.error('Error clearing database:', error);
+      alert('Error clearing database. Check console for details.');
+      setIsClearing(false);
+      setShowSystemMenu(false);
+    }
+  };
+
+  const handleFontSizeChange = async (newSize: 'sm' | 'base' | 'lg' | 'xl') => {
+    setFontSize(newSize);
+    try {
+      await updatePreferences({ fontSize: newSize });
+    } catch (error) {
+      console.error('Error updating font size:', error);
+    }
+  };
+
+  const fontSizes: Array<{ size: 'sm' | 'base' | 'lg' | 'xl'; label: string }> = [
+    { size: 'sm', label: 'Small' },
+    { size: 'base', label: 'Medium' },
+    { size: 'lg', label: 'Large' },
+    { size: 'xl', label: 'Extra Large' },
+  ];
 
   // Find previous annotations for the selected word/phrase
   const previousAnnotations = useMemo(() => {
@@ -152,16 +199,17 @@ export function Toolbar() {
       {/* Selection indicator */}
       {selection && (
         <>
-          <div className="bg-scripture-accent/90 text-scripture-bg px-4 py-2 
-                          flex items-center justify-between animate-slide-up">
-            <span className="text-sm font-ui truncate flex-1">
+          <div className="bg-scripture-accent/95 backdrop-blur-sm text-scripture-bg px-4 py-2.5 
+                          flex items-center justify-between animate-slide-up shadow-lg border-t border-scripture-accent/30">
+            <span className="text-sm font-ui truncate flex-1 font-medium">
               Selected: {selection.text.slice(0, 50)}
               {selection.text.length > 50 ? '...' : ''}
             </span>
-            <div className="flex items-center gap-2 ml-4">
+            <div className="flex items-center gap-2 ml-3">
               <button
                 onClick={clearSelection}
-                className="px-3 py-1 text-scripture-bg/80 hover:text-scripture-bg"
+                className="px-3 py-1 text-xs font-ui text-scripture-bg/90 hover:text-scripture-bg
+                         transition-colors rounded-lg hover:bg-scripture-bg/20"
               >
                 Cancel
               </button>
@@ -170,8 +218,8 @@ export function Toolbar() {
 
           {/* Smart suggestions */}
           {previousAnnotations.length > 0 && (
-            <div className="bg-scripture-surface border-t border-scripture-border px-4 py-2 animate-slide-up">
-              <div className="text-xs text-scripture-muted mb-2 font-ui">
+            <div className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 px-4 py-2.5 animate-slide-up">
+              <div className="text-xs text-scripture-muted mb-2 font-ui font-medium">
                 Previously used for "{selection.text.trim()}":
               </div>
               <div className="flex flex-wrap gap-2">
@@ -179,9 +227,9 @@ export function Toolbar() {
                   <button
                     key={index}
                     onClick={() => handleApplySuggestion(suggestion)}
-                    className="px-3 py-1.5 rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                             border border-scripture-border/50 transition-colors flex items-center gap-2
-                             text-xs font-ui"
+                    className="px-3 py-1.5 rounded-xl bg-scripture-elevated/80 hover:bg-scripture-border
+                             border border-scripture-border/50 transition-all duration-200 flex items-center gap-2
+                             text-xs font-ui shadow-sm hover:shadow"
                     title={`Apply ${suggestion.label}`}
                   >
                     {suggestion.type !== 'symbol' && suggestion.color && (
@@ -230,7 +278,7 @@ export function Toolbar() {
 
       {/* Color picker dropdown */}
       {showColorPicker && activeTool && activeTool !== 'symbol' && (
-        <div className="bg-scripture-surface border-t border-scripture-border p-4 animate-slide-up">
+        <div className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 p-4 animate-slide-up shadow-lg">
           <ColorPicker
             selectedColor={activeColor}
             onSelect={async (color) => {
@@ -241,7 +289,6 @@ export function Toolbar() {
                 await applyCurrentTool(color);
               }
             }}
-            favorites={preferences.favoriteColors}
             recents={preferences.recentColors}
           />
         </div>
@@ -249,7 +296,7 @@ export function Toolbar() {
 
       {/* Symbol picker dropdown */}
       {showSymbolPicker && activeTool === 'symbol' && (
-        <div className="bg-scripture-surface border-t border-scripture-border p-4 animate-slide-up">
+        <div className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 p-4 animate-slide-up shadow-lg">
           <SymbolPicker
             selectedSymbol={activeSymbol}
             onSelect={async (symbol) => {
@@ -260,40 +307,101 @@ export function Toolbar() {
                 await applyCurrentTool(undefined, symbol);
               }
             }}
-            favorites={preferences.favoriteSymbols}
             recents={preferences.recentSymbols}
           />
         </div>
       )}
 
+      {/* System menu */}
+      {showSystemMenu && (
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setShowSystemMenu(false)}
+          />
+          <div 
+            className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 p-4 animate-slide-up relative z-50 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="max-w-lg mx-auto space-y-2">
+              {/* Font Size Control */}
+              <div className="px-4 py-3 rounded-xl bg-scripture-elevated/50 border border-scripture-border/30">
+                <div className="text-xs font-ui font-semibold text-scripture-muted uppercase tracking-wider mb-3">
+                  Font Size
+                </div>
+                <div className="flex items-center gap-2">
+                  {fontSizes.map((fs) => (
+                    <button
+                      key={fs.size}
+                      onClick={() => handleFontSizeChange(fs.size)}
+                      className={`flex-1 px-3 py-2 rounded-lg font-ui text-sm transition-all duration-200
+                                ${fontSize === fs.size
+                                  ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
+                                  : 'bg-scripture-surface hover:bg-scripture-elevated border border-scripture-border/50 hover:shadow-sm'}`}
+                    >
+                      {fs.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Clear Database Button */}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleClearDatabase(e);
+                }}
+                disabled={isClearing}
+                className="w-full px-4 py-2.5 text-left rounded-xl bg-red-600/20 
+                         hover:bg-red-600/30 text-red-400 disabled:opacity-50 
+                         disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2
+                         text-sm font-ui font-medium border border-red-600/30 shadow-sm hover:shadow"
+                title="Clear all annotations and cache (for testing)"
+              >
+                <span>🗑️</span>
+                <span>{isClearing ? 'Clearing...' : 'Clear Database'}</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Main toolbar */}
-      <div className="bg-scripture-surface border-t border-scripture-border">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-around">
+      <div className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 shadow-lg">
+        <div className="max-w-lg mx-auto px-3 py-3 flex items-center justify-around">
           {TOOLS.map((tool) => (
             <button
               key={tool.type}
               onClick={() => handleToolClick(tool.type)}
-              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg 
-                         transition-colors touch-target
+              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl 
+                         transition-all duration-200 touch-target
                          ${activeTool === tool.type 
-                           ? 'bg-scripture-accent text-scripture-bg' 
-                           : 'hover:bg-scripture-elevated'}`}
+                           ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105' 
+                           : 'hover:bg-scripture-elevated hover:scale-105 active:scale-95'}`}
               aria-label={tool.label}
             >
               <span className="text-xl">{tool.icon}</span>
-              <span className="text-xs font-ui">{tool.label}</span>
+              <span className="text-xs font-ui font-medium">{tool.label}</span>
             </button>
           ))}
 
-          {/* Expand/collapse button */}
+          {/* System menu button */}
           <button
-            onClick={() => setToolbarExpanded(!toolbarExpanded)}
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg 
-                       hover:bg-scripture-elevated transition-colors touch-target"
-            aria-label={toolbarExpanded ? 'Collapse toolbar' : 'Expand toolbar'}
+            onClick={() => {
+              setShowSystemMenu(!showSystemMenu);
+              setShowColorPicker(false);
+              setShowSymbolPicker(false);
+            }}
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl 
+                       transition-all duration-200 touch-target
+                       ${showSystemMenu 
+                         ? 'bg-scripture-elevated shadow-md scale-105' 
+                         : 'hover:bg-scripture-elevated hover:scale-105 active:scale-95'}`}
+            aria-label="System menu"
           >
-            <span className="text-xl">{toolbarExpanded ? '▼' : '▲'}</span>
-            <span className="text-xs font-ui">More</span>
+            <span className="text-xl">⚙️</span>
+            <span className="text-xs font-ui font-medium">More</span>
           </button>
         </div>
       </div>
