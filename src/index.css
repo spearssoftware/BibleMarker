@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  html {
+    @apply antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  body {
+    @apply bg-scripture-bg text-scripture-text font-ui;
+    /* Safe area insets for iPad notch/home indicator */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* Scripture text styling */
+  .scripture-text {
+    @apply font-scripture text-scripture-base leading-relaxed;
+  }
+
+  /* Verse number styling */
+  .verse-number {
+    @apply text-scripture-accent font-ui text-sm align-super mr-1 select-none;
+  }
+
+  /* Selection styling */
+  ::selection {
+    @apply bg-scripture-accent/30 text-scripture-text;
+  }
+}
+
+@layer components {
+  /* Highlight classes for annotations */
+  .highlight-red { @apply bg-highlight-red/30; }
+  .highlight-orange { @apply bg-highlight-orange/30; }
+  .highlight-amber { @apply bg-highlight-amber/30; }
+  .highlight-yellow { @apply bg-highlight-yellow/30; }
+  .highlight-lime { @apply bg-highlight-lime/30; }
+  .highlight-green { @apply bg-highlight-green/30; }
+  .highlight-teal { @apply bg-highlight-teal/30; }
+  .highlight-cyan { @apply bg-highlight-cyan/30; }
+  .highlight-blue { @apply bg-highlight-blue/30; }
+  .highlight-indigo { @apply bg-highlight-indigo/30; }
+  .highlight-purple { @apply bg-highlight-purple/30; }
+  .highlight-pink { @apply bg-highlight-pink/30; }
+
+  /* Text color classes */
+  .text-color-red { @apply text-highlight-red; }
+  .text-color-orange { @apply text-highlight-orange; }
+  .text-color-amber { @apply text-highlight-amber; }
+  .text-color-yellow { @apply text-highlight-yellow; }
+  .text-color-lime { @apply text-highlight-lime; }
+  .text-color-green { @apply text-highlight-green; }
+  .text-color-teal { @apply text-highlight-teal; }
+  .text-color-cyan { @apply text-highlight-cyan; }
+  .text-color-blue { @apply text-highlight-blue; }
+  .text-color-indigo { @apply text-highlight-indigo; }
+  .text-color-purple { @apply text-highlight-purple; }
+  .text-color-pink { @apply text-highlight-pink; }
+
+  /* Scrollbar styling */
+  .custom-scrollbar::-webkit-scrollbar {
+    @apply w-2;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-scripture-bg;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-scripture-border rounded-full;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-scripture-muted;
+  }
+}
+
+@layer utilities {
+  /* Touch-friendly tap targets */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Annotation remove button - appears on hover */
+  .annotation-group {
+    position: relative;
+    display: inline-block;
+  }
+
+  .annotation-group:hover .annotation-remove {
+    display: flex !important;
+  }
+
+  .annotation-remove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-color: #ef4444;
+    color: white;
+    font-size: 12px;
+    line-height: 1;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 20;
+    border: 1px solid white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    padding: 0;
+    margin: 0;
+  }
+
+  .annotation-remove:hover {
+    background-color: #dc2626;
+  }
+}

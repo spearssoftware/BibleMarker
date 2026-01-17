@@ -1,0 +1,136 @@
+/**
+ * Bible Reading State Store
+ * 
+ * Manages current reading location and loaded chapter data.
+ */
+
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import type { Chapter, InstalledModule } from '@/types/sword';
+import { BIBLE_BOOKS, getBookById } from '@/types/bible';
+
+interface BibleState {
+  // Current location
+  currentModuleId: string | null;
+  currentBook: string;
+  currentChapter: number;
+  
+  // Loaded data
+  chapter: Chapter | null;
+  isLoading: boolean;
+  error: string | null;
+  
+  // Available modules
+  modules: InstalledModule[];
+  
+  // Actions
+  setCurrentModule: (moduleId: string) => void;
+  setLocation: (book: string, chapter: number) => void;
+  setChapter: (chapter: Chapter) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+  setModules: (modules: InstalledModule[]) => void;
+  
+  // Navigation
+  nextChapter: () => void;
+  previousChapter: () => void;
+  canGoNext: () => boolean;
+  canGoPrevious: () => boolean;
+}
+
+export const useBibleStore = create<BibleState>()(
+  persist(
+    (set, get) => ({
+      currentModuleId: null,
+      currentBook: 'John',
+      currentChapter: 1,
+      chapter: null,
+      isLoading: false,
+      error: null,
+      modules: [],
+      
+      setCurrentModule: (moduleId) => set({ currentModuleId: moduleId }),
+      
+      setLocation: (book, chapter) => set({ 
+        currentBook: book, 
+        currentChapter: chapter,
+        chapter: null, // Clear until loaded
+      }),
+      
+      setChapter: (chapter) => set({ chapter, isLoading: false }),
+      
+      setLoading: (isLoading) => set({ isLoading }),
+      
+      setError: (error) => set({ error, isLoading: false }),
+      
+      setModules: (modules) => set({ modules }),
+      
+      nextChapter: () => {
+        const { currentBook, currentChapter } = get();
+        const bookInfo = getBookById(currentBook);
+        if (!bookInfo) return;
+        
+        if (currentChapter < bookInfo.chapters) {
+          // Next chapter in same book
+          set({ currentChapter: currentChapter + 1, chapter: null });
+        } else {
+          // Move to next book
+          const currentIndex = BIBLE_BOOKS.findIndex(b => b.id === currentBook);
+          if (currentIndex < BIBLE_BOOKS.length - 1) {
+            const nextBook = BIBLE_BOOKS[currentIndex + 1];
+            set({ 
+              currentBook: nextBook.id, 
+              currentChapter: 1,
+              chapter: null,
+            });
+          }
+        }
+      },
+      
+      previousChapter: () => {
+        const { currentBook, currentChapter } = get();
+        
+        if (currentChapter > 1) {
+          // Previous chapter in same book
+          set({ currentChapter: currentChapter - 1, chapter: null });
+        } else {
+          // Move to previous book
+          const currentIndex = BIBLE_BOOKS.findIndex(b => b.id === currentBook);
+          if (currentIndex > 0) {
+            const prevBook = BIBLE_BOOKS[currentIndex - 1];
+            set({ 
+              currentBook: prevBook.id, 
+              currentChapter: prevBook.chapters,
+              chapter: null,
+            });
+          }
+        }
+      },
+      
+      canGoNext: () => {
+        const { currentBook, currentChapter } = get();
+        const bookInfo = getBookById(currentBook);
+        if (!bookInfo) return false;
+        
+        // Can go next if not at last verse of Revelation
+        if (currentBook === 'Rev' && currentChapter === 22) return false;
+        return true;
+      },
+      
+      canGoPrevious: () => {
+        const { currentBook, currentChapter } = get();
+        // Can go previous if not at Genesis 1
+        if (currentBook === 'Gen' && currentChapter === 1) return false;
+        return true;
+      },
+    }),
+    {
+      name: 'bible-reading-state',
+      partialize: (state) => ({
+        currentModuleId: state.currentModuleId,
+        currentBook: state.currentBook,
+        currentChapter: state.currentChapter,
+      }),
+    }
+  )
+);
