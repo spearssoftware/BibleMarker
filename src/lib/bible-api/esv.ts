@@ -45,7 +45,9 @@ export class EsvClient implements BibleApiClient {
   private baseUrl = ESV_BASE_URL;
 
   isConfigured(): boolean {
-    return this.apiKey !== null && this.apiKey.length > 0;
+    // ESV should always be available in the list, even if API key isn't set yet
+    // The API key check happens when actually fetching data
+    return true;
   }
 
   configure(config: ApiConfig): void {
@@ -58,8 +60,8 @@ export class EsvClient implements BibleApiClient {
   }
 
   private async fetch<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
-    if (!this.apiKey) {
-      throw new BibleApiError('ESV API key not configured', 'esv');
+    if (!this.apiKey || this.apiKey.length === 0) {
+      throw new BibleApiError('ESV API key not configured. Please configure your ESV API key in settings.', 'esv', 401);
     }
 
     const url = new URL(`${this.baseUrl}${endpoint}`);
