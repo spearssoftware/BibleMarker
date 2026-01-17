@@ -49,7 +49,17 @@ export const useBibleStore = create<BibleState>()(
       error: null,
       modules: [],
       
-      setCurrentModule: (moduleId) => set({ currentModuleId: moduleId }),
+      setCurrentModule: (moduleId) => {
+        // Validate moduleId - must be a non-empty string and not contain "undefined"
+        if (!moduleId || typeof moduleId !== 'string' || moduleId.trim() === '' || moduleId.includes('undefined')) {
+          console.error('Invalid moduleId provided to setCurrentModule:', moduleId);
+          return; // Don't update if invalid
+        }
+        set({ 
+          currentModuleId: moduleId.trim(),
+          chapter: null, // Clear chapter to force reload with new translation
+        });
+      },
       
       setLocation: (book, chapter) => set({ 
         currentBook: book, 

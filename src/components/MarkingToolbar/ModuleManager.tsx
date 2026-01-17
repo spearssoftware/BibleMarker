@@ -10,6 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { getInstalledModules, getPreferences, updatePreferences } from '@/lib/db';
 import type { ApiConfigRecord } from '@/lib/db';
 import { fetchCrossWireModules, downloadModule, installModuleFromZip } from '@/lib/sword/moduleDownloader';
+import { isBundledModule } from '@/lib/sword/bundledModules';
 import { 
   bibliaClient, 
   esvClient, 
@@ -189,8 +190,21 @@ export function ModuleManager({ onClose }: ModuleManagerProps) {
     }
   }
 
+  // Filter out modules that are already installed
+  // Also exclude bundled modules that are installed (they're already embedded)
   const notInstalled = availableModules.filter(
-    m => !installedModules.some(im => im.config.name === m.name)
+    m => {
+      const isInstalled = installedModules.some(im => im.config.name === m.name);
+      const isBundled = isBundledModule(m.name);
+      
+      // If it's a bundled module and installed, don't show it
+      if (isBundled && isInstalled) {
+        return false;
+      }
+      
+      // Otherwise, show it if not installed
+      return !isInstalled;
+    }
   );
 
   return (
@@ -596,6 +610,10 @@ export function ModuleManager({ onClose }: ModuleManagerProps) {
                   <div className="mb-4 p-4 bg-scripture-elevated rounded-lg border border-scripture-border/30">
                     <p className="text-sm text-scripture-text mb-3">
                       These translations are in the public domain and can be downloaded for free from the SWORD Project.
+                    </p>
+                    <p className="text-xs text-scripture-muted mb-2">
+                      <strong>Note:</strong> WEB, KJV, and ASV are already included with the app and will be installed automatically. 
+                      They won't appear in the download list below if already installed.
                     </p>
                     <p className="text-xs text-scripture-muted">
                       If downloads fail due to CORS errors, use "Install from ZIP" and download manually from{' '}

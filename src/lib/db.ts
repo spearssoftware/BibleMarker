@@ -67,6 +67,8 @@ export interface UserPreferences {
   fontSize: 'sm' | 'base' | 'lg' | 'xl';
   theme: 'dark' | 'light' | 'auto';
   apiConfigs?: ApiConfigRecord[];  // Bible API configurations
+  favoriteTranslations?: string[];  // Array of translation IDs
+  recentTranslations?: string[];    // Array of translation IDs (most recent first)
 }
 
 /** Reading history entry */
@@ -144,6 +146,8 @@ export async function getPreferences(): Promise<UserPreferences> {
       },
       fontSize: 'base',
       theme: 'dark',
+      favoriteTranslations: [],
+      recentTranslations: [],
     };
     await db.preferences.put(newPrefs);
     return newPrefs;
