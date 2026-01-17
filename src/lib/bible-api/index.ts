@@ -177,20 +177,14 @@ export async function fetchChapter(
   
   let chapterData: ChapterResponse | null = null;
   
-  // Check if it's a getBible translation
-  // If provider is explicitly getbible, or if it's not from another provider, try getBible
-  // getBible uses lowercase translation IDs (abbreviations)
-  if ((!provider || provider === 'getbible')) {
-    if (getBibleClient.isConfigured()) {
+  // Check ESV first (case-insensitive) - ESV is a specific API, not getBible
+  const isESV = actualTranslationId.toUpperCase() === 'ESV' || provider === 'esv';
+  if (isESV) {
+    if (esvClient.isConfigured()) {
       try {
-        // Try getBible for any translation ID (it will fail gracefully if not found)
-        chapterData = await getBibleClient.getChapter(actualTranslationId.toLowerCase(), book, chapter);
+        chapterData = await esvClient.getChapter('ESV', book, chapter);
       } catch (error) {
-        // Only log if it's not a 404 (translation not found in getBible)
-        if (error instanceof BibleApiError && error.statusCode !== 404) {
-          console.warn('getBible API failed, trying other sources:', error);
-        }
-        // Continue to try other APIs
+        console.warn('ESV API failed:', error);
       }
     }
   }
@@ -207,13 +201,24 @@ export async function fetchChapter(
     }
   }
   
-  // Check if it's ESV
-  if (!chapterData && (!provider || provider === 'esv') && actualTranslationId === 'ESV') {
-    if (esvClient.isConfigured()) {
+  // Check if it's a getBible translation (only if not ESV or Biblia)
+  // If provider is explicitly getbible, or if it's not from another provider, try getBible
+  // getBible uses lowercase translation IDs (abbreviations)
+  if (!chapterData && !isESV && (!provider || provider === 'getbible')) {
+    if (getBibleClient.isConfigured()) {
       try {
-        chapterData = await esvClient.getChapter(actualTranslationId, book, chapter);
+        // Try getBible for any translation ID (it will fail gracefully if not found)
+        chapterData = await getBibleClient.getChapter(actualTranslationId.toLowerCase(), book, chapter);
       } catch (error) {
-        console.warn('ESV API failed:', error);
+        // Only log if it's not a 404 or CORS (translation not found in getBible)
+        if (error instanceof BibleApiError && error.statusCode !== 404) {
+          // Don't log CORS errors as they're expected for invalid translations
+          const isCorsError = error.message.includes('CORS') || error.message.includes('Failed to fetch');
+          if (!isCorsError) {
+            console.warn('getBible API failed, trying other sources:', error);
+          }
+        }
+        // Continue to try other APIs
       }
     }
   }
