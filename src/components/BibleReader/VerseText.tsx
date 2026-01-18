@@ -4,12 +4,14 @@
  * Renders a single verse with annotations applied.
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import type { Verse, VerseRef } from '@/types/bible';
 import type { Annotation, TextAnnotation, SymbolAnnotation } from '@/types/annotation';
 import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
 import { CrossReferencePopup } from './CrossReferencePopup';
 import { VerseOverlay } from './VerseOverlay';
+import { useMarkingPresetStore } from '@/stores/markingPresetStore';
+import { findKeywordMatches } from '@/lib/keywordMatching';
 
 interface VerseTextProps {
   verse: Verse;
@@ -34,23 +36,66 @@ export function VerseText({ verse, annotations, isSelected, onRemoveAnnotation, 
   const [crossRefState, setCrossRefState] = useState<{ refs: string[]; position: { x: number; y: number } } | null>(null);
   const [overlayVerse, setOverlayVerse] = useState<VerseRef | null>(null);
   const verseContentRef = useRef<HTMLSpanElement>(null);
+  
+  // Get all marking presets for cross-translation keyword highlighting
+  const { presets } = useMarkingPresetStore();
+  
+  // Compute virtual annotations from keyword presets (cross-translation highlighting)
+  // These are computed on-the-fly and not persisted
+  const virtualAnnotations = useMemo(() => {
+    const verseText = verse.text || '';
+    return findKeywordMatches(verseText, verse.ref, presets);
+  }, [verse.text, verse.ref, presets]);
+  
+  // Merge real annotations with virtual annotations
+  // Virtual annotations are filtered out if a real annotation already covers the same range
+  const allAnnotations = useMemo(() => {
+    const realAnnotationRanges = new Set<string>();
+    
+    // Build a set of ranges covered by real annotations
+    for (const ann of annotations) {
+      if ('startOffset' in ann && 'endOffset' in ann) {
+        const key = `${ann.startOffset}-${ann.endOffset}`;
+        realAnnotationRanges.add(key);
+      }
+    }
+    
+    // Only include virtual annotations that don't overlap with real annotations
+    const filteredVirtual = virtualAnnotations.filter(vann => {
+      if ('startOffset' in vann && 'endOffset' in vann) {
+        // Check if any real annotation covers this range
+        // We check exact matches and overlaps
+        const hasOverlap = Array.from(realAnnotationRanges).some(range => {
+          const [start, end] = range.split('-').map(Number);
+          return vann.startOffset! < end && vann.endOffset! > start;
+        });
+        return !hasOverlap;
+      }
+      return true; // Include if no offset info (shouldn't happen, but be safe)
+    });
+    
+    return [...annotations, ...filteredVirtual];
+  }, [annotations, virtualAnnotations]);
+  
   // Separate annotation types
-  const textAnnotations = annotations.filter(
+  const textAnnotations = allAnnotations.filter(
     (a): a is TextAnnotation => a.type !== 'symbol'
   );
-  const symbolAnnotations = annotations.filter(
+  const symbolAnnotations = allAnnotations.filter(
     (a): a is SymbolAnnotation => a.type === 'symbol'
   );
 
   // Get symbols before this verse (legacy positioning)
+  // Exclude virtual annotations (empty moduleId) - they should be rendered inline, not before verse
   const symbolsBefore = symbolAnnotations.filter(
-    s => s.ref && s.position === 'before' && s.wordIndex === undefined
+    s => s.ref && s.position === 'before' && s.wordIndex === undefined && s.moduleId !== ''
   );
   const symbolsAfter = symbolAnnotations.filter(
-    s => s.ref && s.position === 'after' && s.wordIndex === undefined
+    s => s.ref && s.position === 'after' && s.wordIndex === undefined && s.moduleId !== ''
   );
   
   // Get symbols on a range: center (legacy overlay/above) or before (inline in front of word)
+  // This includes virtual annotations (empty moduleId) which should be rendered inline
   const centerSymbols = symbolAnnotations.filter(
     s => (s.position === 'center' || s.position === 'before') && s.ref && s.ref.verse === verse.ref.verse
   );
@@ -163,6 +208,7 @@ export function VerseText({ verse, annotations, isSelected, onRemoveAnnotation, 
     }
 
     // Add center symbols - prefer word indices, fall back to character offsets
+    // Merge overlapping ranges to prevent duplicate symbols on the same word
     for (const sym of verseCenterSymbols) {
       let charOffsets: { start: number; end: number } | null = null;
       
@@ -176,7 +222,33 @@ export function VerseText({ verse, annotations, isSelected, onRemoveAnnotation, 
       }
       
       if (charOffsets) {
+        // First try exact match
         let range = ranges.find(r => r.start === charOffsets!.start && r.end === charOffsets!.end);
+        
+        // If no exact match, try to find an overlapping range or a range that refers to the same word
+        // We merge symbols on overlapping ranges to prevent duplicates
+        if (!range) {
+          // Get the text for this symbol's range to compare
+          const symText = plainText.substring(charOffsets.start, charOffsets.end).trim().toLowerCase();
+          
+          range = ranges.find(r => {
+            // Check if ranges overlap
+            const overlaps = !(charOffsets!.end <= r.start || charOffsets!.start >= r.end);
+            
+            // Check if they refer to the same word by comparing normalized text
+            const rangeText = plainText.substring(r.start, r.end).trim().toLowerCase();
+            const sameWord = symText === rangeText || 
+                            (symText.length > 0 && rangeText.length > 0 && 
+                             symText.replace(/[^\w]/g, '') === rangeText.replace(/[^\w]/g, ''));
+            
+            // Also check if they're very close (within a few characters) - likely same word with different punctuation handling
+            const isClose = Math.abs(charOffsets!.start - r.start) <= 5 && 
+                          Math.abs(charOffsets!.end - r.end) <= 5;
+            
+            return overlaps || sameWord || isClose;
+          });
+        }
+        
         if (!range) {
           range = { 
             start: charOffsets.start, 
@@ -185,8 +257,16 @@ export function VerseText({ verse, annotations, isSelected, onRemoveAnnotation, 
             symbolAnnotations: [] 
           };
           ranges.push(range);
+        } else {
+          // Update range bounds to include both ranges
+          range.start = Math.min(range.start, charOffsets.start);
+          range.end = Math.max(range.end, charOffsets.end);
         }
-        range.symbolAnnotations.push(sym);
+        
+        // Only add symbol if not already present (by ID)
+        if (!range.symbolAnnotations.some(s => s.id === sym.id)) {
+          range.symbolAnnotations.push(sym);
+        }
       }
     }
 
@@ -293,29 +373,43 @@ export function VerseText({ verse, annotations, isSelected, onRemoveAnnotation, 
           const allStyles = ['position: relative', 'display: inline-flex', 'align-items: baseline'];
           const styleAttr = ` style="${allStyles.join('; ')}"`;
           const classNames = `symbol-inline annotation-group ${annotationIds.map(id => `annotation-${id}`).join(' ')}`;
-          htmlSegments.push(`<span${styleAttr} class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">
-              <span class="symbol-before" style="margin-right: 0.2em; font-size: 1.1em; line-height: 1; ${symbolColor ? `color: ${symbolColor};` : 'color: currentColor;'}">${symbolText}</span>
-              <span class="annotation-text"${textStyles}>${escapeHtml(segment.text)}</span>
-              <button 
+          // Only show remove button for real annotations (non-virtual)
+          const isVirtual = !symAnn.moduleId || symAnn.moduleId === '';
+          const removeButton = isVirtual ? '' : `<button 
                 class="annotation-remove"
                 data-annotation-id="${annotationIds[0]}"
                 title="Remove annotation"
                 aria-label="Remove annotation"
-              >×</button>
+              >×</button>`;
+          
+          // Split segment text into word content and trailing punctuation
+          // This prevents symbols from appearing next to periods, commas, etc.
+          const segmentText = segment.text;
+          const trailingPunctMatch = segmentText.match(/([.,;:!?)\]}\s]*)$/);
+          const trailingPunct = trailingPunctMatch ? trailingPunctMatch[1] : '';
+          const wordContent = trailingPunct ? segmentText.slice(0, -trailingPunct.length) : segmentText;
+          
+          htmlSegments.push(`<span${styleAttr} class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">
+              <span class="symbol-before" style="margin-right: 0.2em; font-size: 1.1em; line-height: 1; ${symbolColor ? `color: ${symbolColor};` : 'color: currentColor;'}">${symbolText}</span>
+              <span class="annotation-text"${textStyles}>${escapeHtml(wordContent)}</span>${escapeHtml(trailingPunct)}${removeButton}
             </span>`);
         } else {
           // Only text annotations
           const allStyles = ['position: relative', 'display: inline-block', ...combinedStyles];
           const styleAttr = ` style="${allStyles.join('; ')}"`;
           const classNames = `annotation-group ${annotationIds.map(id => `annotation-${id}`).join(' ')}`;
+          // Only show remove button for real annotations (non-virtual)
+          const firstAnn = segment.annotations[0];
+          const isVirtual = firstAnn && (!firstAnn.moduleId || firstAnn.moduleId === '');
+          const removeButton = isVirtual ? '' : `<button 
+                class="annotation-remove"
+                data-annotation-id="${annotationIds[0]}"
+                title="Remove annotation"
+                aria-label="Remove annotation"
+              >×</button>`;
           htmlSegments.push(`<span${styleAttr} class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">
             <span class="annotation-text">${escapeHtml(segment.text)}</span>
-            <button 
-              class="annotation-remove"
-              data-annotation-id="${annotationIds[0]}"
-              title="Remove annotation"
-              aria-label="Remove annotation"
-            >×</button>
+            ${removeButton}
           </span>`);
         }
       }

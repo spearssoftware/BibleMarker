@@ -428,9 +428,6 @@ export function ChapterView() {
       const endVerseContent = endVerseElement.querySelector('.verse-content');
       
       if (startVerseContent && endVerseContent) {
-        // Get the selected text from the DOM (this is what the user actually selected)
-        const selectedText = range.toString().trim();
-        
         // Get the original verse text from data attribute (plain text, no annotations)
         const originalStartText = startVerseContent.getAttribute('data-original-text');
         const originalEndText = endVerseContent.getAttribute('data-original-text');
@@ -451,6 +448,9 @@ export function ChapterView() {
               startRange.selectNodeContents(startVerseContent);
               startRange.setEnd(range.startContainer, range.startOffset);
               const textBeforeSelection = startRange.toString();
+              
+              // Get the selected text from the DOM (this is what the user actually selected)
+              const selectedText = range.toString().trim();
               
               const wordIndices = findWordIndices(originalStartText, selectedText, textBeforeSelection, startVerse);
               if (wordIndices) {
@@ -478,7 +478,7 @@ export function ChapterView() {
         }
       }
     }
-
+    
     console.log('Selection detected (expanded to words):', { 
       text, 
       startVerse, 

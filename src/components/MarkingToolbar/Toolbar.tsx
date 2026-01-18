@@ -67,15 +67,25 @@ export function Toolbar() {
     loadPresets();
   }, [loadPresets]);
 
-  // When the user clicks in blank space and the browser selection is cleared/collapsed,
-  // clear our selection and close the overlays. Skip if focus is inside the toolbar/overlays
-  // (e.g. user is typing in Key Words) so we don't close while they're interacting.
+  // When the user clicks in the verse window (not in the overlay), and the browser selection 
+  // is cleared/collapsed, clear our selection and close the overlays.
+  // Skip if clicking inside the toolbar/overlays (e.g. user is typing in Key Words).
   useEffect(() => {
-    const handler = () => {
-      if (document.activeElement?.closest('[data-marking-toolbar]')) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      
+      // Don't close if clicking inside the toolbar/overlay area
+      if (target.closest('[data-marking-toolbar]')) return;
+      
+      // Only close if clicking in the verse window (main content area)
+      const verseWindow = target.closest('.chapter-view, main, [data-verse]');
+      if (!verseWindow) return;
+      
+      // Check if selection is empty/collapsed
       const sel = window.getSelection();
       const empty = !sel || sel.rangeCount === 0 || sel.isCollapsed;
       const hasStoreSelection = !!useAnnotationStore.getState().selection;
+      
       if (empty && hasStoreSelection) {
         clearSelection();
         setShowColorPicker(false);
@@ -86,8 +96,9 @@ export function Toolbar() {
         setActiveTool(null);
       }
     };
-    document.addEventListener('selectionchange', handler);
-    return () => document.removeEventListener('selectionchange', handler);
+    
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
   }, [clearSelection, setActiveTool]);
 
   const handleClearDatabase = async (e: React.MouseEvent) => {
