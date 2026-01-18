@@ -249,12 +249,16 @@ export function Toolbar() {
     if (!trimmed) return;
     const lower = trimmed.toLowerCase();
     const isAlreadyWord = preset.word && lower === preset.word.toLowerCase();
-    const isAlreadyVariant = (preset.variants || []).some((v) => v.toLowerCase() === lower);
+    const isAlreadyVariant = (preset.variants || []).some((v) => {
+      const variantText = typeof v === 'string' ? v : v.text;
+      return variantText.toLowerCase() === lower;
+    });
     if (isAlreadyWord || isAlreadyVariant) {
       await applyPresetToSelection(preset);
       return;
     }
-    const newVariants = [...(preset.variants || []), trimmed];
+    // Add as a new variant (global scope by default - no bookScope/chapterScope)
+    const newVariants = [...(preset.variants || []), { text: trimmed }];
     await updatePreset({ ...preset, variants: newVariants });
     await applyPresetToSelection(preset);
   };

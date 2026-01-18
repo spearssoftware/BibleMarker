@@ -7,6 +7,15 @@
 
 import type { HighlightColor, SymbolKey } from './annotation';
 
+/** Variant with optional scope - allows variants to be scoped to specific books/chapters */
+export interface Variant {
+  text: string;
+  /** Optional: scope to a specific book (if null/undefined, applies globally to all books) */
+  bookScope?: string;
+  /** Optional: scope to a specific chapter within a book (requires bookScope) */
+  chapterScope?: number;
+}
+
 /** Unified marking preset: symbol and/or highlight/textColor/underline. Key words = presets with `word`. */
 export interface MarkingPreset {
   id: string;
@@ -16,11 +25,16 @@ export interface MarkingPreset {
   highlight?: { style: 'highlight' | 'textColor' | 'underline'; color: HighlightColor };
   /** Optional: when set, this preset is a "key word" (word match, auto-suggest, find). */
   word?: string;
-  variants: string[];
+  /** Variants can be scoped to specific books/chapters independent of the keyword scope */
+  variants: Variant[];
   category?: KeyWordCategory;
   description?: string;
   autoSuggest: boolean;
   usageCount: number;
+  /** Optional: scope to a specific book (if null/undefined, applies globally to all books) */
+  bookScope?: string;
+  /** Optional: scope to a specific chapter within a book (requires bookScope) */
+  chapterScope?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -136,14 +150,26 @@ export const KEY_WORD_CATEGORIES: Record<KeyWordCategory, { label: string; icon:
   },
 };
 
+/** Helper: Convert string array to Variant array (for backwards compatibility) */
+export function normalizeVariants(variants: string[] | Variant[]): Variant[] {
+  return variants.map(v => 
+    typeof v === 'string' ? { text: v } : v
+  );
+}
+
+/** Helper: Get variant text strings from Variant array */
+export function getVariantTexts(variants: Variant[]): string[] {
+  return variants.map(v => v.text);
+}
+
 /** Preset key words based on Precept method (use as partials for createMarkingPreset) */
 export const PRESET_KEY_WORDS: Partial<MarkingPreset>[] = [
-  { word: 'God', variants: ['God\'s', 'LORD', 'Lord', 'Yahweh', 'YHWH', 'Jehovah'], symbol: 'triangle', highlight: { style: 'highlight', color: 'purple' }, category: 'identity', description: 'References to God the Father', autoSuggest: true },
-  { word: 'Jesus', variants: ['Christ', 'Jesus Christ', 'Messiah', 'Son of God', 'Son of Man', 'Lamb'], symbol: 'cross', highlight: { style: 'highlight', color: 'red' }, category: 'identity', description: 'References to Jesus Christ', autoSuggest: true },
-  { word: 'Spirit', variants: ['Holy Spirit', 'Spirit of God', 'Spirit of the Lord'], symbol: 'dove', highlight: { style: 'highlight', color: 'sky' }, category: 'identity', description: 'References to the Holy Spirit', autoSuggest: true },
-  { word: 'therefore', variants: ['thus', 'so', 'for this reason', 'because of this'], symbol: 'arrowRight', highlight: { style: 'highlight', color: 'orange' }, category: 'conclusions', description: 'Conclusion markers', autoSuggest: true },
-  { word: 'love', variants: ['loved', 'loves', 'loving'], symbol: 'heart', highlight: { style: 'highlight', color: 'pink' }, category: 'themes', description: 'Love-related terms', autoSuggest: true },
-  { word: 'faith', variants: ['believe', 'believed', 'believes', 'believing', 'trust'], symbol: 'shield', highlight: { style: 'highlight', color: 'blue' }, category: 'themes', description: 'Faith and belief', autoSuggest: true },
+  { word: 'God', variants: normalizeVariants(['God\'s', 'LORD', 'Lord', 'Yahweh', 'YHWH', 'Jehovah']), symbol: 'triangle', highlight: { style: 'highlight', color: 'purple' }, category: 'identity', description: 'References to God the Father', autoSuggest: true },
+  { word: 'Jesus', variants: normalizeVariants(['Christ', 'Jesus Christ', 'Messiah', 'Son of God', 'Son of Man', 'Lamb']), symbol: 'cross', highlight: { style: 'highlight', color: 'red' }, category: 'identity', description: 'References to Jesus Christ', autoSuggest: true },
+  { word: 'Spirit', variants: normalizeVariants(['Holy Spirit', 'Spirit of God', 'Spirit of the Lord']), symbol: 'dove', highlight: { style: 'highlight', color: 'sky' }, category: 'identity', description: 'References to the Holy Spirit', autoSuggest: true },
+  { word: 'therefore', variants: normalizeVariants(['thus', 'so', 'for this reason', 'because of this']), symbol: 'arrowRight', highlight: { style: 'highlight', color: 'orange' }, category: 'conclusions', description: 'Conclusion markers', autoSuggest: true },
+  { word: 'love', variants: normalizeVariants(['loved', 'loves', 'loving']), symbol: 'heart', highlight: { style: 'highlight', color: 'pink' }, category: 'themes', description: 'Love-related terms', autoSuggest: true },
+  { word: 'faith', variants: normalizeVariants(['believe', 'believed', 'believes', 'believing', 'trust']), symbol: 'shield', highlight: { style: 'highlight', color: 'blue' }, category: 'themes', description: 'Faith and belief', autoSuggest: true },
 ];
 
 /** Result of searching for key word occurrences */
@@ -158,32 +184,58 @@ export interface KeyWordOccurrence {
 
 /** Create a new marking preset (or key word when `word` is set) */
 export function createMarkingPreset(
-  options: { word?: string; variants?: string[]; symbol?: SymbolKey; highlight?: { style: 'highlight' | 'textColor' | 'underline'; color: HighlightColor }; category?: KeyWordCategory; description?: string; autoSuggest?: boolean; usageCount?: number }
+  options: { word?: string; variants?: string[] | Variant[]; symbol?: SymbolKey; highlight?: { style: 'highlight' | 'textColor' | 'underline'; color: HighlightColor }; category?: KeyWordCategory; description?: string; autoSuggest?: boolean; usageCount?: number; bookScope?: string; chapterScope?: number }
 ): MarkingPreset {
-  const { word, variants = [], symbol, highlight, category = 'custom', description = '', autoSuggest = true, usageCount = 0 } = options;
+  const { word, variants = [], symbol, highlight, category = 'custom', description = '', autoSuggest = true, usageCount = 0, bookScope, chapterScope } = options;
   if (!symbol && !highlight) throw new Error('MarkingPreset must have at least one of symbol or highlight');
+  if (chapterScope !== undefined && !bookScope) throw new Error('chapterScope requires bookScope');
   return {
     id: crypto.randomUUID(),
     word,
-    variants,
+    variants: normalizeVariants(variants),
     symbol,
     highlight,
     category,
     description,
     autoSuggest,
     usageCount,
+    bookScope,
+    chapterScope,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 }
 
 /** Check if text matches a preset's word/variants (case-insensitive). Presets without word never match. */
-export function matchesPreset(text: string, preset: MarkingPreset): boolean {
+export function matchesPreset(text: string, preset: MarkingPreset, verseRef?: { book: string; chapter: number }): boolean {
   const w = preset.word;
   if (!w) return false;
   const lowerText = text.toLowerCase().trim();
   if (lowerText === w.toLowerCase()) return true;
-  return (preset.variants || []).some(v => lowerText === v.toLowerCase());
+  return (preset.variants || []).some(v => {
+    const variantText = typeof v === 'string' ? v : v.text;
+    if (lowerText !== variantText.toLowerCase()) return false;
+    
+    // If variant has scope, check if it applies to the current verse
+    if (typeof v === 'object' && verseRef) {
+      // Global variant (no scope) - applies everywhere
+      if (!v.bookScope) return true;
+      
+      // Book-scoped - check if book matches
+      if (v.bookScope !== verseRef.book) return false;
+      
+      // If chapter-scoped, check chapter matches
+      if (v.chapterScope !== undefined) {
+        return v.chapterScope === verseRef.chapter;
+      }
+      
+      // Book-scoped but not chapter-scoped - applies to all chapters in that book
+      return true;
+    }
+    
+    // No verseRef provided or old string variant - match anyway
+    return true;
+  });
 }
 
 /** Find presets whose word/variants match the given text (for auto-suggest) */
@@ -194,13 +246,14 @@ export function findMatchingPresets(text: string, presets: MarkingPreset[]): Mar
 /**
  * Migrate a legacy KeyWordDefinition to MarkingPreset.
  * symbol+color → symbol + highlight:{ style:'highlight', color }; symbol-only or color-only preserved.
+ * Converts string[] variants to Variant[].
  */
 export function keyWordToMarkingPreset(kw: KeyWordDefinition): MarkingPreset {
   const highlight = kw.color ? { style: 'highlight' as const, color: kw.color } : undefined;
   return {
     id: kw.id,
     word: kw.word,
-    variants: kw.variants || [],
+    variants: (kw.variants || []).map(v => typeof v === 'string' ? { text: v } : v),
     symbol: kw.symbol,
     highlight,
     category: kw.category,

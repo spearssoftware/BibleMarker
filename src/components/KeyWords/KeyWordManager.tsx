@@ -6,7 +6,8 @@
 
 import { useState, useEffect } from 'react';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
-import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, type KeyWordCategory, type MarkingPreset } from '@/types/keyWord';
+import { useBibleStore } from '@/stores/bibleStore';
+import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, type KeyWordCategory, type MarkingPreset, type Variant } from '@/types/keyWord';
 import { SYMBOLS, HIGHLIGHT_COLORS, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types/annotation';
 
 interface KeyWordManagerProps {
@@ -34,6 +35,8 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
     setSearchQuery,
     getFilteredPresets,
   } = useMarkingPresetStore();
+  
+  const { currentBook, currentChapter } = useBibleStore();
 
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -72,19 +75,21 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
 
   async function handleSave(formData: {
     word: string;
-    variants: string[];
+    variants: Variant[];
     symbol?: SymbolKey;
     color?: HighlightColor;
     category: KeyWordCategory;
     description: string;
     autoSuggest: boolean;
+    bookScope?: string;
+    chapterScope?: number;
   }) {
     try {
       const highlight = formData.color ? { style: 'highlight' as const, color: formData.color } : undefined;
       if (editingId) {
         const existing = presets.find((p) => p.id === editingId);
         if (existing) {
-          await updatePreset({
+            await updatePreset({
             ...existing,
             word: formData.word.trim() || undefined,
             variants: formData.variants,
@@ -93,6 +98,8 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
             category: formData.category,
             description: formData.description,
             autoSuggest: formData.autoSuggest,
+            bookScope: formData.bookScope,
+            chapterScope: formData.chapterScope,
             updatedAt: new Date(),
           });
         }
@@ -109,6 +116,8 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
           category: formData.category,
           description: formData.description,
           autoSuggest: formData.autoSuggest,
+          bookScope: formData.bookScope,
+          chapterScope: formData.chapterScope,
         });
         await addPreset(preset);
         if (initialWord && onPresetCreated) {
@@ -212,6 +221,8 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
             initialWord={isCreating ? initialWord : undefined}
             initialSymbol={isCreating ? initialSymbol : undefined}
             initialColor={isCreating ? initialColor : undefined}
+            currentBook={currentBook}
+            currentChapter={currentChapter}
             onSave={handleSave}
             onCancel={handleCancel}
           />
@@ -260,7 +271,7 @@ function KeyWordCard({
     <div className="p-4 rounded-lg border bg-scripture-elevated border-scripture-border/30 hover:border-scripture-border/50 transition-all">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <span className="font-medium text-scripture-text">{preset.word}</span>
             {symbol && (
               <span className="text-lg" style={{ color }}>
@@ -270,6 +281,16 @@ function KeyWordCard({
             <span className="text-xs px-2 py-0.5 bg-scripture-surface rounded">
               {categoryInfo.label}
             </span>
+            {preset.bookScope && (
+              <span className="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded">
+                📖 {preset.bookScope}{preset.chapterScope ? `:${preset.chapterScope}` : ''}
+              </span>
+            )}
+            {!preset.bookScope && (
+              <span className="text-xs px-2 py-0.5 bg-gray-500/20 text-gray-300 rounded">
+                🌐 Global
+              </span>
+            )}
             {preset.usageCount > 0 && (
               <span className="text-xs text-scripture-muted">
                 Used {preset.usageCount} time{preset.usageCount !== 1 ? 's' : ''}
@@ -278,7 +299,13 @@ function KeyWordCard({
           </div>
           {(preset.variants?.length ?? 0) > 0 && (
             <p className="text-xs text-scripture-muted mb-1">
-              Variants: {preset.variants!.join(', ')}
+              Variants: {preset.variants!.map(v => {
+                const text = typeof v === 'string' ? v : v.text;
+                const scope = typeof v === 'object' && v.bookScope 
+                  ? ` (${v.bookScope}${v.chapterScope ? `:${v.chapterScope}` : ''})`
+                  : '';
+                return text + scope;
+              }).join(', ')}
             </p>
           )}
           {preset.description && (
@@ -310,6 +337,8 @@ function KeyWordEditor({
   initialWord,
   initialSymbol,
   initialColor,
+  currentBook,
+  currentChapter,
   onSave,
   onCancel,
 }: {
@@ -317,24 +346,38 @@ function KeyWordEditor({
   initialWord?: string;
   initialSymbol?: SymbolKey;
   initialColor?: HighlightColor;
+  currentBook?: string;
+  currentChapter?: number;
   onSave: (data: {
     word: string;
-    variants: string[];
+    variants: Variant[];
     symbol?: SymbolKey;
     color?: HighlightColor;
     category: KeyWordCategory;
     description: string;
     autoSuggest: boolean;
+    bookScope?: string;
+    chapterScope?: number;
   }) => void;
   onCancel: () => void;
 }) {
   const [word, setWord] = useState(initialWord || preset?.word || '');
-  const [variants, setVariants] = useState((preset?.variants || []).join(', '));
+  const [variants, setVariants] = useState<Variant[]>(() => {
+    // Convert preset variants to Variant[] format, handling backwards compatibility
+    if (!preset?.variants) return [];
+    return preset.variants.map(v => typeof v === 'string' ? { text: v } : v);
+  });
   const [symbol, setSymbol] = useState<SymbolKey | undefined>(initialSymbol ?? preset?.symbol);
   const [color, setColor] = useState<HighlightColor | undefined>(initialColor ?? preset?.highlight?.color);
   const [category, setCategory] = useState<KeyWordCategory>(preset?.category || 'custom');
   const [description, setDescription] = useState(preset?.description || '');
   const [autoSuggest, setAutoSuggest] = useState(preset?.autoSuggest ?? true);
+  const [scopeType, setScopeType] = useState<'global' | 'book' | 'chapter'>(
+    preset?.chapterScope !== undefined ? 'chapter' :
+    preset?.bookScope ? 'book' : 'global'
+  );
+  const [bookScope, setBookScope] = useState(preset?.bookScope || currentBook || '');
+  const [chapterScope, setChapterScope] = useState(preset?.chapterScope || currentChapter || 1);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -343,14 +386,19 @@ function KeyWordEditor({
       return;
     }
 
+    // Filter out empty variants
+    const validVariants = variants.filter(v => v.text.trim().length > 0);
+
     onSave({
       word: word.trim(),
-      variants: variants.split(',').map(v => v.trim()).filter(Boolean),
+      variants: validVariants,
       symbol,
       color,
       category,
       description: description.trim(),
       autoSuggest,
+      bookScope: scopeType === 'book' || scopeType === 'chapter' ? bookScope : undefined,
+      chapterScope: scopeType === 'chapter' ? chapterScope : undefined,
     });
   }
 
@@ -374,16 +422,34 @@ function KeyWordEditor({
 
         <div>
           <label className="block text-sm font-ui text-scripture-text mb-1">
-            Variants (comma-separated)
+            Variants
           </label>
-          <input
-            type="text"
-            value={variants}
-            onChange={(e) => setVariants(e.target.value)}
-            placeholder="e.g., God's, Lord, Yahweh"
-            className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                     rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-          />
+          <div className="space-y-2">
+            {variants.map((variant, index) => (
+              <VariantEditor
+                key={index}
+                variant={variant}
+                currentBook={currentBook}
+                currentChapter={currentChapter}
+                onChange={(updated) => {
+                  const newVariants = [...variants];
+                  newVariants[index] = updated;
+                  setVariants(newVariants);
+                }}
+                onRemove={() => {
+                  setVariants(variants.filter((_, i) => i !== index));
+                }}
+              />
+            ))}
+            <button
+              type="button"
+              onClick={() => setVariants([...variants, { text: '' }])}
+              className="w-full px-3 py-2 text-sm bg-scripture-elevated border border-scripture-border/50 
+                       rounded-lg hover:bg-scripture-border/50 transition-colors text-scripture-text"
+            >
+              + Add Variant
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -417,19 +483,10 @@ function KeyWordEditor({
             <label className="block text-sm font-ui text-scripture-text mb-1">
               Color
             </label>
-            <select
-              value={color || ''}
-              onChange={(e) => setColor(e.target.value as HighlightColor || undefined)}
-              className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                       rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-            >
-              <option value="">Default</option>
-              {Object.entries(HIGHLIGHT_COLORS).map(([key, hex]) => (
-                <option key={key} value={key}>
-                  {key}
-                </option>
-              ))}
-            </select>
+            <ColorSelect
+              value={color}
+              onChange={setColor}
+            />
           </div>
         </div>
 
@@ -476,6 +533,87 @@ function KeyWordEditor({
             Auto-suggest when selecting matching text
           </label>
         </div>
+
+        <div className="border-t border-scripture-border/30 pt-4">
+          <label className="block text-sm font-ui text-scripture-text mb-2">
+            Scope
+          </label>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="radio"
+                id="scope-global"
+                name="scope"
+                value="global"
+                checked={scopeType === 'global'}
+                onChange={(e) => setScopeType(e.target.value as 'global')}
+                className="w-4 h-4"
+              />
+              <label htmlFor="scope-global" className="text-sm text-scripture-text">
+                Global (applies to all books and chapters)
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="radio"
+                id="scope-book"
+                name="scope"
+                value="book"
+                checked={scopeType === 'book'}
+                onChange={(e) => setScopeType(e.target.value as 'book')}
+                className="w-4 h-4"
+              />
+              <label htmlFor="scope-book" className="text-sm text-scripture-text">
+                Book (applies to all chapters in a specific book)
+              </label>
+            </div>
+            {scopeType === 'book' && (
+              <input
+                type="text"
+                value={bookScope}
+                onChange={(e) => setBookScope(e.target.value)}
+                placeholder="e.g., John"
+                className="ml-6 w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
+                         rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
+              />
+            )}
+            <div className="flex items-center gap-2">
+              <input
+                type="radio"
+                id="scope-chapter"
+                name="scope"
+                value="chapter"
+                checked={scopeType === 'chapter'}
+                onChange={(e) => setScopeType(e.target.value as 'chapter')}
+                className="w-4 h-4"
+              />
+              <label htmlFor="scope-chapter" className="text-sm text-scripture-text">
+                Chapter (applies to a specific chapter in a book)
+              </label>
+            </div>
+            {scopeType === 'chapter' && (
+              <div className="ml-6 grid grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  value={bookScope}
+                  onChange={(e) => setBookScope(e.target.value)}
+                  placeholder="Book (e.g., John)"
+                  className="px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
+                           rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
+                />
+                <input
+                  type="number"
+                  value={chapterScope}
+                  onChange={(e) => setChapterScope(parseInt(e.target.value) || 1)}
+                  placeholder="Chapter"
+                  min="1"
+                  className="px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
+                           rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
+                />
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Sticky Save/Cancel bar — always visible at bottom */}
@@ -497,5 +635,216 @@ function KeyWordEditor({
         </button>
       </div>
     </form>
+  );
+}
+
+/** Variant Editor Component - Edit individual variant with optional scope */
+function VariantEditor({
+  variant,
+  currentBook,
+  currentChapter,
+  onChange,
+  onRemove,
+}: {
+  variant: Variant;
+  currentBook?: string;
+  currentChapter?: number;
+  onChange: (variant: Variant) => void;
+  onRemove: () => void;
+}) {
+  const [text, setText] = useState(variant.text);
+  const [scopeType, setScopeType] = useState<'global' | 'book' | 'chapter'>(
+    variant.chapterScope !== undefined ? 'chapter' :
+    variant.bookScope ? 'book' : 'global'
+  );
+  const [bookScope, setBookScope] = useState(variant.bookScope || currentBook || '');
+  const [chapterScope, setChapterScope] = useState(variant.chapterScope || currentChapter || 1);
+
+  // Update parent when values change
+  useEffect(() => {
+    const updatedVariant: Variant = {
+      text: text.trim(),
+      bookScope: scopeType === 'book' || scopeType === 'chapter' ? bookScope : undefined,
+      chapterScope: scopeType === 'chapter' ? chapterScope : undefined,
+    };
+    onChange(updatedVariant);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, scopeType, bookScope, chapterScope]);
+
+  return (
+    <div className="p-3 bg-scripture-elevated border border-scripture-border/30 rounded-lg space-y-2">
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Variant text"
+          className="flex-1 px-3 py-1.5 text-sm bg-scripture-bg border border-scripture-border/50 
+                   rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
+        />
+        <button
+          type="button"
+          onClick={onRemove}
+          className="px-2 py-1.5 text-sm text-red-400 hover:bg-red-500/20 rounded transition-colors"
+        >
+          ✕
+        </button>
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-xs">
+          <input
+            type="radio"
+            id={`variant-global-${variant.text}`}
+            name={`variant-scope-${variant.text}`}
+            value="global"
+            checked={scopeType === 'global'}
+            onChange={() => setScopeType('global')}
+            className="w-3 h-3"
+          />
+          <label htmlFor={`variant-global-${variant.text}`} className="text-scripture-text">
+            Global
+          </label>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <input
+            type="radio"
+            id={`variant-book-${variant.text}`}
+            name={`variant-scope-${variant.text}`}
+            value="book"
+            checked={scopeType === 'book'}
+            onChange={() => setScopeType('book')}
+            className="w-3 h-3"
+          />
+          <label htmlFor={`variant-book-${variant.text}`} className="text-scripture-text">
+            Book
+          </label>
+        </div>
+        {scopeType === 'book' && (
+          <input
+            type="text"
+            value={bookScope}
+            onChange={(e) => setBookScope(e.target.value)}
+            placeholder="Book name (e.g., John)"
+            className="ml-5 w-full px-2 py-1 text-xs bg-scripture-bg border border-scripture-border/50 
+                     rounded focus:outline-none focus:border-scripture-accent text-scripture-text"
+          />
+        )}
+        <div className="flex items-center gap-2 text-xs">
+          <input
+            type="radio"
+            id={`variant-chapter-${variant.text}`}
+            name={`variant-scope-${variant.text}`}
+            value="chapter"
+            checked={scopeType === 'chapter'}
+            onChange={() => setScopeType('chapter')}
+            className="w-3 h-3"
+          />
+          <label htmlFor={`variant-chapter-${variant.text}`} className="text-scripture-text">
+            Chapter
+          </label>
+        </div>
+        {scopeType === 'chapter' && (
+          <div className="ml-5 grid grid-cols-2 gap-2">
+            <input
+              type="text"
+              value={bookScope}
+              onChange={(e) => setBookScope(e.target.value)}
+              placeholder="Book"
+              className="px-2 py-1 text-xs bg-scripture-bg border border-scripture-border/50 
+                       rounded focus:outline-none focus:border-scripture-accent text-scripture-text"
+            />
+            <input
+              type="number"
+              value={chapterScope}
+              onChange={(e) => setChapterScope(parseInt(e.target.value) || 1)}
+              placeholder="Chapter"
+              min="1"
+              className="px-2 py-1 text-xs bg-scripture-bg border border-scripture-border/50 
+                       rounded focus:outline-none focus:border-scripture-accent text-scripture-text"
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Color Select Component - Custom dropdown with color swatches */
+function ColorSelect({
+  value,
+  onChange,
+}: {
+  value: HighlightColor | undefined;
+  onChange: (color: HighlightColor | undefined) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const allColors = Object.entries(HIGHLIGHT_COLORS) as [HighlightColor, string][];
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
+                 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text
+                 flex items-center gap-2 justify-between hover:bg-scripture-elevated transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          {value ? (
+            <>
+              <span
+                className="w-4 h-4 rounded border border-scripture-border/30"
+                style={{ backgroundColor: HIGHLIGHT_COLORS[value] }}
+              />
+              <span>{value}</span>
+            </>
+          ) : (
+            <span className="text-scripture-muted">Default</span>
+          )}
+        </div>
+        <span className="text-scripture-muted">{isOpen ? '▲' : '▼'}</span>
+      </button>
+      
+      {isOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute z-20 w-full bottom-full mb-1 bg-scripture-elevated border border-scripture-border/50 
+                        rounded-lg shadow-lg max-h-60 overflow-y-auto custom-scrollbar">
+            <button
+              type="button"
+              onClick={() => {
+                onChange(undefined);
+                setIsOpen(false);
+              }}
+              className={`w-full px-3 py-2 text-sm text-left hover:bg-scripture-border/30 transition-colors
+                         ${!value ? 'bg-scripture-border/20' : ''}`}
+            >
+              Default
+            </button>
+            {allColors.map(([key, hex]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  onChange(key);
+                  setIsOpen(false);
+                }}
+                className={`w-full px-3 py-2 text-sm text-left hover:bg-scripture-border/30 transition-colors
+                           flex items-center gap-2 ${value === key ? 'bg-scripture-border/20' : ''}`}
+              >
+                <span
+                  className="w-4 h-4 rounded border border-scripture-border/30 flex-shrink-0"
+                  style={{ backgroundColor: hex }}
+                />
+                <span>{key}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }

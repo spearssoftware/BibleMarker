@@ -7,6 +7,7 @@
 
 import { create } from 'zustand';
 import type { MarkingPreset, KeyWordCategory } from '@/types/keyWord';
+import { normalizeVariants } from '@/types/keyWord';
 import {
   getAllMarkingPresets,
   saveMarkingPreset,
@@ -45,7 +46,12 @@ export const useMarkingPresetStore = create<MarkingPresetState>((set, get) => ({
     set({ isLoading: true });
     try {
       const presets = await getAllMarkingPresets();
-      set({ presets, isLoading: false });
+      // Normalize variants for backwards compatibility (convert string[] to Variant[])
+      const normalizedPresets = presets.map(p => ({
+        ...p,
+        variants: normalizeVariants(p.variants || [])
+      }));
+      set({ presets: normalizedPresets, isLoading: false });
     } catch (error) {
       console.error('Failed to load marking presets:', error);
       set({ isLoading: false });
@@ -117,7 +123,10 @@ export const useMarkingPresetStore = create<MarkingPresetState>((set, get) => ({
       filtered = filtered.filter(
         (p) =>
           p.word?.toLowerCase().includes(q) ||
-          (p.variants || []).some((v) => v.toLowerCase().includes(q)) ||
+          (p.variants || []).some((v) => {
+            const variantText = typeof v === 'string' ? v : v.text;
+            return variantText.toLowerCase().includes(q);
+          }) ||
           p.description?.toLowerCase().includes(q)
       );
     }

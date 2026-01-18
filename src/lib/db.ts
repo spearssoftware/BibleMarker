@@ -469,6 +469,9 @@ export async function searchMarkingPresets(text: string): Promise<MarkingPreset[
   return all.filter((p) => {
     if (!p.word) return false;
     if (p.word.toLowerCase() === lower) return true;
-    return (p.variants || []).some((v) => v.toLowerCase() === lower);
+    return (p.variants || []).some((v) => {
+      const variantText = typeof v === 'string' ? v : v.text;
+      return variantText.toLowerCase() === lower;
+    });
   });
 }

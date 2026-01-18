@@ -89,7 +89,8 @@ export function KeyWordFinder({ preset, onClose }: KeyWordFinderProps) {
           }
 
           for (const variant of preset.variants || []) {
-            const lowerVariant = variant.toLowerCase();
+            const variantText = typeof variant === 'string' ? variant : variant.text;
+            const lowerVariant = variantText.toLowerCase();
             if (lowerText.includes(lowerVariant)) {
               let index = 0;
               while ((index = lowerText.indexOf(lowerVariant, index)) !== -1) {
