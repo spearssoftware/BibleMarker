@@ -64,5 +64,35 @@ export default defineConfig({
   server: {
     port: 5173, // Change this to your preferred port
     strictPort: false, // If true, will fail if port is in use; if false, will try next available port
-  }
+    proxy: {
+      // Proxy BibleGateway API requests to avoid CORS (https://api.biblegateway.com/2/)
+      '/api/biblegateway': {
+        target: 'https://api.biblegateway.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/biblegateway/, ''),
+      },
+      // Proxy Biblia API requests to avoid CORS issues
+      // Requests to /api/biblia/* will be forwarded to https://api.biblia.com/v1/bible/*
+      '/api/biblia': {
+        target: 'https://api.biblia.com',
+        changeOrigin: true,
+        rewrite: (path) => {
+          // path includes /api/biblia, e.g., "/api/biblia/content/NASB.txt"
+          // Rewrite to /v1/bible + everything after /api/biblia
+          const rewritten = path.replace(/^\/api\/biblia/, '/v1/bible');
+          console.log('[Vite Proxy] Rewriting:', path, '->', rewritten);
+          return rewritten;
+        },
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            // Log proxy requests for debugging
+            console.log('[Vite Proxy] Proxying Biblia API request:', req.url);
+          });
+          proxy.on('error', (err, req, res) => {
+            console.error('[Vite Proxy] Proxy error:', err);
+          });
+        },
+      },
+    },
+  },
 })

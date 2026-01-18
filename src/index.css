@@ -36,6 +36,21 @@
     opacity: 0.9;
   }
 
+  /* Cross-reference styling */
+  .cross-ref {
+    @apply text-scripture-accent cursor-pointer hover:text-scripture-text transition-colors;
+    font-size: 0.85em;
+    font-weight: 600;
+    vertical-align: super;
+    margin: 0 0.15em;
+    opacity: 0.7;
+  }
+
+  .cross-ref:hover {
+    opacity: 1;
+    text-decoration: underline;
+  }
+
   /* Selection styling */
   ::selection {
     @apply bg-scripture-accent/30 text-scripture-text;
