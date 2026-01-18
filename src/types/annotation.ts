@@ -3,7 +3,7 @@
  * User-created highlights, symbols, notes, and section headings
  */
 
-import type { VerseRef, VerseRange } from './sword';
+import type { VerseRef, VerseRange } from './bible';
 
 /** Available highlight colors */
 export const HIGHLIGHT_COLORS = {
@@ -32,6 +32,12 @@ export const HIGHLIGHT_COLORS = {
 
 export type HighlightColor = keyof typeof HIGHLIGHT_COLORS;
 
+/** Pick a random highlight color (e.g. when assigning a symbol in a preset) */
+export function getRandomHighlightColor(): HighlightColor {
+  const keys = Object.keys(HIGHLIGHT_COLORS) as HighlightColor[];
+  return keys[Math.floor(Math.random() * keys.length)];
+}
+
 /** Available symbols for marking - Based on Precept Bible Study Method */
 export const SYMBOLS = {
   // Identity - God, Jesus, Holy Spirit (Key words from Precept method)
@@ -39,50 +45,70 @@ export const SYMBOLS = {
   cross: '✝',        // Jesus / Christ / Messiah
   dove: '🕊',        // Holy Spirit / Spirit
   flame: '🔥',       // Holy Spirit (alternative)
-  
+  angel: '👼',       // Angels / Heavenly beings
+  lamb: '🐑',        // Lamb of God / Sacrifice
+  anchor: '⚓',       // Hope / Steadfast
+  cloud: '☁',        // God's presence / Glory / Heaven
+
   // People & Characters
   person: '👤',      // Person / Character
   crown: '👑',       // King / Authority / Title
   prayer: '🙏',      // Prayer / Worship
-  
+
   // Concepts & Themes
   star: '★',         // Promise / Covenant
   starOutline: '☆',  // Promise (lighter)
   heart: '❤',        // Love / Compassion
-  lightning: '⚡',    // Judgment / Power / Conflict
+  lightning: '⚡',   // Judgment / Power / Conflict
   skull: '💀',       // Death / Sin
   shield: '🛡',      // Protection / Faith
-  
+  scales: '⚖',      // Justice / Judgment
+  key: '🔑',         // Authority / Kingdom / Access
+  sun: '☀',          // Glory / Light / Presence
+  moon: '☽',         // Times / Seasons / Night
+  lamp: '🪔',        // Word / Truth / Light
+  cup: '🍷',         // Cup / Suffering / Covenant
+  sword: '⚔',        // Word of God / Battle / Judgment
+
   // Scripture & Teaching
   scroll: '📜',      // Law / Commandment / Scripture
   book: '📖',        // Gospel / Word / Teaching
   tablet: '⛰',      // Commandments (alternative to scroll)
-  
+
   // Time & Sequence
   clock: '🕐',       // Time / When / Chronology
   calendar: '📅',    // Date / Season
   hourglass: '⏳',   // Duration / Waiting
-  arrowRight: '→',   // Therefore / Therefore / Conclusion
+  arrowRight: '→',   // Therefore / Conclusion
   arrowLeft: '←',    // Because / Cause
   doubleArrow: '⇔',  // Comparison / Contrast
-  
+
   // Geography & Place
   mapPin: '📍',      // Place / Location / Geography
   mountain: '⛰',     // Mountain / Place (alternative)
   globe: '🌍',       // World / Earth
-  
+  tree: '🌳',        // Tree / Growth / Life
+  river: '〰',       // River / Stream / Water source
+  house: '🏠',       // House / Temple / Dwelling
+
   // Actions & States
   water: '💧',       // Baptism / Cleansing
-  fire: '🔥',       // Refining / Testing
-  check: '✓',       // Fulfilled / Completed
-  x: '✗',          // Rejected / Removed
-  
+  fire: '🔥',        // Refining / Testing
+  check: '✓',        // Fulfilled / Completed
+  x: '✗',            // Rejected / Removed
+  hand: '✋',        // Action / Deed / Service
+  eye: '👁',         // See / Witness / Revelation
+  mouth: '👄',       // Speak / Testify / Proclaim
+  foot: '🦶',        // Walk / Path / Way
+
   // Shapes for general marking (Precept-style)
   circle: '○',       // General marker
   square: '□',       // General marker
   diamond: '◇',      // General marker
   hexagon: '⬡',     // General marker
-  
+  plus: '➕',        // Add / Include / Also
+  minus: '➖',       // Remove / Exclude
+
   // Numbered & Lettered markers
   num1: '①',
   num2: '②',
@@ -92,10 +118,17 @@ export const SYMBOLS = {
   letterA: 'Ⓐ',
   letterB: 'Ⓑ',
   letterC: 'Ⓒ',
-  
+  letterD: 'Ⓓ',
+  letterE: 'Ⓔ',
+  letterF: 'Ⓕ',
+  letterG: 'Ⓖ',
+  letterH: 'Ⓗ',
+  letterI: 'Ⓘ',
+
   // Punctuation markers
   question: '?',
   exclamation: '!',
+  asterisk: '✱',    // Emphasis / Footnote
 } as const;
 
 export type SymbolKey = keyof typeof SYMBOLS;
@@ -133,11 +166,14 @@ export interface TextAnnotation extends BaseAnnotation {
   // Character-level precision for exact text selection
   selectedText?: string;      // The exact text that was selected
   startOffset?: number;       // Character offset within start verse
-  endOffset?: number;         // Character offset within end verse
+  endOffset?: number;        // Character offset within end verse
   
   // Styling
   color: HighlightColor;
   underlineStyle?: UnderlineStyle;
+  
+  /** Optional link to a MarkingPreset; enables find-by-preset and "marked" in Key Word Finder */
+  presetId?: string;
 }
 
 /** Symbol annotation */
@@ -161,6 +197,9 @@ export interface SymbolAnnotation extends BaseAnnotation {
   // Symbol
   symbol: SymbolKey;
   color?: HighlightColor;    // Optional color for the symbol
+  
+  /** Optional link to a MarkingPreset; enables find-by-preset and "marked" in Key Word Finder */
+  presetId?: string;
 }
 
 /** Union of all annotation types */

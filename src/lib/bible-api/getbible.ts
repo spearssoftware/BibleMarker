@@ -21,8 +21,9 @@ import type {
   BibleApiProvider,
 } from './types';
 import { BibleApiError } from './types';
-import type { VerseRef } from '@/types/sword';
+import type { VerseRef } from '@/types/bible';
 import { getBookById } from '@/types/bible';
+import { db } from '@/lib/db';
 
 // Default to public API, but can be configured for self-hosted instance
 const DEFAULT_MAIN_API_URL = 'https://api.getbible.net/v2';
@@ -184,6 +185,36 @@ class GetBibleClient implements BibleApiClient {
   }
 
   async getTranslations(): Promise<ApiTranslation[]> {
+    // Check cache first - refresh once per day
+    const CACHE_KEY = 'getbible-translations';
+    const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+    
+    try {
+      const cached = await db.translationCache.get(CACHE_KEY);
+      const now = new Date();
+      
+      if (cached && cached.cachedAt) {
+        const cacheAge = now.getTime() - cached.cachedAt.getTime();
+        if (cacheAge < CACHE_DURATION_MS) {
+          console.log('[GetBibleClient] Using cached translations (age:', Math.round(cacheAge / 1000 / 60), 'minutes)');
+          // Parse cached translations
+          const translations: GetBibleTranslation[] = Array.isArray(cached.translations) 
+            ? cached.translations 
+            : Object.values(cached.translations || {});
+          
+          return this.parseTranslations(translations);
+        } else {
+          console.log('[GetBibleClient] Cache expired, fetching fresh translations');
+        }
+      } else {
+        console.log('[GetBibleClient] No cache found, fetching fresh translations');
+      }
+    } catch (error) {
+      // If translationCache table doesn't exist yet (old database version), just fetch
+      console.warn('[GetBibleClient] Error reading cache (table may not exist), fetching fresh:', error);
+    }
+    
+    // Fetch fresh translations
     try {
       const url = `${this.mainApiUrl}/translations.json`;
       console.log('[GetBibleClient] Fetching translations from:', url);
@@ -204,40 +235,73 @@ class GetBibleClient implements BibleApiClient {
       const translations: GetBibleTranslation[] = Array.isArray(data) ? data : Object.values(data);
       console.log('[GetBibleClient] Parsed translations count:', translations.length);
       
-      const validTranslations = translations
-        .filter(t => {
-          // Use abbreviation as the ID if id is not present
-          const translationId = t.id || t.abbreviation;
-          const hasValidId = translationId && typeof translationId === 'string' && translationId.trim() !== '';
-          if (!hasValidId) {
-            console.warn('[GetBibleClient] Filtering out translation with invalid ID:', t);
-          }
-          return hasValidId;
-        })
-        .map(t => {
-          // Use abbreviation as the ID (this is what the API uses)
-          const translationId = (t.id || t.abbreviation || '').trim();
-          const name = t.translation || t.name || translationId;
-          const abbreviation = t.abbreviation || translationId.toUpperCase();
-          const language = t.lang || t.language || 'en';
-          const languageName = t.language_name || t.language || language;
-          
-          return {
-            id: translationId,
-            name: name,
-            abbreviation: abbreviation,
-            language: language,
-            provider: this.provider,
-            description: t.description || `${languageName} - ${name}`,
-          };
-        });
+      // Parse and return immediately, cache in background
+      const parsed = this.parseTranslations(translations);
       
-      console.log('[GetBibleClient] Returning', validTranslations.length, 'valid translations');
-      return validTranslations;
+      // Cache the raw data in background (don't wait)
+      db.translationCache.put({
+        id: CACHE_KEY,
+        translations: translations,
+        cachedAt: new Date(),
+      }).then(() => {
+        console.log('[GetBibleClient] Cached translations for 24 hours');
+      }).catch((cacheError) => {
+        console.warn('[GetBibleClient] Failed to cache translations:', cacheError);
+      });
+      
+      return parsed;
     } catch (error) {
       console.error('[GetBibleClient] Failed to fetch translations:', error);
+      
+      // Try to return cached data even if expired
+      try {
+        const cached = await db.translationCache.get(CACHE_KEY);
+        if (cached && cached.translations) {
+          console.log('[GetBibleClient] Using expired cache as fallback');
+          const translations: GetBibleTranslation[] = Array.isArray(cached.translations) 
+            ? cached.translations 
+            : Object.values(cached.translations || {});
+          return this.parseTranslations(translations);
+        }
+      } catch (fallbackError) {
+        console.warn('[GetBibleClient] Fallback cache also failed:', fallbackError);
+      }
+      
       return [];
     }
+  }
+
+  private parseTranslations(translations: GetBibleTranslation[]): ApiTranslation[] {
+    const validTranslations = translations
+      .filter(t => {
+        // Use abbreviation as the ID if id is not present
+        const translationId = t.id || t.abbreviation;
+        const hasValidId = translationId && typeof translationId === 'string' && translationId.trim() !== '';
+        if (!hasValidId) {
+          console.warn('[GetBibleClient] Filtering out translation with invalid ID:', t);
+        }
+        return hasValidId;
+      })
+      .map(t => {
+        // Use abbreviation as the ID (this is what the API uses)
+        const translationId = (t.id || t.abbreviation || '').trim();
+        const name = t.translation || t.name || translationId;
+        const abbreviation = t.abbreviation || translationId.toUpperCase();
+        const language = t.lang || t.language || 'en';
+        const languageName = t.language_name || t.language || language;
+        
+        return {
+          id: translationId,
+          name: name,
+          abbreviation: abbreviation,
+          language: language,
+          provider: this.provider,
+          description: t.description || `${languageName} - ${name}`,
+        };
+      });
+    
+    console.log('[GetBibleClient] Returning', validTranslations.length, 'valid translations');
+    return validTranslations;
   }
 
   async getChapter(

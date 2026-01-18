@@ -4,15 +4,19 @@
  * Common types for Bible API providers (Biblia, ESV API, etc.)
  */
 
-import type { VerseRef, Chapter, Verse } from '@/types/sword';
+import type { VerseRef, Chapter, Verse } from '@/types/bible';
 
 /** Supported Bible API providers */
-export type BibleApiProvider = 'biblia' | 'esv' | 'sword';
+export type BibleApiProvider = 'biblia' | 'esv' | 'getbible' | 'biblegateway';
 
 /** API configuration for a provider */
 export interface ApiConfig {
   provider: BibleApiProvider;
   apiKey?: string;
+  /** BibleGateway: account username */
+  username?: string;
+  /** BibleGateway: account password */
+  password?: string;
   baseUrl?: string;
   enabled: boolean;
 }

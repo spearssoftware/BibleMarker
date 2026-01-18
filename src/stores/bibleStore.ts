@@ -6,7 +6,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Chapter, InstalledModule } from '@/types/sword';
+import type { Chapter } from '@/types/bible';
 import { BIBLE_BOOKS, getBookById } from '@/types/bible';
 
 interface BibleState {
@@ -20,16 +20,12 @@ interface BibleState {
   isLoading: boolean;
   error: string | null;
   
-  // Available modules
-  modules: InstalledModule[];
-  
   // Actions
   setCurrentModule: (moduleId: string) => void;
   setLocation: (book: string, chapter: number) => void;
   setChapter: (chapter: Chapter) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  setModules: (modules: InstalledModule[]) => void;
   
   // Navigation
   nextChapter: () => void;
@@ -47,7 +43,6 @@ export const useBibleStore = create<BibleState>()(
       chapter: null,
       isLoading: false,
       error: null,
-      modules: [],
       
       setCurrentModule: (moduleId) => {
         // Validate moduleId - must be a non-empty string and not contain "undefined"
@@ -72,8 +67,6 @@ export const useBibleStore = create<BibleState>()(
       setLoading: (isLoading) => set({ isLoading }),
       
       setError: (error) => set({ error, isLoading: false }),
-      
-      setModules: (modules) => set({ modules }),
       
       nextChapter: () => {
         const { currentBook, currentChapter } = get();

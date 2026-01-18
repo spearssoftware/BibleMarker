@@ -1,40 +1,43 @@
 /**
- * Key Word Types
- * 
- * Definitions for the Precept method key word tracking system.
- * Allows marking words/phrases consistently throughout study.
+ * Key Word & Marking Preset Types
+ *
+ * Unified model: MarkingPreset is the main type. Key words = presets with `word` set.
+ * KeyWordDefinition is kept for DB migration only (keyWords → markingPresets).
  */
 
 import type { HighlightColor, SymbolKey } from './annotation';
 
-/** A key word definition that can be applied consistently */
+/** Unified marking preset: symbol and/or highlight/textColor/underline. Key words = presets with `word`. */
+export interface MarkingPreset {
+  id: string;
+  /** Symbol (optional). At least one of symbol or highlight required. */
+  symbol?: SymbolKey;
+  /** Highlight style + color (optional). When set, applied as TextAnnotation. */
+  highlight?: { style: 'highlight' | 'textColor' | 'underline'; color: HighlightColor };
+  /** Optional: when set, this preset is a "key word" (word match, auto-suggest, find). */
+  word?: string;
+  variants: string[];
+  category?: KeyWordCategory;
+  description?: string;
+  autoSuggest: boolean;
+  usageCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * @deprecated Use MarkingPreset. Kept for DB migration (keyWords → markingPresets).
+ */
 export interface KeyWordDefinition {
   id: string;
-  
-  /** The primary word or phrase (e.g., "God", "LORD", "love") */
   word: string;
-  
-  /** Alternative forms that should also match (e.g., "God's", "Lord") */
   variants: string[];
-  
-  /** Symbol to mark this key word with */
   symbol?: SymbolKey;
-  
-  /** Color for highlighting or symbol */
   color?: HighlightColor;
-  
-  /** Category for organizing key words */
   category?: KeyWordCategory;
-  
-  /** User notes about this key word */
   description?: string;
-  
-  /** Whether to auto-suggest when selecting matching text */
   autoSuggest: boolean;
-  
-  /** Count of how many times this key word has been marked */
   usageCount: number;
-  
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,6 +53,39 @@ export type KeyWordCategory =
   | 'contrasts'     // Contrasts and comparisons
   | 'conclusions'   // Therefore, thus, etc.
   | 'custom';       // User-defined
+
+/** Map from symbol to KeyWordCategory for pre-setting category when a symbol is chosen */
+export const SYMBOL_CATEGORY_MAP: Record<SymbolKey, KeyWordCategory> = {
+  triangle: 'identity', cross: 'identity', dove: 'identity', flame: 'identity', angel: 'identity', lamb: 'identity', anchor: 'identity', cloud: 'identity',
+  person: 'people', crown: 'people', prayer: 'people',
+  star: 'themes', starOutline: 'themes', heart: 'themes', lightning: 'themes', skull: 'themes', shield: 'themes', scales: 'themes', key: 'themes', sun: 'themes', moon: 'themes', cup: 'themes', sword: 'themes',
+  scroll: 'themes', book: 'themes', tablet: 'themes', lamp: 'themes',
+  clock: 'time', calendar: 'time', hourglass: 'time', arrowRight: 'conclusions', arrowLeft: 'time', doubleArrow: 'contrasts',
+  mapPin: 'places', mountain: 'places', globe: 'places', tree: 'places', river: 'places', house: 'places',
+  water: 'actions', fire: 'actions', check: 'actions', x: 'actions', hand: 'actions', eye: 'actions', mouth: 'actions', foot: 'actions',
+  circle: 'custom', square: 'custom', diamond: 'custom', hexagon: 'custom', plus: 'custom', minus: 'custom',
+  num1: 'custom', num2: 'custom', num3: 'custom', num4: 'custom', num5: 'custom',
+  letterA: 'custom', letterB: 'custom', letterC: 'custom', letterD: 'custom', letterE: 'custom', letterF: 'custom', letterG: 'custom', letterH: 'custom', letterI: 'custom',
+  question: 'custom', exclamation: 'custom', asterisk: 'custom',
+};
+
+/** Get KeyWordCategory for a symbol; use when pre-setting category from symbol selection */
+export function getCategoryForSymbol(symbol: SymbolKey): KeyWordCategory {
+  return SYMBOL_CATEGORY_MAP[symbol] ?? 'custom';
+}
+
+/** Common pronouns we avoid adding as variants (they’d match everywhere). Use "Apply key word" for that occurrence instead. */
+const COMMON_PRONOUNS = new Set([
+  'i', 'me', 'my', 'we', 'us', 'our', 'you', 'your', 'he', 'him', 'his', 'she', 'her', 'hers',
+  'it', 'its', 'they', 'them', 'their', 'who', 'whom', 'whose', 'myself', 'yourself', 'himself',
+  'herself', 'itself', 'ourselves', 'yourselves', 'themselves',
+]);
+
+/** True if the trimmed, lowercased text is a common pronoun. Used to hide "Add as variant" for pronouns. */
+export function isCommonPronoun(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  return t.length > 0 && COMMON_PRONOUNS.has(t);
+}
 
 /** Category display info */
 export const KEY_WORD_CATEGORIES: Record<KeyWordCategory, { label: string; icon: string; description: string }> = {
@@ -100,62 +136,14 @@ export const KEY_WORD_CATEGORIES: Record<KeyWordCategory, { label: string; icon:
   },
 };
 
-/** Preset key words based on Precept method */
-export const PRESET_KEY_WORDS: Partial<KeyWordDefinition>[] = [
-  {
-    word: 'God',
-    variants: ['God\'s', 'LORD', 'Lord', 'Yahweh', 'YHWH', 'Jehovah'],
-    symbol: 'triangle',
-    color: 'purple',
-    category: 'identity',
-    description: 'References to God the Father',
-    autoSuggest: true,
-  },
-  {
-    word: 'Jesus',
-    variants: ['Christ', 'Jesus Christ', 'Messiah', 'Son of God', 'Son of Man', 'Lamb'],
-    symbol: 'cross',
-    color: 'red',
-    category: 'identity',
-    description: 'References to Jesus Christ',
-    autoSuggest: true,
-  },
-  {
-    word: 'Spirit',
-    variants: ['Holy Spirit', 'Spirit of God', 'Spirit of the Lord'],
-    symbol: 'dove',
-    color: 'sky',
-    category: 'identity',
-    description: 'References to the Holy Spirit',
-    autoSuggest: true,
-  },
-  {
-    word: 'therefore',
-    variants: ['thus', 'so', 'for this reason', 'because of this'],
-    symbol: 'arrowRight',
-    color: 'orange',
-    category: 'conclusions',
-    description: 'Conclusion markers',
-    autoSuggest: true,
-  },
-  {
-    word: 'love',
-    variants: ['loved', 'loves', 'loving'],
-    symbol: 'heart',
-    color: 'pink',
-    category: 'themes',
-    description: 'Love-related terms',
-    autoSuggest: true,
-  },
-  {
-    word: 'faith',
-    variants: ['believe', 'believed', 'believes', 'believing', 'trust'],
-    symbol: 'shield',
-    color: 'blue',
-    category: 'themes',
-    description: 'Faith and belief',
-    autoSuggest: true,
-  },
+/** Preset key words based on Precept method (use as partials for createMarkingPreset) */
+export const PRESET_KEY_WORDS: Partial<MarkingPreset>[] = [
+  { word: 'God', variants: ['God\'s', 'LORD', 'Lord', 'Yahweh', 'YHWH', 'Jehovah'], symbol: 'triangle', highlight: { style: 'highlight', color: 'purple' }, category: 'identity', description: 'References to God the Father', autoSuggest: true },
+  { word: 'Jesus', variants: ['Christ', 'Jesus Christ', 'Messiah', 'Son of God', 'Son of Man', 'Lamb'], symbol: 'cross', highlight: { style: 'highlight', color: 'red' }, category: 'identity', description: 'References to Jesus Christ', autoSuggest: true },
+  { word: 'Spirit', variants: ['Holy Spirit', 'Spirit of God', 'Spirit of the Lord'], symbol: 'dove', highlight: { style: 'highlight', color: 'sky' }, category: 'identity', description: 'References to the Holy Spirit', autoSuggest: true },
+  { word: 'therefore', variants: ['thus', 'so', 'for this reason', 'because of this'], symbol: 'arrowRight', highlight: { style: 'highlight', color: 'orange' }, category: 'conclusions', description: 'Conclusion markers', autoSuggest: true },
+  { word: 'love', variants: ['loved', 'loves', 'loving'], symbol: 'heart', highlight: { style: 'highlight', color: 'pink' }, category: 'themes', description: 'Love-related terms', autoSuggest: true },
+  { word: 'faith', variants: ['believe', 'believed', 'believes', 'believing', 'trust'], symbol: 'shield', highlight: { style: 'highlight', color: 'blue' }, category: 'themes', description: 'Faith and belief', autoSuggest: true },
 ];
 
 /** Result of searching for key word occurrences */
@@ -168,41 +156,58 @@ export interface KeyWordOccurrence {
   annotationId?: string;  // If already marked, the annotation ID
 }
 
-/** Create a new key word definition */
-export function createKeyWord(
-  word: string,
-  options: Partial<Omit<KeyWordDefinition, 'id' | 'word' | 'createdAt' | 'updatedAt'>> = {}
-): KeyWordDefinition {
+/** Create a new marking preset (or key word when `word` is set) */
+export function createMarkingPreset(
+  options: { word?: string; variants?: string[]; symbol?: SymbolKey; highlight?: { style: 'highlight' | 'textColor' | 'underline'; color: HighlightColor }; category?: KeyWordCategory; description?: string; autoSuggest?: boolean; usageCount?: number }
+): MarkingPreset {
+  const { word, variants = [], symbol, highlight, category = 'custom', description = '', autoSuggest = true, usageCount = 0 } = options;
+  if (!symbol && !highlight) throw new Error('MarkingPreset must have at least one of symbol or highlight');
   return {
     id: crypto.randomUUID(),
     word,
-    variants: options.variants || [],
-    symbol: options.symbol,
-    color: options.color,
-    category: options.category || 'custom',
-    description: options.description || '',
-    autoSuggest: options.autoSuggest ?? true,
-    usageCount: options.usageCount || 0,
+    variants,
+    symbol,
+    highlight,
+    category,
+    description,
+    autoSuggest,
+    usageCount,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 }
 
-/** Check if text matches a key word (case-insensitive) */
-export function matchesKeyWord(text: string, keyWord: KeyWordDefinition): boolean {
+/** Check if text matches a preset's word/variants (case-insensitive). Presets without word never match. */
+export function matchesPreset(text: string, preset: MarkingPreset): boolean {
+  const w = preset.word;
+  if (!w) return false;
   const lowerText = text.toLowerCase().trim();
-  const lowerWord = keyWord.word.toLowerCase();
-  
-  if (lowerText === lowerWord) return true;
-  
-  for (const variant of keyWord.variants) {
-    if (lowerText === variant.toLowerCase()) return true;
-  }
-  
-  return false;
+  if (lowerText === w.toLowerCase()) return true;
+  return (preset.variants || []).some(v => lowerText === v.toLowerCase());
 }
 
-/** Find all key words that match the given text */
-export function findMatchingKeyWords(text: string, keyWords: KeyWordDefinition[]): KeyWordDefinition[] {
-  return keyWords.filter(kw => matchesKeyWord(text, kw));
+/** Find presets whose word/variants match the given text (for auto-suggest) */
+export function findMatchingPresets(text: string, presets: MarkingPreset[]): MarkingPreset[] {
+  return presets.filter(p => matchesPreset(text, p));
+}
+
+/**
+ * Migrate a legacy KeyWordDefinition to MarkingPreset.
+ * symbol+color → symbol + highlight:{ style:'highlight', color }; symbol-only or color-only preserved.
+ */
+export function keyWordToMarkingPreset(kw: KeyWordDefinition): MarkingPreset {
+  const highlight = kw.color ? { style: 'highlight' as const, color: kw.color } : undefined;
+  return {
+    id: kw.id,
+    word: kw.word,
+    variants: kw.variants || [],
+    symbol: kw.symbol,
+    highlight,
+    category: kw.category,
+    description: kw.description,
+    autoSuggest: kw.autoSuggest ?? true,
+    usageCount: kw.usageCount || 0,
+    createdAt: kw.createdAt,
+    updatedAt: kw.updatedAt,
+  };
 }
