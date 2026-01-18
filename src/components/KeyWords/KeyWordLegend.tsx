@@ -4,13 +4,13 @@
  * Shows a compact legend of all defined key words for quick reference.
  */
 
-import { useKeyWordStore } from '@/stores/keyWordStore';
-import { KEY_WORD_CATEGORIES } from '@/types/keyWord';
+import { useMarkingPresetStore } from '@/stores/markingPresetStore';
+import { KEY_WORD_CATEGORIES, type MarkingPreset } from '@/types/keyWord';
 import { SYMBOLS, HIGHLIGHT_COLORS } from '@/types/annotation';
 
 export function KeyWordLegend() {
-  const { keyWords, getFilteredKeyWords } = useKeyWordStore();
-  const filtered = getFilteredKeyWords();
+  const { getFilteredPresets } = useMarkingPresetStore();
+  const filtered = getFilteredPresets().filter((p) => p.word);
 
   if (filtered.length === 0) {
     return (
@@ -20,13 +20,12 @@ export function KeyWordLegend() {
     );
   }
 
-  // Group by category
-  const byCategory = filtered.reduce((acc, kw) => {
-    const cat = kw.category || 'custom';
+  const byCategory = filtered.reduce((acc, p) => {
+    const cat = p.category || 'custom';
     if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(kw);
+    acc[cat].push(p);
     return acc;
-  }, {} as Record<string, typeof filtered>);
+  }, {} as Record<string, MarkingPreset[]>);
 
   return (
     <div className="space-y-4">
@@ -39,29 +38,24 @@ export function KeyWordLegend() {
               <span>{catInfo.label}</span>
             </h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {words.map((kw) => {
-                const symbol = kw.symbol ? SYMBOLS[kw.symbol] : undefined;
-                const color = kw.color ? HIGHLIGHT_COLORS[kw.color] : undefined;
+              {words.map((p) => {
+                const symbol = p.symbol ? SYMBOLS[p.symbol] : undefined;
+                const color = p.highlight?.color ? HIGHLIGHT_COLORS[p.highlight.color] : undefined;
                 return (
                   <div
-                    key={kw.id}
+                    key={p.id}
                     className="flex items-center gap-2 p-2 rounded bg-scripture-elevated border border-scripture-border/30"
                   >
                     {symbol && (
-                      <span
-                        className="text-base"
-                        style={{ color: color }}
-                      >
+                      <span className="text-base" style={{ color }}>
                         {symbol}
                       </span>
                     )}
                     <span className="text-sm text-scripture-text flex-1 truncate">
-                      {kw.word}
+                      {p.word}
                     </span>
-                    {kw.usageCount > 0 && (
-                      <span className="text-xs text-scripture-muted">
-                        {kw.usageCount}
-                      </span>
+                    {p.usageCount > 0 && (
+                      <span className="text-xs text-scripture-muted">{p.usageCount}</span>
                     )}
                   </div>
                 );

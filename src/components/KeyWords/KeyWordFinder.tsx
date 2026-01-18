@@ -6,17 +6,16 @@
 
 import { useState, useEffect } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
-import { useKeyWordStore } from '@/stores/keyWordStore';
-import type { KeyWordDefinition } from '@/types/keyWord';
+import type { MarkingPreset } from '@/types/keyWord';
 import { db } from '@/lib/db';
 import { getBookById } from '@/types/bible';
 
 interface KeyWordFinderProps {
-  keyWord: KeyWordDefinition;
+  preset: MarkingPreset;
   onClose?: () => void;
 }
 
-export function KeyWordFinder({ keyWord, onClose }: KeyWordFinderProps) {
+export function KeyWordFinder({ preset, onClose }: KeyWordFinderProps) {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const [occurrences, setOccurrences] = useState<Array<{
     book: string;
@@ -30,7 +29,7 @@ export function KeyWordFinder({ keyWord, onClose }: KeyWordFinderProps) {
 
   useEffect(() => {
     searchOccurrences();
-  }, [keyWord, currentBook, currentChapter, currentModuleId, searchScope]);
+  }, [preset, currentBook, currentChapter, currentModuleId, searchScope]);
 
   async function searchOccurrences() {
     if (!currentModuleId) return;
@@ -62,22 +61,18 @@ export function KeyWordFinder({ keyWord, onClose }: KeyWordFinderProps) {
         for (const [verseNum, verseText] of Object.entries(chapterCache.verses)) {
           const text = verseText as string;
           const lowerText = text.toLowerCase();
-          const lowerWord = keyWord.word.toLowerCase();
+          const lowerWord = (preset.word || '').toLowerCase();
 
           // Check if key word appears in this verse
-          if (lowerText.includes(lowerWord)) {
-            // Find all occurrences in the verse
+          if (lowerWord && lowerText.includes(lowerWord)) {
             let index = 0;
             while ((index = lowerText.indexOf(lowerWord, index)) !== -1) {
-              // Get context (50 chars before and after)
               const start = Math.max(0, index - 50);
               const end = Math.min(text.length, index + lowerWord.length + 50);
               const context = text.substring(start, end);
-              
-              // Highlight the word in context
               const wordStart = index - start;
               const wordEnd = wordStart + lowerWord.length;
-              const highlightedContext = 
+              const highlightedContext =
                 context.substring(0, wordStart) +
                 `**${context.substring(wordStart, wordEnd)}**` +
                 context.substring(wordEnd);
@@ -89,13 +84,11 @@ export function KeyWordFinder({ keyWord, onClose }: KeyWordFinderProps) {
                 text: text,
                 context: highlightedContext,
               });
-
               index += lowerWord.length;
             }
           }
 
-          // Also check variants
-          for (const variant of keyWord.variants) {
+          for (const variant of preset.variants || []) {
             const lowerVariant = variant.toLowerCase();
             if (lowerText.includes(lowerVariant)) {
               let index = 0;
@@ -140,15 +133,13 @@ export function KeyWordFinder({ keyWord, onClose }: KeyWordFinderProps) {
     }
   }
 
-  const bookInfo = getBookById(currentBook);
-
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-scripture-border/50">
         <div>
           <h2 className="text-lg font-ui font-semibold text-scripture-text">
-            Find: {keyWord.word}
+            Find: {preset.word}
           </h2>
           <p className="text-xs text-scripture-muted mt-1">
             {occurrences.length} occurrence{occurrences.length !== 1 ? 's' : ''} found

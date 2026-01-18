@@ -16,7 +16,7 @@ interface SymbolPickerProps {
 const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   {
     name: 'Identity',
-    symbols: ['triangle', 'cross', 'dove', 'flame'],
+    symbols: ['triangle', 'cross', 'dove', 'flame', 'angel', 'lamb', 'anchor', 'cloud'],
   },
   {
     name: 'People & Characters',
@@ -24,11 +24,11 @@ const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   },
   {
     name: 'Concepts & Themes',
-    symbols: ['star', 'starOutline', 'heart', 'lightning', 'skull', 'shield'],
+    symbols: ['star', 'starOutline', 'heart', 'lightning', 'skull', 'shield', 'scales', 'key', 'sun', 'moon', 'cup', 'sword'],
   },
   {
     name: 'Scripture & Teaching',
-    symbols: ['scroll', 'book', 'tablet'],
+    symbols: ['scroll', 'book', 'tablet', 'lamp'],
   },
   {
     name: 'Time & Sequence',
@@ -36,23 +36,23 @@ const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   },
   {
     name: 'Geography & Place',
-    symbols: ['mapPin', 'mountain', 'globe'],
+    symbols: ['mapPin', 'mountain', 'globe', 'tree', 'river', 'house'],
   },
   {
     name: 'Actions & States',
-    symbols: ['water', 'fire', 'check', 'x'],
+    symbols: ['water', 'fire', 'check', 'x', 'hand', 'eye', 'mouth', 'foot'],
   },
   {
     name: 'General Markers',
-    symbols: ['circle', 'square', 'diamond', 'hexagon'],
+    symbols: ['circle', 'square', 'diamond', 'hexagon', 'plus', 'minus'],
   },
   {
     name: 'Numbered & Letters',
-    symbols: ['num1', 'num2', 'num3', 'num4', 'num5', 'letterA', 'letterB', 'letterC'],
+    symbols: ['num1', 'num2', 'num3', 'num4', 'num5', 'letterA', 'letterB', 'letterC', 'letterD', 'letterE', 'letterF', 'letterG', 'letterH', 'letterI'],
   },
   {
     name: 'Punctuation',
-    symbols: ['question', 'exclamation'],
+    symbols: ['question', 'exclamation', 'asterisk'],
   },
 ];
 
@@ -62,7 +62,7 @@ export function SymbolPicker({
   recents,
 }: SymbolPickerProps) {
   return (
-    <div className="space-y-4 max-h-[40vh] overflow-y-auto custom-scrollbar">
+    <div className="space-y-4">
       {/* Recents */}
       {recents.length > 0 && (
         <div>

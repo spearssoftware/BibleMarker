@@ -98,12 +98,32 @@ export function NavigationBar() {
     };
   }, [currentBook, currentChapter]);
 
+  // Load translations on mount and when translations are updated
   useEffect(() => {
     async function loadTranslations() {
       const available = await getAllTranslations();
       setTranslations(available);
+      console.log('[NavigationBar] Loaded translations:', available.length, available.map(t => `${t.abbreviation}(${t.provider})`).slice(0, 10));
     }
     loadTranslations();
+    
+    // Reload translations when window regains focus (user might have configured API keys in another tab)
+    const handleFocus = () => {
+      loadTranslations();
+    };
+    
+    // Reload translations when ModuleManager updates them
+    const handleTranslationsUpdated = () => {
+      loadTranslations();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('translationsUpdated', handleTranslationsUpdated);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('translationsUpdated', handleTranslationsUpdated);
+    };
   }, []);
 
   return (
