@@ -2,15 +2,12 @@
  * IndexedDB Database
  * 
  * Uses Dexie.js for a clean API over IndexedDB.
- * Stores modules, annotations, preferences, and cached text.
+ * Stores annotations, preferences, and cached text.
+ * Note: modules and moduleFiles tables are deprecated (Sword support removed)
+ * but kept in schema for backwards compatibility.
  */
 
 import Dexie, { type EntityTable } from 'dexie';
-import type { 
-  SwordModuleConfig, 
-  ModuleStatus,
-  InstalledModule 
-} from '@/types/sword';
 import type { 
   Annotation, 
   SectionHeading, 
@@ -18,33 +15,19 @@ import type {
   Note,
   MarkingPreferences,
 } from '@/types/annotation';
-import type { KeyWordDefinition } from '@/types/keyWord';
+import type { KeyWordDefinition, MarkingPreset } from '@/types/keyWord';
+import { keyWordToMarkingPreset } from '@/types/keyWord';
 
 /** API configuration for Bible APIs */
 export interface ApiConfigRecord {
-  provider: 'biblia' | 'esv' | 'sword';
+  provider: 'biblia' | 'esv' | 'getbible' | 'biblegateway';
   apiKey?: string;
+  /** BibleGateway: account username */
+  username?: string;
+  /** BibleGateway: account password */
+  password?: string;
   baseUrl?: string;
   enabled: boolean;
-}
-
-/** Installed module record */
-interface ModuleRecord {
-  id: string;                    // Module name (e.g., "ESV")
-  config: SwordModuleConfig;
-  status: ModuleStatus;
-  installedAt: Date;
-  updatedAt?: Date;
-  size: number;
-  error?: string;
-}
-
-/** Raw module file stored in IndexedDB */
-interface ModuleFile {
-  id: string;                    // moduleId:path
-  moduleId: string;
-  path: string;                  // Relative path within module
-  data: ArrayBuffer;
 }
 
 /** Cached chapter text for fast access */
@@ -54,6 +37,13 @@ interface ChapterCache {
   book: string;
   chapter: number;
   verses: Record<number, string>; // verse number -> text
+  cachedAt: Date;
+}
+
+/** Cached translation list from getBible API */
+interface TranslationCache {
+  id: string;                    // 'getbible-translations'
+  translations: any[];            // Array of translation objects
   cachedAt: Date;
 }
 
@@ -80,18 +70,27 @@ interface ReadingHistory {
   timestamp: Date;
 }
 
+/** ESV API rate limit state (persisted for compliance) */
+export interface EsvRateLimitState {
+  id: 'esv';
+  requestTimestamps: number[];   // Unix ms of each request
+}
+
 /** Database schema */
 class BibleStudyDB extends Dexie {
   modules!: EntityTable<ModuleRecord, 'id'>;
   moduleFiles!: EntityTable<ModuleFile, 'id'>;
   chapterCache!: EntityTable<ChapterCache, 'id'>;
+  translationCache!: EntityTable<TranslationCache, 'id'>;
   annotations!: EntityTable<Annotation, 'id'>;
   sectionHeadings!: EntityTable<SectionHeading, 'id'>;
   chapterTitles!: EntityTable<ChapterTitle, 'id'>;
   notes!: EntityTable<Note, 'id'>;
   keyWords!: EntityTable<KeyWordDefinition, 'id'>;
+  markingPresets!: EntityTable<MarkingPreset, 'id'>;
   preferences!: EntityTable<UserPreferences, 'id'>;
   readingHistory!: EntityTable<ReadingHistory, 'id'>;
+  esvRateLimit!: EntityTable<EsvRateLimitState, 'id'>;
 
   constructor() {
     super('BibleStudyDB');
@@ -120,6 +119,58 @@ class BibleStudyDB extends Dexie {
       keyWords: 'id, word, category',
       preferences: 'id',
       readingHistory: 'id, moduleId, timestamp',
+    });
+    
+    // Version 3: Add translationCache table for getBible translations
+    this.version(3).stores({
+      modules: 'id, status',
+      moduleFiles: 'id, moduleId',
+      chapterCache: 'id, moduleId',
+      translationCache: 'id',
+      annotations: 'id, moduleId, type, createdAt',
+      sectionHeadings: 'id, moduleId',
+      chapterTitles: 'id, moduleId',
+      notes: 'id, moduleId',
+      keyWords: 'id, word, category',
+      preferences: 'id',
+      readingHistory: 'id, moduleId, timestamp',
+    });
+
+    // Version 4: Marking presets (unified key words); presetId on annotations; migrate keyWords→markingPresets
+    this.version(4).stores({
+      modules: 'id, status',
+      moduleFiles: 'id, moduleId',
+      chapterCache: 'id, moduleId',
+      translationCache: 'id',
+      annotations: 'id, moduleId, type, createdAt, presetId',
+      sectionHeadings: 'id, moduleId',
+      chapterTitles: 'id, moduleId',
+      notes: 'id, moduleId',
+      keyWords: 'id, word, category',
+      markingPresets: 'id, word, category',
+      preferences: 'id',
+      readingHistory: 'id, moduleId, timestamp',
+    }).upgrade(async (tx) => {
+      const kws = await tx.table('keyWords').toArray() as KeyWordDefinition[];
+      const presets = kws.map(keyWordToMarkingPreset);
+      if (presets.length) await tx.table('markingPresets').bulkPut(presets);
+    });
+
+    // Version 5: ESV API rate limit state for compliance
+    this.version(5).stores({
+      modules: 'id, status',
+      moduleFiles: 'id, moduleId',
+      chapterCache: 'id, moduleId',
+      translationCache: 'id',
+      annotations: 'id, moduleId, type, createdAt, presetId',
+      sectionHeadings: 'id, moduleId',
+      chapterTitles: 'id, moduleId',
+      notes: 'id, moduleId',
+      keyWords: 'id, word, category',
+      markingPresets: 'id, word, category',
+      preferences: 'id',
+      readingHistory: 'id, moduleId, timestamp',
+      esvRateLimit: 'id',
     });
   }
 }
@@ -322,38 +373,6 @@ export async function addToHistory(
   }
 }
 
-/**
- * Get installed modules
- */
-export async function getInstalledModules(): Promise<InstalledModule[]> {
-  const records = await db.modules
-    .where('status')
-    .equals('installed')
-    .toArray();
-  
-  // Verify modules actually have files installed
-  const verified: InstalledModule[] = [];
-  for (const record of records) {
-    const fileCount = await db.moduleFiles
-      .where('moduleId')
-      .equals(record.id)
-      .count();
-    
-    // Only include modules that have at least one file
-    if (fileCount > 0) {
-      verified.push({
-        config: record.config,
-        status: record.status,
-        installedAt: record.installedAt,
-        updatedAt: record.updatedAt,
-        size: record.size,
-        error: record.error,
-      });
-    }
-  }
-  
-  return verified;
-}
 
 /**
  * Export all user data (annotations, headings, notes)
@@ -401,74 +420,55 @@ export async function clearDatabase(): Promise<void> {
     db.chapterTitles.clear(),
     db.notes.clear(),
     db.keyWords.clear(),
+    db.markingPresets.clear(),
     db.chapterCache.clear(),
-    db.moduleFiles.clear(),
     db.readingHistory.clear(),
-    // Don't clear modules or preferences - those are system data
+    // Note: modules and moduleFiles tables are deprecated (Sword support removed)
+    // but kept in schema for backwards compatibility
   ]);
 }
 
 // ============================================================================
-// Key Word Functions
+// Marking Preset Functions (unified key words + symbol/color presets)
 // ============================================================================
 
-/**
- * Get all key words
- */
-export async function getAllKeyWords(): Promise<KeyWordDefinition[]> {
-  return db.keyWords.toArray();
+export async function getAllMarkingPresets(): Promise<MarkingPreset[]> {
+  return db.markingPresets.toArray();
 }
 
-/**
- * Get key words by category
- */
-export async function getKeyWordsByCategory(category: string): Promise<KeyWordDefinition[]> {
-  return db.keyWords.where('category').equals(category).toArray();
+export async function getMarkingPresetsByCategory(category: string): Promise<MarkingPreset[]> {
+  return db.markingPresets.where('category').equals(category).toArray();
 }
 
-/**
- * Get a specific key word by ID
- */
-export async function getKeyWord(id: string): Promise<KeyWordDefinition | undefined> {
-  return db.keyWords.get(id);
+export async function getMarkingPreset(id: string): Promise<MarkingPreset | undefined> {
+  return db.markingPresets.get(id);
 }
 
-/**
- * Save a key word (create or update)
- */
-export async function saveKeyWord(keyWord: KeyWordDefinition): Promise<string> {
-  return db.keyWords.put(keyWord);
+export async function saveMarkingPreset(preset: MarkingPreset): Promise<string> {
+  return db.markingPresets.put(preset);
 }
 
-/**
- * Delete a key word
- */
-export async function deleteKeyWord(id: string): Promise<void> {
-  await db.keyWords.delete(id);
+export async function deleteMarkingPreset(id: string): Promise<void> {
+  await db.markingPresets.delete(id);
 }
 
-/**
- * Increment the usage count for a key word
- */
-export async function incrementKeyWordUsage(id: string): Promise<void> {
-  const keyWord = await db.keyWords.get(id);
-  if (keyWord) {
-    await db.keyWords.update(id, {
-      usageCount: (keyWord.usageCount || 0) + 1,
+export async function incrementMarkingPresetUsage(id: string): Promise<void> {
+  const preset = await db.markingPresets.get(id);
+  if (preset) {
+    await db.markingPresets.update(id, {
+      usageCount: (preset.usageCount || 0) + 1,
       updatedAt: new Date(),
     });
   }
 }
 
-/**
- * Search key words by text (matches word or variants)
- */
-export async function searchKeyWords(text: string): Promise<KeyWordDefinition[]> {
-  const lowerText = text.toLowerCase().trim();
-  const allKeyWords = await db.keyWords.toArray();
-  
-  return allKeyWords.filter(kw => {
-    if (kw.word.toLowerCase() === lowerText) return true;
-    return kw.variants.some(v => v.toLowerCase() === lowerText);
+/** Search presets by text (matches word or variants; presets without word are excluded) */
+export async function searchMarkingPresets(text: string): Promise<MarkingPreset[]> {
+  const all = await db.markingPresets.toArray();
+  const lower = text.toLowerCase().trim();
+  return all.filter((p) => {
+    if (!p.word) return false;
+    if (p.word.toLowerCase() === lower) return true;
+    return (p.variants || []).some((v) => v.toLowerCase() === lower);
   });
 }

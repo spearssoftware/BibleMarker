@@ -18,23 +18,62 @@ import type {
 } from './types';
 import { BibleApiError } from './types';
 import { bibliaClient } from './biblia';
+import { bibleGatewayClient } from './biblegateway';
 import { esvClient } from './esv';
 import { getBibleClient } from './getbible';
-import type { VerseRef, Chapter } from '@/types/sword';
+import type { VerseRef, Chapter } from '@/types/bible';
 import { db } from '@/lib/db';
 
 // Re-export types
 export * from './types';
 export { bibliaClient } from './biblia';
-export { esvClient } from './esv';
+export { bibleGatewayClient } from './biblegateway';
+export { esvClient, ESV_COPYRIGHT } from './esv';
 export { getBibleClient } from './getbible';
+
+/** Set to true to enable BibleGateway API (NASB, NIV, etc.). Disabled for now. */
+export const BIBLEGATEWAY_ENABLED = false;
+
+/**
+ * Check if a Bible translation is available with the current Biblia API key
+ * Usage: In browser console, type: window.testBibleAvailability('NASB')
+ */
+if (typeof window !== 'undefined') {
+  (window as any).testBibleAvailability = async (bibleId: string) => {
+    const { bibliaClient } = await import('./biblia');
+    const isAvailable = await bibliaClient.isBibleAvailable(bibleId);
+    console.log(`Bible "${bibleId}" is ${isAvailable ? '✅ AVAILABLE' : '❌ NOT AVAILABLE'} with your API key`);
+    return isAvailable;
+  };
+
+  (window as any).listAvailableBibles = async () => {
+    const { bibliaClient } = await import('./biblia');
+    const bibleIds = await bibliaClient.getAvailableBibleIds();
+    console.log(`Available Bibles with your API key (${bibleIds.length} total):`, bibleIds);
+    return bibleIds;
+  };
+
+  (window as any).clearChapterCache = async () => {
+    const count = await db.chapterCache.count();
+    await db.chapterCache.clear();
+    console.log(`✅ Cleared ${count} cached chapters`);
+    return count;
+  };
+
+  (window as any).clearTranslationCache = async () => {
+    const count = await db.translationCache.count();
+    await db.translationCache.clear();
+    console.log(`✅ Cleared ${count} cached translation lists`);
+    return count;
+  };
+}
 
 /** All available API clients */
 const clients: Record<BibleApiProvider, BibleApiClient | null> = {
   biblia: bibliaClient,
+  biblegateway: bibleGatewayClient,
   esv: esvClient,
   getbible: getBibleClient,
-  sword: null, // Deprecated - no longer used
 };
 
 /** Get a specific API client */
@@ -71,9 +110,11 @@ export async function getAllTranslations(): Promise<ApiTranslation[]> {
   
   console.log('[getAllTranslations] Starting to fetch translations from all clients');
   
-  for (const [provider, client] of Object.entries(clients)) {
-    if (!client) continue; // Skip null clients (like sword)
-    
+  // Load translations in parallel for better performance
+  const translationPromises = Object.entries(clients).map(async ([provider, client]) => {
+    if (!client) return [];
+    if (provider === 'biblegateway' && !BIBLEGATEWAY_ENABLED) return [];
+
     const isConfigured = client.isConfigured();
     console.log(`[getAllTranslations] Checking ${provider}:`, { 
       hasClient: !!client, 
@@ -86,31 +127,40 @@ export async function getAllTranslations(): Promise<ApiTranslation[]> {
         const providerTranslations = await client.getTranslations();
         console.log(`[getAllTranslations] Got ${providerTranslations.length} translations from ${provider}:`, providerTranslations.slice(0, 3));
         
-        // Filter out duplicates and add provider prefix if needed
-        for (const translation of providerTranslations) {
-          // Skip translations without valid IDs
-          if (!translation.id || typeof translation.id !== 'string' || translation.id.trim() === '') {
-            console.warn(`Skipping translation without valid ID from ${provider}:`, translation);
-            continue;
-          }
-          
-          // Create unique ID by prefixing with provider if duplicate exists
-          let uniqueId = translation.id.trim();
-          if (seenIds.has(uniqueId)) {
-            uniqueId = `${provider}-${translation.id.trim()}`;
-          }
-          seenIds.add(uniqueId);
-          
-          translations.push({
-            ...translation,
-            id: uniqueId,
-          });
-        }
+        return providerTranslations;
       } catch (error) {
         console.error(`Failed to get translations from ${provider}:`, error);
+        return [];
       }
     } else {
       console.log(`[getAllTranslations] ${provider} client not configured or not available`);
+      return [];
+    }
+  });
+  
+  // Wait for all translation fetches to complete
+  const allProviderTranslations = await Promise.all(translationPromises);
+  
+  // Combine and deduplicate translations
+  for (const providerTranslations of allProviderTranslations) {
+    for (const translation of providerTranslations) {
+      // Skip translations without valid IDs
+      if (!translation.id || typeof translation.id !== 'string' || translation.id.trim() === '') {
+        console.warn(`Skipping translation without valid ID:`, translation);
+        continue;
+      }
+      
+      // Create unique ID by prefixing with provider if duplicate exists
+      let uniqueId = translation.id.trim();
+      if (seenIds.has(uniqueId)) {
+        uniqueId = `${translation.provider}-${translation.id.trim()}`;
+      }
+      seenIds.add(uniqueId);
+      
+      translations.push({
+        ...translation,
+        id: uniqueId,
+      });
     }
   }
   
@@ -169,7 +219,7 @@ export async function fetchChapter(
   
   if (translationId.includes('-')) {
     const [prefix, ...rest] = translationId.split('-');
-    if (['getbible', 'biblia', 'esv'].includes(prefix)) {
+    if (['getbible', 'biblia', 'esv', 'biblegateway'].includes(prefix)) {
       provider = prefix as BibleApiProvider;
       actualTranslationId = rest.join('-');
     }
@@ -190,13 +240,47 @@ export async function fetchChapter(
   }
   
   // Check if it's a Biblia translation
-  if (!chapterData && (!provider || provider === 'biblia') && 
-      (actualTranslationId.startsWith('eng-') || ['NASB', 'NIV', 'NKJV'].includes(actualTranslationId))) {
+  // Biblia now only handles unique translations: LEB, DARBY, YLT, EMPHBBL
+  // KJV and ASV are handled by getBible (free)
+  // Also handle old format with "eng-" prefix for backwards compatibility
+  const isBibliaTranslation = (!provider || provider === 'biblia') && (
+    actualTranslationId.startsWith('eng-') || 
+    ['LEB', 'DARBY', 'YLT', 'EMPHBBL'].includes(actualTranslationId.toUpperCase())
+  );
+  
+  // Check BibleGateway (NASB, NIV, ESV, etc.) - disabled when BIBLEGATEWAY_ENABLED is false
+  if (BIBLEGATEWAY_ENABLED && !chapterData && (provider === 'biblegateway' || (!provider && bibleGatewayClient.isConfigured()))) {
+    if (bibleGatewayClient.isConfigured()) {
+      try {
+        chapterData = await bibleGatewayClient.getChapter(actualTranslationId, book, chapter);
+      } catch (error) {
+        console.warn('BibleGateway API failed:', error);
+      }
+    }
+  }
+
+  let bibliaError: Error | null = null;
+  if (!chapterData && isBibliaTranslation) {
     if (bibliaClient.isConfigured()) {
       try {
-        chapterData = await bibliaClient.getChapter(actualTranslationId, book, chapter);
+        // Remove "eng-" prefix if present for backwards compatibility
+        let bibliaTranslationId = actualTranslationId;
+        if (bibliaTranslationId.startsWith('eng-')) {
+          bibliaTranslationId = bibliaTranslationId.substring(4);
+        }
+        // Convert to uppercase to match Biblia API format
+        bibliaTranslationId = bibliaTranslationId.toUpperCase();
+        console.log('[fetchChapter] Using Biblia API with translation ID:', bibliaTranslationId);
+        chapterData = await bibliaClient.getChapter(bibliaTranslationId, book, chapter);
       } catch (error) {
-        console.warn('Biblia API failed, trying other sources:', error);
+        bibliaError = error as Error;
+        // Check if it's a 403 error (translation not available)
+        const is403Error = error instanceof BibleApiError && error.statusCode === 403;
+        if (is403Error) {
+          console.warn(`[fetchChapter] Translation "${actualTranslationId}" not available with your Biblia API key. Try KJV, ASV, or LEB instead.`);
+        } else {
+          console.warn('Biblia API failed, trying other sources:', error);
+        }
       }
     }
   }
@@ -247,9 +331,18 @@ export async function fetchChapter(
     };
   }
 
-  // No API data available
+  // No API data available - provide helpful error message
+  if (bibliaError && bibliaError instanceof BibleApiError && bibliaError.statusCode === 403) {
+    // Biblia translation not available - suggest alternatives
+    throw new BibleApiError(
+      `Translation "${translationId}" is not available with your Biblia API key. Try KJV, ASV, or LEB instead. You can change the translation in the Module Manager.`,
+      'biblia',
+      403
+    );
+  }
+  
   throw new BibleApiError(
-    `No API configured for translation: ${translationId}. Available APIs: getBible (free), Biblia, ESV.`,
+    `No API configured for translation: ${translationId}. Available APIs: getBible (free), Biblia, ESV${BIBLEGATEWAY_ENABLED ? ', BibleGateway' : ''}.`,
     'getbible'
   );
 }
@@ -275,6 +368,14 @@ export async function searchBible(
     }
   }
 
+  if (BIBLEGATEWAY_ENABLED && bibleGatewayClient.isConfigured() && bibleGatewayClient.search) {
+    try {
+      return await bibleGatewayClient.search(translationId, query, limit);
+    } catch {
+      // fall through
+    }
+  }
+
   // No search available
   return [];
 }
@@ -286,9 +387,18 @@ export async function loadApiConfigs(): Promise<void> {
   try {
     const prefs = await db.preferences.get('main');
     if (prefs?.apiConfigs) {
+      console.log('[loadApiConfigs] Loading API configs:', prefs.apiConfigs.map(c => ({ provider: c.provider, hasKey: !!c.apiKey })));
       for (const config of prefs.apiConfigs) {
+        if (config.provider === 'biblegateway' && !BIBLEGATEWAY_ENABLED) continue;
         configureApi(config.provider, config);
+        // Log configuration status
+        const client = getClient(config.provider);
+        if (client) {
+          console.log(`[loadApiConfigs] ${config.provider} configured:`, client.isConfigured());
+        }
       }
+    } else {
+      console.log('[loadApiConfigs] No API configs found in preferences');
     }
     
     // Enable getBible by default (no API key required)
@@ -325,8 +435,10 @@ export async function saveApiConfig(config: ApiConfig): Promise<void> {
   
   // Convert ApiConfig to ApiConfigRecord (exclude getbible)
   updatedConfigs.push({
-    provider: config.provider as 'biblia' | 'esv' | 'sword',
+    provider: config.provider as 'biblia' | 'esv' | 'getbible' | 'biblegateway',
     apiKey: config.apiKey,
+    username: config.username,
+    password: config.password,
     baseUrl: config.baseUrl,
     enabled: config.enabled,
   });
@@ -357,6 +469,8 @@ export async function getApiConfig(provider: BibleApiProvider): Promise<ApiConfi
   return {
     provider: config.provider as BibleApiProvider,
     apiKey: config.apiKey,
+    username: config.username,
+    password: config.password,
     baseUrl: config.baseUrl,
     enabled: config.enabled,
   };

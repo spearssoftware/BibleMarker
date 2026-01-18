@@ -1,11 +1,14 @@
 /**
  * ESV API Client
- * 
+ *
  * Client for Crossway's ESV API which provides access to the
  * English Standard Version translation.
- * 
+ *
  * API Documentation: https://api.esv.org/docs/
- * Free for personal use with attribution
+ * Free for personal use with attribution.
+ *
+ * ESV API compliance: rate limits (60/min, 1000/hr, 5000/day),
+ * verse limits (500 or half book per query), and attribution.
  */
 
 import type {
@@ -18,10 +21,24 @@ import type {
   BibleApiProvider,
 } from './types';
 import { BibleApiError } from './types';
-import type { VerseRef } from '@/types/sword';
-import { getBookById } from '@/types/bible';
+import type { VerseRef } from '@/types/bible';
+import { getBookById, getVerseCount, getBookVerseCount, countVersesInRange } from '@/types/bible';
+import { db } from '@/lib/db';
 
 const ESV_BASE_URL = 'https://api.esv.org/v3/passage';
+
+/** ESV API limits (https://api.esv.org/) */
+const ESV_MAX_VERSES = 500;
+const ESV_REQUESTS_PER_MINUTE = 60;
+const ESV_REQUESTS_PER_HOUR = 1000;
+const ESV_REQUESTS_PER_DAY = 5000;
+const MS_PER_MINUTE = 60_000;
+const MS_PER_HOUR = 3_600_000;
+const MS_PER_DAY = 86_400_000;
+
+/** Full ESV copyright for display (ESV API compliance). */
+export const ESV_COPYRIGHT =
+  'Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®), © 2001 by Crossway, a publishing ministry of Good News Publishers.';
 
 /** Map OSIS book IDs to ESV format */
 function toEsvBook(osisId: string): string {
@@ -31,12 +48,62 @@ function toEsvBook(osisId: string): string {
 
 /** Parse ESV verse text */
 function parseVerseText(text: string): { text: string; html: string } {
-  // ESV API returns clean text, minimal processing needed
-  const cleanText = text
-    .replace(/\s+/g, ' ')
-    .trim();
-  
+  const cleanText = text.replace(/\s+/g, ' ').trim();
   return { text: cleanText, html: cleanText };
+}
+
+/** Throws if verse count exceeds ESV limits: 500 or half of book, whichever is less. */
+function validateEsvVerseCount(verseCount: number, book: string, context: string): void {
+  const halfBook = Math.floor(getBookVerseCount(book) / 2);
+  const limit = Math.min(ESV_MAX_VERSES, halfBook);
+  if (verseCount > limit) {
+    throw new BibleApiError(
+      `ESV API limit: ${context} has ${verseCount} verses. Maximum per request is ${limit} (500 verses or half of ${getBookById(book)?.name || book}, whichever is less).`,
+      'esv',
+      400
+    );
+  }
+}
+
+/** Load, prune, and check ESV rate limits. Throws BibleApiError 429 if over. */
+async function checkEsvRateLimit(): Promise<void> {
+  const row = await db.esvRateLimit.get('esv');
+  let timestamps: number[] = row?.requestTimestamps ?? [];
+  const now = Date.now();
+  timestamps = timestamps.filter((t) => now - t < MS_PER_DAY);
+  const inLastMin = timestamps.filter((t) => now - t < MS_PER_MINUTE).length;
+  const inLastHour = timestamps.filter((t) => now - t < MS_PER_HOUR).length;
+  if (inLastMin >= ESV_REQUESTS_PER_MINUTE) {
+    throw new BibleApiError(
+      'ESV API rate limit: maximum 60 requests per minute. Please wait a moment before requesting more text.',
+      'esv',
+      429
+    );
+  }
+  if (inLastHour >= ESV_REQUESTS_PER_HOUR) {
+    throw new BibleApiError(
+      'ESV API rate limit: maximum 1,000 requests per hour. Please try again later.',
+      'esv',
+      429
+    );
+  }
+  if (timestamps.length >= ESV_REQUESTS_PER_DAY) {
+    throw new BibleApiError(
+      'ESV API rate limit: maximum 5,000 requests per day. Please try again tomorrow.',
+      'esv',
+      429
+    );
+  }
+}
+
+/** Append a request timestamp after a successful ESV API call. */
+async function recordEsvRequest(): Promise<void> {
+  const row = await db.esvRateLimit.get('esv');
+  const now = Date.now();
+  let timestamps: number[] = row?.requestTimestamps ?? [];
+  timestamps = timestamps.filter((t) => now - t < MS_PER_DAY);
+  timestamps.push(now);
+  await db.esvRateLimit.put({ id: 'esv', requestTimestamps: timestamps });
 }
 
 export class EsvClient implements BibleApiClient {
@@ -64,6 +131,8 @@ export class EsvClient implements BibleApiClient {
       throw new BibleApiError('ESV API key not configured. Please configure your ESV API key in settings.', 'esv', 401);
     }
 
+    await checkEsvRateLimit();
+
     const url = new URL(`${this.baseUrl}${endpoint}`);
     for (const [key, value] of Object.entries(params)) {
       url.searchParams.set(key, value);
@@ -71,28 +140,19 @@ export class EsvClient implements BibleApiClient {
 
     try {
       const response = await fetch(url.toString(), {
-        headers: {
-          'Authorization': `Token ${this.apiKey}`,
-        },
+        headers: { Authorization: `Token ${this.apiKey}` },
       });
-      
+
       if (!response.ok) {
-        throw new BibleApiError(
-          `ESV API error: ${response.statusText}`,
-          'esv',
-          response.status
-        );
+        throw new BibleApiError(`ESV API error: ${response.statusText}`, 'esv', response.status);
       }
 
-      return await response.json();
+      const data = await response.json();
+      await recordEsvRequest();
+      return data;
     } catch (error) {
       if (error instanceof BibleApiError) throw error;
-      throw new BibleApiError(
-        'Failed to fetch from ESV API',
-        'esv',
-        undefined,
-        error as Error
-      );
+      throw new BibleApiError('Failed to fetch from ESV API', 'esv', undefined, error as Error);
     }
   }
 
@@ -111,10 +171,13 @@ export class EsvClient implements BibleApiClient {
     ];
   }
 
-  async getChapter(translationId: string, book: string, chapter: number): Promise<ChapterResponse> {
+  async getChapter(_translationId: string, book: string, chapter: number): Promise<ChapterResponse> {
+    const verseCount = getVerseCount(book, chapter);
+    validateEsvVerseCount(verseCount, book, `${getBookById(book)?.name || book} ${chapter}`);
+
     const esvBook = toEsvBook(book);
     const passage = `${esvBook} ${chapter}`;
-    
+
     const response = await this.fetch<{
       passages: string[];
       passage_meta: Array<{
@@ -167,11 +230,11 @@ export class EsvClient implements BibleApiClient {
       book,
       chapter,
       verses,
-      copyright: 'ESV® Bible © 2001 Crossway',
+      copyright: ESV_COPYRIGHT,
     };
   }
 
-  async getVerse(translationId: string, ref: VerseRef): Promise<VerseResponse> {
+  async getVerse(_translationId: string, ref: VerseRef): Promise<VerseResponse> {
     const esvBook = toEsvBook(ref.book);
     const passage = `${esvBook} ${ref.chapter}:${ref.verse}`;
     
@@ -197,10 +260,13 @@ export class EsvClient implements BibleApiClient {
     };
   }
 
-  async getVerseRange(translationId: string, startRef: VerseRef, endRef: VerseRef): Promise<VerseResponse[]> {
+  async getVerseRange(_translationId: string, startRef: VerseRef, endRef: VerseRef): Promise<VerseResponse[]> {
+    const count = countVersesInRange(startRef, endRef);
+    validateEsvVerseCount(count, startRef.book, `${getBookById(startRef.book)?.name || startRef.book} ${startRef.chapter}:${startRef.verse}-${endRef.chapter}:${endRef.verse}`);
+
     const esvBook = toEsvBook(startRef.book);
     const passage = `${esvBook} ${startRef.chapter}:${startRef.verse}-${endRef.verse}`;
-    
+
     const response = await this.fetch<{
       passages: string[];
     }>('/text/', {
@@ -234,7 +300,7 @@ export class EsvClient implements BibleApiClient {
     return verses;
   }
 
-  async search(translationId: string, query: string, limit = 20): Promise<SearchResult[]> {
+  async search(_translationId: string, query: string, limit = 20): Promise<SearchResult[]> {
     const response = await this.fetch<{
       results: Array<{
         reference: string;

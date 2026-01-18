@@ -14,13 +14,13 @@ import { SectionHeadingEditor } from './SectionHeadingEditor';
 import { SectionHeadingCreator } from './SectionHeadingCreator';
 import { ChapterTitleEditor } from './ChapterTitleEditor';
 import { ChapterTitleCreator } from './ChapterTitleCreator';
-import { AnnotationLegend } from './AnnotationLegend';
 import { NoteEditor } from './NoteEditor';
 import { NoteCreator } from './NoteCreator';
 import { VerseNumberMenu } from './VerseNumberMenu';
 import { getBookById } from '@/types/bible';
-import type { Verse } from '@/types/sword';
+import type { Verse } from '@/types/bible';
 import type { Annotation, SectionHeading, Note } from '@/types/annotation';
+import { ESV_COPYRIGHT } from '@/lib/bible-api';
 
 // Map fontSize to Tailwind class
 function getFontSizeClass(fontSize: 'sm' | 'base' | 'lg' | 'xl'): string {
@@ -40,7 +40,8 @@ export function ChapterView() {
     currentChapter, 
     currentModuleId,
     isLoading, 
-    error 
+    error,
+    setLocation,
   } = useBibleStore();
   
   const { 
@@ -72,7 +73,6 @@ export function ChapterView() {
   } = useAnnotations();
   const bookInfo = getBookById(currentBook);
   
-  const [showLegend, setShowLegend] = useState(false);
   const [creatingHeadingAt, setCreatingHeadingAt] = useState<number | null>(null);
   const [creatingChapterTitle, setCreatingChapterTitle] = useState(false);
   const [creatingNoteAt, setCreatingNoteAt] = useState<number | null>(null);
@@ -88,6 +88,44 @@ export function ChapterView() {
     }
   }, [currentModuleId, currentBook, currentChapter, loadAnnotations, loadSectionHeadings, loadChapterTitle, loadNotes]);
 
+  // When a marking overlay (Color/Symbol/Key Words) opens with a selection, scroll the
+  // selected verse into view in the middle of the viewable area (below nav, above the overlay).
+  useEffect(() => {
+    const handler = () => {
+      const sel = useAnnotationStore.getState().selection;
+      if (!sel) return;
+      const el = document.querySelector(`[data-verse="${sel.startVerse}"]`);
+      if (!el) return;
+      // Nav is sticky; get its height so we don't position the verse under it
+      const nav = document.querySelector('nav, header[class*="nav"]');
+      const navHeight = (nav?.getBoundingClientRect().height ?? 0) || 64;
+      // Viewable band: from (navHeight) to 50vh (overlay takes bottom 50%). Center of that band:
+      const viewableTop = navHeight;
+      const viewableBottom = window.innerHeight * 0.5;
+      const targetY =
+        viewableBottom > viewableTop
+          ? viewableTop + (viewableBottom - viewableTop) / 2
+          : viewableTop + 40;
+      // Use scroll-margin so the initial scroll doesn't put the verse under the nav
+      const prevMargin = (el as HTMLElement).style.scrollMarginTop;
+      (el as HTMLElement).style.scrollMarginTop = `${navHeight + 16}px`;
+      el.scrollIntoView({ behavior: 'auto', block: 'start' });
+      (el as HTMLElement).style.scrollMarginTop = prevMargin;
+      // Nudge so the verse center lands in the middle of the viewable band
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const rect = el.getBoundingClientRect();
+          const centerY = rect.top + rect.height / 2;
+          const main = (el as HTMLElement).closest('main') ?? document.querySelector('main');
+          if (main && Math.abs(centerY - targetY) > 10) {
+            (main as HTMLElement).scrollBy({ top: centerY - targetY, behavior: 'smooth' });
+          }
+        });
+      });
+    };
+    window.addEventListener('markingOverlayOpened', handler);
+    return () => window.removeEventListener('markingOverlayOpened', handler);
+  }, []);
 
   // Split text into words (preserves whitespace/punctuation position info)
   function splitIntoWords(text: string): Array<{ word: string; startIndex: number; endIndex: number }> {
@@ -544,12 +582,9 @@ export function ChapterView() {
     >
       {/* Chapter header */}
       <header className="mb-6 md:mb-8 text-center">
-        <h1 className="font-scripture text-3xl md:text-4xl text-scripture-text mb-2 font-medium tracking-tight">
-          {bookInfo?.name || currentBook}
+        <h1 className="font-scripture text-3xl md:text-4xl text-scripture-text font-medium tracking-tight mb-4">
+          {bookInfo?.name || currentBook} {currentChapter}
         </h1>
-        <h2 className="text-scripture-accent text-lg md:text-xl font-ui mb-4 font-semibold">
-          Chapter {currentChapter}
-        </h2>
         
         {/* Chapter title */}
         {chapterTitle ? (
@@ -579,33 +614,17 @@ export function ChapterView() {
         )}
       </header>
 
-      {/* Annotation Legend */}
-      {annotations.length > 0 && (
-        <div className="mb-6">
-          <button
-            onClick={() => setShowLegend(!showLegend)}
-            className="w-full text-left px-4 py-2.5 rounded-xl bg-scripture-surface/50 border border-scripture-border/50 
-                     hover:bg-scripture-elevated/50 transition-all duration-200 flex items-center justify-between
-                     shadow-sm hover:shadow"
-          >
-            <span className="text-xs font-ui text-scripture-text">
-              📋 Annotation Legend
-            </span>
-            <span className="text-scripture-muted text-xs">
-              {showLegend ? '▼' : '▶'}
-            </span>
-          </button>
-          {showLegend && (
-            <div className="mt-2">
-              <AnnotationLegend annotations={annotations} />
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Verses */}
-      <div className={`scripture-text ${getFontSizeClass(fontSize)} space-y-2 md:space-y-2.5`}>
-        {chapter.verses.map((verse: Verse) => (
+      {chapter.verses.length > 0 && !chapter.verses.some(v => v.text.trim()) ? (
+        <div className="flex flex-col items-center justify-center py-12 text-scripture-muted">
+          <p className="text-lg mb-2">Chapter not available</p>
+          <p className="text-sm text-center max-w-md">
+            This chapter is not loaded. You may need to download the full module from the Module Manager.
+          </p>
+        </div>
+      ) : (
+        <div className={`scripture-text ${getFontSizeClass(fontSize)} space-y-2 md:space-y-2.5`}>
+          {chapter.verses.map((verse: Verse) => (
           <div key={verse.ref.verse}>
             {/* Section heading if exists */}
             {getHeadingBefore(verse.ref.verse) && (
@@ -665,6 +684,22 @@ export function ChapterView() {
                   />
                 ) : undefined
               }
+              onNavigate={(ref) => {
+                setLocation(ref.book, ref.chapter);
+                // Scroll to the verse if possible (in the same chapter)
+                if (ref.book === currentBook && ref.chapter === currentChapter) {
+                  setTimeout(() => {
+                    const verseElement = document.querySelector(`[data-verse="${ref.verse}"]`);
+                    if (verseElement) {
+                      verseElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                  }, 100);
+                }
+              }}
+              onShowVerse={() => {
+                // VerseText will handle showing the overlay internally
+                // This prop allows parent to control it if needed
+              }}
             />
 
             {/* Notes for this verse */}
@@ -707,7 +742,15 @@ export function ChapterView() {
             )}
           </div>
         ))}
-      </div>
+        </div>
+      )}
+
+      {/* ESV copyright (ESV API compliance) */}
+      {currentModuleId && (currentModuleId.toUpperCase() === 'ESV' || currentModuleId.toLowerCase().startsWith('esv-')) && (
+        <p className="mt-8 pt-6 border-t border-scripture-muted/30 text-xs text-scripture-muted text-center">
+          {ESV_COPYRIGHT}
+        </p>
+      )}
 
       {/* Bottom padding for toolbar */}
       <div className="h-24" />
