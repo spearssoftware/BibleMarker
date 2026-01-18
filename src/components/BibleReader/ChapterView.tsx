@@ -150,6 +150,21 @@ export function ChapterView() {
     return word.replace(/^[^\w]*|[^\w]*$/g, '').toLowerCase();
   }
 
+  // Extract plain text from a DOM range, removing all HTML markup (symbols, buttons, etc.)
+  // Uses textContent which automatically strips all HTML tags
+  function extractPlainTextFromRange(range: Range): string {
+    try {
+      // Clone the range contents to a temporary container
+      const contents = range.cloneContents();
+      // Use textContent to get plain text (automatically strips all HTML)
+      return contents.textContent || '';
+    } catch (e) {
+      // Fallback to toString() if cloning fails
+      console.warn('Failed to extract plain text from range, using toString()', e);
+      return range.toString();
+    }
+  }
+
   // Find word indices for a selection within a verse text
   function findWordIndices(
     plainText: string, 
@@ -447,10 +462,11 @@ export function ChapterView() {
               const startRange = document.createRange();
               startRange.selectNodeContents(startVerseContent);
               startRange.setEnd(range.startContainer, range.startOffset);
-              const textBeforeSelection = startRange.toString();
+              // Extract plain text (removes symbols, remove buttons, etc.)
+              const textBeforeSelection = extractPlainTextFromRange(startRange);
               
-              // Get the selected text from the DOM (this is what the user actually selected)
-              const selectedText = range.toString().trim();
+              // Extract plain text from selection (removes symbols, remove buttons, etc.)
+              const selectedText = extractPlainTextFromRange(range).trim();
               
               const wordIndices = findWordIndices(originalStartText, selectedText, textBeforeSelection, startVerse);
               if (wordIndices) {

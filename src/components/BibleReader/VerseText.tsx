@@ -6,7 +6,7 @@
 
 import { useState, useRef, useMemo } from 'react';
 import type { Verse, VerseRef } from '@/types/bible';
-import type { Annotation, TextAnnotation, SymbolAnnotation } from '@/types/annotation';
+import type { Annotation, TextAnnotation, SymbolAnnotation, SymbolKey } from '@/types/annotation';
 import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
 import { CrossReferencePopup } from './CrossReferencePopup';
 import { VerseOverlay } from './VerseOverlay';
@@ -230,6 +230,7 @@ export function VerseText({ verse, annotations, isSelected, onRemoveAnnotation, 
         if (!range) {
           // Get the text for this symbol's range to compare
           const symText = plainText.substring(charOffsets.start, charOffsets.end).trim().toLowerCase();
+          const symTextNormalized = symText.replace(/[^\w]/g, '');
           
           range = ranges.find(r => {
             // Check if ranges overlap
@@ -237,15 +238,20 @@ export function VerseText({ verse, annotations, isSelected, onRemoveAnnotation, 
             
             // Check if they refer to the same word by comparing normalized text
             const rangeText = plainText.substring(r.start, r.end).trim().toLowerCase();
+            const rangeTextNormalized = rangeText.replace(/[^\w]/g, '');
             const sameWord = symText === rangeText || 
-                            (symText.length > 0 && rangeText.length > 0 && 
-                             symText.replace(/[^\w]/g, '') === rangeText.replace(/[^\w]/g, ''));
+                            (symTextNormalized.length > 0 && rangeTextNormalized.length > 0 && 
+                             symTextNormalized === rangeTextNormalized);
             
-            // Also check if they're very close (within a few characters) - likely same word with different punctuation handling
-            const isClose = Math.abs(charOffsets!.start - r.start) <= 5 && 
-                          Math.abs(charOffsets!.end - r.end) <= 5;
+            // Also check if they're very close (within 10 characters) - likely same word with different punctuation handling
+            const isClose = Math.abs(charOffsets!.start - r.start) <= 10 && 
+                          Math.abs(charOffsets!.end - r.end) <= 10;
             
-            return overlaps || sameWord || isClose;
+            // Also check if the normalized word content matches (handles punctuation differences)
+            const wordContentMatches = sameWord || (symTextNormalized && rangeTextNormalized && 
+                              symTextNormalized === rangeTextNormalized);
+            
+            return overlaps || wordContentMatches || isClose;
           });
         }
         
@@ -263,15 +269,79 @@ export function VerseText({ verse, annotations, isSelected, onRemoveAnnotation, 
           range.end = Math.max(range.end, charOffsets.end);
         }
         
-        // Only add symbol if not already present (by ID)
-        if (!range.symbolAnnotations.some(s => s.id === sym.id)) {
+        // Only add symbol if not already present (by ID or by same symbol type)
+        // This prevents duplicate symbols when multiple virtual annotations or variants match the same word
+        // Since we're merging overlapping ranges, if the range already has this symbol type, skip it
+        const alreadyHasSymbol = range.symbolAnnotations.some(s => {
+          // Same ID = same annotation
+          if (s.id === sym.id) return true;
+          // Same symbol type = duplicate (we only want one symbol per word)
+          if (s.symbol === sym.symbol) return true;
+          return false;
+        });
+        
+        if (!alreadyHasSymbol) {
           range.symbolAnnotations.push(sym);
         }
       }
     }
 
-    // Sort ranges by start position
+    // Final deduplication: ensure each range only has one symbol of each type
+    // This handles cases where multiple symbols of the same type were added before merging
+    for (const range of ranges) {
+      if (range.symbolAnnotations.length > 1) {
+        // Group by symbol type and keep only the first of each type
+        const seenSymbols = new Set<SymbolKey>();
+        range.symbolAnnotations = range.symbolAnnotations.filter(sym => {
+          if (seenSymbols.has(sym.symbol)) {
+            return false; // Already have this symbol type
+          }
+          seenSymbols.add(sym.symbol);
+          return true;
+        });
+      }
+    }
+
+    // Final merge pass: merge any remaining overlapping ranges with symbols
+    // This catches cases where ranges were created separately but refer to the same word
     ranges.sort((a, b) => a.start - b.start);
+    const mergedRanges: AnnotationRange[] = [];
+    for (const range of ranges) {
+      // Try to find an existing range that overlaps with this one
+      let merged = false;
+      for (const existing of mergedRanges) {
+        const overlaps = !(range.end <= existing.start || range.start >= existing.end);
+        
+        // If both ranges have symbols and overlap, merge them (we want one symbol per word position)
+        if (overlaps && range.symbolAnnotations.length > 0 && existing.symbolAnnotations.length > 0) {
+          // Merge symbols - deduplicate by type
+          for (const sym of range.symbolAnnotations) {
+            if (!existing.symbolAnnotations.some(s => s.symbol === sym.symbol)) {
+              existing.symbolAnnotations.push(sym);
+            }
+          }
+          // Merge text annotations
+          for (const ann of range.textAnnotations) {
+            if (!existing.textAnnotations.some(a => a.id === ann.id)) {
+              existing.textAnnotations.push(ann);
+            }
+          }
+          // Expand bounds to include both
+          existing.start = Math.min(existing.start, range.start);
+          existing.end = Math.max(existing.end, range.end);
+          merged = true;
+          break;
+        }
+      }
+      
+      if (!merged) {
+        mergedRanges.push({ ...range }); // Create a copy
+      }
+    }
+    
+    // Replace ranges with merged ranges
+    ranges.length = 0;
+    ranges.push(...mergedRanges);
 
     // Build segments: split text at all annotation boundaries
     // Each segment will have a list of annotations that apply to it
@@ -308,14 +378,19 @@ export function VerseText({ verse, annotations, isSelected, onRemoveAnnotation, 
       
       // Find which annotations apply to this segment
       const segmentAnnotations: TextAnnotation[] = [];
-      const segmentSymbols: SymbolAnnotation[] = [];
+      const segmentSymbolsMap = new Map<SymbolKey, SymbolAnnotation>(); // Use Map to deduplicate by symbol type
 
       for (const range of ranges) {
         // Annotation applies if it overlaps with this segment
         // Use <= for end to include adjacent ranges (range ends exactly where segment starts)
         if (range.start < end && range.end > start) {
           segmentAnnotations.push(...range.textAnnotations);
-          segmentSymbols.push(...range.symbolAnnotations);
+          // Deduplicate symbols by symbol type - only keep one of each type
+          for (const sym of range.symbolAnnotations) {
+            if (!segmentSymbolsMap.has(sym.symbol)) {
+              segmentSymbolsMap.set(sym.symbol, sym);
+            }
+          }
         }
       }
 
@@ -324,7 +399,7 @@ export function VerseText({ verse, annotations, isSelected, onRemoveAnnotation, 
         end,
         text,
         annotations: segmentAnnotations,
-        symbols: segmentSymbols,
+        symbols: Array.from(segmentSymbolsMap.values()),
       });
     }
 
