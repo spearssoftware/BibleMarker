@@ -84,10 +84,12 @@ export function useAnnotations() {
 
   /**
    * Create a highlight, text color, or underline annotation
+   * @param presetId - Optional; links to MarkingPreset for find-by-preset and "marked" in Key Word Finder
    */
   const createTextAnnotation = useCallback(async (
     type: 'highlight' | 'textColor' | 'underline',
-    color: HighlightColor
+    color: HighlightColor,
+    presetId?: string
   ): Promise<Annotation | null> => {
     console.log('[useAnnotations] createTextAnnotation called:', { type, color, selection, currentModuleId });
     
@@ -118,6 +120,7 @@ export function useAnnotations() {
       color,
       createdAt: new Date(),
       updatedAt: new Date(),
+      ...(presetId != null && { presetId }),
     };
 
     console.log('[useAnnotations] Saving annotation:', annotation);
@@ -136,13 +139,17 @@ export function useAnnotations() {
   }, [selection, currentModuleId, addRecentColor, loadAnnotations, clearSelection]);
 
   /**
-   * Create a symbol annotation
+   * Create a symbol annotation (inline before the word by default so the word can also have highlight/underline/color)
+   * @param presetId - Optional; links to MarkingPreset for find-by-preset and "marked" in Key Word Finder
+   * @param opts.clearSelection - If false, do not clear selection after (e.g. when also creating a text annotation)
    */
   const createSymbolAnnotation = useCallback(async (
     symbol: SymbolKey,
-    position: 'before' | 'after' | 'center' = 'center',
+    position: 'before' | 'after' | 'center' = 'before',
     color?: HighlightColor,
-    placement: 'above' | 'overlay' = 'above'
+    placement: 'above' | 'overlay' = 'above',
+    presetId?: string,
+    opts?: { clearSelection?: boolean }
   ): Promise<Annotation | null> => {
     if (!selection || !currentModuleId) return null;
 
@@ -172,15 +179,15 @@ export function useAnnotations() {
       color,
       createdAt: new Date(),
       updatedAt: new Date(),
+      ...(presetId != null && { presetId }),
     };
 
     await saveAnnotation(annotation);
     addRecentSymbol(symbol);
-    
-    // Reload annotations
+
     await loadAnnotations();
-    clearSelection();
-    
+    if (opts?.clearSelection !== false) clearSelection();
+
     return annotation;
   }, [selection, currentModuleId, addRecentSymbol, loadAnnotations, clearSelection]);
 
@@ -213,9 +220,13 @@ export function useAnnotations() {
     try {
       if (activeTool === 'symbol') {
         console.log('[useAnnotations] Creating symbol annotation...');
-        // Symbols are positioned at center of selection, overlay on text by default
-        const result = await createSymbolAnnotation(symbolToUse, 'center', colorToUse, 'overlay');
-        console.log('[useAnnotations] Symbol annotation result:', result);
+        // Symbol inline before the word; when a color is selected, also apply it to the word as highlight
+        if (colorToUse) {
+          await createSymbolAnnotation(symbolToUse, 'before', colorToUse, 'above', undefined, { clearSelection: false });
+          await createTextAnnotation('highlight', colorToUse);
+        } else {
+          await createSymbolAnnotation(symbolToUse, 'before', undefined, 'above');
+        }
       } else {
         console.log('[useAnnotations] Creating text annotation...');
         const result = await createTextAnnotation(activeTool as 'highlight' | 'textColor' | 'underline', colorToUse);
