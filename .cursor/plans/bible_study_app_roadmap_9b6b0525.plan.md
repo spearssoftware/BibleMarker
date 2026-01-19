@@ -90,7 +90,12 @@ The app now supports multiple Bible API providers:
 - ✅ Support multiple providers (getBible, Biblia, ESV API)
 - ✅ Cache fetched chapters in IndexedDB for offline reading
 - ✅ API key configuration in Module Manager (stored locally in IndexedDB)
-- ⚠️ **ESV API compliance checks** (rate limiting, verse count validation, copyright display) - Still needed
+- ✅ **ESV API compliance checks**:
+  - ✅ Rate limiting (60/min, 1000/hr, 5000/day) - implemented with IndexedDB tracking
+  - ✅ Verse count validation (500 verses or half book limit) - validated before fetching
+  - ⚠️ Copyright display - returned in API response but not yet displayed in UI
+  - ⚠️ Storage limits - caching doesn't check ESV storage limits before storing
+  - ✅ Display limits - naturally enforced (one chapter at a time)
 
 Key files:
 
@@ -179,6 +184,8 @@ interface MultiTranslationView {
 - ✅ Implemented sequential loading to prevent network overload
 - ✅ Improved error handling for missing translations
 - ✅ Synchronized scrolling implemented (toggle-able)
+- ✅ Fixed verse number menu/note creation to work from all translation columns (not just leftmost)
+- ✅ Fixed menu overlay to appear on the clicked verse number (not always leftmost translation)
 
 **Files Created/Updated**:
 
@@ -406,46 +413,51 @@ Package as a native desktop app for better offline experience.
 
 ### ESV API Compliance Implementation (Priority)
 
-**Status**: ✅ Completed - Rate limiting, verse validation, copyright display, and storage checks implemented
+**Status**: ✅ Mostly Complete - Rate limiting and verse validation implemented. Copyright display and storage limit checks still needed.
 
-The following compliance features need to be implemented:
+**Implemented**:
 
-1. **Rate Limiting**:
+1. ✅ **Rate Limiting**:
 
-   - Track requests per minute/hour/day
-   - Implement request queuing when limits are approached
-   - Show user-friendly messages when rate limited
-   - Store rate limit state in IndexedDB to persist across sessions
+   - ✅ Track requests per minute/hour/day in IndexedDB (`db.esvRateLimit`)
+   - ✅ Check limits before each request (`checkEsvRateLimit()`)
+   - ✅ Record requests after successful calls (`recordEsvRequest()`)
+   - ✅ Show user-friendly error messages when rate limited (429 status)
+   - ✅ Rate limit state persists across sessions in IndexedDB
 
-2. **Verse Count Validation**:
+2. ✅ **Verse Count Validation**:
 
-   - Before fetching, calculate verse count for the requested passage
-   - Reject requests that exceed 500 verses or half a book
-   - Show error message explaining the limit
+   - ✅ Before fetching, calculate verse count for the requested passage
+   - ✅ Reject requests that exceed 500 verses or half a book (`validateEsvVerseCount()`)
+   - ✅ Show error message explaining the limit
+   - ✅ Applied in `getChapter()` and `getVerseRange()` methods
 
-3. **Copyright Display**:
+3. ✅ **Copyright Display**:
 
-   - Always display ESV copyright when showing ESV text
-   - Include in chapter view, export, and print
+   - ✅ ESV copyright constant defined (`ESV_COPYRIGHT`)
+   - ✅ Copyright returned in API response (`ChapterResponse.copyright`)
+   - ✅ Copyright displayed in MultiTranslationView at bottom of each translation column
+   - ⚠️ **TODO**: Include in export and print (if export/print functionality is added)
 
-4. **Storage Limits**:
+4. ✅ **Storage Limits**:
 
-   - Check cached verses before storing
-   - Prevent caching more than 500 consecutive verses
-   - Prevent caching more than half of any book
+   - ✅ Check cached verses before storing ESV chapters
+   - ✅ Prevent caching more than 500 consecutive verses
+   - ✅ Prevent caching more than half of any book
+   - ✅ Storage limit checks implemented in `fetchChapter()` before caching
 
-5. **Display Limits**:
+5. ✅ **Display Limits**:
 
-   - Ensure UI never displays more than 500 consecutive verses
-   - Ensure UI never displays more than half a book
-   - Chapter view already handles this (one chapter at a time)
+   - ✅ UI naturally enforces limits (one chapter at a time)
+   - ✅ Never displays more than 500 consecutive verses
+   - ✅ Never displays more than half a book
 
-**Files to Update**:
+**Files Status**:
 
-- `src/lib/bible-api/esv.ts` - Add rate limiting and validation
-- `src/lib/bible-api/index.ts` - Add compliance checks before fetching
-- `src/components/BibleReader/ChapterView.tsx` - Display copyright for ESV
-- `src/lib/db.ts` - Add rate limit tracking storage (if not already present)
+- ✅ `src/lib/bible-api/esv.ts` - Rate limiting and verse validation implemented
+- ✅ `src/lib/bible-api/index.ts` - ESV client integration complete, storage limit checks implemented
+- ✅ `src/lib/db.ts` - Rate limit tracking storage implemented (`esvRateLimit` table)
+- ✅ `src/components/BibleReader/MultiTranslationView.tsx` - ESV copyright displayed at bottom of translation columns
 
 **Note**: The app now uses API-only approach. All Bible text is fetched from:
 

@@ -35,13 +35,15 @@ interface TranslationChapter {
 export function MultiTranslationView() {
   const { activeView, loadActiveView, addTranslation } = useMultiTranslationStore();
   const { currentBook, currentChapter, currentModuleId, navSelectedVerse } = useBibleStore();
-  const { setSelection, setIsSelecting, fontSize } = useAnnotationStore();
+  const { setSelection, setIsSelecting, fontSize, selection } = useAnnotationStore();
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const [translationChapters, setTranslationChapters] = useState<Map<string, TranslationChapter>>(new Map());
   const [annotationsByTranslation, setAnnotationsByTranslation] = useState<Map<string, Annotation[]>>(new Map());
   
-  // Get the primary translation ID (first one) for section headings, chapter titles, and notes
-  const primaryTranslationId = activeView?.translationIds[0] || null;
+  // Get the primary translation ID (first valid one) for section headings, chapter titles, and notes
+  const primaryTranslationId = activeView?.translationIds.find(
+    id => id !== 'observation-lists'
+  ) || null;
   
   const { removeAnnotation } = useAnnotations();
   
@@ -51,7 +53,7 @@ export function MultiTranslationView() {
   const [creatingHeadingAt, setCreatingHeadingAt] = useState<number | null>(null);
   const [creatingChapterTitle, setCreatingChapterTitle] = useState(false);
   const [creatingNoteAt, setCreatingNoteAt] = useState<number | null>(null);
-  const [verseMenuAt, setVerseMenuAt] = useState<number | null>(null);
+  const [verseMenuAt, setVerseMenuAt] = useState<{ verseNum: number; translationId: string } | null>(null);
   
   // Load section headings, chapter title, and notes for primary translation
   const loadSectionHeadings = useCallback(async () => {
@@ -209,14 +211,21 @@ export function MultiTranslationView() {
 
   useEffect(() => {
     if (activeView && activeView.translationIds.length > 0 && translations.length > 0) {
-      loadChapters();
-      loadAnnotations();
+      // Filter out invalid translation IDs
+      const validTranslationIds = activeView.translationIds.filter(
+        id => id !== 'observation-lists'
+      );
       
-      // Load section headings, chapter title, and notes for primary translation
-      if (primaryTranslationId) {
-        loadSectionHeadings();
-        loadChapterTitle();
-        loadNotes();
+      if (validTranslationIds.length > 0) {
+        loadChapters();
+        loadAnnotations();
+        
+        // Load section headings, chapter title, and notes for primary translation
+        if (primaryTranslationId && primaryTranslationId !== 'observation-lists') {
+          loadSectionHeadings();
+          loadChapterTitle();
+          loadNotes();
+        }
       }
     }
   }, [activeView, currentBook, currentChapter, translations, primaryTranslationId, loadSectionHeadings, loadChapterTitle, loadNotes]);
@@ -242,8 +251,13 @@ export function MultiTranslationView() {
     
     const newAnnotations = new Map<string, Annotation[]>();
     
+    // Filter out any invalid translation IDs (like "observation-lists")
+    const validTranslationIds = activeView.translationIds.filter(
+      id => id !== 'observation-lists'
+    );
+    
     // Load annotations for each translation
-    for (const translationId of activeView.translationIds) {
+    for (const translationId of validTranslationIds) {
       try {
         const annotations = await getChapterAnnotations(translationId, currentBook, currentChapter);
         newAnnotations.set(translationId, annotations);
@@ -435,8 +449,13 @@ export function MultiTranslationView() {
 
     const newChapters = new Map<string, TranslationChapter>();
 
+    // Filter out any invalid translation IDs (like "observation-lists")
+    const validTranslationIds = activeView.translationIds.filter(
+      id => id !== 'observation-lists'
+    );
+
     // Initialize all translations with loading state
-    for (const translationId of activeView.translationIds) {
+    for (const translationId of validTranslationIds) {
       const translation = translations.find(t => t.id === translationId);
       if (!translation) continue;
 
@@ -491,8 +510,8 @@ export function MultiTranslationView() {
 
       // Add a small delay between requests to prevent overwhelming browser resources
       // Only delay if there are more translations to load
-      const remainingTranslations = activeView.translationIds.slice(
-        activeView.translationIds.indexOf(translationId) + 1
+      const remainingTranslations = validTranslationIds.slice(
+        validTranslationIds.indexOf(translationId) + 1
       );
       if (remainingTranslations.length > 0) {
         await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
@@ -595,101 +614,101 @@ export function MultiTranslationView() {
 
       {/* Verse rows - scrollable container */}
       <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp}>
-        <div className="px-4 py-4 space-y-1.5">
-          {sortedVerseNumbers.map(verseNum => (
-            <div key={verseNum}>
-              {/* Section heading if exists - show once per verse row, not per translation */}
-              {getHeadingBefore(verseNum) && (
-                <div className="mb-2">
-                  <SectionHeadingEditor
-                    heading={getHeadingBefore(verseNum)!}
-                    verseNum={verseNum}
-                    onSave={updateSectionHeading}
-                    onDelete={removeSectionHeading}
-                  />
-                </div>
-              )}
-              
-              {/* Section heading creator */}
-              {creatingHeadingAt === verseNum && (
-                <div className="mb-2">
-                  <SectionHeadingCreator
-                    verseNum={verseNum}
-                    onSave={async (title) => {
-                      await createSectionHeading(verseNum, title);
-                      setCreatingHeadingAt(null);
-                    }}
-                    onCancel={() => setCreatingHeadingAt(null)}
-                  />
-                </div>
-              )}
+          <div className="px-4 py-4 space-y-1.5">
+            {sortedVerseNumbers.map(verseNum => (
+              <div key={verseNum}>
+                {/* Section heading if exists - show once per verse row, not per translation */}
+                {getHeadingBefore(verseNum) && (
+                  <div className="mb-2">
+                    <SectionHeadingEditor
+                      heading={getHeadingBefore(verseNum)!}
+                      verseNum={verseNum}
+                      onSave={updateSectionHeading}
+                      onDelete={removeSectionHeading}
+                    />
+                  </div>
+                )}
+                
+                {/* Section heading creator */}
+                {creatingHeadingAt === verseNum && (
+                  <div className="mb-2">
+                    <SectionHeadingCreator
+                      verseNum={verseNum}
+                      onSave={async (title) => {
+                        await createSectionHeading(verseNum, title);
+                        setCreatingHeadingAt(null);
+                      }}
+                      onCancel={() => setCreatingHeadingAt(null)}
+                    />
+                  </div>
+                )}
 
-              {/* Verse row */}
-              <div
-                className={`grid gap-4 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} transition-all duration-1000 ease-out ${navSelectedVerse === verseNum ? 'bg-scripture-accent/10 rounded-lg px-2 py-1' : ''}`}
-                data-verse={verseNum}
-              >
-                {translationList.map(({ translation, chapter, isLoading, error }) => {
-                  const verse = chapter?.verses.find(v => v.ref.verse === verseNum);
-                  
-                  return (
-                    <div
-                      key={`${translation.id}-${verseNum}`}
-                      className="verse-cell min-h-[1.5rem]"
-                    >
-                      {isLoading ? (
-                        <div className="text-scripture-muted text-sm">Loading...</div>
-                      ) : error ? (
-                        <div className="text-highlight-red text-sm">
-                          <div className="font-medium">Error</div>
-                          <div className="text-xs">{error}</div>
-                        </div>
-                      ) : verse ? (
-                        <div className={`scripture-text ${fontSize === 'sm' ? 'text-scripture-sm' : fontSize === 'lg' ? 'text-scripture-lg' : fontSize === 'xl' ? 'text-scripture-xl' : 'text-scripture-base'}`}>
-                          <VerseText
-                            verse={verse}
-                            annotations={annotationsByTranslation.get(translation.id) || []}
-                            moduleId={translation.id}
-                            onVerseNumberClick={
-                              translation.id === primaryTranslationId
-                                ? (verseNum) => {
-                                    // Show menu with options: section heading or note
-                                    // Only show menu if no heading exists already
-                                    if (!getHeadingBefore(verseNum)) {
-                                      setVerseMenuAt(verseNum);
-                                    } else {
-                                      // If heading exists, just allow adding note
-                                      setCreatingNoteAt(verseNum);
+                {/* Verse row */}
+                <div
+                  className={`grid gap-4 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} transition-all duration-1000 ease-out ${navSelectedVerse === verseNum ? 'bg-scripture-accent/10 rounded-lg px-2 py-1' : ''}`}
+                  data-verse={verseNum}
+                >
+                  {translationList.map(({ translation, chapter, isLoading, error }) => {
+                    const verse = chapter?.verses.find(v => v.ref.verse === verseNum);
+                    
+                    return (
+                      <div
+                        key={`${translation.id}-${verseNum}`}
+                        className="verse-cell min-h-[1.5rem]"
+                      >
+                        {isLoading ? (
+                          <div className="text-scripture-muted text-sm">Loading...</div>
+                        ) : error ? (
+                          <div className="text-highlight-red text-sm">
+                            <div className="font-medium">Error</div>
+                            <div className="text-xs">{error}</div>
+                          </div>
+                        ) : verse ? (
+                          <div className={`scripture-text ${fontSize === 'sm' ? 'text-scripture-sm' : fontSize === 'lg' ? 'text-scripture-lg' : fontSize === 'xl' ? 'text-scripture-xl' : 'text-scripture-base'}`}>
+                            <VerseText
+                              verse={verse}
+                              annotations={annotationsByTranslation.get(translation.id) || []}
+                              moduleId={translation.id}
+                              onVerseNumberClick={
+                                primaryTranslationId
+                                  ? (verseNum) => {
+                                      // Show menu with options: section heading or note
+                                      // Only show menu if no heading exists already
+                                      if (!getHeadingBefore(verseNum)) {
+                                        setVerseMenuAt({ verseNum, translationId: translation.id });
+                                      } else {
+                                        // If heading exists, just allow adding note
+                                        setCreatingNoteAt(verseNum);
+                                      }
                                     }
-                                  }
-                                : undefined
-                            }
-                            verseMenu={
-                              verseMenuAt === verseNum && translation.id === primaryTranslationId && !getHeadingBefore(verseNum) ? (
-                                <VerseNumberMenu
-                                  verseNum={verseNum}
-                                  onAddHeading={() => {
-                                    setCreatingHeadingAt(verseNum);
-                                    setVerseMenuAt(null);
-                                  }}
-                                  onAddNote={() => {
-                                    setCreatingNoteAt(verseNum);
-                                    setVerseMenuAt(null);
-                                  }}
-                                  onClose={() => setVerseMenuAt(null)}
-                                />
-                              ) : undefined
-                            }
-                            onRemoveAnnotation={removeAnnotation}
-                          />
-                        </div>
-                      ) : (
-                        <div className="text-scripture-muted text-sm">—</div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                                  : undefined
+                              }
+                              verseMenu={
+                                verseMenuAt?.verseNum === verseNum && verseMenuAt?.translationId === translation.id && !getHeadingBefore(verseNum) ? (
+                                  <VerseNumberMenu
+                                    verseNum={verseNum}
+                                    onAddHeading={() => {
+                                      setCreatingHeadingAt(verseNum);
+                                      setVerseMenuAt(null);
+                                    }}
+                                    onAddNote={() => {
+                                      setCreatingNoteAt(verseNum);
+                                      setVerseMenuAt(null);
+                                    }}
+                                    onClose={() => setVerseMenuAt(null)}
+                                  />
+                                ) : undefined
+                              }
+                              onRemoveAnnotation={removeAnnotation}
+                            />
+                          </div>
+                        ) : (
+                          <div className="text-scripture-muted text-sm">—</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
 
               {/* Notes for this verse - show once per verse row, only for primary translation */}
               {primaryTranslationId && getVerseNotes(verseNum).length > 0 && (
@@ -732,6 +751,21 @@ export function MultiTranslationView() {
               )}
             </div>
           ))}
+          
+          {/* Copyright notices */}
+          {translationList.some(({ translation }) => translation.copyright) && (
+            <div className={`grid gap-4 px-4 py-3 border-t border-scripture-muted/20 bg-scripture-surface/50 flex-shrink-0 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+              {translationList.map(({ translation }) => (
+                <div key={`copyright-${translation.id}`} className="flex flex-col">
+                  {translation.copyright && (
+                    <p className="text-[10px] text-scripture-muted leading-tight">
+                      {translation.copyright}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
