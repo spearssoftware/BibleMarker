@@ -14,7 +14,8 @@ import { ModuleManager } from './ModuleManager';
 import { KeyWordManager } from '@/components/KeyWords';
 import { AnnotationLegend } from '@/components/BibleReader';
 import { StudyManager } from '@/components/Study';
-import { ListPanel, AddToList } from '@/components/Lists';
+import { AddToList } from '@/components/Lists';
+import { StudyToolsPanel } from '@/components/Summary';
 import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
 import { clearDatabase, updatePreferences, clearBookAnnotations } from '@/lib/db';
 import { useBibleStore } from '@/stores/bibleStore';
@@ -29,12 +30,12 @@ const COLOR_STYLE_LABELS: Record<(typeof COLOR_STYLES)[number], string> = {
   underline: 'Underline',
 };
 
-const TOOLS: { type: 'color' | 'symbol' | 'keyWords' | 'legend' | 'lists' | 'more'; icon: string; label: string }[] = [
+const TOOLS: { type: 'color' | 'symbol' | 'keyWords' | 'legend' | 'studyTools' | 'more'; icon: string; label: string }[] = [
   { type: 'color', icon: '🖍', label: 'Color' },
   { type: 'symbol', icon: '✝', label: 'Symbol' },
   { type: 'legend', icon: '📋', label: 'Legend' },
   { type: 'keyWords', icon: '🔑', label: 'Key Words' },
-  { type: 'lists', icon: '📝', label: 'Lists' },
+  { type: 'studyTools', icon: '📚', label: 'Study' },
   { type: 'more', icon: '⚙️', label: 'Settings' },
 ];
 
@@ -67,7 +68,7 @@ export function Toolbar() {
   const [showAddAsVariantPicker, setShowAddAsVariantPicker] = useState(false);
   const [showLegendOverlay, setShowLegendOverlay] = useState(false);
   const [showStudyManager, setShowStudyManager] = useState(false);
-  const [showListPanel, setShowListPanel] = useState(false);
+  const [showStudyToolsPanel, setShowStudyToolsPanel] = useState(false);
   const [showAddToList, setShowAddToList] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
@@ -103,7 +104,7 @@ export function Toolbar() {
         setShowKeyWordApplyPicker(false);
         setShowAddAsVariantPicker(false);
         setShowLegendOverlay(false);
-        setShowListPanel(false);
+        setShowStudyToolsPanel(false);
         setActiveTool(null);
       }
     };
@@ -345,7 +346,7 @@ export function Toolbar() {
         setShowSymbolPicker(false);
         setShowKeyWordManager(false);
         setShowLegendOverlay(false);
-        setShowListPanel(false);
+        setShowStudyToolsPanel(false);
         if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
       }
     } else if (toolType === 'symbol') {
@@ -358,7 +359,7 @@ export function Toolbar() {
         setShowColorPicker(false);
         setShowKeyWordManager(false);
         setShowLegendOverlay(false);
-        setShowListPanel(false);
+        setShowStudyToolsPanel(false);
         if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
       }
     } else if (toolType === 'keyWords') {
@@ -368,7 +369,7 @@ export function Toolbar() {
       setShowSymbolPicker(false);
       setShowSystemMenu(false);
       setShowLegendOverlay(false);
-      setShowListPanel(false);
+      setShowStudyToolsPanel(false);
       if (willOpen) setActiveTool(null);
       if (willOpen && selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
     } else if (toolType === 'legend') {
@@ -377,16 +378,17 @@ export function Toolbar() {
       setShowSymbolPicker(false);
       setShowKeyWordManager(false);
       setShowSystemMenu(false);
-      setShowListPanel(false);
+      setShowStudyToolsPanel(false);
       if (!showLegendOverlay) setActiveTool(null);
-    } else if (toolType === 'lists') {
-      setShowListPanel((v) => !v);
+    } else if (toolType === 'studyTools') {
+      const willOpen = !showStudyToolsPanel;
+      setShowStudyToolsPanel((v) => !v);
       setShowColorPicker(false);
       setShowSymbolPicker(false);
       setShowKeyWordManager(false);
       setShowSystemMenu(false);
       setShowLegendOverlay(false);
-      setActiveTool(null);
+      if (willOpen) setActiveTool(null);
     } else if (toolType === 'more') {
       if (!showSystemMenu) setActiveTool(null);
       setShowSystemMenu(!showSystemMenu);
@@ -554,7 +556,7 @@ export function Toolbar() {
                 title="Add observation to list"
               >
                 <span>📝</span>
-                <span>Add to List</span>
+                <span>Add Observation</span>
               </button>
               <button
                 onClick={() => {
@@ -757,24 +759,6 @@ export function Toolbar() {
                 <span>Manage Studies</span>
               </button>
 
-              {/* Observation Lists */}
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowListPanel(true);
-                  setShowSystemMenu(false);
-                }}
-                className="w-full px-4 py-2.5 text-left rounded-xl bg-scripture-elevated/50 
-                         hover:bg-scripture-elevated text-scripture-text transition-all 
-                         duration-200 flex items-center gap-2 text-sm font-ui font-medium 
-                         border border-scripture-border/30 hover:border-scripture-border/50 
-                         shadow-sm hover:shadow"
-                title="View and manage observation lists"
-              >
-                <span>📝</span>
-                <span>Observation Lists</span>
-              </button>
 
               {/* Clear Highlights for Current Book */}
               <button
@@ -843,9 +827,14 @@ export function Toolbar() {
         <StudyManager onClose={() => setShowStudyManager(false)} />
       )}
 
-      {/* List Panel */}
-      {showListPanel && (
-        <ListPanel onClose={() => setShowListPanel(false)} />
+      {/* Study Tools Panel */}
+      {showStudyToolsPanel && (
+        <div 
+          className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 
+                     animate-slide-up shadow-lg flex flex-col h-[50vh] max-h-[50vh] min-h-[200px] overflow-hidden"
+        >
+          <StudyToolsPanel onClose={() => setShowStudyToolsPanel(false)} />
+        </div>
       )}
 
       {/* Add to List */}
@@ -919,7 +908,7 @@ export function Toolbar() {
               : tool.type === 'symbol' ? activeTool === 'symbol'
               : tool.type === 'keyWords' ? showKeyWordManager
               : tool.type === 'legend' ? showLegendOverlay
-              : tool.type === 'lists' ? showListPanel
+              : tool.type === 'studyTools' ? showStudyToolsPanel
               : tool.type === 'more' ? showSystemMenu
               : false;
             return (
