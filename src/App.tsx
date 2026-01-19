@@ -7,7 +7,10 @@
 import { useEffect } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
-import { NavigationBar, ChapterView } from '@/components/BibleReader';
+import { useStudyStore } from '@/stores/studyStore';
+import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
+import { NavigationBar } from '@/components/BibleReader';
+import { MultiTranslationView } from '@/components/BibleReader/MultiTranslationView';
 import { Toolbar } from '@/components/MarkingToolbar';
 import { loadSampleData } from '@/lib/sampleData';
 import { getPreferences } from '@/lib/db';
@@ -18,8 +21,10 @@ export default function App() {
 
   const { setCurrentModule } = useBibleStore();
   const { setFontSize } = useAnnotationStore();
+  const { loadStudies } = useStudyStore();
+  const { loadActiveView, activeView } = useMultiTranslationStore();
 
-  // Load preferences on mount
+  // Load preferences and initialize stores on mount
   useEffect(() => {
     async function loadPrefs() {
       try {
@@ -32,12 +37,15 @@ export default function App() {
       }
     }
     loadPrefs();
-  }, [setFontSize]);
+    
+    // Initialize study and multi-translation stores
+    loadStudies();
+    loadActiveView();
+  }, [setFontSize, loadStudies, loadActiveView]);
 
-  // Load sample data and API configs on mount
+  // Load sample data and API configs on mount, initialize module ID if needed
   useEffect(() => {
     async function init() {
-      setLoading(true);
       try {
         // Load Bible API configurations (getBible, Biblia, ESV API, etc.)
         await loadApiConfigs();
@@ -46,26 +54,21 @@ export default function App() {
         await loadSampleData();
         
         // Check if current module ID is valid, if not reset to default
+        // Don't load chapter here - let the second useEffect handle it
         const { currentModuleId: existingModuleId } = useBibleStore.getState();
         if (!existingModuleId || existingModuleId.includes('undefined') || existingModuleId.trim() === '') {
           console.log('[App] Invalid module ID detected, resetting to kjv:', existingModuleId);
           // Set the module ID so annotations work (use getBible translation)
-          const initialModuleId = 'kjv';
-          setCurrentModule(initialModuleId);
-          // Load initial chapter
-          const chapter = await loadChapter(initialModuleId, currentBook, currentChapter);
-          setChapter(chapter);
-        } else {
-          // Module ID is valid, just load the chapter
-          const chapter = await loadChapter(existingModuleId, currentBook, currentChapter);
-          setChapter(chapter);
+          // This will trigger the second useEffect to load the chapter
+          setCurrentModule('kjv');
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load');
+        console.error('[App] Error during initialization:', err);
+        setError(err instanceof Error ? err.message : 'Failed to initialize');
       }
     }
     init();
-  }, []);
+  }, [setCurrentModule, setError]);
 
   // Load chapter when location or module changes
   useEffect(() => {
@@ -76,6 +79,7 @@ export default function App() {
       }
       console.log('[App] Loading chapter:', { currentModuleId, currentBook, currentChapter });
       setLoading(true);
+      setError(null);
       // Clear chapter immediately to show loading state
       setChapter(null);
       try {
@@ -85,6 +89,7 @@ export default function App() {
       } catch (err) {
         console.error('[App] Error loading chapter:', err);
         setError(err instanceof Error ? err.message : 'Failed to load');
+        setLoading(false);
       }
     }
     load();
@@ -95,9 +100,9 @@ export default function App() {
       {/* Top navigation */}
       <NavigationBar />
 
-      {/* Main reading area */}
-      <main className="flex-1 overflow-y-auto custom-scrollbar pb-32">
-        <ChapterView />
+      {/* Main reading area - always use MultiTranslationView */}
+      <main className="flex-1 pb-32">
+        <MultiTranslationView />
       </main>
 
       {/* Bottom marking toolbar */}

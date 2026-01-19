@@ -95,8 +95,51 @@ export function isApiConfigured(provider: BibleApiProvider): boolean {
   return client?.isConfigured() ?? false;
 }
 
+// Request deduplication: if getAllTranslations is already in progress, 
+// subsequent calls wait for the first one to complete
+let getAllTranslationsPromise: Promise<ApiTranslation[]> | null = null;
+
+// In-memory cache for the current session
+let cachedTranslations: ApiTranslation[] | null = null;
+
+const CACHE_KEY = 'all-translations';
+const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 /** Get all available translations from all configured APIs */
 export async function getAllTranslations(): Promise<ApiTranslation[]> {
+  // Check IndexedDB cache first (24 hour TTL)
+  try {
+    const cached = await db.translationCache.get(CACHE_KEY);
+    if (cached && cached.cachedAt) {
+      const now = new Date();
+      const cacheAge = now.getTime() - cached.cachedAt.getTime();
+      if (cacheAge < CACHE_DURATION_MS) {
+        const translations = cached.translations as ApiTranslation[];
+        console.log('[getAllTranslations] Using cached translations from IndexedDB (age:', Math.round(cacheAge / 1000 / 60 / 60), 'hours)');
+        // Update in-memory cache
+        cachedTranslations = translations;
+        return translations;
+      } else {
+        console.log('[getAllTranslations] Cache expired (age:', Math.round(cacheAge / 1000 / 60 / 60), 'hours), fetching fresh translations');
+      }
+    }
+  } catch (error) {
+    // If translationCache table doesn't exist yet, just continue to fetch
+    console.warn('[getAllTranslations] Error reading cache, fetching fresh:', error);
+  }
+
+  // Check in-memory cache (for same-session calls)
+  if (cachedTranslations) {
+    console.log('[getAllTranslations] Using in-memory cached translations');
+    return cachedTranslations;
+  }
+
+  // If a request is already in progress, wait for it instead of starting a new one
+  if (getAllTranslationsPromise) {
+    console.log('[getAllTranslations] Request already in progress, waiting for existing request...');
+    return getAllTranslationsPromise;
+  }
+
   // Ensure getBible is configured (it's free and always available)
   if (!getBibleClient.isConfigured()) {
     getBibleClient.configure({
@@ -105,67 +148,114 @@ export async function getAllTranslations(): Promise<ApiTranslation[]> {
     });
   }
   
-  const translations: ApiTranslation[] = [];
-  const seenIds = new Set<string>();
-  
   console.log('[getAllTranslations] Starting to fetch translations from all clients');
   
-  // Load translations in parallel for better performance
-  const translationPromises = Object.entries(clients).map(async ([provider, client]) => {
-    if (!client) return [];
-    if (provider === 'biblegateway' && !BIBLEGATEWAY_ENABLED) return [];
-
-    const isConfigured = client.isConfigured();
-    console.log(`[getAllTranslations] Checking ${provider}:`, { 
-      hasClient: !!client, 
-      isConfigured 
-    });
+  // Create the promise and store it so concurrent calls can wait for it
+  getAllTranslationsPromise = (async () => {
+    const translations: ApiTranslation[] = [];
+    const seenIds = new Set<string>();
     
-    if (isConfigured) {
-      try {
-        console.log(`[getAllTranslations] Fetching translations from ${provider}...`);
-        const providerTranslations = await client.getTranslations();
-        console.log(`[getAllTranslations] Got ${providerTranslations.length} translations from ${provider}:`, providerTranslations.slice(0, 3));
-        
-        return providerTranslations;
-      } catch (error) {
-        console.error(`Failed to get translations from ${provider}:`, error);
-        return [];
-      }
-    } else {
-      console.log(`[getAllTranslations] ${provider} client not configured or not available`);
-      return [];
-    }
-  });
-  
-  // Wait for all translation fetches to complete
-  const allProviderTranslations = await Promise.all(translationPromises);
-  
-  // Combine and deduplicate translations
-  for (const providerTranslations of allProviderTranslations) {
-    for (const translation of providerTranslations) {
-      // Skip translations without valid IDs
-      if (!translation.id || typeof translation.id !== 'string' || translation.id.trim() === '') {
-        console.warn(`Skipping translation without valid ID:`, translation);
-        continue;
-      }
-      
-      // Create unique ID by prefixing with provider if duplicate exists
-      let uniqueId = translation.id.trim();
-      if (seenIds.has(uniqueId)) {
-        uniqueId = `${translation.provider}-${translation.id.trim()}`;
-      }
-      seenIds.add(uniqueId);
-      
-      translations.push({
-        ...translation,
-        id: uniqueId,
+    // Load translations sequentially to avoid overwhelming browser resources
+    // This prevents net::ERR_INSUFFICIENT_RESOURCES errors
+    const allProviderTranslations: ApiTranslation[][] = [];
+    
+    for (const [provider, client] of Object.entries(clients)) {
+      if (!client) continue;
+      if (provider === 'biblegateway' && !BIBLEGATEWAY_ENABLED) continue;
+
+      const isConfigured = client.isConfigured();
+      console.log(`[getAllTranslations] Checking ${provider}:`, { 
+        hasClient: !!client, 
+        isConfigured 
       });
+      
+      if (isConfigured) {
+        try {
+          console.log(`[getAllTranslations] Fetching translations from ${provider}...`);
+          const providerTranslations = await client.getTranslations();
+          console.log(`[getAllTranslations] Got ${providerTranslations.length} translations from ${provider}:`, providerTranslations.slice(0, 3));
+          
+          allProviderTranslations.push(providerTranslations);
+        } catch (error) {
+          console.error(`Failed to get translations from ${provider}:`, error);
+          allProviderTranslations.push([]);
+        }
+      } else {
+        console.log(`[getAllTranslations] ${provider} client not configured or not available`);
+        allProviderTranslations.push([]);
+      }
+      
+      // Add a small delay between API calls to prevent overwhelming browser resources
+      // Only delay if there are more providers to process
+      const remainingProviders = Object.entries(clients).slice(
+        Object.entries(clients).findIndex(([p]) => p === provider) + 1
+      );
+      if (remainingProviders.length > 0) {
+        await new Promise(resolve => setTimeout(resolve, 150)); // 150ms delay
+      }
     }
+    
+    // Combine and deduplicate translations
+    for (const providerTranslations of allProviderTranslations) {
+      for (const translation of providerTranslations) {
+        // Skip translations without valid IDs
+        if (!translation.id || typeof translation.id !== 'string' || translation.id.trim() === '') {
+          console.warn(`Skipping translation without valid ID:`, translation);
+          continue;
+        }
+        
+        // Create unique ID by prefixing with provider if duplicate exists
+        let uniqueId = translation.id.trim();
+        if (seenIds.has(uniqueId)) {
+          uniqueId = `${translation.provider}-${translation.id.trim()}`;
+        }
+        seenIds.add(uniqueId);
+        
+        translations.push({
+          ...translation,
+          id: uniqueId,
+        });
+      }
+    }
+    
+    console.log(`[getAllTranslations] Returning ${translations.length} total translations`);
+    
+    // Cache the result in memory
+    cachedTranslations = translations;
+    
+    // Persist to IndexedDB for next session
+    try {
+      await db.translationCache.put({
+        id: CACHE_KEY,
+        translations: translations,
+        cachedAt: new Date(),
+      });
+      console.log('[getAllTranslations] Cached translations to IndexedDB');
+    } catch (error) {
+      console.warn('[getAllTranslations] Failed to cache translations:', error);
+    }
+    
+    return translations;
+  })();
+
+  try {
+    const result = await getAllTranslationsPromise;
+    return result;
+  } finally {
+    // Clear the promise so future calls can start a new request
+    getAllTranslationsPromise = null;
   }
-  
-  console.log(`[getAllTranslations] Returning ${translations.length} total translations`);
-  return translations;
+}
+
+/** Clear the translations cache (useful when API configs change) */
+export async function clearTranslationsCache(): Promise<void> {
+  cachedTranslations = null;
+  try {
+    await db.translationCache.delete(CACHE_KEY);
+    console.log('[getAllTranslations] Cache cleared from IndexedDB');
+  } catch (error) {
+    console.warn('[getAllTranslations] Failed to clear cache:', error);
+  }
 }
 
 /**
@@ -228,14 +318,33 @@ export async function fetchChapter(
   let chapterData: ChapterResponse | null = null;
   
   // Check ESV first (case-insensitive) - ESV is a specific API, not getBible
-  const isESV = actualTranslationId.toUpperCase() === 'ESV' || provider === 'esv';
+  // Handle multiple formats: "ESV", "esv-ESV", or provider prefix "esv"
+  const normalizedId = actualTranslationId.toUpperCase();
+  const normalizedOriginalId = translationId.toUpperCase();
+  const isESV = normalizedId === 'ESV' || 
+                normalizedId === 'ESV-ESV' ||
+                normalizedOriginalId === 'ESV' ||
+                normalizedOriginalId.startsWith('ESV-') ||
+                provider === 'esv';
+  
   if (isESV) {
     if (esvClient.isConfigured()) {
       try {
         chapterData = await esvClient.getChapter('ESV', book, chapter);
       } catch (error) {
         console.warn('ESV API failed:', error);
+        // Don't silently fail - rethrow if it's a configuration error
+        if (error instanceof BibleApiError && error.statusCode === 401) {
+          throw error;
+        }
       }
+    } else {
+      // ESV API not configured - provide helpful error
+      throw new BibleApiError(
+        'ESV API key not configured. Please configure your ESV API key in the Module Manager settings.',
+        'esv',
+        401
+      );
     }
   }
   
@@ -288,19 +397,33 @@ export async function fetchChapter(
   // Check if it's a getBible translation (only if not ESV or Biblia)
   // If provider is explicitly getbible, or if it's not from another provider, try getBible
   // getBible uses lowercase translation IDs (abbreviations)
+  let getBibleError: Error | null = null;
   if (!chapterData && !isESV && (!provider || provider === 'getbible')) {
     if (getBibleClient.isConfigured()) {
       try {
         // Try getBible for any translation ID (it will fail gracefully if not found)
         chapterData = await getBibleClient.getChapter(actualTranslationId.toLowerCase(), book, chapter);
       } catch (error) {
-        // Only log if it's not a 404 or CORS (translation not found in getBible)
-        if (error instanceof BibleApiError && error.statusCode !== 404) {
-          // Don't log CORS errors as they're expected for invalid translations
-          const isCorsError = error.message.includes('CORS') || error.message.includes('Failed to fetch');
-          if (!isCorsError) {
-            console.warn('getBible API failed, trying other sources:', error);
-          }
+        getBibleError = error as Error;
+        // If provider is explicitly getbible and we get a 404, the translation doesn't exist
+        if (provider === 'getbible' && error instanceof BibleApiError && error.statusCode === 404) {
+          // Translation explicitly from getBible but not found - report error immediately
+          throw new BibleApiError(
+            `Translation "${translationId}" not found in getBible API. The translation may not be available or the ID may be incorrect.`,
+            'getbible',
+            404
+          );
+        }
+        // For non-explicit getbible translations, log but continue to try other APIs
+        // Only log if it's not a CORS/network error (these are expected for invalid translations)
+        const isCorsError = error instanceof Error && (
+          error.message.includes('CORS') || 
+          error.message.includes('Failed to fetch') ||
+          error.message.includes('NetworkError') ||
+          error.message.includes('timeout')
+        );
+        if (!isCorsError) {
+          console.warn('getBible API failed, trying other sources:', error);
         }
         // Continue to try other APIs
       }
@@ -341,9 +464,20 @@ export async function fetchChapter(
     );
   }
   
+  // If getBible was tried and failed with a non-404 error, mention it
+  if (getBibleError && getBibleError instanceof BibleApiError && getBibleError.statusCode !== 404) {
+    throw new BibleApiError(
+      `Failed to load translation "${translationId}" from getBible API: ${getBibleError.message}. Please check your internet connection or try a different translation.`,
+      'getbible',
+      getBibleError.statusCode
+    );
+  }
+  
+  // Generic error - translation not found in any API
   throw new BibleApiError(
-    `No API configured for translation: ${translationId}. Available APIs: getBible (free), Biblia, ESV${BIBLEGATEWAY_ENABLED ? ', BibleGateway' : ''}.`,
-    'getbible'
+    `Translation "${translationId}" not found. Available APIs: getBible (free), Biblia, ESV${BIBLEGATEWAY_ENABLED ? ', BibleGateway' : ''}. The translation may not be available or the ID may be incorrect.`,
+    'getbible',
+    404
   );
 }
 
@@ -385,16 +519,41 @@ export async function searchBible(
  */
 export async function loadApiConfigs(): Promise<void> {
   try {
+    // Ensure database is ready before accessing it
+    await db.open();
+    
     const prefs = await db.preferences.get('main');
+    console.log('[loadApiConfigs] Preferences loaded:', prefs ? 'found' : 'not found');
     if (prefs?.apiConfigs) {
-      console.log('[loadApiConfigs] Loading API configs:', prefs.apiConfigs.map(c => ({ provider: c.provider, hasKey: !!c.apiKey })));
-      for (const config of prefs.apiConfigs) {
-        if (config.provider === 'biblegateway' && !BIBLEGATEWAY_ENABLED) continue;
+      console.log('[loadApiConfigs] Loading API configs:', prefs.apiConfigs.map(c => ({ 
+        provider: c.provider, 
+        hasKey: !!c.apiKey,
+        enabled: c.enabled 
+      })));
+      for (const configRecord of prefs.apiConfigs) {
+        if (configRecord.provider === 'biblegateway' && !BIBLEGATEWAY_ENABLED) continue;
+        
+        // Convert ApiConfigRecord to ApiConfig
+        const config: ApiConfig = {
+          provider: configRecord.provider as BibleApiProvider,
+          apiKey: configRecord.apiKey,
+          username: configRecord.username,
+          password: configRecord.password,
+          baseUrl: configRecord.baseUrl,
+          enabled: configRecord.enabled,
+        };
+        
+        // Configure the API client
         configureApi(config.provider, config);
+        
         // Log configuration status
         const client = getClient(config.provider);
         if (client) {
-          console.log(`[loadApiConfigs] ${config.provider} configured:`, client.isConfigured());
+          const isConfigured = client.isConfigured();
+          console.log(`[loadApiConfigs] ${config.provider} configured:`, isConfigured, 'hasKey:', !!config.apiKey);
+          if (!isConfigured && config.enabled && config.apiKey) {
+            console.warn(`[loadApiConfigs] ${config.provider} has API key but client reports not configured - this may indicate a configuration issue`);
+          }
         }
       }
     } else {
@@ -408,7 +567,7 @@ export async function loadApiConfigs(): Promise<void> {
       enabled: true,
     });
   } catch (error) {
-    console.warn('Failed to load API configs:', error);
+    console.error('Failed to load API configs:', error);
     // Still enable getBible even if loading configs fails
     getBibleClient.configure({
       provider: 'getbible',
@@ -427,8 +586,13 @@ export async function saveApiConfig(config: ApiConfig): Promise<void> {
     return;
   }
   
-  const prefs = await db.preferences.get('main');
-  if (!prefs) return;
+  // Ensure preferences exist
+  let prefs = await db.preferences.get('main');
+  if (!prefs) {
+    // Create default preferences if they don't exist
+    const { getPreferences } = await import('@/lib/db');
+    prefs = await getPreferences();
+  }
 
   const existingConfigs = prefs.apiConfigs || [];
   const updatedConfigs = existingConfigs.filter(c => c.provider !== config.provider);
@@ -443,9 +607,20 @@ export async function saveApiConfig(config: ApiConfig): Promise<void> {
     enabled: config.enabled,
   });
 
+  console.log('[saveApiConfig] Saving config for', config.provider, 'enabled:', config.enabled, 'hasKey:', !!config.apiKey);
+  
   await db.preferences.update('main', {
     apiConfigs: updatedConfigs,
   });
+  
+  // Verify it was saved
+  const verifyPrefs = await db.preferences.get('main');
+  const savedConfig = verifyPrefs?.apiConfigs?.find(c => c.provider === config.provider);
+  console.log('[saveApiConfig] Verification - saved config:', savedConfig ? {
+    provider: savedConfig.provider,
+    enabled: savedConfig.enabled,
+    hasKey: !!savedConfig.apiKey
+  } : 'NOT FOUND');
 
   // Apply the config immediately
   configureApi(config.provider, config);

@@ -1,30 +1,3 @@
----
-name: Bible Study App Roadmap
-overview: Complete the Bible study app with Bible API integration for licensed translations (NASB/ESV), Precept method features (key word tracking, lists, chapter summaries), and package as a desktop app using Tauri.
-todos:
-  - id: bible-api
-    content: "Phase 1: Bible API Integration - Research and implement getBible/Biblia/ESV API with caching"
-    status: completed
-  - id: key-words
-    content: "Phase 2: Key Word System - Data model, store, manager UI, finder, auto-detection"
-    status: completed
-  - id: multi-translation
-    content: "Phase 3: Multi-Translation View & Study System - Parallel translations, cross-translation keywords, study scoping, clear book highlights"
-    status: pending
-  - id: lists
-    content: "Phase 4: Observation Lists - Create/manage lists, add from selection, link to key words"
-    status: pending
-  - id: summary
-    content: "Phase 5: Chapter at a Glance - Chapter summaries, book overview, theme tracking"
-    status: pending
-  - id: tauri
-    content: "Phase 6: Tauri Desktop App - Package with native features, offline support"
-    status: pending
-  - id: search-export
-    content: "Phase 7: Search & Export - Full-text search, PDF export, data backup"
-    status: pending
----
-
 # Bible Study App - Project Plan
 
 ## Current State Summary

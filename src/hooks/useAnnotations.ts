@@ -93,14 +93,17 @@ export function useAnnotations() {
   ): Promise<Annotation | null> => {
     console.log('[useAnnotations] createTextAnnotation called:', { type, color, selection, currentModuleId });
     
-    if (!selection || !currentModuleId) {
+    // Use moduleId from selection if available (multi-translation mode), otherwise fall back to currentModuleId
+    const moduleId = selection?.moduleId || currentModuleId;
+    
+    if (!selection || !moduleId) {
       console.log('[useAnnotations] Missing selection or moduleId');
       return null;
     }
 
     const annotation: TextAnnotation = {
       id: crypto.randomUUID(),
-      moduleId: currentModuleId,
+      moduleId: moduleId,
       type,
       startRef: {
         book: selection.book,
@@ -132,6 +135,10 @@ export function useAnnotations() {
     // Reload annotations
     console.log('[useAnnotations] Reloading annotations...');
     await loadAnnotations();
+    
+    // Dispatch event to notify other components (like MultiTranslationView) to reload
+    window.dispatchEvent(new CustomEvent('annotationsUpdated'));
+    
     console.log('[useAnnotations] Clearing selection...');
     clearSelection();
     
@@ -151,11 +158,14 @@ export function useAnnotations() {
     presetId?: string,
     opts?: { clearSelection?: boolean }
   ): Promise<Annotation | null> => {
-    if (!selection || !currentModuleId) return null;
+    // Use moduleId from selection if available (multi-translation mode), otherwise fall back to currentModuleId
+    const moduleId = selection?.moduleId || currentModuleId;
+    
+    if (!selection || !moduleId) return null;
 
     const annotation: SymbolAnnotation = {
       id: crypto.randomUUID(),
-      moduleId: currentModuleId,
+      moduleId: moduleId,
       type: 'symbol',
       ref: {
         book: selection.book,
@@ -186,6 +196,10 @@ export function useAnnotations() {
     addRecentSymbol(symbol);
 
     await loadAnnotations();
+    
+    // Dispatch event to notify other components (like MultiTranslationView) to reload
+    window.dispatchEvent(new CustomEvent('annotationsUpdated'));
+    
     if (opts?.clearSelection !== false) clearSelection();
 
     return annotation;

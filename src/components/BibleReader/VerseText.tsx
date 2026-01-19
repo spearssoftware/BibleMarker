@@ -16,6 +16,7 @@ import { findKeywordMatches } from '@/lib/keywordMatching';
 interface VerseTextProps {
   verse: Verse;
   annotations: Annotation[];
+  moduleId?: string; // Current translation moduleId for module-scoped keywords
   isSelected?: boolean;
   onRemoveAnnotation?: (id: string) => void;
   onVerseNumberClick?: (verseNum: number) => void;
@@ -32,7 +33,7 @@ function extractPlainText(html: string): string {
   return temp.textContent || temp.innerText || '';
 }
 
-export function VerseText({ verse, annotations, isSelected, onRemoveAnnotation, onVerseNumberClick, verseMenu, onNavigate, onShowVerse }: VerseTextProps) {
+export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAnnotation, onVerseNumberClick, verseMenu, onNavigate, onShowVerse }: VerseTextProps) {
   const [crossRefState, setCrossRefState] = useState<{ refs: string[]; position: { x: number; y: number } } | null>(null);
   const [overlayVerse, setOverlayVerse] = useState<VerseRef | null>(null);
   const verseContentRef = useRef<HTMLSpanElement>(null);
@@ -43,9 +44,10 @@ export function VerseText({ verse, annotations, isSelected, onRemoveAnnotation, 
   // Compute virtual annotations from keyword presets (cross-translation highlighting)
   // These are computed on-the-fly and not persisted
   const virtualAnnotations = useMemo(() => {
-    const verseText = verse.text || '';
-    return findKeywordMatches(verseText, verse.ref, presets);
-  }, [verse.text, verse.ref, presets]);
+    // Extract plain text from verse (removes HTML/OSIS tags)
+    const verseText = verse.text ? extractPlainText(verse.text) : '';
+    return findKeywordMatches(verseText, verse.ref, presets, moduleId);
+  }, [verse.text, verse.ref, presets, moduleId]);
   
   // Merge real annotations with virtual annotations
   // Virtual annotations are filtered out if a real annotation already covers the same range
@@ -87,15 +89,26 @@ export function VerseText({ verse, annotations, isSelected, onRemoveAnnotation, 
 
   // Get symbols before this verse (legacy positioning)
   // Exclude virtual annotations (empty moduleId) - they should be rendered inline, not before verse
+  // Only include real annotations (non-empty moduleId) that have position 'before' and no wordIndex
+  // AND no valid offsets (if it has offsets, it should be rendered inline, not before verse)
   const symbolsBefore = symbolAnnotations.filter(
-    s => s.ref && s.position === 'before' && s.wordIndex === undefined && s.moduleId !== ''
+    s => s.ref && 
+         s.position === 'before' && 
+         s.wordIndex === undefined && 
+         s.moduleId && s.moduleId.length > 0 &&
+         (s.startOffset === undefined || s.endOffset === undefined) // No valid offsets = legacy before-verse positioning
   );
   const symbolsAfter = symbolAnnotations.filter(
-    s => s.ref && s.position === 'after' && s.wordIndex === undefined && s.moduleId !== ''
+    s => s.ref && 
+         s.position === 'after' && 
+         s.wordIndex === undefined && 
+         s.moduleId && s.moduleId.length > 0 &&
+         (s.startOffset === undefined || s.endOffset === undefined) // No valid offsets = legacy after-verse positioning
   );
   
   // Get symbols on a range: center (legacy overlay/above) or before (inline in front of word)
   // This includes virtual annotations (empty moduleId) which should be rendered inline
+  // For virtual annotations with position 'before', they should have startOffset/endOffset to be rendered inline
   const centerSymbols = symbolAnnotations.filter(
     s => (s.position === 'center' || s.position === 'before') && s.ref && s.ref.verse === verse.ref.verse
   );

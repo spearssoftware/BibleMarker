@@ -13,8 +13,11 @@ import { SymbolPicker } from './SymbolPicker';
 import { ModuleManager } from './ModuleManager';
 import { KeyWordManager } from '@/components/KeyWords';
 import { AnnotationLegend } from '@/components/BibleReader';
+import { StudyManager } from '@/components/Study';
 import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
-import { clearDatabase, updatePreferences } from '@/lib/db';
+import { clearDatabase, updatePreferences, clearBookAnnotations } from '@/lib/db';
+import { useBibleStore } from '@/stores/bibleStore';
+import { getBookById } from '@/types/bible';
 import { findMatchingPresets, isCommonPronoun, type MarkingPreset } from '@/types/keyWord';
 import type { AnnotationType, TextAnnotation, SymbolAnnotation } from '@/types/annotation';
 
@@ -30,7 +33,7 @@ const TOOLS: { type: 'color' | 'symbol' | 'keyWords' | 'legend' | 'more'; icon: 
   { type: 'symbol', icon: '✝', label: 'Symbol' },
   { type: 'keyWords', icon: '🔑', label: 'Key Words' },
   { type: 'legend', icon: '📋', label: 'Legend' },
-  { type: 'more', icon: '⚙️', label: 'More' },
+  { type: 'more', icon: '⚙️', label: 'Settings' },
 ];
 
 export function Toolbar() {
@@ -50,6 +53,7 @@ export function Toolbar() {
     setFontSize,
   } = useAnnotationStore();
 
+  const { currentBook, currentModuleId } = useBibleStore();
   const { applyCurrentTool, createTextAnnotation, createSymbolAnnotation } = useAnnotations();
   const { presets, loadPresets, markPresetUsed, updatePreset } = useMarkingPresetStore();
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -60,6 +64,7 @@ export function Toolbar() {
   const [showKeyWordApplyPicker, setShowKeyWordApplyPicker] = useState(false);
   const [showAddAsVariantPicker, setShowAddAsVariantPicker] = useState(false);
   const [showLegendOverlay, setShowLegendOverlay] = useState(false);
+  const [showStudyManager, setShowStudyManager] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
   // Load marking presets on mount
@@ -225,6 +230,22 @@ export function Toolbar() {
   // Apply a key word (preset) to the current selection — e.g. mark "He" as Jesus when context shows it
   const applyPresetToSelection = async (preset: MarkingPreset) => {
     if (!selection) return;
+    
+    // Check if the selected text matches the preset's word or variants
+    const trimmed = selection.text.trim();
+    const lower = trimmed.toLowerCase();
+    const isAlreadyWord = preset.word && lower === preset.word.toLowerCase();
+    const isAlreadyVariant = (preset.variants || []).some((v) => {
+      const variantText = typeof v === 'string' ? v : v.text;
+      return variantText.toLowerCase() === lower;
+    });
+    
+    // If the selected text doesn't match the word or any variant, and it's a common pronoun,
+    // we don't add it as a variant (which would cause it to match everywhere).
+    // Instead, we just create the manual annotation - it will show up in this translation,
+    // but won't trigger cross-translation matching because it's not in the variants list.
+    // This way pronouns are only marked once (the instance you mark), not across all translations.
+    
     await markPresetUsed(preset.id);
     const pid = preset.id;
     if (preset.symbol && preset.highlight) {
@@ -686,6 +707,54 @@ export function Toolbar() {
                 <span>Bible Translations</span>
               </button>
 
+              {/* Manage Studies */}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowStudyManager(true);
+                  setShowSystemMenu(false);
+                }}
+                className="w-full px-4 py-2.5 text-left rounded-xl bg-scripture-elevated/50 
+                         hover:bg-scripture-elevated text-scripture-text transition-all 
+                         duration-200 flex items-center gap-2 text-sm font-ui font-medium 
+                         border border-scripture-border/30 hover:border-scripture-border/50 
+                         shadow-sm hover:shadow"
+                title="Manage studies"
+              >
+                <span>📚</span>
+                <span>Manage Studies</span>
+              </button>
+
+              {/* Clear Highlights for Current Book */}
+              <button
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const bookInfo = getBookById(currentBook);
+                  const bookName = bookInfo?.name || currentBook;
+                  if (confirm(`Clear all highlights and annotations for ${bookName}? This action cannot be undone.`)) {
+                    try {
+                      const count = await clearBookAnnotations(currentBook, currentModuleId || undefined);
+                      alert(`Cleared ${count} annotation${count !== 1 ? 's' : ''} for ${bookName}`);
+                      setShowSystemMenu(false);
+                      // Reload annotations to reflect changes
+                      window.dispatchEvent(new CustomEvent('annotationsUpdated'));
+                    } catch (error) {
+                      alert('Failed to clear annotations: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                    }
+                  }
+                }}
+                className="w-full px-4 py-2.5 text-left rounded-xl bg-orange-600/20 
+                         hover:bg-orange-600/30 text-orange-400 transition-all duration-200 
+                         flex items-center gap-2 text-sm font-ui font-medium 
+                         border border-orange-600/30 shadow-sm hover:shadow"
+                title="Clear all highlights and annotations for the current book"
+              >
+                <span>🗑️</span>
+                <span>Clear Highlights for {getBookById(currentBook)?.name || currentBook}</span>
+              </button>
+
               {/* Clear Database Button */}
               <button
                 onClick={(e) => {
@@ -717,6 +786,11 @@ export function Toolbar() {
             window.dispatchEvent(new Event('translationsUpdated'));
           }}
         />
+      )}
+
+      {/* Study Manager */}
+      {showStudyManager && (
+        <StudyManager onClose={() => setShowStudyManager(false)} />
       )}
 
       {/* Key Words - bottom overlay (unified with Color / Symbol) */}
@@ -759,7 +833,7 @@ export function Toolbar() {
         </div>
       )}
 
-      {/* Main toolbar: Color | Symbol | Key Words | More */}
+      {/* Main toolbar: Color | Symbol | Key Words | Settings */}
       <div className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 shadow-lg">
         <div className="max-w-lg mx-auto px-3 py-3 flex items-center justify-around">
           {TOOLS.map((tool) => {

@@ -20,12 +20,16 @@ interface BibleState {
   isLoading: boolean;
   error: string | null;
   
+  // Navigation selection
+  navSelectedVerse: number | null;
+  
   // Actions
   setCurrentModule: (moduleId: string) => void;
   setLocation: (book: string, chapter: number) => void;
   setChapter: (chapter: Chapter) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setNavSelectedVerse: (verse: number | null) => void;
   
   // Navigation
   nextChapter: () => void;
@@ -43,6 +47,7 @@ export const useBibleStore = create<BibleState>()(
       chapter: null,
       isLoading: false,
       error: null,
+      navSelectedVerse: null,
       
       setCurrentModule: (moduleId) => {
         // Validate moduleId - must be a non-empty string and not contain "undefined"
@@ -60,6 +65,7 @@ export const useBibleStore = create<BibleState>()(
         currentBook: book, 
         currentChapter: chapter,
         chapter: null, // Clear until loaded
+        navSelectedVerse: null, // Clear nav selection when changing location
       }),
       
       setChapter: (chapter) => set({ chapter, isLoading: false }),
@@ -67,6 +73,8 @@ export const useBibleStore = create<BibleState>()(
       setLoading: (isLoading) => set({ isLoading }),
       
       setError: (error) => set({ error, isLoading: false }),
+      
+      setNavSelectedVerse: (verse) => set({ navSelectedVerse: verse }),
       
       nextChapter: () => {
         const { currentBook, currentChapter } = get();

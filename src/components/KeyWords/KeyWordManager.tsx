@@ -369,6 +369,26 @@ function KeyWordEditor({
   });
   const [symbol, setSymbol] = useState<SymbolKey | undefined>(initialSymbol ?? preset?.symbol);
   const [color, setColor] = useState<HighlightColor | undefined>(initialColor ?? preset?.highlight?.color);
+
+  // Update word when initialWord changes (e.g., new selection made)
+  useEffect(() => {
+    if (initialWord && !preset) {
+      setWord(initialWord);
+    }
+  }, [initialWord, preset]);
+
+  // Update symbol and color when initial values change
+  useEffect(() => {
+    if (initialSymbol !== undefined && !preset) {
+      setSymbol(initialSymbol);
+    }
+  }, [initialSymbol, preset]);
+
+  useEffect(() => {
+    if (initialColor !== undefined && !preset) {
+      setColor(initialColor);
+    }
+  }, [initialColor, preset]);
   const [category, setCategory] = useState<KeyWordCategory>(preset?.category || 'custom');
   const [description, setDescription] = useState(preset?.description || '');
   const [autoSuggest, setAutoSuggest] = useState(preset?.autoSuggest ?? true);

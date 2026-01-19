@@ -42,8 +42,7 @@ export function ChapterTitleCreator({
   };
 
   return (
-    <div className="chapter-title-creator mb-6 py-3 px-4 bg-scripture-accent/10 rounded-xl border-2 border-scripture-accent/30 
-                    flex items-center gap-2 animate-slide-up shadow-sm">
+    <div className="chapter-title-creator py-3 px-4 flex items-center justify-center gap-2 animate-slide-up">
       <input
         ref={inputRef}
         type="text"
@@ -51,9 +50,9 @@ export function ChapterTitleCreator({
         onChange={(e) => setEditText(e.target.value)}
         onKeyDown={handleKeyDown}
         onBlur={handleSave}
-        className="flex-1 bg-scripture-surface/50 border border-scripture-border/50 rounded-lg px-3 py-2
+        className="text-center bg-transparent border-none outline-none px-3 py-2
                    text-scripture-accent font-ui text-2xl font-bold tracking-wide 
-                   focus:outline-none focus:border-scripture-accent focus:bg-scripture-surface"
+                   focus:outline-none placeholder:text-scripture-muted/50"
         placeholder="Enter chapter title..."
       />
       <button

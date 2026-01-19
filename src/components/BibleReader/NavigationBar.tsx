@@ -9,6 +9,8 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { getBookById, getOTBooks, getNTBooks, getVerseCount } from '@/types/bible';
 import { getAllTranslations, type ApiTranslation } from '@/lib/bible-api';
 import { getPreferences, db } from '@/lib/db';
+import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
+import { StudySelector } from '@/components/Study';
 
 export function NavigationBar() {
   const {
@@ -29,6 +31,8 @@ export function NavigationBar() {
   const [showVersePicker, setShowVersePicker] = useState(false);
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const [currentVerse, setCurrentVerse] = useState<number | null>(null);
+  
+  const { activeView, loadActiveView, addTranslation, removeTranslation, clearView } = useMultiTranslationStore();
 
   const bookInfo = getBookById(currentBook);
   const currentTranslation = translations.find(t => t.id === currentModuleId);
@@ -106,6 +110,7 @@ export function NavigationBar() {
       console.log('[NavigationBar] Loaded translations:', available.length, available.map(t => `${t.abbreviation}(${t.provider})`).slice(0, 10));
     }
     loadTranslations();
+    loadActiveView();
     
     // Reload translations when window regains focus (user might have configured API keys in another tab)
     const handleFocus = () => {
@@ -117,23 +122,34 @@ export function NavigationBar() {
       loadTranslations();
     };
     
+    // Close pickers when clicking on verse text
+    const handleClosePickers = () => {
+      setShowTranslationPicker(false);
+      setShowBookPicker(false);
+      setShowChapterPicker(false);
+      setShowVersePicker(false);
+    };
+    
     window.addEventListener('focus', handleFocus);
     window.addEventListener('translationsUpdated', handleTranslationsUpdated);
+    window.addEventListener('closePickers', handleClosePickers);
     
     return () => {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('translationsUpdated', handleTranslationsUpdated);
+      window.removeEventListener('closePickers', handleClosePickers);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount - loadActiveView is stable from zustand
 
   return (
     <nav className="navigation-bar bg-scripture-surface/95 backdrop-blur-sm border-b border-scripture-border/50 shadow-sm sticky top-0 z-20">
-      <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-between">
+      <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-center relative">
         {/* Previous button */}
         <button
           onClick={previousChapter}
           disabled={!canGoPrevious()}
-          className="p-2 rounded-xl hover:bg-scripture-elevated disabled:opacity-30
+          className="absolute left-4 p-2 rounded-xl hover:bg-scripture-elevated disabled:opacity-30
                      disabled:cursor-not-allowed transition-all duration-200 touch-target
                      hover:scale-105 active:scale-95"
           aria-label="Previous chapter"
@@ -143,7 +159,7 @@ export function NavigationBar() {
           </svg>
         </button>
 
-        {/* Translation, book and chapter selector */}
+        {/* Translation, book and chapter selector - centered */}
         <div className="flex items-center gap-2">
           {/* Translation selector */}
           <div className="relative">
@@ -153,33 +169,48 @@ export function NavigationBar() {
                 setShowBookPicker(false);
                 setShowChapterPicker(false);
               }}
-              className="px-3 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
-                         font-ui font-semibold text-xs transition-all duration-200
+              className="px-4 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
+                         font-ui font-semibold text-sm transition-all duration-200
                          border border-scripture-border/30 hover:border-scripture-border/50
-                         shadow-sm hover:shadow min-w-[60px]"
+                         shadow-sm hover:shadow min-w-[60px] h-[36px] flex items-center justify-center"
             >
-              {currentTranslation?.abbreviation || currentModuleId || 'KJV'}
+              {activeView && activeView.translationIds.length > 0
+                ? `${activeView.translationIds.length} Translation${activeView.translationIds.length !== 1 ? 's' : ''}`
+                : 'Select Translation'}
             </button>
 
             {showTranslationPicker && (
               <TranslationPicker
                 translations={translations}
-                currentTranslationId={currentModuleId}
+                activeView={activeView}
                 onSelect={async (translationId) => {
                   console.log('[NavigationBar] Translation selected:', translationId);
                   if (translationId && !translationId.includes('undefined')) {
-                    setCurrentModule(translationId);
-                    setShowTranslationPicker(false);
-                    
-                    // Track as recent translation
-                    try {
-                      const prefs = await getPreferences();
-                      const recent = prefs.recentTranslations || [];
-                      // Remove if already exists, then add to front
-                      const updatedRecent = [translationId, ...recent.filter(id => id !== translationId)].slice(0, 10);
-                      await db.preferences.update('main', { recentTranslations: updatedRecent });
-                    } catch (error) {
-                      console.error('Failed to update recent translations:', error);
+                    // Always use multi-translation mode: add/remove from multi-translation view
+                    if (activeView && activeView.translationIds.includes(translationId)) {
+                      // Already selected - remove it
+                      await removeTranslation(translationId);
+                    } else {
+                      // Check if we've reached the limit
+                      if (activeView && activeView.translationIds.length >= 3) {
+                        alert('Maximum of 3 translations allowed. Remove one first.');
+                        return;
+                      }
+                      // Add to multi-translation view
+                      await addTranslation(translationId);
+                      // Also set as current module for backward compatibility
+                      setCurrentModule(translationId);
+                      
+                      // Track as recent translation
+                      try {
+                        const prefs = await getPreferences();
+                        const recent = prefs.recentTranslations || [];
+                        // Remove if already exists, then add to front
+                        const updatedRecent = [translationId, ...recent.filter(id => id !== translationId)].slice(0, 10);
+                        await db.preferences.update('main', { recentTranslations: updatedRecent });
+                      } catch (error) {
+                        console.error('Failed to update recent translations:', error);
+                      }
                     }
                   } else {
                     console.error('[NavigationBar] Invalid translation ID:', translationId);
@@ -201,7 +232,7 @@ export function NavigationBar() {
               className="px-4 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
                          font-ui font-semibold text-sm transition-all duration-200
                          border border-scripture-border/30 hover:border-scripture-border/50
-                         shadow-sm hover:shadow"
+                         shadow-sm hover:shadow h-[36px] flex items-center justify-center"
             >
               {bookInfo?.name || currentBook}
             </button>
@@ -230,7 +261,7 @@ export function NavigationBar() {
               className="px-4 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
                          font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
                          border border-scripture-border/30 hover:border-scripture-border/50
-                         shadow-sm hover:shadow"
+                         shadow-sm hover:shadow h-[36px] flex items-center justify-center"
             >
               {currentChapter}
             </button>
@@ -258,10 +289,10 @@ export function NavigationBar() {
                   setShowChapterPicker(false);
                   setShowTranslationPicker(false);
                 }}
-                className="px-3 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
-                           font-ui font-semibold text-xs transition-all duration-200 min-w-[50px]
+                className="px-4 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
+                           font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
                            border border-scripture-border/30 hover:border-scripture-border/50
-                           shadow-sm hover:shadow"
+                           shadow-sm hover:shadow h-[36px] flex items-center justify-center"
               >
                 {currentVerse || '1'}
               </button>
@@ -272,6 +303,13 @@ export function NavigationBar() {
                   currentVerse={currentVerse || 1}
                   onSelect={(verse) => {
                     setCurrentVerse(verse);
+                    // Set nav-selected verse in store for highlighting
+                    const { setNavSelectedVerse } = useBibleStore.getState();
+                    setNavSelectedVerse(verse);
+                    // Clear highlight after 3 seconds
+                    setTimeout(() => {
+                      setNavSelectedVerse(null);
+                    }, 3000);
                     // Scroll to verse in the chapter view
                     const verseElement = document.querySelector(`[data-verse="${verse}"]`);
                     if (verseElement) {
@@ -286,19 +324,24 @@ export function NavigationBar() {
           )}
         </div>
 
-        {/* Next button */}
-        <button
-          onClick={nextChapter}
-          disabled={!canGoNext()}
-          className="p-2 rounded-xl hover:bg-scripture-elevated disabled:opacity-30
-                     disabled:cursor-not-allowed transition-all duration-200 touch-target
-                     hover:scale-105 active:scale-95"
-          aria-label="Next chapter"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
+        {/* Options and additional controls */}
+        <div className="absolute right-4 flex items-center gap-2">
+          <StudySelector />
+          
+          {/* Next button */}
+          <button
+            onClick={nextChapter}
+            disabled={!canGoNext()}
+            className="p-2 rounded-xl hover:bg-scripture-elevated disabled:opacity-30
+                       disabled:cursor-not-allowed transition-all duration-200 touch-target
+                       hover:scale-105 active:scale-95"
+            aria-label="Next chapter"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
       </div>
     </nav>
   );
@@ -415,12 +458,17 @@ function ChapterPicker({ chapters, currentChapter, onSelect, onClose }: ChapterP
 
 interface TranslationPickerProps {
   translations: ApiTranslation[];
-  currentTranslationId: string | null;
+  activeView?: { translationIds: string[] } | null;
   onSelect: (translationId: string) => void;
   onClose: () => void;
 }
 
-function TranslationPicker({ translations, currentTranslationId, onSelect, onClose }: TranslationPickerProps) {
+function TranslationPicker({ 
+  translations, 
+  activeView,
+  onSelect, 
+  onClose 
+}: TranslationPickerProps) {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [recent, setRecent] = useState<string[]>([]);
   const [userLanguage, setUserLanguage] = useState<string>('en');
@@ -496,6 +544,8 @@ function TranslationPicker({ translations, currentTranslationId, onSelect, onClo
     return a.localeCompare(b);
   });
 
+  const selectedInMultiView = activeView?.translationIds || [];
+
   return (
     <>
       {/* Backdrop */}
@@ -509,6 +559,55 @@ function TranslationPicker({ translations, currentTranslationId, onSelect, onClo
                       bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl
                       w-[400px] max-h-[70vh] overflow-hidden animate-scale-in backdrop-blur-sm">
         <div className="overflow-y-auto max-h-[70vh] custom-scrollbar p-4">
+          {/* Selected translations header */}
+          {selectedInMultiView.length > 0 && (
+            <div className="mb-4 pb-4 border-b border-scripture-border/30">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-medium text-scripture-text">
+                  Selected Translations ({selectedInMultiView.length}/3)
+                </div>
+                <button
+                  onClick={async () => {
+                    if (confirm('Clear all selected translations?')) {
+                      await clearView();
+                    }
+                  }}
+                  className="text-xs text-highlight-red hover:text-highlight-red/80 transition-colors"
+                >
+                  Clear All
+                </button>
+              </div>
+              
+              {/* Show selected translations */}
+              <div className="space-y-1.5">
+                {selectedInMultiView.map((id) => {
+                  const translation = translationMap.get(id);
+                  if (!translation) return null;
+                  return (
+                    <div
+                      key={id}
+                      className="flex items-center justify-between px-3 py-2 bg-scripture-elevated rounded-lg"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="text-sm font-medium text-scripture-text truncate">
+                          {translation.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => onSelect(id)}
+                          className="text-xs px-2 py-1 text-highlight-red hover:text-highlight-red/80 transition-colors"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {translations.length > 0 ? (
             <>
               {/* Favorites Section */}
@@ -525,8 +624,10 @@ function TranslationPicker({ translations, currentTranslationId, onSelect, onClo
                       <TranslationButton
                         key={`favorite-${translation.id}`}
                         translation={translation}
-                        isSelected={translation.id === currentTranslationId}
+                        isSelected={selectedInMultiView.includes(translation.id)}
                         isFavorite={true}
+                        isMultiMode={true}
+                        selectedCount={selectedInMultiView.length}
                         onSelect={onSelect}
                         onToggleFavorite={toggleFavorite}
                       />
@@ -549,8 +650,10 @@ function TranslationPicker({ translations, currentTranslationId, onSelect, onClo
                       <TranslationButton
                         key={`recent-${translation.id}`}
                         translation={translation}
-                        isSelected={translation.id === currentTranslationId}
+                        isSelected={selectedInMultiView.includes(translation.id)}
                         isFavorite={favorites.has(translation.id)}
+                        isMultiMode={true}
+                        selectedCount={selectedInMultiView.length}
                         onSelect={onSelect}
                         onToggleFavorite={toggleFavorite}
                       />
@@ -576,8 +679,10 @@ function TranslationPicker({ translations, currentTranslationId, onSelect, onClo
                         <TranslationButton
                           key={`${language}-${translation.id}`}
                           translation={translation}
-                          isSelected={translation.id === currentTranslationId}
+                          isSelected={selectedInMultiView.includes(translation.id)}
                           isFavorite={favorites.has(translation.id)}
+                          isMultiMode={true}
+                          selectedCount={selectedInMultiView.length}
                           onSelect={onSelect}
                           onToggleFavorite={toggleFavorite}
                         />
@@ -602,30 +707,58 @@ interface TranslationButtonProps {
   translation: ApiTranslation;
   isSelected: boolean;
   isFavorite: boolean;
+  isMultiMode?: boolean;
+  selectedCount?: number;
   onSelect: (translationId: string) => void;
   onToggleFavorite: (translationId: string, e: React.MouseEvent) => void;
 }
 
-function TranslationButton({ translation, isSelected, isFavorite, onSelect, onToggleFavorite }: TranslationButtonProps) {
+function TranslationButton({ 
+  translation, 
+  isSelected, 
+  isFavorite, 
+  isMultiMode = true,
+  selectedCount = 0,
+  onSelect, 
+  onToggleFavorite 
+}: TranslationButtonProps) {
+  // Disable if already have 3 selected and this one isn't selected
+  const isDisabled = isMultiMode && !isSelected && selectedCount >= 3;
+  
   return (
     <div
       className={`w-full px-3 py-2 rounded-lg transition-all duration-200 group
                 ${isSelected 
                   ? 'bg-scripture-accent text-scripture-bg shadow-sm' 
-                  : 'hover:bg-scripture-elevated hover:shadow-sm'}`}
+                  : 'hover:bg-scripture-elevated hover:shadow-sm'}
+                ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       <div className="flex items-center justify-between gap-2">
         <button
           onClick={() => onSelect(translation.id)}
-          className="flex-1 min-w-0 text-left text-sm font-ui"
+          disabled={isDisabled}
+          className="flex-1 min-w-0 text-left text-sm font-ui flex items-center gap-2"
           title={translation.description || translation.name}
         >
-          <div className="font-medium truncate">{translation.name}</div>
-          {translation.description && translation.description !== translation.name && (
-            <div className="text-xs text-scripture-muted truncate mt-0.5">
-              {translation.description}
+          {isMultiMode && (
+            <div className="flex-shrink-0 w-4 h-4 border-2 rounded border-current flex items-center justify-center">
+              {isSelected && (
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              )}
             </div>
           )}
+          <div className="flex-1 min-w-0">
+            <div className="font-medium truncate flex items-center gap-2">
+              {translation.name}
+            </div>
+            {translation.description && translation.description !== translation.name && (
+              <div className="text-xs text-scripture-muted truncate mt-0.5">
+                {translation.description}
+              </div>
+            )}
+          </div>
         </button>
         <div className="flex items-center gap-2 flex-shrink-0">
           <div className="text-xs font-mono text-scripture-muted">

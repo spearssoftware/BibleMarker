@@ -5,7 +5,7 @@
  */
 
 import type { MarkingPreset } from '@/types/keyWord';
-import type { TextAnnotation, SymbolAnnotation } from '@/types/annotation';
+import type { TextAnnotation, SymbolAnnotation, Annotation } from '@/types/annotation';
 import type { VerseRef } from '@/types/bible';
 import { matchesPreset } from '@/types/keyWord';
 
@@ -166,7 +166,7 @@ function findPhraseMatches(text: string, phrase: string): Array<{ startIndex: nu
  * - Chapter-scoped (bookScope and chapterScope set): applies to that specific chapter
  */
 function presetAppliesToVerse(preset: MarkingPreset, verseRef: VerseRef): boolean {
-  // Global preset (no scope) - applies everywhere
+  // Global preset (no bookScope) - applies everywhere
   if (!preset.bookScope) return true;
   
   // Book-scoped - check if book matches
@@ -188,7 +188,8 @@ function presetAppliesToVerse(preset: MarkingPreset, verseRef: VerseRef): boolea
 export function findKeywordMatches(
   verseText: string,
   verseRef: VerseRef,
-  presets: MarkingPreset[]
+  presets: MarkingPreset[],
+  currentModuleId?: string
 ): Array<TextAnnotation | SymbolAnnotation> {
   const annotations: Array<TextAnnotation | SymbolAnnotation> = [];
   
@@ -197,9 +198,14 @@ export function findKeywordMatches(
   // Filter presets that:
   // 1. Have a word defined and a highlight/symbol to apply
   // 2. Apply to this verse based on scope (global/book/chapter)
-  const keywordPresets = presets.filter(p => 
-    p.word && (p.highlight || p.symbol) && presetAppliesToVerse(p, verseRef)
-  );
+  // 3. If moduleScope is set, only apply to that specific translation (for single-instance pronouns)
+  const keywordPresets = presets.filter(p => {
+    if (!p.word || (!p.highlight && !p.symbol)) return false;
+    if (!presetAppliesToVerse(p, verseRef)) return false;
+    // If moduleScope is set, only apply to that translation (used for pronouns marked in one translation)
+    if (p.moduleScope && p.moduleScope !== currentModuleId) return false;
+    return true;
+  });
   
   if (keywordPresets.length === 0) return annotations;
   
@@ -208,6 +214,8 @@ export function findKeywordMatches(
   const matchedRanges = new Set<string>();
   
   // Collect all phrases with their presets, sorted by length (longest first)
+  // For presets with moduleScope, we need to pass the currentModuleId to getMatchablePhrases
+  // so it can filter variants appropriately
   interface PhraseMatch {
     preset: MarkingPreset;
     phrase: string;

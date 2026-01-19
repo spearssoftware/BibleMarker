@@ -35,6 +35,10 @@ export interface MarkingPreset {
   bookScope?: string;
   /** Optional: scope to a specific chapter within a book (requires bookScope) */
   chapterScope?: number;
+  /** Optional: scope to a single translation (moduleId). When set, keyword only applies to that translation. */
+  moduleScope?: string;
+  /** Optional: link to a study (if null/undefined, keyword is global and always visible) */
+  studyId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -184,9 +188,9 @@ export interface KeyWordOccurrence {
 
 /** Create a new marking preset (or key word when `word` is set) */
 export function createMarkingPreset(
-  options: { word?: string; variants?: string[] | Variant[]; symbol?: SymbolKey; highlight?: { style: 'highlight' | 'textColor' | 'underline'; color: HighlightColor }; category?: KeyWordCategory; description?: string; autoSuggest?: boolean; usageCount?: number; bookScope?: string; chapterScope?: number }
+  options: { word?: string; variants?: string[] | Variant[]; symbol?: SymbolKey; highlight?: { style: 'highlight' | 'textColor' | 'underline'; color: HighlightColor }; category?: KeyWordCategory; description?: string; autoSuggest?: boolean; usageCount?: number; bookScope?: string; chapterScope?: number; moduleScope?: string; studyId?: string }
 ): MarkingPreset {
-  const { word, variants = [], symbol, highlight, category = 'custom', description = '', autoSuggest = true, usageCount = 0, bookScope, chapterScope } = options;
+  const { word, variants = [], symbol, highlight, category = 'custom', description = '', autoSuggest = true, usageCount = 0, bookScope, chapterScope, moduleScope, studyId } = options;
   if (!symbol && !highlight) throw new Error('MarkingPreset must have at least one of symbol or highlight');
   if (chapterScope !== undefined && !bookScope) throw new Error('chapterScope requires bookScope');
   return {
@@ -201,6 +205,8 @@ export function createMarkingPreset(
     usageCount,
     bookScope,
     chapterScope,
+    moduleScope,
+    studyId,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

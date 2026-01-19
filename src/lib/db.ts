@@ -17,6 +17,8 @@ import type {
 } from '@/types/annotation';
 import type { KeyWordDefinition, MarkingPreset } from '@/types/keyWord';
 import { keyWordToMarkingPreset } from '@/types/keyWord';
+import type { Study } from '@/types/study';
+import type { MultiTranslationView } from '@/types/multiTranslation';
 
 /** API configuration for Bible APIs */
 export interface ApiConfigRecord {
@@ -76,6 +78,18 @@ export interface EsvRateLimitState {
   requestTimestamps: number[];   // Unix ms of each request
 }
 
+/** @deprecated Sword module support removed - kept for backwards compatibility */
+export interface ModuleRecord {
+  id: string;
+  status?: string;
+}
+
+/** @deprecated Sword module support removed - kept for backwards compatibility */
+export interface ModuleFile {
+  id: string;
+  moduleId?: string;
+}
+
 /** Database schema */
 class BibleStudyDB extends Dexie {
   modules!: EntityTable<ModuleRecord, 'id'>;
@@ -91,6 +105,8 @@ class BibleStudyDB extends Dexie {
   preferences!: EntityTable<UserPreferences, 'id'>;
   readingHistory!: EntityTable<ReadingHistory, 'id'>;
   esvRateLimit!: EntityTable<EsvRateLimitState, 'id'>;
+  studies!: EntityTable<Study, 'id'>;
+  multiTranslationViews!: EntityTable<MultiTranslationView, 'id'>;
 
   constructor() {
     super('BibleStudyDB');
@@ -171,6 +187,25 @@ class BibleStudyDB extends Dexie {
       preferences: 'id',
       readingHistory: 'id, moduleId, timestamp',
       esvRateLimit: 'id',
+    });
+
+    // Version 6: Studies and multi-translation views (Phase 3)
+    this.version(6).stores({
+      modules: 'id, status',
+      moduleFiles: 'id, moduleId',
+      chapterCache: 'id, moduleId',
+      translationCache: 'id',
+      annotations: 'id, moduleId, type, createdAt, presetId',
+      sectionHeadings: 'id, moduleId',
+      chapterTitles: 'id, moduleId',
+      notes: 'id, moduleId',
+      keyWords: 'id, word, category',
+      markingPresets: 'id, word, category',
+      preferences: 'id',
+      readingHistory: 'id, moduleId, timestamp',
+      esvRateLimit: 'id',
+      studies: 'id',
+      multiTranslationViews: 'id',
     });
   }
 }
@@ -423,6 +458,8 @@ export async function clearDatabase(): Promise<void> {
     db.markingPresets.clear(),
     db.chapterCache.clear(),
     db.readingHistory.clear(),
+    db.studies.clear(),
+    db.multiTranslationViews.clear(),
     // Note: modules and moduleFiles tables are deprecated (Sword support removed)
     // but kept in schema for backwards compatibility
   ]);
@@ -474,4 +511,72 @@ export async function searchMarkingPresets(text: string): Promise<MarkingPreset[
       return variantText.toLowerCase() === lower;
     });
   });
+}
+
+// ============================================================================
+// Study Functions
+// ============================================================================
+
+export async function getAllStudies(): Promise<Study[]> {
+  return db.studies.toArray();
+}
+
+export async function getStudy(id: string): Promise<Study | undefined> {
+  return db.studies.get(id);
+}
+
+export async function saveStudy(study: Study): Promise<string> {
+  return db.studies.put(study);
+}
+
+export async function deleteStudy(id: string): Promise<void> {
+  await db.studies.delete(id);
+}
+
+// ============================================================================
+// Multi-Translation View Functions
+// ============================================================================
+
+export async function getMultiTranslationView(id: string = 'active'): Promise<MultiTranslationView | undefined> {
+  return db.multiTranslationViews.get(id);
+}
+
+export async function saveMultiTranslationView(view: MultiTranslationView): Promise<string> {
+  return db.multiTranslationViews.put(view);
+}
+
+export async function deleteMultiTranslationView(id: string = 'active'): Promise<void> {
+  await db.multiTranslationViews.delete(id);
+}
+
+// ============================================================================
+// Clear Book Annotations (Phase 3)
+// ============================================================================
+
+/**
+ * Clear all annotations (highlights, symbols, underlines) for a book.
+ * Preserves keyword definitions, notes, section headings, and chapter titles.
+ */
+export async function clearBookAnnotations(book: string, moduleId?: string): Promise<number> {
+  let query = db.annotations.filter(ann => {
+    if (ann.type === 'symbol') {
+      return ann.ref.book === book;
+    }
+    return ann.startRef.book === book;
+  });
+  
+  // Filter by moduleId if provided
+  if (moduleId) {
+    const allAnnotations = await query.toArray();
+    const filtered = allAnnotations.filter(ann => ann.moduleId === moduleId);
+    const ids = filtered.map(ann => ann.id);
+    await db.annotations.bulkDelete(ids);
+    return ids.length;
+  }
+  
+  // Delete all annotations for the book
+  const annotations = await query.toArray();
+  const ids = annotations.map(ann => ann.id);
+  await db.annotations.bulkDelete(ids);
+  return ids.length;
 }

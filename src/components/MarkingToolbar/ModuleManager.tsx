@@ -14,6 +14,8 @@ import {
   esvClient, 
   getBibleClient,
   getAllTranslations,
+  clearTranslationsCache,
+  saveApiConfig as saveApiConfigToDb,
   BIBLEGATEWAY_ENABLED,
   type ApiTranslation,
   type BibleApiProvider,
@@ -109,39 +111,47 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
   ) {
     setSavingApi(true);
     try {
-      const prefs = await getPreferences();
-      const existingConfigs = prefs.apiConfigs || [];
-      const updatedConfigs = existingConfigs.filter(c => c.provider !== provider);
-
-      let newConfig: ApiConfigRecord;
+      // Use the centralized saveApiConfig function from bible-api
+      // This ensures consistency and proper persistence
+      let configToSave: any;
       if (provider === 'biblegateway') {
         const { username, password } = apiKeyOrCreds as { username: string; password: string };
-        newConfig = { provider: 'biblegateway', username, password, enabled: !!(username && password) };
+        configToSave = {
+          provider: 'biblegateway' as const,
+          username,
+          password,
+          enabled: !!(username && password),
+        };
       } else {
         const apiKey = apiKeyOrCreds as string;
-        newConfig = { provider, apiKey, enabled: apiKey.length > 0 };
+        configToSave = {
+          provider: provider as 'biblia' | 'esv',
+          apiKey,
+          enabled: apiKey.length > 0,
+        };
       }
-      updatedConfigs.push(newConfig);
 
-      await updatePreferences({ apiConfigs: updatedConfigs });
+      // Save using the centralized function (which handles persistence and configuration)
+      await saveApiConfigToDb(configToSave);
 
+      // Update local state
       if (provider === 'biblia') {
-        bibliaClient.configure(newConfig);
         setBibliaApiKey(apiKeyOrCreds as string);
       } else if (provider === 'esv') {
-        esvClient.configure(newConfig);
         setEsvApiKey(apiKeyOrCreds as string);
       } else if (provider === 'biblegateway') {
-        bibleGatewayClient.configure(newConfig);
         setBibleGatewayUsername((apiKeyOrCreds as { username: string; password: string }).username);
         setBibleGatewayPassword((apiKeyOrCreds as { username: string; password: string }).password);
       }
 
+      // Clear cache and reload translations to reflect changes
+      await clearTranslationsCache();
       const translations = await getAllTranslations();
       setApiTranslations(translations);
       if (onTranslationsUpdated) onTranslationsUpdated();
       setError(null);
     } catch (err) {
+      console.error('Failed to save API config:', err);
       setError(err instanceof Error ? err.message : 'Failed to save API config');
     } finally {
       setSavingApi(false);

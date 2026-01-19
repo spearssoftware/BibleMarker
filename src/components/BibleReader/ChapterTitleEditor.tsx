@@ -75,15 +75,13 @@ export function ChapterTitleEditor({
 
   return (
     <div 
-      className="chapter-title mb-6 py-3 px-4 bg-scripture-accent/10 rounded-xl border-2 border-scripture-accent/30 
-                 font-ui text-2xl font-bold text-scripture-accent cursor-pointer 
-                 hover:bg-scripture-accent/15 hover:border-scripture-accent/50
-                 transition-all duration-200 flex items-center justify-between group shadow-sm"
+      className="chapter-title py-3 px-4 font-ui text-2xl font-bold text-scripture-accent cursor-pointer 
+                 transition-all duration-200 flex items-center justify-center group relative"
       onClick={() => setIsEditing(true)}
       title="Click to edit"
     >
       <span className="tracking-wide">{title.title}</span>
-      <span className="text-xs text-scripture-muted opacity-0 group-hover:opacity-100 transition-opacity font-normal">
+      <span className="absolute right-4 text-xs text-scripture-muted opacity-0 group-hover:opacity-100 transition-opacity font-normal">
         Edit
       </span>
     </div>
