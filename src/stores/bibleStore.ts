@@ -50,8 +50,9 @@ export const useBibleStore = create<BibleState>()(
       navSelectedVerse: null,
       
       setCurrentModule: (moduleId) => {
-        // Validate moduleId - must be a non-empty string and not contain "undefined"
-        if (!moduleId || typeof moduleId !== 'string' || moduleId.trim() === '' || moduleId.includes('undefined')) {
+        // Validate moduleId - must be a non-empty string and not contain "undefined" or "observation-lists"
+        if (!moduleId || typeof moduleId !== 'string' || moduleId.trim() === '' || 
+            moduleId.includes('undefined') || moduleId === 'observation-lists') {
           console.error('Invalid moduleId provided to setCurrentModule:', moduleId);
           return; // Don't update if invalid
         }
@@ -142,6 +143,13 @@ export const useBibleStore = create<BibleState>()(
         currentBook: state.currentBook,
         currentChapter: state.currentChapter,
       }),
+      onRehydrateStorage: () => (state) => {
+        // Clean up invalid module IDs when rehydrating from storage
+        if (state && state.currentModuleId === 'observation-lists') {
+          console.log('[bibleStore] Cleaning up invalid moduleId: observation-lists');
+          state.currentModuleId = null;
+        }
+      },
     }
   )
 );

@@ -9,6 +9,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
+import { useListStore } from '@/stores/listStore';
 import { NavigationBar } from '@/components/BibleReader';
 import { MultiTranslationView } from '@/components/BibleReader/MultiTranslationView';
 import { Toolbar } from '@/components/MarkingToolbar';
@@ -23,6 +24,7 @@ export default function App() {
   const { setFontSize } = useAnnotationStore();
   const { loadStudies } = useStudyStore();
   const { loadActiveView, activeView } = useMultiTranslationStore();
+  const { loadLists } = useListStore();
 
   // Load preferences and initialize stores on mount
   useEffect(() => {
@@ -38,10 +40,11 @@ export default function App() {
     }
     loadPrefs();
     
-    // Initialize study and multi-translation stores
+    // Initialize study, multi-translation, and list stores
     loadStudies();
     loadActiveView();
-  }, [setFontSize, loadStudies, loadActiveView]);
+    loadLists();
+  }, [setFontSize, loadStudies, loadActiveView, loadLists]);
 
   // Load sample data and API configs on mount, initialize module ID if needed
   useEffect(() => {
@@ -56,7 +59,8 @@ export default function App() {
         // Check if current module ID is valid, if not reset to default
         // Don't load chapter here - let the second useEffect handle it
         const { currentModuleId: existingModuleId } = useBibleStore.getState();
-        if (!existingModuleId || existingModuleId.includes('undefined') || existingModuleId.trim() === '') {
+        if (!existingModuleId || existingModuleId.includes('undefined') || 
+            existingModuleId.trim() === '' || existingModuleId === 'observation-lists') {
           console.log('[App] Invalid module ID detected, resetting to kjv:', existingModuleId);
           // Set the module ID so annotations work (use getBible translation)
           // This will trigger the second useEffect to load the chapter
@@ -73,9 +77,9 @@ export default function App() {
   // Load chapter when location or module changes
   useEffect(() => {
     async function load() {
-      if (!currentModuleId) {
-        console.log('[App] No module ID, skipping load');
-        return; // Don't load if no module selected
+      if (!currentModuleId || currentModuleId === 'observation-lists') {
+        console.log('[App] No module ID or invalid ID, skipping load:', currentModuleId);
+        return; // Don't load if no module selected or if it's observation-lists
       }
       console.log('[App] Loading chapter:', { currentModuleId, currentBook, currentChapter });
       setLoading(true);

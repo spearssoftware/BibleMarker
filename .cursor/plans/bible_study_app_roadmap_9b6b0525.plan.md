@@ -322,7 +322,7 @@ Ability to clear all highlights/annotations for a book to start a fresh study.
 
 ---
 
-## Phase 4: Observation Lists
+## Phase 4: Observation Lists ✅
 
 Precept method emphasizes making lists of observations about topics.
 
@@ -332,37 +332,53 @@ Precept method emphasizes making lists of observations about topics.
 interface ObservationList {
   id: string;
   title: string;          // "What I learn about God in John 1"
-  scope: {
+  scope?: {
     book?: string;        // Limit to book
     chapters?: number[];  // Limit to chapters
   };
   items: ObservationItem[];
-  keyWordId?: string;     // Link to a key word
+  keyWordId: string;      // Required: link to a key word (MarkingPreset)
+  studyId?: string;       // Optional: link to a study
   createdAt: Date;
+  updatedAt: Date;
 }
 
 interface ObservationItem {
   id: string;
   content: string;        // The observation text
   verseRef: VerseRef;     // Source verse reference
-  annotationId?: string;  // Link to an annotation
+  annotationId?: string;  // Optional link to an annotation
+  createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
-### Features
+### Features ✅
 
-- **Create List**: Start a list for a topic/key word
-- **Add from Selection**: Select text, add observation to a list
-- **Auto-populate**: Generate list from all marked instances of a key word
-- **List View**: Sidebar/panel showing all lists
-- **Export List**: Copy/print list for study notes
+- ✅ **Create List**: Start a list for a topic/key word (keyword required)
+- ✅ **Add from Selection**: Select text, add observation to a list
+- ✅ **Auto-populate**: Generate list from all instances of a keyword in cached Bible text (not just manually tagged)
+- ✅ **List View**: Sidebar/panel showing all lists, grouped by verse
+- ✅ **Edit Observations**: Edit or delete individual observation items
+- ✅ **Sort by Verse**: Lists automatically sorted by canonical Bible order (book → chapter → verse)
+- ✅ **Default to Recent**: Most recently used list is pre-selected when adding observations
+- ✅ **Export List**: Copy/print list for study notes (formatted with verse references)
 
-### Files to Create
+### Implementation Details
 
-- `src/stores/listStore.ts` - List state management
-- `src/components/Lists/ListPanel.tsx` - List sidebar
-- `src/components/Lists/ListEditor.tsx` - Create/edit lists
-- `src/components/Lists/AddToList.tsx` - Add selection to list
+- **Keyword-Centric**: Lists are intrinsically tied to a specific keyword (required `keyWordId`)
+- **Verse Grouping**: Observations are grouped by verse, with multiple observations per verse as bullet points
+- **Text Cleaning**: Symbol markers are automatically stripped from selected text
+- **Smart Matching**: Auto-populate uses the same keyword matching logic as visual highlighting (handles variants, scoping, multi-word phrases)
+
+### Files Created
+
+- ✅ `src/stores/listStore.ts` - List state management with persistence
+- ✅ `src/components/Lists/ListPanel.tsx` - List sidebar with verse grouping
+- ✅ `src/components/Lists/ListEditor.tsx` - Create/edit lists
+- ✅ `src/components/Lists/AddToList.tsx` - Add selection to list dialog
+- ✅ `src/lib/textUtils.ts` - Utility for stripping symbol markers from text
+- ✅ `src/types/list.ts` - TypeScript interfaces for observation lists
 
 ---
 

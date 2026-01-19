@@ -14,6 +14,7 @@ import { ModuleManager } from './ModuleManager';
 import { KeyWordManager } from '@/components/KeyWords';
 import { AnnotationLegend } from '@/components/BibleReader';
 import { StudyManager } from '@/components/Study';
+import { ListPanel, AddToList } from '@/components/Lists';
 import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
 import { clearDatabase, updatePreferences, clearBookAnnotations } from '@/lib/db';
 import { useBibleStore } from '@/stores/bibleStore';
@@ -28,11 +29,12 @@ const COLOR_STYLE_LABELS: Record<(typeof COLOR_STYLES)[number], string> = {
   underline: 'Underline',
 };
 
-const TOOLS: { type: 'color' | 'symbol' | 'keyWords' | 'legend' | 'more'; icon: string; label: string }[] = [
+const TOOLS: { type: 'color' | 'symbol' | 'keyWords' | 'legend' | 'lists' | 'more'; icon: string; label: string }[] = [
   { type: 'color', icon: '🖍', label: 'Color' },
   { type: 'symbol', icon: '✝', label: 'Symbol' },
-  { type: 'keyWords', icon: '🔑', label: 'Key Words' },
   { type: 'legend', icon: '📋', label: 'Legend' },
+  { type: 'keyWords', icon: '🔑', label: 'Key Words' },
+  { type: 'lists', icon: '📝', label: 'Lists' },
   { type: 'more', icon: '⚙️', label: 'Settings' },
 ];
 
@@ -65,6 +67,8 @@ export function Toolbar() {
   const [showAddAsVariantPicker, setShowAddAsVariantPicker] = useState(false);
   const [showLegendOverlay, setShowLegendOverlay] = useState(false);
   const [showStudyManager, setShowStudyManager] = useState(false);
+  const [showListPanel, setShowListPanel] = useState(false);
+  const [showAddToList, setShowAddToList] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
   // Load marking presets on mount
@@ -98,6 +102,8 @@ export function Toolbar() {
         setShowKeyWordManager(false);
         setShowKeyWordApplyPicker(false);
         setShowAddAsVariantPicker(false);
+        setShowLegendOverlay(false);
+        setShowListPanel(false);
         setActiveTool(null);
       }
     };
@@ -339,6 +345,7 @@ export function Toolbar() {
         setShowSymbolPicker(false);
         setShowKeyWordManager(false);
         setShowLegendOverlay(false);
+        setShowListPanel(false);
         if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
       }
     } else if (toolType === 'symbol') {
@@ -351,6 +358,7 @@ export function Toolbar() {
         setShowColorPicker(false);
         setShowKeyWordManager(false);
         setShowLegendOverlay(false);
+        setShowListPanel(false);
         if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
       }
     } else if (toolType === 'keyWords') {
@@ -360,6 +368,7 @@ export function Toolbar() {
       setShowSymbolPicker(false);
       setShowSystemMenu(false);
       setShowLegendOverlay(false);
+      setShowListPanel(false);
       if (willOpen) setActiveTool(null);
       if (willOpen && selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
     } else if (toolType === 'legend') {
@@ -368,7 +377,16 @@ export function Toolbar() {
       setShowSymbolPicker(false);
       setShowKeyWordManager(false);
       setShowSystemMenu(false);
+      setShowListPanel(false);
       if (!showLegendOverlay) setActiveTool(null);
+    } else if (toolType === 'lists') {
+      setShowListPanel((v) => !v);
+      setShowColorPicker(false);
+      setShowSymbolPicker(false);
+      setShowKeyWordManager(false);
+      setShowSystemMenu(false);
+      setShowLegendOverlay(false);
+      setActiveTool(null);
     } else if (toolType === 'more') {
       if (!showSystemMenu) setActiveTool(null);
       setShowSystemMenu(!showSystemMenu);
@@ -387,13 +405,13 @@ export function Toolbar() {
       {/* Selection indicator */}
       {selection && (
         <>
-          <div className="bg-scripture-accent/95 backdrop-blur-sm text-scripture-bg px-3 py-1.5 
+          <div className="bg-scripture-accent/95 backdrop-blur-sm text-scripture-bg px-3 py-2 
                           flex items-center justify-between animate-slide-up shadow-lg border-t border-scripture-accent/30">
-            <span className="text-xs font-ui truncate flex-1 font-medium">
+            <span className="text-sm font-ui truncate flex-1 font-medium">
               Selected: {selection.text.slice(0, 50)}
               {selection.text.length > 50 ? '...' : ''}
             </span>
-            <div className="flex items-center gap-1.5 ml-2">
+            <div className="flex items-center gap-2 ml-2">
               {/* Apply key word: pick Jesus, Nicodemus, etc. to mark He/him the same way */}
               <div className="relative">
                 <button
@@ -401,13 +419,13 @@ export function Toolbar() {
                     setShowAddAsVariantPicker(false);
                     setShowKeyWordApplyPicker((v) => !v);
                   }}
-                  className="px-2 py-0.5 text-[10px] font-ui text-scripture-bg/90 hover:text-scripture-bg
+                  className="px-2.5 py-1 text-xs font-ui text-scripture-bg/90 hover:text-scripture-bg
                            transition-colors rounded-lg hover:bg-scripture-bg/20 flex items-center gap-1"
                   title="Apply a key word (e.g. mark He/him as Jesus)"
                 >
                   <span>🔑</span>
                   <span>Apply key word</span>
-                  <span className="text-[0.65rem] opacity-80">▼</span>
+                  <span className="text-[0.7rem] opacity-80">▼</span>
                 </button>
                 {showKeyWordApplyPicker && (
                   <div
@@ -460,13 +478,13 @@ export function Toolbar() {
                       setShowKeyWordApplyPicker(false);
                       setShowAddAsVariantPicker((v) => !v);
                     }}
-                className="px-2 py-0.5 text-[10px] font-ui text-scripture-bg/90 hover:text-scripture-bg
+                className="px-2.5 py-1 text-xs font-ui text-scripture-bg/90 hover:text-scripture-bg
                            transition-colors rounded-lg hover:bg-scripture-bg/20 flex items-center gap-1"
                     title="Add this word as a variant to an existing key word"
                   >
                     <span>➕</span>
                     <span>Add as variant</span>
-                    <span className="text-[0.65rem] opacity-80">▼</span>
+                    <span className="text-[0.7rem] opacity-80">▼</span>
                   </button>
                   {showAddAsVariantPicker && (
                     <div
@@ -518,12 +536,25 @@ export function Toolbar() {
                   setActiveTool(null);
                   if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
                 }}
-                className="px-2 py-0.5 text-[10px] font-ui text-scripture-bg/90 hover:text-scripture-bg
+                className="px-2.5 py-1 text-xs font-ui text-scripture-bg/90 hover:text-scripture-bg
                            transition-colors rounded-lg hover:bg-scripture-bg/20 flex items-center gap-1"
                 title="Make this a key word"
               >
                 <span>➕</span>
                 <span>Key Word</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowKeyWordApplyPicker(false);
+                  setShowAddAsVariantPicker(false);
+                  setShowAddToList(true);
+                }}
+                className="px-2.5 py-1 text-xs font-ui text-scripture-bg/90 hover:text-scripture-bg
+                           transition-colors rounded-lg hover:bg-scripture-bg/20 flex items-center gap-1"
+                title="Add observation to list"
+              >
+                <span>📝</span>
+                <span>Add to List</span>
               </button>
               <button
                 onClick={() => {
@@ -536,7 +567,7 @@ export function Toolbar() {
                   window.getSelection()?.removeAllRanges();
                   clearSelection();
                 }}
-                    className="px-2 py-0.5 text-[10px] font-ui text-scripture-bg/90 hover:text-scripture-bg
+                    className="px-2.5 py-1 text-xs font-ui text-scripture-bg/90 hover:text-scripture-bg
                            transition-colors rounded-lg hover:bg-scripture-bg/20"
               >
                 Cancel
@@ -546,8 +577,8 @@ export function Toolbar() {
 
           {/* Smart suggestions */}
           {previousAnnotations.length > 0 && (
-            <div className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 px-3 py-1.5 animate-slide-up">
-              <div className="text-xs text-scripture-muted mb-2 font-ui font-medium">
+            <div className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 px-3 py-2 animate-slide-up">
+              <div className="text-sm text-scripture-muted mb-2 font-ui font-medium">
                 Previously used for "{selection.text.trim()}":
               </div>
               <div className="flex flex-wrap gap-2">
@@ -555,9 +586,9 @@ export function Toolbar() {
                   <button
                     key={index}
                     onClick={() => handleApplySuggestion(suggestion)}
-                    className="px-2 py-1 rounded-lg bg-scripture-elevated/80 hover:bg-scripture-border
+                    className="px-2.5 py-1.5 rounded-lg bg-scripture-elevated/80 hover:bg-scripture-border
                              border border-scripture-border/50 transition-all duration-200 flex items-center gap-1.5
-                             text-[10px] font-ui shadow-sm hover:shadow"
+                             text-xs font-ui shadow-sm hover:shadow"
                     title={`Apply ${suggestion.label}`}
                   >
                     {suggestion.type !== 'symbol' && suggestion.color && (
@@ -726,6 +757,25 @@ export function Toolbar() {
                 <span>Manage Studies</span>
               </button>
 
+              {/* Observation Lists */}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowListPanel(true);
+                  setShowSystemMenu(false);
+                }}
+                className="w-full px-4 py-2.5 text-left rounded-xl bg-scripture-elevated/50 
+                         hover:bg-scripture-elevated text-scripture-text transition-all 
+                         duration-200 flex items-center gap-2 text-sm font-ui font-medium 
+                         border border-scripture-border/30 hover:border-scripture-border/50 
+                         shadow-sm hover:shadow"
+                title="View and manage observation lists"
+              >
+                <span>📝</span>
+                <span>Observation Lists</span>
+              </button>
+
               {/* Clear Highlights for Current Book */}
               <button
                 onClick={async (e) => {
@@ -793,6 +843,30 @@ export function Toolbar() {
         <StudyManager onClose={() => setShowStudyManager(false)} />
       )}
 
+      {/* List Panel */}
+      {showListPanel && (
+        <ListPanel onClose={() => setShowListPanel(false)} />
+      )}
+
+      {/* Add to List */}
+      {showAddToList && selection && (
+        <AddToList
+          verseRef={{
+            book: selection.book,
+            chapter: selection.chapter,
+            verse: selection.startVerse,
+          }}
+          selectedText={selection.text}
+          onClose={() => {
+            setShowAddToList(false);
+            clearSelection();
+          }}
+          onAdded={() => {
+            // Optionally reload lists if needed
+          }}
+        />
+      )}
+
       {/* Key Words - bottom overlay (unified with Color / Symbol) */}
       {showKeyWordManager && (
         <div 
@@ -845,6 +919,7 @@ export function Toolbar() {
               : tool.type === 'symbol' ? activeTool === 'symbol'
               : tool.type === 'keyWords' ? showKeyWordManager
               : tool.type === 'legend' ? showLegendOverlay
+              : tool.type === 'lists' ? showListPanel
               : tool.type === 'more' ? showSystemMenu
               : false;
             return (

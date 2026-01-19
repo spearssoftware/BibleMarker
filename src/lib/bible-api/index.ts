@@ -431,17 +431,112 @@ export async function fetchChapter(
   }
 
   if (chapterData) {
-    // Cache the result
-    await db.chapterCache.put({
-      id: cacheKey,
-      moduleId: translationId,
-      book,
-      chapter,
-      verses: Object.fromEntries(
-        chapterData.verses.map(v => [v.verse.toString(), v.text])
-      ),
-      cachedAt: new Date(),
-    });
+    // For ESV, check storage limits before caching
+    const isESV = normalizedId === 'ESV' || 
+                  normalizedId === 'ESV-ESV' ||
+                  normalizedOriginalId === 'ESV' ||
+                  normalizedOriginalId.startsWith('ESV-') ||
+                  provider === 'esv';
+    
+    if (isESV) {
+      // Check ESV storage limits: max 500 consecutive verses or half book
+      const verseCount = chapterData.verses.length;
+      const { getBookVerseCount } = await import('@/types/bible');
+      const halfBook = Math.floor(getBookVerseCount(book) / 2);
+      const maxVerses = Math.min(500, halfBook);
+      
+      // Check if this chapter alone exceeds the limit
+      if (verseCount > maxVerses) {
+        // Don't cache if it exceeds limits - but still return the data
+        console.warn(`ESV storage limit: Not caching ${book} ${chapter} (${verseCount} verses exceeds limit of ${maxVerses})`);
+      } else {
+        // Check if caching this chapter would create more than 500 consecutive verses
+        // Get all cached chapters for this book/translation
+        const allCached = await db.chapterCache
+          .where('moduleId')
+          .equals(translationId)
+          .toArray();
+        const cachedChapters = allCached.filter(c => c.book === book);
+        
+        // Find consecutive chapters that include this chapter
+        const cachedChapterNumbers = cachedChapters
+          .map(c => c.chapter)
+          .filter((ch): ch is number => ch !== undefined)
+          .sort((a, b) => a - b);
+        
+        // Find the longest consecutive sequence that includes this chapter
+        const allChapters = [...new Set([...cachedChapterNumbers, chapter])].sort((a, b) => a - b);
+        
+        // Find consecutive sequences
+        let maxConsecutiveVerses = 0;
+        let sequenceStart = 0;
+        
+        for (let i = 0; i < allChapters.length; i++) {
+          let sequenceLength = 1;
+          let sequenceVerses = 0;
+          
+          // Count verses in this chapter (either cached or the one we're adding)
+          if (allChapters[i] === chapter) {
+            sequenceVerses += verseCount;
+          } else {
+            const cached = cachedChapters.find(c => c.chapter === allChapters[i]);
+            if (cached) {
+              sequenceVerses += Object.keys(cached.verses || {}).length;
+            }
+          }
+          
+          // Extend sequence forward
+          for (let j = i + 1; j < allChapters.length; j++) {
+            if (allChapters[j] === allChapters[j - 1] + 1) {
+              sequenceLength++;
+              if (allChapters[j] === chapter) {
+                sequenceVerses += verseCount;
+              } else {
+                const cached = cachedChapters.find(c => c.chapter === allChapters[j]);
+                if (cached) {
+                  sequenceVerses += Object.keys(cached.verses || {}).length;
+                }
+              }
+            } else {
+              break;
+            }
+          }
+          
+          // Check if this sequence includes the chapter we're adding
+          if (allChapters[i] <= chapter && chapter <= allChapters[i] + sequenceLength - 1) {
+            maxConsecutiveVerses = Math.max(maxConsecutiveVerses, sequenceVerses);
+          }
+        }
+        
+        if (maxConsecutiveVerses > maxVerses) {
+          console.warn(`ESV storage limit: Not caching ${book} ${chapter} (would create ${maxConsecutiveVerses} consecutive verses, exceeds limit of ${maxVerses})`);
+        } else {
+          // Safe to cache
+          await db.chapterCache.put({
+            id: cacheKey,
+            moduleId: translationId,
+            book,
+            chapter,
+            verses: Object.fromEntries(
+              chapterData.verses.map(v => [v.verse.toString(), v.text])
+            ),
+            cachedAt: new Date(),
+          });
+        }
+      }
+    } else {
+      // For non-ESV translations, cache normally
+      await db.chapterCache.put({
+        id: cacheKey,
+        moduleId: translationId,
+        book,
+        chapter,
+        verses: Object.fromEntries(
+          chapterData.verses.map(v => [v.verse.toString(), v.text])
+        ),
+        cachedAt: new Date(),
+      });
+    }
 
     return {
       book,

@@ -44,7 +44,31 @@ export const useMultiTranslationStore = create<MultiTranslationState>()(
       
       loadActiveView: async () => {
         const view = await db.multiTranslationViews.get('active');
-        set({ activeView: view || null });
+        if (view) {
+          // Filter out any invalid translation IDs (like "observation-lists")
+          const validTranslationIds = view.translationIds.filter(
+            id => id !== 'observation-lists'
+          );
+          
+          // If we filtered any out, update the view
+          if (validTranslationIds.length !== view.translationIds.length) {
+            const cleanedView: MultiTranslationView = {
+              ...view,
+              translationIds: validTranslationIds,
+            };
+            if (validTranslationIds.length === 0) {
+              await db.multiTranslationViews.delete('active');
+              set({ activeView: null });
+            } else {
+              await db.multiTranslationViews.put(cleanedView);
+              set({ activeView: cleanedView });
+            }
+          } else {
+            set({ activeView: view });
+          }
+        } else {
+          set({ activeView: null });
+        }
       },
       
       addTranslation: async (translationId) => {

@@ -19,6 +19,7 @@ import type { KeyWordDefinition, MarkingPreset } from '@/types/keyWord';
 import { keyWordToMarkingPreset } from '@/types/keyWord';
 import type { Study } from '@/types/study';
 import type { MultiTranslationView } from '@/types/multiTranslation';
+import type { ObservationList } from '@/types/list';
 
 /** API configuration for Bible APIs */
 export interface ApiConfigRecord {
@@ -107,6 +108,7 @@ class BibleStudyDB extends Dexie {
   esvRateLimit!: EntityTable<EsvRateLimitState, 'id'>;
   studies!: EntityTable<Study, 'id'>;
   multiTranslationViews!: EntityTable<MultiTranslationView, 'id'>;
+  observationLists!: EntityTable<ObservationList, 'id'>;
 
   constructor() {
     super('BibleStudyDB');
@@ -206,6 +208,26 @@ class BibleStudyDB extends Dexie {
       esvRateLimit: 'id',
       studies: 'id',
       multiTranslationViews: 'id',
+    });
+
+    // Version 7: Observation lists (Phase 4)
+    this.version(7).stores({
+      modules: 'id, status',
+      moduleFiles: 'id, moduleId',
+      chapterCache: 'id, moduleId',
+      translationCache: 'id',
+      annotations: 'id, moduleId, type, createdAt, presetId',
+      sectionHeadings: 'id, moduleId',
+      chapterTitles: 'id, moduleId',
+      notes: 'id, moduleId',
+      keyWords: 'id, word, category',
+      markingPresets: 'id, word, category',
+      preferences: 'id',
+      readingHistory: 'id, moduleId, timestamp',
+      esvRateLimit: 'id',
+      studies: 'id',
+      multiTranslationViews: 'id',
+      observationLists: 'id, keyWordId, studyId',
     });
   }
 }
@@ -460,6 +482,7 @@ export async function clearDatabase(): Promise<void> {
     db.readingHistory.clear(),
     db.studies.clear(),
     db.multiTranslationViews.clear(),
+    db.observationLists.clear(),
     // Note: modules and moduleFiles tables are deprecated (Sword support removed)
     // but kept in schema for backwards compatibility
   ]);
