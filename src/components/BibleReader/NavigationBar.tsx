@@ -10,7 +10,6 @@ import { getBookById, getOTBooks, getNTBooks, getVerseCount } from '@/types/bibl
 import { getAllTranslations, type ApiTranslation } from '@/lib/bible-api';
 import { getPreferences, db } from '@/lib/db';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
-import { StudySelector } from '@/components/Study';
 
 export function NavigationBar() {
   const {
@@ -326,8 +325,6 @@ export function NavigationBar() {
 
         {/* Options and additional controls */}
         <div className="absolute right-4 flex items-center gap-2">
-          <StudySelector />
-          
           {/* Next button */}
           <button
             onClick={nextChapter}

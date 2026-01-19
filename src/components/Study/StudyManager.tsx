@@ -13,7 +13,7 @@ interface StudyManagerProps {
 }
 
 export function StudyManager({ onClose }: StudyManagerProps = {}) {
-  const { studies, loadStudies, createStudy, updateStudy, deleteStudy, setActiveStudy } = useStudyStore();
+  const { studies, activeStudyId, loadStudies, createStudy, updateStudy, deleteStudy, setActiveStudy } = useStudyStore();
   const [isOpen, setIsOpen] = useState(true);
   const [editingStudy, setEditingStudy] = useState<{ id: string; name: string; book?: string } | null>(null);
   const [newStudyName, setNewStudyName] = useState('');
@@ -88,7 +88,7 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
                 value={newStudyName}
                 onChange={(e) => setNewStudyName(e.target.value)}
                 placeholder="Study name (e.g., 'John - Character Study')"
-                className="w-full px-3 py-2 bg-scripture-background border border-scripture-muted/30 rounded text-scripture-text placeholder-scripture-muted focus:outline-none focus:ring-2 focus:ring-scripture-accent"
+                className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     handleCreate();
@@ -98,7 +98,7 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
               <select
                 value={newStudyBook}
                 onChange={(e) => setNewStudyBook(e.target.value)}
-                className="w-full px-3 py-2 bg-scripture-background border border-scripture-muted/30 rounded text-scripture-text focus:outline-none focus:ring-2 focus:ring-scripture-accent"
+                className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
               >
                 <option value="">All books (global study)</option>
                 {BIBLE_BOOKS.map(book => (
@@ -117,7 +117,17 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
 
           {/* Studies list */}
           <div className="space-y-2">
-            <h3 className="text-sm font-medium text-scripture-text mb-3">Your Studies</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-scripture-text">Your Studies</h3>
+              {activeStudyId && (
+                <button
+                  onClick={() => setActiveStudy(null)}
+                  className="px-3 py-1.5 text-sm bg-scripture-elevated text-scripture-text border border-scripture-border/50 rounded hover:bg-scripture-border/50 transition-colors"
+                >
+                  Clear Active Study
+                </button>
+              )}
+            </div>
             {studies.length === 0 ? (
               <p className="text-scripture-muted text-sm">No studies yet. Create one above to get started.</p>
             ) : (
@@ -132,7 +142,7 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
                         type="text"
                         value={editingStudy.name}
                         onChange={(e) => setEditingStudy({ ...editingStudy, name: e.target.value })}
-                        className="w-full px-3 py-2 bg-scripture-background border border-scripture-muted/30 rounded text-scripture-text focus:outline-none focus:ring-2 focus:ring-scripture-accent"
+                        className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
                         autoFocus
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
@@ -170,12 +180,25 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
                   ) : (
                     <>
                       <div className="flex-1">
-                        <div className="font-medium text-scripture-text">{study.name}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium text-scripture-text">{study.name}</div>
+                          {activeStudyId === study.id && (
+                            <span className="px-2 py-0.5 text-xs bg-scripture-accent text-scripture-bg rounded">Active</span>
+                          )}
+                        </div>
                         <div className="text-sm text-scripture-muted">
                           {study.book ? `Scoped to: ${getBookById(study.book)?.name || study.book}` : 'Global study'}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        {activeStudyId !== study.id && (
+                          <button
+                            onClick={() => setActiveStudy(study.id)}
+                            className="px-3 py-1.5 text-sm bg-scripture-accent text-scripture-bg rounded hover:bg-scripture-accent/90 transition-colors"
+                          >
+                            Set Active
+                          </button>
+                        )}
                         <button
                           onClick={() => setEditingStudy({ id: study.id, name: study.name, book: study.book })}
                           className="px-3 py-1.5 text-sm text-scripture-muted hover:text-scripture-text transition-colors"

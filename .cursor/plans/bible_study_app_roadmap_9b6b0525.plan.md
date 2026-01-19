@@ -203,6 +203,16 @@ Keywords defined in one translation are automatically highlighted in all visible
 - `src/components/KeyWords/KeyWordManager.tsx` - Trigger re-highlighting when keywords change
 - `src/stores/annotationStore.ts` - Add cross-translation keyword matching logic
 
+**TODO - Pronoun Marking Rework**:
+
+- ⚠️ **Current Issue**: When manually marking pronouns (e.g., "He" as Jesus), the annotation only appears in the translation where it was marked. It does not carry across to other translations like normal keywords do.
+- **Desired Behavior**: Manually marked pronouns should also appear highlighted across all translations, similar to how normal keywords work.
+- **Potential Solutions**:
+  - Add pronouns as variants to the keyword when manually marked (but this would cause all instances to highlight, not just the marked one)
+  - Create a separate system for "contextual pronouns" that are marked once but appear across translations
+  - Use a different annotation type that can be matched across translations based on verse position/context
+- **Status**: Needs rework - current `moduleScope` approach limits pronouns to single translation only
+
 ### Study System
 
 Introduce the concept of a "study" where keywords can be global (like "Jesus") or scoped to a particular book.
