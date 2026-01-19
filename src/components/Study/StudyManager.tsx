@@ -63,22 +63,23 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 overflow-y-auto" onClick={handleClose}>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 overflow-y-auto" onClick={handleClose}>
       <div className="min-h-full flex items-center justify-center p-4">
-        <div className="bg-scripture-surface rounded-lg shadow-xl max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="p-6 border-b border-scripture-muted/30">
+        <div className="bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="p-4 border-b border-scripture-border/50">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-scripture-text">Study Manager</h2>
+            <h2 className="text-xl font-ui font-semibold text-scripture-text">Study Manager</h2>
             <button
               onClick={handleClose}
-              className="text-scripture-muted hover:text-scripture-text transition-colors"
+              className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
+              aria-label="Close"
             >
               ✕
             </button>
           </div>
         </div>
 
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
           {/* Create new study */}
           <div className="mb-6 p-4 bg-scripture-surface/50 rounded-lg border border-scripture-muted/20">
             <h3 className="text-sm font-medium text-scripture-text mb-3">Create New Study</h3>

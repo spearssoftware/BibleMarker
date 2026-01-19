@@ -10,6 +10,7 @@ import { getBookById, getOTBooks, getNTBooks, getVerseCount } from '@/types/bibl
 import { getAllTranslations, type ApiTranslation } from '@/lib/bible-api';
 import { getPreferences, db } from '@/lib/db';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
+import { useStudyStore } from '@/stores/studyStore';
 
 export function NavigationBar() {
   const {
@@ -27,11 +28,13 @@ export function NavigationBar() {
   const [showBookPicker, setShowBookPicker] = useState(false);
   const [showChapterPicker, setShowChapterPicker] = useState(false);
   const [showTranslationPicker, setShowTranslationPicker] = useState(false);
+  const [showStudyPicker, setShowStudyPicker] = useState(false);
   const [showVersePicker, setShowVersePicker] = useState(false);
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const [currentVerse, setCurrentVerse] = useState<number | null>(null);
   
   const { activeView, loadActiveView, addTranslation, removeTranslation, clearView } = useMultiTranslationStore();
+  const { studies, activeStudyId, loadStudies, setActiveStudy, getActiveStudy } = useStudyStore();
 
   const bookInfo = getBookById(currentBook);
   const currentTranslation = translations.find(t => t.id === currentModuleId);
@@ -110,6 +113,7 @@ export function NavigationBar() {
     }
     loadTranslations();
     loadActiveView();
+    loadStudies();
     
     // Reload translations when window regains focus (user might have configured API keys in another tab)
     const handleFocus = () => {
@@ -124,6 +128,7 @@ export function NavigationBar() {
     // Close pickers when clicking on verse text
     const handleClosePickers = () => {
       setShowTranslationPicker(false);
+      setShowStudyPicker(false);
       setShowBookPicker(false);
       setShowChapterPicker(false);
       setShowVersePicker(false);
@@ -161,10 +166,11 @@ export function NavigationBar() {
         {/* Translation, book and chapter selector - centered */}
         <div className="flex items-center gap-2">
           {/* Translation selector */}
-          <div className="relative">
+          <div className="relative mr-3">
             <button
               onClick={() => {
                 setShowTranslationPicker(!showTranslationPicker);
+                setShowStudyPicker(false);
                 setShowBookPicker(false);
                 setShowChapterPicker(false);
               }}
@@ -221,12 +227,13 @@ export function NavigationBar() {
           </div>
 
           {/* Book selector */}
-          <div className="relative">
+          <div className="relative ml-3">
             <button
               onClick={() => {
                 setShowBookPicker(!showBookPicker);
                 setShowChapterPicker(false);
                 setShowTranslationPicker(false);
+                setShowStudyPicker(false);
               }}
               className="px-4 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
                          font-ui font-semibold text-sm transition-all duration-200
@@ -255,6 +262,7 @@ export function NavigationBar() {
                 setShowChapterPicker(!showChapterPicker);
                 setShowBookPicker(false);
                 setShowTranslationPicker(false);
+                setShowStudyPicker(false);
                 setShowVersePicker(false);
               }}
               className="px-4 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
@@ -280,13 +288,14 @@ export function NavigationBar() {
 
           {/* Verse selector */}
           {verseCount > 0 && (
-            <div className="relative">
+            <div className="relative mr-3">
               <button
                 onClick={() => {
                   setShowVersePicker(!showVersePicker);
                   setShowBookPicker(false);
                   setShowChapterPicker(false);
                   setShowTranslationPicker(false);
+                  setShowStudyPicker(false);
                 }}
                 className="px-4 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
                            font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
@@ -317,6 +326,39 @@ export function NavigationBar() {
                     setShowVersePicker(false);
                   }}
                   onClose={() => setShowVersePicker(false)}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Study selector */}
+          {studies.length > 0 && (
+            <div className="relative ml-3">
+              <button
+                onClick={() => {
+                  setShowStudyPicker(!showStudyPicker);
+                  setShowTranslationPicker(false);
+                  setShowBookPicker(false);
+                  setShowChapterPicker(false);
+                  setShowVersePicker(false);
+                }}
+                className="px-4 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
+                           font-ui font-semibold text-sm transition-all duration-200
+                           border border-scripture-border/30 hover:border-scripture-border/50
+                           shadow-sm hover:shadow min-w-[80px] h-[36px] flex items-center justify-center"
+              >
+                {getActiveStudy()?.name || 'No Study'}
+              </button>
+
+              {showStudyPicker && (
+                <StudyPicker
+                  studies={studies}
+                  activeStudyId={activeStudyId}
+                  onSelect={async (studyId) => {
+                    await setActiveStudy(studyId);
+                    setShowStudyPicker(false);
+                  }}
+                  onClose={() => setShowStudyPicker(false)}
                 />
               )}
             </div>
@@ -432,7 +474,7 @@ function ChapterPicker({ chapters, currentChapter, onSelect, onClose }: ChapterP
       <div className="absolute top-full left-0 mt-2 z-50
                       bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl
                       w-[280px] max-h-[50vh] overflow-hidden animate-scale-in backdrop-blur-sm">
-        <div className="overflow-y-auto max-h-[50vh] custom-scrollbar p-3">
+        <div className="overflow-y-auto max-h-[50vh] custom-scrollbar p-4">
           <div className="grid grid-cols-6 gap-1.5">
             {chapterNumbers.map((num) => (
               <button
@@ -803,7 +845,7 @@ function VersePicker({ verseCount, currentVerse, onSelect, onClose }: VersePicke
       <div className="absolute top-full left-0 mt-2 z-50
                       bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl
                       w-[320px] max-h-[50vh] overflow-hidden animate-scale-in backdrop-blur-sm">
-        <div className="overflow-y-auto max-h-[50vh] custom-scrollbar p-3">
+        <div className="overflow-y-auto max-h-[50vh] custom-scrollbar p-4">
           <div className="grid grid-cols-8 gap-1.5">
             {verseNumbers.map((num) => (
               <button
@@ -817,6 +859,74 @@ function VersePicker({ verseCount, currentVerse, onSelect, onClose }: VersePicke
                 {num}
               </button>
             ))}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+interface StudyPickerProps {
+  studies: Array<{ id: string; name: string; book?: string }>;
+  activeStudyId: string | null;
+  onSelect: (studyId: string | null) => void;
+  onClose: () => void;
+}
+
+function StudyPicker({ studies, activeStudyId, onSelect, onClose }: StudyPickerProps) {
+  return (
+    <>
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 z-40" 
+        onClick={onClose}
+      />
+      
+      {/* Picker */}
+      <div className="absolute top-full left-0 mt-2 z-50
+                      bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl
+                      w-[280px] max-h-[50vh] overflow-hidden animate-scale-in backdrop-blur-sm">
+        <div className="overflow-y-auto max-h-[50vh] custom-scrollbar p-4">
+          {/* Option to clear active study */}
+          <button
+            onClick={() => {
+              onSelect(null);
+            }}
+            className={`w-full px-3 py-2.5 rounded-lg transition-all duration-200 text-left mb-2
+                      ${!activeStudyId 
+                        ? 'bg-scripture-accent text-scripture-bg shadow-sm' 
+                        : 'hover:bg-scripture-elevated hover:shadow-sm'}`}
+          >
+            <div className="text-sm font-medium">No Study (show all keywords)</div>
+          </button>
+
+          {/* Studies list */}
+          <div className="space-y-1.5">
+            {studies.map((study) => {
+              const bookInfo = study.book ? getBookById(study.book) : null;
+              return (
+                <button
+                  key={study.id}
+                  onClick={() => onSelect(study.id)}
+                  className={`w-full px-3 py-2.5 rounded-lg transition-all duration-200 text-left
+                            ${activeStudyId === study.id 
+                              ? 'bg-scripture-accent text-scripture-bg shadow-sm' 
+                              : 'hover:bg-scripture-elevated hover:shadow-sm'}`}
+                >
+                  <div className="text-sm font-medium">{study.name}</div>
+                  {bookInfo && (
+                    <div className="text-xs text-scripture-muted mt-0.5">
+                      📖 {bookInfo.name}
+                    </div>
+                  )}
+                  {!study.book && (
+                    <div className="text-xs text-scripture-muted mt-0.5">
+                      🌐 Global
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

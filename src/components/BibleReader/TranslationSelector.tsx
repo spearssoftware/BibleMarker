@@ -63,20 +63,21 @@ export function TranslationSelector() {
           {activeView?.translationIds.length || 0} Translation{activeView?.translationIds.length !== 1 ? 's' : ''}
         </button>
       ) : (
-        <div className="absolute top-full left-0 mt-2 bg-scripture-surface border border-scripture-muted/30 rounded-lg shadow-xl z-50 min-w-[300px]">
-          <div className="p-4 border-b border-scripture-muted/30">
+        <div className="absolute top-full left-0 mt-2 bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-2xl z-50 min-w-[300px] backdrop-blur-sm animate-scale-in">
+          <div className="p-4 border-b border-scripture-border/50">
             <div className="flex items-center justify-between">
-              <h3 className="font-medium text-scripture-text">Multi-Translation View</h3>
+              <h3 className="text-lg font-ui font-semibold text-scripture-text">Multi-Translation View</h3>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-scripture-muted hover:text-scripture-text transition-colors"
+                className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
+                aria-label="Close"
               >
                 ✕
               </button>
             </div>
           </div>
 
-          <div className="p-4 space-y-4">
+          <div className="p-4 space-y-4 custom-scrollbar">
             {/* Selected translations */}
             {selectedTranslations.length > 0 && (
               <div>
@@ -108,7 +109,7 @@ export function TranslationSelector() {
             {selectedTranslations.length < 3 && (
               <div>
                 <div className="text-sm font-medium text-scripture-text mb-2">Add Translation</div>
-                <div className="space-y-1 max-h-48 overflow-y-auto">
+                <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
                   {translations
                     .filter(t => !activeView?.translationIds.includes(t.id))
                     .map((translation) => (

@@ -387,13 +387,13 @@ export function Toolbar() {
       {/* Selection indicator */}
       {selection && (
         <>
-          <div className="bg-scripture-accent/95 backdrop-blur-sm text-scripture-bg px-4 py-2.5 
+          <div className="bg-scripture-accent/95 backdrop-blur-sm text-scripture-bg px-3 py-1.5 
                           flex items-center justify-between animate-slide-up shadow-lg border-t border-scripture-accent/30">
-            <span className="text-sm font-ui truncate flex-1 font-medium">
+            <span className="text-xs font-ui truncate flex-1 font-medium">
               Selected: {selection.text.slice(0, 50)}
               {selection.text.length > 50 ? '...' : ''}
             </span>
-            <div className="flex items-center gap-2 ml-3">
+            <div className="flex items-center gap-1.5 ml-2">
               {/* Apply key word: pick Jesus, Nicodemus, etc. to mark He/him the same way */}
               <div className="relative">
                 <button
@@ -401,8 +401,8 @@ export function Toolbar() {
                     setShowAddAsVariantPicker(false);
                     setShowKeyWordApplyPicker((v) => !v);
                   }}
-                  className="px-3 py-1 text-xs font-ui text-scripture-bg/90 hover:text-scripture-bg
-                           transition-colors rounded-lg hover:bg-scripture-bg/20 flex items-center gap-1.5"
+                  className="px-2 py-0.5 text-[10px] font-ui text-scripture-bg/90 hover:text-scripture-bg
+                           transition-colors rounded-lg hover:bg-scripture-bg/20 flex items-center gap-1"
                   title="Apply a key word (e.g. mark He/him as Jesus)"
                 >
                   <span>🔑</span>
@@ -460,8 +460,8 @@ export function Toolbar() {
                       setShowKeyWordApplyPicker(false);
                       setShowAddAsVariantPicker((v) => !v);
                     }}
-                    className="px-3 py-1 text-xs font-ui text-scripture-bg/90 hover:text-scripture-bg
-                             transition-colors rounded-lg hover:bg-scripture-bg/20 flex items-center gap-1.5"
+                className="px-2 py-0.5 text-[10px] font-ui text-scripture-bg/90 hover:text-scripture-bg
+                           transition-colors rounded-lg hover:bg-scripture-bg/20 flex items-center gap-1"
                     title="Add this word as a variant to an existing key word"
                   >
                     <span>➕</span>
@@ -518,8 +518,8 @@ export function Toolbar() {
                   setActiveTool(null);
                   if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
                 }}
-                className="px-3 py-1 text-xs font-ui text-scripture-bg/90 hover:text-scripture-bg
-                         transition-colors rounded-lg hover:bg-scripture-bg/20 flex items-center gap-1.5"
+                className="px-2 py-0.5 text-[10px] font-ui text-scripture-bg/90 hover:text-scripture-bg
+                           transition-colors rounded-lg hover:bg-scripture-bg/20 flex items-center gap-1"
                 title="Make this a key word"
               >
                 <span>➕</span>
@@ -536,8 +536,8 @@ export function Toolbar() {
                   window.getSelection()?.removeAllRanges();
                   clearSelection();
                 }}
-                className="px-3 py-1 text-xs font-ui text-scripture-bg/90 hover:text-scripture-bg
-                         transition-colors rounded-lg hover:bg-scripture-bg/20"
+                    className="px-2 py-0.5 text-[10px] font-ui text-scripture-bg/90 hover:text-scripture-bg
+                           transition-colors rounded-lg hover:bg-scripture-bg/20"
               >
                 Cancel
               </button>
@@ -546,7 +546,7 @@ export function Toolbar() {
 
           {/* Smart suggestions */}
           {previousAnnotations.length > 0 && (
-            <div className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 px-4 py-2.5 animate-slide-up">
+            <div className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 px-3 py-1.5 animate-slide-up">
               <div className="text-xs text-scripture-muted mb-2 font-ui font-medium">
                 Previously used for "{selection.text.trim()}":
               </div>
@@ -555,9 +555,9 @@ export function Toolbar() {
                   <button
                     key={index}
                     onClick={() => handleApplySuggestion(suggestion)}
-                    className="px-3 py-1.5 rounded-xl bg-scripture-elevated/80 hover:bg-scripture-border
-                             border border-scripture-border/50 transition-all duration-200 flex items-center gap-2
-                             text-xs font-ui shadow-sm hover:shadow"
+                    className="px-2 py-1 rounded-lg bg-scripture-elevated/80 hover:bg-scripture-border
+                             border border-scripture-border/50 transition-all duration-200 flex items-center gap-1.5
+                             text-[10px] font-ui shadow-sm hover:shadow"
                     title={`Apply ${suggestion.label}`}
                   >
                     {suggestion.type !== 'symbol' && suggestion.color && (
@@ -672,12 +672,12 @@ export function Toolbar() {
                 <div className="text-xs font-ui font-semibold text-scripture-muted uppercase tracking-wider mb-3">
                   Font Size
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {fontSizes.map((fs) => (
                     <button
                       key={fs.size}
                       onClick={() => handleFontSizeChange(fs.size)}
-                      className={`flex-1 px-3 py-2 rounded-lg font-ui text-sm transition-all duration-200
+                      className={`px-3 py-2 rounded-lg font-ui text-sm transition-all duration-200 text-center
                                 ${fontSize === fs.size
                                   ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
                                   : 'bg-scripture-surface hover:bg-scripture-elevated border border-scripture-border/50 hover:shadow-sm'}`}
@@ -818,10 +818,13 @@ export function Toolbar() {
           className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 
                      animate-slide-up shadow-lg flex flex-col max-h-[50vh] min-h-[120px] overflow-hidden"
         >
-          <div className="flex items-center justify-end px-4 py-2 border-b border-scripture-border/50 flex-shrink-0">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-scripture-border/50 flex-shrink-0">
+            <h2 className="text-lg font-ui font-semibold text-scripture-text">
+              Annotation Legend
+            </h2>
             <button
               onClick={() => setShowLegendOverlay(false)}
-              className="p-1.5 rounded-lg text-scripture-muted hover:text-scripture-text hover:bg-scripture-elevated/80 transition-colors"
+              className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
               aria-label="Close legend"
             >
               ✕
@@ -835,7 +838,7 @@ export function Toolbar() {
 
       {/* Main toolbar: Color | Symbol | Key Words | Settings */}
       <div className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 shadow-lg">
-        <div className="max-w-lg mx-auto px-3 py-3 flex items-center justify-around">
+        <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
           {TOOLS.map((tool) => {
             const isActive =
               tool.type === 'color' ? isColorActive
@@ -848,15 +851,15 @@ export function Toolbar() {
               <button
                 key={tool.type}
                 onClick={() => handleToolClick(tool.type)}
-                className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl 
+                className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg 
                            transition-all duration-200 touch-target
                            ${isActive
                              ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
                              : 'hover:bg-scripture-elevated hover:scale-105 active:scale-95'}`}
                 aria-label={tool.label}
               >
-                <span className="text-xl">{tool.icon}</span>
-                <span className="text-xs font-ui font-medium">{tool.label}</span>
+                <span className="text-lg">{tool.icon}</span>
+                <span className="text-[10px] font-ui font-medium leading-tight">{tool.label}</span>
               </button>
             );
           })}

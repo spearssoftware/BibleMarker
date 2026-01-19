@@ -78,7 +78,7 @@ export function CrossReferencePopup({
         ref={popupRef}
         className="fixed z-50 bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-2xl
                    p-4 min-w-[280px] max-w-[400px] max-h-[60vh] overflow-y-auto
-                   animate-scale-in backdrop-blur-sm"
+                   animate-scale-in backdrop-blur-sm custom-scrollbar"
         style={{
           left: `${position.x}px`,
           top: `${position.y}px`,
@@ -91,7 +91,7 @@ export function CrossReferencePopup({
           </h4>
           <button
             onClick={onClose}
-            className="text-scripture-muted hover:text-scripture-text transition-colors"
+            className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
             aria-label="Close"
           >
             ✕

@@ -26,7 +26,7 @@ export function VerseNumberMenu({
       />
       
       {/* Menu */}
-      <div className="absolute top-full left-0 mt-1 z-50 bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-lg overflow-hidden animate-scale-in min-w-[200px]">
+      <div className="absolute top-full left-0 mt-1 z-50 bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-2xl overflow-hidden animate-scale-in min-w-[200px] backdrop-blur-sm">
         <div className="p-2 space-y-1">
           <button
             onClick={(e) => {

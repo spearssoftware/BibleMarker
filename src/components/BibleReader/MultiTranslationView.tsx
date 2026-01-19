@@ -35,7 +35,7 @@ interface TranslationChapter {
 export function MultiTranslationView() {
   const { activeView, loadActiveView, addTranslation } = useMultiTranslationStore();
   const { currentBook, currentChapter, currentModuleId, navSelectedVerse } = useBibleStore();
-  const { setSelection, setIsSelecting } = useAnnotationStore();
+  const { setSelection, setIsSelecting, fontSize } = useAnnotationStore();
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const [translationChapters, setTranslationChapters] = useState<Map<string, TranslationChapter>>(new Map());
   const [annotationsByTranslation, setAnnotationsByTranslation] = useState<Map<string, Annotation[]>>(new Map());
@@ -256,6 +256,87 @@ export function MultiTranslationView() {
     setAnnotationsByTranslation(newAnnotations);
   };
 
+  // Helper function to expand selection to word boundaries
+  const expandToWordBoundaries = (range: Range): { expandedRange: Range; text: string } => {
+    const expandedRange = range.cloneRange();
+    
+    // Get the common ancestor container
+    const commonAncestor = expandedRange.commonAncestorContainer;
+    
+    // If the common ancestor is a text node, work with it directly
+    if (commonAncestor.nodeType === Node.TEXT_NODE) {
+      const textContent = commonAncestor.textContent || '';
+      let startOffset = expandedRange.startOffset;
+      let endOffset = expandedRange.endOffset;
+      
+      // Expand backward to word boundary
+      while (startOffset > 0 && /\w/.test(textContent[startOffset - 1])) {
+        startOffset--;
+      }
+      
+      // Expand forward to word boundary
+      while (endOffset < textContent.length && /\w/.test(textContent[endOffset])) {
+        endOffset++;
+      }
+      
+      expandedRange.setStart(commonAncestor, startOffset);
+      expandedRange.setEnd(commonAncestor, endOffset);
+    } else {
+      // For multi-node selections, try to expand using Range methods
+      // First, try to expand to word boundaries
+      try {
+        // Get the text content of the range
+        const selectedText = expandedRange.toString();
+        
+        // Find the first word character in the selection
+        const firstWordMatch = selectedText.match(/\w/);
+        const lastWordMatch = selectedText.match(/\w(?=[\s\p{P}]*$)/u);
+        
+        if (firstWordMatch && lastWordMatch) {
+          const firstWordIndex = selectedText.indexOf(firstWordMatch[0]);
+          const lastWordIndex = selectedText.lastIndexOf(lastWordMatch[0]);
+          
+          // Try to adjust the range to start/end at word boundaries
+          // This is approximate - we'll refine the text after
+          const startContainer = expandedRange.startContainer;
+          const endContainer = expandedRange.endContainer;
+          
+          if (startContainer.nodeType === Node.TEXT_NODE && endContainer.nodeType === Node.TEXT_NODE) {
+            let startOffset = expandedRange.startOffset;
+            let endOffset = expandedRange.endOffset;
+            
+            // Expand backward from start
+            const startText = startContainer.textContent || '';
+            while (startOffset > 0 && /\w/.test(startText[startOffset - 1])) {
+              startOffset--;
+            }
+            
+            // Expand forward from end
+            const endText = endContainer.textContent || '';
+            while (endOffset < endText.length && /\w/.test(endText[endOffset])) {
+              endOffset++;
+            }
+            
+            expandedRange.setStart(startContainer, startOffset);
+            expandedRange.setEnd(endContainer, endOffset);
+          }
+        }
+      } catch (e) {
+        // If expansion fails, use original range
+        console.warn('Could not expand selection to word boundaries:', e);
+      }
+    }
+    
+    // Get the expanded text and clean it
+    let expandedText = expandedRange.toString();
+    
+    // Trim leading/trailing punctuation, whitespace, but keep internal punctuation
+    // Remove common punctuation and whitespace from edges
+    expandedText = expandedText.replace(/^[\s.,;:!?'"()\[\]{}—–-]+|[\s.,;:!?'"()\[\]{}—–-]+$/g, '');
+    
+    return { expandedRange, text: expandedText };
+  };
+
   // Handle text selection - detect which translation and capture selection
   const handleMouseUp = useCallback(() => {
     const sel = window.getSelection();
@@ -263,12 +344,19 @@ export function MultiTranslationView() {
       return;
     }
 
-    const range = sel.getRangeAt(0);
-    const text = range.toString().trim();
+    const originalRange = sel.getRangeAt(0);
+    
+    // Expand to word boundaries and get clean text
+    const { expandedRange, text } = expandToWordBoundaries(originalRange);
+    
     if (!text || text.length === 0) return;
+    
+    // Update the browser selection to match expanded range
+    sel.removeAllRanges();
+    sel.addRange(expandedRange);
 
     // Find which translation column the selection is in by finding the verse element
-    const startContainer = range.startContainer.parentElement;
+    const startContainer = expandedRange.startContainer.parentElement;
     const verseElement = startContainer?.closest('[data-verse]');
     if (!verseElement) return;
 
@@ -306,14 +394,14 @@ export function MultiTranslationView() {
         // Create a range from start of verse content to selection start
         const startRange = document.createRange();
         startRange.selectNodeContents(verseContent);
-        startRange.setEnd(range.startContainer, range.startOffset);
+        startRange.setEnd(expandedRange.startContainer, expandedRange.startOffset);
         const textBefore = startRange.toString();
         startOffset = textBefore.length;
 
         // Calculate end offset
         const endRange = document.createRange();
         endRange.selectNodeContents(verseContent);
-        endRange.setEnd(range.endContainer, range.endOffset);
+        endRange.setEnd(expandedRange.endContainer, expandedRange.endOffset);
         const textUpToEnd = endRange.toString();
         endOffset = textUpToEnd.length;
       } catch (e) {
@@ -557,7 +645,7 @@ export function MultiTranslationView() {
                           <div className="text-xs">{error}</div>
                         </div>
                       ) : verse ? (
-                        <div className="text-scripture-text">
+                        <div className={`scripture-text ${fontSize === 'sm' ? 'text-scripture-sm' : fontSize === 'lg' ? 'text-scripture-lg' : fontSize === 'xl' ? 'text-scripture-xl' : 'text-scripture-base'}`}>
                           <VerseText
                             verse={verse}
                             annotations={annotationsByTranslation.get(translation.id) || []}

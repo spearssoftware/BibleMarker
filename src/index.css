@@ -21,7 +21,7 @@
 
   /* Scripture text styling */
   .scripture-text {
-    @apply font-scripture text-scripture-base leading-relaxed;
+    @apply font-scripture leading-relaxed;
     letter-spacing: 0.01em;
   }
 

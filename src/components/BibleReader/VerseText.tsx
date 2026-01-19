@@ -11,6 +11,7 @@ import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
 import { CrossReferencePopup } from './CrossReferencePopup';
 import { VerseOverlay } from './VerseOverlay';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
+import { useStudyStore } from '@/stores/studyStore';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 
 interface VerseTextProps {
@@ -40,14 +41,33 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
   
   // Get all marking presets for cross-translation keyword highlighting
   const { presets } = useMarkingPresetStore();
+  const { activeStudyId } = useStudyStore();
+  
+  // Filter presets by active study
+  const filteredPresets = useMemo(() => {
+    // If no study is active, show all keywords (global + study-scoped)
+    if (!activeStudyId) {
+      return presets;
+    }
+    
+    // If a study is active, show:
+    // - Global keywords (no studyId)
+    // - Keywords belonging to the active study
+    return presets.filter(preset => {
+      // Global keywords (no studyId) are always visible
+      if (!preset.studyId) return true;
+      // Show keywords that belong to the active study
+      return preset.studyId === activeStudyId;
+    });
+  }, [presets, activeStudyId]);
   
   // Compute virtual annotations from keyword presets (cross-translation highlighting)
   // These are computed on-the-fly and not persisted
   const virtualAnnotations = useMemo(() => {
     // Extract plain text from verse (removes HTML/OSIS tags)
     const verseText = verse.text ? extractPlainText(verse.text) : '';
-    return findKeywordMatches(verseText, verse.ref, presets, moduleId);
-  }, [verse.text, verse.ref, presets, moduleId]);
+    return findKeywordMatches(verseText, verse.ref, filteredPresets, moduleId);
+  }, [verse.text, verse.ref, filteredPresets, moduleId]);
   
   // Merge real annotations with virtual annotations
   // Virtual annotations are filtered out if a real annotation already covers the same range

@@ -7,6 +7,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { formatVerseRef } from '@/types/bible';
 import { useBibleStore } from '@/stores/bibleStore';
+import { useAnnotationStore } from '@/stores/annotationStore';
 import { fetchChapter } from '@/lib/bible-api';
 import type { VerseRef } from '@/types/bible';
 
@@ -22,6 +23,7 @@ export function VerseOverlay({ verseRef, onClose, onNavigate }: VerseOverlayProp
   const [error, setError] = useState<string | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const { currentModuleId } = useBibleStore();
+  const { fontSize } = useAnnotationStore();
 
   useEffect(() => {
     async function loadVerse() {
@@ -127,7 +129,7 @@ export function VerseOverlay({ verseRef, onClose, onNavigate }: VerseOverlayProp
           
           {!isLoading && !error && verseText && (
             <div 
-              className="scripture-text text-scripture-base leading-relaxed"
+              className={`scripture-text ${fontSize === 'sm' ? 'text-scripture-sm' : fontSize === 'lg' ? 'text-scripture-lg' : fontSize === 'xl' ? 'text-scripture-xl' : 'text-scripture-base'} leading-relaxed`}
               dangerouslySetInnerHTML={{ __html: verseText }}
             />
           )}

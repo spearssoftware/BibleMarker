@@ -4,9 +4,10 @@
  * UI for creating, editing, and managing key word definitions.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useBibleStore } from '@/stores/bibleStore';
+import { useStudyStore } from '@/stores/studyStore';
 import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, type KeyWordCategory, type MarkingPreset, type Variant } from '@/types/keyWord';
 import { SYMBOLS, HIGHLIGHT_COLORS, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types/annotation';
 
@@ -37,6 +38,7 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
   } = useMarkingPresetStore();
   
   const { currentBook, currentChapter } = useBibleStore();
+  const { activeStudyId, studies } = useStudyStore();
 
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -53,7 +55,25 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
     }
   }, [initialWord]);
 
-  const filteredPresets = getFilteredPresets();
+  // Filter presets by active study
+  const filteredPresets = useMemo(() => {
+    const baseFiltered = getFilteredPresets();
+    
+    // If no study is active, show all keywords (global + study-scoped)
+    if (!activeStudyId) {
+      return baseFiltered;
+    }
+    
+    // If a study is active, show:
+    // - Global keywords (no studyId)
+    // - Keywords belonging to the active study
+    return baseFiltered.filter(preset => {
+      // Global keywords (no studyId) are always visible
+      if (!preset.studyId) return true;
+      // Show keywords that belong to the active study
+      return preset.studyId === activeStudyId;
+    });
+  }, [getFilteredPresets, activeStudyId]);
 
   function handleCreate() {
     setIsCreating(true);
@@ -83,6 +103,7 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
     autoSuggest: boolean;
     bookScope?: string;
     chapterScope?: number;
+    studyId?: string;
   }) {
     try {
       const highlight = formData.color ? { style: 'highlight' as const, color: formData.color } : undefined;
@@ -100,6 +121,7 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
             autoSuggest: formData.autoSuggest,
             bookScope: formData.bookScope,
             chapterScope: formData.chapterScope,
+            studyId: formData.studyId,
             updatedAt: new Date(),
           });
         }
@@ -118,6 +140,7 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
           autoSuggest: formData.autoSuggest,
           bookScope: formData.bookScope,
           chapterScope: formData.chapterScope,
+          studyId: formData.studyId,
         });
         await addPreset(preset);
         if (initialWord && onPresetCreated) {
@@ -263,9 +286,11 @@ function KeyWordCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { studies } = useStudyStore();
   const categoryInfo = KEY_WORD_CATEGORIES[preset.category || 'custom'];
   const symbol = preset.symbol ? SYMBOLS[preset.symbol] : undefined;
   const color = preset.highlight?.color ? HIGHLIGHT_COLORS[preset.highlight.color] : undefined;
+  const study = preset.studyId ? studies.find(s => s.id === preset.studyId) : null;
 
   return (
     <div className="p-4 rounded-lg border bg-scripture-elevated border-scripture-border/30 hover:border-scripture-border/50 transition-all">
@@ -289,6 +314,11 @@ function KeyWordCard({
             {!preset.bookScope && (
               <span className="text-xs px-2 py-0.5 bg-gray-500/20 text-gray-300 rounded">
                 🌐 Global
+              </span>
+            )}
+            {study && (
+              <span className="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded" title={`Study: ${study.name}`}>
+                📚 {study.name}
               </span>
             )}
             {preset.usageCount > 0 && (
@@ -358,6 +388,7 @@ function KeyWordEditor({
     autoSuggest: boolean;
     bookScope?: string;
     chapterScope?: number;
+    studyId?: string;
   }) => void;
   onCancel: () => void;
 }) {
@@ -389,14 +420,28 @@ function KeyWordEditor({
       setColor(initialColor);
     }
   }, [initialColor, preset]);
+  const { studies, activeStudyId, getActiveStudy } = useStudyStore();
+  const activeStudy = getActiveStudy();
+  
   const [category, setCategory] = useState<KeyWordCategory>(preset?.category || 'custom');
   const [description, setDescription] = useState(preset?.description || '');
   const [autoSuggest, setAutoSuggest] = useState(preset?.autoSuggest ?? true);
-  const [scopeType, setScopeType] = useState<'global' | 'book' | 'chapter'>(
-    preset?.chapterScope !== undefined ? 'chapter' :
-    preset?.bookScope ? 'book' : 'global'
+  
+  // Default to active study if creating new keyword (not editing)
+  const [studyId, setStudyId] = useState<string | undefined>(
+    preset?.studyId || (preset ? undefined : activeStudyId || undefined)
   );
-  const [bookScope, setBookScope] = useState(preset?.bookScope || currentBook || '');
+  
+  // If creating new keyword and active study has a book scope, default to that book
+  const defaultBookScope = preset?.bookScope || 
+    (!preset && activeStudy?.book ? activeStudy.book : currentBook || '');
+  const defaultScopeType: 'global' | 'book' | 'chapter' = 
+    preset?.chapterScope !== undefined ? 'chapter' :
+    preset?.bookScope ? 'book' :
+    (!preset && activeStudy?.book ? 'book' : 'global');
+  
+  const [scopeType, setScopeType] = useState<'global' | 'book' | 'chapter'>(defaultScopeType);
+  const [bookScope, setBookScope] = useState(defaultBookScope);
   const [chapterScope, setChapterScope] = useState(preset?.chapterScope || currentChapter || 1);
 
   function handleSubmit(e: React.FormEvent) {
@@ -419,6 +464,7 @@ function KeyWordEditor({
       autoSuggest,
       bookScope: scopeType === 'book' || scopeType === 'chapter' ? bookScope : undefined,
       chapterScope: scopeType === 'chapter' ? chapterScope : undefined,
+      studyId: studyId || undefined,
     });
   }
 
@@ -633,6 +679,28 @@ function KeyWordEditor({
               </div>
             )}
           </div>
+        </div>
+
+        <div className="border-t border-scripture-border/30 pt-4">
+          <label className="block text-sm font-ui text-scripture-text mb-2">
+            Study (Optional)
+          </label>
+          <select
+            value={studyId || ''}
+            onChange={(e) => setStudyId(e.target.value || undefined)}
+            className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
+                     rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
+          >
+            <option value="">Global (visible in all studies)</option>
+            {studies.map(study => (
+              <option key={study.id} value={study.id}>
+                {study.name} {study.book ? `(${study.book})` : ''}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-scripture-muted mt-1">
+            Assign this keyword to a specific study. Global keywords are visible in all studies.
+          </p>
         </div>
       </div>
 
