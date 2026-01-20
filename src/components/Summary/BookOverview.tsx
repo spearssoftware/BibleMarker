@@ -124,13 +124,13 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
   }
   
   return (
-    <div className="h-full flex flex-col bg-scripture-surface rounded-lg">
+    <div>
       <div className="flex items-center justify-between mb-4 px-4 pt-4 flex-shrink-0">
         <h2 className="text-lg font-semibold text-scripture-text">{bookInfo.name} Overview</h2>
         <div className="text-sm text-scripture-muted">{chapterCount} chapters</div>
       </div>
       
-      <div className="flex-1 overflow-y-auto px-4 pb-4 custom-scrollbar">
+      <div className="px-4 pb-4">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
         {summaries.map(summary => {
           const hasData = summary.title || summary.headingCount > 0 || summary.keywordCount > 0 || summary.observationCount > 0;

@@ -374,7 +374,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
   return (
     <>
-      <div className="flex flex-col overflow-hidden relative">
+      <div className="flex-1 min-h-0 flex flex-col relative">
         {/* Close button - floating in top-right */}
         <button
           onClick={onClose}
@@ -385,7 +385,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         </button>
 
         {/* Tabs */}
-        <div className="px-4 py-2 border-b border-scripture-border/50 flex-shrink-0">
+        <div className="px-4 py-2 flex-shrink-0">
           <div className="flex gap-2">
             {tabs.map((tab) => (
               <button
@@ -407,7 +407,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
           {isLoadingPrefs ? (
             <div className="flex items-center justify-center h-full">
               <div className="flex flex-col items-center gap-3">
@@ -419,8 +419,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             <>
           {/* Appearance Tab */}
           {activeTab === 'appearance' && (
-            <div className="space-y-6">
-              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+            <div className="space-y-0">
+              <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Font Size</h3>
                 <div className="grid grid-cols-4 gap-2">
                   {fontSizes.map((fs) => (
@@ -442,7 +442,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </p>
               </div>
 
-              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+              <div className="border-t border-scripture-border/30"></div>
+
+              <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Theme</h3>
                 <div className="grid grid-cols-3 gap-2">
                   {themes.map((t) => (
@@ -468,15 +470,15 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
           {/* Bible Tab */}
           {activeTab === 'bible' && (
-            <div className="space-y-6">
+            <div className="space-y-0">
               {apiError && (
-                <div className="bg-scripture-errorBg border border-scripture-error/30 rounded-lg p-3 text-scripture-errorText text-sm">
+                <div className="bg-scripture-errorBg border border-scripture-error/30 rounded-lg p-3 text-scripture-errorText text-sm mb-4">
                   {apiError}
                 </div>
               )}
 
               {/* getBible API Section */}
-              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+              <div className="p-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-ui font-semibold text-scripture-text">getBible API</h3>
                   <span className="text-xs px-2 py-1 bg-scripture-successBg text-scripture-successText rounded border border-scripture-success/30">
@@ -488,8 +490,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </p>
               </div>
 
+              <div className="border-t border-scripture-border/30"></div>
+
               {/* Biblia API Section */}
-              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+              <div className="p-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-ui font-semibold text-scripture-text">Biblia API</h3>
                   {bibliaClient.isConfigured() ? (
@@ -571,9 +575,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 )}
               </div>
 
+              <div className="border-t border-scripture-border/30"></div>
+
               {/* BibleGateway API Section */}
               {BIBLEGATEWAY_ENABLED && (
-                <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+                <div className="p-4">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-base font-ui font-semibold text-scripture-text">BibleGateway API</h3>
                     {bibleGatewayClient.isConfigured() ? (
@@ -642,8 +648,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </div>
               )}
 
+              <div className="border-t border-scripture-border/30"></div>
+
               {/* ESV API Section */}
-              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+              <div className="p-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-ui font-semibold text-scripture-text">ESV API</h3>
                   {esvClient.isConfigured() ? (
@@ -722,9 +730,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
           {/* Studies Tab */}
           {activeTab === 'studies' && (
-            <div className="space-y-6">
+            <div className="space-y-0">
               {/* Create new study */}
-              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+              <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Create New Study</h3>
                 <div className="space-y-3">
                   <input
@@ -761,8 +769,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </div>
               </div>
 
+              <div className="border-t border-scripture-border/30"></div>
+
               {/* Studies list */}
-              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+              <div className="p-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-ui font-semibold text-scripture-text">Your Studies</h3>
                   {activeStudyId && (
@@ -880,9 +890,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
           {/* Data Tab */}
           {activeTab === 'data' && (
-            <div className="space-y-6">
+            <div className="space-y-0">
               {/* Export Section */}
-              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+              <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Export Backup</h3>
                 <p className="text-sm text-scripture-muted mb-4">
                   Export all your study data to a JSON file. You can save it to your cloud folder (iCloud Drive, Google Drive, etc.) for automatic syncing.
@@ -933,8 +943,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 )}
               </div>
 
+              <div className="border-t border-scripture-border/30"></div>
+
               {/* Import Section */}
-              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+              <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Import/Restore Backup</h3>
 
                 {importStep === 'select' && (
@@ -1114,7 +1126,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 )}
               </div>
 
-              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+              <div className="border-t border-scripture-border/30"></div>
+
+              <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Clear Data</h3>
                 
                 <div className="space-y-3">
@@ -1157,16 +1171,20 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
           {/* Help Tab */}
           {activeTab === 'help' && (
-            <div className="space-y-6">
-              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+            <div className="space-y-0">
+              <div className="p-4">
                 <GettingStartedSection />
               </div>
 
-              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+              <div className="border-t border-scripture-border/30"></div>
+
+              <div className="p-4">
                 <KeyboardShortcutsHelp />
               </div>
 
-              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+              <div className="border-t border-scripture-border/30"></div>
+
+              <div className="p-4">
                 <AboutSection />
               </div>
             </div>

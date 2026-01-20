@@ -96,7 +96,7 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
 
   const content = (
     <div 
-      className={`${inline ? 'flex flex-col h-full min-h-0' : 'bg-scripture-surface rounded-2xl shadow-2xl max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col'}`}
+      className={`${inline ? 'flex flex-col flex-1 min-h-0' : 'bg-scripture-surface rounded-2xl shadow-2xl max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col'}`}
       onClick={inline ? undefined : (e) => e.stopPropagation()}
     >
       {!inline && (

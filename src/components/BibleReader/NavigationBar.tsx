@@ -38,20 +38,63 @@ export function NavigationBar() {
     const anyPickerOpen = showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker || showStudyPicker;
     
     if (anyPickerOpen) {
+      // Check if any toolbar overlay is open - if so, don't lock scroll at all
+      const toolbarOverlay = document.querySelector('[data-marking-toolbar-overlay]');
+      if (toolbarOverlay) {
+        return; // Toolbar overlay is open, don't set up scroll lock
+      }
+      
       // Save scroll position when picker opens
       scrollLockRef.current = window.scrollY;
       
-      const restoreScroll = () => {
+      const restoreScroll = (e?: Event) => {
+        // Double-check toolbar overlay is still not open
+        const toolbarOverlay = document.querySelector('[data-marking-toolbar-overlay]');
+        if (toolbarOverlay) {
+          return; // Toolbar overlay is open, allow scrolling
+        }
+        
+        // Don't prevent scrolling if it's happening inside an overlay or toolbar
+        if (e) {
+          const target = e.target as HTMLElement;
+          // Check if scroll is happening inside an overlay, toolbar, or modal
+          if (target.closest('[data-marking-toolbar]') || 
+              target.closest('[data-marking-toolbar-overlay]') ||
+              target.closest('.backdrop-overlay') ||
+              target.closest('[role="dialog"]') ||
+              target.classList.contains('custom-scrollbar')) {
+            return; // Allow scrolling inside overlays
+          }
+        }
+        
         if (scrollLockRef.current !== null && window.scrollY !== scrollLockRef.current) {
           window.scrollTo(0, scrollLockRef.current);
         }
       };
       
-      // Restore scroll position on any scroll event
+      // Restore scroll position on scroll events, but only if not scrolling inside an overlay
       window.addEventListener('scroll', restoreScroll, { passive: true });
       
-      // Also check periodically in case scroll happens outside of events
-      const interval = setInterval(restoreScroll, 16); // ~60fps
+      // Also check periodically, but be more careful - only restore if scroll changed
+      // and we're not currently interacting with an overlay
+      const interval = setInterval(() => {
+        // Check if any toolbar overlay is open
+        const toolbarOverlay = document.querySelector('[data-marking-toolbar-overlay]');
+        if (toolbarOverlay) {
+          return; // Toolbar overlay is open, don't lock scroll
+        }
+        
+        // Check if user is interacting with an overlay
+        const activeElement = document.activeElement;
+        const isInOverlay = activeElement?.closest('[data-marking-toolbar]') || 
+                           activeElement?.closest('[data-marking-toolbar-overlay]') ||
+                           activeElement?.closest('.backdrop-overlay') ||
+                           activeElement?.closest('[role="dialog"]');
+        
+        if (!isInOverlay) {
+          restoreScroll();
+        }
+      }, 100); // Check less frequently
       
       return () => {
         window.removeEventListener('scroll', restoreScroll);
@@ -193,7 +236,7 @@ export function NavigationBar() {
   }, []); // Only run on mount - loadActiveView is stable from zustand
 
   return (
-    <nav className="navigation-bar bg-scripture-surface/95 backdrop-blur-sm border-b border-scripture-border/50 shadow-sm sticky top-0 z-20">
+    <nav className="navigation-bar bg-scripture-surface/95 backdrop-blur-sm shadow-sm sticky top-0 z-20">
       <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-between relative">
         {/* Left side: Previous button and Translation selector */}
         <div className="flex items-center gap-2">
@@ -244,11 +287,12 @@ export function NavigationBar() {
                 e.currentTarget.blur();
               }}
               tabIndex={-1}
-              className="px-4 py-2 rounded-xl hover:bg-scripture-elevated
-                         font-ui font-semibold text-sm transition-all duration-200
-                         border border-scripture-border/30 hover:border-scripture-border/50
-                         touch-target hover:scale-105 active:scale-95 min-w-[60px] h-[36px] flex items-center justify-center
-                         select-none"
+              className={`px-4 py-2 rounded-xl font-ui font-semibold text-sm transition-all duration-200
+                         border border-scripture-border/30 touch-target min-w-[60px] h-[36px] flex items-center justify-center
+                         select-none
+                         ${showTranslationPicker
+                           ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
+                           : 'hover:bg-scripture-elevated hover:border-scripture-border/50 hover:scale-105 active:scale-95'}`}
             >
               {activeView && activeView.translationIds.length > 0
                 ? `${activeView.translationIds.length} Translation${activeView.translationIds.length !== 1 ? 's' : ''}`
@@ -320,11 +364,12 @@ export function NavigationBar() {
                 e.currentTarget.blur();
               }}
               tabIndex={-1}
-              className="px-4 py-2 rounded-xl hover:bg-scripture-elevated
-                         font-ui font-semibold text-sm transition-all duration-200
-                         border border-scripture-border/30 hover:border-scripture-border/50
-                         touch-target hover:scale-105 active:scale-95 h-[36px] flex items-center justify-center
-                         select-none"
+              className={`px-4 py-2 rounded-xl font-ui font-semibold text-sm transition-all duration-200
+                         border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center
+                         select-none
+                         ${showBookPicker
+                           ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
+                           : 'hover:bg-scripture-elevated hover:border-scripture-border/50 hover:scale-105 active:scale-95'}`}
             >
               {bookInfo?.name || currentBook}
             </button>
@@ -362,10 +407,11 @@ export function NavigationBar() {
                 e.currentTarget.blur();
               }}
               tabIndex={-1}
-              className="px-4 py-2 rounded-xl hover:bg-scripture-elevated
-                         font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
-                         border border-scripture-border/30 hover:border-scripture-border/50
-                         touch-target h-[36px] flex items-center justify-center select-none"
+              className={`px-4 py-2 rounded-xl font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
+                         border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center select-none
+                         ${showChapterPicker
+                           ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
+                           : 'hover:bg-scripture-elevated hover:border-scripture-border/50 hover:scale-105 active:scale-95'}`}
             >
               {currentChapter}
             </button>
@@ -405,11 +451,12 @@ export function NavigationBar() {
                   e.currentTarget.blur();
                 }}
                 tabIndex={-1}
-                className="px-4 py-2 rounded-xl hover:bg-scripture-elevated
-                           font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
-                           border border-scripture-border/30 hover:border-scripture-border/50
-                           touch-target hover:scale-105 active:scale-95 h-[36px] flex items-center justify-center
-                           select-none"
+                className={`px-4 py-2 rounded-xl font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
+                           border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center
+                           select-none
+                           ${showVersePicker
+                             ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
+                             : 'hover:bg-scripture-elevated hover:border-scripture-border/50 hover:scale-105 active:scale-95'}`}
               >
                 {currentVerse || '1'}
               </button>
@@ -462,11 +509,12 @@ export function NavigationBar() {
                   e.currentTarget.blur();
                 }}
                 tabIndex={-1}
-                className="px-4 py-2 rounded-xl hover:bg-scripture-elevated
-                           font-ui font-semibold text-sm transition-all duration-200
-                           border border-scripture-border/30 hover:border-scripture-border/50
-                           touch-target hover:scale-105 active:scale-95 min-w-[80px] h-[36px] flex items-center justify-center
-                           select-none"
+                className={`px-4 py-2 rounded-xl font-ui font-semibold text-sm transition-all duration-200
+                           border border-scripture-border/30 touch-target min-w-[80px] h-[36px] flex items-center justify-center
+                           select-none
+                           ${showStudyPicker
+                             ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
+                             : 'hover:bg-scripture-elevated hover:border-scripture-border/50 hover:scale-105 active:scale-95'}`}
               >
                 {getActiveStudy()?.name || 'No Study'}
               </button>
@@ -509,8 +557,10 @@ export function NavigationBar() {
               e.currentTarget.blur();
             }}
             tabIndex={-1}
-            className="p-2 rounded-xl hover:bg-scripture-elevated transition-all duration-200 touch-target
-                       hover:scale-105 active:scale-95 select-none"
+            className={`p-2 rounded-xl transition-all duration-200 touch-target select-none
+                       ${showSearch
+                         ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
+                         : 'hover:bg-scripture-elevated hover:scale-105 active:scale-95'}`}
             aria-label="Search (Cmd/Ctrl+F)"
             title="Search (Cmd/Ctrl+F)"
           >
@@ -1040,14 +1090,18 @@ function TranslationButton({
               {translation.name}
             </div>
             {translation.description && translation.description !== translation.name && (
-              <div className="text-xs text-scripture-muted truncate mt-0.5">
+              <div className={`text-xs truncate mt-0.5 ${
+                isSelected ? 'text-scripture-bg/80' : 'text-scripture-muted'
+              }`}>
                 {translation.description}
               </div>
             )}
           </div>
         </button>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="text-xs font-mono text-scripture-muted">
+          <div className={`text-xs font-mono ${
+            isSelected ? 'text-scripture-bg/80' : 'text-scripture-muted'
+          }`}>
             {translation.abbreviation}
           </div>
           <button
@@ -1055,7 +1109,9 @@ function TranslationButton({
             className={`p-1 rounded transition-colors ${
               isFavorite 
                 ? 'text-yellow-500' 
-                : 'text-scripture-muted opacity-0 group-hover:opacity-100'
+                : isSelected
+                  ? 'text-scripture-bg/60 opacity-100'
+                  : 'text-scripture-muted opacity-0 group-hover:opacity-100'
             }`}
             title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             type="button"

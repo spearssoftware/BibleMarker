@@ -168,7 +168,7 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0 relative">
+    <div className="flex flex-col flex-1 min-h-0 relative">
       {/* Close button - always visible in top-right */}
       {onClose && (
         <button
@@ -474,7 +474,7 @@ function KeyWordEditor({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0">
+    <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
       {/* Scrollable fields */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 custom-scrollbar pb-2">
         <div>

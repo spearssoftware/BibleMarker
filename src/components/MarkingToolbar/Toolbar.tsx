@@ -11,6 +11,7 @@ import { useAnnotations } from '@/hooks/useAnnotations';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { ColorPicker } from './ColorPicker';
 import { SymbolPicker } from './SymbolPicker';
+import { ToolbarOverlay } from './ToolbarOverlay';
 import { KeyWordManager } from '@/components/KeyWords';
 import { AnnotationLegend } from '@/components/BibleReader';
 import { AddToList } from '@/components/Lists';
@@ -400,7 +401,8 @@ export function Toolbar() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-30 
                     pb-[env(safe-area-inset-bottom)]"
-         data-marking-toolbar>
+         data-marking-toolbar
+        onWheel={(e) => e.stopPropagation()}>
       {/* Selection indicator */}
       {selection && (
         <>
@@ -638,82 +640,74 @@ export function Toolbar() {
 
       {/* Color picker: style (Highlight / Text / Underline) + color grid */}
       {showColorPicker && isColorActive && (
-        <div className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 animate-slide-up shadow-lg max-h-[50vh] overflow-hidden flex-shrink-0">
-          <div className="bg-scripture-surface p-4 mx-2 my-2 rounded-xl h-[calc(100%-1rem)] overflow-y-auto custom-scrollbar">
-            <div className="mb-4 p-3">
-            <div className="text-xs font-ui font-semibold text-scripture-text uppercase tracking-wider mb-3">
-              Style
+        <ToolbarOverlay>
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div className="p-4 flex-shrink-0">
+              <div className="text-xs font-ui font-semibold text-scripture-text uppercase tracking-wider mb-3">
+                Style
+              </div>
+              <div className="flex gap-2">
+                {COLOR_STYLES.map((style) => (
+                  <button
+                    key={style}
+                    onClick={() => setActiveTool(style)}
+                    className={`flex-1 px-3 py-2 rounded-lg font-ui text-sm transition-all duration-200
+                              ${activeTool === style
+                                ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                                : 'bg-scripture-elevated text-scripture-text border border-scripture-border/50 hover:bg-scripture-border'}`}
+                  >
+                    {COLOR_STYLE_LABELS[style]}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-2">
-              {COLOR_STYLES.map((style) => (
-                <button
-                  key={style}
-                  onClick={() => setActiveTool(style)}
-                  className={`flex-1 px-3 py-2 rounded-lg font-ui text-sm transition-all duration-200
-                            ${activeTool === style
-                              ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                              : 'bg-scripture-elevated text-scripture-text border border-scripture-border/50 hover:bg-scripture-border'}`}
-                >
-                  {COLOR_STYLE_LABELS[style]}
-                </button>
-              ))}
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 pt-0 custom-scrollbar">
+              <ColorPicker
+                selectedColor={activeColor}
+                onSelect={async (color) => {
+                  setActiveColor(color);
+                  if (selection) await applyCurrentTool(color);
+                }}
+                recents={preferences.recentColors}
+              />
             </div>
           </div>
-            <ColorPicker
-              selectedColor={activeColor}
-              onSelect={async (color) => {
-                setActiveColor(color);
-                if (selection) await applyCurrentTool(color);
-              }}
-              recents={preferences.recentColors}
-            />
-          </div>
-        </div>
+        </ToolbarOverlay>
       )}
 
       {/* Symbol picker dropdown */}
       {showSymbolPicker && activeTool === 'symbol' && (
-        <div className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 animate-slide-up shadow-lg max-h-[50vh] overflow-hidden flex-shrink-0">
-          <div className="bg-scripture-surface p-4 mx-2 my-2 rounded-xl h-[calc(100%-1rem)] overflow-y-auto custom-scrollbar">
+        <ToolbarOverlay>
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
             <SymbolPicker
-            selectedSymbol={activeSymbol}
-            onSelect={async (symbol) => {
-              setActiveSymbol(symbol);
-              // Auto-apply when symbol is selected - pass the new symbol directly
-              // to avoid race condition with state update
-              if (selection) {
-                await applyCurrentTool(undefined, symbol);
-              }
-            }}
-            recents={preferences.recentSymbols}
-          />
+              selectedSymbol={activeSymbol}
+              onSelect={async (symbol) => {
+                setActiveSymbol(symbol);
+                // Auto-apply when symbol is selected - pass the new symbol directly
+                // to avoid race condition with state update
+                if (selection) {
+                  await applyCurrentTool(undefined, symbol);
+                }
+              }}
+              recents={preferences.recentSymbols}
+            />
           </div>
-        </div>
+        </ToolbarOverlay>
       )}
 
       {/* Settings Panel */}
       {showSettingsPanel && (
-        <div 
-          className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 
-                     animate-slide-up shadow-lg flex flex-col max-h-[50vh] overflow-hidden flex-shrink-0"
-        >
-          <div className="bg-scripture-surface flex-1 overflow-hidden mx-2 my-2 rounded-xl">
-            <SettingsPanel onClose={() => setShowSettingsPanel(false)} />
-          </div>
-        </div>
+        <ToolbarOverlay>
+          <SettingsPanel onClose={() => setShowSettingsPanel(false)} />
+        </ToolbarOverlay>
       )}
 
 
       {/* Study Tools Panel */}
       {showStudyToolsPanel && (
-        <div 
-          className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 
-                     animate-slide-up shadow-lg flex flex-col max-h-[50vh] overflow-hidden flex-shrink-0"
-        >
-          <div className="bg-scripture-surface flex-1 overflow-hidden mx-2 my-2 rounded-xl">
-            <StudyToolsPanel onClose={() => setShowStudyToolsPanel(false)} />
-          </div>
-        </div>
+        <ToolbarOverlay>
+          <StudyToolsPanel onClose={() => setShowStudyToolsPanel(false)} />
+        </ToolbarOverlay>
       )}
 
       {/* Add to List */}
@@ -738,47 +732,41 @@ export function Toolbar() {
 
       {/* Key Words - bottom overlay (unified with Color / Symbol) */}
       {showKeyWordManager && (
-        <div 
-          className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 
-                     animate-slide-up shadow-lg flex flex-col max-h-[50vh] overflow-hidden flex-shrink-0"
-        >
-          <div className="bg-scripture-surface flex-1 overflow-hidden mx-2 my-2 rounded-xl">
-            <KeyWordManager 
-              onClose={() => setShowKeyWordManager(false)} 
-              initialWord={selection?.text?.trim() || undefined}
-              initialSymbol={activeSymbol}
-              initialColor={activeColor}
-              onPresetCreated={async (preset) => {
-                await applyPresetToSelection(preset);
-                setShowKeyWordManager(false);
-              }}
-            />
-          </div>
-        </div>
+        <ToolbarOverlay>
+          <KeyWordManager 
+            onClose={() => setShowKeyWordManager(false)} 
+            initialWord={selection?.text?.trim() || undefined}
+            initialSymbol={activeSymbol}
+            initialColor={activeColor}
+            onPresetCreated={async (preset) => {
+              await applyPresetToSelection(preset);
+              setShowKeyWordManager(false);
+            }}
+          />
+        </ToolbarOverlay>
       )}
 
       {/* Annotation Legend overlay */}
       {showLegendOverlay && (
-        <div 
-          className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 
-                     animate-slide-up shadow-lg flex flex-col max-h-[50vh] overflow-hidden flex-shrink-0 relative"
-        >
-          {/* Close button - floating in top-right */}
-          <button
-            onClick={() => setShowLegendOverlay(false)}
-            className="absolute top-2 right-2 z-10 text-scripture-muted hover:text-scripture-text transition-colors p-1.5 rounded-lg hover:bg-scripture-elevated"
-            aria-label="Close legend"
-          >
-            ✕
-          </button>
-          <div className="bg-scripture-surface flex-1 overflow-y-auto p-4 custom-scrollbar">
-            <AnnotationLegend annotations={annotations} />
+        <ToolbarOverlay>
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
+            {/* Close button - floating in top-right */}
+            <button
+              onClick={() => setShowLegendOverlay(false)}
+              className="absolute top-2 right-2 z-10 text-scripture-muted hover:text-scripture-text transition-colors p-1.5 rounded-lg hover:bg-scripture-elevated"
+              aria-label="Close legend"
+            >
+              ✕
+            </button>
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
+              <AnnotationLegend annotations={annotations} />
+            </div>
           </div>
-        </div>
+        </ToolbarOverlay>
       )}
 
       {/* Main toolbar: Color | Symbol | Key Words | Settings */}
-      <div className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 shadow-lg">
+      <div className="bg-scripture-surface/95 backdrop-blur-sm shadow-lg">
         <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
           {TOOLS.map((tool) => {
             const isActive =
