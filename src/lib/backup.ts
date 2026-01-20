@@ -70,7 +70,7 @@ function generateBackupFilename(): string {
   const hours = String(now.getHours()).padStart(2, '0');
   const minutes = String(now.getMinutes()).padStart(2, '0');
   const seconds = String(now.getSeconds()).padStart(2, '0');
-  return `biblestudy-backup-${year}-${month}-${day}-${hours}${minutes}${seconds}.json`;
+  return `BibleMarker-backup-${year}-${month}-${day}-${hours}${minutes}${seconds}.json`;
 }
 
 /**
@@ -156,7 +156,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
         const fileHandle = await window.showSaveFilePicker({
           suggestedName: generateBackupFilename(),
           types: [{
-            description: 'Bible Study Backup',
+            description: 'BibleMarker Backup',
             accept: { 'application/json': ['.json'] },
           }],
         });
@@ -335,7 +335,7 @@ export async function importBackup(): Promise<BackupData> {
       try {
         const [handle] = await window.showOpenFilePicker({
           types: [{
-            description: 'Bible Study Backup',
+            description: 'BibleMarker Backup',
             accept: { 'application/json': ['.json'] },
           }],
           multiple: false,

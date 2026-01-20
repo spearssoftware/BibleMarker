@@ -32,18 +32,6 @@ import {
   sanitizeData,
   ValidationError,
 } from './validation';
-import {
-  validateAnnotation,
-  validateSectionHeading,
-  validateChapterTitle,
-  validateNote,
-  validateMarkingPreset,
-  validateStudy,
-  validateMultiTranslationView,
-  validateObservationList,
-  sanitizeData,
-  ValidationError,
-} from './validation';
 
 /** API configuration for Bible APIs */
 export interface ApiConfigRecord {
@@ -116,7 +104,7 @@ export interface ModuleFile {
 }
 
 /** Database schema */
-class BibleStudyDB extends Dexie {
+class BibleMarkerDB extends Dexie {
   modules!: EntityTable<ModuleRecord, 'id'>;
   moduleFiles!: EntityTable<ModuleFile, 'id'>;
   chapterCache!: EntityTable<ChapterCache, 'id'>;
@@ -135,7 +123,7 @@ class BibleStudyDB extends Dexie {
   observationLists!: EntityTable<ObservationList, 'id'>;
 
   constructor() {
-    super('BibleStudyDB');
+    super('BibleMarkerDB');
     
     this.version(1).stores({
       modules: 'id, status',
@@ -274,7 +262,7 @@ class BibleStudyDB extends Dexie {
   }
 }
 
-export const db = new BibleStudyDB();
+export const db = new BibleMarkerDB();
 
 /**
  * Get or create user preferences
