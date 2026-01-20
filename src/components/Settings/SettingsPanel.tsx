@@ -272,7 +272,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </p>
                 <button
                   onClick={() => setShowBackupRestore(true)}
-                  className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-600/90 
+                  className="w-full px-4 py-3 bg-scripture-info text-white rounded-lg hover:bg-scripture-info/90 
                            transition-all duration-200 font-ui font-medium shadow-md hover:shadow-lg"
                 >
                   💾 Open Backup & Restore
@@ -286,10 +286,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   <div>
                     <button
                       onClick={handleClearBook}
-                      className="w-full px-4 py-2.5 text-left rounded-xl bg-orange-600/20 
-                               hover:bg-orange-600/30 text-orange-400 transition-all duration-200 
+                      className="w-full px-4 py-2.5 text-left rounded-xl bg-scripture-warningBg 
+                               hover:bg-scripture-warningBg/80 text-scripture-warningText transition-all duration-200 
                                flex items-center gap-2 text-sm font-ui font-medium 
-                               border border-orange-600/30 shadow-sm hover:shadow"
+                               border border-scripture-warning/30 shadow-sm hover:shadow"
                     >
                       <span>🗑️</span>
                       <span>Clear Highlights for {getBookById(currentBook)?.name || currentBook}</span>
@@ -303,10 +303,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     <button
                       onClick={handleClearDatabase}
                       disabled={isClearing}
-                      className="w-full px-4 py-2.5 text-left rounded-xl bg-red-600/20 
-                               hover:bg-red-600/30 text-red-400 disabled:opacity-50 
+                      className="w-full px-4 py-2.5 text-left rounded-xl bg-scripture-errorBg 
+                               hover:bg-scripture-errorBg/80 text-scripture-errorText disabled:opacity-50 
                                disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2
-                               text-sm font-ui font-medium border border-red-600/30 shadow-sm hover:shadow"
+                               text-sm font-ui font-medium border border-scripture-error/30 shadow-sm hover:shadow"
                     >
                       <span>🗑️</span>
                       <span>{isClearing ? 'Clearing...' : 'Clear All Data'}</span>
@@ -326,7 +326,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
       {/* Module Manager Modal */}
       {showModuleManager && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-overlay backdrop-blur-sm">
           <ModuleManager 
             onClose={() => setShowModuleManager(false)}
             onTranslationsUpdated={() => {
@@ -338,14 +338,14 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
       {/* Study Manager Modal */}
       {showStudyManager && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-overlay backdrop-blur-sm">
           <StudyManager onClose={() => setShowStudyManager(false)} />
         </div>
       )}
 
       {/* Backup & Restore Modal */}
       {showBackupRestore && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-overlay backdrop-blur-sm">
           <BackupRestore onClose={() => setShowBackupRestore(false)} />
         </div>
       )}

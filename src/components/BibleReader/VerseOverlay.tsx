@@ -73,7 +73,7 @@ export function VerseOverlay({ verseRef, onClose, onNavigate }: VerseOverlayProp
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" 
+        className="fixed inset-0 z-50 backdrop-overlay backdrop-blur-sm" 
         onClick={onClose}
       />
       
@@ -122,7 +122,7 @@ export function VerseOverlay({ verseRef, onClose, onNavigate }: VerseOverlayProp
           )}
           
           {error && (
-            <div className="text-center py-8 text-red-400">
+            <div className="text-center py-8 text-scripture-errorText">
               {error}
             </div>
           )}

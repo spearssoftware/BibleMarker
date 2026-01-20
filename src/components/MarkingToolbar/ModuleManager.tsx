@@ -168,7 +168,7 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" 
+        className="fixed inset-0 z-40 backdrop-overlay backdrop-blur-sm" 
         onClick={onClose}
       />
       
@@ -218,7 +218,7 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
           {error && (
-            <div className="mb-4 p-3 bg-red-600/20 text-red-400 rounded-lg text-sm">
+            <div className="mb-4 p-3 bg-scripture-errorBg text-scripture-errorText rounded-lg text-sm">
               {error}
             </div>
           )}
@@ -246,7 +246,7 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                       className={`p-3 rounded-lg border transition-all duration-200 ${
                         currentModuleId === translation.id
                           ? 'bg-scripture-accent/10 border-scripture-accent/50'
-                          : 'bg-scripture-elevated border-scripture-border/30 hover:border-scripture-border/50'
+                          : 'bg-scripture-surface/80 border-scripture-border/50 hover:bg-scripture-surface hover:border-scripture-border/70'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -255,7 +255,7 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                             <span className="font-medium text-scripture-text">
                               {translation.abbreviation}
                             </span>
-                            <span className="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded">
+                            <span className="text-xs px-2 py-0.5 bg-scripture-infoBg text-scripture-infoText rounded">
                               API
                             </span>
                             {currentModuleId === translation.id && (
@@ -295,7 +295,7 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
             <div className="space-y-6">
               {/* getBible API Section - Always available (free) */}
               {translationsByProvider.getbible.length > 0 && (
-                <div className="p-4 bg-scripture-elevated rounded-lg border border-scripture-border/30">
+                <div className="p-4 bg-scripture-surface/50 rounded-lg border border-scripture-border/50">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="font-medium text-scripture-text">
                       getBible API
@@ -428,7 +428,7 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                         setBibliaApiKey('');
                       }
                     }}
-                    className="text-xs text-red-400 hover:text-red-300 underline"
+                    className="text-xs text-scripture-errorText hover:text-scripture-error underline"
                   >
                     Remove API Key
                   </button>
@@ -554,7 +554,7 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                         setBibleGatewayPassword('');
                       }
                     }}
-                    className="text-xs text-red-400 hover:text-red-300 underline"
+                    className="text-xs text-scripture-errorText hover:text-scripture-error underline"
                   >
                     Remove credentials
                   </button>
@@ -673,7 +673,7 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                         setEsvApiKey('');
                       }
                     }}
-                    className="text-xs text-red-400 hover:text-red-300 underline"
+                    className="text-xs text-scripture-errorText hover:text-scripture-error underline"
                   >
                     Remove API Key
                   </button>

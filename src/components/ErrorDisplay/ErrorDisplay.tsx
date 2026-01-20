@@ -15,10 +15,10 @@ export function ErrorDisplay() {
   return (
     <div className="fixed top-16 left-0 right-0 z-50 p-4 pointer-events-none">
       <div className="max-w-4xl mx-auto pointer-events-auto">
-        <div className="bg-red-600/20 border border-red-600/30 rounded-lg shadow-lg backdrop-blur-sm p-4 flex items-start gap-3 animate-fade-in">
+        <div className="bg-scripture-errorBg border border-scripture-error/30 rounded-lg shadow-lg backdrop-blur-sm p-4 flex items-start gap-3 animate-fade-in">
           <div className="flex-shrink-0 mt-0.5">
             <svg
-              className="w-5 h-5 text-highlight-red"
+              className="w-5 h-5 text-scripture-error"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -32,12 +32,12 @@ export function ErrorDisplay() {
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-medium text-highlight-red mb-1">Error</div>
-            <div className="text-sm text-red-400 break-words">{error}</div>
+            <div className="font-medium text-scripture-error mb-1">Error</div>
+            <div className="text-sm text-scripture-errorText break-words">{error}</div>
           </div>
           <button
             onClick={() => setError(null)}
-            className="flex-shrink-0 text-red-400 hover:text-highlight-red transition-colors p-1 rounded hover:bg-red-600/20"
+            className="flex-shrink-0 text-scripture-errorText hover:text-scripture-error transition-colors p-1 rounded hover:bg-scripture-error/20"
             aria-label="Dismiss error"
           >
             <svg

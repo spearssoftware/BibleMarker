@@ -229,7 +229,7 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 backdrop-overlay backdrop-blur-sm z-50 overflow-y-auto" onClick={onClose}>
       <div className="min-h-full flex items-center justify-center p-4">
         <div 
           className="bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col" 
@@ -291,7 +291,7 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
                               >
                                 <h3 className="font-medium text-scripture-text">{list.title}</h3>
                               </button>
-                              <span className="text-xs text-scripture-muted bg-scripture-elevated px-2 py-0.5 rounded">
+                              <span className="text-xs text-scripture-muted bg-scripture-surface/80 px-2 py-0.5 rounded border border-scripture-border/50">
                                 {Array.from(groupByVerse(list.items).keys()).length} {Array.from(groupByVerse(list.items).keys()).length === 1 ? 'verse' : 'verses'}
                               </span>
                             </div>
@@ -300,12 +300,12 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
                                 Keyword: {keywordName || 'Unknown'}
                               </span>
                               {studyName && (
-                                <span className="bg-scripture-elevated px-2 py-0.5 rounded text-scripture-muted">
+                                <span className="bg-scripture-surface/80 px-2 py-0.5 rounded text-scripture-muted border border-scripture-border/50">
                                   Study: {studyName}
                                 </span>
                               )}
                               {list.scope?.book && (
-                                <span className="bg-scripture-elevated px-2 py-0.5 rounded text-scripture-muted">
+                                <span className="bg-scripture-surface/80 px-2 py-0.5 rounded text-scripture-muted border border-scripture-border/50">
                                   {getBookById(list.scope.book)?.name || list.scope.book}
                                   {list.scope.chapters && ` ${list.scope.chapters.join(', ')}`}
                                 </span>

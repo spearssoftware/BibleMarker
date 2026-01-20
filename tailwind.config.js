@@ -18,6 +18,18 @@ export default {
           muted: 'var(--scripture-muted)',
           accent: 'var(--scripture-accent)',
           accentMuted: 'var(--scripture-accent-muted)',
+          error: 'var(--scripture-error)',
+          errorBg: 'var(--scripture-error-bg)',
+          errorText: 'var(--scripture-error-text)',
+          warning: 'var(--scripture-warning)',
+          warningBg: 'var(--scripture-warning-bg)',
+          warningText: 'var(--scripture-warning-text)',
+          success: 'var(--scripture-success)',
+          successBg: 'var(--scripture-success-bg)',
+          successText: 'var(--scripture-success-text)',
+          info: 'var(--scripture-info)',
+          infoBg: 'var(--scripture-info-bg)',
+          infoText: 'var(--scripture-info-text)',
         },
         // Highlight colors for annotations
         highlight: {

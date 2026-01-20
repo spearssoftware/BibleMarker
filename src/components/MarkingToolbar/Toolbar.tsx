@@ -395,13 +395,13 @@ export function Toolbar() {
       {/* Selection indicator */}
       {selection && (
         <>
-          <div className="bg-scripture-accent/95 backdrop-blur-sm text-scripture-bg px-3 py-2 
-                          flex items-center justify-between animate-slide-up shadow-lg border-t border-scripture-accent/30">
-            <span className="text-sm font-ui truncate flex-1 font-medium">
+          <div className="bg-scripture-accent text-scripture-bg px-3 py-2 
+                          flex items-center justify-between animate-slide-up shadow-lg border-t border-scripture-accent/30 backdrop-blur-sm">
+            <span className="text-sm font-ui truncate flex-1 font-medium text-scripture-bg">
               Selected: {selection.text.slice(0, 50)}
               {selection.text.length > 50 ? '...' : ''}
             </span>
-            <div className="flex items-center gap-2 ml-2">
+              <div className="flex items-center gap-2 ml-2 bg-scripture-bg/30 border border-scripture-bg/40 rounded-lg p-1.5">
               {/* Apply key word: pick Jesus, Nicodemus, etc. to mark He/him the same way */}
               <div className="relative">
                 <button
@@ -409,19 +409,19 @@ export function Toolbar() {
                     setShowAddAsVariantPicker(false);
                     setShowKeyWordApplyPicker((v) => !v);
                   }}
-                  className="px-2.5 py-1 text-xs font-ui text-scripture-bg/90 hover:text-scripture-bg
-                           transition-colors rounded-lg hover:bg-scripture-bg/20 flex items-center gap-1"
+                  className="px-2.5 py-1 text-xs font-ui text-scripture-bg hover:text-scripture-bg
+                           transition-colors flex items-center gap-1 font-medium"
                   title="Apply a key word (e.g. mark He/him as Jesus)"
                 >
                   <span>🔑</span>
                   <span>Apply key word</span>
-                  <span className="text-[0.7rem] opacity-80">▼</span>
+                  <span className="text-[0.7rem] opacity-90">▼</span>
                 </button>
                 {showKeyWordApplyPicker && (
                   <div
                     className="absolute right-0 bottom-full mb-1 w-56 max-h-64 overflow-y-auto
                                bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-xl
-                               py-1.5 z-50 custom-scrollbar"
+                               py-1.5 z-50 custom-scrollbar backdrop-blur-sm"
                   >
                     {presets
                       .filter((p) => p.word)
@@ -431,7 +431,7 @@ export function Toolbar() {
                           key={p.id}
                           onClick={() => applyPresetToSelection(p)}
                           className="w-full px-3 py-2 text-left text-sm font-ui text-scripture-text
-                                   hover:bg-scripture-elevated/80 flex items-center gap-2"
+                                   hover:bg-scripture-surface/80 hover:border-l-2 hover:border-l-scripture-accent flex items-center gap-2"
                         >
                           {p.symbol && (
                             <span
@@ -468,19 +468,19 @@ export function Toolbar() {
                       setShowKeyWordApplyPicker(false);
                       setShowAddAsVariantPicker((v) => !v);
                     }}
-                className="px-2.5 py-1 text-xs font-ui text-scripture-bg/90 hover:text-scripture-bg
-                           transition-colors rounded-lg hover:bg-scripture-bg/20 flex items-center gap-1"
+                    className="px-2.5 py-1 text-xs font-ui text-scripture-bg hover:text-scripture-bg
+                             transition-colors flex items-center gap-1 font-medium"
                     title="Add this word as a variant to an existing key word"
                   >
                     <span>➕</span>
                     <span>Add as variant</span>
-                    <span className="text-[0.7rem] opacity-80">▼</span>
+                    <span className="text-[0.7rem] opacity-90">▼</span>
                   </button>
                   {showAddAsVariantPicker && (
                     <div
                       className="absolute right-0 bottom-full mb-1 w-56 max-h-64 overflow-y-auto
                                  bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-xl
-                                 py-1.5 z-50 custom-scrollbar"
+                                 py-1.5 z-50 custom-scrollbar backdrop-blur-sm"
                     >
                       {presets
                         .filter((p) => p.word)
@@ -526,8 +526,8 @@ export function Toolbar() {
                   setActiveTool(null);
                   if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
                 }}
-                className="px-2.5 py-1 text-xs font-ui text-scripture-bg/90 hover:text-scripture-bg
-                           transition-colors rounded-lg hover:bg-scripture-bg/20 flex items-center gap-1"
+                className="px-2.5 py-1 text-xs font-ui text-scripture-bg hover:text-scripture-bg
+                           transition-colors flex items-center gap-1 font-medium"
                 title="Make this a key word"
               >
                 <span>➕</span>
@@ -539,8 +539,8 @@ export function Toolbar() {
                   setShowAddAsVariantPicker(false);
                   setShowAddToList(true);
                 }}
-                className="px-2.5 py-1 text-xs font-ui text-scripture-bg/90 hover:text-scripture-bg
-                           transition-colors rounded-lg hover:bg-scripture-bg/20 flex items-center gap-1"
+                className="px-2.5 py-1 text-xs font-ui text-scripture-bg hover:text-scripture-bg
+                           transition-colors flex items-center gap-1 font-medium"
                 title="Add observation to list"
               >
                 <span>📝</span>
@@ -557,8 +557,8 @@ export function Toolbar() {
                   window.getSelection()?.removeAllRanges();
                   clearSelection();
                 }}
-                    className="px-2.5 py-1 text-xs font-ui text-scripture-bg/90 hover:text-scripture-bg
-                           transition-colors rounded-lg hover:bg-scripture-bg/20"
+                className="px-2.5 py-1 text-xs font-ui text-scripture-bg hover:text-scripture-bg
+                           transition-colors font-medium"
               >
                 Cancel
               </button>
@@ -567,18 +567,18 @@ export function Toolbar() {
 
           {/* Smart suggestions */}
           {previousAnnotations.length > 0 && (
-            <div className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 px-3 py-2 animate-slide-up">
-              <div className="text-sm text-scripture-muted mb-2 font-ui font-medium">
-                Previously used for "{selection.text.trim()}":
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {previousAnnotations.map((suggestion, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleApplySuggestion(suggestion)}
-                    className="px-2.5 py-1.5 rounded-lg bg-scripture-elevated/80 hover:bg-scripture-border
-                             border border-scripture-border/50 transition-all duration-200 flex items-center gap-1.5
-                             text-xs font-ui shadow-sm hover:shadow"
+            <div className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 px-3 py-2 animate-slide-up">
+              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-3">
+                <div className="text-sm text-scripture-text mb-3 font-ui font-semibold">
+                  Previously used for "{selection.text.trim()}":
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {previousAnnotations.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleApplySuggestion(suggestion)}
+                      className="px-2.5 py-1.5 rounded-lg bg-scripture-elevated border border-scripture-border/50 transition-all duration-200 flex items-center gap-1.5
+                               text-xs font-ui text-scripture-text hover:bg-scripture-border hover:shadow-sm"
                     title={`Apply ${suggestion.label}`}
                   >
                     {suggestion.type !== 'symbol' && suggestion.color && (
@@ -617,8 +617,9 @@ export function Toolbar() {
                        suggestion.type === 'textColor' ? 'Color' :
                        suggestion.type === 'underline' ? 'Underline' : 'Symbol'}
                     </span>
-                  </button>
-                ))}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -627,9 +628,9 @@ export function Toolbar() {
 
       {/* Color picker: style (Highlight / Text / Underline) + color grid */}
       {showColorPicker && isColorActive && (
-        <div className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 p-4 animate-slide-up shadow-lg max-h-[50vh] overflow-y-auto custom-scrollbar">
-          <div className="mb-3">
-            <div className="text-xs font-ui font-semibold text-scripture-muted uppercase tracking-wider mb-2">
+        <div className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 p-4 animate-slide-up shadow-lg max-h-[50vh] overflow-y-auto custom-scrollbar">
+          <div className="mb-4 bg-scripture-surface border border-scripture-border/50 rounded-xl p-3">
+            <div className="text-xs font-ui font-semibold text-scripture-text uppercase tracking-wider mb-3">
               Style
             </div>
             <div className="flex gap-2">
@@ -640,7 +641,7 @@ export function Toolbar() {
                   className={`flex-1 px-3 py-2 rounded-lg font-ui text-sm transition-all duration-200
                             ${activeTool === style
                               ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                              : 'bg-scripture-elevated/80 text-scripture-text border border-scripture-border/50 hover:bg-scripture-border/30'}`}
+                              : 'bg-scripture-elevated text-scripture-text border border-scripture-border/50 hover:bg-scripture-border'}`}
                 >
                   {COLOR_STYLE_LABELS[style]}
                 </button>
@@ -660,7 +661,7 @@ export function Toolbar() {
 
       {/* Symbol picker dropdown */}
       {showSymbolPicker && activeTool === 'symbol' && (
-        <div className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 p-4 animate-slide-up shadow-lg max-h-[50vh] overflow-y-auto custom-scrollbar">
+        <div className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 p-4 animate-slide-up shadow-lg max-h-[50vh] overflow-y-auto custom-scrollbar">
           <SymbolPicker
             selectedSymbol={activeSymbol}
             onSelect={async (symbol) => {
@@ -705,7 +706,7 @@ export function Toolbar() {
       {/* Study Tools Panel */}
       {showStudyToolsPanel && (
         <div 
-          className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 
+          className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 
                      animate-slide-up shadow-lg flex flex-col h-[50vh] max-h-[50vh] min-h-[200px] overflow-hidden"
         >
           <StudyToolsPanel onClose={() => setShowStudyToolsPanel(false)} />
@@ -735,7 +736,7 @@ export function Toolbar() {
       {/* Key Words - bottom overlay (unified with Color / Symbol) */}
       {showKeyWordManager && (
         <div 
-          className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 
+          className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 
                      animate-slide-up shadow-lg flex flex-col h-[50vh] max-h-[50vh] min-h-[200px] overflow-hidden"
         >
           <KeyWordManager 
@@ -754,7 +755,7 @@ export function Toolbar() {
       {/* Annotation Legend overlay */}
       {showLegendOverlay && (
         <div 
-          className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 
+          className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 
                      animate-slide-up shadow-lg flex flex-col max-h-[50vh] min-h-[120px] overflow-hidden"
         >
           <div className="flex items-center justify-between px-4 py-2 border-b border-scripture-border/50 flex-shrink-0">

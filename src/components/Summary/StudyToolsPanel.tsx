@@ -285,7 +285,7 @@ export function StudyToolsPanel({ onClose }: StudyToolsPanelProps) {
                         <div
                           key={list.id}
                           data-list-id={list.id}
-                          className="bg-scripture-surface/50 rounded-lg border border-scripture-muted/20 overflow-hidden"
+                          className="bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm overflow-hidden"
                         >
                           {/* List header */}
                           <div className="p-4">

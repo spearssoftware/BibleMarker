@@ -85,28 +85,31 @@ export function AnnotationLegend({ annotations }: AnnotationLegendProps) {
 
   if (wordEntries.length === 0) {
     return (
-      <div className="annotation-legend bg-scripture-surface border border-scripture-border rounded-lg p-4">
-        <h3 className="text-sm font-ui font-semibold mb-2 text-scripture-text">
-          Annotation Legend
-        </h3>
-        <p className="text-xs text-scripture-muted">
-          No annotations yet. Select text and add highlights, colors, underlines, or symbols to see them here.
-        </p>
+      <div className="annotation-legend">
+        <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+          <h3 className="text-sm font-ui font-semibold mb-2 text-scripture-text">
+            Annotation Legend
+          </h3>
+          <p className="text-xs text-scripture-muted">
+            No annotations yet. Select text and add highlights, colors, underlines, or symbols to see them here.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="annotation-legend bg-scripture-surface border border-scripture-border rounded-lg p-4">
-      <h3 className="text-sm font-ui font-semibold mb-3 text-scripture-text">
-        Annotation Legend ({wordEntries.length} {wordEntries.length === 1 ? 'word' : 'words'})
-      </h3>
-      <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
-        {wordEntries.map((entry, index) => (
-          <div
-            key={index}
-            className="word-entry border-b border-scripture-border/50 pb-2 last:border-0 last:pb-0"
-          >
+    <div className="annotation-legend space-y-4">
+      <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-3">
+        <h3 className="text-sm font-ui font-semibold mb-3 text-scripture-text">
+          Annotation Legend ({wordEntries.length} {wordEntries.length === 1 ? 'word' : 'words'})
+        </h3>
+        <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+          {wordEntries.map((entry, index) => (
+            <div
+              key={index}
+              className="bg-scripture-surface/50 border border-scripture-border/50 rounded-lg p-3 word-entry"
+            >
             {/* Word/Phrase */}
             <div className="font-medium text-scripture-text mb-1.5">
               "{entry.text}"
@@ -191,8 +194,9 @@ export function AnnotationLegend({ annotations }: AnnotationLegendProps) {
                 ⚠️ Multiple annotations - check consistency
               </div>
             )}
-          </div>
-        ))}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

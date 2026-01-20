@@ -65,8 +65,8 @@ export function SymbolPicker({
     <div className="space-y-4">
       {/* Recents */}
       {recents.length > 0 && (
-        <div>
-          <h4 className="text-xs font-ui text-scripture-muted uppercase tracking-wider mb-2 flex items-center gap-1">
+        <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-3">
+          <h4 className="text-xs font-ui text-scripture-text uppercase tracking-wider mb-3 flex items-center gap-1 font-semibold">
             <span>🕐</span> Recent
           </h4>
           <div className="flex flex-wrap gap-2.5">
@@ -84,8 +84,8 @@ export function SymbolPicker({
 
       {/* Categorized symbols */}
       {SYMBOL_CATEGORIES.map((category) => (
-        <div key={category.name}>
-          <h4 className="text-xs font-ui text-scripture-muted uppercase tracking-wider mb-2">
+        <div key={category.name} className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-3">
+          <h4 className="text-xs font-ui text-scripture-text uppercase tracking-wider mb-3 font-semibold">
             {category.name}
           </h4>
           <div className="flex flex-wrap gap-2.5">
@@ -118,7 +118,7 @@ function SymbolButton({ symbol, isSelected, onSelect }: SymbolButtonProps) {
                  transition-all duration-200 touch-target shadow-sm
                  ${isSelected 
                    ? 'bg-scripture-accent text-scripture-bg scale-110 shadow-md ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' 
-                   : 'bg-scripture-elevated hover:bg-scripture-border hover:scale-105 hover:shadow-md active:scale-95'}`}
+                   : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border hover:scale-105 hover:shadow-md active:scale-95'}`}
       aria-label={`Select ${symbol}`}
       title={symbol}
     >

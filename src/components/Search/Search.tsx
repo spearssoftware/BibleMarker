@@ -124,7 +124,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" 
+        className="fixed inset-0 z-40 backdrop-overlay backdrop-blur-sm" 
         onClick={onClose}
       />
       
@@ -147,7 +147,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search Bible, notes, annotations... or enter verse reference (e.g., John 3:16)"
-                className="w-full px-4 py-2.5 pl-10 rounded-xl bg-scripture-elevated border border-scripture-border/50
+                className="w-full px-4 py-2.5 pl-10 rounded-xl bg-scripture-bg border border-scripture-border/50
                          text-scripture-text placeholder-scripture-muted focus:outline-none focus:ring-2
                          focus:ring-scripture-accent focus:border-transparent"
               />
@@ -181,7 +181,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
                 className={`px-3 py-1 text-xs font-ui rounded-lg transition-colors
                           ${scope === s
                             ? 'bg-scripture-accent text-scripture-bg'
-                            : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
+                            : 'bg-scripture-surface/80 text-scripture-text hover:bg-scripture-surface border border-scripture-border/50'}`}
               >
                 {s === 'all' ? 'All' : s === 'bible' ? 'Bible' : s === 'notes' ? 'Notes' : 'Annotations'}
               </button>
@@ -220,7 +220,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
                     className={`w-full text-left p-3 rounded-lg border transition-all duration-200
                               ${isSelected
                                 ? 'bg-scripture-accent/20 border-scripture-accent shadow-md'
-                                : 'bg-scripture-elevated border-scripture-border/30 hover:bg-scripture-elevated/80 hover:shadow-sm'}`}
+                                : 'bg-scripture-surface/80 border-scripture-border/50 hover:bg-scripture-surface hover:shadow-sm'}`}
                   >
                     <div className="flex items-start gap-3">
                       <span className="text-lg flex-shrink-0">{getResultIcon(result.type)}</span>

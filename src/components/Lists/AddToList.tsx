@@ -104,7 +104,7 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
   const keywordPresets = presets.filter(p => p.word);
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 backdrop-overlay backdrop-blur-sm z-50 overflow-y-auto" onClick={onClose}>
       <div className="min-h-full flex items-center justify-center p-4">
         <div 
           className="bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col" 
@@ -203,7 +203,7 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
                   </div>
                   <button
                     onClick={() => setShowCreateNew(true)}
-                    className="w-full px-4 py-2 text-sm bg-scripture-elevated text-scripture-text border border-scripture-border/50 rounded hover:bg-scripture-border/50 transition-colors"
+                    className="w-full px-4 py-2 text-sm bg-scripture-surface/80 text-scripture-text border border-scripture-border/50 rounded hover:bg-scripture-surface transition-colors"
                   >
                     + Create New List
                   </button>

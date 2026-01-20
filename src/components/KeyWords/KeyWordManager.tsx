@@ -195,39 +195,41 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
 
       {/* Filters: only when viewing the list (hidden when adding/editing) */}
       {!(isCreating || editingId) && (
-        <div className="p-4 border-b border-scripture-border/50 space-y-3">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search key words..."
-            className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                     rounded-lg focus:outline-none focus:border-scripture-accent
-                     text-scripture-text placeholder-scripture-muted"
-          />
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setFilterCategory('all')}
-              className={`px-3 py-1 text-xs font-ui rounded-lg transition-colors
-                        ${filterCategory === 'all'
-                          ? 'bg-scripture-accent text-scripture-bg'
-                          : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
-            >
-              All
-            </button>
-            {Object.entries(KEY_WORD_CATEGORIES).map(([cat, info]) => (
+        <div className="p-4 border-b border-scripture-border/50">
+          <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-3 space-y-3">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search key words..."
+              className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
+                       rounded-lg focus:outline-none focus:border-scripture-accent
+                       text-scripture-text placeholder-scripture-muted"
+            />
+            <div className="flex flex-wrap gap-2">
               <button
-                key={cat}
-                onClick={() => setFilterCategory(cat as KeyWordCategory)}
-                className={`px-3 py-1 text-xs font-ui rounded-lg transition-colors flex items-center gap-1.5
-                          ${filterCategory === cat
+                onClick={() => setFilterCategory('all')}
+                className={`px-3 py-1 text-xs font-ui rounded-lg transition-colors
+                          ${filterCategory === 'all'
                             ? 'bg-scripture-accent text-scripture-bg'
                             : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
               >
-                <span>{info.icon}</span>
-                <span>{info.label}</span>
+                All
               </button>
-            ))}
+              {Object.entries(KEY_WORD_CATEGORIES).map(([cat, info]) => (
+                <button
+                  key={cat}
+                  onClick={() => setFilterCategory(cat as KeyWordCategory)}
+                  className={`px-3 py-1 text-xs font-ui rounded-lg transition-colors flex items-center gap-1.5
+                            ${filterCategory === cat
+                              ? 'bg-scripture-accent text-scripture-bg'
+                              : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
+                >
+                  <span>{info.icon}</span>
+                  <span>{info.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -293,7 +295,7 @@ function KeyWordCard({
   const study = preset.studyId ? studies.find(s => s.id === preset.studyId) : null;
 
   return (
-    <div className="p-4 rounded-lg border bg-scripture-elevated border-scripture-border/30 hover:border-scripture-border/50 transition-all">
+    <div className="p-4 rounded-xl border bg-scripture-surface border-scripture-border/50 hover:border-scripture-border shadow-sm transition-all">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2 flex-wrap">

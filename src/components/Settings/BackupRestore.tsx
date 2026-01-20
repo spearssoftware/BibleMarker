@@ -200,7 +200,7 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
         )}
 
         {exportError && (
-          <div className="mt-3 p-3 bg-red-600/20 border border-red-600/30 rounded-lg text-red-400 text-sm">
+          <div className="mt-3 p-3 bg-scripture-errorBg border border-scripture-error/30 rounded-lg text-scripture-errorText text-sm">
             ✗ {exportError}
           </div>
         )}
@@ -221,7 +221,7 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
             <button
               onClick={handleImportSelect}
               disabled={isImporting}
-              className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-600/90 
+              className="w-full px-4 py-3 bg-scripture-info text-white rounded-lg hover:bg-scripture-info/90 
                        disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 
                        font-ui font-medium shadow-md hover:shadow-lg flex items-center justify-center gap-2"
             >
@@ -239,7 +239,7 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
             </button>
 
             {importError && (
-              <div className="mt-3 p-3 bg-red-600/20 border border-red-600/30 rounded-lg text-red-400 text-sm">
+              <div className="mt-3 p-3 bg-scripture-errorBg border border-scripture-error/30 rounded-lg text-scripture-errorText text-sm">
                 ✗ {importError}
               </div>
             )}
@@ -339,7 +339,7 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
               <button
                 onClick={handleRestore}
                 disabled={restoreMode === 'selective' && selectedTypes.size === 0}
-                className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-600/90 
+                className="flex-1 px-4 py-3 bg-scripture-warning text-white rounded-lg hover:bg-scripture-warning/90 
                          disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 
                          font-ui font-medium shadow-md hover:shadow-lg"
               >
@@ -359,7 +359,7 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
             </div>
 
             {restoreMode === 'replace' && (
-              <div className="p-3 bg-orange-600/20 border border-orange-600/30 rounded-lg text-orange-400 text-sm">
+              <div className="p-3 bg-scripture-warningBg border border-scripture-warning/30 rounded-lg text-scripture-warningText text-sm">
                 ⚠️ Warning: This will replace all your existing data. This action cannot be undone.
               </div>
             )}
@@ -383,7 +383,7 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
         )}
 
         {importError && importStep !== 'restoring' && (
-          <div className="mt-3 p-3 bg-red-600/20 border border-red-600/30 rounded-lg text-red-400 text-sm">
+          <div className="mt-3 p-3 bg-scripture-errorBg border border-scripture-error/30 rounded-lg text-scripture-errorText text-sm">
             ✗ {importError}
           </div>
         )}
