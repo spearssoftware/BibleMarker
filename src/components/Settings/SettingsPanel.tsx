@@ -29,16 +29,21 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [showStudyManager, setShowStudyManager] = useState(false);
   const [showBackupRestore, setShowBackupRestore] = useState(false);
 
+  const [isLoadingPrefs, setIsLoadingPrefs] = useState(true);
+
   // Load current preferences
   useEffect(() => {
     async function loadPrefs() {
       try {
+        setIsLoadingPrefs(true);
         const prefs = await getPreferences();
         if (prefs.theme) {
           setTheme(prefs.theme);
         }
       } catch (error) {
         console.error('Error loading preferences:', error);
+      } finally {
+        setIsLoadingPrefs(false);
       }
     }
     loadPrefs();
@@ -156,6 +161,15 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+          {isLoadingPrefs ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-6 h-6 border-2 border-scripture-border border-t-scripture-accent rounded-full animate-spin"></div>
+                <div className="text-scripture-muted text-sm">Loading settings...</div>
+              </div>
+            </div>
+          ) : (
+            <>
           {/* Appearance Tab */}
           {activeTab === 'appearance' && (
             <div className="space-y-6">
@@ -306,6 +320,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </div>
               </div>
             </div>
+          )}
+            </>
           )}
         </div>
       </div>

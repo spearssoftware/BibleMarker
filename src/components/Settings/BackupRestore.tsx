@@ -178,9 +178,19 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
           disabled={isExporting}
           className="w-full px-4 py-3 bg-scripture-accent text-white rounded-lg hover:bg-scripture-accent/90 
                    disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 
-                   font-ui font-medium shadow-md hover:shadow-lg"
+                   font-ui font-medium shadow-md hover:shadow-lg flex items-center justify-center gap-2"
         >
-          {isExporting ? 'Exporting...' : '📥 Export Backup'}
+          {isExporting ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              <span>Exporting...</span>
+            </>
+          ) : (
+            <>
+              <span>📥</span>
+              <span>Export Backup</span>
+            </>
+          )}
         </button>
 
         {exportSuccess && (
@@ -213,9 +223,19 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
               disabled={isImporting}
               className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-600/90 
                        disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 
-                       font-ui font-medium shadow-md hover:shadow-lg"
+                       font-ui font-medium shadow-md hover:shadow-lg flex items-center justify-center gap-2"
             >
-              {isImporting ? 'Selecting file...' : '📤 Import Backup'}
+              {isImporting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>Selecting file...</span>
+                </>
+              ) : (
+                <>
+                  <span>📤</span>
+                  <span>Import Backup</span>
+                </>
+              )}
             </button>
 
             {importError && (
@@ -348,9 +368,11 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
 
         {importStep === 'restoring' && (
           <div className="text-center py-8">
-            <div className="text-4xl mb-4">⏳</div>
-            <div className="text-lg font-medium text-scripture-text mb-2">Restoring backup...</div>
-            <div className="text-sm text-scripture-muted">Please wait while your data is being restored.</div>
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-12 h-12 border-4 border-scripture-border border-t-scripture-accent rounded-full animate-spin"></div>
+              <div className="text-lg font-medium text-scripture-text mb-2">Restoring backup...</div>
+              <div className="text-sm text-scripture-muted">Please wait while your data is being restored.</div>
+            </div>
           </div>
         )}
 

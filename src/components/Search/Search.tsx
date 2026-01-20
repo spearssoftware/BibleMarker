@@ -195,8 +195,9 @@ export function Search({ onClose, onNavigate }: SearchProps) {
           className="overflow-y-auto max-h-[calc(80vh-140px)] custom-scrollbar"
         >
           {isSearching ? (
-            <div className="p-8 text-center text-scripture-muted text-sm">
-              Searching...
+            <div className="p-8 flex flex-col items-center justify-center gap-3">
+              <div className="w-6 h-6 border-2 border-scripture-border border-t-scripture-accent rounded-full animate-spin"></div>
+              <div className="text-scripture-muted text-sm">Searching...</div>
             </div>
           ) : results.length === 0 && query.trim() ? (
             <div className="p-8 text-center text-scripture-muted text-sm">

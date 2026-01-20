@@ -107,7 +107,10 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
   if (isLoading) {
     return (
       <div className="p-4 bg-scripture-surface rounded-lg">
-        <div className="text-scripture-muted">Loading book overview...</div>
+        <div className="flex items-center justify-center gap-3 py-8">
+          <div className="w-6 h-6 border-2 border-scripture-border border-t-scripture-accent rounded-full animate-spin"></div>
+          <div className="text-scripture-muted text-sm">Loading book overview...</div>
+        </div>
       </div>
     );
   }

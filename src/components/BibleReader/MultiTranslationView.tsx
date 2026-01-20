@@ -526,7 +526,10 @@ export function MultiTranslationView() {
       // We're initializing - show loading
       return (
         <div className="flex items-center justify-center h-full">
-          <div className="animate-pulse text-scripture-muted">Loading...</div>
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-scripture-border border-t-scripture-accent rounded-full animate-spin"></div>
+            <div className="text-scripture-muted text-sm">Loading translations...</div>
+          </div>
         </div>
       );
     }
@@ -555,13 +558,34 @@ export function MultiTranslationView() {
   };
 
   // Get all verse numbers from all loaded chapters to create aligned rows
+  // Also check if any translation is loading to show skeleton
   const allVerseNumbers = new Set<number>();
+  const isLoadingAny = translationList.some(({ isLoading }) => isLoading);
+  
   translationList.forEach(({ chapter }) => {
     if (chapter) {
       chapter.verses.forEach(verse => allVerseNumbers.add(verse.ref.verse));
     }
   });
+  
+  // If any translation is loading, estimate verse count from book info
+  // This allows us to show skeleton loaders even when no chapters are loaded yet
+  if (isLoadingAny && allVerseNumbers.size === 0 && bookInfo) {
+    // Estimate verses based on typical chapter lengths (most chapters have 20-50 verses)
+    // We'll show skeleton for a reasonable number of verses
+    const estimatedVerses = Math.max(30, bookInfo.chapters > 0 ? Math.ceil(50 / bookInfo.chapters) : 30);
+    for (let i = 1; i <= estimatedVerses; i++) {
+      allVerseNumbers.add(i);
+    }
+  }
+  
   const sortedVerseNumbers = Array.from(allVerseNumbers).sort((a, b) => a - b);
+  
+  // Helper to check if a translation column is fully loading (no chapter loaded at all)
+  const isTranslationLoading = (translationId: string) => {
+    const translationData = translationList.find(t => t.translation.id === translationId);
+    return translationData?.isLoading && !translationData?.chapter;
+  };
 
   return (
     <div className="multi-translation-view h-full flex flex-col" onClick={handleClick}>
@@ -605,9 +629,14 @@ export function MultiTranslationView() {
       <div 
         className={`grid gap-4 px-4 py-2 border-b border-scripture-muted/20 bg-scripture-surface flex-shrink-0 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}
       >
-        {translationList.map(({ translation }) => (
+        {translationList.map(({ translation, isLoading }) => (
           <div key={translation.id} className="flex flex-col">
-            <div className="font-medium text-scripture-text">{translation.name}</div>
+            <div className="font-medium text-scripture-text flex items-center gap-2">
+              {translation.name}
+              {isLoading && (
+                <div className="w-4 h-4 border-2 border-scripture-border border-t-scripture-accent rounded-full animate-spin"></div>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -650,15 +679,21 @@ export function MultiTranslationView() {
                 >
                   {translationList.map(({ translation, chapter, isLoading, error }) => {
                     const verse = chapter?.verses.find(v => v.ref.verse === verseNum);
+                    const isColumnLoading = isLoading && !chapter;
                     
                     return (
                       <div
                         key={`${translation.id}-${verseNum}`}
                         className="verse-cell min-h-[1.5rem]"
                       >
-                        {isLoading ? (
-                          <div className="text-scripture-muted text-sm">Loading...</div>
-                        ) : error ? (
+                        {isColumnLoading ? (
+                          // Elegant skeleton loader - subtle placeholder that doesn't clutter
+                          <div className="opacity-50 animate-pulse">
+                            <div className="h-4 bg-scripture-elevated rounded w-full mb-1"></div>
+                            <div className="h-4 bg-scripture-elevated rounded w-5/6"></div>
+                          </div>
+                        ) : error && !chapter ? (
+                          // Show error only if we don't have any chapter data
                           <div className="text-highlight-red text-sm">
                             <div className="font-medium">Error</div>
                             <div className="text-xs">{error}</div>
