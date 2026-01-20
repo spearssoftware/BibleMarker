@@ -110,6 +110,18 @@
     @apply min-h-[44px] min-w-[44px];
   }
 
+  /* Search overlay animation that preserves translateX(-50%) for centering */
+  @keyframes searchScaleIn {
+    0% {
+      opacity: 0;
+      transform: translateX(-50%) scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+    }
+  }
+
   /* Annotation remove button - appears on hover */
   .annotation-group {
     position: relative;

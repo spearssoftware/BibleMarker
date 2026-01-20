@@ -11,6 +11,7 @@ import { getAllTranslations, type ApiTranslation } from '@/lib/bible-api';
 import { getPreferences, db } from '@/lib/db';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useStudyStore } from '@/stores/studyStore';
+import { Search } from '@/components/Search';
 
 export function NavigationBar() {
   const {
@@ -30,6 +31,7 @@ export function NavigationBar() {
   const [showTranslationPicker, setShowTranslationPicker] = useState(false);
   const [showStudyPicker, setShowStudyPicker] = useState(false);
   const [showVersePicker, setShowVersePicker] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const [currentVerse, setCurrentVerse] = useState<number | null>(null);
   
@@ -133,15 +135,25 @@ export function NavigationBar() {
       setShowChapterPicker(false);
       setShowVersePicker(false);
     };
+
+    // Keyboard shortcut for search (Cmd/Ctrl+F)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        setShowSearch(true);
+      }
+    };
     
     window.addEventListener('focus', handleFocus);
     window.addEventListener('translationsUpdated', handleTranslationsUpdated);
     window.addEventListener('closePickers', handleClosePickers);
+    window.addEventListener('keydown', handleKeyDown);
     
     return () => {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('translationsUpdated', handleTranslationsUpdated);
       window.removeEventListener('closePickers', handleClosePickers);
+      window.removeEventListener('keydown', handleKeyDown);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount - loadActiveView is stable from zustand
@@ -367,6 +379,26 @@ export function NavigationBar() {
 
         {/* Options and additional controls */}
         <div className="absolute right-4 flex items-center gap-2">
+          {/* Search button */}
+          <button
+            onClick={() => {
+              setShowSearch(true);
+              setShowTranslationPicker(false);
+              setShowStudyPicker(false);
+              setShowBookPicker(false);
+              setShowChapterPicker(false);
+              setShowVersePicker(false);
+            }}
+            className="p-2 rounded-xl hover:bg-scripture-elevated transition-all duration-200 touch-target
+                       hover:scale-105 active:scale-95"
+            aria-label="Search (Cmd/Ctrl+F)"
+            title="Search (Cmd/Ctrl+F)"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+
           {/* Next button */}
           <button
             onClick={nextChapter}
@@ -382,6 +414,26 @@ export function NavigationBar() {
           </button>
         </div>
       </div>
+
+      {/* Search Modal */}
+      {showSearch && (
+        <Search
+          onClose={() => setShowSearch(false)}
+          onNavigate={(book, chapter, verse) => {
+            setLocation(book, chapter);
+            setShowSearch(false);
+            // Scroll to verse if specified
+            if (verse) {
+              setTimeout(() => {
+                const verseElement = document.querySelector(`[data-verse="${verse}"]`);
+                if (verseElement) {
+                  verseElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+              }, 100);
+            }
+          }}
+        />
+      )}
     </nav>
   );
 }
