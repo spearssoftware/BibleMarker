@@ -253,7 +253,7 @@ export async function getPreferences(): Promise<UserPreferences> {
         showToolbarByDefault: true,
       },
       fontSize: 'base',
-      theme: 'dark',
+      theme: 'auto',
       favoriteTranslations: [],
       recentTranslations: [],
     };

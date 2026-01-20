@@ -12,6 +12,7 @@ import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences 
 import { ModuleManager } from '@/components/MarkingToolbar/ModuleManager';
 import { StudyManager } from '@/components/Study';
 import { BackupRestore } from './BackupRestore';
+import { applyTheme } from '@/lib/theme';
 
 type SettingsTab = 'appearance' | 'bible' | 'studies' | 'data';
 
@@ -39,6 +40,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         const prefs = await getPreferences();
         if (prefs.theme) {
           setTheme(prefs.theme);
+          applyTheme(prefs.theme);
         }
       } catch (error) {
         console.error('Error loading preferences:', error);
@@ -48,6 +50,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     }
     loadPrefs();
   }, []);
+
 
   const tabs: { id: SettingsTab; label: string; icon: string }[] = [
     { id: 'appearance', label: 'Appearance', icon: '🎨' },
@@ -63,10 +66,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     { size: 'xl', label: 'Extra Large' },
   ];
 
-  const themes: Array<{ value: 'dark' | 'light' | 'auto'; label: string; description: string }> = [
-    { value: 'dark', label: 'Dark', description: 'Dark theme (default)' },
-    { value: 'light', label: 'Light', description: 'Light theme' },
-    { value: 'auto', label: 'Auto', description: 'Follow system preference' },
+  const themes: Array<{ value: 'dark' | 'light' | 'auto'; label: string }> = [
+    { value: 'dark', label: 'Dark' },
+    { value: 'light', label: 'Light' },
+    { value: 'auto', label: 'Auto' },
   ];
 
   const handleFontSizeChange = async (newSize: 'sm' | 'base' | 'lg' | 'xl') => {
@@ -79,11 +82,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   };
 
   const handleThemeChange = async (newTheme: 'dark' | 'light' | 'auto') => {
+    console.log('[SettingsPanel] Theme change requested:', newTheme);
     setTheme(newTheme);
+    applyTheme(newTheme);
     try {
       await updatePreferences({ theme: newTheme });
-      // TODO: Apply theme to document (theme implementation needed)
-      // This is a placeholder - full theme implementation is planned but not yet complete
+      console.log('[SettingsPanel] Theme preference saved:', newTheme);
     } catch (error) {
       console.error('Error updating theme:', error);
     }
@@ -197,29 +201,23 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
               <div>
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Theme</h3>
-                <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-2">
                   {themes.map((t) => (
-                    <label
+                    <button
                       key={t.value}
-                      className="flex items-start gap-3 p-3 rounded-lg bg-scripture-elevated/50 border border-scripture-border/30 hover:bg-scripture-elevated cursor-pointer transition-colors"
+                      onClick={() => handleThemeChange(t.value)}
+                      className={`px-3 py-2 rounded-lg font-ui text-sm transition-all duration-200 text-center
+                                ${theme === t.value
+                                  ? 'bg-scripture-accent text-white shadow-md scale-105'
+                                  : 'bg-scripture-elevated hover:bg-scripture-border/50 border border-scripture-border/50 text-scripture-text'
+                                }`}
                     >
-                      <input
-                        type="radio"
-                        name="theme"
-                        value={t.value}
-                        checked={theme === t.value}
-                        onChange={() => handleThemeChange(t.value)}
-                        className="mt-1 w-4 h-4 text-scripture-accent focus:ring-scripture-accent"
-                      />
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-scripture-text">{t.label}</div>
-                        <div className="text-xs text-scripture-muted">{t.description}</div>
-                      </div>
-                    </label>
+                      {t.label}
+                    </button>
                   ))}
                 </div>
                 <p className="text-xs text-scripture-muted mt-2">
-                  Theme implementation is in progress. Auto mode will follow your system preference.
+                  Choose your preferred theme. Auto mode follows your system preference.
                 </p>
               </div>
             </div>

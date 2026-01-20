@@ -37,7 +37,7 @@ export function VerseNumberMenu({
             }}
             className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
                      transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                     hover:shadow-sm"
+                     hover:shadow-sm text-scripture-text"
           >
             <span className="text-lg">📋</span>
             <span>Add Section Heading</span>
@@ -52,7 +52,7 @@ export function VerseNumberMenu({
             }}
             className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
                      transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                     hover:shadow-sm"
+                     hover:shadow-sm text-scripture-text"
           >
             <span className="text-lg">📝</span>
             <span>Add Note</span>

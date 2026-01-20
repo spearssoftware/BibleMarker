@@ -4,19 +4,20 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        // Warm, neutral color palette
+        // Warm, neutral color palette - uses CSS variables for theme switching
         scripture: {
-          bg: '#0f0f0f',
-          surface: '#1a1a1a',
-          elevated: '#252525',
-          border: '#3a3a3a',
-          text: '#e8e6e3',
-          muted: '#9ca3af',
-          accent: '#d97706',
-          accentMuted: '#92400e',
+          bg: 'var(--scripture-bg)',
+          surface: 'var(--scripture-surface)',
+          elevated: 'var(--scripture-elevated)',
+          border: 'var(--scripture-border)',
+          text: 'var(--scripture-text)',
+          muted: 'var(--scripture-muted)',
+          accent: 'var(--scripture-accent)',
+          accentMuted: 'var(--scripture-accent-muted)',
         },
         // Highlight colors for annotations
         highlight: {

@@ -3,6 +3,30 @@
 @tailwind utilities;
 
 @layer base {
+  /* Light theme colors (default) - :root is the standard location for CSS variables */
+  :root {
+    --scripture-bg: #faf9f7;
+    --scripture-surface: #ffffff;
+    --scripture-elevated: #f5f4f2;
+    --scripture-border: #e5e3e0;
+    --scripture-text: #1a1a1a;
+    --scripture-muted: #6b7280;
+    --scripture-accent: #d97706;
+    --scripture-accent-muted: #92400e;
+  }
+
+  /* Dark theme colors - override when .dark class is present on html */
+  html.dark {
+    --scripture-bg: #0f0f0f;
+    --scripture-surface: #1a1a1a;
+    --scripture-elevated: #252525;
+    --scripture-border: #3a3a3a;
+    --scripture-text: #e8e6e3;
+    --scripture-muted: #9ca3af;
+    --scripture-accent: #d97706;
+    --scripture-accent-muted: #92400e;
+  }
+
   * {
     -webkit-tap-highlight-color: transparent;
   }
@@ -14,7 +38,9 @@
   }
   
   body {
-    @apply bg-scripture-bg text-scripture-text font-ui;
+    background-color: var(--scripture-bg);
+    color: var(--scripture-text);
+    font-family: var(--font-ui, 'DM Sans', system-ui, sans-serif);
     /* Safe area insets for iPad notch/home indicator */
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
@@ -53,7 +79,20 @@
 
   /* Selection styling */
   ::selection {
-    @apply bg-scripture-accent/30 text-scripture-text;
+    background-color: rgba(217, 119, 6, 0.3);
+    color: var(--scripture-text);
+  }
+
+  /* Light theme selection */
+  .light ::selection {
+    background-color: rgba(217, 119, 6, 0.2);
+    color: var(--scripture-text);
+  }
+
+  /* Dark theme selection */
+  .dark ::selection {
+    background-color: rgba(217, 119, 6, 0.3);
+    color: var(--scripture-text);
   }
 }
 
@@ -86,21 +125,22 @@
   .text-color-purple { @apply text-highlight-purple; }
   .text-color-pink { @apply text-highlight-pink; }
 
-  /* Scrollbar styling */
+  /* Scrollbar styling - adapts to theme via CSS variables */
   .custom-scrollbar::-webkit-scrollbar {
     @apply w-2;
   }
   
   .custom-scrollbar::-webkit-scrollbar-track {
-    @apply bg-scripture-bg;
+    background-color: var(--scripture-bg);
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-scripture-border rounded-full;
+    background-color: var(--scripture-border);
+    border-radius: 9999px;
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-scripture-muted;
+    background-color: var(--scripture-muted);
   }
 }
 

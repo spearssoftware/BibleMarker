@@ -17,6 +17,7 @@ import { ErrorDisplay } from '@/components/ErrorDisplay';
 import { loadSampleData } from '@/lib/sampleData';
 import { getPreferences } from '@/lib/db';
 import { loadApiConfigs } from '@/lib/bible-api';
+import { initTheme } from '@/lib/theme';
 
 export default function App() {
   const { setChapter, currentBook, currentChapter, currentModuleId, setLoading, setError } = useBibleStore();
@@ -26,6 +27,11 @@ export default function App() {
   const { loadStudies } = useStudyStore();
   const { loadActiveView, activeView } = useMultiTranslationStore();
   const { loadLists } = useListStore();
+
+  // Initialize theme on mount (before other initialization)
+  useEffect(() => {
+    initTheme();
+  }, []);
 
   // Load preferences and initialize stores on mount
   useEffect(() => {
