@@ -155,9 +155,23 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
               </div>
               
               {summary.title && (
-                <div className="text-xs text-scripture-text mb-2 line-clamp-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLocation(currentBook, summary.chapter);
+                    onChapterClick?.(summary.chapter);
+                    // Scroll to chapter title in verse view after a short delay
+                    setTimeout(() => {
+                      const chapterTitleElement = document.querySelector(`[data-chapter-title="${summary.chapter}"]`) as HTMLElement;
+                      if (chapterTitleElement) {
+                        chapterTitleElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }, 100);
+                  }}
+                  className="text-xs text-scripture-text mb-2 line-clamp-2 text-left hover:text-scripture-accent transition-colors w-full bg-transparent border-none p-0 cursor-pointer"
+                >
                   {summary.title.title}
-                </div>
+                </button>
               )}
               
               <div className="flex flex-wrap gap-2 text-xs text-scripture-muted">

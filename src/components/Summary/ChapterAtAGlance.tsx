@@ -170,7 +170,20 @@ export function ChapterAtAGlance({ onObservationClick }: ChapterAtAGlanceProps =
                   <span className="text-scripture-muted font-mono text-xs">
                     v{verseRange}
                   </span>
-                  <span className="text-scripture-text">{heading.title}</span>
+                  <button
+                    onClick={() => {
+                      // Scroll to section heading in verse view
+                      setTimeout(() => {
+                        const sectionHeadingElement = document.querySelector(`[data-section-heading="${heading.id}"]`) as HTMLElement;
+                        if (sectionHeadingElement) {
+                          sectionHeadingElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }, 100);
+                    }}
+                    className="text-scripture-text hover:text-scripture-accent transition-colors bg-transparent border-none p-0 cursor-pointer text-left"
+                  >
+                    {heading.title}
+                  </button>
                 </div>
               );
             })}

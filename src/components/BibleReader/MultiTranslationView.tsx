@@ -592,7 +592,7 @@ export function MultiTranslationView() {
     <div className="multi-translation-view h-full flex flex-col" onClick={handleClick}>
       {/* Chapter title section */}
       {(chapterTitle || creatingChapterTitle) && (
-        <div className="px-4 py-3 text-center flex-shrink-0">
+        <div className="px-4 py-3 text-center flex-shrink-0" data-chapter-title={currentChapter} style={{ scrollMarginTop: '80px' }}>
           {chapterTitle ? (
             <ChapterTitleEditor
               title={chapterTitle}
@@ -649,7 +649,7 @@ export function MultiTranslationView() {
               <div key={verseNum}>
                 {/* Section heading if exists - show once per verse row, not per translation */}
                 {getHeadingBefore(verseNum) && (
-                  <div className="mb-2">
+                  <div className="mb-2" data-section-heading={getHeadingBefore(verseNum)!.id} style={{ scrollMarginTop: '80px' }}>
                     <SectionHeadingEditor
                       heading={getHeadingBefore(verseNum)!}
                       verseNum={verseNum}
