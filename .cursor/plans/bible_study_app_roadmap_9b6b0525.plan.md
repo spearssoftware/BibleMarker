@@ -635,15 +635,49 @@ Essential features and polish needed for a production-ready v1 release:
 
 Local SWORD module support has been removed. All translations are fetched via APIs and cached in IndexedDB for offline reading.
 
-### Search (Priority for v1)
+### Search (Priority for v1) ✅ COMPLETE
 
 Essential for a complete Bible study experience.
 
-- **Full-text search** across all loaded chapters
-- **Search within annotations/notes** - Find notes by content
-- **Key word occurrence search** - Already partially implemented via KeyWordFinder, but could be enhanced
-- **Verse reference search** - Search by reference (e.g., "John 3:16")
-- **Search UI**: Search bar in navigation, keyboard shortcut (Cmd/Ctrl+F)
+**Features**:
+
+- ✅ **Full-text search** across all loaded chapters
+- ✅ **Search within annotations/notes** - Find notes by content
+- ✅ **Search within annotations** - Find annotations by selected text
+- ✅ **Verse reference search** - Search by reference (e.g., "John 3:16")
+- ✅ **Search UI**: Search bar in navigation, keyboard shortcut (Cmd/Ctrl+F)
+
+**Implementation** (✅ Completed):
+
+- ✅ Created `src/lib/search.ts` - Search utility library with:
+  - `searchBibleText()` - Full-text search across cached chapters
+  - `searchNotes()` - Search notes by content
+  - `searchAnnotations()` - Search annotations by selected text
+  - `parseVerseReference()` - Parse verse references (e.g., "John 3:16")
+  - `searchAll()` - Comprehensive search combining all types
+- ✅ Created `src/components/Search/Search.tsx` - Search UI component with:
+  - Search input with 300ms debouncing
+  - Scope selector (All, Bible, Notes, Annotations)
+  - Results display with type indicators (📖 verse, 📝 note, 🖍 annotation)
+  - Keyboard navigation (↑↓ arrows, Enter to select, Esc to close)
+  - Search term highlighting in results
+  - Verse reference search support
+- ✅ Integrated search into NavigationBar:
+  - Search button in top navigation bar
+  - Keyboard shortcut (Cmd/Ctrl+F) support
+  - Search modal with backdrop
+  - Navigation to selected results with verse scrolling
+- ✅ Fixed search overlay animation positioning:
+  - Custom animation that preserves `translateX(-50%)` for centering
+  - Prevents overlay from appearing to the right then moving to center
+
+**Files Created/Updated**:
+
+- ✅ `src/lib/search.ts` - Search utility functions
+- ✅ `src/components/Search/Search.tsx` - Search UI component
+- ✅ `src/components/Search/index.ts` - Search component exports
+- ✅ `src/components/BibleReader/NavigationBar.tsx` - Added search integration and keyboard shortcut
+- ✅ `src/index.css` - Added custom search animation
 
 ### Export/Print (Priority for v1)
 
