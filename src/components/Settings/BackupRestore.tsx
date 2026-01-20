@@ -68,8 +68,12 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
       const backup = await importBackup();
       
       // Validate and get preview
-      if (!validateBackup(backup)) {
-        throw new Error('Invalid backup file format');
+      const validation = validateBackup(backup);
+      if (!validation.valid) {
+        const errorMsg = validation.errors.length > 0
+          ? `Invalid backup file format:\n${validation.errors.slice(0, 5).join('\n')}`
+          : 'Invalid backup file format';
+        throw new Error(errorMsg);
       }
 
       const counts = getBackupPreview(backup);

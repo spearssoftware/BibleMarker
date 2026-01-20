@@ -20,6 +20,30 @@ import { keyWordToMarkingPreset } from '@/types/keyWord';
 import type { Study } from '@/types/study';
 import type { MultiTranslationView } from '@/types/multiTranslation';
 import type { ObservationList } from '@/types/list';
+import {
+  validateAnnotation,
+  validateSectionHeading,
+  validateChapterTitle,
+  validateNote,
+  validateMarkingPreset,
+  validateStudy,
+  validateMultiTranslationView,
+  validateObservationList,
+  sanitizeData,
+  ValidationError,
+} from './validation';
+import {
+  validateAnnotation,
+  validateSectionHeading,
+  validateChapterTitle,
+  validateNote,
+  validateMarkingPreset,
+  validateStudy,
+  validateMultiTranslationView,
+  validateObservationList,
+  sanitizeData,
+  ValidationError,
+} from './validation';
 
 /** API configuration for Bible APIs */
 export interface ApiConfigRecord {
@@ -169,9 +193,27 @@ class BibleStudyDB extends Dexie {
       preferences: 'id',
       readingHistory: 'id, moduleId, timestamp',
     }).upgrade(async (tx) => {
-      const kws = await tx.table('keyWords').toArray() as KeyWordDefinition[];
-      const presets = kws.map(keyWordToMarkingPreset);
-      if (presets.length) await tx.table('markingPresets').bulkPut(presets);
+      try {
+        const kws = await tx.table('keyWords').toArray() as KeyWordDefinition[];
+        if (kws.length > 0) {
+          const presets = kws.map(kw => {
+            try {
+              return keyWordToMarkingPreset(kw);
+            } catch (error) {
+              console.warn(`[Migration v4] Failed to migrate keyWord ${kw.id}:`, error);
+              return null;
+            }
+          }).filter((p): p is MarkingPreset => p !== null);
+          
+          if (presets.length > 0) {
+            await tx.table('markingPresets').bulkPut(presets);
+            console.log(`[Migration v4] Migrated ${presets.length} keyWords to markingPresets`);
+          }
+        }
+      } catch (error) {
+        console.error('[Migration v4] Error during migration:', error);
+        // Don't throw - allow migration to continue even if keyWord migration fails
+      }
     });
 
     // Version 5: ESV API rate limit state for compliance
@@ -317,7 +359,15 @@ export async function getChapterHeadings(
  * Save an annotation
  */
 export async function saveAnnotation(annotation: Annotation): Promise<string> {
-  return db.annotations.put(annotation);
+  try {
+    const validated = sanitizeData(annotation, validateAnnotation);
+    return await db.annotations.put(validated);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      throw new Error(`Invalid annotation: ${error.message}`);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -331,7 +381,15 @@ export async function deleteAnnotation(id: string): Promise<void> {
  * Save a section heading
  */
 export async function saveSectionHeading(heading: SectionHeading): Promise<string> {
-  return db.sectionHeadings.put(heading);
+  try {
+    const validated = sanitizeData(heading, validateSectionHeading);
+    return await db.sectionHeadings.put(validated);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      throw new Error(`Invalid section heading: ${error.message}`);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -361,7 +419,15 @@ export async function getChapterTitle(
  * Save a chapter title
  */
 export async function saveChapterTitle(title: ChapterTitle): Promise<string> {
-  return db.chapterTitles.put(title);
+  try {
+    const validated = sanitizeData(title, validateChapterTitle);
+    return await db.chapterTitles.put(validated);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      throw new Error(`Invalid chapter title: ${error.message}`);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -393,7 +459,15 @@ export async function getChapterNotes(
  * Save a note
  */
 export async function saveNote(note: Note): Promise<string> {
-  return db.notes.put(note);
+  try {
+    const validated = sanitizeData(note, validateNote);
+    return await db.notes.put(validated);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      throw new Error(`Invalid note: ${error.message}`);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -505,7 +579,16 @@ export async function getMarkingPreset(id: string): Promise<MarkingPreset | unde
 }
 
 export async function saveMarkingPreset(preset: MarkingPreset): Promise<string> {
-  return db.markingPresets.put(preset);
+  try {
+    const validated = sanitizeData(preset, validateMarkingPreset);
+    return await db.markingPresets.put(validated);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      console.error('[saveMarkingPreset] Validation error:', error.message, error.field, error.value);
+      throw new Error(`Invalid marking preset data: ${error.message}`);
+    }
+    throw error;
+  }
 }
 
 export async function deleteMarkingPreset(id: string): Promise<void> {
@@ -549,7 +632,16 @@ export async function getStudy(id: string): Promise<Study | undefined> {
 }
 
 export async function saveStudy(study: Study): Promise<string> {
-  return db.studies.put(study);
+  try {
+    const validated = sanitizeData(study, validateStudy);
+    return await db.studies.put(validated);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      console.error('[saveStudy] Validation error:', error.message, error.field, error.value);
+      throw new Error(`Invalid study data: ${error.message}`);
+    }
+    throw error;
+  }
 }
 
 export async function deleteStudy(id: string): Promise<void> {
@@ -565,7 +657,16 @@ export async function getMultiTranslationView(id: string = 'active'): Promise<Mu
 }
 
 export async function saveMultiTranslationView(view: MultiTranslationView): Promise<string> {
-  return db.multiTranslationViews.put(view);
+  try {
+    const validated = sanitizeData(view, validateMultiTranslationView);
+    return await db.multiTranslationViews.put(validated);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      console.error('[saveMultiTranslationView] Validation error:', error.message, error.field, error.value);
+      throw new Error(`Invalid multi-translation view data: ${error.message}`);
+    }
+    throw error;
+  }
 }
 
 export async function deleteMultiTranslationView(id: string = 'active'): Promise<void> {

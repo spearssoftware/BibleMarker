@@ -13,6 +13,7 @@ import type { Annotation } from '@/types/annotation';
 import { stripSymbols } from '@/lib/textUtils';
 import type { VerseRef } from '@/types/bible';
 import { findKeywordMatches } from '@/lib/keywordMatching';
+import { validateObservationList, sanitizeData, ValidationError } from '@/lib/validation';
 
 interface ListState {
   // Lists (cached)
@@ -69,30 +70,48 @@ export const useListStore = create<ListState>()(
           updatedAt: new Date(),
         };
         
-        await db.observationLists.put(newList);
+        try {
+          const validated = sanitizeData(newList, validateObservationList);
+          await db.observationLists.put(validated);
         
         const { lists } = get();
         // Set new list as most recently used
         set({ 
-          lists: [...lists, newList],
-          lastUsedListId: newList.id,
+          lists: [...lists, validated],
+          lastUsedListId: validated.id,
         });
         
-        return newList;
+        return validated;
+        } catch (error) {
+          if (error instanceof ValidationError) {
+            console.error('[createList] Validation error:', error.message, error.field, error.value);
+            throw new Error(`Invalid observation list data: ${error.message}`);
+          }
+          throw error;
+        }
       },
       
       updateList: async (list) => {
-        const updated = {
-          ...list,
-          updatedAt: new Date(),
-        };
-        
-        await db.observationLists.put(updated);
+        try {
+          const updated = {
+            ...list,
+            updatedAt: new Date(),
+          };
+          
+          const validated = sanitizeData(updated, validateObservationList);
+          await db.observationLists.put(validated);
         
         const { lists } = get();
         set({ 
-          lists: lists.map(l => l.id === list.id ? updated : l),
+          lists: lists.map(l => l.id === list.id ? validated : l),
         });
+        } catch (error) {
+          if (error instanceof ValidationError) {
+            console.error('[updateList] Validation error:', error.message, error.field, error.value);
+            throw new Error(`Invalid observation list data: ${error.message}`);
+          }
+          throw error;
+        }
       },
       
       deleteList: async (listId) => {
@@ -147,8 +166,17 @@ export const useListStore = create<ListState>()(
           updatedAt: new Date(),
         };
         
-        await db.observationLists.put(updatedList);
-        set({ lists: lists.map(l => l.id === listId ? updatedList : l) });
+        try {
+          const validated = sanitizeData(updatedList, validateObservationList);
+          await db.observationLists.put(validated);
+          set({ lists: lists.map(l => l.id === listId ? validated : l) });
+        } catch (error) {
+          if (error instanceof ValidationError) {
+            console.error('[updateItem] Validation error:', error.message, error.field, error.value);
+            throw new Error(`Invalid observation list data: ${error.message}`);
+          }
+          throw error;
+        }
       },
       
       deleteItem: async (listId, itemId) => {
@@ -162,8 +190,17 @@ export const useListStore = create<ListState>()(
           updatedAt: new Date(),
         };
         
-        await db.observationLists.put(updatedList);
-        set({ lists: lists.map(l => l.id === listId ? updatedList : l) });
+        try {
+          const validated = sanitizeData(updatedList, validateObservationList);
+          await db.observationLists.put(validated);
+          set({ lists: lists.map(l => l.id === listId ? validated : l) });
+        } catch (error) {
+          if (error instanceof ValidationError) {
+            console.error('[deleteItem] Validation error:', error.message, error.field, error.value);
+            throw new Error(`Invalid observation list data: ${error.message}`);
+          }
+          throw error;
+        }
       },
       
       getList: (listId) => {

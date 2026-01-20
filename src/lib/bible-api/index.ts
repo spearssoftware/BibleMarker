@@ -23,6 +23,7 @@ import { esvClient } from './esv';
 import { getBibleClient } from './getbible';
 import type { VerseRef, Chapter } from '@/types/bible';
 import { db } from '@/lib/db';
+import { retryWithBackoff, isNetworkError, getNetworkErrorMessage, isOnline } from '../offline';
 
 // Re-export types
 export * from './types';
@@ -330,13 +331,26 @@ export async function fetchChapter(
   if (isESV) {
     if (esvClient.isConfigured()) {
       try {
-        chapterData = await esvClient.getChapter('ESV', book, chapter);
+        // Use retry with backoff for network errors
+        chapterData = await retryWithBackoff(
+          () => esvClient.getChapter('ESV', book, chapter),
+          { maxRetries: 2, initialDelay: 1000 }
+        );
       } catch (error) {
+        // Check if it's a network/offline error
+        if (isNetworkError(error) || !isOnline()) {
+          throw new BibleApiError(
+            getNetworkErrorMessage(error),
+            'esv',
+            error instanceof BibleApiError ? error.statusCode : undefined
+          );
+        }
         console.warn('ESV API failed:', error);
         // Don't silently fail - rethrow if it's a configuration error
         if (error instanceof BibleApiError && error.statusCode === 401) {
           throw error;
         }
+        throw error;
       }
     } else {
       // ESV API not configured - provide helpful error
@@ -361,8 +375,19 @@ export async function fetchChapter(
   if (BIBLEGATEWAY_ENABLED && !chapterData && (provider === 'biblegateway' || (!provider && bibleGatewayClient.isConfigured()))) {
     if (bibleGatewayClient.isConfigured()) {
       try {
-        chapterData = await bibleGatewayClient.getChapter(actualTranslationId, book, chapter);
+        chapterData = await retryWithBackoff(
+          () => bibleGatewayClient.getChapter(actualTranslationId, book, chapter),
+          { maxRetries: 2, initialDelay: 1000 }
+        );
       } catch (error) {
+        // Check if it's a network/offline error
+        if (isNetworkError(error) || !isOnline()) {
+          throw new BibleApiError(
+            getNetworkErrorMessage(error),
+            'biblegateway',
+            error instanceof BibleApiError ? error.statusCode : undefined
+          );
+        }
         console.warn('BibleGateway API failed:', error);
       }
     }
@@ -380,9 +405,20 @@ export async function fetchChapter(
         // Convert to uppercase to match Biblia API format
         bibliaTranslationId = bibliaTranslationId.toUpperCase();
         console.log('[fetchChapter] Using Biblia API with translation ID:', bibliaTranslationId);
-        chapterData = await bibliaClient.getChapter(bibliaTranslationId, book, chapter);
+        chapterData = await retryWithBackoff(
+          () => bibliaClient.getChapter(bibliaTranslationId, book, chapter),
+          { maxRetries: 2, initialDelay: 1000 }
+        );
       } catch (error) {
         bibliaError = error as Error;
+        // Check if it's a network/offline error
+        if (isNetworkError(error) || !isOnline()) {
+          throw new BibleApiError(
+            getNetworkErrorMessage(error),
+            'biblia',
+            error instanceof BibleApiError ? error.statusCode : undefined
+          );
+        }
         // Check if it's a 403 error (translation not available)
         const is403Error = error instanceof BibleApiError && error.statusCode === 403;
         if (is403Error) {
@@ -402,9 +438,31 @@ export async function fetchChapter(
     if (getBibleClient.isConfigured()) {
       try {
         // Try getBible for any translation ID (it will fail gracefully if not found)
-        chapterData = await getBibleClient.getChapter(actualTranslationId.toLowerCase(), book, chapter);
+        // Use retry with backoff for network errors
+        chapterData = await retryWithBackoff(
+          () => getBibleClient.getChapter(actualTranslationId.toLowerCase(), book, chapter),
+          { maxRetries: 2, initialDelay: 1000 }
+        );
       } catch (error) {
         getBibleError = error as Error;
+        
+        // Check if it's a network/offline error
+        if (isNetworkError(error) || !isOnline()) {
+          // If offline, check cache and provide helpful message
+          if (!isOnline()) {
+            throw new BibleApiError(
+              `You are offline. Chapter ${book} ${chapter} is not cached. Please check your internet connection to load new chapters.`,
+              'getbible',
+              undefined
+            );
+          }
+          throw new BibleApiError(
+            getNetworkErrorMessage(error),
+            'getbible',
+            error instanceof BibleApiError ? error.statusCode : undefined
+          );
+        }
+        
         // If provider is explicitly getbible and we get a 404, the translation doesn't exist
         if (provider === 'getbible' && error instanceof BibleApiError && error.statusCode === 404) {
           // Translation explicitly from getBible but not found - report error immediately

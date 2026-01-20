@@ -11,6 +11,18 @@ import type { MarkingPreset } from '@/types/keyWord';
 import type { Study } from '@/types/study';
 import type { MultiTranslationView } from '@/types/multiTranslation';
 import type { ObservationList } from '@/types/list';
+import {
+  validateAnnotation,
+  validateSectionHeading,
+  validateChapterTitle,
+  validateNote,
+  validateMarkingPreset,
+  validateStudy,
+  validateMultiTranslationView,
+  validateObservationList,
+  validateArray,
+  ValidationError,
+} from './validation';
 
 /** Backup data structure */
 export interface BackupData {
@@ -177,19 +189,25 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
 }
 
 /**
- * Validate backup file structure
+ * Validate backup file structure with detailed validation
  */
-export function validateBackup(data: any): data is BackupData {
+export function validateBackup(data: any): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
   if (!data || typeof data !== 'object') {
-    return false;
+    return { valid: false, errors: ['Backup data must be an object'] };
   }
 
-  if (typeof data.version !== 'string' || typeof data.timestamp !== 'string') {
-    return false;
+  if (typeof data.version !== 'string' || data.version.trim() === '') {
+    errors.push('Backup must have a valid version string');
+  }
+
+  if (typeof data.timestamp !== 'string' || data.timestamp.trim() === '') {
+    errors.push('Backup must have a valid timestamp string');
   }
 
   if (!data.data || typeof data.data !== 'object') {
-    return false;
+    return { valid: false, errors: ['Backup must have a data object'] };
   }
 
   // Check required data fields
@@ -206,12 +224,84 @@ export function validateBackup(data: any): data is BackupData {
   ];
 
   for (const field of requiredFields) {
-    if (!Array.isArray(data.data[field]) && field !== 'preferences') {
-      return false;
+    if (field === 'preferences') {
+      if (!data.data.preferences || typeof data.data.preferences !== 'object') {
+        errors.push('Backup must have preferences object');
+      }
+    } else {
+      if (!Array.isArray(data.data[field])) {
+        errors.push(`Backup must have ${field} as an array`);
+      }
     }
   }
 
-  return true;
+  // Validate individual records if arrays exist
+  if (Array.isArray(data.data.annotations)) {
+    const { errors: annErrors } = validateArray(data.data.annotations, validateAnnotation, 'annotation');
+    if (annErrors.length > 0) {
+      errors.push(`Annotations validation errors: ${annErrors.length} invalid records`);
+      // Include first few errors as examples
+      errors.push(...annErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }
+  }
+
+  if (Array.isArray(data.data.sectionHeadings)) {
+    const { errors: headingErrors } = validateArray(data.data.sectionHeadings, validateSectionHeading, 'section heading');
+    if (headingErrors.length > 0) {
+      errors.push(`Section headings validation errors: ${headingErrors.length} invalid records`);
+      errors.push(...headingErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }
+  }
+
+  if (Array.isArray(data.data.chapterTitles)) {
+    const { errors: titleErrors } = validateArray(data.data.chapterTitles, validateChapterTitle, 'chapter title');
+    if (titleErrors.length > 0) {
+      errors.push(`Chapter titles validation errors: ${titleErrors.length} invalid records`);
+      errors.push(...titleErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }
+  }
+
+  if (Array.isArray(data.data.notes)) {
+    const { errors: noteErrors } = validateArray(data.data.notes, validateNote, 'note');
+    if (noteErrors.length > 0) {
+      errors.push(`Notes validation errors: ${noteErrors.length} invalid records`);
+      errors.push(...noteErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }
+  }
+
+  if (Array.isArray(data.data.markingPresets)) {
+    const { errors: presetErrors } = validateArray(data.data.markingPresets, validateMarkingPreset, 'marking preset');
+    if (presetErrors.length > 0) {
+      errors.push(`Marking presets validation errors: ${presetErrors.length} invalid records`);
+      errors.push(...presetErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }
+  }
+
+  if (Array.isArray(data.data.studies)) {
+    const { errors: studyErrors } = validateArray(data.data.studies, validateStudy, 'study');
+    if (studyErrors.length > 0) {
+      errors.push(`Studies validation errors: ${studyErrors.length} invalid records`);
+      errors.push(...studyErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }
+  }
+
+  if (Array.isArray(data.data.multiTranslationViews)) {
+    const { errors: viewErrors } = validateArray(data.data.multiTranslationViews, validateMultiTranslationView, 'multi-translation view');
+    if (viewErrors.length > 0) {
+      errors.push(`Multi-translation views validation errors: ${viewErrors.length} invalid records`);
+      errors.push(...viewErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }
+  }
+
+  if (Array.isArray(data.data.observationLists)) {
+    const { errors: listErrors } = validateArray(data.data.observationLists, validateObservationList, 'observation list');
+    if (listErrors.length > 0) {
+      errors.push(`Observation lists validation errors: ${listErrors.length} invalid records`);
+      errors.push(...listErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
 }
 
 /**
@@ -282,11 +372,21 @@ export async function importBackup(): Promise<BackupData> {
 
     // Read file
     const text = await file.text();
-    const backup = JSON.parse(text) as BackupData;
+    let backup: BackupData;
+    
+    try {
+      backup = JSON.parse(text) as BackupData;
+    } catch (error) {
+      throw new Error('Invalid JSON file: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
 
-    // Validate backup
-    if (!validateBackup(backup)) {
-      throw new Error('Invalid backup file format');
+    // Validate backup with detailed error messages
+    const validation = validateBackup(backup);
+    if (!validation.valid) {
+      const errorMessage = validation.errors.length > 0
+        ? `Invalid backup file format:\n${validation.errors.join('\n')}`
+        : 'Invalid backup file format';
+      throw new Error(errorMessage);
     }
 
     return backup;
@@ -351,41 +451,65 @@ export async function restoreBackup(
       }
     }
 
-    // Restore data
+    // Restore data (with validation and sanitization)
     if (typesToRestore.includes('preferences') && backup.data.preferences) {
       await db.preferences.put(backup.data.preferences);
     }
 
     if (typesToRestore.includes('annotations') && backup.data.annotations.length > 0) {
-      await db.annotations.bulkPut(backup.data.annotations);
+      const { valid: validatedAnnotations } = validateArray(backup.data.annotations, validateAnnotation, 'annotation');
+      if (validatedAnnotations.length > 0) {
+        await db.annotations.bulkPut(validatedAnnotations);
+      }
     }
 
     if (typesToRestore.includes('sectionHeadings') && backup.data.sectionHeadings.length > 0) {
-      await db.sectionHeadings.bulkPut(backup.data.sectionHeadings);
+      const { valid: validatedHeadings } = validateArray(backup.data.sectionHeadings, validateSectionHeading, 'section heading');
+      if (validatedHeadings.length > 0) {
+        await db.sectionHeadings.bulkPut(validatedHeadings);
+      }
     }
 
     if (typesToRestore.includes('chapterTitles') && backup.data.chapterTitles.length > 0) {
-      await db.chapterTitles.bulkPut(backup.data.chapterTitles);
+      const { valid: validatedTitles } = validateArray(backup.data.chapterTitles, validateChapterTitle, 'chapter title');
+      if (validatedTitles.length > 0) {
+        await db.chapterTitles.bulkPut(validatedTitles);
+      }
     }
 
     if (typesToRestore.includes('notes') && backup.data.notes.length > 0) {
-      await db.notes.bulkPut(backup.data.notes);
+      const { valid: validatedNotes } = validateArray(backup.data.notes, validateNote, 'note');
+      if (validatedNotes.length > 0) {
+        await db.notes.bulkPut(validatedNotes);
+      }
     }
 
     if (typesToRestore.includes('markingPresets') && backup.data.markingPresets.length > 0) {
-      await db.markingPresets.bulkPut(backup.data.markingPresets);
+      const { valid: validatedPresets } = validateArray(backup.data.markingPresets, validateMarkingPreset, 'marking preset');
+      if (validatedPresets.length > 0) {
+        await db.markingPresets.bulkPut(validatedPresets);
+      }
     }
 
     if (typesToRestore.includes('studies') && backup.data.studies.length > 0) {
-      await db.studies.bulkPut(backup.data.studies);
+      const { valid: validatedStudies } = validateArray(backup.data.studies, validateStudy, 'study');
+      if (validatedStudies.length > 0) {
+        await db.studies.bulkPut(validatedStudies);
+      }
     }
 
     if (typesToRestore.includes('multiTranslationViews') && backup.data.multiTranslationViews.length > 0) {
-      await db.multiTranslationViews.bulkPut(backup.data.multiTranslationViews);
+      const { valid: validatedViews } = validateArray(backup.data.multiTranslationViews, validateMultiTranslationView, 'multi-translation view');
+      if (validatedViews.length > 0) {
+        await db.multiTranslationViews.bulkPut(validatedViews);
+      }
     }
 
     if (typesToRestore.includes('observationLists') && backup.data.observationLists.length > 0) {
-      await db.observationLists.bulkPut(backup.data.observationLists);
+      const { valid: validatedLists } = validateArray(backup.data.observationLists, validateObservationList, 'observation list');
+      if (validatedLists.length > 0) {
+        await db.observationLists.bulkPut(validatedLists);
+      }
     }
 
     if (typesToRestore.includes('cachedChapters') && backup.data.cachedChapters && backup.data.cachedChapters.length > 0) {
