@@ -27,7 +27,7 @@
     --scripture-info-bg: #dbeafe;
     --scripture-info-text: #1e40af;
     /* Backdrop/overlay opacity */
-    --scripture-backdrop-opacity: 0.8;
+    --scripture-backdrop-opacity: 0.6;
   }
 
   /* Dark theme colors - override when .dark class is present on html */

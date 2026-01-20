@@ -26,11 +26,9 @@ interface ModuleManagerProps {
   onTranslationsUpdated?: () => void;
 }
 
-type TabType = 'installed' | 'api';
 
 export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerProps) {
   const { currentModuleId, setCurrentModule } = useBibleStore();
-  const [activeTab, setActiveTab] = useState<TabType>('installed');
   const [apiTranslations, setApiTranslations] = useState<ApiTranslation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -168,13 +166,13 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 z-40 backdrop-overlay backdrop-blur-sm" 
+        className="fixed inset-0 z-[200] backdrop-overlay backdrop-blur-sm" 
         onClick={onClose}
       />
       
       {/* Modal */}
       <div
-        className="fixed inset-x-4 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50
+        className="fixed inset-x-4 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[201]
                    bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl
                    max-w-4xl max-h-[80vh] overflow-hidden flex flex-col animate-scale-in"
         onClick={(e) => e.stopPropagation()}
@@ -193,27 +191,6 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-scripture-border/50">
-          <button
-            onClick={() => setActiveTab('installed')}
-            className={`flex-1 px-4 py-3 text-sm font-ui font-medium transition-colors
-                      ${activeTab === 'installed' 
-                        ? 'text-scripture-accent border-b-2 border-scripture-accent bg-scripture-accent/5' 
-                        : 'text-scripture-muted hover:text-scripture-text'}`}
-          >
-            Installed
-          </button>
-          <button
-            onClick={() => setActiveTab('api')}
-            className={`flex-1 px-4 py-3 text-sm font-ui font-medium transition-colors
-                      ${activeTab === 'api' 
-                        ? 'text-scripture-accent border-b-2 border-scripture-accent bg-scripture-accent/5' 
-                        : 'text-scripture-muted hover:text-scripture-text'}`}
-          >
-            API Translations
-          </button>
-        </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
@@ -223,88 +200,20 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
             </div>
           )}
 
-          {/* Installed Tab */}
-          {activeTab === 'installed' && (
-            <div>
-              <h3 className="text-sm font-ui font-semibold text-scripture-text uppercase tracking-wider mb-3">
-                Installed Translations
-              </h3>
-              {loading ? (
-                <div className="text-center py-4 text-scripture-muted text-sm">
-                  Loading...
-                </div>
-              ) : apiTranslations.length === 0 ? (
-                <div className="text-center py-4 text-scripture-muted text-sm">
-                  No translations available. Go to "NASB / ESV" tab to configure API keys.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {/* API Translations */}
-                  {apiTranslations.map((translation) => (
-                    <div
-                      key={translation.id}
-                      className={`p-3 rounded-lg border transition-all duration-200 ${
-                        currentModuleId === translation.id
-                          ? 'bg-scripture-accent/10 border-scripture-accent/50'
-                          : 'bg-scripture-surface/80 border-scripture-border/50 hover:bg-scripture-surface hover:border-scripture-border/70'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-scripture-text">
-                              {translation.abbreviation}
-                            </span>
-                            <span className="text-xs px-2 py-0.5 bg-scripture-infoBg text-scripture-infoText rounded">
-                              API
-                            </span>
-                            {currentModuleId === translation.id && (
-                              <span className="text-xs px-2 py-0.5 bg-scripture-accent text-scripture-bg rounded">
-                                Active
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-scripture-muted mt-1">
-                            {translation.name}
-                          </p>
-                          {translation.copyright && (
-                            <p className="text-xs text-scripture-muted mt-1">
-                              {translation.copyright}
-                            </p>
-                          )}
-                        </div>
-                        {currentModuleId !== translation.id && (
-                          <button
-                            onClick={() => handleSelectApiTranslation(translation)}
-                            className="px-3 py-1.5 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                                     hover:bg-scripture-accent/90 transition-colors"
-                          >
-                            Use
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* API Configuration Tab */}
-          {activeTab === 'api' && (
-            <div className="space-y-6">
+          {/* API Configuration */}
+          <div className="space-y-6">
               {/* getBible API Section - Always available (free) */}
               {translationsByProvider.getbible.length > 0 && (
-                <div className="p-4 bg-scripture-surface/50 rounded-lg border border-scripture-border/50">
+                <div className="p-4 bg-scripture-elevated rounded-lg border border-scripture-border/30">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="font-medium text-scripture-text">
                       getBible API
                     </h4>
-                    <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded">
+                    <span className="text-xs px-2 py-1 bg-scripture-successBg text-scripture-successText rounded border border-scripture-success/30">
                       Free • No API Key Required
                     </span>
                   </div>
-                  <p className="text-xs text-scripture-muted mb-4">
+                  <p className="text-xs text-scripture-muted mb-3">
                     Free, open-source Bible API with many translations available.
                   </p>
                   <div className="space-y-2">
@@ -356,11 +265,11 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                     Biblia API
                   </h4>
                   {bibliaClient.isConfigured() ? (
-                    <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded">
+                    <span className="text-xs px-2 py-1 bg-scripture-successBg text-scripture-successText border border-scripture-success/30 rounded">
                       ✓ Configured
                     </span>
                   ) : (
-                    <span className="text-xs px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded">
+                    <span className="text-xs px-2 py-1 bg-scripture-warningBg text-scripture-warningText border border-scripture-warning/30 rounded">
                       API Key Required
                     </span>
                   )}
@@ -497,11 +406,11 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                     BibleGateway API
                   </h4>
                   {bibleGatewayClient.isConfigured() ? (
-                    <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded">
+                    <span className="text-xs px-2 py-1 bg-scripture-successBg text-scripture-successText border border-scripture-success/30 rounded">
                       ✓ Configured
                     </span>
                   ) : (
-                    <span className="text-xs px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded">
+                    <span className="text-xs px-2 py-1 bg-scripture-warningBg text-scripture-warningText border border-scripture-warning/30 rounded">
                       Account Required
                     </span>
                   )}
@@ -608,11 +517,11 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                     ESV API
                   </h4>
                   {esvClient.isConfigured() ? (
-                    <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded">
+                    <span className="text-xs px-2 py-1 bg-scripture-successBg text-scripture-successText border border-scripture-success/30 rounded">
                       ✓ Configured
                     </span>
                   ) : (
-                    <span className="text-xs px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded">
+                    <span className="text-xs px-2 py-1 bg-scripture-warningBg text-scripture-warningText border border-scripture-warning/30 rounded">
                       API Key Required
                     </span>
                   )}
@@ -746,7 +655,6 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                 </div>
               )}
             </div>
-          )}
 
         </div>
       </div>

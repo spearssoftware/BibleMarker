@@ -257,6 +257,9 @@ export function useAnnotations() {
   const removeAnnotation = useCallback(async (id: string) => {
     await deleteAnnotation(id);
     await loadAnnotations();
+    
+    // Dispatch event to notify other components (like MultiTranslationView) to reload
+    window.dispatchEvent(new CustomEvent('annotationsUpdated'));
   }, [loadAnnotations]);
 
   /**

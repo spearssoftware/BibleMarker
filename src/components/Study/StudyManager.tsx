@@ -63,7 +63,7 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 backdrop-overlay backdrop-blur-sm z-50 overflow-y-auto" onClick={handleClose}>
+    <div className="fixed inset-0 backdrop-overlay backdrop-blur-sm z-[200] overflow-y-auto" onClick={handleClose}>
       <div className="min-h-full flex items-center justify-center p-4">
         <div className="bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="p-4 border-b border-scripture-border/50">

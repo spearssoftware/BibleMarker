@@ -10,10 +10,8 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
 import { ColorPicker } from './ColorPicker';
 import { SymbolPicker } from './SymbolPicker';
-import { ModuleManager } from './ModuleManager';
 import { KeyWordManager } from '@/components/KeyWords';
 import { AnnotationLegend } from '@/components/BibleReader';
-import { StudyManager } from '@/components/Study';
 import { AddToList } from '@/components/Lists';
 import { StudyToolsPanel } from '@/components/Summary';
 import { SettingsPanel } from '@/components/Settings';
@@ -68,7 +66,6 @@ export function Toolbar() {
   const [showKeyWordApplyPicker, setShowKeyWordApplyPicker] = useState(false);
   const [showAddAsVariantPicker, setShowAddAsVariantPicker] = useState(false);
   const [showLegendOverlay, setShowLegendOverlay] = useState(false);
-  const [showStudyManager, setShowStudyManager] = useState(false);
   const [showStudyToolsPanel, setShowStudyToolsPanel] = useState(false);
   const [showAddToList, setShowAddToList] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
@@ -333,6 +330,7 @@ export function Toolbar() {
         setShowKeyWordManager(false);
         setShowLegendOverlay(false);
         setShowStudyToolsPanel(false);
+        setShowSettingsPanel(false);
         if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
       }
     } else if (toolType === 'symbol') {
@@ -346,6 +344,7 @@ export function Toolbar() {
         setShowKeyWordManager(false);
         setShowLegendOverlay(false);
         setShowStudyToolsPanel(false);
+        setShowSettingsPanel(false);
         if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
       }
     } else if (toolType === 'keyWords') {
@@ -628,7 +627,7 @@ export function Toolbar() {
 
       {/* Color picker: style (Highlight / Text / Underline) + color grid */}
       {showColorPicker && isColorActive && (
-        <div className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 p-4 animate-slide-up shadow-lg max-h-[50vh] overflow-y-auto custom-scrollbar">
+        <div className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 p-4 animate-slide-up shadow-lg max-h-[50vh] overflow-y-auto custom-scrollbar flex-shrink-0">
           <div className="mb-4 bg-scripture-surface border border-scripture-border/50 rounded-xl p-3">
             <div className="text-xs font-ui font-semibold text-scripture-text uppercase tracking-wider mb-3">
               Style
@@ -661,7 +660,7 @@ export function Toolbar() {
 
       {/* Symbol picker dropdown */}
       {showSymbolPicker && activeTool === 'symbol' && (
-        <div className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 p-4 animate-slide-up shadow-lg max-h-[50vh] overflow-y-auto custom-scrollbar">
+        <div className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 p-4 animate-slide-up shadow-lg max-h-[50vh] overflow-y-auto custom-scrollbar flex-shrink-0">
           <SymbolPicker
             selectedSymbol={activeSymbol}
             onSelect={async (symbol) => {
@@ -681,33 +680,18 @@ export function Toolbar() {
       {showSettingsPanel && (
         <div 
           className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 
-                     animate-slide-up shadow-lg flex flex-col h-[60vh] max-h-[60vh] min-h-[400px] overflow-hidden"
+                     animate-slide-up shadow-lg flex flex-col max-h-[50vh] overflow-hidden flex-shrink-0"
         >
           <SettingsPanel onClose={() => setShowSettingsPanel(false)} />
         </div>
       )}
 
-      {/* Module Manager */}
-      {showModuleManager && (
-        <ModuleManager 
-          onClose={() => setShowModuleManager(false)}
-          onTranslationsUpdated={() => {
-            // Trigger a page event to notify NavigationBar to reload translations
-            window.dispatchEvent(new Event('translationsUpdated'));
-          }}
-        />
-      )}
-
-      {/* Study Manager */}
-      {showStudyManager && (
-        <StudyManager onClose={() => setShowStudyManager(false)} />
-      )}
 
       {/* Study Tools Panel */}
       {showStudyToolsPanel && (
         <div 
           className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 
-                     animate-slide-up shadow-lg flex flex-col h-[50vh] max-h-[50vh] min-h-[200px] overflow-hidden"
+                     animate-slide-up shadow-lg flex flex-col max-h-[50vh] overflow-hidden flex-shrink-0"
         >
           <StudyToolsPanel onClose={() => setShowStudyToolsPanel(false)} />
         </div>
@@ -737,7 +721,7 @@ export function Toolbar() {
       {showKeyWordManager && (
         <div 
           className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 
-                     animate-slide-up shadow-lg flex flex-col h-[50vh] max-h-[50vh] min-h-[200px] overflow-hidden"
+                     animate-slide-up shadow-lg flex flex-col max-h-[50vh] overflow-hidden flex-shrink-0"
         >
           <KeyWordManager 
             onClose={() => setShowKeyWordManager(false)} 
@@ -756,7 +740,7 @@ export function Toolbar() {
       {showLegendOverlay && (
         <div 
           className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 
-                     animate-slide-up shadow-lg flex flex-col max-h-[50vh] min-h-[120px] overflow-hidden"
+                     animate-slide-up shadow-lg flex flex-col max-h-[50vh] overflow-hidden flex-shrink-0"
         >
           <div className="flex items-center justify-between px-4 py-2 border-b border-scripture-border/50 flex-shrink-0">
             <h2 className="text-lg font-ui font-semibold text-scripture-text">

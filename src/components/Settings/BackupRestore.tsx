@@ -155,7 +155,7 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
       </div>
 
       {/* Export Section */}
-      <div className="mb-8">
+      <div className="mb-8 bg-scripture-surface/50 border border-scripture-border/50 rounded-xl p-4">
         <h3 className="text-lg font-ui font-semibold text-scripture-text mb-4">Export Backup</h3>
         <p className="text-sm text-scripture-muted mb-4">
           Export all your study data to a JSON file. You can save it to your cloud folder (iCloud Drive, Google Drive, etc.) for automatic syncing.
@@ -206,10 +206,8 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
         )}
       </div>
 
-      <div className="border-t border-scripture-border/50 my-8"></div>
-
       {/* Import Section */}
-      <div>
+      <div className="bg-scripture-surface/50 border border-scripture-border/50 rounded-xl p-4">
         <h3 className="text-lg font-ui font-semibold text-scripture-text mb-4">Import/Restore Backup</h3>
 
         {importStep === 'select' && (
@@ -248,7 +246,7 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
 
         {importStep === 'preview' && backupPreview && previewCounts && (
           <div className="space-y-4">
-            <div className="p-4 bg-scripture-elevated/50 rounded-lg border border-scripture-border/30">
+            <div className="p-4 bg-scripture-surface border border-scripture-border/50 rounded-xl">
               <div className="text-sm text-scripture-muted mb-2">
                 Backup created: {new Date(backupPreview.timestamp).toLocaleString()}
               </div>
@@ -267,8 +265,8 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-scripture-text mb-2">
+            <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+              <label className="block text-sm font-medium text-scripture-text mb-3">
                 Restore Mode:
               </label>
               <div className="space-y-2">
@@ -312,57 +310,57 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
                   </span>
                 </label>
               </div>
-            </div>
 
-            {restoreMode === 'selective' && (
-              <div>
-                <label className="block text-sm font-medium text-scripture-text mb-2">
-                  Select data types to restore:
-                </label>
-                <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar p-2 bg-scripture-elevated/30 rounded-lg border border-scripture-border/30">
-                  {Object.keys(previewCounts).map((type) => (
-                    <label key={type} className="flex items-center gap-2 text-sm text-scripture-text cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedTypes.has(type)}
-                        onChange={() => toggleDataType(type)}
-                        className="w-4 h-4 rounded border-scripture-border text-scripture-accent focus:ring-scripture-accent"
-                      />
-                      <span>{DATA_TYPE_LABELS[type] || type} ({previewCounts[type]})</span>
-                    </label>
-                  ))}
+              {restoreMode === 'selective' && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-scripture-text mb-2">
+                    Select data types to restore:
+                  </label>
+                  <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar p-3 bg-scripture-elevated/50 rounded-lg border border-scripture-border/50">
+                    {Object.keys(previewCounts).map((type) => (
+                      <label key={type} className="flex items-center gap-2 text-sm text-scripture-text cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedTypes.has(type)}
+                          onChange={() => toggleDataType(type)}
+                          className="w-4 h-4 rounded border-scripture-border text-scripture-accent focus:ring-scripture-accent"
+                        />
+                        <span>{DATA_TYPE_LABELS[type] || type} ({previewCounts[type]})</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <div className="flex gap-3">
-              <button
-                onClick={handleRestore}
-                disabled={restoreMode === 'selective' && selectedTypes.size === 0}
-                className="flex-1 px-4 py-3 bg-scripture-warning text-white rounded-lg hover:bg-scripture-warning/90 
-                         disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 
-                         font-ui font-medium shadow-md hover:shadow-lg"
-              >
-                {restoreMode === 'replace' 
-                  ? '⚠️ Restore (Replace All Data)'
-                  : restoreMode === 'merge'
-                  ? '🔄 Merge Data'
-                  : '✅ Restore Selected'}
-              </button>
-              <button
-                onClick={handleCancelImport}
-                className="px-4 py-3 bg-scripture-elevated text-scripture-text rounded-lg hover:bg-scripture-elevated/80 
-                         transition-all duration-200 font-ui font-medium border border-scripture-border/30"
-              >
-                Cancel
-              </button>
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={handleRestore}
+                  disabled={restoreMode === 'selective' && selectedTypes.size === 0}
+                  className="flex-1 px-4 py-3 bg-scripture-warning text-white rounded-lg hover:bg-scripture-warning/90 
+                           disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 
+                           font-ui font-medium shadow-md hover:shadow-lg"
+                >
+                  {restoreMode === 'replace' 
+                    ? '⚠️ Restore (Replace All Data)'
+                    : restoreMode === 'merge'
+                    ? '🔄 Merge Data'
+                    : '✅ Restore Selected'}
+                </button>
+                <button
+                  onClick={handleCancelImport}
+                  className="px-4 py-3 bg-scripture-elevated text-scripture-text rounded-lg hover:bg-scripture-elevated/80 
+                           transition-all duration-200 font-ui font-medium border border-scripture-border/30"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              {restoreMode === 'replace' && (
+                <div className="mt-3 p-3 bg-scripture-warningBg border border-scripture-warning/30 rounded-lg text-scripture-warningText text-sm">
+                  ⚠️ Warning: This will replace all your existing data. This action cannot be undone.
+                </div>
+              )}
             </div>
-
-            {restoreMode === 'replace' && (
-              <div className="p-3 bg-scripture-warningBg border border-scripture-warning/30 rounded-lg text-scripture-warningText text-sm">
-                ⚠️ Warning: This will replace all your existing data. This action cannot be undone.
-              </div>
-            )}
           </div>
         )}
 
