@@ -63,7 +63,7 @@ export function TranslationSelector() {
           {activeView?.translationIds.length || 0} Translation{activeView?.translationIds.length !== 1 ? 's' : ''}
         </button>
       ) : (
-        <div className="absolute top-full left-0 mt-2 bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-2xl z-50 min-w-[300px] backdrop-blur-sm animate-scale-in">
+        <div className="absolute top-full left-0 mt-2 bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-2xl z-50 min-w-[300px] backdrop-blur-sm animate-scale-in-dropdown">
           <div className="p-4 border-b border-scripture-border/50">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-ui font-semibold text-scripture-text">Multi-Translation View</h3>

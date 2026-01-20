@@ -772,7 +772,7 @@ export function Toolbar() {
       )}
 
       {/* Main toolbar: Color | Symbol | Key Words | Settings */}
-      <div className="bg-scripture-surface/95 backdrop-blur-sm shadow-lg">
+      <div className="bg-scripture-surface/95 backdrop-blur-sm shadow-lg" data-marking-toolbar>
         <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
           {TOOLS.map((tool) => {
             const isActive =
@@ -783,9 +783,14 @@ export function Toolbar() {
               : tool.type === 'studyTools' ? showStudyToolsPanel
               : tool.type === 'more' ? showSettingsPanel
               : false;
+            const dataAttr = tool.type === 'keyWords' ? 'data-toolbar-keywords' 
+              : tool.type === 'studyTools' ? 'data-toolbar-study'
+              : tool.type === 'more' ? 'data-toolbar-settings'
+              : undefined;
             return (
               <button
                 key={tool.type}
+                {...(dataAttr ? { [dataAttr]: true } : {})}
                 onClick={() => handleToolClick(tool.type)}
                 className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg 
                            transition-all duration-200 touch-target

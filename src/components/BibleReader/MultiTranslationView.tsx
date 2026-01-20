@@ -589,7 +589,7 @@ export function MultiTranslationView() {
   };
 
   return (
-    <div className="multi-translation-view h-full flex flex-col" onClick={handleClick}>
+    <div className="multi-translation-view h-full flex flex-col" onClick={handleClick} data-bible-reader>
       {/* Chapter title section */}
       {(chapterTitle || creatingChapterTitle) && (
         <div className="px-4 py-3 text-center flex-shrink-0" data-chapter-title={currentChapter} style={{ scrollMarginTop: '80px' }}>

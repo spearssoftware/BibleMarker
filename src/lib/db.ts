@@ -62,6 +62,13 @@ interface TranslationCache {
   cachedAt: Date;
 }
 
+/** Onboarding state */
+export interface OnboardingState {
+  hasSeenWelcome: boolean;        // Has user seen welcome screen
+  hasCompletedTour: boolean;      // Has user completed guided tour
+  dismissedTooltips: string[];     // Array of tooltip IDs that have been dismissed
+}
+
 /** User preferences */
 export interface UserPreferences {
   id: string;                    // 'main' for singleton
@@ -74,6 +81,7 @@ export interface UserPreferences {
   apiConfigs?: ApiConfigRecord[];  // Bible API configurations
   favoriteTranslations?: string[];  // Array of translation IDs
   recentTranslations?: string[];    // Array of translation IDs (most recent first)
+  onboarding?: OnboardingState;    // Onboarding state for first-time users
 }
 
 /** Reading history entry */
@@ -285,9 +293,24 @@ export async function getPreferences(): Promise<UserPreferences> {
       theme: 'auto',
       favoriteTranslations: [],
       recentTranslations: [],
+      onboarding: {
+        hasSeenWelcome: false,
+        hasCompletedTour: false,
+        dismissedTooltips: [],
+      },
     };
     await db.preferences.put(newPrefs);
     return newPrefs;
+  }
+  
+  // Ensure onboarding state exists for existing users
+  if (!prefs.onboarding) {
+    prefs.onboarding = {
+      hasSeenWelcome: false,
+      hasCompletedTour: false,
+      dismissedTooltips: [],
+    };
+    await db.preferences.put(prefs);
   }
   
   return prefs;

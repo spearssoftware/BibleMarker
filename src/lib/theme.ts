@@ -34,6 +34,13 @@ export function applyTheme(theme: Theme): void {
   // Store theme preference in data attribute for CSS access
   html.setAttribute('data-theme', theme);
   
+  // Also store in localStorage for synchronous access on page load (prevents flash)
+  try {
+    localStorage.setItem('theme', theme);
+  } catch (e) {
+    // localStorage might not be available (e.g., in private mode)
+  }
+  
   // Always set CSS variables directly on the HTML element to ensure they're applied
   // This works around any CSS cascade or caching issues
   // iOS-inspired color palette for better readability
@@ -42,9 +49,9 @@ export function applyTheme(theme: Theme): void {
         '--scripture-bg': '#000000',
         '--scripture-surface': '#1c1c1e',
         '--scripture-elevated': '#2c2c2e',
-        '--scripture-border': '#38383a',
-        '--scripture-separator': '#38383a',
-        '--scripture-overlay-border': '#2a2a2c',
+        '--scripture-border': '#3a3a3a',
+        '--scripture-separator': '#3a3a3a',
+        '--scripture-overlay-border': '#3a3a3a',
         '--scripture-text': '#ffffff',
         '--scripture-muted': '#98989d',
         '--scripture-accent': '#0a84ff',

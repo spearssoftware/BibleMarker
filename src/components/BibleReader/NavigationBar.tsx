@@ -230,7 +230,7 @@ export function NavigationBar() {
   }, []); // Only run on mount - loadActiveView is stable from zustand
 
   return (
-    <nav className="navigation-bar bg-scripture-surface/95 backdrop-blur-sm shadow-sm sticky top-0 z-20">
+    <nav className="navigation-bar bg-scripture-surface/95 backdrop-blur-sm shadow-sm sticky top-0 z-20" data-nav-bar>
       <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-between relative">
         {/* Left side: Previous button and Translation selector */}
         <div className="flex items-center gap-2">
@@ -481,6 +481,7 @@ export function NavigationBar() {
         <div className="flex items-center gap-2">
           {/* Search button */}
           <button
+            data-nav-search
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -835,7 +836,7 @@ function TranslationPicker({
       {/* Picker */}
       <div className="absolute top-full left-0 mt-2 z-50
                       bg-scripture-surface rounded-2xl shadow-2xl
-                      w-[400px] max-w-[min(400px,calc(100vw-2rem))] max-h-[70vh] overflow-hidden animate-scale-in backdrop-blur-sm">
+                      w-[400px] max-w-[min(400px,calc(100vw-2rem))] max-h-[70vh] overflow-hidden animate-scale-in-dropdown backdrop-blur-sm">
         <div className="overflow-y-auto max-h-[70vh] custom-scrollbar p-4">
           {/* Selected translations header */}
           {selectedInMultiView.length > 0 && (

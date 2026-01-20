@@ -12,6 +12,60 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
     <title>BibleMarker</title>
+    <script>
+      // Prevent flash of unstyled content by setting theme immediately
+      (function() {
+        try {
+          // Get theme from localStorage (synced by theme.ts)
+          const storedTheme = localStorage.getItem('theme') || 'auto';
+          
+          // Determine effective theme
+          let effectiveTheme = storedTheme;
+          if (storedTheme === 'auto') {
+            effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          
+          const html = document.documentElement;
+          const isDark = effectiveTheme === 'dark';
+          
+          // Set background and text color immediately to prevent flash
+          document.body.style.backgroundColor = isDark ? '#000000' : '#ffffff';
+          document.body.style.color = isDark ? '#ffffff' : '#000000';
+          
+          // Apply dark class if needed
+          if (isDark) {
+            html.classList.add('dark');
+          }
+          
+          // Apply CSS variables immediately
+          const themeColors = isDark
+            ? {
+                '--scripture-bg': '#000000',
+                '--scripture-surface': '#1c1c1e',
+                '--scripture-text': '#ffffff',
+                '--scripture-accent': '#0a84ff',
+              }
+            : {
+                '--scripture-bg': '#ffffff',
+                '--scripture-surface': '#ffffff',
+                '--scripture-text': '#000000',
+                '--scripture-accent': '#007aff',
+              };
+          
+          Object.entries(themeColors).forEach(([key, value]) => {
+            html.style.setProperty(key, value);
+          });
+        } catch (e) {
+          // Fallback to OS preference
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          document.body.style.backgroundColor = prefersDark ? '#000000' : '#ffffff';
+          document.body.style.color = prefersDark ? '#ffffff' : '#000000';
+          if (prefersDark) {
+            document.documentElement.classList.add('dark');
+          }
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

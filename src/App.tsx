@@ -4,7 +4,7 @@
  * Main application component with Bible API support (getBible, Biblia, ESV).
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useStudyStore } from '@/stores/studyStore';
@@ -14,6 +14,7 @@ import { NavigationBar } from '@/components/BibleReader';
 import { MultiTranslationView } from '@/components/BibleReader/MultiTranslationView';
 import { Toolbar } from '@/components/MarkingToolbar';
 import { ErrorDisplay } from '@/components/ErrorDisplay';
+import { WelcomeScreen, OnboardingTour } from '@/components/Onboarding';
 import { loadSampleData } from '@/lib/sampleData';
 import { getPreferences } from '@/lib/db';
 import { loadApiConfigs } from '@/lib/bible-api';
@@ -28,6 +29,11 @@ export default function App() {
   const { loadStudies } = useStudyStore();
   const { loadActiveView, activeView } = useMultiTranslationStore();
   const { loadLists } = useListStore();
+  
+  // Onboarding state
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [showTour, setShowTour] = useState(false);
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
 
   // Initialize theme on mount (before other initialization)
   useEffect(() => {
@@ -47,8 +53,15 @@ export default function App() {
         if (prefs.fontSize) {
           setFontSize(prefs.fontSize);
         }
+        
+        // Check onboarding state
+        if (!prefs.onboarding?.hasSeenWelcome) {
+          setShowWelcome(true);
+        }
+        setIsCheckingOnboarding(false);
       } catch (err) {
         console.error('Error loading preferences:', err);
+        setIsCheckingOnboarding(false);
       }
     }
     loadPrefs();
@@ -58,6 +71,19 @@ export default function App() {
     loadActiveView();
     loadLists();
   }, [setFontSize, loadStudies, loadActiveView, loadLists]);
+
+  // Listen for restart onboarding event
+  useEffect(() => {
+    const handleRestartOnboarding = async () => {
+      setShowWelcome(true);
+      setShowTour(false);
+    };
+    
+    window.addEventListener('restartOnboarding', handleRestartOnboarding);
+    return () => {
+      window.removeEventListener('restartOnboarding', handleRestartOnboarding);
+    };
+  }, []);
 
   // Load sample data and API configs on mount, initialize module ID if needed
   useEffect(() => {
@@ -123,6 +149,24 @@ export default function App() {
 
       {/* Bottom marking toolbar */}
       <Toolbar />
+      
+      {/* Onboarding */}
+      {!isCheckingOnboarding && showWelcome && (
+        <WelcomeScreen
+          onComplete={() => setShowWelcome(false)}
+          onStartTour={() => {
+            setShowWelcome(false);
+            // Small delay to allow welcome screen to close
+            setTimeout(() => setShowTour(true), 300);
+          }}
+        />
+      )}
+      
+      {showTour && (
+        <OnboardingTour
+          onComplete={() => setShowTour(false)}
+        />
+      )}
     </div>
   );
 }

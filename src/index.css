@@ -37,9 +37,9 @@
     --scripture-bg: #000000;
     --scripture-surface: #1c1c1e;
     --scripture-elevated: #2c2c2e;
-    --scripture-border: #38383a;
-    --scripture-separator: #38383a;
-    --scripture-overlay-border: #2a2a2c;
+    --scripture-border: #3a3a3a;
+    --scripture-separator: #3a3a3a;
+    --scripture-overlay-border: #3a3a3a;
     --scripture-text: #ffffff;
     --scripture-muted: #98989d;
     --scripture-accent: #0a84ff;
@@ -202,6 +202,38 @@
       opacity: 1;
       transform: translateX(-50%) scale(1);
     }
+  }
+
+  /* Scale-in animation that preserves translate(-50%, -50%) for centering */
+  @keyframes scaleIn {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  /* Scale-in animation for absolutely positioned dropdowns (no transform) */
+  @keyframes scaleInDropdown {
+    0% {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+
+  .animate-scale-in-dropdown {
+    animation: scaleInDropdown 0.2s ease-out;
   }
 
   /* Error display fade-in animation */
