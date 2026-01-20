@@ -460,10 +460,9 @@ Essential features and polish needed for a production-ready v1 release:
 
 1. ✅ **Backup/Restore** - ✅ COMPLETE (Phase 7)
 2. ✅ **Search** - ✅ COMPLETE (Phase 7)
-3. ⚠️ **Export/Print** - Listed but not implemented (Phase 7)
-4. ⚠️ **Dedicated Settings Panel** - Currently only in "More" menu, needs full UI
-5. ✅ **Error Display UI** - ✅ COMPLETE - Global error display component showing errors from Bible store
-6. ⚠️ **Loading States** - Verify all async operations show loading indicators
+3. ⚠️ **Dedicated Settings Panel** - Currently only in "More" menu, needs full UI
+4. ✅ **Error Display UI** - ✅ COMPLETE - Global error display component showing errors from Bible store
+5. ⚠️ **Loading States** - Verify all async operations show loading indicators
 
 ### User Experience (Should Have for v1)
 
@@ -679,7 +678,7 @@ Essential for a complete Bible study experience.
 - ✅ `src/components/BibleReader/NavigationBar.tsx` - Added search integration and keyboard shortcut
 - ✅ `src/index.css` - Added custom search animation
 
-### Export/Print (Priority for v1)
+### Export/Print (Post-MVP)
 
 Users need to export their study work.
 
@@ -940,17 +939,17 @@ For a solid v1 release, prioritize these features:
 
 1. **Backup/Restore** (Critical) - Users need data protection
 2. **Search** (Critical) - Essential for Bible study workflow
-3. **Export/Print** (High) - Users need to share/print their work
-4. ✅ **Error Display UI** (High) - ✅ COMPLETE - Global error display component
-5. **Keyboard Shortcuts** (Medium) - Power users expect this
-6. **Settings Panel** (Medium) - Better UX than buried in "More" menu
-7. **Basic Accessibility** (Medium) - ARIA labels, keyboard nav
-8. **Data Validation** (Medium) - Prevent data corruption
+3. ✅ **Error Display UI** (High) - ✅ COMPLETE - Global error display component
+4. **Keyboard Shortcuts** (Medium) - Power users expect this
+5. **Settings Panel** (Medium) - Better UX than buried in "More" menu
+6. **Basic Accessibility** (Medium) - ARIA labels, keyboard nav
+7. **Data Validation** (Medium) - Prevent data corruption
 
 ### Post-v1 Enhancements
 
 These can wait for v1.1 or later:
 
+- **Export/Print** - Export marked chapters as PDF, observation lists as markdown, print-friendly stylesheet, export all notes (Post-MVP)
 - Onboarding/Tutorial (nice but not critical)
 - Undo/Redo (convenience feature)
 - Advanced mobile optimizations
@@ -963,7 +962,6 @@ Before v1 release, thoroughly test:
 
 - ✅ Backup/restore with real data
 - ✅ Search across multiple books/chapters
-- ✅ Export with various annotation types
 - ✅ Error scenarios (offline, API failures, invalid data)
 - ✅ Keyboard navigation and shortcuts
 - ✅ Mobile/tablet responsiveness

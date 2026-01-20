@@ -16,7 +16,7 @@ import { AnnotationLegend } from '@/components/BibleReader';
 import { StudyManager } from '@/components/Study';
 import { AddToList } from '@/components/Lists';
 import { StudyToolsPanel } from '@/components/Summary';
-import { BackupRestore } from '@/components/Settings';
+import { SettingsPanel } from '@/components/Settings';
 import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
 import { clearDatabase, updatePreferences, clearBookAnnotations } from '@/lib/db';
 import { useBibleStore } from '@/stores/bibleStore';
@@ -62,7 +62,7 @@ export function Toolbar() {
   const { presets, loadPresets, markPresetUsed, updatePreset } = useMarkingPresetStore();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showSymbolPicker, setShowSymbolPicker] = useState(false);
-  const [showSystemMenu, setShowSystemMenu] = useState(false);
+  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [showModuleManager, setShowModuleManager] = useState(false);
   const [showKeyWordManager, setShowKeyWordManager] = useState(false);
   const [showKeyWordApplyPicker, setShowKeyWordApplyPicker] = useState(false);
@@ -71,7 +71,6 @@ export function Toolbar() {
   const [showStudyManager, setShowStudyManager] = useState(false);
   const [showStudyToolsPanel, setShowStudyToolsPanel] = useState(false);
   const [showAddToList, setShowAddToList] = useState(false);
-  const [showBackupRestore, setShowBackupRestore] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
   // Load marking presets on mount
@@ -141,21 +140,6 @@ export function Toolbar() {
     }
   };
 
-  const handleFontSizeChange = async (newSize: 'sm' | 'base' | 'lg' | 'xl') => {
-    setFontSize(newSize);
-    try {
-      await updatePreferences({ fontSize: newSize });
-    } catch (error) {
-      console.error('Error updating font size:', error);
-    }
-  };
-
-  const fontSizes: Array<{ size: 'sm' | 'base' | 'lg' | 'xl'; label: string }> = [
-    { size: 'sm', label: 'Small' },
-    { size: 'base', label: 'Medium' },
-    { size: 'lg', label: 'Large' },
-    { size: 'xl', label: 'Extra Large' },
-  ];
 
   // Find previous annotations and matching presets (key words) for the selected word/phrase
   const previousAnnotations = useMemo(() => {
@@ -369,7 +353,7 @@ export function Toolbar() {
       setShowKeyWordManager((v) => !v);
       setShowColorPicker(false);
       setShowSymbolPicker(false);
-      setShowSystemMenu(false);
+      setShowSettingsPanel(false);
       setShowLegendOverlay(false);
       setShowStudyToolsPanel(false);
       if (willOpen) setActiveTool(null);
@@ -379,7 +363,7 @@ export function Toolbar() {
       setShowColorPicker(false);
       setShowSymbolPicker(false);
       setShowKeyWordManager(false);
-      setShowSystemMenu(false);
+      setShowSettingsPanel(false);
       setShowStudyToolsPanel(false);
       if (!showLegendOverlay) setActiveTool(null);
     } else if (toolType === 'studyTools') {
@@ -388,16 +372,18 @@ export function Toolbar() {
       setShowColorPicker(false);
       setShowSymbolPicker(false);
       setShowKeyWordManager(false);
-      setShowSystemMenu(false);
+      setShowSettingsPanel(false);
       setShowLegendOverlay(false);
       if (willOpen) setActiveTool(null);
     } else if (toolType === 'more') {
-      if (!showSystemMenu) setActiveTool(null);
-      setShowSystemMenu(!showSystemMenu);
+      const willOpen = !showSettingsPanel;
+      setShowSettingsPanel(!showSettingsPanel);
       setShowColorPicker(false);
       setShowSymbolPicker(false);
       setShowKeyWordManager(false);
       setShowLegendOverlay(false);
+      setShowStudyToolsPanel(false);
+      if (willOpen) setActiveTool(null);
     }
   };
 
@@ -690,145 +676,14 @@ export function Toolbar() {
         </div>
       )}
 
-      {/* System menu */}
-      {showSystemMenu && (
-        <>
-          <div 
-            className="fixed inset-0 z-40" 
-            onClick={() => setShowSystemMenu(false)}
-          />
-          <div 
-            className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 p-4 animate-slide-up relative z-50 shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="max-w-lg mx-auto space-y-2">
-              {/* Font Size Control */}
-              <div className="px-4 py-3 rounded-xl bg-scripture-elevated/50 border border-scripture-border/30">
-                <div className="text-xs font-ui font-semibold text-scripture-muted uppercase tracking-wider mb-3">
-                  Font Size
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                  {fontSizes.map((fs) => (
-                    <button
-                      key={fs.size}
-                      onClick={() => handleFontSizeChange(fs.size)}
-                      className={`px-3 py-2 rounded-lg font-ui text-sm transition-all duration-200 text-center
-                                ${fontSize === fs.size
-                                  ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
-                                  : 'bg-scripture-surface hover:bg-scripture-elevated border border-scripture-border/50 hover:shadow-sm'}`}
-                    >
-                      {fs.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Bible Translations */}
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowModuleManager(true);
-                  setShowSystemMenu(false);
-                }}
-                className="w-full px-4 py-2.5 text-left rounded-xl bg-scripture-elevated/50 
-                         hover:bg-scripture-elevated text-scripture-text transition-all 
-                         duration-200 flex items-center gap-2 text-sm font-ui font-medium 
-                         border border-scripture-border/30 hover:border-scripture-border/50 
-                         shadow-sm hover:shadow"
-                title="Manage Bible translations"
-              >
-                <span>📖</span>
-                <span>Bible Translations</span>
-              </button>
-
-              {/* Manage Studies */}
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowStudyManager(true);
-                  setShowSystemMenu(false);
-                }}
-                className="w-full px-4 py-2.5 text-left rounded-xl bg-scripture-elevated/50 
-                         hover:bg-scripture-elevated text-scripture-text transition-all 
-                         duration-200 flex items-center gap-2 text-sm font-ui font-medium 
-                         border border-scripture-border/30 hover:border-scripture-border/50 
-                         shadow-sm hover:shadow"
-                title="Manage studies"
-              >
-                <span>📚</span>
-                <span>Manage Studies</span>
-              </button>
-
-              {/* Backup & Restore */}
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowBackupRestore(true);
-                  setShowSystemMenu(false);
-                }}
-                className="w-full px-4 py-2.5 text-left rounded-xl bg-scripture-elevated/50 
-                         hover:bg-scripture-elevated text-scripture-text transition-all 
-                         duration-200 flex items-center gap-2 text-sm font-ui font-medium 
-                         border border-scripture-border/30 hover:border-scripture-border/50 
-                         shadow-sm hover:shadow"
-                title="Backup and restore your study data"
-              >
-                <span>💾</span>
-                <span>Backup & Restore</span>
-              </button>
-
-              {/* Clear Highlights for Current Book */}
-              <button
-                onClick={async (e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const bookInfo = getBookById(currentBook);
-                  const bookName = bookInfo?.name || currentBook;
-                  if (confirm(`Clear all highlights and annotations for ${bookName}? This action cannot be undone.`)) {
-                    try {
-                      const count = await clearBookAnnotations(currentBook, currentModuleId || undefined);
-                      alert(`Cleared ${count} annotation${count !== 1 ? 's' : ''} for ${bookName}`);
-                      setShowSystemMenu(false);
-                      // Reload annotations to reflect changes
-                      window.dispatchEvent(new CustomEvent('annotationsUpdated'));
-                    } catch (error) {
-                      alert('Failed to clear annotations: ' + (error instanceof Error ? error.message : 'Unknown error'));
-                    }
-                  }
-                }}
-                className="w-full px-4 py-2.5 text-left rounded-xl bg-orange-600/20 
-                         hover:bg-orange-600/30 text-orange-400 transition-all duration-200 
-                         flex items-center gap-2 text-sm font-ui font-medium 
-                         border border-orange-600/30 shadow-sm hover:shadow"
-                title="Clear all highlights and annotations for the current book"
-              >
-                <span>🗑️</span>
-                <span>Clear Highlights for {getBookById(currentBook)?.name || currentBook}</span>
-              </button>
-
-              {/* Clear Database Button */}
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleClearDatabase(e);
-                }}
-                disabled={isClearing}
-                className="w-full px-4 py-2.5 text-left rounded-xl bg-red-600/20 
-                         hover:bg-red-600/30 text-red-400 disabled:opacity-50 
-                         disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2
-                         text-sm font-ui font-medium border border-red-600/30 shadow-sm hover:shadow"
-                title="Clear all annotations and cache (for testing)"
-              >
-                <span>🗑️</span>
-                <span>{isClearing ? 'Clearing...' : 'Clear Database'}</span>
-              </button>
-            </div>
-          </div>
-        </>
+      {/* Settings Panel */}
+      {showSettingsPanel && (
+        <div 
+          className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 
+                     animate-slide-up shadow-lg flex flex-col h-[60vh] max-h-[60vh] min-h-[400px] overflow-hidden"
+        >
+          <SettingsPanel onClose={() => setShowSettingsPanel(false)} />
+        </div>
       )}
 
       {/* Module Manager */}
@@ -876,12 +731,6 @@ export function Toolbar() {
         />
       )}
 
-      {/* Backup & Restore */}
-      {showBackupRestore && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <BackupRestore onClose={() => setShowBackupRestore(false)} />
-        </div>
-      )}
 
       {/* Key Words - bottom overlay (unified with Color / Symbol) */}
       {showKeyWordManager && (
@@ -936,7 +785,7 @@ export function Toolbar() {
               : tool.type === 'keyWords' ? showKeyWordManager
               : tool.type === 'legend' ? showLegendOverlay
               : tool.type === 'studyTools' ? showStudyToolsPanel
-              : tool.type === 'more' ? showSystemMenu
+              : tool.type === 'more' ? showSettingsPanel
               : false;
             return (
               <button
