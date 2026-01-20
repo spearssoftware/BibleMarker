@@ -462,7 +462,7 @@ Essential features and polish needed for a production-ready v1 release:
 2. ✅ **Search** - ✅ COMPLETE (Phase 7)
 3. ⚠️ **Export/Print** - Listed but not implemented (Phase 7)
 4. ⚠️ **Dedicated Settings Panel** - Currently only in "More" menu, needs full UI
-5. ⚠️ **Error Display UI** - Errors logged but may not be user-visible
+5. ✅ **Error Display UI** - ✅ COMPLETE - Global error display component showing errors from Bible store
 6. ⚠️ **Loading States** - Verify all async operations show loading indicators
 
 ### User Experience (Should Have for v1)
@@ -845,6 +845,37 @@ interface BackupData {
 - ✅ Integrated into Toolbar "More" menu (⚙️ button)
 - ⚠️ For Tauri desktop: Will need to use Tauri's native file dialogs (`@tauri-apps/api/dialog`) when Tauri is added
 
+### Error Display UI ✅ COMPLETE
+
+Global error display component that shows errors from the Bible store to users.
+
+**Status**: All features implemented and working.
+
+#### Features
+
+- **Global Error Display**: Shows errors from `bibleStore` at the top of the app
+- **Dismissible**: Users can dismiss errors with a close button
+- **Positioned Below Navigation**: Appears below the navigation bar with proper spacing
+- **Fade-in Animation**: Smooth fade-in animation when errors appear
+- **User-Friendly Design**: Red error styling with icon and clear message
+
+#### Implementation (✅ Completed)
+
+- ✅ Created `src/components/ErrorDisplay/ErrorDisplay.tsx` - Global error display component
+- ✅ Component reads errors from `bibleStore.error` state
+- ✅ Positioned below NavigationBar (fixed at `top-16`)
+- ✅ Dismissible with close button that calls `setError(null)`
+- ✅ Fade-in animation added to `src/index.css`
+- ✅ Integrated into `App.tsx` to display globally
+- ✅ Accessible with proper ARIA labels
+
+**Files Created/Updated**:
+
+- ✅ `src/components/ErrorDisplay/ErrorDisplay.tsx` - Error display component
+- ✅ `src/components/ErrorDisplay/index.ts` - Component exports
+- ✅ `src/App.tsx` - Integrated ErrorDisplay component
+- ✅ `src/index.css` - Added fade-in animation for error display
+
 #### Theme Implementation Details
 
 **Files to Create/Update**:
@@ -910,7 +941,7 @@ For a solid v1 release, prioritize these features:
 1. **Backup/Restore** (Critical) - Users need data protection
 2. **Search** (Critical) - Essential for Bible study workflow
 3. **Export/Print** (High) - Users need to share/print their work
-4. **Error Display UI** (High) - Users need clear feedback when things fail
+4. ✅ **Error Display UI** (High) - ✅ COMPLETE - Global error display component
 5. **Keyboard Shortcuts** (Medium) - Power users expect this
 6. **Settings Panel** (Medium) - Better UX than buried in "More" menu
 7. **Basic Accessibility** (Medium) - ARIA labels, keyboard nav

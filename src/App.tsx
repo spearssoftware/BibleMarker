@@ -13,6 +13,7 @@ import { useListStore } from '@/stores/listStore';
 import { NavigationBar } from '@/components/BibleReader';
 import { MultiTranslationView } from '@/components/BibleReader/MultiTranslationView';
 import { Toolbar } from '@/components/MarkingToolbar';
+import { ErrorDisplay } from '@/components/ErrorDisplay';
 import { loadSampleData } from '@/lib/sampleData';
 import { getPreferences } from '@/lib/db';
 import { loadApiConfigs } from '@/lib/bible-api';
@@ -101,6 +102,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-scripture-bg text-scripture-text flex flex-col">
+      {/* Global error display */}
+      <ErrorDisplay />
+
       {/* Top navigation */}
       <NavigationBar />
 
