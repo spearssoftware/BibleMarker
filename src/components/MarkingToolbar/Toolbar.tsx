@@ -16,6 +16,7 @@ import { AnnotationLegend } from '@/components/BibleReader';
 import { StudyManager } from '@/components/Study';
 import { AddToList } from '@/components/Lists';
 import { StudyToolsPanel } from '@/components/Summary';
+import { BackupRestore } from '@/components/Settings';
 import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
 import { clearDatabase, updatePreferences, clearBookAnnotations } from '@/lib/db';
 import { useBibleStore } from '@/stores/bibleStore';
@@ -70,6 +71,7 @@ export function Toolbar() {
   const [showStudyManager, setShowStudyManager] = useState(false);
   const [showStudyToolsPanel, setShowStudyToolsPanel] = useState(false);
   const [showAddToList, setShowAddToList] = useState(false);
+  const [showBackupRestore, setShowBackupRestore] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
   // Load marking presets on mount
@@ -759,6 +761,24 @@ export function Toolbar() {
                 <span>Manage Studies</span>
               </button>
 
+              {/* Backup & Restore */}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowBackupRestore(true);
+                  setShowSystemMenu(false);
+                }}
+                className="w-full px-4 py-2.5 text-left rounded-xl bg-scripture-elevated/50 
+                         hover:bg-scripture-elevated text-scripture-text transition-all 
+                         duration-200 flex items-center gap-2 text-sm font-ui font-medium 
+                         border border-scripture-border/30 hover:border-scripture-border/50 
+                         shadow-sm hover:shadow"
+                title="Backup and restore your study data"
+              >
+                <span>💾</span>
+                <span>Backup & Restore</span>
+              </button>
 
               {/* Clear Highlights for Current Book */}
               <button
@@ -854,6 +874,13 @@ export function Toolbar() {
             // Optionally reload lists if needed
           }}
         />
+      )}
+
+      {/* Backup & Restore */}
+      {showBackupRestore && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <BackupRestore onClose={() => setShowBackupRestore(false)} />
+        </div>
       )}
 
       {/* Key Words - bottom overlay (unified with Color / Symbol) */}

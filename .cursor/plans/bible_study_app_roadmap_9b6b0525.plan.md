@@ -431,6 +431,8 @@ Summary view for quick reference of chapter/book themes and structure.
 
 Package as a native desktop app for better offline experience.
 
+**Status**: Not yet started - planned for post-MVP.
+
 ### Why Tauri over Electron
 
 - **Smaller bundle size**: ~3MB vs ~150MB
@@ -449,6 +451,133 @@ Package as a native desktop app for better offline experience.
 ---
 
 ## Phase 7: Polish & Additional Features
+
+## Version 1.0 Readiness Checklist
+
+Essential features and polish needed for a production-ready v1 release:
+
+### Critical Features (Must Have for v1)
+
+1. ✅ **Backup/Restore** - ✅ COMPLETE (Phase 7)
+2. ⚠️ **Search** - Listed but not implemented (Phase 7)
+3. ⚠️ **Export/Print** - Listed but not implemented (Phase 7)
+4. ⚠️ **Dedicated Settings Panel** - Currently only in "More" menu, needs full UI
+5. ⚠️ **Error Display UI** - Errors logged but may not be user-visible
+6. ⚠️ **Loading States** - Verify all async operations show loading indicators
+
+### User Experience (Should Have for v1)
+
+7. ⚠️ **Light/Dark Theme** - Theme support following OS settings
+
+   - **Theme Options**: Light, Dark, or Auto (follow OS)
+   - **OS Integration**: Use `prefers-color-scheme` media query for auto mode
+   - **Theme Toggle**: Settings UI to switch between themes
+   - **Persistence**: Save theme preference in IndexedDB (already has `theme` field in preferences)
+   - **Implementation**:
+     - Add light theme color palette to `tailwind.config.js`
+     - Use CSS variables or Tailwind dark mode classes for theme switching
+     - Listen to OS theme changes when in auto mode
+     - Apply theme class to root HTML element
+     - Ensure all components support both themes (text colors, backgrounds, borders, etc.)
+   - **Default**: Auto mode (follow OS) for new users
+
+8. ⚠️ **Keyboard Shortcuts** - Currently only Escape key
+
+   - Navigation: Arrow keys, J/K for next/prev chapter
+   - Quick actions: Cmd/Ctrl+S for search, etc.
+   - Toolbar shortcuts: Number keys for tools
+
+9. ⚠️ **Onboarding/Tutorial** - First-time user guidance
+
+   - Welcome screen explaining key features
+   - Tooltips for first use of major features
+   - Quick tour option
+
+10. ⚠️ **Help/Documentation** - In-app help
+
+   - Help button/menu with documentation
+   - Contextual help tooltips
+   - Keyboard shortcuts reference
+
+11. ⚠️ **About/Version Info** - App information
+
+    - Version number display
+    - Credits/attributions
+    - License information
+    - Link to documentation
+
+### Accessibility (Should Have for v1)
+
+11. ⚠️ **ARIA Labels** - Screen reader support
+
+    - Proper labels for all interactive elements
+    - Landmark regions
+    - Form labels
+
+13. ⚠️ **Keyboard Navigation** - Full keyboard accessibility
+
+    - Tab order is logical
+    - All features accessible via keyboard
+    - Focus indicators visible
+
+13. ⚠️ **Color Contrast** - WCAG compliance
+
+    - Verify all text meets contrast requirements
+    - High contrast mode option
+
+### Data & Reliability (Should Have for v1)
+
+15. ⚠️ **Data Validation** - Prevent corrupted data
+
+    - Validate data on import
+    - Schema validation for IndexedDB
+    - Graceful handling of malformed data
+
+15. ⚠️ **Data Migration** - Handle schema changes
+
+    - Version tracking in database
+    - Migration scripts for schema updates
+    - Backward compatibility
+
+17. ⚠️ **Offline Error Handling** - Better offline experience
+
+    - Clear messages when offline
+    - Retry mechanisms
+    - Cache status indicators
+
+### Mobile Experience (Should Have for v1)
+
+17. ⚠️ **Mobile Toolbar Optimization** - Better mobile UX
+
+    - Responsive toolbar layout
+    - Touch-friendly button sizes
+    - Swipe gestures for navigation
+
+19. ⚠️ **Mobile Navigation** - Optimized for small screens
+
+    - Collapsible navigation
+    - Bottom sheet modals
+    - Touch-optimized pickers
+
+### Polish (Nice to Have for v1)
+
+19. ⚠️ **Undo/Redo** - For annotations and notes
+
+    - Undo last annotation
+    - Undo/redo stack
+    - Keyboard shortcuts (Cmd/Ctrl+Z)
+
+21. ⚠️ **Performance Optimization** - Large books/chapters
+
+    - Virtual scrolling for long chapters
+    - Lazy loading of annotations
+    - Debounced search
+
+22. ⚠️ **Analytics/Error Tracking** - Optional
+
+    - Error boundary with reporting
+    - Usage analytics (privacy-respecting)
+    - Performance monitoring
 
 ### ESV API Compliance Implementation (Priority)
 
@@ -506,23 +635,275 @@ Package as a native desktop app for better offline experience.
 
 Local SWORD module support has been removed. All translations are fetched via APIs and cached in IndexedDB for offline reading.
 
-### Search (Priority after core features)
+### Search (Priority for v1)
 
-- Full-text search across all loaded chapters
-- Search within annotations/notes
-- Key word occurrence search
+Essential for a complete Bible study experience.
 
-### Export/Print
+- **Full-text search** across all loaded chapters
+- **Search within annotations/notes** - Find notes by content
+- **Key word occurrence search** - Already partially implemented via KeyWordFinder, but could be enhanced
+- **Verse reference search** - Search by reference (e.g., "John 3:16")
+- **Search UI**: Search bar in navigation, keyboard shortcut (Cmd/Ctrl+F)
 
-- Export marked chapters as PDF
-- Export lists as markdown
-- Print-friendly stylesheet
+### Export/Print (Priority for v1)
 
-### Data Management
+Users need to export their study work.
 
-- Import/export all user data as JSON
-- Backup to local file
-- Optional cloud sync (future)
+- **Export marked chapters as PDF** - Include annotations, highlights, notes
+- **Export observation lists as markdown** - For sharing or printing
+- **Print-friendly stylesheet** - Clean print layout
+- **Export all notes** - As a document
+- **Include ESV copyright** when exporting ESV text (compliance requirement)
+
+### Data Management & Backup/Restore ✅ COMPLETE
+
+Comprehensive backup and restore functionality to protect user data and enable data portability.
+
+**Status**: All features implemented and working.
+
+#### Data to Backup
+
+All user-created data should be included in backups:
+
+- **Settings & Preferences**:
+  - API keys (Biblia, ESV API)
+  - Default translation preferences
+  - Multi-translation view configurations
+  - User preferences (theme, layout, etc.)
+
+- **Annotations**:
+  - All highlights, symbols, underlines
+  - Text colors and styles
+  - Verse-level annotations
+
+- **Keywords**:
+  - All marking presets (key words)
+  - Variants, colors, symbols
+  - Study and book scoping
+
+- **Studies**:
+  - All study definitions
+  - Active study state
+
+- **Notes**:
+  - All verse notes (markdown content)
+  - Section headings
+  - Chapter titles
+
+- **Observation Lists**:
+  - All lists and their items
+  - Verse references and links
+
+- **Cached Bible Text** (Optional):
+  - IndexedDB cached chapters
+  - Can be large, so make this optional
+
+#### Backup Format
+
+```typescript
+interface BackupData {
+  version: string;              // App version for compatibility checking
+  timestamp: string;            // ISO timestamp of backup creation
+  data: {
+    preferences: Preferences;
+    annotations: Annotation[];
+    markingPresets: MarkingPreset[];
+    studies: Study[];
+    notes: Note[];
+    sectionHeadings: SectionHeading[];
+    chapterTitles: ChapterTitle[];
+    observationLists: ObservationList[];
+    multiTranslationViews: MultiTranslationView[];
+    cachedChapters?: CachedChapter[];  // Optional
+  };
+}
+```
+
+#### Features
+
+- **Export Backup**:
+  - Single button to export all data as JSON file
+  - **Save to cloud folder**: Use File System Access API to let user choose save location (iCloud Drive, Google Drive, etc.)
+  - Files automatically sync via user's cloud service (no app-side sync needed)
+  - Filename includes timestamp: `biblestudy-backup-2024-01-15-HHMMSS.json`
+  - Option to include/exclude cached Bible text
+  - Progress indicator for large exports
+  - Fallback to browser download if File System Access API not available
+
+- **Import/Restore Backup**:
+  - **Load from cloud folder**: Use File System Access API to let user select backup file from their cloud-synced folders
+  - Direct file access (no upload needed) - user selects file from iCloud Drive, Google Drive, etc.
+  - Fallback to traditional file input if File System Access API not available
+  - Validation of backup format and version compatibility
+  - Preview of what will be restored (data counts)
+  - Options:
+    - **Full Restore**: Replace all existing data
+    - **Merge**: Add/update data without deleting existing
+    - **Selective Restore**: Choose which data types to restore
+  - Confirmation dialog before restore (destructive operation)
+  - Success/error feedback
+
+- **Backup Validation**:
+  - Check backup file format
+  - Verify required fields
+  - Warn about version mismatches
+  - Validate data integrity
+
+- **UI Location**:
+  - Add "Backup & Restore" section to Settings/Preferences panel
+  - Or add to Toolbar "More" menu (⚙️ button)
+  - Clear labels: "Export Backup" and "Import Backup"
+
+#### Implementation Details
+
+- **Export Function**:
+  - Query all tables from IndexedDB
+  - Combine into backup format
+  - Generate JSON file
+  - **Use File System Access API** (if available) to let user choose save location:
+    - User can select their iCloud Drive or Google Drive folder
+    - File automatically syncs via their cloud service
+    - Fallback to browser download if API not available
+  - Filename: `biblestudy-backup-YYYY-MM-DD-HHMMSS.json`
+
+- **Import Function**:
+  - **Use File System Access API** (if available) to let user choose file:
+    - User can select from their cloud-synced folders
+    - No need to upload - direct file access
+    - Fallback to traditional file input if API not available
+  - Read and validate backup file structure
+  - Show preview dialog with data counts
+  - Based on user choice (replace/merge/selective):
+    - Clear existing data (if replace)
+    - Import new data
+    - Handle conflicts (if merge)
+  - Reload all stores after import
+
+- **Cloud Sync Strategy**:
+  - **No custom cloud sync implementation** - rely on user's native cloud services
+  - Users save backups to their iCloud Drive or Google Drive folders
+  - Files automatically sync via their OS/cloud service
+  - Works seamlessly on macOS (iCloud Drive) and Windows/Android (Google Drive)
+  - For Tauri desktop app: Use native file dialogs that point to cloud-synced folders
+
+- **Error Handling**:
+  - Invalid file format
+  - Corrupted data
+  - Version incompatibility
+  - Partial restore failures
+  - File System Access API permission errors
+  - Fallback gracefully when API not supported
+
+#### Implementation (✅ Completed)
+
+- ✅ Created `src/lib/backup.ts` - Backup/restore utility functions
+  - ✅ File System Access API support (`window.showSaveFilePicker()` and `window.showOpenFilePicker()`)
+  - ✅ Fallback to traditional download/upload for browsers without API support
+  - ✅ Proper error handling and file reading/writing
+  - ✅ Backup validation and preview functions
+  - ✅ Support for Full Restore, Merge, and Selective Restore modes
+- ✅ Created `src/components/Settings/BackupRestore.tsx` - UI component for backup/restore
+  - ✅ Export button with cloud folder save dialog
+  - ✅ Import button with cloud folder file picker
+  - ✅ Progress indicators and status messages
+  - ✅ Preview dialog with data counts
+  - ✅ Restore mode selection (Full/Merge/Selective)
+- ✅ Integrated into Toolbar "More" menu (⚙️ button)
+- ⚠️ For Tauri desktop: Will need to use Tauri's native file dialogs (`@tauri-apps/api/dialog`) when Tauri is added
+
+#### Theme Implementation Details
+
+**Files to Create/Update**:
+
+- `src/lib/theme.ts` - Theme management utilities
+  - `applyTheme(theme: 'light' | 'dark' | 'auto')` - Apply theme to document
+  - `getEffectiveTheme()` - Get current effective theme (resolves 'auto' to OS preference)
+  - `watchOSTheme()` - Listen to OS theme changes and update when in auto mode
+  - `initTheme()` - Initialize theme on app load from preferences
+- `tailwind.config.js` - Add light theme color palette
+  - Extend theme with light mode colors for all `scripture-*` colors
+  - Configure Tailwind dark mode: `darkMode: 'class'` or use media query
+  - Ensure highlight colors work well in both themes
+- `src/index.css` - Update base styles for theme support
+  - Add CSS variables or ensure all color classes support both themes
+  - Update selection colors for both themes
+- `src/components/Settings/ThemeSelector.tsx` - Theme selector UI component
+  - Radio buttons or dropdown: Light / Dark / Auto (Follow OS)
+  - Visual preview of theme
+  - Save preference to IndexedDB
+- `src/App.tsx` - Initialize theme on mount
+  - Load theme preference from database
+  - Apply theme to HTML element
+  - Set up OS theme watcher if in auto mode
+- Update all components to ensure proper theme support
+  - All text colors should work in both themes
+  - Background colors should adapt
+  - Borders and accents should be visible in both themes
+  - Annotation colors should remain visible in both themes
+
+#### Cloud Sync Integration
+
+- **Native Cloud Folder Support**:
+  - Use File System Access API to save directly to user's cloud-synced folders
+  - macOS: Users can save to iCloud Drive folder
+  - Windows/Android: Users can save to Google Drive folder
+  - No app-side cloud sync code needed - OS handles syncing automatically
+  - For Tauri desktop: Native file dialogs automatically show cloud folders
+
+- **Benefits**:
+  - No server costs or data handling for app creator
+  - Users control their data location
+  - Automatic syncing via their existing cloud service
+  - Works across devices when user accesses same cloud folder
+  - No API keys or authentication needed
+
+#### Future Enhancements
+
+- **Scheduled Backups**: Automatic daily/weekly backups (saves to user's cloud folder)
+- **Backup History**: Keep multiple backup versions in cloud folder
+- **Incremental Backups**: Only backup changed data (smaller files)
+- **Encryption**: Optional encryption for sensitive data (API keys) before saving
+- **Auto-save on Changes**: Optionally auto-save backup after significant changes
+
+---
+
+## Version 1.0 Release Recommendations
+
+### Minimum Viable v1 (Core Functionality)
+
+For a solid v1 release, prioritize these features:
+
+1. **Backup/Restore** (Critical) - Users need data protection
+2. **Search** (Critical) - Essential for Bible study workflow
+3. **Export/Print** (High) - Users need to share/print their work
+4. **Error Display UI** (High) - Users need clear feedback when things fail
+5. **Keyboard Shortcuts** (Medium) - Power users expect this
+6. **Settings Panel** (Medium) - Better UX than buried in "More" menu
+7. **Basic Accessibility** (Medium) - ARIA labels, keyboard nav
+8. **Data Validation** (Medium) - Prevent data corruption
+
+### Post-v1 Enhancements
+
+These can wait for v1.1 or later:
+
+- Onboarding/Tutorial (nice but not critical)
+- Undo/Redo (convenience feature)
+- Advanced mobile optimizations
+- Performance optimizations (unless issues arise)
+- Analytics/error tracking (can add later)
+
+### Testing Priorities for v1
+
+Before v1 release, thoroughly test:
+
+- ✅ Backup/restore with real data
+- ✅ Search across multiple books/chapters
+- ✅ Export with various annotation types
+- ✅ Error scenarios (offline, API failures, invalid data)
+- ✅ Keyboard navigation and shortcuts
+- ✅ Mobile/tablet responsiveness
+- ✅ Data persistence across sessions
+- ✅ Multi-translation view with all providers
 
 ---
 
