@@ -73,7 +73,7 @@ export function VerseOverlay({ verseRef, onClose, onNavigate }: VerseOverlayProp
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 z-50 backdrop-overlay backdrop-blur-sm" 
+        className="fixed inset-0 z-50 backdrop-overlay" 
         onClick={onClose}
       />
       

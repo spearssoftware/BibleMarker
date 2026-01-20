@@ -173,10 +173,12 @@
     background-color: var(--scripture-muted);
   }
 
-  /* Backdrop overlay - uses theme-aware opacity */
+  /* Backdrop overlay - uses theme-aware opacity and blurs content behind */
   .backdrop-overlay {
     background-color: rgb(0, 0, 0);
     opacity: var(--scripture-backdrop-opacity);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
   }
 }
 

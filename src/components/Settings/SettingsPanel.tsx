@@ -13,6 +13,9 @@ import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences 
 import { useStudyStore } from '@/stores/studyStore';
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
 import { applyTheme } from '@/lib/theme';
+import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
+import { AboutSection } from './AboutSection';
+import { GettingStartedSection } from './GettingStartedSection';
 import {
   bibliaClient,
   bibleGatewayClient,
@@ -23,7 +26,7 @@ import {
   BIBLEGATEWAY_ENABLED,
 } from '@/lib/bible-api';
 
-type SettingsTab = 'appearance' | 'bible' | 'studies' | 'data';
+type SettingsTab = 'appearance' | 'bible' | 'studies' | 'data' | 'help';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -183,6 +186,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     { id: 'bible', label: 'Bible', icon: '📖' },
     { id: 'studies', label: 'Studies', icon: '📚' },
     { id: 'data', label: 'Data', icon: '💾' },
+    { id: 'help', label: 'Help', icon: '❓' },
   ];
 
   const fontSizes: Array<{ size: 'sm' | 'base' | 'lg' | 'xl'; label: string }> = [
@@ -1146,6 +1150,23 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     </p>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Help Tab */}
+          {activeTab === 'help' && (
+            <div className="space-y-6">
+              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+                <GettingStartedSection />
+              </div>
+
+              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+                <KeyboardShortcutsHelp />
+              </div>
+
+              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-4">
+                <AboutSection />
               </div>
             </div>
           )}

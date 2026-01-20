@@ -8,6 +8,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { ColorPicker } from './ColorPicker';
 import { SymbolPicker } from './SymbolPicker';
 import { KeyWordManager } from '@/components/KeyWords';
@@ -314,8 +315,6 @@ export function Toolbar() {
     }
   };
 
-  if (!toolbarVisible) return null;
-
   const isColorActive = activeTool === 'highlight' || activeTool === 'textColor' || activeTool === 'underline';
 
   const handleToolClick = (toolType: (typeof TOOLS)[number]['type']) => {
@@ -386,6 +385,18 @@ export function Toolbar() {
     }
   };
 
+  // Set up keyboard shortcuts for toolbar tools (number keys 1-6)
+  // Must be after handleToolClick is defined
+  useKeyboardShortcuts({
+    onToolbarTool: (toolIndex: number) => {
+      if (toolIndex >= 0 && toolIndex < TOOLS.length) {
+        handleToolClick(TOOLS[toolIndex].type);
+      }
+    },
+    enabled: toolbarVisible,
+  });
+
+  if (!toolbarVisible) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-30 

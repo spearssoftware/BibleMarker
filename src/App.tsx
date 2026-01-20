@@ -18,6 +18,7 @@ import { loadSampleData } from '@/lib/sampleData';
 import { getPreferences } from '@/lib/db';
 import { loadApiConfigs } from '@/lib/bible-api';
 import { initTheme } from '@/lib/theme';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export default function App() {
   const { setChapter, currentBook, currentChapter, currentModuleId, setLoading, setError } = useBibleStore();
@@ -32,6 +33,11 @@ export default function App() {
   useEffect(() => {
     initTheme();
   }, []);
+
+  // Set up keyboard shortcuts for navigation (arrow keys, J/K)
+  useKeyboardShortcuts({
+    enabled: true,
+  });
 
   // Load preferences and initialize stores on mount
   useEffect(() => {

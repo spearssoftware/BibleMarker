@@ -124,7 +124,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 z-40 backdrop-overlay backdrop-blur-sm" 
+        className="fixed inset-0 z-40 backdrop-overlay" 
         onClick={onClose}
       />
       

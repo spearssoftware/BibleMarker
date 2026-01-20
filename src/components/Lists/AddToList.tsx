@@ -104,7 +104,7 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
   const keywordPresets = presets.filter(p => p.word);
 
   return (
-    <div className="fixed inset-0 backdrop-overlay backdrop-blur-sm z-50 overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 backdrop-overlay z-50 overflow-y-auto" onClick={onClose}>
       <div className="min-h-full flex items-center justify-center p-4">
         <div 
           className="bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col" 

@@ -166,7 +166,7 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 z-[200] backdrop-overlay backdrop-blur-sm" 
+        className="fixed inset-0 z-[200] backdrop-overlay" 
         onClick={onClose}
       />
       
