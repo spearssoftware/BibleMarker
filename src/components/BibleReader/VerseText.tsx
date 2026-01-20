@@ -397,12 +397,6 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
 
     const sortedBoundaries = Array.from(boundaries).sort((a, b) => a - b);
 
-    console.log('Rendering annotations:', {
-      plainTextLength: plainText.length,
-      ranges: ranges.map(r => ({ start: r.start, end: r.end, count: r.textAnnotations.length + r.symbolAnnotations.length })),
-      boundaries: Array.from(sortedBoundaries)
-    });
-
     // Create segments between boundaries
     for (let i = 0; i < sortedBoundaries.length - 1; i++) {
       const start = sortedBoundaries[i];
@@ -435,14 +429,6 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         symbols: Array.from(segmentSymbolsMap.values()),
       });
     }
-
-    console.log('Created segments:', segments.map(s => ({
-      start: s.start,
-      end: s.end,
-      text: s.text.substring(0, 20),
-      annotationCount: s.annotations.length,
-      symbolCount: s.symbols.length
-    })));
 
     // Render each segment with its combined styles
     const htmlSegments: string[] = [];
@@ -646,10 +632,8 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           refs={crossRefState.refs}
           onNavigate={onNavigate || (() => {})}
           onShowVerse={(ref) => {
-            console.log('CrossReferencePopup: onShowVerse called with:', ref);
             // Always use internal state for overlay
             setOverlayVerse(ref);
-            console.log('VerseText: overlayVerse state should be set');
             // Also notify parent if needed for external tracking
             if (onShowVerse) {
               onShowVerse(ref);
@@ -665,7 +649,6 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         <VerseOverlay
           verseRef={overlayVerse}
           onClose={() => {
-            console.log('VerseOverlay: closing');
             setOverlayVerse(null);
           }}
           onNavigate={onNavigate}

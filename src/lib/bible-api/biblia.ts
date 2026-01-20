@@ -164,8 +164,6 @@ export class BibliaClient implements BibleApiClient {
       ? url.pathname + url.search  // Relative URL for proxy
       : url.toString();  // Full URL for production
 
-    console.log('[Biblia] Fetching:', requestUrl.substring(0, 100) + '...');
-
     try {
       const response = await fetch(requestUrl);
       
@@ -266,8 +264,6 @@ export class BibliaClient implements BibleApiClient {
         const response = await this.fetch<{ bibles: Array<{ bible: string; title: string; abbreviatedTitle?: string; description?: string; languages?: string[] }> }>('/find.json');
         
         if (response && response.bibles && Array.isArray(response.bibles)) {
-          console.log('[Biblia] Fetched', response.bibles.length, 'available Bibles from API');
-          
           // Get list of available Bible IDs from API
           const availableBibleIds = new Set(
             response.bibles
@@ -275,12 +271,10 @@ export class BibliaClient implements BibleApiClient {
               .filter((id: string) => id)
           );
           
-          // Mark which translations are confirmed available
+          // Mark which translations are confirmed available (for future use)
           mainTranslations.forEach(translation => {
             const isAvailable = availableBibleIds.has(translation.id.toUpperCase());
-            if (isAvailable) {
-              console.log(`[Biblia] Translation "${translation.id}" is confirmed available with API key`);
-            }
+            // Translation availability is checked but not logged
           });
         }
       } catch (error) {
@@ -288,7 +282,6 @@ export class BibliaClient implements BibleApiClient {
       }
     }
 
-    console.log('[Biblia] Returning translations:', mainTranslations.map(t => t.id));
     return mainTranslations;
   }
 
@@ -297,22 +290,16 @@ export class BibliaClient implements BibleApiClient {
     // Biblia API passage format: "BookNameChapter" (no space, no dot) e.g., "John3" or "Genesis1"
     const passage = `${bibliaBook}${chapter}`;
     
-    console.log('[Biblia] Fetching chapter:', { translationId, book, chapter, passage });
-    
     // Fetch the entire chapter as text with verse markers
     const response = await this.fetch<{ text: string }>('/content/' + translationId + '.txt', {
       passage,
       style: 'oneVersePerLineFullReference',
     });
 
-    console.log('[Biblia] Response received, length:', response.text?.length || 0);
-    console.log('[Biblia] First 500 chars:', response.text?.substring(0, 500));
-
     // Parse the response into individual verses
     // Biblia returns one verse per line in format: "BookName Chapter:Verse Text"
     // Examples: "John 3:16 For God so loved..." or "Genesis 1:1 In the beginning..."
     const lines = response.text.split('\n').filter(line => line.trim());
-    console.log('[Biblia] Total lines to parse:', lines.length);
     const verses: VerseResponse[] = [];
     
     let matchedCount = 0;
@@ -375,8 +362,6 @@ export class BibliaClient implements BibleApiClient {
         }
       }
     }
-    
-    console.log(`[Biblia] Parsing summary: ${matchedCount} matched, ${chapterMismatchCount} chapter mismatches, ${failedMatchCount} failed matches, ${verses.length} verses added`);
 
     if (verses.length === 0) {
       console.error('[Biblia] No verses parsed from response. Raw response:', response.text?.substring(0, 500));
@@ -386,8 +371,6 @@ export class BibliaClient implements BibleApiClient {
       );
     }
 
-    console.log('[Biblia] Parsed', verses.length, 'verses');
-    
     return {
       book,
       chapter,
@@ -490,7 +473,6 @@ export class BibliaClient implements BibleApiClient {
       // Use the /find endpoint to check if a specific Bible is available
       const response = await this.fetch<{ bibles: Array<{ bible: string }> }>(`/find/${bibleId}.json`);
       const isAvailable = response && response.bibles && Array.isArray(response.bibles) && response.bibles.length > 0;
-      console.log(`[Biblia] Bible "${bibleId}" is ${isAvailable ? 'available' : 'not available'} with your API key`);
       return isAvailable;
     } catch (error) {
       console.warn(`[Biblia] Error checking availability for "${bibleId}":`, error);
@@ -511,7 +493,6 @@ export class BibliaClient implements BibleApiClient {
       const response = await this.fetch<{ bibles: Array<{ bible: string }> }>('/find.json');
       if (response && response.bibles && Array.isArray(response.bibles)) {
         const bibleIds = response.bibles.map(b => b.bible);
-        console.log('[Biblia] Available Bible IDs:', bibleIds);
         return bibleIds;
       }
       return [];

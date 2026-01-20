@@ -195,7 +195,6 @@ class BibleMarkerDB extends Dexie {
           
           if (presets.length > 0) {
             await tx.table('markingPresets').bulkPut(presets);
-            console.log(`[Migration v4] Migrated ${presets.length} keyWords to markingPresets`);
           }
         }
       } catch (error) {

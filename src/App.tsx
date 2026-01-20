@@ -74,7 +74,6 @@ export default function App() {
         const { currentModuleId: existingModuleId } = useBibleStore.getState();
         if (!existingModuleId || existingModuleId.includes('undefined') || 
             existingModuleId.trim() === '' || existingModuleId === 'observation-lists') {
-          console.log('[App] Invalid module ID detected, resetting to kjv:', existingModuleId);
           // Set the module ID so annotations work (use getBible translation)
           // This will trigger the second useEffect to load the chapter
           setCurrentModule('kjv');
@@ -91,17 +90,14 @@ export default function App() {
   useEffect(() => {
     async function load() {
       if (!currentModuleId || currentModuleId === 'observation-lists') {
-        console.log('[App] No module ID or invalid ID, skipping load:', currentModuleId);
         return; // Don't load if no module selected or if it's observation-lists
       }
-      console.log('[App] Loading chapter:', { currentModuleId, currentBook, currentChapter });
       setLoading(true);
       setError(null);
       // Clear chapter immediately to show loading state
       setChapter(null);
       try {
         const chapter = await loadChapter(currentModuleId, currentBook, currentChapter);
-        console.log('[App] Chapter loaded:', { verseCount: chapter.verses.length, firstVerse: chapter.verses[0]?.text?.substring(0, 50) });
         setChapter(chapter);
       } catch (err) {
         console.error('[App] Error loading chapter:', err);

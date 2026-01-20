@@ -91,13 +91,10 @@ export function useAnnotations() {
     color: HighlightColor,
     presetId?: string
   ): Promise<Annotation | null> => {
-    console.log('[useAnnotations] createTextAnnotation called:', { type, color, selection, currentModuleId });
-    
     // Use moduleId from selection if available (multi-translation mode), otherwise fall back to currentModuleId
     const moduleId = selection?.moduleId || currentModuleId;
     
     if (!selection || !moduleId) {
-      console.log('[useAnnotations] Missing selection or moduleId');
       return null;
     }
 
@@ -126,20 +123,16 @@ export function useAnnotations() {
       ...(presetId != null && { presetId }),
     };
 
-    console.log('[useAnnotations] Saving annotation:', annotation);
     await saveAnnotation(annotation);
-    console.log('[useAnnotations] Annotation saved!');
     
     addRecentColor(color);
     
     // Reload annotations
-    console.log('[useAnnotations] Reloading annotations...');
     await loadAnnotations();
     
     // Dispatch event to notify other components (like MultiTranslationView) to reload
     window.dispatchEvent(new CustomEvent('annotationsUpdated'));
     
-    console.log('[useAnnotations] Clearing selection...');
     clearSelection();
     
     return annotation;
@@ -214,26 +207,12 @@ export function useAnnotations() {
     const colorToUse = overrideColor ?? activeColor;
     const symbolToUse = overrideSymbol ?? activeSymbol;
     
-    console.log('[useAnnotations] applyCurrentTool called v2:', { 
-      hasSelection: !!selection, 
-      activeTool, 
-      activeColor,
-      overrideColor,
-      colorToUse,
-      activeSymbol,
-      overrideSymbol,
-      symbolToUse,
-      currentModuleId,
-    });
-    
     if (!selection || !activeTool) {
-      console.log('[useAnnotations] Missing selection or activeTool, returning');
       return;
     }
 
     try {
       if (activeTool === 'symbol') {
-        console.log('[useAnnotations] Creating symbol annotation...');
         // Symbol inline before the word; when a color is selected, also apply it to the word as highlight
         if (colorToUse) {
           await createSymbolAnnotation(symbolToUse, 'before', colorToUse, 'above', undefined, { clearSelection: false });
@@ -242,9 +221,7 @@ export function useAnnotations() {
           await createSymbolAnnotation(symbolToUse, 'before', undefined, 'above');
         }
       } else {
-        console.log('[useAnnotations] Creating text annotation...');
-        const result = await createTextAnnotation(activeTool as 'highlight' | 'textColor' | 'underline', colorToUse);
-        console.log('[useAnnotations] Text annotation result:', result);
+        await createTextAnnotation(activeTool as 'highlight' | 'textColor' | 'underline', colorToUse);
       }
     } catch (error) {
       console.error('[useAnnotations] Error applying tool:', error);

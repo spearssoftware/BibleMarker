@@ -80,15 +80,9 @@ export default defineConfig({
         rewrite: (path) => {
           // path includes /api/biblia, e.g., "/api/biblia/content/NASB.txt"
           // Rewrite to /v1/bible + everything after /api/biblia
-          const rewritten = path.replace(/^\/api\/biblia/, '/v1/bible');
-          console.log('[Vite Proxy] Rewriting:', path, '->', rewritten);
-          return rewritten;
+          return path.replace(/^\/api\/biblia/, '/v1/bible');
         },
         configure: (proxy, _options) => {
-          proxy.on('proxyReq', (proxyReq, req, _res) => {
-            // Log proxy requests for debugging
-            console.log('[Vite Proxy] Proxying Biblia API request:', req.url);
-          });
           proxy.on('error', (err, req, res) => {
             console.error('[Vite Proxy] Proxy error:', err);
           });

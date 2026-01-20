@@ -146,7 +146,6 @@ export const useBibleStore = create<BibleState>()(
       onRehydrateStorage: () => (state) => {
         // Clean up invalid module IDs when rehydrating from storage
         if (state && state.currentModuleId === 'observation-lists') {
-          console.log('[bibleStore] Cleaning up invalid moduleId: observation-lists');
           state.currentModuleId = null;
         }
       },

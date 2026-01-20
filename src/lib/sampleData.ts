@@ -167,6 +167,4 @@ export async function loadSampleData(): Promise<void> {
       cachedAt: new Date(),
     },
   ]);
-
-  console.log('Sample data loaded: John 1, Romans 6, Genesis 1 (WEB)');
 }

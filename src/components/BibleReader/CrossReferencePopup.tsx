@@ -109,14 +109,11 @@ export function CrossReferencePopup({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  console.log('CrossReferencePopup button clicked:', verseRef);
                   if (onShowVerse) {
-                    console.log('Calling onShowVerse');
                     onShowVerse(verseRef);
                     // Delay closing to ensure state is set
                     setTimeout(() => onClose(), 50);
                   } else {
-                    console.log('Calling onNavigate (onShowVerse not provided)');
                     onNavigate(verseRef);
                     onClose();
                   }

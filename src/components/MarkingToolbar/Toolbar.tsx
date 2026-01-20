@@ -117,17 +117,13 @@ export function Toolbar() {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('Clear database button clicked');
-    
     if (!confirm('Are you sure you want to clear all annotations, notes, and cache? This cannot be undone.')) {
       return;
     }
     
     setIsClearing(true);
     try {
-      console.log('Clearing database...');
       await clearDatabase();
-      console.log('Database cleared successfully');
       alert('Database cleared successfully!');
       // Reload the page to refresh the UI
       window.location.reload();
@@ -407,12 +403,12 @@ export function Toolbar() {
       {selection && (
         <>
           <div className="bg-scripture-accent text-scripture-bg px-3 py-2 
-                          flex items-center justify-between animate-slide-up shadow-lg border-t border-scripture-accent/30 backdrop-blur-sm">
+                          flex items-center justify-between animate-slide-up shadow-lg backdrop-blur-sm">
             <span className="text-sm font-ui truncate flex-1 font-medium text-scripture-bg">
               Selected: {selection.text.slice(0, 50)}
               {selection.text.length > 50 ? '...' : ''}
             </span>
-              <div className="flex items-center gap-2 ml-2 bg-scripture-bg/30 border border-scripture-bg/40 rounded-lg p-1.5">
+              <div className="flex items-center gap-2 ml-2 bg-scripture-bg/30 rounded-lg p-1.5">
               {/* Apply key word: pick Jesus, Nicodemus, etc. to mark He/him the same way */}
               <div className="relative">
                 <button
@@ -431,7 +427,7 @@ export function Toolbar() {
                 {showKeyWordApplyPicker && (
                   <div
                     className="absolute right-0 bottom-full mb-1 w-56 max-h-64 overflow-y-auto
-                               bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-xl
+                               bg-scripture-surface border border-scripture-border/50 border-t-0 rounded-xl shadow-xl
                                py-1.5 z-50 custom-scrollbar backdrop-blur-sm"
                   >
                     {presets
@@ -490,7 +486,7 @@ export function Toolbar() {
                   {showAddAsVariantPicker && (
                     <div
                       className="absolute right-0 bottom-full mb-1 w-56 max-h-64 overflow-y-auto
-                                 bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-xl
+                                 bg-scripture-surface border border-scripture-border/50 border-t-0 rounded-xl shadow-xl
                                  py-1.5 z-50 custom-scrollbar backdrop-blur-sm"
                     >
                       {presets
@@ -547,7 +543,11 @@ export function Toolbar() {
                 onClick={() => {
                   setShowKeyWordApplyPicker(false);
                   setShowAddAsVariantPicker(false);
-                  setShowAddToList(true);
+                  setShowStudyToolsPanel(true);
+                  setShowColorPicker(false);
+                  setShowSymbolPicker(false);
+                  setActiveTool(null);
+                  if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
                 }}
                 className="px-2.5 py-1 text-xs font-ui text-scripture-bg hover:text-scripture-bg
                            transition-colors flex items-center gap-1 font-medium"
@@ -706,7 +706,13 @@ export function Toolbar() {
       {/* Study Tools Panel */}
       {showStudyToolsPanel && (
         <ToolbarOverlay>
-          <StudyToolsPanel onClose={() => setShowStudyToolsPanel(false)} />
+          <StudyToolsPanel 
+            onClose={() => {
+              setShowStudyToolsPanel(false);
+              clearSelection();
+            }}
+            initialTab="lists"
+          />
         </ToolbarOverlay>
       )}
 

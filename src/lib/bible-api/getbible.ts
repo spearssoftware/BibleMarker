@@ -196,18 +196,13 @@ class GetBibleClient implements BibleApiClient {
       if (cached && cached.cachedAt) {
         const cacheAge = now.getTime() - cached.cachedAt.getTime();
         if (cacheAge < CACHE_DURATION_MS) {
-          console.log('[GetBibleClient] Using cached translations (age:', Math.round(cacheAge / 1000 / 60), 'minutes)');
           // Parse cached translations
           const translations: GetBibleTranslation[] = Array.isArray(cached.translations) 
             ? cached.translations 
             : Object.values(cached.translations || {});
           
           return this.parseTranslations(translations);
-        } else {
-          console.log('[GetBibleClient] Cache expired, fetching fresh translations');
         }
-      } else {
-        console.log('[GetBibleClient] No cache found, fetching fresh translations');
       }
     } catch (error) {
       // If translationCache table doesn't exist yet (old database version), just fetch
@@ -217,7 +212,6 @@ class GetBibleClient implements BibleApiClient {
     // Fetch fresh translations
     try {
       const url = `${this.mainApiUrl}/translations.json`;
-      console.log('[GetBibleClient] Fetching translations from:', url);
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -225,15 +219,7 @@ class GetBibleClient implements BibleApiClient {
       }
       
       const data = await response.json();
-      console.log('[GetBibleClient] Raw translations data:', { 
-        isArray: Array.isArray(data), 
-        isObject: typeof data === 'object',
-        keys: Object.keys(data || {}).slice(0, 5),
-        sample: Array.isArray(data) ? data[0] : Object.values(data || {})[0]
-      });
-      
       const translations: GetBibleTranslation[] = Array.isArray(data) ? data : Object.values(data);
-      console.log('[GetBibleClient] Parsed translations count:', translations.length);
       
       // Parse and return immediately, cache in background
       const parsed = this.parseTranslations(translations);
@@ -243,8 +229,6 @@ class GetBibleClient implements BibleApiClient {
         id: CACHE_KEY,
         translations: translations,
         cachedAt: new Date(),
-      }).then(() => {
-        console.log('[GetBibleClient] Cached translations for 24 hours');
       }).catch((cacheError) => {
         console.warn('[GetBibleClient] Failed to cache translations:', cacheError);
       });
@@ -257,7 +241,6 @@ class GetBibleClient implements BibleApiClient {
       try {
         const cached = await db.translationCache.get(CACHE_KEY);
         if (cached && cached.translations) {
-          console.log('[GetBibleClient] Using expired cache as fallback');
           const translations: GetBibleTranslation[] = Array.isArray(cached.translations) 
             ? cached.translations 
             : Object.values(cached.translations || {});
@@ -300,7 +283,6 @@ class GetBibleClient implements BibleApiClient {
         };
       });
     
-    console.log('[GetBibleClient] Returning', validTranslations.length, 'valid translations');
     return validTranslations;
   }
 

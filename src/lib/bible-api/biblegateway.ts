@@ -171,9 +171,6 @@ export class BibleGatewayClient implements BibleApiClient {
 
   private async doRequestAccessToken(now: number): Promise<string> {
     const url = `${this.baseUrl}/request_access_token?username=${encodeURIComponent(this.username!)}&password=${encodeURIComponent(this.password!)}`;
-    if (import.meta.env.DEV) {
-      console.log('[BibleGateway] request_access_token →', `${this.baseUrl}/request_access_token`, '| username length:', this.username?.length, '| password length:', this.password?.length);
-    }
     const res = await fetch(url);
     const text = await res.text();
     let data: Record<string, unknown> = {};
