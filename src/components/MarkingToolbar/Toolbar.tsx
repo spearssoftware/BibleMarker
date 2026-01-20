@@ -575,8 +575,9 @@ export function Toolbar() {
 
           {/* Smart suggestions */}
           {previousAnnotations.length > 0 && (
-            <div className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 px-3 py-2 animate-slide-up">
-              <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-3">
+            <div className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 animate-slide-up">
+              <div className="bg-scripture-surface px-3 py-2 mx-2 my-2 rounded-xl">
+                <div className="p-3">
                 <div className="text-sm text-scripture-text mb-3 font-ui font-semibold">
                   Previously used for "{selection.text.trim()}":
                 </div>
@@ -628,6 +629,7 @@ export function Toolbar() {
                     </button>
                   ))}
                 </div>
+                </div>
               </div>
             </div>
           )}
@@ -636,8 +638,9 @@ export function Toolbar() {
 
       {/* Color picker: style (Highlight / Text / Underline) + color grid */}
       {showColorPicker && isColorActive && (
-        <div className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 p-4 animate-slide-up shadow-lg max-h-[50vh] overflow-y-auto custom-scrollbar flex-shrink-0">
-          <div className="mb-4 bg-scripture-surface border border-scripture-border/50 rounded-xl p-3">
+        <div className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 animate-slide-up shadow-lg max-h-[50vh] overflow-hidden flex-shrink-0">
+          <div className="bg-scripture-surface p-4 mx-2 my-2 rounded-xl h-[calc(100%-1rem)] overflow-y-auto custom-scrollbar">
+            <div className="mb-4 p-3">
             <div className="text-xs font-ui font-semibold text-scripture-text uppercase tracking-wider mb-3">
               Style
             </div>
@@ -656,21 +659,23 @@ export function Toolbar() {
               ))}
             </div>
           </div>
-          <ColorPicker
-            selectedColor={activeColor}
-            onSelect={async (color) => {
-              setActiveColor(color);
-              if (selection) await applyCurrentTool(color);
-            }}
-            recents={preferences.recentColors}
-          />
+            <ColorPicker
+              selectedColor={activeColor}
+              onSelect={async (color) => {
+                setActiveColor(color);
+                if (selection) await applyCurrentTool(color);
+              }}
+              recents={preferences.recentColors}
+            />
+          </div>
         </div>
       )}
 
       {/* Symbol picker dropdown */}
       {showSymbolPicker && activeTool === 'symbol' && (
-        <div className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 p-4 animate-slide-up shadow-lg max-h-[50vh] overflow-y-auto custom-scrollbar flex-shrink-0">
-          <SymbolPicker
+        <div className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 animate-slide-up shadow-lg max-h-[50vh] overflow-hidden flex-shrink-0">
+          <div className="bg-scripture-surface p-4 mx-2 my-2 rounded-xl h-[calc(100%-1rem)] overflow-y-auto custom-scrollbar">
+            <SymbolPicker
             selectedSymbol={activeSymbol}
             onSelect={async (symbol) => {
               setActiveSymbol(symbol);
@@ -682,6 +687,7 @@ export function Toolbar() {
             }}
             recents={preferences.recentSymbols}
           />
+          </div>
         </div>
       )}
 
@@ -691,7 +697,9 @@ export function Toolbar() {
           className="bg-scripture-surface/95 backdrop-blur-sm border-t border-scripture-border/50 
                      animate-slide-up shadow-lg flex flex-col max-h-[50vh] overflow-hidden flex-shrink-0"
         >
-          <SettingsPanel onClose={() => setShowSettingsPanel(false)} />
+          <div className="bg-scripture-surface flex-1 overflow-hidden mx-2 my-2 rounded-xl">
+            <SettingsPanel onClose={() => setShowSettingsPanel(false)} />
+          </div>
         </div>
       )}
 
@@ -702,7 +710,9 @@ export function Toolbar() {
           className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 
                      animate-slide-up shadow-lg flex flex-col max-h-[50vh] overflow-hidden flex-shrink-0"
         >
-          <StudyToolsPanel onClose={() => setShowStudyToolsPanel(false)} />
+          <div className="bg-scripture-surface flex-1 overflow-hidden mx-2 my-2 rounded-xl">
+            <StudyToolsPanel onClose={() => setShowStudyToolsPanel(false)} />
+          </div>
         </div>
       )}
 
@@ -732,16 +742,18 @@ export function Toolbar() {
           className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 
                      animate-slide-up shadow-lg flex flex-col max-h-[50vh] overflow-hidden flex-shrink-0"
         >
-          <KeyWordManager 
-            onClose={() => setShowKeyWordManager(false)} 
-            initialWord={selection?.text?.trim() || undefined}
-            initialSymbol={activeSymbol}
-            initialColor={activeColor}
-            onPresetCreated={async (preset) => {
-              await applyPresetToSelection(preset);
-              setShowKeyWordManager(false);
-            }}
-          />
+          <div className="bg-scripture-surface flex-1 overflow-hidden mx-2 my-2 rounded-xl">
+            <KeyWordManager 
+              onClose={() => setShowKeyWordManager(false)} 
+              initialWord={selection?.text?.trim() || undefined}
+              initialSymbol={activeSymbol}
+              initialColor={activeColor}
+              onPresetCreated={async (preset) => {
+                await applyPresetToSelection(preset);
+                setShowKeyWordManager(false);
+              }}
+            />
+          </div>
         </div>
       )}
 
@@ -749,21 +761,17 @@ export function Toolbar() {
       {showLegendOverlay && (
         <div 
           className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 
-                     animate-slide-up shadow-lg flex flex-col max-h-[50vh] overflow-hidden flex-shrink-0"
+                     animate-slide-up shadow-lg flex flex-col max-h-[50vh] overflow-hidden flex-shrink-0 relative"
         >
-          <div className="flex items-center justify-between px-4 py-2 border-b border-scripture-border/50 flex-shrink-0">
-            <h2 className="text-lg font-ui font-semibold text-scripture-text">
-              Annotation Legend
-            </h2>
-            <button
-              onClick={() => setShowLegendOverlay(false)}
-              className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
-              aria-label="Close legend"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+          {/* Close button - floating in top-right */}
+          <button
+            onClick={() => setShowLegendOverlay(false)}
+            className="absolute top-2 right-2 z-10 text-scripture-muted hover:text-scripture-text transition-colors p-1.5 rounded-lg hover:bg-scripture-elevated"
+            aria-label="Close legend"
+          >
+            ✕
+          </button>
+          <div className="bg-scripture-surface flex-1 overflow-y-auto p-4 custom-scrollbar">
             <AnnotationLegend annotations={annotations} />
           </div>
         </div>
@@ -787,6 +795,7 @@ export function Toolbar() {
                 onClick={() => handleToolClick(tool.type)}
                 className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg 
                            transition-all duration-200 touch-target
+                           border border-scripture-border/30 hover:border-scripture-border/50
                            ${isActive
                              ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
                              : 'hover:bg-scripture-elevated hover:scale-105 active:scale-95'}`}

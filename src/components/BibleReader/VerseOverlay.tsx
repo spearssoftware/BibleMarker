@@ -81,12 +81,12 @@ export function VerseOverlay({ verseRef, onClose, onNavigate }: VerseOverlayProp
       <div
         ref={overlayRef}
         className="fixed inset-x-4 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50
-                   bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl
                    max-w-2xl max-h-[80vh] overflow-hidden flex flex-col animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full mx-2 my-2">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-scripture-border/50">
+        <div className="flex items-center justify-between p-4 border-b border-scripture-overlayBorder/50">
           <h3 className="text-lg font-ui font-semibold text-scripture-text">
             {displayText}
           </h3>
@@ -133,6 +133,7 @@ export function VerseOverlay({ verseRef, onClose, onNavigate }: VerseOverlayProp
               dangerouslySetInnerHTML={{ __html: verseText }}
             />
           )}
+        </div>
         </div>
       </div>
     </>

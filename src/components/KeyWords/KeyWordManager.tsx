@@ -168,35 +168,31 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-scripture-border/50 flex-shrink-0">
-        <h2 className="text-lg font-ui font-semibold text-scripture-text">
-          Key Words
-        </h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleCreate}
-            className="px-3 py-1.5 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                     hover:bg-scripture-accent/90 transition-colors"
-          >
-            + New
-          </button>
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
-            >
-              ✕
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="flex flex-col h-full min-h-0 relative">
+      {/* Close button - always visible in top-right */}
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-2 z-10 text-scripture-muted hover:text-scripture-text transition-colors p-1.5 rounded-lg hover:bg-scripture-elevated"
+          aria-label="Close"
+        >
+          ✕
+        </button>
+      )}
 
       {/* Filters: only when viewing the list (hidden when adding/editing) */}
       {!(isCreating || editingId) && (
         <div className="p-4 border-b border-scripture-border/50 flex-shrink-0">
-          <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-3 space-y-3">
+          <div className="mb-3">
+            <button
+              onClick={handleCreate}
+              className="px-3 py-1.5 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
+                       hover:bg-scripture-accent/90 transition-colors"
+            >
+              + New
+            </button>
+          </div>
+          <div className="p-3 space-y-3">
             <input
               type="text"
               value={searchQuery}
@@ -254,10 +250,17 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
         ) : (
           <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
             {filteredPresets.length === 0 ? (
-              <div className="text-center py-8 text-scripture-muted text-sm">
-                {searchQuery || filterCategory !== 'all'
-                  ? 'No key words match your filters'
-                  : 'No key words yet. Create one to get started!'}
+              <div className="text-center py-8">
+                {searchQuery || filterCategory !== 'all' ? (
+                  <p className="text-scripture-muted text-sm">No key words match your filters</p>
+                ) : (
+                  <button
+                    onClick={handleCreate}
+                    className="px-4 py-2 bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
+                  >
+                    Create Your First Key Word
+                  </button>
+                )}
               </div>
             ) : (
               <div className="space-y-2">

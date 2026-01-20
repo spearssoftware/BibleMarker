@@ -131,14 +131,14 @@ export function Search({ onClose, onNavigate }: SearchProps) {
       {/* Search Panel */}
       <div 
         className="fixed top-16 left-1/2 z-50
-                    bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl
                     w-full max-w-2xl max-h-[80vh] overflow-hidden backdrop-blur-sm"
         style={{
           transform: 'translateX(-50%)',
           animation: 'searchScaleIn 0.2s ease-out',
         }}>
+        <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden mx-2 my-2">
         {/* Header */}
-        <div className="p-4 border-b border-scripture-border/50">
+        <div className="p-4 border-b border-scripture-overlayBorder/50">
           <div className="flex items-center gap-3">
             <div className="flex-1 relative">
               <input
@@ -257,6 +257,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
             Use ↑↓ to navigate, Enter to select, Esc to close
           </div>
         )}
+        </div>
       </div>
     </>
   );

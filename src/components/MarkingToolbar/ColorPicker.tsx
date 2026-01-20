@@ -20,10 +20,10 @@ export function ColorPicker({
   const allColors = Object.keys(HIGHLIGHT_COLORS) as HighlightColor[];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Recents */}
       {recents.length > 0 && (
-        <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-3">
+        <div>
           <h4 className="text-xs font-ui text-scripture-text uppercase tracking-wider mb-3 flex items-center gap-1 font-semibold">
             <span>🕐</span> Recent
           </h4>
@@ -41,7 +41,7 @@ export function ColorPicker({
       )}
 
       {/* All colors - always show all colors */}
-      <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-3">
+      <div>
         <h4 className="text-xs font-ui text-scripture-text uppercase tracking-wider mb-3 font-semibold">
           All Colors
         </h4>

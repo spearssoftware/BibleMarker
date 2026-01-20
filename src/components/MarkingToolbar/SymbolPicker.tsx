@@ -62,10 +62,10 @@ export function SymbolPicker({
   recents,
 }: SymbolPickerProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Recents */}
       {recents.length > 0 && (
-        <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-3">
+        <div>
           <h4 className="text-xs font-ui text-scripture-text uppercase tracking-wider mb-3 flex items-center gap-1 font-semibold">
             <span>🕐</span> Recent
           </h4>
@@ -84,7 +84,7 @@ export function SymbolPicker({
 
       {/* Categorized symbols */}
       {SYMBOL_CATEGORIES.map((category) => (
-        <div key={category.name} className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-3">
+        <div key={category.name}>
           <h4 className="text-xs font-ui text-scripture-text uppercase tracking-wider mb-3 font-semibold">
             {category.name}
           </h4>

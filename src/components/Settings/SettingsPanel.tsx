@@ -374,21 +374,18 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
   return (
     <>
-      <div className="flex flex-col overflow-hidden">
-        {/* Header */}
+      <div className="flex flex-col overflow-hidden relative">
+        {/* Close button - floating in top-right */}
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-2 z-10 text-scripture-muted hover:text-scripture-text transition-colors p-1.5 rounded-lg hover:bg-scripture-elevated"
+          aria-label="Close"
+        >
+          ✕
+        </button>
+
+        {/* Tabs */}
         <div className="px-4 py-2 border-b border-scripture-border/50 flex-shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-ui font-semibold text-scripture-text">Settings</h2>
-            <button
-              onClick={onClose}
-              className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
-              aria-label="Close"
-            >
-              ✕
-            </button>
-          </div>
-          
-          {/* Tabs */}
           <div className="flex gap-2">
             {tabs.map((tab) => (
               <button

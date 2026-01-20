@@ -96,11 +96,11 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
 
   const content = (
     <div 
-      className={`${inline ? 'flex flex-col h-full min-h-0' : 'bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col'}`}
+      className={`${inline ? 'flex flex-col h-full min-h-0' : 'bg-scripture-surface rounded-2xl shadow-2xl max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col'}`}
       onClick={inline ? undefined : (e) => e.stopPropagation()}
     >
       {!inline && (
-        <div className="p-4 border-b border-scripture-border/50 flex-shrink-0">
+        <div className="p-4 border-b border-scripture-overlayBorder/50 flex-shrink-0">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-ui font-semibold text-scripture-text">
               {list ? 'Edit List' : 'Create Observation List'}

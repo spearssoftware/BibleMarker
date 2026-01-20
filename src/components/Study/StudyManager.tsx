@@ -65,8 +65,9 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
   return (
     <div className="fixed inset-0 backdrop-overlay z-[200] overflow-y-auto" onClick={handleClose}>
       <div className="min-h-full flex items-center justify-center p-4">
-        <div className="bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="p-4 border-b border-scripture-border/50">
+        <div className="max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full mx-2 my-2">
+        <div className="p-4 border-b border-scripture-overlayBorder/50">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-ui font-semibold text-scripture-text">Study Manager</h2>
             <button
@@ -220,6 +221,8 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
             )}
           </div>
         </div>
+        </div>
+          </div>
         </div>
       </div>
     </div>

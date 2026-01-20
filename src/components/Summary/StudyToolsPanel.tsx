@@ -192,31 +192,30 @@ export function StudyToolsPanel({ onClose }: StudyToolsPanelProps) {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      {/* Header */}
+    <div className="h-full flex flex-col overflow-hidden relative">
+      {/* Close button - floating in top-right */}
+      <button
+        onClick={onClose}
+        className="absolute top-2 right-2 z-10 text-scripture-muted hover:text-scripture-text transition-colors p-1.5 rounded-lg hover:bg-scripture-elevated"
+        aria-label="Close"
+      >
+        ✕
+      </button>
+
+      {/* Tabs */}
       <div className="px-4 py-2 border-b border-scripture-border/50 flex-shrink-0">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-ui font-semibold text-scripture-text">Study Tools</h2>
-          <div className="flex items-center gap-2">
-            {activeTab === 'lists' && !isCreating && !editingListId && (
-              <button
-                onClick={() => setIsCreating(true)}
-                className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-              >
-                + New List
-              </button>
-            )}
+        <div className="flex items-center justify-between mb-2">
+          {activeTab === 'lists' && !isCreating && !editingListId && (
             <button
-              onClick={onClose}
-              className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
-              aria-label="Close"
+              onClick={() => setIsCreating(true)}
+              className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
             >
-              ✕
+              + New List
             </button>
-          </div>
+          )}
+          <div className="flex-1"></div>
         </div>
         
-        {/* Tabs */}
         <div className="flex gap-2">
           {tabs.map((tab) => (
             <button
@@ -242,7 +241,7 @@ export function StudyToolsPanel({ onClose }: StudyToolsPanelProps) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {/* Show ListEditor inline when creating or editing */}
         {activeTab === 'lists' && (isCreating || editingListId) ? (
           <div className="h-full flex flex-col">
@@ -272,7 +271,7 @@ export function StudyToolsPanel({ onClose }: StudyToolsPanelProps) {
             })() : null}
           </div>
         ) : activeTab === 'lists' ? (
-          <div className="h-full">
+          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
             {lists.length === 0 ? (
                   <div className="text-center py-12">
                     <p className="text-scripture-muted text-sm mb-4">No observation lists yet.</p>
@@ -489,7 +488,7 @@ export function StudyToolsPanel({ onClose }: StudyToolsPanelProps) {
           </div>
         ) : null}
         {activeTab === 'chapter' && (
-              <div className="h-full">
+              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                 <ChapterAtAGlance onObservationClick={(listId) => {
                   setActiveTab('lists');
                   // Expand the list and scroll to it
@@ -505,12 +504,12 @@ export function StudyToolsPanel({ onClose }: StudyToolsPanelProps) {
               </div>
             )}
             {activeTab === 'book' && (
-              <div className="h-full">
+              <div className="h-full min-h-0">
                 <BookOverview onChapterClick={() => setActiveTab('chapter')} />
               </div>
             )}
             {activeTab === 'theme' && (
-              <div className="h-full">
+              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                 <ThemeTracker />
               </div>
             )}

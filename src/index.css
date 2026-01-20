@@ -3,58 +3,62 @@
 @tailwind utilities;
 
 @layer base {
-  /* Light theme colors (default) - :root is the standard location for CSS variables */
+  /* iOS-inspired Light theme colors - Clean, crisp, high contrast */
   :root {
-    --scripture-bg: #faf9f7;
+    --scripture-bg: #ffffff;
     --scripture-surface: #ffffff;
-    --scripture-elevated: #f5f4f2;
-    --scripture-border: #e5e3e0;
-    --scripture-text: #1a1a1a;
-    --scripture-muted: #6b7280;
-    --scripture-accent: #d97706;
-    --scripture-accent-muted: #92400e;
-    /* Theme-aware semantic colors */
-    --scripture-error: #dc2626;
-    --scripture-error-bg: #fee2e2;
-    --scripture-error-text: #991b1b;
-    --scripture-warning: #f59e0b;
-    --scripture-warning-bg: #fef3c7;
-    --scripture-warning-text: #92400e;
-    --scripture-success: #22c55e;
-    --scripture-success-bg: #dcfce7;
-    --scripture-success-text: #166534;
-    --scripture-info: #3b82f6;
-    --scripture-info-bg: #dbeafe;
-    --scripture-info-text: #1e40af;
+    --scripture-elevated: #f2f2f7;
+    --scripture-border: #c6c6c8;
+    --scripture-separator: #c6c6c8;
+    --scripture-overlay-border: #c6c6c8;
+    --scripture-text: #000000;
+    --scripture-muted: #8e8e93;
+    --scripture-accent: #007aff;
+    --scripture-accent-muted: #0051d5;
+    /* Theme-aware semantic colors - iOS style */
+    --scripture-error: #ff3b30;
+    --scripture-error-bg: #ffe5e3;
+    --scripture-error-text: #d70015;
+    --scripture-warning: #ff9500;
+    --scripture-warning-bg: #fff4e5;
+    --scripture-warning-text: #d68910;
+    --scripture-success: #34c759;
+    --scripture-success-bg: #e5f9ed;
+    --scripture-success-text: #248a3d;
+    --scripture-info: #007aff;
+    --scripture-info-bg: #e5f2ff;
+    --scripture-info-text: #0051d5;
     /* Backdrop/overlay opacity */
-    --scripture-backdrop-opacity: 0.6;
+    --scripture-backdrop-opacity: 0.4;
   }
 
-  /* Dark theme colors - override when .dark class is present on html */
+  /* iOS-inspired Dark theme colors - True black with high contrast */
   html.dark {
-    --scripture-bg: #0f0f0f;
-    --scripture-surface: #1a1a1a;
-    --scripture-elevated: #252525;
-    --scripture-border: #3a3a3a;
-    --scripture-text: #e8e6e3;
-    --scripture-muted: #9ca3af;
-    --scripture-accent: #d97706;
-    --scripture-accent-muted: #92400e;
-    /* Theme-aware semantic colors */
-    --scripture-error: #ef4444;
-    --scripture-error-bg: #7f1d1d;
-    --scripture-error-text: #fecaca;
-    --scripture-warning: #f59e0b;
-    --scripture-warning-bg: #78350f;
-    --scripture-warning-text: #fde68a;
-    --scripture-success: #22c55e;
-    --scripture-success-bg: #14532d;
-    --scripture-success-text: #86efac;
-    --scripture-info: #3b82f6;
-    --scripture-info-bg: #1e3a8a;
-    --scripture-info-text: #93c5fd;
-    /* Backdrop/overlay opacity - darker theme needs less opacity for better contrast */
-    --scripture-backdrop-opacity: 0.75;
+    --scripture-bg: #000000;
+    --scripture-surface: #1c1c1e;
+    --scripture-elevated: #2c2c2e;
+    --scripture-border: #38383a;
+    --scripture-separator: #38383a;
+    --scripture-overlay-border: #2a2a2c;
+    --scripture-text: #ffffff;
+    --scripture-muted: #98989d;
+    --scripture-accent: #0a84ff;
+    --scripture-accent-muted: #409cff;
+    /* Theme-aware semantic colors - iOS dark mode */
+    --scripture-error: #ff453a;
+    --scripture-error-bg: #3d1f1f;
+    --scripture-error-text: #ff6961;
+    --scripture-warning: #ff9f0a;
+    --scripture-warning-bg: #3d2f1f;
+    --scripture-warning-text: #ffb340;
+    --scripture-success: #30d158;
+    --scripture-success-bg: #1f3d2f;
+    --scripture-success-text: #66d98f;
+    --scripture-info: #0a84ff;
+    --scripture-info-bg: #1f2f3d;
+    --scripture-info-text: #64b5ff;
+    /* Backdrop/overlay opacity - darker theme needs more opacity */
+    --scripture-backdrop-opacity: 0.6;
   }
 
   * {
@@ -70,7 +74,7 @@
   body {
     background-color: var(--scripture-bg);
     color: var(--scripture-text);
-    font-family: var(--font-ui, 'DM Sans', system-ui, sans-serif);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
     /* Safe area insets for iPad notch/home indicator */
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
@@ -81,7 +85,7 @@
     letter-spacing: 0.01em;
   }
 
-  /* Verse number styling */
+  /* Verse number styling - iOS blue accent */
   .verse-number {
     @apply text-scripture-accent font-ui text-sm mr-1.5 select-none;
     vertical-align: baseline;
@@ -89,17 +93,17 @@
     font-size: 0.875em;
     line-height: inherit;
     font-weight: 600;
-    opacity: 0.9;
+    opacity: 1;
   }
 
-  /* Cross-reference styling */
+  /* Cross-reference styling - iOS blue accent */
   .cross-ref {
-    @apply text-scripture-accent cursor-pointer hover:text-scripture-text transition-colors;
+    @apply text-scripture-accent cursor-pointer hover:text-scripture-accent transition-colors;
     font-size: 0.85em;
     font-weight: 600;
     vertical-align: super;
     margin: 0 0.15em;
-    opacity: 0.7;
+    opacity: 0.8;
   }
 
   .cross-ref:hover {
@@ -107,21 +111,21 @@
     text-decoration: underline;
   }
 
-  /* Selection styling */
+  /* Selection styling - iOS blue */
   ::selection {
-    background-color: rgba(217, 119, 6, 0.3);
+    background-color: rgba(0, 122, 255, 0.3);
     color: var(--scripture-text);
   }
 
   /* Light theme selection */
   .light ::selection {
-    background-color: rgba(217, 119, 6, 0.2);
+    background-color: rgba(0, 122, 255, 0.25);
     color: var(--scripture-text);
   }
 
   /* Dark theme selection */
   .dark ::selection {
-    background-color: rgba(217, 119, 6, 0.3);
+    background-color: rgba(10, 132, 255, 0.4);
     color: var(--scripture-text);
   }
 }
@@ -233,7 +237,7 @@
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    background-color: #ef4444;
+    background-color: var(--scripture-error);
     color: white;
     font-size: 12px;
     line-height: 1;
@@ -242,13 +246,15 @@
     justify-content: center;
     cursor: pointer;
     z-index: 20;
-    border: 1px solid white;
+    border: 1px solid var(--scripture-surface);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     padding: 0;
     margin: 0;
   }
 
   .annotation-remove:hover {
-    background-color: #dc2626;
+    opacity: 0.9;
+    transform: scale(1.1);
+    transition: transform 0.15s ease-out;
   }
 }

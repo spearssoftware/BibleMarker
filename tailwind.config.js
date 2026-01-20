@@ -14,6 +14,8 @@ export default {
           surface: 'var(--scripture-surface)',
           elevated: 'var(--scripture-elevated)',
           border: 'var(--scripture-border)',
+          separator: 'var(--scripture-separator)',
+          overlayBorder: 'var(--scripture-overlay-border)',
           text: 'var(--scripture-text)',
           muted: 'var(--scripture-muted)',
           accent: 'var(--scripture-accent)',
@@ -49,7 +51,7 @@ export default {
       },
       fontFamily: {
         scripture: ['"Crimson Pro"', 'Georgia', 'serif'],
-        ui: ['"DM Sans"', 'system-ui', 'sans-serif'],
+        ui: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', '"Helvetica Neue"', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         'scripture-sm': ['1rem', { lineHeight: '1.8' }],

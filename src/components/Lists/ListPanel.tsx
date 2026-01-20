@@ -127,7 +127,7 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
       const ref = formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse);
       lines.push(ref);
       verseItems.forEach((item, index) => {
-        lines.push(`  • ${item.content}`);
+        lines.push(`  � ${item.content}`);
       });
       lines.push('');
     });
@@ -232,10 +232,11 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
     <div className="fixed inset-0 backdrop-overlay z-50 overflow-y-auto" onClick={onClose}>
       <div className="min-h-full flex items-center justify-center p-4">
         <div 
-          className="bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col" 
+          className="max-w-3xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col" 
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="p-4 border-b border-scripture-border/50">
+          <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full mx-2 my-2">
+          <div className="p-4 border-b border-scripture-overlayBorder/50">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-ui font-semibold text-scripture-text">Observation Lists</h2>
               <div className="flex items-center gap-2">
@@ -250,7 +251,7 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
                   className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
                   aria-label="Close"
                 >
-                  ✕
+                  ?
                 </button>
               </div>
             </div>
@@ -318,21 +319,21 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
                               className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-text transition-colors"
                               title="Export/Copy list"
                             >
-                              📋
+                              ??
                             </button>
                             <button
                               onClick={() => setEditingListId(list.id)}
                               className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-text transition-colors"
                               title="Edit list"
                             >
-                              ✏️
+                              ??
                             </button>
                             <button
                               onClick={() => handleDelete(list.id)}
                               className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors"
                               title="Delete list"
                             >
-                              🗑️
+                              ???
                             </button>
                           </div>
                         </div>
@@ -412,14 +413,14 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
                                                     className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated"
                                                     title="Edit observation"
                                                   >
-                                                    ✏️
+                                                    ??
                                                   </button>
                                                   <button
                                                     onClick={() => handleDeleteObservation(list.id, item.id)}
                                                     className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors rounded hover:bg-scripture-elevated"
                                                     title="Delete observation"
                                                   >
-                                                    🗑️
+                                                    ???
                                                   </button>
                                                 </div>
                                               </div>
@@ -469,6 +470,7 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
                 })}
               </div>
             )}
+          </div>
           </div>
         </div>
       </div>

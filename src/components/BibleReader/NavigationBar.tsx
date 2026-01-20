@@ -4,7 +4,7 @@
  * Translation, book and chapter selection, with prev/next navigation.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { getBookById, getOTBooks, getNTBooks, getVerseCount } from '@/types/bible';
 import { getAllTranslations, type ApiTranslation } from '@/lib/bible-api';
@@ -31,6 +31,35 @@ export function NavigationBar() {
   const [showTranslationPicker, setShowTranslationPicker] = useState(false);
   const [showStudyPicker, setShowStudyPicker] = useState(false);
   const [showVersePicker, setShowVersePicker] = useState(false);
+  const scrollLockRef = useRef<number | null>(null);
+
+  // Lock scroll position when any picker opens
+  useEffect(() => {
+    const anyPickerOpen = showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker || showStudyPicker;
+    
+    if (anyPickerOpen) {
+      // Save scroll position when picker opens
+      scrollLockRef.current = window.scrollY;
+      
+      const restoreScroll = () => {
+        if (scrollLockRef.current !== null && window.scrollY !== scrollLockRef.current) {
+          window.scrollTo(0, scrollLockRef.current);
+        }
+      };
+      
+      // Restore scroll position on any scroll event
+      window.addEventListener('scroll', restoreScroll, { passive: true });
+      
+      // Also check periodically in case scroll happens outside of events
+      const interval = setInterval(restoreScroll, 16); // ~60fps
+      
+      return () => {
+        window.removeEventListener('scroll', restoreScroll);
+        clearInterval(interval);
+        scrollLockRef.current = null;
+      };
+    }
+  }, [showBookPicker, showChapterPicker, showVersePicker, showTranslationPicker, showStudyPicker]);
   const [showSearch, setShowSearch] = useState(false);
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const [currentVerse, setCurrentVerse] = useState<number | null>(null);
@@ -62,6 +91,11 @@ export function NavigationBar() {
   // Track scroll position to update current verse
   useEffect(() => {
     const handleScroll = () => {
+      // Don't update verse when pickers are open to prevent text jumping
+      if (showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker || showStudyPicker) {
+        return;
+      }
+
       // Find the verse element that's currently in view
       const verseElements = document.querySelectorAll('[data-verse]');
       const viewportCenter = window.scrollY + window.innerHeight / 2;
@@ -104,7 +138,7 @@ export function NavigationBar() {
       window.removeEventListener('scroll', throttledScroll);
       clearTimeout(scrollTimeout);
     };
-  }, [currentBook, currentChapter]);
+  }, [currentBook, currentChapter, showBookPicker, showChapterPicker, showVersePicker, showTranslationPicker, showStudyPicker]);
 
   // Load translations on mount and when translations are updated
   useEffect(() => {
@@ -160,36 +194,61 @@ export function NavigationBar() {
 
   return (
     <nav className="navigation-bar bg-scripture-surface/95 backdrop-blur-sm border-b border-scripture-border/50 shadow-sm sticky top-0 z-20">
-      <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-center relative">
-        {/* Previous button */}
-        <button
-          onClick={previousChapter}
-          disabled={!canGoPrevious()}
-          className="absolute left-4 p-2 rounded-xl hover:bg-scripture-elevated disabled:opacity-30
-                     disabled:cursor-not-allowed transition-all duration-200 touch-target
-                     hover:scale-105 active:scale-95"
-          aria-label="Previous chapter"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-
-        {/* Translation, book and chapter selector - centered */}
+      <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-between relative">
+        {/* Left side: Previous button and Translation selector */}
         <div className="flex items-center gap-2">
+          {/* Previous button */}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              previousChapter();
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onFocus={(e) => {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }}
+            tabIndex={-1}
+            disabled={!canGoPrevious()}
+            className="p-2 rounded-xl hover:bg-scripture-elevated disabled:opacity-30
+                       disabled:cursor-not-allowed transition-all duration-200 touch-target
+                       hover:scale-105 active:scale-95 select-none"
+            aria-label="Previous chapter"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
           {/* Translation selector */}
-          <div className="relative mr-3">
+          <div className="relative">
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 setShowTranslationPicker(!showTranslationPicker);
                 setShowStudyPicker(false);
                 setShowBookPicker(false);
                 setShowChapterPicker(false);
               }}
-              className="px-4 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onFocus={(e) => {
+                e.preventDefault();
+                e.currentTarget.blur();
+              }}
+              tabIndex={-1}
+              className="px-4 py-2 rounded-xl hover:bg-scripture-elevated
                          font-ui font-semibold text-sm transition-all duration-200
                          border border-scripture-border/30 hover:border-scripture-border/50
-                         shadow-sm hover:shadow min-w-[60px] h-[36px] flex items-center justify-center"
+                         touch-target hover:scale-105 active:scale-95 min-w-[60px] h-[36px] flex items-center justify-center
+                         select-none"
             >
               {activeView && activeView.translationIds.length > 0
                 ? `${activeView.translationIds.length} Translation${activeView.translationIds.length !== 1 ? 's' : ''}`
@@ -237,20 +296,35 @@ export function NavigationBar() {
               />
             )}
           </div>
+        </div>
 
+        {/* Center: Book, Chapter, Verse, Study selectors */}
+        <div className="flex items-center justify-center gap-2">
           {/* Book selector */}
-          <div className="relative ml-3">
+          <div className="relative">
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 setShowBookPicker(!showBookPicker);
                 setShowChapterPicker(false);
                 setShowTranslationPicker(false);
                 setShowStudyPicker(false);
               }}
-              className="px-4 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onFocus={(e) => {
+                e.preventDefault();
+                e.currentTarget.blur();
+              }}
+              tabIndex={-1}
+              className="px-4 py-2 rounded-xl hover:bg-scripture-elevated
                          font-ui font-semibold text-sm transition-all duration-200
                          border border-scripture-border/30 hover:border-scripture-border/50
-                         shadow-sm hover:shadow h-[36px] flex items-center justify-center"
+                         touch-target hover:scale-105 active:scale-95 h-[36px] flex items-center justify-center
+                         select-none"
             >
               {bookInfo?.name || currentBook}
             </button>
@@ -270,17 +344,28 @@ export function NavigationBar() {
           {/* Chapter selector */}
           <div className="relative">
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 setShowChapterPicker(!showChapterPicker);
                 setShowBookPicker(false);
                 setShowTranslationPicker(false);
                 setShowStudyPicker(false);
                 setShowVersePicker(false);
               }}
-              className="px-4 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onFocus={(e) => {
+                e.preventDefault();
+                e.currentTarget.blur();
+              }}
+              tabIndex={-1}
+              className="px-4 py-2 rounded-xl hover:bg-scripture-elevated
                          font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
                          border border-scripture-border/30 hover:border-scripture-border/50
-                         shadow-sm hover:shadow h-[36px] flex items-center justify-center"
+                         touch-target h-[36px] flex items-center justify-center select-none"
             >
               {currentChapter}
             </button>
@@ -300,19 +385,31 @@ export function NavigationBar() {
 
           {/* Verse selector */}
           {verseCount > 0 && (
-            <div className="relative mr-3">
+            <div className="relative">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   setShowVersePicker(!showVersePicker);
                   setShowBookPicker(false);
                   setShowChapterPicker(false);
                   setShowTranslationPicker(false);
                   setShowStudyPicker(false);
                 }}
-                className="px-4 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onFocus={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                }}
+                tabIndex={-1}
+                className="px-4 py-2 rounded-xl hover:bg-scripture-elevated
                            font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
                            border border-scripture-border/30 hover:border-scripture-border/50
-                           shadow-sm hover:shadow h-[36px] flex items-center justify-center"
+                           touch-target hover:scale-105 active:scale-95 h-[36px] flex items-center justify-center
+                           select-none"
               >
                 {currentVerse || '1'}
               </button>
@@ -345,19 +442,31 @@ export function NavigationBar() {
 
           {/* Study selector */}
           {studies.length > 0 && (
-            <div className="relative ml-3">
+            <div className="relative">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   setShowStudyPicker(!showStudyPicker);
                   setShowTranslationPicker(false);
                   setShowBookPicker(false);
                   setShowChapterPicker(false);
                   setShowVersePicker(false);
                 }}
-                className="px-4 py-2 rounded-xl bg-scripture-elevated hover:bg-scripture-border
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onFocus={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                }}
+                tabIndex={-1}
+                className="px-4 py-2 rounded-xl hover:bg-scripture-elevated
                            font-ui font-semibold text-sm transition-all duration-200
                            border border-scripture-border/30 hover:border-scripture-border/50
-                           shadow-sm hover:shadow min-w-[80px] h-[36px] flex items-center justify-center"
+                           touch-target hover:scale-105 active:scale-95 min-w-[80px] h-[36px] flex items-center justify-center
+                           select-none"
               >
                 {getActiveStudy()?.name || 'No Study'}
               </button>
@@ -377,11 +486,13 @@ export function NavigationBar() {
           )}
         </div>
 
-        {/* Options and additional controls */}
-        <div className="absolute right-4 flex items-center gap-2">
+        {/* Right side: Search and Next button */}
+        <div className="flex items-center gap-2">
           {/* Search button */}
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
               setShowSearch(true);
               setShowTranslationPicker(false);
               setShowStudyPicker(false);
@@ -389,8 +500,17 @@ export function NavigationBar() {
               setShowChapterPicker(false);
               setShowVersePicker(false);
             }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onFocus={(e) => {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }}
+            tabIndex={-1}
             className="p-2 rounded-xl hover:bg-scripture-elevated transition-all duration-200 touch-target
-                       hover:scale-105 active:scale-95"
+                       hover:scale-105 active:scale-95 select-none"
             aria-label="Search (Cmd/Ctrl+F)"
             title="Search (Cmd/Ctrl+F)"
           >
@@ -401,11 +521,24 @@ export function NavigationBar() {
 
           {/* Next button */}
           <button
-            onClick={nextChapter}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              nextChapter();
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onFocus={(e) => {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }}
+            tabIndex={-1}
             disabled={!canGoNext()}
             className="p-2 rounded-xl hover:bg-scripture-elevated disabled:opacity-30
                        disabled:cursor-not-allowed transition-all duration-200 touch-target
-                       hover:scale-105 active:scale-95"
+                       hover:scale-105 active:scale-95 select-none"
             aria-label="Next chapter"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -447,6 +580,28 @@ interface BookPickerProps {
 function BookPicker({ currentBook, onSelect, onClose }: BookPickerProps) {
   const otBooks = getOTBooks();
   const ntBooks = getNTBooks();
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (pickerRef.current) {
+      // Find the button that opened this picker
+      const button = pickerRef.current.closest('.relative')?.querySelector('button') as HTMLElement;
+      if (button) {
+        const buttonRect = button.getBoundingClientRect();
+        const pickerWidth = 340;
+        const viewportWidth = window.innerWidth;
+        // Center relative to button, but constrain to viewport
+        const left = buttonRect.left + (buttonRect.width / 2) - (pickerWidth / 2);
+        const constrainedLeft = Math.max(1, Math.min(left, viewportWidth - pickerWidth - 1));
+        const top = buttonRect.bottom + 8; // mt-2 = 8px
+        
+        pickerRef.current.style.position = 'fixed';
+        pickerRef.current.style.left = `${constrainedLeft}px`;
+        pickerRef.current.style.top = `${top}px`;
+        pickerRef.current.style.transform = 'none';
+      }
+    }
+  }, []);
 
   return (
     <>
@@ -457,9 +612,15 @@ function BookPicker({ currentBook, onSelect, onClose }: BookPickerProps) {
       />
       
       {/* Picker */}
-      <div className="absolute top-full left-0 mt-2 z-50
-                      bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl
-                      w-[340px] max-h-[70vh] overflow-hidden animate-scale-in backdrop-blur-sm">
+      <div 
+        ref={pickerRef}
+        className="z-50 bg-scripture-surface rounded-2xl shadow-2xl
+                    max-h-[70vh] overflow-hidden backdrop-blur-sm"
+        style={{ 
+          width: '340px',
+          maxWidth: 'min(340px, calc(100vw - 2rem))'
+        }}
+      >
         <div className="overflow-y-auto max-h-[70vh] custom-scrollbar p-4">
           {/* Old Testament */}
           <h4 className="text-xs font-ui font-semibold text-scripture-muted uppercase tracking-wider mb-2">
@@ -513,19 +674,53 @@ interface ChapterPickerProps {
 
 function ChapterPicker({ chapters, currentChapter, onSelect, onClose }: ChapterPickerProps) {
   const chapterNumbers = Array.from({ length: chapters }, (_, i) => i + 1);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (pickerRef.current) {
+      const button = pickerRef.current.closest('.relative')?.querySelector('button') as HTMLElement;
+      if (button) {
+        const buttonRect = button.getBoundingClientRect();
+        const pickerWidth = 280;
+        const viewportWidth = window.innerWidth;
+        const left = buttonRect.left + (buttonRect.width / 2) - (pickerWidth / 2);
+        const constrainedLeft = Math.max(1, Math.min(left, viewportWidth - pickerWidth - 1));
+        const top = buttonRect.bottom + 8;
+        
+        pickerRef.current.style.position = 'fixed';
+        pickerRef.current.style.left = `${constrainedLeft}px`;
+        pickerRef.current.style.top = `${top}px`;
+        pickerRef.current.style.transform = 'none';
+      }
+    }
+  }, []);
 
   return (
     <>
       {/* Backdrop */}
       <div 
         className="fixed inset-0 z-40" 
-        onClick={onClose}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onClose();
+        }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
       />
       
       {/* Picker */}
-      <div className="absolute top-full left-0 mt-2 z-50
-                      bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl
-                      w-[280px] max-h-[50vh] overflow-hidden animate-scale-in backdrop-blur-sm">
+      <div 
+        ref={pickerRef}
+        className="z-50 bg-scripture-surface rounded-2xl shadow-2xl
+                    max-h-[50vh] overflow-hidden backdrop-blur-sm"
+        style={{ 
+          width: '280px',
+          maxWidth: 'min(280px, calc(100vw - 2rem))'
+        }}
+      >
         <div className="overflow-y-auto max-h-[50vh] custom-scrollbar p-4">
           <div className="grid grid-cols-6 gap-1.5">
             {chapterNumbers.map((num) => (
@@ -647,8 +842,8 @@ function TranslationPicker({
       
       {/* Picker */}
       <div className="absolute top-full left-0 mt-2 z-50
-                      bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl
-                      w-[400px] max-h-[70vh] overflow-hidden animate-scale-in backdrop-blur-sm">
+                      bg-scripture-surface rounded-2xl shadow-2xl
+                      w-[400px] max-w-[min(400px,calc(100vw-2rem))] max-h-[70vh] overflow-hidden animate-scale-in backdrop-blur-sm">
         <div className="overflow-y-auto max-h-[70vh] custom-scrollbar p-4">
           {/* Selected translations header */}
           {selectedInMultiView.length > 0 && (
@@ -884,6 +1079,26 @@ interface VersePickerProps {
 
 function VersePicker({ verseCount, currentVerse, onSelect, onClose }: VersePickerProps) {
   const verseNumbers = Array.from({ length: verseCount }, (_, i) => i + 1);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (pickerRef.current) {
+      const button = pickerRef.current.closest('.relative')?.querySelector('button') as HTMLElement;
+      if (button) {
+        const buttonRect = button.getBoundingClientRect();
+        const pickerWidth = 320;
+        const viewportWidth = window.innerWidth;
+        const left = buttonRect.left + (buttonRect.width / 2) - (pickerWidth / 2);
+        const constrainedLeft = Math.max(1, Math.min(left, viewportWidth - pickerWidth - 1));
+        const top = buttonRect.bottom + 8;
+        
+        pickerRef.current.style.position = 'fixed';
+        pickerRef.current.style.left = `${constrainedLeft}px`;
+        pickerRef.current.style.top = `${top}px`;
+        pickerRef.current.style.transform = 'none';
+      }
+    }
+  }, []);
 
   return (
     <>
@@ -894,9 +1109,15 @@ function VersePicker({ verseCount, currentVerse, onSelect, onClose }: VersePicke
       />
       
       {/* Picker */}
-      <div className="absolute top-full left-0 mt-2 z-50
-                      bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl
-                      w-[320px] max-h-[50vh] overflow-hidden animate-scale-in backdrop-blur-sm">
+      <div 
+        ref={pickerRef}
+        className="z-50 bg-scripture-surface rounded-2xl shadow-2xl
+                    max-h-[50vh] overflow-hidden backdrop-blur-sm"
+        style={{ 
+          width: '320px',
+          maxWidth: 'min(320px, calc(100vw - 2rem))'
+        }}
+      >
         <div className="overflow-y-auto max-h-[50vh] custom-scrollbar p-4">
           <div className="grid grid-cols-8 gap-1.5">
             {verseNumbers.map((num) => (
@@ -926,6 +1147,27 @@ interface StudyPickerProps {
 }
 
 function StudyPicker({ studies, activeStudyId, onSelect, onClose }: StudyPickerProps) {
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (pickerRef.current) {
+      const button = pickerRef.current.closest('.relative')?.querySelector('button') as HTMLElement;
+      if (button) {
+        const buttonRect = button.getBoundingClientRect();
+        const pickerWidth = 280;
+        const viewportWidth = window.innerWidth;
+        const left = buttonRect.left + (buttonRect.width / 2) - (pickerWidth / 2);
+        const constrainedLeft = Math.max(1, Math.min(left, viewportWidth - pickerWidth - 1));
+        const top = buttonRect.bottom + 8;
+        
+        pickerRef.current.style.position = 'fixed';
+        pickerRef.current.style.left = `${constrainedLeft}px`;
+        pickerRef.current.style.top = `${top}px`;
+        pickerRef.current.style.transform = 'none';
+      }
+    }
+  }, []);
+
   return (
     <>
       {/* Backdrop */}
@@ -935,9 +1177,15 @@ function StudyPicker({ studies, activeStudyId, onSelect, onClose }: StudyPickerP
       />
       
       {/* Picker */}
-      <div className="absolute top-full left-0 mt-2 z-50
-                      bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl
-                      w-[280px] max-h-[50vh] overflow-hidden animate-scale-in backdrop-blur-sm">
+      <div 
+        ref={pickerRef}
+        className="z-50 bg-scripture-surface rounded-2xl shadow-2xl
+                    max-h-[50vh] overflow-hidden backdrop-blur-sm"
+        style={{ 
+          width: '280px',
+          maxWidth: 'min(280px, calc(100vw - 2rem))'
+        }}
+      >
         <div className="overflow-y-auto max-h-[50vh] custom-scrollbar p-4">
           {/* Option to clear active study */}
           <button

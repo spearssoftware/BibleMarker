@@ -173,12 +173,12 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
       {/* Modal */}
       <div
         className="fixed inset-x-4 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[201]
-                   bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl
                    max-w-4xl max-h-[80vh] overflow-hidden flex flex-col animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full mx-2 my-2">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-scripture-border/50">
+        <div className="flex items-center justify-between p-4 border-b border-scripture-overlayBorder/50">
           <h2 className="text-xl font-ui font-semibold text-scripture-text">
             Bible Translations
           </h2>
@@ -656,6 +656,7 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
               )}
             </div>
 
+        </div>
         </div>
       </div>
     </>
