@@ -134,25 +134,10 @@ export async function loadSampleData(): Promise<void> {
     return; // Already loaded
   }
 
-  // Register the WEB module
+  // Register the WEB module (using deprecated ModuleRecord interface)
   await db.modules.put({
     id: 'WEB',
-    config: {
-      name: 'WEB',
-      dataPath: './modules/texts/WEB/',
-      modDrv: 'zText',
-      description: 'World English Bible',
-      about: 'The World English Bible is a Public Domain translation of the Holy Bible.',
-      version: '1.0',
-      lang: 'en',
-      encoding: 'UTF-8',
-      sourceType: 'OSIS',
-      distributionLicense: 'Public Domain',
-      raw: {},
-    },
     status: 'installed',
-    installedAt: new Date(),
-    size: 0,
   });
 
   // Load sample chapters

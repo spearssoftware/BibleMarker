@@ -191,28 +191,6 @@ export function StudyToolsPanel({ onClose }: StudyToolsPanelProps) {
     loadLists();
   };
 
-  if (isCreating) {
-    return (
-      <ListEditor
-        onClose={() => setIsCreating(false)}
-        onSave={() => setIsCreating(false)}
-      />
-    );
-  }
-
-  if (editingListId) {
-    const list = lists.find(l => l.id === editingListId);
-    if (list) {
-      return (
-        <ListEditor
-          list={list}
-          onClose={() => setEditingListId(null)}
-          onSave={() => setEditingListId(null)}
-        />
-      );
-    }
-  }
-
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
@@ -220,7 +198,7 @@ export function StudyToolsPanel({ onClose }: StudyToolsPanelProps) {
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-ui font-semibold text-scripture-text">Study Tools</h2>
           <div className="flex items-center gap-2">
-            {activeTab === 'lists' && (
+            {activeTab === 'lists' && !isCreating && !editingListId && (
               <button
                 onClick={() => setIsCreating(true)}
                 className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
@@ -243,7 +221,11 @@ export function StudyToolsPanel({ onClose }: StudyToolsPanelProps) {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setIsCreating(false);
+                setEditingListId(null);
+              }}
               className={`
                 px-4 py-2 rounded-lg text-sm font-ui font-medium transition-all
                 ${activeTab === tab.id
@@ -261,9 +243,37 @@ export function StudyToolsPanel({ onClose }: StudyToolsPanelProps) {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-            {activeTab === 'lists' && (
-              <div className="h-full">
-                {lists.length === 0 ? (
+        {/* Show ListEditor inline when creating or editing */}
+        {activeTab === 'lists' && (isCreating || editingListId) ? (
+          <div className="h-full flex flex-col">
+            {isCreating ? (
+              <ListEditor
+                inline
+                onClose={() => setIsCreating(false)}
+                onSave={async () => {
+                  setIsCreating(false);
+                  await loadLists();
+                }}
+              />
+            ) : editingListId ? (() => {
+              const list = lists.find(l => l.id === editingListId);
+              if (!list) return null;
+              return (
+                <ListEditor
+                  inline
+                  list={list}
+                  onClose={() => setEditingListId(null)}
+                  onSave={async () => {
+                    setEditingListId(null);
+                    await loadLists();
+                  }}
+                />
+              );
+            })() : null}
+          </div>
+        ) : activeTab === 'lists' ? (
+          <div className="h-full">
+            {lists.length === 0 ? (
                   <div className="text-center py-12">
                     <p className="text-scripture-muted text-sm mb-4">No observation lists yet.</p>
                     <p className="text-scripture-muted text-xs mb-4">Create a list to record observations about a specific keyword found in scripture.</p>
@@ -476,9 +486,9 @@ export function StudyToolsPanel({ onClose }: StudyToolsPanelProps) {
                     })}
                   </div>
                 )}
-              </div>
-            )}
-            {activeTab === 'chapter' && (
+          </div>
+        ) : null}
+        {activeTab === 'chapter' && (
               <div className="h-full">
                 <ChapterAtAGlance onObservationClick={(listId) => {
                   setActiveTab('lists');

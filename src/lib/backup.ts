@@ -153,7 +153,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
     // Use File System Access API if available
     if (isFileSystemAccessSupported()) {
       try {
-        const fileHandle = await window.showSaveFilePicker({
+        const fileHandle = await (window as any).showSaveFilePicker({
           suggestedName: generateBackupFilename(),
           types: [{
             description: 'BibleMarker Backup',
@@ -333,7 +333,7 @@ export async function importBackup(): Promise<BackupData> {
     // Use File System Access API if available
     if (isFileSystemAccessSupported()) {
       try {
-        const [handle] = await window.showOpenFilePicker({
+        const [handle] = await (window as any).showOpenFilePicker({
           types: [{
             description: 'BibleMarker Backup',
             accept: { 'application/json': ['.json'] },

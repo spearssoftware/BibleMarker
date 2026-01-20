@@ -26,7 +26,7 @@ interface BibleState {
   // Actions
   setCurrentModule: (moduleId: string) => void;
   setLocation: (book: string, chapter: number) => void;
-  setChapter: (chapter: Chapter) => void;
+  setChapter: (chapter: Chapter | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setNavSelectedVerse: (verse: number | null) => void;

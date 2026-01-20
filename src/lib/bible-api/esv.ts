@@ -112,14 +112,15 @@ export class EsvClient implements BibleApiClient {
   private baseUrl = ESV_BASE_URL;
 
   isConfigured(): boolean {
-    // ESV should always be available in the list, even if API key isn't set yet
-    // The API key check happens when actually fetching data
-    return true;
+    // Check if API key is actually set
+    return !!this.apiKey && this.apiKey.trim().length > 0;
   }
 
   configure(config: ApiConfig): void {
-    if (config.apiKey) {
-      this.apiKey = config.apiKey;
+    if (config.apiKey && config.apiKey.trim().length > 0) {
+      this.apiKey = config.apiKey.trim();
+    } else {
+      this.apiKey = null;
     }
     if (config.baseUrl) {
       this.baseUrl = config.baseUrl;

@@ -12,6 +12,7 @@ import type {
   AnnotationType,
   MarkingPreferences,
   SectionHeading,
+  ChapterTitle,
   Note,
 } from '@/types/annotation';
 import { DEFAULT_MARKING_PREFERENCES } from '@/types/annotation';
@@ -48,7 +49,6 @@ interface AnnotationState {
   annotations: Annotation[];
   sectionHeadings: SectionHeading[];
   chapterTitle: ChapterTitle | null;
-  chapterTitle: SectionHeading | null; // Using SectionHeading type for now, will be ChapterTitle
   notes: Note[];
   
   // Preferences

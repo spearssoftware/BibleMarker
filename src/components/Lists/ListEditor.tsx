@@ -16,9 +16,10 @@ interface ListEditorProps {
   list?: ObservationList;
   onClose: () => void;
   onSave: () => void;
+  inline?: boolean; // If true, render inline instead of as modal overlay
 }
 
-export function ListEditor({ list, onClose, onSave }: ListEditorProps) {
+export function ListEditor({ list, onClose, onSave, inline = false }: ListEditorProps) {
   const { createList, updateList, autoPopulateFromKeyword } = useListStore();
   const { presets } = useMarkingPresetStore();
   const { studies } = useStudyStore();
@@ -93,30 +94,38 @@ export function ListEditor({ list, onClose, onSave }: ListEditorProps) {
   // Get keyword presets (only those with words)
   const keywordPresets = presets.filter(p => p.word);
 
-  return (
-    <div className="fixed inset-0 backdrop-overlay z-50 overflow-y-auto" onClick={onClose}>
-      <div className="min-h-full flex items-center justify-center p-4">
-        <div 
-          className="bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col" 
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="p-4 border-b border-scripture-border/50">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-ui font-semibold text-scripture-text">
-                {list ? 'Edit List' : 'Create Observation List'}
-              </h2>
-              <button
-                onClick={onClose}
-                className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
+  const content = (
+    <div 
+      className={`${inline ? 'flex flex-col h-full min-h-0' : 'bg-scripture-surface border border-scripture-border/50 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col'}`}
+      onClick={inline ? undefined : (e) => e.stopPropagation()}
+    >
+      {!inline && (
+        <div className="p-4 border-b border-scripture-border/50 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-ui font-semibold text-scripture-text">
+              {list ? 'Edit List' : 'Create Observation List'}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
+              aria-label="Close"
+            >
+              ✕
+            </button>
           </div>
+        </div>
+      )}
 
-          <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
-            <div className="space-y-4">
+      {inline && (
+        <div className="flex-shrink-0 mb-4">
+          <h2 className="text-lg font-ui font-semibold text-scripture-text">
+            {list ? 'Edit List' : 'Create Observation List'}
+          </h2>
+        </div>
+      )}
+
+      <div className={`${inline ? 'flex-1 min-h-0 overflow-y-auto p-4 space-y-4 custom-scrollbar pb-2' : 'p-6 overflow-y-auto flex-1 custom-scrollbar'}`}>
+        <div className="space-y-4">
               {/* Title */}
               <div>
                 <label className="block text-sm font-medium text-scripture-text mb-2">
@@ -217,25 +226,39 @@ export function ListEditor({ list, onClose, onSave }: ListEditorProps) {
                   )}
                 </div>
               </div>
-            </div>
-          </div>
-
-          <div className="p-4 border-t border-scripture-border/50 flex items-center justify-end gap-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!title.trim() || !selectedKeywordId}
-              className="px-4 py-2 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {list ? 'Save' : 'Create'}
-            </button>
-          </div>
         </div>
+        
+        {/* Extra padding at bottom to ensure last field is scrollable above save button */}
+        {inline && <div className="h-4"></div>}
+      </div>
+
+      {/* Sticky Save/Cancel bar */}
+      <div className={`${inline ? 'flex-shrink-0 p-4 border-t border-scripture-border/50 flex gap-2 bg-scripture-surface z-10' : 'p-4 border-t border-scripture-border/50 flex items-center justify-end gap-2 flex-shrink-0'}`}>
+        <button
+          onClick={onClose}
+          className={`${inline ? 'px-3 py-1.5' : 'px-4 py-2'} text-sm bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors`}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={!title.trim() || !selectedKeywordId}
+          className={`${inline ? 'px-3 py-1.5' : 'px-4 py-2'} text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
+        >
+          {list ? 'Save' : 'Create'}
+        </button>
+      </div>
+    </div>
+  );
+
+  if (inline) {
+    return content;
+  }
+
+  return (
+    <div className="fixed inset-0 backdrop-overlay z-[200] overflow-y-auto" onClick={onClose}>
+      <div className="min-h-full flex items-center justify-center p-4">
+        {content}
       </div>
     </div>
   );

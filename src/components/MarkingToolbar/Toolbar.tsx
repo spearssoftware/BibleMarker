@@ -134,7 +134,6 @@ export function Toolbar() {
       console.error('Error clearing database:', error);
       alert('Error clearing database. Check console for details.');
       setIsClearing(false);
-      setShowSystemMenu(false);
     }
   };
 
@@ -532,7 +531,6 @@ export function Toolbar() {
                   setShowKeyWordManager(true);
                   setShowColorPicker(false);
                   setShowSymbolPicker(false);
-                  setShowSystemMenu(false);
                   setActiveTool(null);
                   if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
                 }}

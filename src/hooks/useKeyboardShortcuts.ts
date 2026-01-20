@@ -102,7 +102,11 @@ export function useKeyboardShortcuts({
         if (toolIndex >= 0 && toolIndex < TOOLBAR_TOOLS.length) {
           e.preventDefault();
           const toolType = TOOLBAR_TOOLS[toolIndex];
-          setActiveTool(toolType);
+          // Map toolbar tools to annotation tool types
+          const annotationTool = toolType === 'color' ? 'highlight' : toolType === 'symbol' ? 'symbol' : null;
+          if (annotationTool) {
+            setActiveTool(annotationTool);
+          }
           if (onToolbarTool) {
             onToolbarTool(toolIndex);
           }

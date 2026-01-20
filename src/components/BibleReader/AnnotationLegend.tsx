@@ -157,7 +157,7 @@ export function AnnotationLegend({ annotations }: AnnotationLegendProps) {
                       className="inline-block border-b-2"
                       style={{
                         borderBottomColor: HIGHLIGHT_COLORS[ul.color as keyof typeof HIGHLIGHT_COLORS],
-                        borderBottomStyle: ul.style || 'solid',
+                        borderBottomStyle: (ul.style || 'solid') as any,
                       }}
                       title={ul.color}
                     >

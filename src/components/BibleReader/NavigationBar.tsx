@@ -660,7 +660,7 @@ function TranslationPicker({
                 <button
                   onClick={async () => {
                     if (confirm('Clear all selected translations?')) {
-                      await clearView();
+                      await useMultiTranslationStore.getState().clearView();
                     }
                   }}
                   className="text-xs text-highlight-red hover:text-highlight-red/80 transition-colors"

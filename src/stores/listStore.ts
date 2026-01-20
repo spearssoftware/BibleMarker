@@ -286,7 +286,7 @@ export const useListStore = create<ListState>()(
         const newItems: ObservationItem[] = Array.from(verseMap.values()).map(({ verseRef, text }) => {
           // Extract a snippet of text around the keyword for context
           const lowerText = text.toLowerCase();
-          const lowerWord = preset.word.toLowerCase();
+          const lowerWord = (preset.word || '').toLowerCase();
           let snippet = text;
 
           // Try to find the keyword in the text and get context

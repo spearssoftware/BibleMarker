@@ -1,0 +1,29 @@
+{
+  "identifier": "main-capability",
+  "description": "Main capability for BibleMarker app",
+  "windows": ["main"],
+  "permissions": [
+    "shell:allow-open",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "dialog:allow-message",
+    "dialog:allow-ask",
+    "dialog:allow-confirm",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$APPDATA/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$HOME/**" }
+      ]
+    },
+    "fs:allow-read-file",
+    "fs:allow-write-file",
+    "fs:allow-read-dir",
+    "fs:allow-copy-file",
+    "fs:allow-mkdir",
+    "fs:allow-remove",
+    "fs:allow-rename",
+    "fs:allow-exists"
+  ]
+}

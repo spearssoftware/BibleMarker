@@ -11,7 +11,6 @@ dist/
 build/
 
 # Misc
-.DS_Store
 .env
 .env.local
 .env.development.local
@@ -34,9 +33,23 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+.cursor/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # Vite
 .vite/
 
 # TypeScript
 *.tsbuildinfo
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/

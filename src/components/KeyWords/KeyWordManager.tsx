@@ -168,9 +168,9 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-scripture-border/50">
+      <div className="flex items-center justify-between p-4 border-b border-scripture-border/50 flex-shrink-0">
         <h2 className="text-lg font-ui font-semibold text-scripture-text">
           Key Words
         </h2>
@@ -195,7 +195,7 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
 
       {/* Filters: only when viewing the list (hidden when adding/editing) */}
       {!(isCreating || editingId) && (
-        <div className="p-4 border-b border-scripture-border/50">
+        <div className="p-4 border-b border-scripture-border/50 flex-shrink-0">
           <div className="bg-scripture-surface border border-scripture-border/50 rounded-xl p-3 space-y-3">
             <input
               type="text"
@@ -471,9 +471,9 @@ function KeyWordEditor({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+    <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0">
       {/* Scrollable fields */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 custom-scrollbar pb-2">
         <div>
           <label className="block text-sm font-ui text-scripture-text mb-1">
             Word or Phrase *
@@ -704,10 +704,13 @@ function KeyWordEditor({
             Assign this keyword to a specific study. Global keywords are visible in all studies.
           </p>
         </div>
+        
+        {/* Extra padding at bottom to ensure last field is scrollable above save button */}
+        <div className="h-4"></div>
       </div>
 
       {/* Sticky Save/Cancel bar — always visible at bottom */}
-      <div className="flex-shrink-0 p-4 border-t border-scripture-border/50 flex gap-2 bg-scripture-surface">
+      <div className="flex-shrink-0 p-4 border-t border-scripture-border/50 flex gap-2 bg-scripture-surface z-10">
         <button
           type="submit"
           className="flex-1 px-4 py-2.5 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg

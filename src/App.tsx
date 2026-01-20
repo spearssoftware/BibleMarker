@@ -1,5 +1,5 @@
 /**
- * Bible Study App
+ * BibleMarker
  * 
  * Main application component with Bible API support (getBible, Biblia, ESV).
  */

@@ -86,7 +86,7 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
           
           chapterSummaries.push({
             chapter,
-            title,
+            title: title ?? null,
             headingCount: headings.length,
             keywordCount: uniqueKeywords.size,
             observationCount,

@@ -23,7 +23,8 @@ import { NoteCreator } from './NoteCreator';
 import { VerseNumberMenu } from './VerseNumberMenu';
 import { getBookById } from '@/types/bible';
 import type { Chapter } from '@/types/bible';
-import type { Annotation, SectionHeading, Note, VerseRange } from '@/types/annotation';
+import type { Annotation, SectionHeading, Note } from '@/types/annotation';
+import type { VerseRange } from '@/types/bible';
 
 interface TranslationChapter {
   translation: ApiTranslation;
@@ -752,6 +753,9 @@ export function MultiTranslationView() {
                     <NoteEditor
                       key={note.id}
                       note={note}
+                      verseNum={verseNum}
+                      book={currentBook}
+                      chapter={currentChapter}
                       onSave={updateNote}
                       onDelete={removeNote}
                     />

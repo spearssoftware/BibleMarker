@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'Bible Study',
-        short_name: 'BibleStudy',
+        name: 'BibleMarker',
+        short_name: 'BibleMarker',
         description: 'A focused Bible study app with rich annotation tools',
         theme_color: '#1a1a2e',
         background_color: '#1a1a2e',

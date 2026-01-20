@@ -107,7 +107,7 @@ export function ChapterAtAGlance({ onObservationClick }: ChapterAtAGlanceProps =
           .filter((item): item is { list: ObservationList; items: number } => item !== null);
         
         setSummary({
-          title,
+          title: title ?? null,
           headings,
           keywords,
           observations,

@@ -13,7 +13,7 @@ export function AboutSection() {
         <h3 className="text-sm font-ui font-semibold text-scripture-text mb-3">About</h3>
         <div className="space-y-3 text-sm text-scripture-text">
           <div>
-            <div className="font-medium mb-1">Bible Study App</div>
+            <div className="font-medium mb-1">BibleMarker</div>
             <div className="text-scripture-muted text-xs">
               Version {version}
             </div>
