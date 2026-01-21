@@ -12,6 +12,18 @@ import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences 
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
 import { applyTheme } from '@/lib/theme';
 import { clearDebugFlagsCache } from '@/lib/debug';
+import { 
+  getAutoBackupConfig, 
+  updateAutoBackupConfig, 
+  getStoredBackups, 
+  getTotalBackupSize,
+  autoBackupService,
+  performBackup,
+  getStoredBackup,
+  restoreFromLatestBackup,
+  getBackupLocation,
+  type StoredBackup 
+} from '@/lib/autoBackup';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { AboutSection } from './AboutSection';
 import { GettingStartedSection } from './GettingStartedSection';
@@ -72,8 +84,20 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [savingApi, setSavingApi] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
+  // Auto-backup state
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(true);
+  const [autoBackupInterval, setAutoBackupInterval] = useState(5);
+  const [autoBackupMaxBackups, setAutoBackupMaxBackups] = useState(10);
+  const [savingAutoBackup, setSavingAutoBackup] = useState(false);
+  const [storedBackups, setStoredBackups] = useState<StoredBackup[]>([]);
+  const [totalBackupSize, setTotalBackupSize] = useState(0);
+  const [isCreatingBackup, setIsCreatingBackup] = useState(false);
+  const [backupLocation, setBackupLocation] = useState<string>('');
+
   // Load current preferences
   useEffect(() => {
+    let statsInterval: number | undefined;
+    
     async function loadPrefs() {
       try {
         setIsLoadingPrefs(true);
@@ -91,6 +115,27 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           setDebugVerseText(prefs.debug.verseText);
         }
         applyTheme(prefs.theme || 'auto', prefs.highContrast || false);
+        
+        // Load auto-backup config
+        const autoBackupConfig = await getAutoBackupConfig();
+        setAutoBackupEnabled(autoBackupConfig.enabled);
+        setAutoBackupInterval(autoBackupConfig.intervalMinutes);
+        setAutoBackupMaxBackups(autoBackupConfig.maxBackups);
+        
+        // Load backup statistics
+        const loadBackupStats = async () => {
+          const backups = await getStoredBackups();
+          const totalSize = await getTotalBackupSize();
+          const location = await getBackupLocation();
+          setStoredBackups(backups);
+          setTotalBackupSize(totalSize);
+          setBackupLocation(location);
+        };
+        await loadBackupStats();
+        
+        // Refresh backup stats every 30 seconds when settings panel is open
+        statsInterval = window.setInterval(loadBackupStats, 30000);
+        
         // Load API configs
         if (prefs.apiConfigs) {
           const bibliaConfig = prefs.apiConfigs.find(c => c.provider === 'biblia');
@@ -110,6 +155,13 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       }
     }
     loadPrefs();
+    
+    // Cleanup interval on unmount
+    return () => {
+      if (statsInterval !== undefined) {
+        clearInterval(statsInterval);
+      }
+    };
   }, []);
 
   async function saveApiConfig(
@@ -849,6 +901,242 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     ✗ {exportError}
                   </div>
                 )}
+              </div>
+
+              <div className="border-t border-scripture-border/30"></div>
+
+              {/* Auto-Backup Section */}
+              <div className="p-4">
+                <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Auto-Backup</h3>
+                <p className="text-sm text-scripture-muted mb-4">
+                  Automatically backup your data at regular intervals. Backups are stored as JSON files (separate from the database) and rotated to keep only the most recent ones. This protects your data if the database becomes corrupted.
+                </p>
+
+                <div className="space-y-4">
+                  {/* Enable/Disable */}
+                  <label className="flex items-center gap-2 text-sm text-scripture-text cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={autoBackupEnabled}
+                      onChange={async (e) => {
+                        const enabled = e.target.checked;
+                        setAutoBackupEnabled(enabled);
+                        setSavingAutoBackup(true);
+                        try {
+                          await updateAutoBackupConfig({ enabled });
+                          if (enabled) {
+                            await autoBackupService.restart();
+                          } else {
+                            autoBackupService.stop();
+                          }
+                        } catch (error) {
+                          console.error('Failed to update auto-backup config:', error);
+                          setAutoBackupEnabled(!enabled); // Revert on error
+                        } finally {
+                          setSavingAutoBackup(false);
+                        }
+                      }}
+                      disabled={savingAutoBackup}
+                      className="w-4 h-4 rounded border-scripture-border text-scripture-accent focus:ring-scripture-accent disabled:opacity-50"
+                    />
+                    <span>Enable auto-backup</span>
+                  </label>
+
+                  {autoBackupEnabled && (
+                    <>
+                      {/* Backup Interval */}
+                      <div>
+                        <label className="block text-sm font-medium text-scripture-text mb-2">
+                          Backup Interval (minutes)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="60"
+                          value={autoBackupInterval}
+                          onChange={(e) => {
+                            const value = Math.max(1, Math.min(60, parseInt(e.target.value) || 5));
+                            setAutoBackupInterval(value);
+                          }}
+                          onBlur={async () => {
+                            setSavingAutoBackup(true);
+                            try {
+                              await updateAutoBackupConfig({ intervalMinutes: autoBackupInterval });
+                              await autoBackupService.restart();
+                            } catch (error) {
+                              console.error('Failed to update auto-backup interval:', error);
+                            } finally {
+                              setSavingAutoBackup(false);
+                            }
+                          }}
+                          disabled={savingAutoBackup}
+                          className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
+                                   rounded-lg focus:outline-none focus:border-scripture-accent
+                                   text-scripture-text disabled:opacity-50"
+                        />
+                        <p className="text-xs text-scripture-muted mt-1">
+                          Backups will be created every {autoBackupInterval} minute{autoBackupInterval !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+
+                      {/* Max Backups */}
+                      <div>
+                        <label className="block text-sm font-medium text-scripture-text mb-2">
+                          Maximum Backups to Keep
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="50"
+                          value={autoBackupMaxBackups}
+                          onChange={(e) => {
+                            const value = Math.max(1, Math.min(50, parseInt(e.target.value) || 10));
+                            setAutoBackupMaxBackups(value);
+                          }}
+                          onBlur={async () => {
+                            setSavingAutoBackup(true);
+                            try {
+                              await updateAutoBackupConfig({ maxBackups: autoBackupMaxBackups });
+                              // Trigger rotation by performing a backup (which includes rotation)
+                              if (autoBackupEnabled) {
+                                await performBackup();
+                                // Refresh statistics
+                                const backups = await getStoredBackups();
+                                const totalSize = await getTotalBackupSize();
+                                setStoredBackups(backups);
+                                setTotalBackupSize(totalSize);
+                              }
+                            } catch (error) {
+                              console.error('Failed to update max backups:', error);
+                            } finally {
+                              setSavingAutoBackup(false);
+                            }
+                          }}
+                          disabled={savingAutoBackup}
+                          className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
+                                   rounded-lg focus:outline-none focus:border-scripture-accent
+                                   text-scripture-text disabled:opacity-50"
+                        />
+                        <p className="text-xs text-scripture-muted mt-1">
+                          Older backups will be automatically deleted when this limit is reached
+                        </p>
+                      </div>
+
+                      {/* Backup Statistics */}
+                      <div className="p-3 bg-scripture-elevated/50 rounded-lg border border-scripture-border/50">
+                        <div className="text-sm font-medium text-scripture-text mb-2">Backup Statistics</div>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-scripture-muted">Stored Backups:</span>
+                            <span className="text-scripture-text font-medium">{storedBackups.length}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-scripture-muted">Total Size:</span>
+                            <span className="text-scripture-text font-medium">
+                              {(totalBackupSize / 1024).toFixed(2)} KB
+                            </span>
+                          </div>
+                          {storedBackups.length > 0 && (
+                            <div className="flex justify-between">
+                              <span className="text-scripture-muted">Latest Backup:</span>
+                              <span className="text-scripture-text font-medium">
+                                {new Date(storedBackups[0].timestamp).toLocaleString()}
+                              </span>
+                            </div>
+                          )}
+                          {backupLocation && (
+                            <div className="flex flex-col gap-1">
+                              <span className="text-scripture-muted text-xs">Storage Location:</span>
+                              <span className="text-scripture-text text-xs font-mono break-all">
+                                {backupLocation}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Restore from Latest Backup */}
+                      {storedBackups.length > 0 && (
+                        <button
+                          onClick={async () => {
+                            if (!confirm('Restore from the most recent auto-backup? This will replace your current data.')) {
+                              return;
+                            }
+                            setIsCreatingBackup(true);
+                            try {
+                              const backupData = await restoreFromLatestBackup();
+                              if (backupData) {
+                                await restoreBackup(backupData, 'replace');
+                                alert('Backup restored successfully! The page will reload.');
+                                window.location.reload();
+                              } else {
+                                alert('Failed to load backup data.');
+                              }
+                            } catch (error) {
+                              console.error('Failed to restore backup:', error);
+                              alert(`Failed to restore backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                            } finally {
+                              setIsCreatingBackup(false);
+                            }
+                          }}
+                          disabled={isCreatingBackup || savingAutoBackup}
+                          className="w-full px-3 py-2 text-sm font-ui bg-scripture-warningBg text-scripture-warningText rounded-lg 
+                                   hover:bg-scripture-warningBg/80 disabled:opacity-50 disabled:cursor-not-allowed 
+                                   transition-all duration-200 shadow-md flex items-center justify-center gap-2"
+                        >
+                          {isCreatingBackup ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin"></div>
+                              <span>Restoring...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>🔄</span>
+                              <span>Restore from Latest Backup</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+
+                      {/* Manual Backup Button */}
+                      <button
+                        onClick={async () => {
+                          setIsCreatingBackup(true);
+                          try {
+                            const backup = await performBackup();
+                            if (backup) {
+                              // Refresh statistics
+                              const backups = await getStoredBackups();
+                              const totalSize = await getTotalBackupSize();
+                              setStoredBackups(backups);
+                              setTotalBackupSize(totalSize);
+                            }
+                          } catch (error) {
+                            console.error('Failed to create backup:', error);
+                          } finally {
+                            setIsCreatingBackup(false);
+                          }
+                        }}
+                        disabled={isCreatingBackup || savingAutoBackup}
+                        className="w-full px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg 
+                                 hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed 
+                                 transition-all duration-200 shadow-md flex items-center justify-center gap-2"
+                      >
+                        {isCreatingBackup ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin"></div>
+                            <span>Creating Backup...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>💾</span>
+                            <span>Create Backup Now</span>
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
 
               <div className="border-t border-scripture-border/30"></div>

@@ -69,6 +69,13 @@ export interface OnboardingState {
   dismissedTooltips: string[];     // Array of tooltip IDs that have been dismissed
 }
 
+/** Auto-backup configuration */
+export interface AutoBackupConfig {
+  enabled: boolean;
+  intervalMinutes: number;  // Backup interval in minutes (default: 5)
+  maxBackups: number;        // Maximum number of backups to keep (default: 10)
+}
+
 /** User preferences */
 export interface UserPreferences {
   id: string;                    // 'main' for singleton
@@ -83,6 +90,7 @@ export interface UserPreferences {
   favoriteTranslations?: string[];  // Array of translation IDs
   recentTranslations?: string[];    // Array of translation IDs (most recent first)
   onboarding?: OnboardingState;    // Onboarding state for first-time users
+  autoBackup?: AutoBackupConfig;    // Auto-backup configuration
   debug?: {
     keywordMatching?: boolean;      // Enable debug logging for keyword matching
     verseText?: boolean;            // Enable debug logging for verse text rendering

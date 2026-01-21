@@ -20,6 +20,7 @@ import { getPreferences } from '@/lib/db';
 import { loadApiConfigs } from '@/lib/bible-api';
 import { initTheme } from '@/lib/theme';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { autoBackupService } from '@/lib/autoBackup';
 
 export default function App() {
   const { setChapter, currentBook, currentChapter, currentModuleId, setLoading, setError } = useBibleStore();
@@ -70,6 +71,14 @@ export default function App() {
     loadStudies();
     loadActiveView();
     loadLists();
+
+    // Start auto-backup service
+    autoBackupService.start();
+
+    // Cleanup: stop auto-backup service on unmount
+    return () => {
+      autoBackupService.stop();
+    };
   }, [setFontSize, loadStudies, loadActiveView, loadLists]);
 
   // Listen for restart onboarding event
