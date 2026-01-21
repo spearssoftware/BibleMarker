@@ -205,19 +205,62 @@ export function findKeywordMatches(
   
   if (!verseText || presets.length === 0) return annotations;
   
+  // Get debug flags once for this function call
+  const debugFlags = getDebugFlagsSync();
+  
+  // Debug: ESV-specific debugging for Jeremiah 29
+  const isESVDebug = debugFlags.keywordMatching && verseRef.book === 'Jer' && verseRef.chapter === 29;
+  
   // Filter presets that:
   // 1. Have a word defined and a highlight/symbol to apply
   // 2. Apply to this verse based on scope (global/book/chapter)
   // 3. If moduleScope is set, only apply to that specific translation (for single-instance pronouns)
   const keywordPresets = presets.filter(p => {
-    if (!p.word || (!p.highlight && !p.symbol)) return false;
-    if (!presetAppliesToVerse(p, verseRef)) return false;
+    if (!p.word || (!p.highlight && !p.symbol)) {
+      if (isESVDebug && (p.word?.toLowerCase().includes('jeremiah') || p.word?.toLowerCase().includes('lord') || p.word === 'LORD')) {
+        console.log(`[KeywordMatching] Filtered out preset "${p.word}" - missing highlight/symbol:`, {
+          word: p.word,
+          hasHighlight: !!p.highlight,
+          hasSymbol: !!p.symbol
+        });
+      }
+      return false;
+    }
+    if (!presetAppliesToVerse(p, verseRef)) {
+      if (isESVDebug && (p.word?.toLowerCase().includes('jeremiah') || p.word?.toLowerCase().includes('lord') || p.word === 'LORD')) {
+        console.log(`[KeywordMatching] Filtered out preset "${p.word}" - doesn't apply to verse:`, {
+          word: p.word,
+          bookScope: p.bookScope,
+          chapterScope: p.chapterScope,
+          verseRef
+        });
+      }
+      return false;
+    }
     // If moduleScope is set, only apply to that translation (used for pronouns marked in one translation)
-    if (p.moduleScope && p.moduleScope !== currentModuleId) return false;
+    if (p.moduleScope && p.moduleScope !== currentModuleId) {
+      if (isESVDebug && (p.word?.toLowerCase().includes('jeremiah') || p.word?.toLowerCase().includes('lord') || p.word === 'LORD')) {
+        console.log(`[KeywordMatching] Filtered out preset "${p.word}" - moduleScope mismatch:`, {
+          word: p.word,
+          moduleScope: p.moduleScope,
+          currentModuleId
+        });
+      }
+      return false;
+    }
     return true;
   });
   
-  if (keywordPresets.length === 0) return annotations;
+  if (keywordPresets.length === 0) {
+    if (isESVDebug) {
+      console.log(`[KeywordMatching] No keyword presets found for verse ${verseRef.verse}`, {
+        totalPresets: presets.length,
+        presetsWithJeremiah: presets.filter(p => p.word?.toLowerCase().includes('jeremiah')),
+        presetsWithLORD: presets.filter(p => p.word?.toLowerCase().includes('lord') || p.word === 'LORD')
+      });
+    }
+    return annotations;
+  }
   
   // Track which character ranges have been matched per preset to avoid overlapping matches
   // This prevents duplicates within the same preset, but allows different presets to match overlapping text
@@ -251,8 +294,23 @@ export function findKeywordMatches(
     return b.phrase.length - a.phrase.length; // Then longer character length
   });
   
-  // Get debug flags once for this function call
-  const debugFlags = getDebugFlagsSync();
+  if (isESVDebug) {
+    console.log(`%c[KeywordMatching] ESV Debug - Verse ${verseRef.verse}`, 'color: blue; font-weight: bold; font-size: 14px;');
+    console.log({
+      verseText: verseText.substring(0, 300),
+      verseTextLength: verseText.length,
+      keywordPresetsCount: keywordPresets.length,
+      allPhrasesCount: allPhrases.length,
+      currentModuleId,
+      keywordPresets: keywordPresets.map(p => ({
+        id: p.id,
+        word: p.word,
+        moduleScope: p.moduleScope,
+        bookScope: p.bookScope,
+        chapterScope: p.chapterScope
+      }))
+    });
+  }
   
   // Process each phrase (already sorted longest-first)
   for (const { preset, phrase } of allPhrases) {
@@ -264,19 +322,47 @@ export function findKeywordMatches(
     }
     const matchedRanges = matchedRangesByPreset.get(preset.id)!;
     
-    // Debug: log if we're looking for "Jeremiah" in verse 1
-    if (debugFlags.keywordMatching && phrase.toLowerCase().includes('jeremiah') && verseRef.verse === 1) {
-      console.log(`[KeywordMatching] Looking for "${phrase}" in verse 1:`, {
-        presetId: preset.id,
-        presetWord: preset.word,
-        presetSymbol: preset.symbol,
-        presetHighlight: preset.highlight,
-        matchesFound: matches.length,
-        matches: matches.map(m => ({ start: m.startIndex, end: m.endIndex, text: m.matchedText })),
-        verseText: verseText.substring(0, 200),
-        matchedRanges: Array.from(matchedRanges),
-        currentModuleId
-      });
+    // Debug: ESV-specific or general debugging
+    const isJeremiahVerse1 = debugFlags.keywordMatching && phrase.toLowerCase().includes('jeremiah') && verseRef.verse === 1;
+    const isLORDVerse15 = debugFlags.keywordMatching && (phrase.toLowerCase().includes('lord') || phrase === 'LORD') && verseRef.verse === 15;
+    if (isESVDebug || isJeremiahVerse1 || isLORDVerse15) {
+      const isRelevant = isESVDebug || phrase.toLowerCase().includes('jeremiah') || phrase.toLowerCase().includes('lord') || phrase === 'LORD';
+      if (isRelevant) {
+        // Check if phrase should have matched but didn't
+        const normalizedPhrase = normalizeForMatching(phrase);
+        const phraseInText = verseText.toLowerCase().includes(normalizedPhrase);
+        
+        console.log(`[KeywordMatching] Looking for "${phrase}" in verse ${verseRef.verse}:`, {
+          presetId: preset.id,
+          presetWord: preset.word,
+          presetSymbol: preset.symbol,
+          presetHighlight: preset.highlight,
+          moduleScope: preset.moduleScope,
+          matchesFound: matches.length,
+          normalizedPhrase,
+          phraseInText,
+          matches: matches.map(m => ({ 
+            start: m.startIndex, 
+            end: m.endIndex, 
+            text: m.matchedText,
+            matchedTextInVerse: verseText.substring(m.startIndex, m.endIndex)
+          })),
+          verseTextSample: verseText.substring(0, 200),
+          fullVerseText: verseText,
+          matchedRanges: Array.from(matchedRanges),
+          currentModuleId
+        });
+        
+        // If no matches found but phrase should be in text, log detailed analysis
+        if (matches.length === 0 && phraseInText) {
+          console.warn(`[KeywordMatching] WARNING: "${phrase}" appears in verse text but no matches found!`, {
+            phrase,
+            normalizedPhrase,
+            verseText,
+            wordsInVerse: splitIntoWords(verseText).map(w => ({ word: w.word, normalized: normalizeForMatching(w.word) }))
+          });
+        }
+      }
     }
     
     for (const match of matches) {
@@ -290,8 +376,10 @@ export function findKeywordMatches(
         return match.startIndex < end && match.endIndex > start;
       });
       
-      // Debug: log if "Jeremiah" match is being filtered out
-      if (debugFlags.keywordMatching && phrase.toLowerCase().includes('jeremiah') && verseRef.verse === 1) {
+      // Debug: log if "Jeremiah" (verse 1) or "LORD" (verse 15) match is being filtered out
+      const isJeremiahVerse1Debug = debugFlags.keywordMatching && phrase.toLowerCase().includes('jeremiah') && verseRef.verse === 1;
+      const isLORDVerse15Debug = debugFlags.keywordMatching && (phrase.toLowerCase().includes('lord') || phrase === 'LORD') && verseRef.verse === 15;
+      if (isESVDebug || isJeremiahVerse1Debug || isLORDVerse15Debug) {
         const overlappingRanges = Array.from(matchedRanges).filter(range => {
           const [start, end] = range.split('-').map(Number);
           return match.startIndex < end && match.endIndex > start;
@@ -299,9 +387,11 @@ export function findKeywordMatches(
         console.log(`[KeywordMatching] Match for "${phrase}" at ${match.startIndex}-${match.endIndex}:`, {
           hasOverlap,
           matchedText: match.matchedText,
+          actualTextInVerse: verseText.substring(match.startIndex, match.endIndex),
           existingRanges: Array.from(matchedRanges),
           overlappingRanges,
-          willBeAdded: !hasOverlap
+          willBeAdded: !hasOverlap,
+          presetId: preset.id
         });
       }
       
@@ -312,6 +402,17 @@ export function findKeywordMatches(
         matchedRanges.add(rangeKey);
         
         const baseId = `virtual-${preset.id}-${verseRef.book}-${verseRef.chapter}-${verseRef.verse}-${match.startIndex}`;
+        
+        // Debug: Log when creating annotations for ESV
+        if (isESVDebug) {
+          console.log(`[KeywordMatching] Creating annotation for "${phrase}" at ${match.startIndex}-${match.endIndex}:`, {
+            matchedText: match.matchedText,
+            actualTextInVerse: verseText.substring(match.startIndex, match.endIndex),
+            presetId: preset.id,
+            hasHighlight: !!preset.highlight,
+            hasSymbol: !!preset.symbol
+          });
+        }
         
         // Create highlight annotation if preset has highlight
         if (preset.highlight) {
@@ -357,8 +458,37 @@ export function findKeywordMatches(
           };
           annotations.push(symbolAnn);
         }
+      } else {
+        // Debug: log when matches are skipped due to overlap
+        const isJeremiahVerse1Debug = debugFlags.keywordMatching && phrase.toLowerCase().includes('jeremiah') && verseRef.verse === 1;
+        const isLORDVerse15Debug = debugFlags.keywordMatching && (phrase.toLowerCase().includes('lord') || phrase === 'LORD') && verseRef.verse === 15;
+        if (isESVDebug || isJeremiahVerse1Debug || isLORDVerse15Debug) {
+          const overlappingRanges = Array.from(matchedRanges).filter(range => {
+            const [start, end] = range.split('-').map(Number);
+            return match.startIndex < end && match.endIndex > start;
+          });
+          console.log(`[KeywordMatching] Skipping "${phrase}" match at ${match.startIndex}-${match.endIndex} due to overlap:`, {
+            matchedText: match.matchedText,
+            actualTextInVerse: verseText.substring(match.startIndex, match.endIndex),
+            overlappingRanges,
+            presetId: preset.id
+          });
+        }
       }
     }
+  }
+  
+  if (isESVDebug) {
+    console.log(`[KeywordMatching] ESV Debug - Verse ${verseRef.verse} final annotations:`, {
+      totalAnnotations: annotations.length,
+      annotations: annotations.map(a => ({
+        id: a.id,
+        type: a.type,
+        startOffset: 'startOffset' in a ? a.startOffset : undefined,
+        endOffset: 'endOffset' in a ? a.endOffset : undefined,
+        presetId: 'presetId' in a ? a.presetId : undefined
+      }))
+    });
   }
   
   return annotations;

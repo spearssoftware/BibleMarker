@@ -71,7 +71,51 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     // Use verse.text directly - it's already plain text after parsing
     // extractPlainText is only needed for HTML/OSIS markup, but ESV/ASV text is already clean
     const verseText = verse.text || '';
+    
+    // Debug: Log ESV-specific debugging for Jeremiah 29 when debug flags are enabled
+    const isESVDebug = debugFlags.verseText && verse.ref.book === 'Jer' && verse.ref.chapter === 29;
+    
+    if (isESVDebug) {
+      console.log(`%c[VerseText] ESV Debug - Verse ${verse.ref.verse}`, 'color: orange; font-weight: bold; font-size: 14px;');
+      console.log({
+        verseText: verseText.substring(0, 200),
+        verseTextLength: verseText.length,
+        moduleId,
+        filteredPresetsCount: filteredPresets.length,
+        allPresetsCount: presets.length,
+        relevantPresets: filteredPresets
+          .filter(p => (p.word?.toLowerCase().includes('jeremiah') || p.word?.toLowerCase().includes('lord')) && 
+                       (!p.moduleScope || p.moduleScope === moduleId))
+          .map(p => ({
+            id: p.id,
+            word: p.word,
+            moduleScope: p.moduleScope,
+            bookScope: p.bookScope,
+            chapterScope: p.chapterScope,
+            hasSymbol: !!p.symbol,
+            hasHighlight: !!p.highlight
+          }))
+      });
+    }
+    
     const matches = findKeywordMatches(verseText, verse.ref, filteredPresets, moduleId);
+    
+    if (isESVDebug) {
+      console.log(`[VerseText] ESV Debug - Verse ${verse.ref.verse} matches:`, {
+        totalMatches: matches.length,
+        matches: matches.map(m => ({
+          id: m.id,
+          type: m.type,
+          startOffset: 'startOffset' in m ? m.startOffset : undefined,
+          endOffset: 'endOffset' in m ? m.endOffset : undefined,
+          selectedText: 'selectedText' in m ? m.selectedText : undefined,
+          presetId: 'presetId' in m ? m.presetId : undefined,
+          matchedText: 'startOffset' in m && 'endOffset' in m 
+            ? verseText.substring(m.startOffset || 0, m.endOffset || 0)
+            : undefined
+        }))
+      });
+    }
     
     // Debug: log if we're looking at verse 1 and there are matches
     if (debugFlags.verseText && verse.ref.verse === 1) {
@@ -159,26 +203,97 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     const filteredVirtual = virtualAnnotations.filter(vann => {
       if ('startOffset' in vann && 'endOffset' in vann) {
         // Check if any remaining real annotation covers this range
+        // BUT: if virtual annotation has a presetId and real annotation doesn't (or has different one), prefer virtual
         const hasOverlap = Array.from(filteredRealAnnotationMap.values()).some(realRange => {
-          return vann.startOffset! < realRange.end && vann.endOffset! > realRange.start;
+          const overlaps = vann.startOffset! < realRange.end && vann.endOffset! > realRange.start;
+          if (!overlaps) return false;
+          
+          // If virtual has presetId and real doesn't, prefer virtual (don't filter it out)
+          if (vann.presetId && !realRange.presetId) {
+            return false; // Don't consider this an overlap - prefer virtual
+          }
+          
+          // If both have presetIds and they're different, prefer virtual (it's from keyword matching)
+          if (vann.presetId && realRange.presetId && vann.presetId !== realRange.presetId) {
+            return false; // Don't consider this an overlap - prefer virtual
+          }
+          
+          return true; // Overlap with same presetId or real has presetId but virtual doesn't
         });
         
         // Debug: log if "Jeremiah" virtual annotation is being filtered out
-        if (debugFlags.verseText && verse.ref.verse === 1 && 
+        const isJeremiahDebug = debugFlags.verseText && verse.ref.verse === 1 && 
             (('selectedText' in vann && vann.selectedText?.toLowerCase().includes('jeremiah')) ||
-             verse.text.substring(vann.startOffset || 0, vann.endOffset || 0).toLowerCase().includes('jeremiah'))) {
+             verse.text.substring(vann.startOffset || 0, vann.endOffset || 0).toLowerCase().includes('jeremiah'));
+        const isLORDVerse15Debug = debugFlags.verseText && verse.ref.verse === 15 && 
+            (('selectedText' in vann && (vann.selectedText?.toLowerCase().includes('lord') || vann.selectedText === 'LORD')) ||
+             verse.text.substring(vann.startOffset || 0, vann.endOffset || 0).toLowerCase().includes('lord'));
+        
+        if (isJeremiahDebug || isLORDVerse15Debug) {
+          // Calculate overlapping ranges using the same logic as hasOverlap (with preference)
           const overlappingReal = Array.from(filteredRealAnnotationMap.values()).filter(realRange => {
-            return vann.startOffset! < realRange.end && vann.endOffset! > realRange.start;
+            const overlaps = vann.startOffset! < realRange.end && vann.endOffset! > realRange.start;
+            if (!overlaps) return false;
+            
+            // Apply same preference logic as hasOverlap check
+            if (vann.presetId && !realRange.presetId) {
+              return false; // Virtual preferred, don't count as overlap
+            }
+            if (vann.presetId && realRange.presetId && vann.presetId !== realRange.presetId) {
+              return false; // Virtual preferred, don't count as overlap
+            }
+            return true; // Real overlap that would cause filtering
           });
-          console.log(`[VerseText] "Jeremiah" virtual annotation in verse 1:`, {
+          // Find the actual real annotations that overlap
+          const overlappingRealAnnotations = annotations.filter(ann => {
+            if ('startOffset' in ann && 'endOffset' in ann) {
+              return ann.startOffset! < vann.endOffset! && ann.endOffset! > vann.startOffset!;
+            }
+            return false;
+          });
+          
+          const overlappingDetails = overlappingRealAnnotations.map(ann => {
+            const annStart = 'startOffset' in ann ? ann.startOffset : undefined;
+            const annEnd = 'startOffset' in ann ? ann.endOffset : undefined;
+            return {
+              id: ann.id,
+              type: ann.type,
+              startOffset: annStart,
+              endOffset: annEnd,
+              presetId: 'presetId' in ann ? ann.presetId : undefined,
+              selectedText: 'selectedText' in ann ? ann.selectedText : undefined,
+              actualText: annStart !== undefined && annEnd !== undefined 
+                ? verse.text.substring(annStart, annEnd) 
+                : undefined,
+              hasSamePresetId: 'presetId' in ann && ann.presetId === vann.presetId
+            };
+          });
+          
+          console.log(`[VerseText] Virtual annotation in verse ${verse.ref.verse}:`, {
+            virtualAnnotation: {
+              id: vann.id,
+              type: vann.type,
+              startOffset: vann.startOffset,
+              endOffset: vann.endOffset,
+              presetId: vann.presetId,
+              matchedText: verse.text.substring(vann.startOffset || 0, vann.endOffset || 0)
+            },
             hasOverlap,
-            startOffset: vann.startOffset,
-            endOffset: vann.endOffset,
-            presetId: vann.presetId,
-            matchedText: verse.text.substring(vann.startOffset || 0, vann.endOffset || 0),
-            overlappingRealAnnotations: overlappingReal,
+            overlappingRealRanges: overlappingReal,
+            overlappingRealAnnotations: overlappingDetails,
             allRealAnnotations: Array.from(filteredRealAnnotationMap.values()),
-            willBeIncluded: !hasOverlap
+            allRealAnnotationsFull: filteredRealAnnotations.map(ann => ({
+              id: ann.id,
+              type: ann.type,
+              startOffset: 'startOffset' in ann ? ann.startOffset : undefined,
+              endOffset: 'endOffset' in ann ? ann.endOffset : undefined,
+              presetId: 'presetId' in ann ? ann.presetId : undefined,
+              selectedText: 'selectedText' in ann ? ann.selectedText : undefined
+            })),
+            willBeIncluded: !hasOverlap,
+            reason: hasOverlap 
+              ? `Filtered out due to overlap with ${overlappingDetails.length} real annotation(s)`
+              : 'Will be included'
           });
         }
         
@@ -355,7 +470,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         const end = Math.max(start, Math.min(sym.endOffset, plainText.length));
         
         // Debug: log if offsets were out of bounds (indicates cached text issue)
-        if (sym.startOffset !== start || sym.endOffset !== end) {
+        if (debugFlags.verseText && (sym.startOffset !== start || sym.endOffset !== end)) {
           console.warn(`[VerseText] Symbol offset out of bounds for verse ${verse.ref.verse}:`, {
             original: { start: sym.startOffset, end: sym.endOffset },
             clamped: { start, end },
@@ -376,7 +491,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         charOffsets.end = Math.max(charOffsets.start, Math.min(charOffsets.end, plainText.length));
         
         // Debug: log if offsets were clamped
-        if (originalStart !== charOffsets.start || originalEnd !== charOffsets.end) {
+        if (debugFlags.verseText && (originalStart !== charOffsets.start || originalEnd !== charOffsets.end)) {
           console.warn(`[VerseText] Symbol offset clamped for verse ${verse.ref.verse}:`, {
             original: { start: originalStart, end: originalEnd },
             clamped: { start: charOffsets.start, end: charOffsets.end },

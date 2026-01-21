@@ -21,6 +21,7 @@ import { loadApiConfigs } from '@/lib/bible-api';
 import { initTheme } from '@/lib/theme';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { autoBackupService } from '@/lib/autoBackup';
+import { getDebugFlags } from '@/lib/debug';
 
 export default function App() {
   const { setChapter, currentBook, currentChapter, currentModuleId, setLoading, setError } = useBibleStore();
@@ -54,6 +55,9 @@ export default function App() {
         if (prefs.fontSize) {
           setFontSize(prefs.fontSize);
         }
+        
+        // Initialize debug flags cache so getDebugFlagsSync() works
+        await getDebugFlags();
         
         // Check onboarding state
         if (!prefs.onboarding?.hasSeenWelcome) {

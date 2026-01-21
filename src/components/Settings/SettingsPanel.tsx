@@ -11,7 +11,7 @@ import { getBookById } from '@/types/bible';
 import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences } from '@/lib/db';
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
 import { applyTheme } from '@/lib/theme';
-import { clearDebugFlagsCache } from '@/lib/debug';
+import { clearDebugFlagsCache, getDebugFlags } from '@/lib/debug';
 import { 
   getAutoBackupConfig, 
   updateAutoBackupConfig, 
@@ -114,6 +114,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         if (prefs.debug?.verseText !== undefined) {
           setDebugVerseText(prefs.debug.verseText);
         }
+        // Initialize debug flags cache so getDebugFlagsSync() works
+        await getDebugFlags();
         applyTheme(prefs.theme || 'auto', prefs.highContrast || false);
         
         // Load auto-backup config
@@ -1453,6 +1455,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                             },
                           });
                           clearDebugFlagsCache();
+                          // Re-populate cache with new value
+                          await getDebugFlags();
                         }}
                         className="ml-4 w-5 h-5 text-scripture-accent bg-scripture-elevated border-scripture-border rounded focus:ring-2 focus:ring-scripture-accent/50 cursor-pointer"
                       />
@@ -1478,6 +1482,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                             },
                           });
                           clearDebugFlagsCache();
+                          // Re-populate cache with new value
+                          await getDebugFlags();
                         }}
                         className="ml-4 w-5 h-5 text-scripture-accent bg-scripture-elevated border-scripture-border rounded focus:ring-2 focus:ring-scripture-accent/50 cursor-pointer"
                       />
