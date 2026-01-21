@@ -530,18 +530,23 @@ Essential features and polish needed for a production-ready v1 release:
     - ✅ Close buttons with descriptive aria-labels
     - ✅ Icon-only buttons with aria-hidden on icons and descriptive labels
 
-13. ✅ **Keyboard Navigation** - ✅ IN PROGRESS - Full keyboard accessibility
+13. ✅ **Keyboard Navigation** - ✅ COMPLETE - Full keyboard accessibility
 
     - ✅ Enhanced focus indicators (visible outline on focus-visible)
     - ✅ Keyboard shortcuts already implemented (arrow keys, J/K, Cmd/Ctrl+F, number keys 1-6)
     - ✅ Forms support keyboard navigation (Enter to save, Esc to cancel)
-    - ⚠️ Verify tab order is logical across all components
-    - ⚠️ Ensure all features accessible via keyboard (some buttons have tabIndex={-1} which may need review)
+    - ✅ Modal management with useModal hook (handles Escape key, focus management)
+    - ✅ Initial focus management in modals (AddToList, Search)
+    - ✅ NavigationBar buttons are keyboard accessible (removed tabIndex={-1} and onFocus blur handlers)
+    - ✅ Tab order follows logical DOM order with semantic HTML
+    - ✅ useModal hook automatically focuses first focusable element, excluding tabIndex={-1}
 
-13. ⚠️ **Color Contrast** - WCAG compliance
+13. ✅ **Color Contrast** - ✅ COMPLETE - WCAG compliance
 
-    - ⚠️ Verify all text meets contrast requirements
-    - ⚠️ High contrast mode option
+    - ✅ High contrast mode option added to Settings → Appearance tab
+    - ✅ High contrast mode provides WCAG AAA level contrast ratios
+    - ✅ Standard themes meet WCAG AA contrast requirements
+    - ✅ Theme colors verified for readability in both light and dark modes
 
 ### Data & Reliability (Should Have for v1)
 
@@ -980,6 +985,13 @@ For a solid v1 release, prioritize these features:
 
 These can wait for v1.1 or later:
 
+- **Cross-Translation Manual Annotations** - Allow manual annotations (highlights, symbols, text colors) to appear across all translations in multi-translation view, not just the translation where they were created. Currently, annotations are scoped to a single `moduleId`. This enhancement would:
+  - Add an option when creating annotations to "Apply to all translations" or "Translation-specific"
+  - Store annotations with a flag indicating cross-translation scope
+  - Modify `getChapterAnnotations` to optionally return cross-translation annotations
+  - Update `MultiTranslationView` to show cross-translation annotations in all columns
+  - Handle offset mapping between translations (text may differ slightly)
+  - Consider UI indicator to distinguish cross-translation vs translation-specific annotations
 - **Export/Print** - Export marked chapters as PDF, observation lists as markdown, print-friendly stylesheet, export all notes (Post-MVP)
 - Onboarding/Tutorial (nice but not critical)
 - Undo/Redo (convenience feature)
@@ -1124,3 +1136,33 @@ src/
 └── types/
     └── list.ts
 ```
+
+---
+
+## Version 2.0: Notes Module
+
+A comprehensive standalone notes module for free-form note-taking with templates and writing prompts.
+
+**See**: [`notes_module_v2_plan.md`](./notes_module_v2_plan.md) for complete details.
+
+### Overview
+
+Add a new notes system that complements existing verse-attached notes:
+- **Free-form notes**: Notes not tied to specific verses
+- **Templates**: Pre-defined templates including writing prompts and verse-of-the-day
+- **Organization**: Tags, search, and linking capabilities
+- **Integration**: Seamless integration with existing features
+
+### Key Features
+
+- Free-form note creation and editing
+- Template system with writing prompts
+- Verse of the day with reflection prompts
+- Tag-based organization
+- Search integration
+- Verse linking (optional)
+- Archive/delete functionality
+
+### Status
+
+Planning phase - See detailed plan in `notes_module_v2_plan.md`
