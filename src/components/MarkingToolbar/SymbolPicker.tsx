@@ -36,7 +36,7 @@ const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   },
   {
     name: 'Geography & Place',
-    symbols: ['mapPin', 'mountain', 'globe', 'tree', 'river', 'house'],
+    symbols: ['mapPin', 'mountain', 'globe', 'tree', 'river', 'house', 'temple', 'city'],
   },
   {
     name: 'Actions & States',

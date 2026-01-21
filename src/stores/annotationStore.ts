@@ -16,6 +16,7 @@ import type {
   Note,
 } from '@/types/annotation';
 import { DEFAULT_MARKING_PREFERENCES } from '@/types/annotation';
+import { updatePreferences } from '@/lib/db';
 
 interface TextSelection {
   moduleId: string;
@@ -101,12 +102,14 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   
   setActiveColor: (color) => {
     set({ activeColor: color });
-    get().addRecentColor(color);
+    // Don't await - this is called synchronously from UI
+    get().addRecentColor(color).catch(err => console.warn('Failed to save recent color:', err));
   },
   
   setActiveSymbol: (symbol) => {
     set({ activeSymbol: symbol });
-    get().addRecentSymbol(symbol);
+    // Don't await - this is called synchronously from UI
+    get().addRecentSymbol(symbol).catch(err => console.warn('Failed to save recent symbol:', err));
   },
   
   setSelection: (selection) => set({ selection }),
@@ -127,20 +130,22 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   
   setToolbarExpanded: (toolbarExpanded) => set({ toolbarExpanded }),
   
-  addRecentColor: (color) => {
+  addRecentColor: async (color) => {
     const { preferences } = get();
     const recent = [color, ...preferences.recentColors.filter(c => c !== color)].slice(0, 8);
-    set({
-      preferences: { ...preferences, recentColors: recent }
-    });
+    const updatedPrefs = { ...preferences, recentColors: recent };
+    set({ preferences: updatedPrefs });
+    // Persist to database
+    await updatePreferences({ marking: updatedPrefs });
   },
   
-  addRecentSymbol: (symbol) => {
+  addRecentSymbol: async (symbol) => {
     const { preferences } = get();
     const recent = [symbol, ...preferences.recentSymbols.filter(s => s !== symbol)].slice(0, 8);
-    set({
-      preferences: { ...preferences, recentSymbols: recent }
-    });
+    const updatedPrefs = { ...preferences, recentSymbols: recent };
+    set({ preferences: updatedPrefs });
+    // Persist to database
+    await updatePreferences({ marking: updatedPrefs });
   },
   
   

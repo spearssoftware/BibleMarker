@@ -111,7 +111,8 @@ export const SYMBOLS = {
   globe: '🌍',       // World / Earth
   tree: '🌳',        // Tree / Growth / Life
   river: '〰',       // River / Stream / Water source
-  house: '🏠',       // House / Temple / Dwelling
+  house: '🏠',       // House / Dwelling
+  temple: '⛪',      // Church / Temple / Sanctuary / Holy Place
   city: '🏙️',       // City / Urban / Civilization
 
   // Actions & States

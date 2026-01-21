@@ -938,7 +938,7 @@ function ColorSelect({
   onChange: (color: HighlightColor | undefined) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [openAbove, setOpenAbove] = useState(true);
+  const [openAbove, setOpenAbove] = useState(false); // Default to opening below
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
   const allColors = Object.entries(HIGHLIGHT_COLORS) as [HighlightColor, string][];
@@ -967,16 +967,16 @@ function ColorSelect({
         const spaceBelow = containerRect.bottom - rect.bottom;
         // Estimate dropdown height (max-h-60 = ~240px)
         const estimatedDropdownHeight = 240;
-        // Only open above if there's significantly more space above AND enough space
-        // Default to opening below to avoid overflow issues
-        setOpenAbove(spaceAbove >= estimatedDropdownHeight + 20 && spaceAbove > spaceBelow + 100);
+        // Only open above if there's clearly enough space (with buffer)
+        // Be conservative - prefer opening below to avoid overflow
+        setOpenAbove(spaceAbove >= estimatedDropdownHeight + 50 && spaceAbove > spaceBelow + 150);
       } else {
         // No scrollable container found - check window bounds
         const spaceAbove = rect.top;
         const spaceBelow = window.innerHeight - rect.bottom;
         const estimatedDropdownHeight = 240;
-        // Default to opening below unless there's clearly more space above
-        setOpenAbove(spaceAbove >= estimatedDropdownHeight + 20 && spaceAbove > spaceBelow + 100);
+        // Be conservative - prefer opening below
+        setOpenAbove(spaceAbove >= estimatedDropdownHeight + 50 && spaceAbove > spaceBelow + 150);
       }
     }
     setIsOpen(!isOpen);
