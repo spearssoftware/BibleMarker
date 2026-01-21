@@ -253,6 +253,14 @@ export async function fetchChapter(
   const cached = await db.chapterCache.get(cacheKey);
   
   if (cached) {
+    // Determine if this is ESV (for special handling)
+    const normalizedId = translationId.toUpperCase();
+    const normalizedOriginalId = translationId.toUpperCase();
+    const isESV = normalizedId === 'ESV' || 
+                  normalizedId === 'ESV-ESV' ||
+                  normalizedOriginalId === 'ESV' ||
+                  normalizedOriginalId.startsWith('ESV-');
+    
     // Handle both old format (objects) and new format (strings)
     const verses = Object.entries(cached.verses).map(([num, text]) => {
       // Convert to string if it's an object (old cached format)
@@ -264,6 +272,22 @@ export async function fetchChapter(
         textStr = String((text as any).text || (text as any).content || '');
       } else {
         textStr = String(text || '');
+      }
+      
+      // For ESV, ensure cached text is clean (re-parse to handle old cached data with HTML)
+      // This ensures cached text matches the format we'd get from fresh parsing
+      if (isESV && textStr) {
+        // Re-parse ESV text to ensure it's clean (handles old cached data with HTML tags)
+        textStr = textStr
+          .replace(/<[^>]+>/g, '')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/\s+/g, ' ')
+          .trim();
       }
       
       return {

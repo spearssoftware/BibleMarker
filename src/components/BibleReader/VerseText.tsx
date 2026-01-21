@@ -67,37 +67,103 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     // Use verse.text directly - it's already plain text after parsing
     // extractPlainText is only needed for HTML/OSIS markup, but ESV/ASV text is already clean
     const verseText = verse.text || '';
-    return findKeywordMatches(verseText, verse.ref, filteredPresets, moduleId);
+    const matches = findKeywordMatches(verseText, verse.ref, filteredPresets, moduleId);
+    
+    // Debug: log if we're looking at verse 1 and there are matches
+    if (verse.ref.verse === 1) {
+      const jeremiahMatches = matches.filter(m => 
+        ('selectedText' in m && m.selectedText?.toLowerCase().includes('jeremiah')) ||
+        ('startOffset' in m && verseText.substring(m.startOffset || 0, m.endOffset || 0).toLowerCase().includes('jeremiah'))
+      );
+      if (jeremiahMatches.length > 0) {
+        console.log(`[VerseText] Found ${jeremiahMatches.length} "Jeremiah" virtual annotations in verse 1:`, jeremiahMatches);
+      } else {
+        console.log(`[VerseText] No "Jeremiah" virtual annotations found in verse 1. Total matches: ${matches.length}`, {
+          verseText: verseText.substring(0, 150),
+          filteredPresets: filteredPresets.filter(p => p.word?.toLowerCase().includes('jeremiah')).map(p => ({ id: p.id, word: p.word }))
+        });
+      }
+    }
+    
+    return matches;
   }, [verse.text, verse.ref, filteredPresets, moduleId]);
   
   // Merge real annotations with virtual annotations
   // Virtual annotations are filtered out if a real annotation already covers the same range
+  // EXCEPT: if the real annotation has the same presetId, prefer the virtual one (it's from the keyword preset)
   const allAnnotations = useMemo(() => {
-    const realAnnotationRanges = new Set<string>();
+    // Build a map of real annotation ranges with their presetIds
+    const realAnnotationMap = new Map<string, { start: number; end: number; presetId?: string }>();
     
-    // Build a set of ranges covered by real annotations
     for (const ann of annotations) {
       if ('startOffset' in ann && 'endOffset' in ann) {
         const key = `${ann.startOffset}-${ann.endOffset}`;
-        realAnnotationRanges.add(key);
+        realAnnotationMap.set(key, {
+          start: ann.startOffset!,
+          end: ann.endOffset!,
+          presetId: 'presetId' in ann ? ann.presetId : undefined
+        });
       }
     }
     
-    // Only include virtual annotations that don't overlap with real annotations
+    // Filter out real annotations that have the same presetId as a virtual annotation
+    // (These are likely duplicates created before we fixed the bug)
+    const filteredRealAnnotations = annotations.filter(ann => {
+      if ('startOffset' in ann && 'endOffset' in ann && 'presetId' in ann && ann.presetId) {
+        // Check if there's a virtual annotation with the same presetId and overlapping range
+        const hasMatchingVirtual = virtualAnnotations.some(vann => {
+          if ('startOffset' in vann && 'endOffset' in vann && vann.presetId === ann.presetId) {
+            // Check if ranges overlap
+            return vann.startOffset! < ann.endOffset! && vann.endOffset! > ann.startOffset!;
+          }
+          return false;
+        });
+        // If there's a matching virtual annotation, filter out the real one
+        return !hasMatchingVirtual;
+      }
+      return true; // Keep real annotations without presetId or without offsets
+    });
+    
+    // Only include virtual annotations that don't overlap with remaining real annotations
+    // Use filteredRealAnnotations to build the overlap map (not the original annotations)
+    const filteredRealAnnotationMap = new Map<string, { start: number; end: number; presetId?: string }>();
+    for (const ann of filteredRealAnnotations) {
+      if ('startOffset' in ann && 'endOffset' in ann) {
+        const key = `${ann.startOffset}-${ann.endOffset}`;
+        filteredRealAnnotationMap.set(key, {
+          start: ann.startOffset!,
+          end: ann.endOffset!,
+          presetId: 'presetId' in ann ? ann.presetId : undefined
+        });
+      }
+    }
+    
     const filteredVirtual = virtualAnnotations.filter(vann => {
       if ('startOffset' in vann && 'endOffset' in vann) {
-        // Check if any real annotation covers this range
-        // We check exact matches and overlaps
-        const hasOverlap = Array.from(realAnnotationRanges).some(range => {
-          const [start, end] = range.split('-').map(Number);
-          return vann.startOffset! < end && vann.endOffset! > start;
+        // Check if any remaining real annotation covers this range
+        const hasOverlap = Array.from(filteredRealAnnotationMap.values()).some(realRange => {
+          return vann.startOffset! < realRange.end && vann.endOffset! > realRange.start;
         });
+        
+        // Debug: log if "Jeremiah" virtual annotation is being filtered out
+        if (verse.ref.verse === 1 && 
+            (('selectedText' in vann && vann.selectedText?.toLowerCase().includes('jeremiah')) ||
+             verse.text.substring(vann.startOffset || 0, vann.endOffset || 0).toLowerCase().includes('jeremiah'))) {
+          console.log(`[VerseText] Filtering "Jeremiah" virtual annotation in verse 1:`, {
+            hasOverlap,
+            startOffset: vann.startOffset,
+            endOffset: vann.endOffset,
+            presetId: vann.presetId,
+            realAnnotations: Array.from(filteredRealAnnotationMap.values())
+          });
+        }
+        
         return !hasOverlap;
       }
       return true; // Include if no offset info (shouldn't happen, but be safe)
     });
     
-    return [...annotations, ...filteredVirtual];
+    return [...filteredRealAnnotations, ...filteredVirtual];
   }, [annotations, virtualAnnotations]);
   
   // Separate annotation types

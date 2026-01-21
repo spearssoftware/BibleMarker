@@ -125,6 +125,8 @@ function findPhraseMatches(text: string, phrase: string): Array<{ startIndex: nu
   const words = splitIntoWords(text);
   
   // Try matching phrase starting at each word position
+  // For single-word phrases, check every position to find all occurrences
+  // For multi-word phrases, we can optimize by skipping, but for now check all positions
   for (let i = 0; i <= words.length - phraseWords.length; i++) {
     // Extract consecutive words starting at position i
     const candidateWords = words.slice(i, i + phraseWords.length);
@@ -145,14 +147,21 @@ function findPhraseMatches(text: string, phrase: string): Array<{ startIndex: nu
       const adjustedStartIndex = startWord.startIndex + trimmed.startOffset;
       const adjustedEndIndex = endWord.endIndex - trimmed.endOffset;
       
-      matches.push({
-        startIndex: adjustedStartIndex,
-        endIndex: adjustedEndIndex,
-        matchedText: trimmed.trimmed
-      });
+      // Only add if we have valid positions and the trimmed text matches
+      if (adjustedStartIndex >= 0 && adjustedEndIndex > adjustedStartIndex && trimmed.trimmed.length > 0) {
+        matches.push({
+          startIndex: adjustedStartIndex,
+          endIndex: adjustedEndIndex,
+          matchedText: trimmed.trimmed
+        });
+      }
       
-      // Skip ahead past the matched phrase to avoid re-matching
-      i += phraseWords.length - 1;
+      // For multi-word phrases, skip ahead to avoid re-matching the same phrase
+      // For single words, continue checking every position (don't skip)
+      if (phraseWords.length > 1) {
+        i += phraseWords.length - 1;
+      }
+      // For single words, the loop will naturally increment i to check the next position
     }
   }
   
@@ -209,9 +218,9 @@ export function findKeywordMatches(
   
   if (keywordPresets.length === 0) return annotations;
   
-  // Track which character ranges have been matched to avoid overlapping matches
-  // We'll process all presets and their phrases, matching longer phrases first
-  const matchedRanges = new Set<string>();
+  // Track which character ranges have been matched per preset to avoid overlapping matches
+  // This prevents duplicates within the same preset, but allows different presets to match overlapping text
+  const matchedRangesByPreset = new Map<string, Set<string>>();
   
   // Collect all phrases with their presets, sorted by length (longest first)
   // For presets with moduleScope, we need to pass the currentModuleId to getMatchablePhrases
@@ -245,19 +254,46 @@ export function findKeywordMatches(
   for (const { preset, phrase } of allPhrases) {
     const matches = findPhraseMatches(verseText, phrase);
     
+    // Get or create the matched ranges set for this preset
+    if (!matchedRangesByPreset.has(preset.id)) {
+      matchedRangesByPreset.set(preset.id, new Set<string>());
+    }
+    const matchedRanges = matchedRangesByPreset.get(preset.id)!;
+    
+    // Debug: log if we're looking for "Jeremiah" in verse 1
+    if (phrase.toLowerCase().includes('jeremiah') && verseRef.verse === 1) {
+      console.log(`[KeywordMatching] Looking for "${phrase}" in verse 1:`, {
+        presetId: preset.id,
+        presetWord: preset.word,
+        matchesFound: matches.length,
+        verseText: verseText.substring(0, 100),
+        matchedRanges: Array.from(matchedRanges)
+      });
+    }
+    
     for (const match of matches) {
-      // Check if this range overlaps with any already matched range
-      // Use a more precise overlap check: ranges overlap if they share any characters
+      // Check if this range overlaps with any already matched range FROM THE SAME PRESET
+      // This prevents duplicates within a preset, but allows different presets to match overlapping text
       const hasOverlap = Array.from(matchedRanges).some(range => {
         const [start, end] = range.split('-').map(Number);
         // Overlap if: match starts before existing ends AND match ends after existing starts
         // This catches partial overlaps, complete overlaps, and containment
+        // But allow adjacent matches (match.startIndex === end) - they don't overlap
         return match.startIndex < end && match.endIndex > start;
       });
       
+      // Debug: log if "Jeremiah" match is being filtered out
+      if (phrase.toLowerCase().includes('jeremiah') && verseRef.verse === 1) {
+        console.log(`[KeywordMatching] Match for "${phrase}" at ${match.startIndex}-${match.endIndex}:`, {
+          hasOverlap,
+          matchedText: match.matchedText,
+          existingRanges: Array.from(matchedRanges)
+        });
+      }
+      
       if (!hasOverlap) {
         // Mark this range as matched BEFORE creating annotations
-        // This prevents shorter phrases from matching within this range
+        // This prevents shorter phrases from matching within this range (within the same preset)
         const rangeKey = `${match.startIndex}-${match.endIndex}`;
         matchedRanges.add(rangeKey);
         
