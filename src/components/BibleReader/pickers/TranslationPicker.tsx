@@ -118,7 +118,7 @@ export function TranslationPicker({
       <div 
         className="absolute top-full left-0 mt-2
                     bg-scripture-surface rounded-2xl shadow-2xl
-                    w-[400px] max-w-[min(400px,calc(100vw-2rem))] max-h-[70vh] overflow-hidden animate-scale-in-dropdown backdrop-blur-sm"
+                    w-[400px] max-w-[min(400px,calc(100vw-2rem))] max-h-[70vh] overflow-hidden animate-scale-in-dropdown"
         style={{ zIndex: Z_INDEX.MODAL }}
         role="dialog"
         aria-modal="true"
@@ -341,7 +341,7 @@ function TranslationButton({
             onClick={(e) => onToggleFavorite(translation.id, e)}
             className={`p-1 rounded transition-colors ${
               isFavorite 
-                ? 'text-yellow-500' 
+                ? 'text-scripture-warning' 
                 : isSelected
                   ? 'text-scripture-bg/60 opacity-100'
                   : 'text-scripture-muted opacity-0 group-hover:opacity-100'

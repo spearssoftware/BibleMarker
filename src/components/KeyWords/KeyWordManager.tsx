@@ -279,7 +279,7 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
               <button
                 type="button"
                 onClick={confirmDelete}
-                className="px-4 py-2 text-sm font-ui bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                className="px-4 py-2 text-sm font-ui bg-scripture-error text-white rounded-lg hover:bg-scripture-error/90 transition-colors"
               >
                 Delete
               </button>
@@ -373,17 +373,17 @@ function KeyWordCard({
               {categoryInfo.label}
             </span>
             {preset.bookScope && (
-              <span className="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-300 rounded">
+              <span className="text-xs px-2 py-0.5 bg-scripture-infoBg text-scripture-infoText rounded">
                 📖 {preset.bookScope}{preset.chapterScope ? `:${preset.chapterScope}` : ''}
               </span>
             )}
             {!preset.bookScope && (
-              <span className="text-xs px-2 py-0.5 bg-gray-500/20 text-gray-300 rounded">
+              <span className="text-xs px-2 py-0.5 bg-scripture-elevated text-scripture-muted rounded">
                 🌐 Global
               </span>
             )}
             {study && (
-              <span className="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded" title={`Study: ${study.name}`}>
+              <span className="text-xs px-2 py-0.5 bg-scripture-elevated text-scripture-text rounded border border-scripture-border/50" title={`Study: ${study.name}`}>
                 📚 {study.name}
               </span>
             )}
@@ -420,7 +420,7 @@ function KeyWordCard({
             type="button"
             onClick={onDelete}
             disabled={isDeleting}
-            className="px-2 py-1 text-xs font-ui text-red-400 hover:bg-red-500/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-2 py-1 text-xs font-ui text-scripture-error hover:bg-scripture-errorBg rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isDeleting ? 'Deleting...' : 'Delete'}
           </button>
@@ -669,7 +669,7 @@ function KeyWordEditor({
           </label>
         </div>
 
-        <div className="border-t border-scripture-border/30 pt-4">
+        <div className="border-t border-scripture-border/30 mt-4 pt-4">
           <label className="block text-sm font-ui text-scripture-text mb-2">
             Scope
           </label>
@@ -750,7 +750,7 @@ function KeyWordEditor({
           </div>
         </div>
 
-        <div className="border-t border-scripture-border/30 pt-4">
+        <div className="border-t border-scripture-border/30 mt-4 pt-4">
           <label className="block text-sm font-ui text-scripture-text mb-2">
             Study (Optional)
           </label>
@@ -845,7 +845,7 @@ function VariantEditor({
         <button
           type="button"
           onClick={onRemove}
-          className="px-2 py-1.5 text-sm text-red-400 hover:bg-red-500/20 rounded transition-colors"
+          className="px-2 py-1.5 text-sm text-scripture-error hover:bg-scripture-errorBg rounded transition-colors"
         >
           ✕
         </button>

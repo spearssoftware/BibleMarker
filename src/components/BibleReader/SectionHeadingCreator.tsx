@@ -44,7 +44,7 @@ export function SectionHeadingCreator({
   };
 
   return (
-    <div className="section-heading-creator my-3 flex items-center gap-2 animate-slide-up border-b border-scripture-border/60" role="dialog" aria-label={`Create section heading before verse ${verseNum}`}>
+    <div className="section-heading-creator my-3 flex items-center gap-2 animate-slide-up border-b border-scripture-border/50" role="dialog" aria-label={`Create section heading before verse ${verseNum}`}>
       <label htmlFor={`section-heading-input-${verseNum}`} className="sr-only">
         Section heading text
       </label>

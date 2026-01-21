@@ -110,7 +110,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
     return (
       <>
         {text.substring(0, index)}
-        <mark className="bg-yellow-500/40 font-semibold">
+        <mark className="bg-scripture-warningBg/60 text-scripture-text font-semibold">
           {text.substring(index, index + query.length)}
         </mark>
         {text.substring(index + query.length)}
@@ -139,7 +139,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
       {/* Search Panel */}
       <div 
         className="fixed top-16 left-1/2
-                    w-full max-w-2xl max-h-[80vh] overflow-hidden backdrop-blur-sm"
+                    w-full max-w-2xl max-h-[80vh] overflow-hidden"
         style={{
           transform: 'translateX(-50%)',
           animation: 'searchScaleIn 0.2s ease-out',
@@ -151,7 +151,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
       >
         <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden mx-2 my-2">
         {/* Header */}
-        <div className="p-4 border-b border-scripture-overlayBorder/50">
+        <div className="p-4 border-b border-scripture-border/50">
           <div className="flex items-center gap-3">
             <div className="flex-1 relative">
               <label htmlFor="search-input" className="sr-only">

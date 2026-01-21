@@ -10,6 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { fetchChapter } from '@/lib/bible-api';
 import type { VerseRef } from '@/types/bible';
+import { Modal } from '@/components/shared';
 
 interface VerseOverlayProps {
   verseRef: VerseRef;
@@ -70,51 +71,26 @@ export function VerseOverlay({ verseRef, onClose, onNavigate }: VerseOverlayProp
   const displayText = formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse);
 
   return (
-    <>
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 z-50 backdrop-overlay" 
-        onClick={onClose}
-      />
-      
-      {/* Overlay */}
-      <div
-        ref={overlayRef}
-        className="fixed inset-x-4 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50
-                   max-w-2xl max-h-[80vh] overflow-hidden flex flex-col animate-scale-in"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full mx-2 my-2">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-scripture-overlayBorder/50">
-          <h3 className="text-lg font-ui font-semibold text-scripture-text">
-            {displayText}
-          </h3>
-          <div className="flex items-center gap-2">
-            {onNavigate && (
-              <button
-                onClick={() => {
-                  onNavigate(verseRef);
-                  onClose();
-                }}
-                className="px-3 py-1.5 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                         hover:bg-scripture-accent/90 transition-colors"
-              >
-                Go to Verse
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
-              aria-label="Close"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title={displayText}
+      size="md"
+      headerActions={
+        onNavigate ? (
+          <button
+            onClick={() => {
+              onNavigate(verseRef);
+              onClose();
+            }}
+            className="px-3 py-1.5 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
+                     hover:bg-scripture-accent/90 transition-colors"
+          >
+            Go to Verse
+          </button>
+        ) : undefined
+      }
+    >
           {isLoading && (
             <div className="text-center py-8 text-scripture-muted">
               Loading...
@@ -133,9 +109,6 @@ export function VerseOverlay({ verseRef, onClose, onNavigate }: VerseOverlayProp
               dangerouslySetInnerHTML={{ __html: verseText }}
             />
           )}
-        </div>
-        </div>
-      </div>
-    </>
+    </Modal>
   );
 }

@@ -20,6 +20,7 @@ import {
   type ApiTranslation,
   type BibleApiProvider,
 } from '@/lib/bible-api';
+import { Modal } from '@/components/shared';
 
 interface ModuleManagerProps {
   onClose: () => void;
@@ -163,37 +164,12 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
   }
 
   return (
-    <>
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 z-[200] backdrop-overlay" 
-        onClick={onClose}
-      />
-      
-      {/* Modal */}
-      <div
-        className="fixed inset-x-4 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[201]
-                   max-w-4xl max-h-[80vh] overflow-hidden flex flex-col animate-scale-in"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full mx-2 my-2">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-scripture-overlayBorder/50">
-          <h2 className="text-xl font-ui font-semibold text-scripture-text">
-            Bible Translations
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
-            aria-label="Close"
-          >
-            ✕
-          </button>
-        </div>
-
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title="Bible Translations"
+      size="lg"
+    >
           {error && (
             <div className="mb-4 p-3 bg-scripture-errorBg text-scripture-errorText rounded-lg text-sm">
               {error}
@@ -655,10 +631,6 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                 </div>
               )}
             </div>
-
-        </div>
-        </div>
-      </div>
-    </>
+    </Modal>
   );
 }

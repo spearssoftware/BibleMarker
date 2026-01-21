@@ -21,4 +21,8 @@ export const Z_INDEX = {
   MODAL_IMPORTANT: 55,
   /** Critical modals (confirmations) */
   MODAL_CRITICAL: 60,
+  /** Dropdowns and popovers */
+  DROPDOWN: 50,
+  /** Tooltips */
+  TOOLTIP: 30,
 } as const;

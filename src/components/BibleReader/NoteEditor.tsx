@@ -72,8 +72,8 @@ export function NoteEditor({
           {onDelete && (
             <button
               onClick={() => onDelete(note.id)}
-              className="px-3 py-1.5 text-xs font-ui bg-red-600/20 text-red-400 rounded-lg
-                       hover:bg-red-600/30 transition-colors"
+              className="px-3 py-1.5 text-xs font-ui bg-scripture-errorBg text-scripture-error rounded-lg
+                       hover:bg-scripture-errorBg/80 transition-colors"
             >
               Delete
             </button>

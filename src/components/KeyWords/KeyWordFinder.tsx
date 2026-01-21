@@ -202,7 +202,7 @@ export function KeyWordFinder({ preset, onClose }: KeyWordFinderProps) {
                   <p className="text-sm text-scripture-text leading-relaxed">
                     {occ.context.split('**').map((part, i) => 
                       i % 2 === 1 ? (
-                        <span key={i} className="bg-yellow-500/30 font-semibold">
+                        <span key={i} className="bg-scripture-warningBg/60 text-scripture-text font-semibold">
                           {part}
                         </span>
                       ) : (

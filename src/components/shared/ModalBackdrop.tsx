@@ -1,7 +1,8 @@
 /**
  * Modal Backdrop Component
  * 
- * Consistent backdrop for modals with blur and click-to-close functionality.
+ * Consistent backdrop for modals with solid background (no blur) and click-to-close functionality.
+ * Uses solid backgrounds for cleaner, less distracting interface (inspired by Logos and YouVersion).
  */
 
 interface ModalBackdropProps {
@@ -20,7 +21,7 @@ export function ModalBackdrop({
 }: ModalBackdropProps) {
   return (
     <div
-      className={`fixed inset-0 bg-black/20 ${className}`}
+      className={`fixed inset-0 bg-black/40 ${className}`}
       style={{ zIndex }}
       onClick={onClick}
       aria-hidden="true"

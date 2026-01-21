@@ -38,9 +38,9 @@ select:focus-visible {
     --scripture-bg: #ffffff;
     --scripture-surface: #ffffff;
     --scripture-elevated: #f2f2f7;
-    --scripture-border: #c6c6c8;
-    --scripture-separator: #c6c6c8;
-    --scripture-overlay-border: #c6c6c8;
+    --scripture-border: 198 198 200; /* #c6c6c8 in RGB format for opacity support */
+    --scripture-separator: 198 198 200;
+    --scripture-overlay-border: 198 198 200;
     --scripture-text: #000000;
     --scripture-muted: #8e8e93;
     --scripture-accent: #007aff;
@@ -67,9 +67,9 @@ select:focus-visible {
     --scripture-bg: #000000;
     --scripture-surface: #1c1c1e;
     --scripture-elevated: #2c2c2e;
-    --scripture-border: #3a3a3a;
-    --scripture-separator: #3a3a3a;
-    --scripture-overlay-border: #3a3a3a;
+    --scripture-border: 58 58 58; /* #3a3a3a in RGB format for opacity support */
+    --scripture-separator: 58 58 58;
+    --scripture-overlay-border: 58 58 58;
     --scripture-text: #ffffff;
     --scripture-muted: #98989d;
     --scripture-accent: #0a84ff;
@@ -107,6 +107,17 @@ select:focus-visible {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
     /* Safe area insets for iPad notch/home indicator */
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* Reset default button borders to use CSS variables */
+  button {
+    border-color: rgb(var(--scripture-border));
+  }
+  
+  button[type="button"],
+  button[type="submit"],
+  button:not([type]) {
+    border-color: rgb(var(--scripture-border));
   }
 
   /* Scripture text styling */

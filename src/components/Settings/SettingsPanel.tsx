@@ -531,7 +531,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </p>
               </div>
 
-              <div className="border-t border-scripture-border/30"></div>
+              <div className="border-t border-scripture-border/30 my-4"></div>
 
               <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Theme</h3>
@@ -555,7 +555,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </p>
               </div>
 
-              <div className="border-t border-scripture-border/30"></div>
+              <div className="border-t border-scripture-border/30 my-4"></div>
 
               <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Accessibility</h3>
@@ -610,7 +610,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </p>
               </div>
 
-              <div className="border-t border-scripture-border/30"></div>
+              <div className="border-t border-scripture-border/30 my-4"></div>
 
               {/* Biblia API Section */}
               <div className="p-4">
@@ -695,7 +695,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 )}
               </div>
 
-              <div className="border-t border-scripture-border/30"></div>
+              <div className="border-t border-scripture-border/30 my-4"></div>
 
               {/* BibleGateway API Section */}
               {BIBLEGATEWAY_ENABLED && (
@@ -768,7 +768,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </div>
               )}
 
-              <div className="border-t border-scripture-border/30"></div>
+              <div className="border-t border-scripture-border/30 my-4"></div>
 
               {/* ESV API Section */}
               <div className="p-4">
@@ -893,7 +893,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </button>
 
                 {exportSuccess && (
-                  <div className="mt-3 p-3 bg-green-600/20 border border-green-600/30 rounded-lg text-green-400 text-sm">
+                  <div className="mt-3 p-3 bg-scripture-successBg border border-scripture-success/30 rounded-lg text-scripture-successText text-sm">
                     ✓ Backup exported successfully!
                   </div>
                 )}
@@ -905,7 +905,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 )}
               </div>
 
-              <div className="border-t border-scripture-border/30"></div>
+              <div className="border-t border-scripture-border/30 my-4"></div>
 
               {/* Auto-Backup Section */}
               <div className="p-4">
@@ -1141,7 +1141,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </div>
               </div>
 
-              <div className="border-t border-scripture-border/30"></div>
+              <div className="border-t border-scripture-border/30 my-4"></div>
 
               {/* Import Section */}
               <div className="p-4">
@@ -1312,7 +1312,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 )}
 
                 {restoreSuccess && (
-                  <div className="mt-3 p-3 bg-green-600/20 border border-green-600/30 rounded-lg text-green-400 text-sm">
+                  <div className="mt-3 p-3 bg-scripture-successBg border border-scripture-success/30 rounded-lg text-scripture-successText text-sm">
                     ✓ Backup restored successfully! The page will reload shortly.
                   </div>
                 )}
@@ -1324,7 +1324,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 )}
               </div>
 
-              <div className="border-t border-scripture-border/30"></div>
+              <div className="border-t border-scripture-border/30 my-4"></div>
 
               <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Clear Data</h3>
@@ -1346,7 +1346,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     </p>
                     
                     {clearBookSuccess && (
-                      <div className="mt-3 p-3 bg-green-600/20 border border-green-600/30 rounded-lg text-green-400 text-sm">
+                      <div className="mt-3 p-3 bg-scripture-successBg border border-scripture-success/30 rounded-lg text-scripture-successText text-sm">
                         ✓ {clearBookSuccess}
                       </div>
                     )}
@@ -1388,7 +1388,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 <GettingStartedSection />
               </div>
 
-              <div className="border-t border-scripture-border/30"></div>
+              <div className="border-t border-scripture-border/30 my-4"></div>
 
               <div className="p-4">
                 <div className="mb-4">
@@ -1419,13 +1419,13 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </div>
               </div>
 
-              <div className="border-t border-scripture-border/30"></div>
+              <div className="border-t border-scripture-border/30 my-4"></div>
 
               <div className="p-4">
                 <KeyboardShortcutsHelp />
               </div>
 
-              <div className="border-t border-scripture-border/30"></div>
+              <div className="border-t border-scripture-border/30 my-4"></div>
 
               <div className="p-4">
                 <div className="mb-4">
@@ -1496,7 +1496,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </div>
               </div>
 
-              <div className="border-t border-scripture-border/30"></div>
+              <div className="border-t border-scripture-border/30 my-4"></div>
 
               <div className="p-4">
                 <AboutSection />

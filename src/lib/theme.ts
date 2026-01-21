@@ -60,9 +60,9 @@ export function applyTheme(theme: Theme, highContrast: boolean = false): void {
         '--scripture-bg': '#000000',
         '--scripture-surface': '#1a1a1a',
         '--scripture-elevated': '#2a2a2a',
-        '--scripture-border': '#ffffff',
-        '--scripture-separator': '#ffffff',
-        '--scripture-overlay-border': '#ffffff',
+        '--scripture-border': '255 255 255', // #ffffff in RGB format
+        '--scripture-separator': '255 255 255',
+        '--scripture-overlay-border': '255 255 255',
         '--scripture-text': '#ffffff',
         '--scripture-muted': '#ffffff',
         '--scripture-accent': '#00aaff',
@@ -81,13 +81,14 @@ export function applyTheme(theme: Theme, highContrast: boolean = false): void {
         '--scripture-info-text': '#66ccff',
         '--scripture-backdrop-opacity': '0.8',
       } : {
-        // Standard dark theme
+        // Standard dark theme - borders (works well with opacity variants)
+        // Using RGB format (space-separated) for opacity modifier support
         '--scripture-bg': '#000000',
         '--scripture-surface': '#1c1c1e',
         '--scripture-elevated': '#2c2c2e',
-        '--scripture-border': '#3a3a3a',
-        '--scripture-separator': '#3a3a3a',
-        '--scripture-overlay-border': '#3a3a3a',
+        '--scripture-border': '58 58 58', // #3a3a3a in RGB format
+        '--scripture-separator': '58 58 58',
+        '--scripture-overlay-border': '58 58 58',
         '--scripture-text': '#ffffff',
         '--scripture-muted': '#98989d',
         '--scripture-accent': '#0a84ff',
@@ -111,9 +112,9 @@ export function applyTheme(theme: Theme, highContrast: boolean = false): void {
         '--scripture-bg': '#ffffff',
         '--scripture-surface': '#ffffff',
         '--scripture-elevated': '#f0f0f0',
-        '--scripture-border': '#000000',
-        '--scripture-separator': '#000000',
-        '--scripture-overlay-border': '#000000',
+        '--scripture-border': '0 0 0', // #000000 in RGB format
+        '--scripture-separator': '0 0 0',
+        '--scripture-overlay-border': '0 0 0',
         '--scripture-text': '#000000',
         '--scripture-muted': '#000000',
         '--scripture-accent': '#0066cc',
@@ -133,12 +134,13 @@ export function applyTheme(theme: Theme, highContrast: boolean = false): void {
         '--scripture-backdrop-opacity': '0.6',
       } : {
         // Standard light theme
+        // Using RGB format (space-separated) for opacity modifier support
         '--scripture-bg': '#ffffff',
         '--scripture-surface': '#ffffff',
         '--scripture-elevated': '#f2f2f7',
-        '--scripture-border': '#c6c6c8',
-        '--scripture-separator': '#c6c6c8',
-        '--scripture-overlay-border': '#c6c6c8',
+        '--scripture-border': '198 198 200', // #c6c6c8 in RGB format
+        '--scripture-separator': '198 198 200',
+        '--scripture-overlay-border': '198 198 200',
         '--scripture-text': '#000000',
         '--scripture-muted': '#8e8e93',
         '--scripture-accent': '#007aff',
@@ -166,6 +168,11 @@ export function applyTheme(theme: Theme, highContrast: boolean = false): void {
   
   // Force a repaint to ensure CSS variables update
   void html.offsetHeight;
+  
+  // Debug: Log border color for verification
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Theme] Applied border color:', themeColors['--scripture-border']);
+  }
 }
 
 // Store current theme preference for watcher

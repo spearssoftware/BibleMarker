@@ -12,6 +12,7 @@ import { getBookById, formatVerseRef, BIBLE_BOOKS } from '@/types/bible';
 import type { ObservationList, ObservationItem } from '@/types/list';
 import type { VerseRef } from '@/types/bible';
 import { ListEditor } from './ListEditor';
+import { Modal } from '@/components/shared';
 
 interface ListPanelProps {
   onClose?: () => void;
@@ -229,39 +230,21 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
   }
 
   return (
-    <div className="fixed inset-0 backdrop-overlay z-50 overflow-y-auto" onClick={onClose} aria-hidden="true">
-      <div className="min-h-full flex items-center justify-center p-4">
-        <div 
-          className="max-w-3xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col" 
-          onClick={(e) => e.stopPropagation()}
-          role="dialog"
-          aria-label="Observation Lists"
-          aria-modal="true"
+    <Modal
+      isOpen={true}
+      onClose={onClose || (() => {})}
+      title="Observation Lists"
+      size="lg"
+      headerActions={
+        <button
+          onClick={() => setIsCreating(true)}
+          className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
+          aria-label="Create new observation list"
         >
-          <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full mx-2 my-2">
-          <div className="p-4 border-b border-scripture-overlayBorder/50">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-ui font-semibold text-scripture-text">Observation Lists</h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsCreating(true)}
-                  className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-                  aria-label="Create new observation list"
-                >
-                  + New List
-                </button>
-                <button
-                  onClick={onClose}
-                  className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
-                  aria-label="Close observation lists"
-                >
-                  <span aria-hidden="true">?</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
+          + New List
+        </button>
+      }
+    >
             {lists.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-scripture-muted text-sm mb-4">No observation lists yet.</p>
@@ -345,7 +328,7 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
 
                       {/* List items (collapsible) - grouped by verse */}
                       {isExpanded && (
-                        <div className="border-t border-scripture-muted/20 p-4 bg-scripture-bg/50">
+                        <div className="border-t border-scripture-border/30 p-4 bg-scripture-elevated">
                           {list.items.length === 0 ? (
                             <p className="text-sm text-scripture-muted">No observations yet. Add some from the Bible text.</p>
                           ) : (
@@ -436,7 +419,7 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
                                     
                                     {/* Add observation form for this verse */}
                                     {isAddingToThisVerse && (
-                                      <div className="mt-3 pt-3 border-t border-scripture-border/30">
+                                      <div className="mt-4 pt-4 border-t border-scripture-border/30">
                                         <textarea
                                           value={newObservationText}
                                           onChange={(e) => setNewObservationText(e.target.value)}
@@ -474,10 +457,6 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
                 })}
               </div>
             )}
-          </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

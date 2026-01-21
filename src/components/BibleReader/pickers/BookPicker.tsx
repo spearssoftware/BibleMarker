@@ -61,7 +61,7 @@ export function BookPicker({ currentBook, onSelect, onClose, triggerRef }: BookP
       <div 
         ref={pickerRef}
         className="fixed bg-scripture-surface rounded-2xl shadow-2xl
-                    max-h-[70vh] overflow-hidden backdrop-blur-sm transition-opacity duration-150"
+                    max-h-[70vh] overflow-hidden transition-opacity duration-150"
         style={{ 
           top: `${top}px`,
           left: `${left}px`,

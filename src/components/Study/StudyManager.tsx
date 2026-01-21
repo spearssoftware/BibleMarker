@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useStudyStore } from '@/stores/studyStore';
 import { getBookById, BIBLE_BOOKS } from '@/types/bible';
+import { Modal, Button, Input, Select } from '@/components/shared';
 
 interface StudyManagerProps {
   onClose?: () => void;
@@ -63,57 +64,42 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 backdrop-overlay z-[200] overflow-y-auto" onClick={handleClose}>
-      <div className="min-h-full flex items-center justify-center p-4">
-        <div className="max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-          <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full mx-2 my-2">
-            <div className="p-4 border-b border-scripture-overlayBorder/50">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-ui font-semibold text-scripture-text">Study Manager</h2>
-                <button
-                  onClick={handleClose}
-                  className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
-                  aria-label="Close"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Study Manager"
+      size="md"
+    >
               {/* Create new study */}
-              <div className="mb-6 p-4 bg-scripture-surface/50 rounded-lg border border-scripture-muted/20">
+              <div className="mb-6 p-4 bg-scripture-elevated rounded-lg border border-scripture-border/30">
                 <h3 className="text-sm font-medium text-scripture-text mb-3">Create New Study</h3>
                 <div className="space-y-3">
-                  <input
+                  <Input
                     type="text"
                     value={newStudyName}
                     onChange={(e) => setNewStudyName(e.target.value)}
                     placeholder="Study name (e.g., 'John - Character Study')"
-                    className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         handleCreate();
                       }
                     }}
                   />
-                  <select
+                  <Select
                     value={newStudyBook}
                     onChange={(e) => setNewStudyBook(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-                  >
-                    <option value="">All books (global study)</option>
-                    {BIBLE_BOOKS.map(book => (
-                      <option key={book.id} value={book.id}>{book.name}</option>
-                    ))}
-                  </select>
-                  <button
+                    options={[
+                      { value: '', label: 'All books (global study)' },
+                      ...BIBLE_BOOKS.map(book => ({ value: book.id, label: book.name }))
+                    ]}
+                  />
+                  <Button
                     onClick={handleCreate}
                     disabled={!newStudyName.trim()}
-                    className="w-full px-4 py-2 bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    fullWidth
                   >
                     Create Study
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -122,12 +108,13 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium text-scripture-text">Your Studies</h3>
                   {activeStudyId && (
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => setActiveStudy(null)}
-                      className="px-3 py-1.5 text-sm bg-scripture-elevated text-scripture-text border border-scripture-border/50 rounded hover:bg-scripture-border/50 transition-colors"
                     >
                       Clear Active Study
-                    </button>
+                    </Button>
                   )}
                 </div>
                 {studies.length === 0 ? (
@@ -165,18 +152,12 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
                             ))}
                           </select>
                           <div className="flex gap-2">
-                            <button
-                              onClick={handleUpdate}
-                              className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-                            >
+                            <Button size="sm" onClick={handleUpdate}>
                               Save
-                            </button>
-                            <button
-                              onClick={() => setEditingStudy(null)}
-                              className="px-3 py-1.5 text-sm bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-                            >
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setEditingStudy(null)}>
                               Cancel
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       ) : (
@@ -194,12 +175,9 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
                           </div>
                           <div className="flex items-center gap-2">
                             {activeStudyId !== study.id && (
-                              <button
-                                onClick={() => setActiveStudy(study.id)}
-                                className="px-3 py-1.5 text-sm bg-scripture-accent text-scripture-bg rounded hover:bg-scripture-accent/90 transition-colors"
-                              >
+                              <Button size="sm" onClick={() => setActiveStudy(study.id)}>
                                 Set Active
-                              </button>
+                              </Button>
                             )}
                             <button
                               onClick={() => setEditingStudy({ id: study.id, name: study.name, book: study.book })}
@@ -209,7 +187,7 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
                             </button>
                             <button
                               onClick={() => handleDelete(study.id)}
-                              className="px-3 py-1.5 text-sm text-highlight-red hover:text-highlight-red/80 transition-colors"
+                              className="px-3 py-1.5 text-sm text-scripture-error hover:text-scripture-error/90 transition-colors"
                             >
                               Delete
                             </button>
@@ -220,10 +198,6 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
                   ))
                 )}
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

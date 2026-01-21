@@ -11,6 +11,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import type { ObservationList } from '@/types/list';
 import { BIBLE_BOOKS, getBookById } from '@/types/bible';
+import { Modal } from '@/components/shared';
 
 interface ListEditorProps {
   list?: ObservationList;
@@ -94,28 +95,8 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
   // Get keyword presets (only those with words)
   const keywordPresets = presets.filter(p => p.word);
 
-  const content = (
-    <div 
-      className={`${inline ? 'flex flex-col flex-1 min-h-0' : 'bg-scripture-surface rounded-2xl shadow-2xl max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col'}`}
-      onClick={inline ? undefined : (e) => e.stopPropagation()}
-    >
-      {!inline && (
-        <div className="p-4 border-b border-scripture-overlayBorder/50 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-ui font-semibold text-scripture-text">
-              {list ? 'Edit List' : 'Create Observation List'}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
-              aria-label="Close"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
-
+  const formContent = (
+    <>
       {inline && (
         <div className="flex-shrink-0 mb-4">
           <h2 className="text-lg font-ui font-semibold text-scripture-text">
@@ -124,7 +105,7 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
         </div>
       )}
 
-      <div className={`${inline ? 'flex-1 min-h-0 overflow-y-auto p-4 space-y-4 custom-scrollbar pb-2' : 'p-6 overflow-y-auto flex-1 custom-scrollbar'}`}>
+      <div className={`${inline ? 'flex-1 min-h-0 overflow-y-auto p-4 space-y-4 custom-scrollbar pb-2' : 'space-y-4'}`}>
         <div className="space-y-4">
               {/* Title */}
               <div>
@@ -237,33 +218,75 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
       </div>
 
       {/* Sticky Save/Cancel bar */}
-      <div className={`${inline ? 'flex-shrink-0 p-4 border-t border-scripture-border/50 flex gap-2 bg-scripture-surface z-10' : 'p-4 border-t border-scripture-border/50 flex items-center justify-end gap-2 flex-shrink-0'}`}>
-        <button
-          onClick={onClose}
-          className={`${inline ? 'px-3 py-1.5' : 'px-4 py-2'} text-sm bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors`}
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={!title.trim() || !selectedKeywordId}
-          className={`${inline ? 'px-3 py-1.5' : 'px-4 py-2'} text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
-        >
-          {list ? 'Save' : 'Create'}
-        </button>
-      </div>
-    </div>
+      {inline ? (
+        <div className="flex-shrink-0 p-4 border-t border-scripture-border/50 flex gap-2 bg-scripture-surface z-10">
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!title.trim() || !selectedKeywordId}
+            className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {list ? 'Save' : 'Create'}
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!title.trim() || !selectedKeywordId}
+            className="px-4 py-2 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {list ? 'Save' : 'Create'}
+          </button>
+        </div>
+      )}
+    </>
   );
 
   if (inline) {
-    return content;
+    return (
+      <div className="flex flex-col flex-1 min-h-0">
+        {formContent}
+      </div>
+    );
   }
 
   return (
-    <div className="fixed inset-0 backdrop-overlay z-[200] overflow-y-auto" onClick={onClose}>
-      <div className="min-h-full flex items-center justify-center p-4">
-        {content}
-      </div>
-    </div>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title={list ? 'Edit List' : 'Create Observation List'}
+      size="md"
+      footer={
+        <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!title.trim() || !selectedKeywordId}
+            className="px-4 py-2 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {list ? 'Save' : 'Create'}
+          </button>
+        </div>
+      }
+    >
+      {formContent}
+    </Modal>
   );
 }

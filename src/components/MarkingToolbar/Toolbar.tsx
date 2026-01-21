@@ -421,12 +421,12 @@ export function Toolbar() {
       {selection && (
         <>
           <div className="bg-scripture-accent text-scripture-bg px-3 py-2 
-                          flex items-center justify-between animate-slide-up shadow-lg backdrop-blur-sm">
+                          flex items-center justify-between animate-slide-up shadow-lg">
             <span className="text-sm font-ui truncate flex-1 font-medium text-scripture-bg">
               Selected: {selection.text.slice(0, 50)}
               {selection.text.length > 50 ? '...' : ''}
             </span>
-              <div className="flex items-center gap-2 ml-2 bg-scripture-bg/30 rounded-lg p-1.5">
+              <div className="flex items-center gap-2 ml-2 bg-scripture-elevated rounded-lg p-1.5">
               {/* Apply key word: pick Jesus, Nicodemus, etc. to mark He/him the same way */}
               <div className="relative">
                 <button
@@ -446,7 +446,7 @@ export function Toolbar() {
                   <div
                     className="absolute right-0 bottom-full mb-1 w-56 max-h-64 overflow-y-auto
                                bg-scripture-surface border border-scripture-border/50 border-t-0 rounded-xl shadow-xl
-                               py-1.5 z-50 custom-scrollbar backdrop-blur-sm"
+                               py-1.5 z-50 custom-scrollbar"
                   >
                     {presets
                       .filter((p) => p.word)
@@ -456,7 +456,7 @@ export function Toolbar() {
                           key={p.id}
                           onClick={() => applyPresetToSelection(p)}
                           className="w-full px-3 py-2 text-left text-sm font-ui text-scripture-text
-                                   hover:bg-scripture-surface/80 hover:border-l-2 hover:border-l-scripture-accent flex items-center gap-2"
+                                   hover:bg-scripture-elevated hover:border-l-2 hover:border-l-scripture-accent flex items-center gap-2"
                         >
                           {p.symbol && (
                             <span
@@ -515,7 +515,7 @@ export function Toolbar() {
                             key={p.id}
                             onClick={() => addToVariantsAndApply(p)}
                             className="w-full px-3 py-2 text-left text-sm font-ui text-scripture-text
-                                     hover:bg-scripture-elevated/80 flex items-center gap-2"
+                                     hover:bg-scripture-border/50 flex items-center gap-2"
                           >
                             {p.symbol && (
                               <span
@@ -595,7 +595,7 @@ export function Toolbar() {
 
           {/* Smart suggestions */}
           {previousAnnotations.length > 0 && (
-            <div className="bg-scripture-surface/90 backdrop-blur-sm border-t border-scripture-border/50 animate-slide-up">
+            <div className="bg-scripture-surface border-t border-scripture-border/50 animate-slide-up">
               <div className="bg-scripture-surface px-3 py-2 mx-2 my-2 rounded-xl">
                 <div className="p-3">
                 <div className="text-sm text-scripture-text mb-3 font-ui font-semibold">
@@ -796,7 +796,7 @@ export function Toolbar() {
       )}
 
       {/* Main toolbar: Color | Symbol | Key Words | Settings */}
-      <div className="bg-scripture-surface/95 backdrop-blur-sm shadow-lg" data-marking-toolbar>
+      <div className="bg-scripture-surface shadow-lg" data-marking-toolbar>
         <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
           {TOOLS.map((tool) => {
             const isActive =

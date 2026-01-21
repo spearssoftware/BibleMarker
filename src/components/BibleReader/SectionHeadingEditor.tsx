@@ -77,8 +77,8 @@ export function SectionHeadingEditor({
   return (
     <h3 
       className="section-heading my-3 py-1.5 text-scripture-text/80 font-ui text-base font-medium
-                 border-b border-scripture-border/60 cursor-pointer hover:text-scripture-text
-                 hover:border-scripture-accent/60 transition-all duration-200 italic"
+                 border-b border-scripture-border/50 cursor-pointer hover:text-scripture-text
+                 hover:border-scripture-accent/50 transition-all duration-200 italic"
       onClick={() => setIsEditing(true)}
       title="Click to edit"
     >

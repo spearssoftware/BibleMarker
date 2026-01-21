@@ -11,7 +11,7 @@ import type { VerseRef } from '@/types/bible';
 import { formatVerseRef } from '@/types/bible';
 import { stripSymbols } from '@/lib/textUtils';
 import { useModal } from '@/hooks/useModal';
-import { ModalBackdrop } from '@/components/shared';
+import { Modal, Button, Textarea, Select, ReadOnlyField } from '@/components/shared';
 import { Z_INDEX } from '@/lib/modalConstants';
 
 interface AddToListProps {
@@ -116,158 +116,126 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
   const keywordPresets = presets.filter(p => p.word);
 
   return (
-    <>
-      <ModalBackdrop onClick={handleBackdropClick} zIndex={Z_INDEX.BACKDROP} />
-      <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" onClick={handleBackdropClick}>
-        <div 
-          className="max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col" 
-          onClick={(e) => e.stopPropagation()}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Add observation to list"
-        >
-          <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full mx-2 my-2">
-          <div className="p-4 border-b border-scripture-overlayBorder/50">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-ui font-semibold text-scripture-text">Add Observation</h2>
-              <button
-                onClick={onClose}
-                className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-
-          <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title="Add Observation"
+      size="md"
+      initialFocusRef={textareaRef}
+      footer={
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          {showCreateNew ? (
+            <Button
+              onClick={handleCreateAndAdd}
+              disabled={!newListTitle.trim() || !newListKeywordId || !observationText.trim()}
+            >
+              Create & Add
+            </Button>
+          ) : (
+            <Button
+              onClick={handleAdd}
+              disabled={!selectedListId || !observationText.trim()}
+            >
+              Add to List
+            </Button>
+          )}
+        </div>
+      }
+    >
             <div className="space-y-4">
               {/* Verse reference */}
-              <div>
-                <label className="block text-sm font-medium text-scripture-text mb-2">
-                  Verse Reference
-                </label>
-                <div className="px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg text-scripture-text">
-                  {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
-                </div>
-              </div>
+              <ReadOnlyField
+                label="Verse Reference"
+                value={formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
+              />
 
               {/* Selected text (read-only) */}
-              <div>
-                <label className="block text-sm font-medium text-scripture-text mb-2">
-                  Selected Text
-                </label>
-                <div className="px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg text-scripture-text italic">
-                  "{stripSymbols(selectedText)}"
-                </div>
-              </div>
+              <ReadOnlyField
+                label="Selected Text"
+                value={`"${stripSymbols(selectedText)}"`}
+                className="italic"
+              />
 
               {/* Observation text */}
-              <div>
-                <label htmlFor="observation-textarea" className="block text-sm font-medium text-scripture-text mb-2">
-                  Your Observation About the Keyword
-                </label>
-                <textarea
-                  id="observation-textarea"
-                  ref={textareaRef}
-                  value={observationText}
-                  onChange={(e) => setObservationText(e.target.value)}
-                  placeholder="What do you observe about this keyword in this verse? (e.g., 'the word was with God', 'the word was God')"
-                  rows={4}
-                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
-                  autoFocus
-                  aria-label="Your observation about the keyword"
-                />
-                <p className="mt-1 text-xs text-scripture-muted">
-                  Add your observation about how the keyword appears or is used in this verse.
-                </p>
-              </div>
+              <Textarea
+                ref={textareaRef}
+                label="Your Observation About the Keyword"
+                value={observationText}
+                onChange={(e) => setObservationText(e.target.value)}
+                placeholder="What do you observe about this keyword in this verse? (e.g., 'the word was with God', 'the word was God')"
+                rows={4}
+                helpText="Add your observation about how the keyword appears or is used in this verse."
+                autoFocus
+                aria-label="Your observation about the keyword"
+              />
 
               {/* List selection */}
               {!showCreateNew ? (
                 <>
-                  <div>
-                    <label htmlFor="list-select" className="block text-sm font-medium text-scripture-text mb-2">
-                      Add to Observation List
-                    </label>
-                    {lists.length === 0 ? (
-                      <div className="text-sm text-scripture-muted mb-2" role="status" aria-live="polite">
-                        No lists yet. Create one below.
-                      </div>
-                    ) : (
-                      <>
-                        <select
-                          id="list-select"
-                          value={selectedListId}
-                          onChange={(e) => setSelectedListId(e.target.value)}
-                          className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-                          aria-label="Select observation list"
-                        >
-                          <option value="">Select a list...</option>
-                          {lists.map(list => {
-                            const keywordName = presets.find(p => p.id === list.keyWordId)?.word || 'Unknown';
-                            // Count unique verses
-                            const verseCount = new Set(
-                              list.items.map(item => `${item.verseRef.book}:${item.verseRef.chapter}:${item.verseRef.verse}`)
-                            ).size;
-                            return (
-                              <option key={list.id} value={list.id}>
-                                {list.title} (Keyword: {keywordName}, {verseCount} {verseCount === 1 ? 'verse' : 'verses'})
-                              </option>
-                            );
-                          })}
-                        </select>
-                        <p className="mt-1 text-xs text-scripture-muted">
-                          Select a list about a keyword. You can add multiple observations for the same verse.
-                        </p>
-                      </>
-                    )}
-                  </div>
-                  <button
+                  {lists.length === 0 ? (
+                    <div className="text-sm text-scripture-muted mb-2" role="status" aria-live="polite">
+                      No lists yet. Create one below.
+                    </div>
+                  ) : (
+                    <Select
+                      label="Add to Observation List"
+                      value={selectedListId}
+                      onChange={(e) => setSelectedListId(e.target.value)}
+                      helpText="Select a list about a keyword. You can add multiple observations for the same verse."
+                      options={[
+                        { value: '', label: 'Select a list...' },
+                        ...lists.map(list => {
+                          const keywordName = presets.find(p => p.id === list.keyWordId)?.word || 'Unknown';
+                          const verseCount = new Set(
+                            list.items.map(item => `${item.verseRef.book}:${item.verseRef.chapter}:${item.verseRef.verse}`)
+                          ).size;
+                          return {
+                            value: list.id,
+                            label: `${list.title} (Keyword: ${keywordName}, ${verseCount} ${verseCount === 1 ? 'verse' : 'verses'})`
+                          };
+                        })
+                      ]}
+                    />
+                  )}
+                  <Button
+                    variant="secondary"
+                    fullWidth
                     onClick={() => setShowCreateNew(true)}
-                    className="w-full px-4 py-2 text-sm bg-scripture-surface/80 text-scripture-text border border-scripture-border/50 rounded hover:bg-scripture-surface transition-colors"
                   >
                     + Create New List
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <>
-                  <div>
-                    <label className="block text-sm font-medium text-scripture-text mb-2">
-                      New List Title
-                    </label>
-                    <input
-                      type="text"
-                      value={newListTitle}
-                      onChange={(e) => setNewListTitle(e.target.value)}
-                      placeholder="e.g., 'What I learn about God in John 1'"
-                      className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-scripture-text mb-2">
-                      Keyword <span className="text-highlight-red">*</span>
-                      <span className="text-xs text-scripture-muted ml-2">(This list is about observations of this keyword)</span>
-                    </label>
-                    <select
-                      value={newListKeywordId}
-                      onChange={(e) => setNewListKeywordId(e.target.value)}
-                      className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-                      required
-                    >
-                      <option value="">Select a keyword...</option>
-                      {keywordPresets.map(preset => (
-                        <option key={preset.id} value={preset.id}>
-                          {preset.word} {preset.symbol && `(${preset.symbol})`}
-                        </option>
-                      ))}
-                    </select>
-                    {keywordPresets.length === 0 && (
-                      <p className="mt-2 text-xs text-scripture-muted">
-                        No keywords yet. Create a keyword first from the toolbar.
-                      </p>
-                    )}
-                  </div>
+                  <Input
+                    label="New List Title"
+                    type="text"
+                    value={newListTitle}
+                    onChange={(e) => setNewListTitle(e.target.value)}
+                    placeholder="e.g., 'What I learn about God in John 1'"
+                  />
+                  <Select
+                    label="Keyword"
+                    required
+                    helpText="This list is about observations of this keyword"
+                    value={newListKeywordId}
+                    onChange={(e) => setNewListKeywordId(e.target.value)}
+                    options={[
+                      { value: '', label: 'Select a keyword...' },
+                      ...keywordPresets.map(preset => ({
+                        value: preset.id,
+                        label: `${preset.word}${preset.symbol ? ` (${preset.symbol})` : ''}`
+                      }))
+                    ]}
+                  />
+                  {keywordPresets.length === 0 && (
+                    <p className="text-xs text-scripture-muted">
+                      No keywords yet. Create a keyword first from the toolbar.
+                    </p>
+                  )}
                   <button
                     onClick={() => setShowCreateNew(false)}
                     className="text-sm text-scripture-muted hover:text-scripture-text transition-colors"
@@ -277,36 +245,6 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
                 </>
               )}
             </div>
-          </div>
-
-          <div className="p-4 border-t border-scripture-border/50 flex items-center justify-end gap-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-            >
-              Cancel
-            </button>
-            {showCreateNew ? (
-              <button
-                onClick={handleCreateAndAdd}
-                disabled={!newListTitle.trim() || !newListKeywordId || !observationText.trim()}
-                className="px-4 py-2 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Create & Add
-              </button>
-            ) : (
-              <button
-                onClick={handleAdd}
-                disabled={!selectedListId || !observationText.trim()}
-                className="px-4 py-2 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Add to List
-              </button>
-            )}
-          </div>
-          </div>
-        </div>
-      </div>
-    </>
+    </Modal>
   );
 }

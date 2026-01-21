@@ -66,7 +66,7 @@ export function VersePicker({
       <div 
         ref={pickerRef}
         className="fixed bg-scripture-surface rounded-2xl shadow-2xl
-                    max-h-[50vh] overflow-hidden backdrop-blur-sm transition-opacity duration-150"
+                    max-h-[50vh] overflow-hidden transition-opacity duration-150"
         style={{ 
           top: `${top}px`,
           left: `${left}px`,

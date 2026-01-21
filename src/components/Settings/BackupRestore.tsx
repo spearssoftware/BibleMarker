@@ -198,7 +198,7 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
         </button>
 
         {exportSuccess && (
-          <div className="mt-3 p-3 bg-green-600/20 border border-green-600/30 rounded-lg text-green-400 text-sm">
+          <div className="mt-3 p-3 bg-scripture-successBg border border-scripture-success/30 rounded-lg text-scripture-successText text-sm">
             ✓ Backup exported successfully!
           </div>
         )}
@@ -379,7 +379,7 @@ export function BackupRestore({ onClose }: BackupRestoreProps) {
         )}
 
         {restoreSuccess && (
-          <div className="mt-3 p-3 bg-green-600/20 border border-green-600/30 rounded-lg text-green-400 text-sm">
+          <div className="mt-3 p-3 bg-scripture-successBg border border-scripture-success/30 rounded-lg text-scripture-successText text-sm">
             ✓ Backup restored successfully! The page will reload shortly.
           </div>
         )}
