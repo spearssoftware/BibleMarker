@@ -78,10 +78,15 @@ export interface UserPreferences {
   marking: MarkingPreferences;
   fontSize: 'sm' | 'base' | 'lg' | 'xl';
   theme: 'dark' | 'light' | 'auto';
+  highContrast?: boolean;          // High contrast mode for accessibility
   apiConfigs?: ApiConfigRecord[];  // Bible API configurations
   favoriteTranslations?: string[];  // Array of translation IDs
   recentTranslations?: string[];    // Array of translation IDs (most recent first)
   onboarding?: OnboardingState;    // Onboarding state for first-time users
+  debug?: {
+    keywordMatching?: boolean;      // Enable debug logging for keyword matching
+    verseText?: boolean;            // Enable debug logging for verse text rendering
+  };
 }
 
 /** Reading history entry */

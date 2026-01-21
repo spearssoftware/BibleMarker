@@ -11,6 +11,7 @@ import { getBookById } from '@/types/bible';
 import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences } from '@/lib/db';
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
 import { applyTheme } from '@/lib/theme';
+import { clearDebugFlagsCache } from '@/lib/debug';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { AboutSection } from './AboutSection';
 import { GettingStartedSection } from './GettingStartedSection';
@@ -38,6 +39,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const { currentBook, currentModuleId } = useBibleStore();
   const [theme, setTheme] = useState<'dark' | 'light' | 'auto'>('dark');
   const [highContrast, setHighContrast] = useState(false);
+  const [debugKeywordMatching, setDebugKeywordMatching] = useState(false);
+  const [debugVerseText, setDebugVerseText] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showClearBookConfirm, setShowClearBookConfirm] = useState(false);
@@ -80,6 +83,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         }
         if (prefs.highContrast !== undefined) {
           setHighContrast(prefs.highContrast);
+        }
+        if (prefs.debug?.keywordMatching !== undefined) {
+          setDebugKeywordMatching(prefs.debug.keywordMatching);
+        }
+        if (prefs.debug?.verseText !== undefined) {
+          setDebugVerseText(prefs.debug.verseText);
         }
         applyTheme(prefs.theme || 'auto', prefs.highContrast || false);
         // Load API configs
@@ -1124,6 +1133,73 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
               <div className="p-4">
                 <KeyboardShortcutsHelp />
+              </div>
+
+              <div className="border-t border-scripture-border/30"></div>
+
+              <div className="p-4">
+                <div className="mb-4">
+                  <h3 className="text-sm font-ui font-semibold text-scripture-text mb-3">Debug Logging</h3>
+                  <p className="text-xs text-scripture-muted mb-4">
+                    Enable detailed console logging for debugging keyword matching and verse rendering issues.
+                  </p>
+                  
+                  <div className="space-y-3">
+                    <label className="flex items-center justify-between p-3 bg-scripture-surface border border-scripture-border/50 rounded-lg hover:bg-scripture-elevated transition-colors cursor-pointer">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-scripture-text">Keyword Matching</div>
+                        <div className="text-xs text-scripture-muted mt-0.5">
+                          Log keyword matching process, matches found, and overlap detection
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={debugKeywordMatching}
+                        onChange={async (e) => {
+                          const newValue = e.target.checked;
+                          setDebugKeywordMatching(newValue);
+                          await updatePreferences({
+                            debug: {
+                              keywordMatching: newValue,
+                              verseText: debugVerseText,
+                            },
+                          });
+                          clearDebugFlagsCache();
+                        }}
+                        className="ml-4 w-5 h-5 text-scripture-accent bg-scripture-elevated border-scripture-border rounded focus:ring-2 focus:ring-scripture-accent/50 cursor-pointer"
+                      />
+                    </label>
+                    
+                    <label className="flex items-center justify-between p-3 bg-scripture-surface border border-scripture-border/50 rounded-lg hover:bg-scripture-elevated transition-colors cursor-pointer">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-scripture-text">Verse Text Rendering</div>
+                        <div className="text-xs text-scripture-muted mt-0.5">
+                          Log virtual annotation creation, filtering, and preset information
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={debugVerseText}
+                        onChange={async (e) => {
+                          const newValue = e.target.checked;
+                          setDebugVerseText(newValue);
+                          await updatePreferences({
+                            debug: {
+                              keywordMatching: debugKeywordMatching,
+                              verseText: newValue,
+                            },
+                          });
+                          clearDebugFlagsCache();
+                        }}
+                        className="ml-4 w-5 h-5 text-scripture-accent bg-scripture-elevated border-scripture-border rounded focus:ring-2 focus:ring-scripture-accent/50 cursor-pointer"
+                      />
+                    </label>
+                  </div>
+                  
+                  <p className="text-xs text-scripture-muted mt-3">
+                    Debug logs will appear in the browser console (F12 → Console tab). Refresh the page after toggling for changes to take effect.
+                  </p>
+                </div>
               </div>
 
               <div className="border-t border-scripture-border/30"></div>

@@ -8,9 +8,7 @@ import type { MarkingPreset } from '@/types/keyWord';
 import type { TextAnnotation, SymbolAnnotation, Annotation } from '@/types/annotation';
 import type { VerseRef } from '@/types/bible';
 import { matchesPreset } from '@/types/keyWord';
-
-// Debug flag for keyword matching - set to true to enable detailed logging
-const DEBUG_KEYWORD_MATCHING = false;
+import { getDebugFlagsSync } from '@/lib/debug';
 
 /**
  * Split text into words with their positions
@@ -253,6 +251,9 @@ export function findKeywordMatches(
     return b.phrase.length - a.phrase.length; // Then longer character length
   });
   
+  // Get debug flags once for this function call
+  const debugFlags = getDebugFlagsSync();
+  
   // Process each phrase (already sorted longest-first)
   for (const { preset, phrase } of allPhrases) {
     const matches = findPhraseMatches(verseText, phrase);
@@ -264,7 +265,7 @@ export function findKeywordMatches(
     const matchedRanges = matchedRangesByPreset.get(preset.id)!;
     
     // Debug: log if we're looking for "Jeremiah" in verse 1
-    if (DEBUG_KEYWORD_MATCHING && phrase.toLowerCase().includes('jeremiah') && verseRef.verse === 1) {
+    if (debugFlags.keywordMatching && phrase.toLowerCase().includes('jeremiah') && verseRef.verse === 1) {
       console.log(`[KeywordMatching] Looking for "${phrase}" in verse 1:`, {
         presetId: preset.id,
         presetWord: preset.word,
@@ -290,7 +291,7 @@ export function findKeywordMatches(
       });
       
       // Debug: log if "Jeremiah" match is being filtered out
-      if (DEBUG_KEYWORD_MATCHING && phrase.toLowerCase().includes('jeremiah') && verseRef.verse === 1) {
+      if (debugFlags.keywordMatching && phrase.toLowerCase().includes('jeremiah') && verseRef.verse === 1) {
         const overlappingRanges = Array.from(matchedRanges).filter(range => {
           const [start, end] = range.split('-').map(Number);
           return match.startIndex < end && match.endIndex > start;
