@@ -29,8 +29,11 @@
           const isDark = effectiveTheme === 'dark';
           
           // Set background and text color immediately to prevent flash
-          document.body.style.backgroundColor = isDark ? '#000000' : '#ffffff';
-          document.body.style.color = isDark ? '#ffffff' : '#000000';
+          // Check if body exists (it may not be parsed yet when script runs in <head>)
+          if (document.body) {
+            document.body.style.backgroundColor = isDark ? '#000000' : '#ffffff';
+            document.body.style.color = isDark ? '#ffffff' : '#000000';
+          }
           
           // Apply dark class if needed
           if (isDark) {
@@ -58,8 +61,10 @@
         } catch (e) {
           // Fallback to OS preference
           const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          document.body.style.backgroundColor = prefersDark ? '#000000' : '#ffffff';
-          document.body.style.color = prefersDark ? '#ffffff' : '#000000';
+          if (document.body) {
+            document.body.style.backgroundColor = prefersDark ? '#000000' : '#ffffff';
+            document.body.style.color = prefersDark ? '#ffffff' : '#000000';
+          }
           if (prefersDark) {
             document.documentElement.classList.add('dark');
           }
