@@ -231,14 +231,14 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
   };
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative" role="dialog" aria-label="Study Tools" aria-modal="true">
       {/* Close button - floating in top-right */}
       <button
         onClick={onClose}
         className="absolute top-2 right-2 z-10 text-scripture-muted hover:text-scripture-text transition-colors p-1.5 rounded-lg hover:bg-scripture-elevated"
-        aria-label="Close"
+        aria-label="Close study tools"
       >
-        ✕
+        <span aria-hidden="true">✕</span>
       </button>
 
       {/* Tabs */}

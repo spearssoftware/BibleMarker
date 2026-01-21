@@ -148,16 +148,18 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
 
               {/* Observation text */}
               <div>
-                <label className="block text-sm font-medium text-scripture-text mb-2">
+                <label htmlFor="observation-textarea" className="block text-sm font-medium text-scripture-text mb-2">
                   Your Observation About the Keyword
                 </label>
                 <textarea
+                  id="observation-textarea"
                   value={observationText}
                   onChange={(e) => setObservationText(e.target.value)}
                   placeholder="What do you observe about this keyword in this verse? (e.g., 'the word was with God', 'the word was God')"
                   rows={4}
                   className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
                   autoFocus
+                  aria-label="Your observation about the keyword"
                 />
                 <p className="mt-1 text-xs text-scripture-muted">
                   Add your observation about how the keyword appears or is used in this verse.
@@ -168,19 +170,21 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
               {!showCreateNew ? (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-scripture-text mb-2">
+                    <label htmlFor="list-select" className="block text-sm font-medium text-scripture-text mb-2">
                       Add to Observation List
                     </label>
                     {lists.length === 0 ? (
-                      <div className="text-sm text-scripture-muted mb-2">
+                      <div className="text-sm text-scripture-muted mb-2" role="status" aria-live="polite">
                         No lists yet. Create one below.
                       </div>
                     ) : (
                       <>
                         <select
+                          id="list-select"
                           value={selectedListId}
                           onChange={(e) => setSelectedListId(e.target.value)}
                           className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
+                          aria-label="Select observation list"
                         >
                           <option value="">Select a list...</option>
                           {lists.map(list => {

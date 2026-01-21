@@ -229,11 +229,14 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
   }
 
   return (
-    <div className="fixed inset-0 backdrop-overlay z-50 overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 backdrop-overlay z-50 overflow-y-auto" onClick={onClose} aria-hidden="true">
       <div className="min-h-full flex items-center justify-center p-4">
         <div 
           className="max-w-3xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col" 
           onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-label="Observation Lists"
+          aria-modal="true"
         >
           <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full mx-2 my-2">
           <div className="p-4 border-b border-scripture-overlayBorder/50">
@@ -243,15 +246,16 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
                 <button
                   onClick={() => setIsCreating(true)}
                   className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
+                  aria-label="Create new observation list"
                 >
                   + New List
                 </button>
                 <button
                   onClick={onClose}
                   className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
-                  aria-label="Close"
+                  aria-label="Close observation lists"
                 >
-                  ?
+                  <span aria-hidden="true">?</span>
                 </button>
               </div>
             </div>

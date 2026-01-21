@@ -135,13 +135,21 @@ export function Search({ onClose, onNavigate }: SearchProps) {
         style={{
           transform: 'translateX(-50%)',
           animation: 'searchScaleIn 0.2s ease-out',
-        }}>
+        }}
+        role="dialog"
+        aria-label="Search Bible, notes, and annotations"
+        aria-modal="true"
+      >
         <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden mx-2 my-2">
         {/* Header */}
         <div className="p-4 border-b border-scripture-overlayBorder/50">
           <div className="flex items-center gap-3">
             <div className="flex-1 relative">
+              <label htmlFor="search-input" className="sr-only">
+                Search Bible, notes, annotations, or enter verse reference
+              </label>
               <input
+                id="search-input"
                 ref={inputRef}
                 type="text"
                 value={query}
@@ -150,6 +158,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
                 className="w-full px-4 py-2.5 pl-10 rounded-xl bg-scripture-bg border border-scripture-border/50
                          text-scripture-text placeholder-scripture-muted focus:outline-none focus:ring-2
                          focus:ring-scripture-accent focus:border-transparent"
+                aria-label="Search input"
               />
               <svg 
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-scripture-muted"

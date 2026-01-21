@@ -128,30 +128,34 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
         <div className="space-y-4">
               {/* Title */}
               <div>
-                <label className="block text-sm font-medium text-scripture-text mb-2">
+                <label htmlFor="list-title-input" className="block text-sm font-medium text-scripture-text mb-2">
                   List Title
                 </label>
                 <input
+                  id="list-title-input"
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g., 'What I learn about God in John 1'"
                   className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted"
                   autoFocus
+                  aria-required="false"
                 />
               </div>
 
               {/* Keyword (required) - List is about this keyword */}
               <div>
-                <label className="block text-sm font-medium text-scripture-text mb-2">
-                  Keyword <span className="text-highlight-red">*</span>
+                <label htmlFor="list-keyword-select" className="block text-sm font-medium text-scripture-text mb-2">
+                  Keyword <span className="text-highlight-red" aria-label="required">*</span>
                   <span className="text-xs text-scripture-muted ml-2">(This list is about observations of this keyword)</span>
                 </label>
                 <select
+                  id="list-keyword-select"
                   value={selectedKeywordId}
                   onChange={(e) => setSelectedKeywordId(e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
                   required
+                  aria-required="true"
                 >
                   <option value="">Select a keyword...</option>
                   {keywordPresets.map(preset => (

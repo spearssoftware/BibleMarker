@@ -143,7 +143,7 @@ export default function App() {
       <NavigationBar />
 
       {/* Main reading area - always use MultiTranslationView */}
-      <main className="flex-1 pb-32">
+      <main className="flex-1 pb-32" role="main" aria-label="Bible reading area">
         <MultiTranslationView />
       </main>
 

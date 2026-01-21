@@ -37,10 +37,14 @@ export function NoteCreator({
   };
 
   return (
-    <div className="note-creator my-3 p-3 rounded-xl bg-scripture-elevated/50 border border-scripture-border/50 animate-scale-in">
+    <div className="note-creator my-3 p-3 rounded-xl bg-scripture-elevated/50 border border-scripture-border/50 animate-scale-in" role="dialog" aria-label={`Create note for verse ${verseNum}${range ? ` (verses ${range.startVerse}-${range.endVerse})` : ''}`}>
       <div className="flex items-start gap-2">
-        <span className="text-scripture-accent text-sm font-ui font-semibold mt-1">📝</span>
+        <span className="text-scripture-accent text-sm font-ui font-semibold mt-1" aria-hidden="true">📝</span>
+        <label htmlFor={`note-textarea-${verseNum}`} className="sr-only">
+          Note content for verse {verseNum}
+        </label>
         <textarea
+          id={`note-textarea-${verseNum}`}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -49,10 +53,11 @@ export function NoteCreator({
                      resize-none min-h-[80px]"
           placeholder="Enter your note... (Cmd/Ctrl+Enter to save)"
           autoFocus
+          aria-label="Note content"
         />
       </div>
       {range && (
-        <p className="text-scripture-muted text-xs font-ui mt-2 ml-6">
+        <p className="text-scripture-muted text-xs font-ui mt-2 ml-6" role="note" aria-live="polite">
           Note will cover verses {range.startVerse}-{range.endVerse}
         </p>
       )}
@@ -61,6 +66,7 @@ export function NoteCreator({
           onClick={onCancel}
           className="px-3 py-1.5 text-xs font-ui bg-scripture-surface text-scripture-muted rounded-lg
                    hover:bg-scripture-elevated transition-colors"
+          aria-label="Cancel creating note"
         >
           Cancel
         </button>
@@ -70,6 +76,7 @@ export function NoteCreator({
           className="px-3 py-1.5 text-xs font-ui bg-scripture-accent text-scripture-bg rounded-lg
                    hover:bg-scripture-accent/90 transition-colors disabled:opacity-50
                    disabled:cursor-not-allowed"
+          aria-label="Save note"
         >
           Save
         </button>

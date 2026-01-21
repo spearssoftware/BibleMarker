@@ -493,11 +493,11 @@ Essential features and polish needed for a production-ready v1 release:
    - ✅ Toolbar shortcuts: Number keys 1-6 for tools
    - ✅ Keyboard shortcuts help reference in Settings → Help tab
 
-9. ⚠️ **Onboarding/Tutorial** - First-time user guidance
+9. ✅ **Onboarding/Tutorial** - ✅ COMPLETE - First-time user guidance
 
-   - Welcome screen explaining key features
-   - Tooltips for first use of major features
-   - Quick tour option
+   - ✅ Welcome screen explaining key features
+   - ✅ Tooltips for first use of major features
+   - ✅ Quick tour option
 
 10. ✅ **Help/Documentation** - ✅ COMPLETE
 
@@ -516,22 +516,32 @@ Essential features and polish needed for a production-ready v1 release:
 
 ### Accessibility (Should Have for v1)
 
-11. ⚠️ **ARIA Labels** - Screen reader support
+11. ✅ **ARIA Labels** - ✅ COMPLETE - Screen reader support
 
-    - Proper labels for all interactive elements
-    - Landmark regions
-    - Form labels
+    - ✅ Landmark regions (nav, main) with proper labels
+    - ✅ ARIA labels on navigation buttons (Previous, Next, Translation, Book, Chapter, Verse selectors)
+    - ✅ ARIA labels on toolbar buttons
+    - ✅ Form labels with htmlFor attributes (NoteCreator, SectionHeadingCreator, ChapterTitleCreator, ListEditor, AddToList)
+    - ✅ Screen reader only (sr-only) class for hidden labels
+    - ✅ ARIA expanded/haspopup for dropdown buttons
+    - ✅ Modal dialogs with role="dialog" and aria-label (Search, SettingsPanel, ListPanel, StudyToolsPanel, VerseOverlay)
+    - ✅ Menu components with role="menu" and role="menuitem" (VerseNumberMenu)
+    - ✅ Tab interfaces with role="tablist", role="tab", role="tabpanel" (SettingsPanel)
+    - ✅ Close buttons with descriptive aria-labels
+    - ✅ Icon-only buttons with aria-hidden on icons and descriptive labels
 
-13. ⚠️ **Keyboard Navigation** - Full keyboard accessibility
+13. ✅ **Keyboard Navigation** - ✅ IN PROGRESS - Full keyboard accessibility
 
-    - Tab order is logical
-    - All features accessible via keyboard
-    - Focus indicators visible
+    - ✅ Enhanced focus indicators (visible outline on focus-visible)
+    - ✅ Keyboard shortcuts already implemented (arrow keys, J/K, Cmd/Ctrl+F, number keys 1-6)
+    - ✅ Forms support keyboard navigation (Enter to save, Esc to cancel)
+    - ⚠️ Verify tab order is logical across all components
+    - ⚠️ Ensure all features accessible via keyboard (some buttons have tabIndex={-1} which may need review)
 
 13. ⚠️ **Color Contrast** - WCAG compliance
 
-    - Verify all text meets contrast requirements
-    - High contrast mode option
+    - ⚠️ Verify all text meets contrast requirements
+    - ⚠️ High contrast mode option
 
 ### Data & Reliability (Should Have for v1)
 
@@ -603,7 +613,7 @@ Essential features and polish needed for a production-ready v1 release:
 
 ### ESV API Compliance Implementation (Priority)
 
-**Status**: ✅ Mostly Complete - Rate limiting and verse validation implemented. Copyright display and storage limit checks still needed.
+**Status**: ✅ Complete - All ESV API compliance requirements implemented and verified.
 
 **Implemented**:
 
@@ -635,6 +645,8 @@ Essential features and polish needed for a production-ready v1 release:
    - ✅ Prevent caching more than 500 consecutive verses
    - ✅ Prevent caching more than half of any book
    - ✅ Storage limit checks implemented in `fetchChapter()` before caching
+   - ✅ Improved logic to accurately detect consecutive verse sequences across chapters
+   - ✅ Console warnings when storage limits would be exceeded (for debugging)
 
 5. ✅ **Display Limits**:
 

@@ -332,23 +332,27 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
   return (
     <>
-      <div className="flex-1 min-h-0 flex flex-col relative">
+      <div className="flex-1 min-h-0 flex flex-col relative" role="dialog" aria-label="Settings" aria-modal="true">
         {/* Close button - floating in top-right */}
         <button
           onClick={onClose}
           className="absolute top-2 right-2 z-10 text-scripture-muted hover:text-scripture-text transition-colors p-1.5 rounded-lg hover:bg-scripture-elevated"
-          aria-label="Close"
+          aria-label="Close settings"
         >
-          ✕
+          <span aria-hidden="true">✕</span>
         </button>
 
         {/* Tabs */}
-        <div className="px-4 py-2 flex-shrink-0">
+        <div className="px-4 py-2 flex-shrink-0" role="tablist" aria-label="Settings sections">
           <div className="flex gap-2">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
+                role="tab"
+                id={`settings-tab-${tab.id}`}
+                aria-selected={activeTab === tab.id}
+                aria-controls={`settings-tabpanel-${tab.id}`}
                 className={`
                   px-4 py-2 rounded-lg text-sm font-ui font-medium transition-all
                   ${activeTab === tab.id
@@ -357,7 +361,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   }
                 `}
               >
-                <span className="mr-2">{tab.icon}</span>
+                <span className="mr-2" aria-hidden="true">{tab.icon}</span>
                 {tab.label}
               </button>
             ))}
@@ -377,6 +381,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             <>
           {/* Appearance Tab */}
           {activeTab === 'appearance' && (
+            <div role="tabpanel" id="settings-tabpanel-appearance" aria-labelledby="settings-tab-appearance">
             <div className="space-y-0">
               <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Font Size</h3>
@@ -424,10 +429,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </p>
               </div>
             </div>
+            </div>
           )}
 
           {/* Bible Tab */}
           {activeTab === 'bible' && (
+            <div role="tabpanel" id="settings-tabpanel-bible" aria-labelledby="settings-tab-bible">
             <div className="space-y-0">
               {apiError && (
                 <div className="bg-scripture-errorBg border border-scripture-error/30 rounded-lg p-3 text-scripture-errorText text-sm mb-4">
@@ -684,10 +691,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 )}
               </div>
             </div>
+            </div>
           )}
 
           {/* Data Tab */}
           {activeTab === 'data' && (
+            <div role="tabpanel" id="settings-tabpanel-data" aria-labelledby="settings-tab-data">
             <div className="space-y-0">
               {/* Export Section */}
               <div className="p-4">
@@ -965,10 +974,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </div>
               </div>
             </div>
+            </div>
           )}
 
           {/* Help Tab */}
           {activeTab === 'help' && (
+            <div role="tabpanel" id="settings-tabpanel-help" aria-labelledby="settings-tab-help">
             <div className="space-y-0">
               <div className="p-4">
                 <GettingStartedSection />
@@ -1016,6 +1027,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               <div className="p-4">
                 <AboutSection />
               </div>
+            </div>
             </div>
           )}
             </>

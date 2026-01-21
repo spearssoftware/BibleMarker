@@ -230,7 +230,7 @@ export function NavigationBar() {
   }, []); // Only run on mount - loadActiveView is stable from zustand
 
   return (
-    <nav className="navigation-bar bg-scripture-surface/95 backdrop-blur-sm shadow-sm sticky top-0 z-20" data-nav-bar>
+    <nav className="navigation-bar bg-scripture-surface/95 backdrop-blur-sm shadow-sm sticky top-0 z-20" data-nav-bar role="navigation" aria-label="Bible navigation">
       <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-between relative">
         {/* Left side: Previous button and Translation selector */}
         <div className="flex items-center gap-2">
@@ -286,6 +286,11 @@ export function NavigationBar() {
                          ${showTranslationPicker
                            ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
                            : 'hover:bg-scripture-elevated hover:border-scripture-border/50 hover:scale-105 active:scale-95'}`}
+              aria-label={activeView && activeView.translationIds.length > 0
+                ? `${activeView.translationIds.length} translation${activeView.translationIds.length !== 1 ? 's' : ''} selected. Click to change translations.`
+                : 'Select translation'}
+              aria-expanded={showTranslationPicker}
+              aria-haspopup="listbox"
             >
               {activeView && activeView.translationIds.length > 0
                 ? `${activeView.translationIds.length} Translation${activeView.translationIds.length !== 1 ? 's' : ''}`
@@ -361,6 +366,9 @@ export function NavigationBar() {
                          ${showBookPicker
                            ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
                            : 'hover:bg-scripture-elevated hover:border-scripture-border/50 hover:scale-105 active:scale-95'}`}
+              aria-label={`Current book: ${bookInfo?.name || currentBook}. Click to select a different book.`}
+              aria-expanded={showBookPicker}
+              aria-haspopup="listbox"
             >
               {bookInfo?.name || currentBook}
             </button>
@@ -402,6 +410,9 @@ export function NavigationBar() {
                          ${showChapterPicker
                            ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
                            : 'hover:bg-scripture-elevated hover:border-scripture-border/50 hover:scale-105 active:scale-95'}`}
+              aria-label={`Current chapter: ${currentChapter}. Click to select a different chapter.`}
+              aria-expanded={showChapterPicker}
+              aria-haspopup="listbox"
             >
               {currentChapter}
             </button>
@@ -446,6 +457,9 @@ export function NavigationBar() {
                            ${showVersePicker
                              ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
                              : 'hover:bg-scripture-elevated hover:border-scripture-border/50 hover:scale-105 active:scale-95'}`}
+                aria-label={`Current verse: ${currentVerse || 1}. Click to select a different verse.`}
+                aria-expanded={showVersePicker}
+                aria-haspopup="listbox"
               >
                 {currentVerse || '1'}
               </button>

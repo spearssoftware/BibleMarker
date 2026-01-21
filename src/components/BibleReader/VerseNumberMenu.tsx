@@ -23,10 +23,15 @@ export function VerseNumberMenu({
       <div 
         className="fixed inset-0 z-40" 
         onClick={onClose}
+        aria-hidden="true"
       />
       
       {/* Menu */}
-      <div className="absolute top-full left-0 mt-1 z-50 bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-2xl overflow-hidden animate-scale-in min-w-[200px] backdrop-blur-sm">
+      <div 
+        className="absolute top-full left-0 mt-1 z-50 bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-2xl overflow-hidden animate-scale-in min-w-[200px] backdrop-blur-sm"
+        role="menu"
+        aria-label={`Options for verse ${verseNum}`}
+      >
         <div className="p-2 space-y-1">
           <button
             onClick={(e) => {
@@ -38,8 +43,10 @@ export function VerseNumberMenu({
             className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
                      transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
                      hover:shadow-sm text-scripture-text"
+            role="menuitem"
+            aria-label={`Add section heading before verse ${verseNum}`}
           >
-            <span className="text-lg">📋</span>
+            <span className="text-lg" aria-hidden="true">📋</span>
             <span>Add Section Heading</span>
           </button>
           
@@ -53,8 +60,10 @@ export function VerseNumberMenu({
             className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
                      transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
                      hover:shadow-sm text-scripture-text"
+            role="menuitem"
+            aria-label={`Add note to verse ${verseNum}`}
           >
-            <span className="text-lg">📝</span>
+            <span className="text-lg" aria-hidden="true">📝</span>
             <span>Add Note</span>
           </button>
         </div>

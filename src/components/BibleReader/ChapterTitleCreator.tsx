@@ -42,8 +42,12 @@ export function ChapterTitleCreator({
   };
 
   return (
-    <div className="chapter-title-creator py-3 px-4 flex items-center justify-center gap-2 animate-slide-up">
+    <div className="chapter-title-creator py-3 px-4 flex items-center justify-center gap-2 animate-slide-up" role="dialog" aria-label="Create chapter title">
+      <label htmlFor="chapter-title-input" className="sr-only">
+        Chapter title
+      </label>
       <input
+        id="chapter-title-input"
         ref={inputRef}
         type="text"
         value={editText}
@@ -54,20 +58,23 @@ export function ChapterTitleCreator({
                    text-scripture-accent font-ui text-2xl font-bold tracking-wide 
                    focus:outline-none placeholder:text-scripture-muted/50"
         placeholder="Enter chapter title..."
+        aria-label="Chapter title"
       />
       <button
         onClick={handleSave}
         className="p-2 text-scripture-accent hover:bg-scripture-accent/20 rounded-lg transition-colors"
         title="Save (Enter)"
+        aria-label="Save chapter title"
       >
-        ✓
+        <span aria-hidden="true">✓</span>
       </button>
       <button
         onClick={onCancel}
         className="p-2 text-scripture-muted hover:bg-scripture-accent/20 rounded-lg transition-colors"
         title="Cancel (Esc)"
+        aria-label="Cancel creating chapter title"
       >
-        ✗
+        <span aria-hidden="true">✗</span>
       </button>
     </div>
   );

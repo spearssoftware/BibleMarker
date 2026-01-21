@@ -44,8 +44,12 @@ export function SectionHeadingCreator({
   };
 
   return (
-    <div className="section-heading-creator my-3 flex items-center gap-2 animate-slide-up border-b border-scripture-border/60">
+    <div className="section-heading-creator my-3 flex items-center gap-2 animate-slide-up border-b border-scripture-border/60" role="dialog" aria-label={`Create section heading before verse ${verseNum}`}>
+      <label htmlFor={`section-heading-input-${verseNum}`} className="sr-only">
+        Section heading text
+      </label>
       <input
+        id={`section-heading-input-${verseNum}`}
         ref={inputRef}
         type="text"
         value={editText}
@@ -56,20 +60,23 @@ export function SectionHeadingCreator({
                    text-scripture-text/80 font-ui text-base font-medium italic
                    focus:outline-none focus:border-scripture-accent focus:text-scripture-text"
         placeholder="Enter section heading..."
+        aria-label="Section heading text"
       />
       <button
         onClick={handleSave}
         className="p-2 text-scripture-accent hover:bg-scripture-elevated rounded transition-colors"
         title="Save (Enter)"
+        aria-label="Save section heading"
       >
-        ✓
+        <span aria-hidden="true">✓</span>
       </button>
       <button
         onClick={onCancel}
         className="p-2 text-scripture-muted hover:bg-scripture-elevated rounded transition-colors"
         title="Cancel (Esc)"
+        aria-label="Cancel creating section heading"
       >
-        ✗
+        <span aria-hidden="true">✗</span>
       </button>
     </div>
   );

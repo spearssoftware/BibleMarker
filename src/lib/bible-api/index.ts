@@ -475,13 +475,14 @@ export async function fetchChapter(
     if (isESV) {
       // Check ESV storage limits: max 500 consecutive verses or half book
       const verseCount = chapterData.verses.length;
-      const { getBookVerseCount } = await import('@/types/bible');
+      const { getBookVerseCount, getVerseCount } = await import('@/types/bible');
       const halfBook = Math.floor(getBookVerseCount(book) / 2);
       const maxVerses = Math.min(500, halfBook);
       
       // Check if this chapter alone exceeds the limit
       if (verseCount > maxVerses) {
         // Don't cache if it exceeds limits - but still return the data
+        console.warn(`[ESV Storage Limit] Chapter ${book} ${chapter} has ${verseCount} verses, exceeding limit of ${maxVerses}. Not caching.`);
       } else {
         // Check if caching this chapter would create more than 500 consecutive verses
         // Get all cached chapters for this book/translation
@@ -491,58 +492,70 @@ export async function fetchChapter(
           .toArray();
         const cachedChapters = allCached.filter(c => c.book === book);
         
-        // Find consecutive chapters that include this chapter
-        const cachedChapterNumbers = cachedChapters
-          .map(c => c.chapter)
-          .filter((ch): ch is number => ch !== undefined)
-          .sort((a, b) => a - b);
+        // Get all chapter numbers (cached + new one)
+        const chapterNumbers = new Set<number>();
+        cachedChapters.forEach(c => {
+          if (c.chapter !== undefined) {
+            chapterNumbers.add(c.chapter);
+          }
+        });
+        chapterNumbers.add(chapter);
         
-        // Find the longest consecutive sequence that includes this chapter
-        const allChapters = [...new Set([...cachedChapterNumbers, chapter])].sort((a, b) => a - b);
+        // Sort chapter numbers
+        const sortedChapters = Array.from(chapterNumbers).sort((a, b) => a - b);
         
-        // Find consecutive sequences
+        // Find the longest consecutive sequence that includes the new chapter
         let maxConsecutiveVerses = 0;
-        let sequenceStart = 0;
         
-        for (let i = 0; i < allChapters.length; i++) {
-          let sequenceLength = 1;
+        // Find all consecutive sequences and check if any that includes the new chapter exceeds the limit
+        for (let i = 0; i < sortedChapters.length; i++) {
+          // Start a new sequence from this chapter
           let sequenceVerses = 0;
+          let sequenceStart = sortedChapters[i];
+          let includesNewChapter = false;
           
-          // Count verses in this chapter (either cached or the one we're adding)
-          if (allChapters[i] === chapter) {
+          // Count verses in the starting chapter
+          if (sortedChapters[i] === chapter) {
             sequenceVerses += verseCount;
+            includesNewChapter = true;
           } else {
-            const cached = cachedChapters.find(c => c.chapter === allChapters[i]);
+            const cached = cachedChapters.find(c => c.chapter === sortedChapters[i]);
             if (cached) {
               sequenceVerses += Object.keys(cached.verses || {}).length;
             }
           }
           
-          // Extend sequence forward
-          for (let j = i + 1; j < allChapters.length; j++) {
-            if (allChapters[j] === allChapters[j - 1] + 1) {
-              sequenceLength++;
-              if (allChapters[j] === chapter) {
+          // Extend the sequence forward as long as chapters are consecutive
+          for (let j = i + 1; j < sortedChapters.length; j++) {
+            if (sortedChapters[j] === sortedChapters[j - 1] + 1) {
+              // Chapters are consecutive, add verses
+              if (sortedChapters[j] === chapter) {
                 sequenceVerses += verseCount;
+                includesNewChapter = true;
               } else {
-                const cached = cachedChapters.find(c => c.chapter === allChapters[j]);
+                const cached = cachedChapters.find(c => c.chapter === sortedChapters[j]);
                 if (cached) {
                   sequenceVerses += Object.keys(cached.verses || {}).length;
+                } else {
+                  // Chapter not cached yet, use verse count from Bible structure
+                  sequenceVerses += getVerseCount(book, sortedChapters[j]);
                 }
               }
             } else {
+              // Not consecutive, stop extending this sequence
               break;
             }
           }
           
-          // Check if this sequence includes the chapter we're adding
-          if (allChapters[i] <= chapter && chapter <= allChapters[i] + sequenceLength - 1) {
+          // Only check sequences that include the new chapter
+          if (includesNewChapter) {
             maxConsecutiveVerses = Math.max(maxConsecutiveVerses, sequenceVerses);
           }
         }
         
         if (maxConsecutiveVerses > maxVerses) {
           // Don't cache if it would exceed limits
+          console.warn(`[ESV Storage Limit] Caching chapter ${book} ${chapter} would create ${maxConsecutiveVerses} consecutive verses, exceeding limit of ${maxVerses}. Not caching.`);
         } else {
           // Safe to cache
           await db.chapterCache.put({
