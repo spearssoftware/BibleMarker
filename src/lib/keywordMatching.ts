@@ -265,9 +265,13 @@ export function findKeywordMatches(
       console.log(`[KeywordMatching] Looking for "${phrase}" in verse 1:`, {
         presetId: preset.id,
         presetWord: preset.word,
+        presetSymbol: preset.symbol,
+        presetHighlight: preset.highlight,
         matchesFound: matches.length,
-        verseText: verseText.substring(0, 100),
-        matchedRanges: Array.from(matchedRanges)
+        matches: matches.map(m => ({ start: m.startIndex, end: m.endIndex, text: m.matchedText })),
+        verseText: verseText.substring(0, 200),
+        matchedRanges: Array.from(matchedRanges),
+        currentModuleId
       });
     }
     
@@ -284,10 +288,16 @@ export function findKeywordMatches(
       
       // Debug: log if "Jeremiah" match is being filtered out
       if (phrase.toLowerCase().includes('jeremiah') && verseRef.verse === 1) {
+        const overlappingRanges = Array.from(matchedRanges).filter(range => {
+          const [start, end] = range.split('-').map(Number);
+          return match.startIndex < end && match.endIndex > start;
+        });
         console.log(`[KeywordMatching] Match for "${phrase}" at ${match.startIndex}-${match.endIndex}:`, {
           hasOverlap,
           matchedText: match.matchedText,
-          existingRanges: Array.from(matchedRanges)
+          existingRanges: Array.from(matchedRanges),
+          overlappingRanges,
+          willBeAdded: !hasOverlap
         });
       }
       

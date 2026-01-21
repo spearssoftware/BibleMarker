@@ -71,6 +71,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     
     // Debug: log if we're looking at verse 1 and there are matches
     if (verse.ref.verse === 1) {
+      const jeremiahPresets = filteredPresets.filter(p => p.word?.toLowerCase().includes('jeremiah'));
       const jeremiahMatches = matches.filter(m => 
         ('selectedText' in m && m.selectedText?.toLowerCase().includes('jeremiah')) ||
         ('startOffset' in m && verseText.substring(m.startOffset || 0, m.endOffset || 0).toLowerCase().includes('jeremiah'))
@@ -78,9 +79,22 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
       if (jeremiahMatches.length > 0) {
         console.log(`[VerseText] Found ${jeremiahMatches.length} "Jeremiah" virtual annotations in verse 1:`, jeremiahMatches);
       } else {
-        console.log(`[VerseText] No "Jeremiah" virtual annotations found in verse 1. Total matches: ${matches.length}`, {
+        console.log(`[VerseText] No "Jeremiah" virtual annotations found in verse 1.`, {
+          totalMatches: matches.length,
           verseText: verseText.substring(0, 150),
-          filteredPresets: filteredPresets.filter(p => p.word?.toLowerCase().includes('jeremiah')).map(p => ({ id: p.id, word: p.word }))
+          jeremiahPresets: jeremiahPresets.map(p => ({ 
+            id: p.id, 
+            word: p.word, 
+            studyId: p.studyId,
+            bookScope: p.bookScope,
+            chapterScope: p.chapterScope,
+            moduleScope: p.moduleScope,
+            hasSymbol: !!p.symbol,
+            hasHighlight: !!p.highlight
+          })),
+          activeStudyId,
+          allPresetsCount: presets.length,
+          filteredPresetsCount: filteredPresets.length
         });
       }
     }
@@ -149,12 +163,18 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         if (verse.ref.verse === 1 && 
             (('selectedText' in vann && vann.selectedText?.toLowerCase().includes('jeremiah')) ||
              verse.text.substring(vann.startOffset || 0, vann.endOffset || 0).toLowerCase().includes('jeremiah'))) {
-          console.log(`[VerseText] Filtering "Jeremiah" virtual annotation in verse 1:`, {
+          const overlappingReal = Array.from(filteredRealAnnotationMap.values()).filter(realRange => {
+            return vann.startOffset! < realRange.end && vann.endOffset! > realRange.start;
+          });
+          console.log(`[VerseText] "Jeremiah" virtual annotation in verse 1:`, {
             hasOverlap,
             startOffset: vann.startOffset,
             endOffset: vann.endOffset,
             presetId: vann.presetId,
-            realAnnotations: Array.from(filteredRealAnnotationMap.values())
+            matchedText: verse.text.substring(vann.startOffset || 0, vann.endOffset || 0),
+            overlappingRealAnnotations: overlappingReal,
+            allRealAnnotations: Array.from(filteredRealAnnotationMap.values()),
+            willBeIncluded: !hasOverlap
           });
         }
         
