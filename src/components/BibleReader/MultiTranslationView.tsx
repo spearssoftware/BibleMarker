@@ -781,7 +781,7 @@ export function MultiTranslationView() {
     <div className="multi-translation-view h-full flex flex-col" onClick={handleClick} data-bible-reader>
       {/* Chapter title section */}
       {(chapterTitle || creatingChapterTitle) && (
-        <div className="px-4 py-3 text-center flex-shrink-0" data-chapter-title={currentChapter} style={{ scrollMarginTop: '80px' }}>
+        <div className="px-4 py-3 text-center flex-shrink-0 bg-transparent" data-chapter-title={currentChapter} style={{ scrollMarginTop: '80px' }}>
           {chapterTitle ? (
             <ChapterTitleEditor
               title={chapterTitle}
@@ -817,7 +817,7 @@ export function MultiTranslationView() {
 
       {/* Translation headers - sticky */}
       <div 
-        className={`grid gap-4 px-4 py-2 border-b border-scripture-muted/20 bg-scripture-surface flex-shrink-0 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}
+        className={`grid gap-4 px-4 py-2 bg-scripture-elevated flex-shrink-0 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}
       >
         {translationList.map(({ translation, isLoading }) => (
           <div key={translation.id} className="flex flex-col">
@@ -833,7 +833,7 @@ export function MultiTranslationView() {
 
       {/* Verse rows - scrollable container */}
       <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp}>
-          <div className="px-4 py-4 space-y-1.5">
+          <div className="px-4 py-4 space-y-1.5 border-b border-scripture-border/50">
             {sortedVerseNumbers.map(verseNum => (
               <div key={verseNum}>
                 {/* Section heading if exists - show once per verse row, not per translation */}

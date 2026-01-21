@@ -67,9 +67,9 @@ select:focus-visible {
     --scripture-bg: #000000;
     --scripture-surface: #1c1c1e;
     --scripture-elevated: #2c2c2e;
-    --scripture-border: 58 58 58; /* #3a3a3a in RGB format for opacity support */
-    --scripture-separator: 58 58 58;
-    --scripture-overlay-border: 58 58 58;
+    --scripture-border: 100 100 100; /* #646464 in RGB format for opacity support - lighter grey for better visibility */
+    --scripture-separator: 100 100 100;
+    --scripture-overlay-border: 100 100 100;
     --scripture-text: #ffffff;
     --scripture-muted: #98989d;
     --scripture-accent: #0a84ff;
@@ -124,6 +124,17 @@ select:focus-visible {
   .scripture-text {
     @apply font-scripture leading-relaxed;
     letter-spacing: 0.01em;
+    color: var(--scripture-text);
+  }
+
+  /* Verse content styling - ensure text color is set explicitly */
+  .verse-content {
+    color: var(--scripture-text);
+  }
+
+  /* Verse wrapper - ensure text color inheritance */
+  .verse {
+    color: var(--scripture-text);
   }
 
   /* Verse number styling - iOS blue accent */
@@ -210,12 +221,13 @@ select:focus-visible {
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: var(--scripture-border);
+    background-color: var(--scripture-muted);
     border-radius: 9999px;
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background-color: var(--scripture-muted);
+    opacity: 1;
   }
 
   /* Backdrop overlay - uses theme-aware opacity and blurs content behind */

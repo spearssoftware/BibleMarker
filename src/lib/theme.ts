@@ -86,9 +86,9 @@ export function applyTheme(theme: Theme, highContrast: boolean = false): void {
         '--scripture-bg': '#000000',
         '--scripture-surface': '#1c1c1e',
         '--scripture-elevated': '#2c2c2e',
-        '--scripture-border': '58 58 58', // #3a3a3a in RGB format
-        '--scripture-separator': '58 58 58',
-        '--scripture-overlay-border': '58 58 58',
+        '--scripture-border': '100 100 100', // #646464 in RGB format - lighter grey for better visibility
+        '--scripture-separator': '100 100 100',
+        '--scripture-overlay-border': '100 100 100',
         '--scripture-text': '#ffffff',
         '--scripture-muted': '#98989d',
         '--scripture-accent': '#0a84ff',

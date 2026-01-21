@@ -210,50 +210,48 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
 
       {/* Filters: only when viewing the list (hidden when adding/editing) */}
       {!(isCreating || editingId) && (
-        <div className="p-4 border-b border-scripture-border/50 flex-shrink-0">
-          <div className="mb-3">
+        <div className="px-3 py-2 pr-10 border-b border-scripture-border/50 flex-shrink-0">
+          <div className="flex items-center gap-2 mb-2">
             <button
               onClick={handleCreate}
-              className="px-3 py-1.5 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                       hover:bg-scripture-accent/90 transition-colors"
+              className="px-2.5 py-1 text-xs font-ui bg-scripture-accent text-scripture-bg rounded-lg
+                       hover:bg-scripture-accent/90 transition-colors whitespace-nowrap"
             >
               + New
             </button>
-          </div>
-          <div className="p-3 space-y-3">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search key words..."
-              className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                       rounded-lg focus:outline-none focus:border-scripture-accent
+              className="flex-1 min-w-0 px-2.5 py-1.5 text-sm bg-scripture-bg border border-scripture-border/50 
+                       rounded-lg focus:outline-none focus:ring-1 focus:ring-scripture-accent focus:border-scripture-accent
                        text-scripture-text placeholder-scripture-muted"
             />
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setFilterCategory('all')}
-                className={`px-3 py-1 text-xs font-ui rounded-lg transition-colors
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => setFilterCategory('all')}
+              className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors
                           ${filterCategory === 'all'
                             ? 'bg-scripture-accent text-scripture-bg'
                             : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
-              >
-                All
-              </button>
-              {Object.entries(KEY_WORD_CATEGORIES).map(([cat, info]) => (
-                <button
-                  key={cat}
-                  onClick={() => setFilterCategory(cat as KeyWordCategory)}
-                  className={`px-3 py-1 text-xs font-ui rounded-lg transition-colors flex items-center gap-1.5
+            >
+              All
+            </button>
+            {Object.entries(KEY_WORD_CATEGORIES).map(([cat, info]) => (
+              <button
+                key={cat}
+                onClick={() => setFilterCategory(cat as KeyWordCategory)}
+                className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors flex items-center gap-1.5
                             ${filterCategory === cat
                               ? 'bg-scripture-accent text-scripture-bg'
                               : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
-                >
-                  <span>{info.icon}</span>
-                  <span>{info.label}</span>
-                </button>
-              ))}
-            </div>
+              >
+                <span>{info.icon}</span>
+                <span>{info.label}</span>
+              </button>
+            ))}
           </div>
         </div>
       )}
