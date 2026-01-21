@@ -1,11 +1,14 @@
 /**
  * Backup and Restore Utilities
  * 
- * Handles exporting and importing all user data with File System Access API support.
- * Falls back to traditional download/upload for browsers without API support.
+ * Handles exporting and importing all user data with:
+ * - Tauri native file dialogs (when running in Tauri)
+ * - File System Access API (when available in browser)
+ * - Traditional download/upload fallback (for browsers without API support)
  */
 
 import { db, type UserPreferences } from './db';
+import { isTauri } from './platform';
 import type { Annotation, SectionHeading, ChapterTitle, Note } from '@/types/annotation';
 import type { MarkingPreset } from '@/types/keyWord';
 import type { Study } from '@/types/study';
@@ -121,6 +124,12 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
       recentTranslations: [],
     };
 
+    // Clean up multi-translation views - remove primaryTranslationId if present (it's computed dynamically)
+    const cleanedMultiTranslationViews = multiTranslationViews.map(view => {
+      const { primaryTranslationId, ...cleanedView } = view;
+      return cleanedView;
+    });
+
     // Prepare backup data
     const backup: BackupData = {
       version: APP_VERSION,
@@ -133,7 +142,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
         notes,
         markingPresets,
         studies,
-        multiTranslationViews,
+        multiTranslationViews: cleanedMultiTranslationViews,
         observationLists,
       },
     };
@@ -150,7 +159,35 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
     const json = JSON.stringify(backup, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
 
-    // Use File System Access API if available
+    // Use Tauri native file dialog if running in Tauri
+    if (isTauri()) {
+      try {
+        const { save } = await import('@tauri-apps/plugin-dialog');
+        const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+        
+        const filePath = await save({
+          defaultPath: generateBackupFilename(),
+          filters: [{
+            name: 'BibleMarker Backup',
+            extensions: ['json'],
+          }],
+        });
+
+        if (!filePath) {
+          throw new Error('Export cancelled');
+        }
+
+        await writeTextFile(filePath, json);
+        return;
+      } catch (error: any) {
+        if (error.message === 'Export cancelled') {
+          throw error;
+        }
+        throw new Error(`Failed to save backup: ${error.message || 'Unknown error'}`);
+      }
+    }
+
+    // Use File System Access API if available (browser)
     if (isFileSystemAccessSupported()) {
       try {
         const fileHandle = await (window as any).showSaveFilePicker({
@@ -328,10 +365,36 @@ export function getBackupPreview(backup: BackupData): Record<string, number> {
 export async function importBackup(): Promise<BackupData> {
   let fileHandle: any = null;  // FileSystemFileHandle (browser API, not in TypeScript types)
   let file: File;
+  let text: string;
 
   try {
-    // Use File System Access API if available
-    if (isFileSystemAccessSupported()) {
+    // Use Tauri native file dialog if running in Tauri
+    if (isTauri()) {
+      try {
+        const { open } = await import('@tauri-apps/plugin-dialog');
+        const { readTextFile } = await import('@tauri-apps/plugin-fs');
+        
+        const filePath = await open({
+          multiple: false,
+          filters: [{
+            name: 'BibleMarker Backup',
+            extensions: ['json'],
+          }],
+        });
+
+        if (!filePath || typeof filePath !== 'string') {
+          throw new Error('Import cancelled');
+        }
+
+        text = await readTextFile(filePath);
+      } catch (error: any) {
+        if (error.message === 'Import cancelled') {
+          throw error;
+        }
+        throw new Error(`Failed to read backup file: ${error.message || 'Unknown error'}`);
+      }
+    } else if (isFileSystemAccessSupported()) {
+      // Use File System Access API if available (browser)
       try {
         const [handle] = await (window as any).showOpenFilePicker({
           types: [{
@@ -343,6 +406,7 @@ export async function importBackup(): Promise<BackupData> {
 
         fileHandle = handle;
         file = await handle.getFile();
+        text = await file.text();
       } catch (error: any) {
         if (error.name === 'AbortError') {
           throw new Error('Import cancelled');
@@ -368,10 +432,10 @@ export async function importBackup(): Promise<BackupData> {
         };
         input.click();
       });
+      text = await file.text();
     }
 
-    // Read file
-    const text = await file.text();
+    // Parse and validate backup
     let backup: BackupData;
     
     try {

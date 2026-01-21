@@ -300,20 +300,18 @@ export function validateMultiTranslationView(view: any): MultiTranslationView {
   if (!Array.isArray(view.translationIds)) {
     throw new ValidationError('Multi-translation view must have translationIds array', 'translationIds', view.translationIds);
   }
-  if (view.translationIds.length === 0 || view.translationIds.length > 3) {
-    throw new ValidationError('Multi-translation view must have 1-3 translation IDs', 'translationIds', view.translationIds);
+  // Allow empty arrays (will be populated later) but if non-empty, must have 1-3 translation IDs
+  if (view.translationIds.length > 0 && view.translationIds.length > 3) {
+    throw new ValidationError('Multi-translation view must have at most 3 translation IDs', 'translationIds', view.translationIds);
   }
-  if (typeof view.primaryTranslationId !== 'string' || view.primaryTranslationId.trim() === '') {
-    throw new ValidationError('Multi-translation view must have a valid primaryTranslationId', 'primaryTranslationId', view.primaryTranslationId);
-  }
-  if (!view.translationIds.includes(view.primaryTranslationId)) {
-    throw new ValidationError('Multi-translation view primaryTranslationId must be in translationIds', 'primaryTranslationId', view.primaryTranslationId);
-  }
+  
   if (typeof view.syncScrolling !== 'boolean') {
     throw new ValidationError('Multi-translation view must have syncScrolling boolean', 'syncScrolling', view.syncScrolling);
   }
 
-  return view as MultiTranslationView;
+  // Strip primaryTranslationId if present (it's computed dynamically, not stored in the type)
+  const { primaryTranslationId, ...validatedView } = view;
+  return validatedView as MultiTranslationView;
 }
 
 /**

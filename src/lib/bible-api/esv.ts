@@ -48,8 +48,22 @@ function toEsvBook(osisId: string): string {
 
 /** Parse ESV verse text */
 function parseVerseText(text: string): { text: string; html: string } {
-  const cleanText = text.replace(/\s+/g, ' ').trim();
-  return { text: cleanText, html: cleanText };
+  // Remove HTML tags for plain text (ESV API may return HTML even from text endpoint)
+  const plainText = text
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  // Keep original HTML for display (or use plain text if no HTML tags were present)
+  const html = text.includes('<') ? text : plainText;
+  
+  return { text: plainText, html };
 }
 
 /** Throws if verse count exceeds ESV limits: 500 or half of book, whichever is less. */

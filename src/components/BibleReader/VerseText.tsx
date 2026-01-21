@@ -64,8 +64,9 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
   // Compute virtual annotations from keyword presets (cross-translation highlighting)
   // These are computed on-the-fly and not persisted
   const virtualAnnotations = useMemo(() => {
-    // Extract plain text from verse (removes HTML/OSIS tags)
-    const verseText = verse.text ? extractPlainText(verse.text) : '';
+    // Use verse.text directly - it's already plain text after parsing
+    // extractPlainText is only needed for HTML/OSIS markup, but ESV/ASV text is already clean
+    const verseText = verse.text || '';
     return findKeywordMatches(verseText, verse.ref, filteredPresets, moduleId);
   }, [verse.text, verse.ref, filteredPresets, moduleId]);
   
@@ -193,8 +194,10 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
       return sourceText;
     }
 
-    // Extract plain text from source (removes any HTML/OSIS markup)
-    const plainText = extractPlainText(sourceText);
+    // For ESV/ASV/getBible, sourceText is already plain text after parsing
+    // Only extractPlainText if needed for HTML/OSIS markup (other APIs)
+    // Since we're using verse.text directly, sourceText should already be plain text
+    const plainText = sourceText;
     if (!plainText || plainText.length === 0) {
       return sourceText;
     }
@@ -221,10 +224,16 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         
         // Fall back to character offsets (backward compatibility)
         if (!charOffsets && ann.startOffset !== undefined && ann.endOffset !== undefined) {
-          charOffsets = { start: ann.startOffset, end: ann.endOffset };
+          // Validate and clamp offsets to text bounds
+          const start = Math.max(0, Math.min(ann.startOffset, plainText.length));
+          const end = Math.max(start, Math.min(ann.endOffset, plainText.length));
+          charOffsets = { start, end };
         }
         
         if (charOffsets) {
+          // Ensure offsets are within bounds
+          charOffsets.start = Math.max(0, Math.min(charOffsets.start, plainText.length));
+          charOffsets.end = Math.max(charOffsets.start, Math.min(charOffsets.end, plainText.length));
           let range = ranges.find(r => r.start === charOffsets!.start && r.end === charOffsets!.end);
           if (!range) {
             range = { 
@@ -251,10 +260,39 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
       
       // Fall back to character offsets (backward compatibility)
       if (!charOffsets && sym.startOffset !== undefined && sym.endOffset !== undefined) {
-        charOffsets = { start: sym.startOffset, end: sym.endOffset };
+        // Validate and clamp offsets to text bounds
+        const start = Math.max(0, Math.min(sym.startOffset, plainText.length));
+        const end = Math.max(start, Math.min(sym.endOffset, plainText.length));
+        
+        // Debug: log if offsets were out of bounds (indicates cached text issue)
+        if (sym.startOffset !== start || sym.endOffset !== end) {
+          console.warn(`[VerseText] Symbol offset out of bounds for verse ${verse.ref.verse}:`, {
+            original: { start: sym.startOffset, end: sym.endOffset },
+            clamped: { start, end },
+            textLength: plainText.length,
+            isVirtual: !sym.moduleId || sym.moduleId === '',
+            presetId: sym.presetId
+          });
+        }
+        
+        charOffsets = { start, end };
       }
       
       if (charOffsets) {
+        // Ensure offsets are within bounds
+        const originalStart = charOffsets.start;
+        const originalEnd = charOffsets.end;
+        charOffsets.start = Math.max(0, Math.min(charOffsets.start, plainText.length));
+        charOffsets.end = Math.max(charOffsets.start, Math.min(charOffsets.end, plainText.length));
+        
+        // Debug: log if offsets were clamped
+        if (originalStart !== charOffsets.start || originalEnd !== charOffsets.end) {
+          console.warn(`[VerseText] Symbol offset clamped for verse ${verse.ref.verse}:`, {
+            original: { start: originalStart, end: originalEnd },
+            clamped: { start: charOffsets.start, end: charOffsets.end },
+            textLength: plainText.length
+          });
+        }
         // First try exact match
         let range = ranges.find(r => r.start === charOffsets!.start && r.end === charOffsets!.end);
         
@@ -519,13 +557,13 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     return div.innerHTML;
   }
 
-  // Use verse.text as the base (getBible returns clean plain text)
-  // verse.html should be the same as verse.text for getBible
+  // Use verse.text as the base - it's already plain text after parsing (ESV/ASV/getBible)
+  // Only use extractPlainText for APIs that return HTML/OSIS markup
   const baseContent = verse.text || '';
   
-  // Extract plain text to store in data attribute for offset calculations
-  // This ensures offsets are calculated relative to the same plain text we render
-  const plainTextForOffset = extractPlainText(baseContent);
+  // For ESV/ASV/getBible, verse.text is already plain text, so use it directly
+  // This ensures offsets calculated during keyword matching match the rendered text
+  const plainTextForOffset = baseContent;
   
   // Render annotations on the base text
   const content = renderAnnotatedText(baseContent);

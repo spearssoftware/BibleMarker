@@ -406,19 +406,53 @@ export function MultiTranslationView() {
     
     if (verseContent && originalText) {
       try {
+        // Get the text content from the DOM (this strips HTML but preserves text)
+        // We need to calculate offsets relative to the original plain text
+        const domTextContent = verseContent.textContent || '';
+        
         // Create a range from start of verse content to selection start
         const startRange = document.createRange();
         startRange.selectNodeContents(verseContent);
         startRange.setEnd(expandedRange.startContainer, expandedRange.startOffset);
         const textBefore = startRange.toString();
-        startOffset = textBefore.length;
 
         // Calculate end offset
         const endRange = document.createRange();
         endRange.selectNodeContents(verseContent);
         endRange.setEnd(expandedRange.endContainer, expandedRange.endOffset);
         const textUpToEnd = endRange.toString();
-        endOffset = textUpToEnd.length;
+        
+        // The DOM textContent might differ slightly from originalText due to HTML entity decoding
+        // So we need to map the DOM offsets to originalText offsets
+        // If they match exactly, use DOM offsets directly
+        if (domTextContent === originalText) {
+          startOffset = textBefore.length;
+          endOffset = textUpToEnd.length;
+        } else {
+          // Text differs - try to find the selected text in originalText
+          const selectedText = text.trim();
+          if (selectedText) {
+            // Find selected text in original text (case-insensitive, handle whitespace differences)
+            const normalizedSelected = selectedText.replace(/\s+/g, ' ').trim().toLowerCase();
+            const normalizedOriginal = originalText.replace(/\s+/g, ' ').trim().toLowerCase();
+            const foundIndex = normalizedOriginal.indexOf(normalizedSelected);
+            
+            if (foundIndex !== -1) {
+              // Found it - use the index from normalized text
+              // Map back to original text positions (approximate)
+              startOffset = foundIndex;
+              endOffset = foundIndex + selectedText.length;
+            } else {
+              // Fallback: use DOM offsets (might be slightly off but better than nothing)
+              startOffset = textBefore.length;
+              endOffset = textUpToEnd.length;
+            }
+          } else {
+            // No selected text - use DOM offsets
+            startOffset = textBefore.length;
+            endOffset = textUpToEnd.length;
+          }
+        }
       } catch (e) {
         console.warn('Error calculating offsets:', e);
       }

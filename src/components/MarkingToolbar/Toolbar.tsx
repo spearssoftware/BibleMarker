@@ -763,8 +763,14 @@ export function Toolbar() {
             initialSymbol={activeSymbol}
             initialColor={activeColor}
             onPresetCreated={async (preset) => {
-              await applyPresetToSelection(preset);
+              // Don't create a manual annotation when creating a keyword preset
+              // The keyword preset will automatically create virtual annotations for all matches
+              // via findKeywordMatches, so we don't need to manually mark the selected text
               setShowKeyWordManager(false);
+              // Clear selection since the keyword preset will handle highlighting
+              if (selection) {
+                clearSelection();
+              }
             }}
           />
         </ToolbarOverlay>
