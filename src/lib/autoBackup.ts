@@ -10,6 +10,7 @@ import Dexie, { type EntityTable } from 'dexie';
 import { db, type UserPreferences, type AutoBackupConfig } from './db';
 import { type BackupData } from './backup';
 import { isTauri, isCapacitor } from './platform';
+import type { MultiTranslationView } from '@/types/multiTranslation';
 
 /** Backup file metadata stored in IndexedDB */
 export interface BackupFileMetadata {
@@ -256,9 +257,9 @@ async function createBackupData(): Promise<BackupData> {
     recentTranslations: [],
   };
 
-  // Clean up multi-translation views
+  // Clean up multi-translation views - remove primaryTranslationId if present (it's computed dynamically)
   const cleanedMultiTranslationViews = multiTranslationViews.map(view => {
-    const { primaryTranslationId, ...cleanedView } = view;
+    const { primaryTranslationId, ...cleanedView } = view as MultiTranslationView & { primaryTranslationId?: string };
     return cleanedView;
   });
 

@@ -19,7 +19,7 @@ import type {
 import { BibleApiError } from './types';
 import { bibliaClient } from './biblia';
 import { bibleGatewayClient } from './biblegateway';
-import { esvClient } from './esv';
+import { esvClient, parseVerseText } from './esv';
 import { getBibleClient } from './getbible';
 import type { VerseRef, Chapter } from '@/types/bible';
 import { db } from '@/lib/db';
@@ -276,18 +276,10 @@ export async function fetchChapter(
       
       // For ESV, ensure cached text is clean (re-parse to handle old cached data with HTML)
       // This ensures cached text matches the format we'd get from fresh parsing
+      // Use the same parseVerseText function to ensure consistency
       if (isESV && textStr) {
-        // Re-parse ESV text to ensure it's clean (handles old cached data with HTML tags)
-        textStr = textStr
-          .replace(/<[^>]+>/g, '')
-          .replace(/&nbsp;/g, ' ')
-          .replace(/&amp;/g, '&')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-          .replace(/\s+/g, ' ')
-          .trim();
+        const parsed = parseVerseText(textStr);
+        textStr = parsed.text;
       }
       
       return {

@@ -23,7 +23,7 @@ import { NoteCreator } from './NoteCreator';
 import { VerseNumberMenu } from './VerseNumberMenu';
 import { getBookById } from '@/types/bible';
 import type { Chapter } from '@/types/bible';
-import type { Annotation, SectionHeading, Note } from '@/types/annotation';
+import type { Annotation, SectionHeading, Note, ChapterTitle } from '@/types/annotation';
 import type { VerseRange } from '@/types/bible';
 
 interface TranslationChapter {
@@ -55,7 +55,7 @@ export function MultiTranslationView() {
   const { removeAnnotation } = useAnnotations();
   
   const [sectionHeadings, setSectionHeadings] = useState<SectionHeading[]>([]);
-  const [chapterTitle, setChapterTitle] = useState<{ id: string; moduleId: string; book: string; chapter: number; title: string; createdAt: Date; updatedAt: Date } | null>(null);
+  const [chapterTitle, setChapterTitle] = useState<ChapterTitle | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [creatingHeadingAt, setCreatingHeadingAt] = useState<number | null>(null);
   const [creatingChapterTitle, setCreatingChapterTitle] = useState(false);
@@ -164,8 +164,7 @@ export function MultiTranslationView() {
     return chapterTitleData;
   }, [currentBook, currentChapter, loadChapterTitle]);
   
-  const updateChapterTitle = useCallback(async (title: typeof chapterTitle) => {
-    if (!title) return;
+  const updateChapterTitle = useCallback(async (title: ChapterTitle) => {
     const updated = {
       ...title,
       updatedAt: new Date(),

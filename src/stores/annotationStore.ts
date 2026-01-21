@@ -76,8 +76,8 @@ interface AnnotationState {
   setToolbarExpanded: (expanded: boolean) => void;
   
   // Color/symbol tracking
-  addRecentColor: (color: HighlightColor) => void;
-  addRecentSymbol: (symbol: SymbolKey) => void;
+  addRecentColor: (color: HighlightColor) => Promise<void>;
+  addRecentSymbol: (symbol: SymbolKey) => Promise<void>;
   
   // Clear selection after applying annotation
   clearSelection: () => void;

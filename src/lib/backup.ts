@@ -126,7 +126,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
 
     // Clean up multi-translation views - remove primaryTranslationId if present (it's computed dynamically)
     const cleanedMultiTranslationViews = multiTranslationViews.map(view => {
-      const { primaryTranslationId, ...cleanedView } = view;
+      const { primaryTranslationId, ...cleanedView } = view as MultiTranslationView & { primaryTranslationId?: string };
       return cleanedView;
     });
 

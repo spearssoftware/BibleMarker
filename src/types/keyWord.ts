@@ -76,10 +76,10 @@ export type KeyWordCategory =
 export const SYMBOL_CATEGORY_MAP: Record<SymbolKey, KeyWordCategory> = {
   triangle: 'identity', cross: 'identity', dove: 'identity', flame: 'identity', angel: 'identity', lamb: 'identity', anchor: 'identity', cloud: 'identity',
   person: 'people', crown: 'people', prayer: 'people',
-  star: 'themes', starOutline: 'themes', heart: 'themes', lightning: 'themes', skull: 'themes', shield: 'themes', scales: 'themes', key: 'themes', sun: 'themes', moon: 'themes', cup: 'themes', sword: 'themes',
+  star: 'themes', starOutline: 'themes', heart: 'themes', heartRed: 'themes', heartSparkle: 'themes', lightning: 'themes', skull: 'themes', shield: 'themes', scales: 'themes', key: 'themes', sun: 'themes', moon: 'themes', cup: 'themes', sword: 'themes',
   scroll: 'themes', book: 'themes', tablet: 'themes', lamp: 'themes',
   clock: 'time', calendar: 'time', hourglass: 'time', arrowRight: 'conclusions', arrowLeft: 'time', doubleArrow: 'contrasts',
-  mapPin: 'places', mountain: 'places', globe: 'places', tree: 'places', river: 'places', house: 'places',
+  mapPin: 'places', mountain: 'places', globe: 'places', tree: 'places', river: 'places', house: 'places', temple: 'places', city: 'places',
   water: 'actions', fire: 'actions', check: 'actions', x: 'actions', hand: 'actions', eye: 'actions', mouth: 'actions', foot: 'actions',
   circle: 'custom', square: 'custom', diamond: 'custom', hexagon: 'custom', plus: 'custom', minus: 'custom',
   num1: 'custom', num2: 'custom', num3: 'custom', num4: 'custom', num5: 'custom',

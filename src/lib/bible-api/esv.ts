@@ -46,8 +46,8 @@ function toEsvBook(osisId: string): string {
   return bookInfo?.name || osisId;
 }
 
-/** Parse ESV verse text */
-function parseVerseText(text: string): { text: string; html: string } {
+/** Parse ESV verse text - exported for use in cache normalization */
+export function parseVerseText(text: string): { text: string; html: string } {
   // Remove HTML tags for plain text (ESV API may return HTML even from text endpoint)
   const plainText = text
     .replace(/<[^>]+>/g, '')
@@ -225,20 +225,84 @@ export class EsvClient implements BibleApiClient {
     const fullText = response.passages[0] || '';
     const verses: VerseResponse[] = [];
     
-    // ESV format with verse numbers: [1] In the beginning... [2] The earth was...
-    const versePattern = /\[(\d+)\]\s*([^[]+)/g;
-    let match;
+    // Debug: Log ESV parsing for Jeremiah 29 when debug flags are enabled
+    // Note: We can't check debug flags here since this is in the API layer
+    // This will only log if called from a context where debug is enabled
+    const isESVDebug = book === 'Jer' && chapter === 29;
+    if (isESVDebug && typeof window !== 'undefined' && (window as any).__ESV_DEBUG__) {
+      console.log(`%c[ESV DEBUG] ========== Parsing ${book} ${chapter} ==========`, 'color: green; font-weight: bold; font-size: 16px;');
+      console.log(`[ESV DEBUG] Full text length: ${fullText.length}`);
+      console.log(`[ESV DEBUG] First 500 chars:`, fullText.substring(0, 500));
+    }
     
-    while ((match = versePattern.exec(fullText)) !== null) {
-      const verseNum = parseInt(match[1], 10);
-      const { text, html } = parseVerseText(match[2]);
-      verses.push({
-        book,
-        chapter,
-        verse: verseNum,
-        text,
-        html,
+    // ESV format with verse numbers: [1] In the beginning... [2] The earth was...
+    // Use a more reliable approach: split by verse markers and process each segment
+    // Find all verse markers first
+    const verseMarkerPattern = /\[(\d+)\]/g;
+    const markers: Array<{ verseNum: number; index: number }> = [];
+    let markerMatch;
+    
+    // Reset regex lastIndex to ensure we start from the beginning
+    verseMarkerPattern.lastIndex = 0;
+    while ((markerMatch = verseMarkerPattern.exec(fullText)) !== null) {
+      markers.push({
+        verseNum: parseInt(markerMatch[1], 10),
+        index: markerMatch.index
       });
+    }
+    
+    if (isESVDebug) {
+      console.log(`[ESV] Found ${markers.length} verse markers:`, markers.slice(0, 10).map(m => `[${m.verseNum}]@${m.index}`));
+    }
+    
+    // Extract verse text between markers
+    for (let i = 0; i < markers.length; i++) {
+      const marker = markers[i];
+      // Calculate marker length: [verseNum] format, e.g., [1] = 3 chars, [10] = 4 chars, [100] = 5 chars
+      const markerLength = `[${marker.verseNum}]`.length;
+      const startIndex = marker.index + markerLength; // Start after the marker
+      const endIndex = i < markers.length - 1 ? markers[i + 1].index : fullText.length;
+      const verseText = fullText.substring(startIndex, endIndex).trim();
+      
+      // Only process if we have actual text content
+      if (verseText) {
+        const { text, html } = parseVerseText(verseText);
+        // Only add if text is not empty after parsing
+        if (text) {
+          if (isESVDebug && (marker.verseNum === 1 || marker.verseNum === 15)) {
+            console.log(`[ESV] Verse ${marker.verseNum}:`, {
+              rawText: verseText.substring(0, 100),
+              parsedText: text.substring(0, 100),
+              textLength: text.length
+            });
+          }
+          verses.push({
+            book,
+            chapter,
+            verse: marker.verseNum,
+            text,
+            html,
+          });
+        } else if (isESVDebug && (marker.verseNum === 1 || marker.verseNum === 15)) {
+          console.warn(`[ESV] Verse ${marker.verseNum} parsed to empty text!`, {
+            rawText: verseText.substring(0, 100)
+          });
+        }
+      } else if (isESVDebug && (marker.verseNum === 1 || marker.verseNum === 15)) {
+        console.warn(`[ESV] Verse ${marker.verseNum} has no text content!`, {
+          startIndex,
+          endIndex,
+          fullTextSample: fullText.substring(marker.index, Math.min(marker.index + 200, fullText.length))
+        });
+      }
+    }
+    
+    // Sort verses by verse number to ensure correct order
+    verses.sort((a, b) => a.verse - b.verse);
+    
+    if (isESVDebug) {
+      console.log(`[ESV] Extracted ${verses.length} verses. Verse 1 text:`, verses.find(v => v.verse === 1)?.text?.substring(0, 100));
+      console.log(`[ESV] Verse 15 text:`, verses.find(v => v.verse === 15)?.text?.substring(0, 100));
     }
 
     return {
@@ -297,20 +361,48 @@ export class EsvClient implements BibleApiClient {
     const fullText = response.passages[0] || '';
     const verses: VerseResponse[] = [];
     
-    const versePattern = /\[(\d+)\]\s*([^[]+)/g;
-    let match;
+    // Use the same robust approach as getChapter
+    // Find all verse markers first
+    const verseMarkerPattern = /\[(\d+)\]/g;
+    const markers: Array<{ verseNum: number; index: number }> = [];
+    let markerMatch;
     
-    while ((match = versePattern.exec(fullText)) !== null) {
-      const verseNum = parseInt(match[1], 10);
-      const { text, html } = parseVerseText(match[2]);
-      verses.push({
-        book: startRef.book,
-        chapter: startRef.chapter,
-        verse: verseNum,
-        text,
-        html,
+    // Reset regex lastIndex to ensure we start from the beginning
+    verseMarkerPattern.lastIndex = 0;
+    while ((markerMatch = verseMarkerPattern.exec(fullText)) !== null) {
+      markers.push({
+        verseNum: parseInt(markerMatch[1], 10),
+        index: markerMatch.index
       });
     }
+    
+    // Extract verse text between markers
+    for (let i = 0; i < markers.length; i++) {
+      const marker = markers[i];
+      // Calculate marker length: [verseNum] format, e.g., [1] = 3 chars, [10] = 4 chars, [100] = 5 chars
+      const markerLength = `[${marker.verseNum}]`.length;
+      const startIndex = marker.index + markerLength; // Start after the marker
+      const endIndex = i < markers.length - 1 ? markers[i + 1].index : fullText.length;
+      const verseText = fullText.substring(startIndex, endIndex).trim();
+      
+      // Only process if we have actual text content
+      if (verseText) {
+        const { text, html } = parseVerseText(verseText);
+        // Only add if text is not empty after parsing
+        if (text) {
+          verses.push({
+            book: startRef.book,
+            chapter: startRef.chapter,
+            verse: marker.verseNum,
+            text,
+            html,
+          });
+        }
+      }
+    }
+    
+    // Sort verses by verse number to ensure correct order
+    verses.sort((a, b) => a.verse - b.verse);
 
     return verses;
   }
