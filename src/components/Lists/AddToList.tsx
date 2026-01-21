@@ -4,12 +4,15 @@
  * Dialog to add selected text as an observation to a list.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useListStore } from '@/stores/listStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import type { VerseRef } from '@/types/bible';
 import { formatVerseRef } from '@/types/bible';
 import { stripSymbols } from '@/lib/textUtils';
+import { useModal } from '@/hooks/useModal';
+import { ModalBackdrop } from '@/components/shared';
+import { Z_INDEX } from '@/lib/modalConstants';
 
 interface AddToListProps {
   verseRef: VerseRef;
@@ -27,9 +30,18 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
   const [showCreateNew, setShowCreateNew] = useState(false);
   const [newListTitle, setNewListTitle] = useState('');
   const [newListKeywordId, setNewListKeywordId] = useState<string>('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Initialize with most recently used list if available
   const [selectedListId, setSelectedListId] = useState<string>('');
+
+  const { handleBackdropClick } = useModal({
+    isOpen: true,
+    onClose,
+    lockScroll: true,
+    handleEscape: true,
+    initialFocusRef: textareaRef,
+  });
 
   useEffect(() => {
     loadLists();
@@ -104,11 +116,15 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
   const keywordPresets = presets.filter(p => p.word);
 
   return (
-    <div className="fixed inset-0 backdrop-overlay z-50 overflow-y-auto" onClick={onClose}>
-      <div className="min-h-full flex items-center justify-center p-4">
+    <>
+      <ModalBackdrop onClick={handleBackdropClick} zIndex={Z_INDEX.BACKDROP} />
+      <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4" onClick={handleBackdropClick}>
         <div 
           className="max-w-2xl w-full max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col" 
           onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Add observation to list"
         >
           <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full mx-2 my-2">
           <div className="p-4 border-b border-scripture-overlayBorder/50">
@@ -153,6 +169,7 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
                 </label>
                 <textarea
                   id="observation-textarea"
+                  ref={textareaRef}
                   value={observationText}
                   onChange={(e) => setObservationText(e.target.value)}
                   placeholder="What do you observe about this keyword in this verse? (e.g., 'the word was with God', 'the word was God')"
@@ -290,6 +307,6 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

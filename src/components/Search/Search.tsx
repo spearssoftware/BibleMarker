@@ -8,6 +8,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { searchAll, type SearchResult, type SearchScope } from '@/lib/search';
 import { getBookById } from '@/types/bible';
+import { useModal } from '@/hooks/useModal';
+import { ModalBackdrop } from '@/components/shared';
+import { Z_INDEX } from '@/lib/modalConstants';
 
 interface SearchProps {
   onClose: () => void;
@@ -75,6 +78,14 @@ export function Search({ onClose, onNavigate }: SearchProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [results, selectedIndex, onClose]);
 
+  const { handleBackdropClick } = useModal({
+    isOpen: true,
+    onClose,
+    lockScroll: true,
+    handleEscape: true,
+    initialFocusRef: inputRef,
+  });
+
   const scrollToSelected = () => {
     const selectedElement = resultsRef.current?.querySelector(`[data-result-index="${selectedIndex}"]`);
     if (selectedElement) {
@@ -123,18 +134,16 @@ export function Search({ onClose, onNavigate }: SearchProps) {
   return (
     <>
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 z-40 backdrop-overlay" 
-        onClick={onClose}
-      />
+      <ModalBackdrop onClick={handleBackdropClick} zIndex={Z_INDEX.BACKDROP} />
       
       {/* Search Panel */}
       <div 
-        className="fixed top-16 left-1/2 z-50
+        className="fixed top-16 left-1/2
                     w-full max-w-2xl max-h-[80vh] overflow-hidden backdrop-blur-sm"
         style={{
           transform: 'translateX(-50%)',
           animation: 'searchScaleIn 0.2s ease-out',
+          zIndex: Z_INDEX.MODAL,
         }}
         role="dialog"
         aria-label="Search Bible, notes, and annotations"
@@ -191,6 +200,8 @@ export function Search({ onClose, onNavigate }: SearchProps) {
                           ${scope === s
                             ? 'bg-scripture-accent text-scripture-bg'
                             : 'bg-scripture-surface/80 text-scripture-text hover:bg-scripture-surface border border-scripture-border/50'}`}
+                aria-label={`Search in ${s === 'all' ? 'all' : s}`}
+                aria-pressed={scope === s}
               >
                 {s === 'all' ? 'All' : s === 'bible' ? 'Bible' : s === 'notes' ? 'Notes' : 'Annotations'}
               </button>
@@ -230,6 +241,8 @@ export function Search({ onClose, onNavigate }: SearchProps) {
                               ${isSelected
                                 ? 'bg-scripture-accent/20 border-scripture-accent shadow-md'
                                 : 'bg-scripture-surface/80 border-scripture-border/50 hover:bg-scripture-surface hover:shadow-sm'}`}
+                    aria-label={`${bookInfo?.name || result.book} ${result.chapter}:${result.verse} - ${result.type}`}
+                    aria-selected={isSelected}
                   >
                     <div className="flex items-start gap-3">
                       <span className="text-lg flex-shrink-0">{getResultIcon(result.type)}</span>

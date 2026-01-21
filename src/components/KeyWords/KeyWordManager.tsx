@@ -168,13 +168,18 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 relative">
+    <div 
+      className="flex flex-col flex-1 min-h-0 relative"
+      role="dialog"
+      aria-label="Key Word Manager"
+      aria-modal="true"
+    >
       {/* Close button - always visible in top-right */}
       {onClose && (
         <button
           onClick={onClose}
           className="absolute top-2 right-2 z-10 text-scripture-muted hover:text-scripture-text transition-colors p-1.5 rounded-lg hover:bg-scripture-elevated"
-          aria-label="Close"
+          aria-label="Close key word manager"
         >
           ✕
         </button>
