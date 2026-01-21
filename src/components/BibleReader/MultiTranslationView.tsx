@@ -342,8 +342,38 @@ export function MultiTranslationView() {
       }
     }
     
-    // Get the expanded text and clean it
-    let expandedText = expandedRange.toString();
+    // Get the expanded text - extract only text content, excluding symbols and HTML
+    // Clone the range and extract text from text nodes only
+    let expandedText = '';
+    
+    if (!expandedRange.collapsed) {
+      // Create a temporary container to extract text content
+      const clone = expandedRange.cloneContents();
+      // Get textContent which strips HTML but keeps text (excludes symbols in spans)
+      expandedText = clone.textContent || '';
+      
+      // If textContent is empty or includes symbols, try a different approach
+      // Extract text by walking text nodes
+      if (!expandedText || expandedText.trim().length === 0) {
+        const textParts: string[] = [];
+        const walker = document.createTreeWalker(
+          clone,
+          NodeFilter.SHOW_TEXT,
+          null
+        );
+        
+        let textNode;
+        while (textNode = walker.nextNode()) {
+          if (textNode.textContent) {
+            textParts.push(textNode.textContent);
+          }
+        }
+        expandedText = textParts.join('');
+      }
+    }
+    
+    // Clean up: remove extra whitespace and trim
+    expandedText = expandedText.replace(/\s+/g, ' ').trim();
     
     // Trim leading/trailing punctuation, whitespace, but keep internal punctuation
     // Remove common punctuation and whitespace from edges
