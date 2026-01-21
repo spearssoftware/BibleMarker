@@ -4,7 +4,7 @@
  * Displays up to 3 translations side-by-side with synchronized scrolling.
  */
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import React from 'react';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useBibleStore } from '@/stores/bibleStore';
@@ -43,9 +43,14 @@ export function MultiTranslationView() {
   
   // Get the primary translation ID (first valid one) for section headings, chapter titles, and notes
   // Fall back to currentModuleId if no active view or if active view has no translations
-  const primaryTranslationId = activeView?.translationIds.find(
-    id => id !== 'observation-lists'
-  ) || currentModuleId || null;
+  // Memoize to prevent unnecessary re-renders - use stringified array to compare by value, not reference
+  const primaryTranslationId = useMemo(() => {
+    const translationIds = activeView?.translationIds;
+    if (!translationIds || translationIds.length === 0) {
+      return currentModuleId || null;
+    }
+    return translationIds.find(id => id !== 'observation-lists') || currentModuleId || null;
+  }, [activeView?.translationIds?.join(','), currentModuleId]);
   
   const { removeAnnotation } = useAnnotations();
   
@@ -57,6 +62,11 @@ export function MultiTranslationView() {
   const [creatingNoteAt, setCreatingNoteAt] = useState<number | null>(null);
   const [verseMenuAt, setVerseMenuAt] = useState<{ verseNum: number; translationId: string } | null>(null);
   
+  // Track the last book/chapter we loaded to prevent duplicate calls
+  const lastLoadedRef = useRef<{ book: string; chapter: number } | null>(null);
+  const isLoadingRef = useRef<boolean>(false);
+  const pendingLoadRef = useRef<string | null>(null);
+  
   // Load section headings, chapter title, and notes for primary translation
   const loadSectionHeadings = useCallback(async () => {
     // Section headings are now translation-agnostic - just query by book/chapter
@@ -65,10 +75,33 @@ export function MultiTranslationView() {
   }, [currentBook, currentChapter]);
   
   const loadChapterTitle = useCallback(async () => {
-    // Chapter titles are now translation-agnostic - just query by book/chapter
-    const title = await getChapterTitle(null, currentBook, currentChapter);
-    console.log(`[MultiTranslationView] loadChapterTitle: Found title:`, title);
-    setChapterTitle(title || null);
+    // Prevent duplicate calls for the same book/chapter
+    const key = `${currentBook}-${currentChapter}`;
+    
+    // Skip if there's already a pending load for this exact book/chapter
+    if (pendingLoadRef.current === key) {
+      return;
+    }
+    
+    // Mark as pending immediately (synchronously) to prevent duplicate calls
+    pendingLoadRef.current = key;
+    isLoadingRef.current = true;
+    lastLoadedRef.current = { book: currentBook, chapter: currentChapter };
+    
+    try {
+      // Chapter titles are now translation-agnostic - just query by book/chapter
+      const title = await getChapterTitle(null, currentBook, currentChapter);
+      console.log(`[MultiTranslationView] loadChapterTitle: Found title:`, title);
+      setChapterTitle(title || null);
+    } finally {
+      isLoadingRef.current = false;
+      // Clear pending ref after a brief delay to allow the state update to propagate
+      setTimeout(() => {
+        if (pendingLoadRef.current === key) {
+          pendingLoadRef.current = null;
+        }
+      }, 50);
+    }
   }, [currentBook, currentChapter]);
   
   const loadNotes = useCallback(async () => {
@@ -213,6 +246,15 @@ export function MultiTranslationView() {
   }, [activeView, currentModuleId, addTranslation]);
 
   useEffect(() => {
+    // Reset loading refs when book/chapter changes
+    const key = `${currentBook}-${currentChapter}`;
+    const lastKey = lastLoadedRef.current ? `${lastLoadedRef.current.book}-${lastLoadedRef.current.chapter}` : null;
+    if (key !== lastKey) {
+      isLoadingRef.current = false;
+      lastLoadedRef.current = null;
+      pendingLoadRef.current = null;
+    }
+    
     if (activeView && activeView.translationIds.length > 0 && translations.length > 0) {
       // Filter out invalid translation IDs
       const validTranslationIds = activeView.translationIds.filter(
@@ -231,7 +273,10 @@ export function MultiTranslationView() {
         }
       }
     }
-  }, [activeView, currentBook, currentChapter, translations, primaryTranslationId, loadSectionHeadings, loadChapterTitle, loadNotes]);
+    // Only depend on actual values, not the callback functions
+    // The callbacks are stable and will be recreated when their dependencies change anyway
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView?.id, activeView?.translationIds?.join(','), currentBook, currentChapter, translations.length, primaryTranslationId]);
 
   // Reload annotations when they are updated (e.g., when a new annotation is created)
   useEffect(() => {
