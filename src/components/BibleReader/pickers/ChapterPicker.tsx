@@ -43,7 +43,7 @@ export function ChapterPicker({
 
   const effectiveTriggerRef = (triggerRef as React.RefObject<HTMLElement>) || { current: fallbackTriggerRef.current };
 
-  const { top, left, width } = useDropdownPosition({
+  const { top, left, width, isReady } = useDropdownPosition({
     triggerRef: effectiveTriggerRef,
     width: 280,
     alignment: 'center',
@@ -66,13 +66,14 @@ export function ChapterPicker({
       <div 
         ref={pickerRef}
         className="fixed bg-scripture-surface rounded-2xl shadow-2xl
-                    max-h-[50vh] overflow-hidden backdrop-blur-sm"
+                    max-h-[50vh] overflow-hidden backdrop-blur-sm transition-opacity duration-150"
         style={{ 
           top: `${top}px`,
           left: `${left}px`,
           width: `${width}px`,
           maxWidth: 'min(280px, calc(100vw - 2rem))',
           zIndex: Z_INDEX.MODAL,
+          opacity: isReady ? 1 : 0,
         }}
         role="dialog"
         aria-modal="true"

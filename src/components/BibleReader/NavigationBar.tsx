@@ -44,6 +44,7 @@ export function NavigationBar() {
   // Keeping this commented for now as dropdowns shouldn't lock scroll
   // useScrollLock(anyPickerOpen);
   const [showSearch, setShowSearch] = useState(false);
+
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const [currentVerse, setCurrentVerse] = useState<number | null>(null);
   
@@ -172,8 +173,18 @@ export function NavigationBar() {
   }, []); // Only run on mount - loadActiveView is stable from zustand
 
   return (
-    <nav className="navigation-bar bg-scripture-surface/95 backdrop-blur-sm shadow-sm sticky top-0 z-20" data-nav-bar role="navigation" aria-label="Bible navigation">
-      <div className="max-w-4xl mx-auto px-4 py-2.5 grid grid-cols-3 items-center relative">
+    <>
+      {/* Hide focus outlines and remove backdrop blur from nav when modals are open */}
+      {anyPickerOpen || showSearch ? (
+        <style>{`
+          [data-nav-bar] button:focus-visible,
+          [data-nav-bar] button:focus {
+            outline: none !important;
+          }
+        `}</style>
+      ) : null}
+      <nav className={`navigation-bar bg-scripture-surface/95 shadow-sm sticky top-0 z-[45] ${anyPickerOpen || showSearch ? '' : 'backdrop-blur-sm'}`} data-nav-bar role="navigation" aria-label="Bible navigation">
+        <div className="max-w-4xl mx-auto px-4 py-2.5 grid grid-cols-3 items-center relative">
         {/* Left side: Previous button and Translation selector */}
         <div className="flex items-center gap-2 justify-start">
           {/* Previous button */}
@@ -187,11 +198,6 @@ export function NavigationBar() {
               e.preventDefault();
               e.stopPropagation();
             }}
-            onFocus={(e) => {
-              e.preventDefault();
-              e.currentTarget.blur();
-            }}
-            tabIndex={-1}
             disabled={!canGoPrevious()}
             className="p-2 rounded-xl hover:bg-scripture-elevated disabled:opacity-30
                        disabled:cursor-not-allowed transition-all duration-200 touch-target
@@ -218,11 +224,6 @@ export function NavigationBar() {
                 e.preventDefault();
                 e.stopPropagation();
               }}
-              onFocus={(e) => {
-                e.preventDefault();
-                e.currentTarget.blur();
-              }}
-              tabIndex={-1}
               className={`px-4 py-2 rounded-xl font-ui font-semibold text-sm transition-all duration-200
                          border border-scripture-border/30 touch-target min-w-[60px] h-[36px] flex items-center justify-center
                          select-none
@@ -299,11 +300,6 @@ export function NavigationBar() {
                 e.preventDefault();
                 e.stopPropagation();
               }}
-              onFocus={(e) => {
-                e.preventDefault();
-                e.currentTarget.blur();
-              }}
-              tabIndex={-1}
               className={`px-4 py-2 rounded-xl font-ui font-semibold text-sm transition-all duration-200
                          border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center
                          select-none
@@ -346,11 +342,6 @@ export function NavigationBar() {
                 e.preventDefault();
                 e.stopPropagation();
               }}
-              onFocus={(e) => {
-                e.preventDefault();
-                e.currentTarget.blur();
-              }}
-              tabIndex={-1}
               className={`px-4 py-2 rounded-xl font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
                          border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center select-none
                          ${showChapterPicker
@@ -394,11 +385,6 @@ export function NavigationBar() {
                   e.preventDefault();
                   e.stopPropagation();
                 }}
-                onFocus={(e) => {
-                  e.preventDefault();
-                  e.currentTarget.blur();
-                }}
-                tabIndex={-1}
                 className={`px-4 py-2 rounded-xl font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
                            border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center
                            select-none
@@ -458,11 +444,6 @@ export function NavigationBar() {
               e.preventDefault();
               e.stopPropagation();
             }}
-            onFocus={(e) => {
-              e.preventDefault();
-              e.currentTarget.blur();
-            }}
-            tabIndex={-1}
             className={`p-2 rounded-xl transition-all duration-200 touch-target select-none
                        ${showSearch
                          ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
@@ -486,11 +467,6 @@ export function NavigationBar() {
               e.preventDefault();
               e.stopPropagation();
             }}
-            onFocus={(e) => {
-              e.preventDefault();
-              e.currentTarget.blur();
-            }}
-            tabIndex={-1}
             disabled={!canGoNext()}
             className="p-2 rounded-xl hover:bg-scripture-elevated disabled:opacity-30
                        disabled:cursor-not-allowed transition-all duration-200 touch-target
@@ -523,7 +499,8 @@ export function NavigationBar() {
           }}
         />
       )}
-    </nav>
+      </nav>
+    </>
   );
 }
 

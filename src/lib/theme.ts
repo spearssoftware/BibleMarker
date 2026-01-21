@@ -19,7 +19,7 @@ export function getEffectiveTheme(theme: Theme): 'light' | 'dark' {
 /**
  * Apply theme to the document
  */
-export function applyTheme(theme: Theme): void {
+export function applyTheme(theme: Theme, highContrast: boolean = false): void {
   const effectiveTheme = getEffectiveTheme(theme);
   const html = document.documentElement;
   
@@ -31,12 +31,21 @@ export function applyTheme(theme: Theme): void {
     html.classList.add('dark');
   }
   
+  // Add/remove high contrast class
+  if (highContrast) {
+    html.classList.add('high-contrast');
+  } else {
+    html.classList.remove('high-contrast');
+  }
+  
   // Store theme preference in data attribute for CSS access
   html.setAttribute('data-theme', theme);
+  html.setAttribute('data-high-contrast', highContrast ? 'true' : 'false');
   
   // Also store in localStorage for synchronous access on page load (prevents flash)
   try {
     localStorage.setItem('theme', theme);
+    localStorage.setItem('highContrast', String(highContrast));
   } catch (e) {
     // localStorage might not be available (e.g., in private mode)
   }
@@ -44,8 +53,35 @@ export function applyTheme(theme: Theme): void {
   // Always set CSS variables directly on the HTML element to ensure they're applied
   // This works around any CSS cascade or caching issues
   // iOS-inspired color palette for better readability
+  // High contrast mode uses stronger colors and higher contrast ratios
   const themeColors = effectiveTheme === 'dark' 
-    ? {
+    ? (highContrast ? {
+        // High contrast dark theme - maximum contrast
+        '--scripture-bg': '#000000',
+        '--scripture-surface': '#1a1a1a',
+        '--scripture-elevated': '#2a2a2a',
+        '--scripture-border': '#ffffff',
+        '--scripture-separator': '#ffffff',
+        '--scripture-overlay-border': '#ffffff',
+        '--scripture-text': '#ffffff',
+        '--scripture-muted': '#ffffff',
+        '--scripture-accent': '#00aaff',
+        '--scripture-accent-muted': '#00ccff',
+        '--scripture-error': '#ff5555',
+        '--scripture-error-bg': '#4d1f1f',
+        '--scripture-error-text': '#ffaaaa',
+        '--scripture-warning': '#ffaa00',
+        '--scripture-warning-bg': '#4d3f1f',
+        '--scripture-warning-text': '#ffcc66',
+        '--scripture-success': '#55ff55',
+        '--scripture-success-bg': '#1f4d2f',
+        '--scripture-success-text': '#aaffaa',
+        '--scripture-info': '#00aaff',
+        '--scripture-info-bg': '#1f2f4d',
+        '--scripture-info-text': '#66ccff',
+        '--scripture-backdrop-opacity': '0.8',
+      } : {
+        // Standard dark theme
         '--scripture-bg': '#000000',
         '--scripture-surface': '#1c1c1e',
         '--scripture-elevated': '#2c2c2e',
@@ -69,8 +105,34 @@ export function applyTheme(theme: Theme): void {
         '--scripture-info-bg': '#1f2f3d',
         '--scripture-info-text': '#64b5ff',
         '--scripture-backdrop-opacity': '0.6',
-      }
-    : {
+      })
+    : (highContrast ? {
+        // High contrast light theme - maximum contrast
+        '--scripture-bg': '#ffffff',
+        '--scripture-surface': '#ffffff',
+        '--scripture-elevated': '#f0f0f0',
+        '--scripture-border': '#000000',
+        '--scripture-separator': '#000000',
+        '--scripture-overlay-border': '#000000',
+        '--scripture-text': '#000000',
+        '--scripture-muted': '#000000',
+        '--scripture-accent': '#0066cc',
+        '--scripture-accent-muted': '#004499',
+        '--scripture-error': '#cc0000',
+        '--scripture-error-bg': '#ffe5e5',
+        '--scripture-error-text': '#990000',
+        '--scripture-warning': '#cc6600',
+        '--scripture-warning-bg': '#fff4e5',
+        '--scripture-warning-text': '#994400',
+        '--scripture-success': '#009900',
+        '--scripture-success-bg': '#e5f9e5',
+        '--scripture-success-text': '#006600',
+        '--scripture-info': '#0066cc',
+        '--scripture-info-bg': '#e5f2ff',
+        '--scripture-info-text': '#004499',
+        '--scripture-backdrop-opacity': '0.6',
+      } : {
+        // Standard light theme
         '--scripture-bg': '#ffffff',
         '--scripture-surface': '#ffffff',
         '--scripture-elevated': '#f2f2f7',
@@ -94,7 +156,7 @@ export function applyTheme(theme: Theme): void {
         '--scripture-info-bg': '#e5f2ff',
         '--scripture-info-text': '#0051d5',
         '--scripture-backdrop-opacity': '0.4',
-      };
+      });
   
   // Apply CSS variables directly to :root (document.documentElement)
   // This ensures they're available for all Tailwind classes
@@ -146,8 +208,9 @@ export async function initTheme(): Promise<void> {
     const { getPreferences } = await import('@/lib/db');
     const prefs = await getPreferences();
     const theme = prefs.theme || 'auto';
+    const highContrast = prefs.highContrast || false;
     currentThemePreference = theme;
-    applyTheme(theme);
+    applyTheme(theme, highContrast);
     
     // Set up OS theme watcher (will only apply if in auto mode)
     watchOSTheme();
@@ -155,6 +218,6 @@ export async function initTheme(): Promise<void> {
     console.error('Error initializing theme:', error);
     // Fallback to auto theme (follows OS)
     currentThemePreference = 'auto';
-    applyTheme('auto');
+    applyTheme('auto', false);
   }
 }

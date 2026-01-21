@@ -36,15 +36,22 @@ export function useDropdownPosition({
   offset = 8,
   margin = 8,
   observeResize = true,
-}: UseDropdownPositionOptions): DropdownPosition {
+}: UseDropdownPositionOptions): DropdownPosition & { isReady: boolean } {
   const [position, setPosition] = useState<DropdownPosition>({ top: 0, left: 0, width });
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (!triggerRef.current) return;
+    if (!triggerRef.current) {
+      setIsReady(false);
+      return;
+    }
 
     const calculatePosition = () => {
       const trigger = triggerRef.current;
-      if (!trigger) return;
+      if (!trigger) {
+        setIsReady(false);
+        return;
+      }
 
       const triggerRect = trigger.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
@@ -78,9 +85,13 @@ export function useDropdownPosition({
         left,
         width,
       });
+      setIsReady(true);
     };
 
-    calculatePosition();
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      calculatePosition();
+    });
 
     if (observeResize) {
       window.addEventListener('resize', calculatePosition);
@@ -93,5 +104,5 @@ export function useDropdownPosition({
     }
   }, [triggerRef, width, alignment, offset, margin, observeResize]);
 
-  return position;
+  return { ...position, isReady };
 }

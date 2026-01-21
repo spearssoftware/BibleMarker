@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.60.0",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
+    "@tauri-apps/plugin-fs": "^2.4.5",
     "dexie": "^4.0.8",
     "dexie-react-hooks": "^1.1.7",
     "jszip": "^3.10.1",

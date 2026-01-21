@@ -404,57 +404,145 @@ export function MultiTranslationView() {
     let startOffset: number | undefined;
     let endOffset: number | undefined;
     
-    if (verseContent && originalText) {
+    if (verseContent && originalText && text.trim()) {
       try {
-        // Get the text content from the DOM (this strips HTML but preserves text)
-        // We need to calculate offsets relative to the original plain text
-        const domTextContent = verseContent.textContent || '';
+        const selectedText = text.trim();
         
-        // Create a range from start of verse content to selection start
-        const startRange = document.createRange();
-        startRange.selectNodeContents(verseContent);
-        startRange.setEnd(expandedRange.startContainer, expandedRange.startOffset);
-        const textBefore = startRange.toString();
-
-        // Calculate end offset
-        const endRange = document.createRange();
-        endRange.selectNodeContents(verseContent);
-        endRange.setEnd(expandedRange.endContainer, expandedRange.endOffset);
-        const textUpToEnd = endRange.toString();
+        // Helper to normalize text for fuzzy matching
+        const normalizeForMatch = (t: string) => t.replace(/\s+/g, ' ').trim().toLowerCase();
+        const normalizedSelected = normalizeForMatch(selectedText);
+        const normalizedOriginal = normalizeForMatch(originalText);
         
-        // The DOM textContent might differ slightly from originalText due to HTML entity decoding
-        // So we need to map the DOM offsets to originalText offsets
-        // If they match exactly, use DOM offsets directly
-        if (domTextContent === originalText) {
-          startOffset = textBefore.length;
-          endOffset = textUpToEnd.length;
-        } else {
-          // Text differs - try to find the selected text in originalText
-          const selectedText = text.trim();
-          if (selectedText) {
-            // Find selected text in original text (case-insensitive, handle whitespace differences)
-            const normalizedSelected = selectedText.replace(/\s+/g, ' ').trim().toLowerCase();
-            const normalizedOriginal = originalText.replace(/\s+/g, ' ').trim().toLowerCase();
-            const foundIndex = normalizedOriginal.indexOf(normalizedSelected);
-            
-            if (foundIndex !== -1) {
-              // Found it - use the index from normalized text
-              // Map back to original text positions (approximate)
-              startOffset = foundIndex;
-              endOffset = foundIndex + selectedText.length;
-            } else {
-              // Fallback: use DOM offsets (might be slightly off but better than nothing)
-              startOffset = textBefore.length;
-              endOffset = textUpToEnd.length;
+        // Find all occurrences of selected text in normalized original
+        const normalizedOccurrences: number[] = [];
+        let searchIdx = 0;
+        while ((searchIdx = normalizedOriginal.indexOf(normalizedSelected, searchIdx)) !== -1) {
+          normalizedOccurrences.push(searchIdx);
+          searchIdx++;
+        }
+        
+        if (normalizedOccurrences.length === 0) {
+          console.warn('[MultiTranslationView] Selected text not found:', selectedText.substring(0, 50));
+          return;
+        }
+        
+        // Pick which occurrence to use (if multiple)
+        let targetNormalizedPos = normalizedOccurrences[0];
+        
+        if (normalizedOccurrences.length > 1) {
+          // Use DOM position as hint
+          const startRange = document.createRange();
+          startRange.selectNodeContents(verseContent);
+          startRange.setEnd(expandedRange.startContainer, expandedRange.startOffset);
+          const domTextBefore = normalizeForMatch(startRange.toString());
+          const estimatedPos = domTextBefore.length;
+          
+          // Find closest occurrence
+          let minDist = Math.abs(normalizedOccurrences[0] - estimatedPos);
+          targetNormalizedPos = normalizedOccurrences[0];
+          for (const occ of normalizedOccurrences.slice(1)) {
+            const dist = Math.abs(occ - estimatedPos);
+            if (dist < minDist) {
+              minDist = dist;
+              targetNormalizedPos = occ;
             }
-          } else {
-            // No selected text - use DOM offsets
-            startOffset = textBefore.length;
-            endOffset = textUpToEnd.length;
           }
         }
+        
+        // Map normalized position to actual character positions in originalText
+        // Strategy: find where the normalized position maps to by counting normalized chars
+        let normalizedCharCount = 0;
+        let charStartPos = -1;
+        let charEndPos = -1;
+        
+        for (let i = 0; i < originalText.length; i++) {
+          const char = originalText[i];
+          const isWordChar = /\S/.test(char);
+          
+          if (isWordChar) {
+            normalizedCharCount++;
+          }
+          
+          // Check if we've found the start
+          if (charStartPos === -1 && normalizedCharCount > targetNormalizedPos) {
+            // Look backwards to find the actual start of the selected text
+            for (let j = i; j >= 0; j--) {
+              const testSubstr = normalizeForMatch(originalText.substring(j, Math.min(originalText.length, j + selectedText.length * 2)));
+              if (testSubstr.startsWith(normalizedSelected)) {
+                charStartPos = j;
+                break;
+              }
+            }
+            if (charStartPos === -1) {
+              charStartPos = i; // Fallback
+            }
+          }
+          
+          // Check if we've found the end (after start is found)
+          if (charStartPos !== -1 && charEndPos === -1) {
+            const testSubstr = normalizeForMatch(originalText.substring(charStartPos, i + 1));
+            if (testSubstr === normalizedSelected || 
+                (testSubstr.length >= normalizedSelected.length && testSubstr.startsWith(normalizedSelected))) {
+              charEndPos = i + 1;
+              break;
+            }
+          }
+        }
+        
+        // Fallback: direct search if mapping failed
+        if (charStartPos === -1 || charEndPos === -1) {
+          const lowerOriginal = originalText.toLowerCase();
+          const lowerSelected = selectedText.toLowerCase();
+          
+          // Estimate search start from DOM
+          let searchStart = 0;
+          try {
+            const startRange = document.createRange();
+            startRange.selectNodeContents(verseContent);
+            startRange.setEnd(expandedRange.startContainer, expandedRange.startOffset);
+            const domBefore = startRange.toString();
+            searchStart = Math.max(0, domBefore.length - selectedText.length * 2);
+          } catch (e) {
+            // Ignore
+          }
+          
+          const foundIdx = lowerOriginal.indexOf(lowerSelected, searchStart);
+          if (foundIdx !== -1) {
+            charStartPos = foundIdx;
+            charEndPos = foundIdx + selectedText.length;
+          } else {
+            const firstIdx = lowerOriginal.indexOf(lowerSelected);
+            if (firstIdx !== -1) {
+              charStartPos = firstIdx;
+              charEndPos = firstIdx + selectedText.length;
+            }
+          }
+        }
+        
+        // Validate offsets
+        if (charStartPos !== -1 && charEndPos !== -1) {
+          startOffset = Math.max(0, Math.min(charStartPos, originalText.length));
+          endOffset = Math.max(startOffset, Math.min(charEndPos, originalText.length));
+          
+          // Debug logging
+          const actualSelected = originalText.substring(startOffset, endOffset);
+          if (normalizeForMatch(actualSelected) !== normalizedSelected) {
+            console.warn('[MultiTranslationView] Offset mismatch:', {
+              selectedText,
+              actualSelected,
+              startOffset,
+              endOffset,
+              originalText: originalText.substring(Math.max(0, startOffset - 20), Math.min(originalText.length, endOffset + 20))
+            });
+          }
+        } else {
+          console.warn('[MultiTranslationView] Failed to calculate offsets for:', selectedText);
+          return;
+        }
+        
       } catch (e) {
-        console.warn('Error calculating offsets:', e);
+        console.warn('[MultiTranslationView] Error calculating offsets:', e);
+        return;
       }
     }
 

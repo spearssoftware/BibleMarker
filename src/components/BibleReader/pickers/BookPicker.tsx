@@ -38,7 +38,7 @@ export function BookPicker({ currentBook, onSelect, onClose, triggerRef }: BookP
 
   const effectiveTriggerRef = (triggerRef as React.RefObject<HTMLElement>) || { current: fallbackTriggerRef.current };
 
-  const { top, left, width } = useDropdownPosition({
+  const { top, left, width, isReady } = useDropdownPosition({
     triggerRef: effectiveTriggerRef,
     width: 340,
     alignment: 'center',
@@ -61,13 +61,14 @@ export function BookPicker({ currentBook, onSelect, onClose, triggerRef }: BookP
       <div 
         ref={pickerRef}
         className="fixed bg-scripture-surface rounded-2xl shadow-2xl
-                    max-h-[70vh] overflow-hidden backdrop-blur-sm"
+                    max-h-[70vh] overflow-hidden backdrop-blur-sm transition-opacity duration-150"
         style={{ 
           top: `${top}px`,
           left: `${left}px`,
           width: `${width}px`,
           maxWidth: 'min(340px, calc(100vw - 2rem))',
           zIndex: Z_INDEX.MODAL,
+          opacity: isReady ? 1 : 0,
         }}
         role="dialog"
         aria-modal="true"

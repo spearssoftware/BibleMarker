@@ -6,7 +6,7 @@
 
 interface ModalBackdropProps {
   /** Callback when backdrop is clicked */
-  onClick: () => void;
+  onClick: (e: React.MouseEvent) => void;
   /** Z-index for the backdrop (default: 40) */
   zIndex?: number;
   /** Additional className */
@@ -20,7 +20,7 @@ export function ModalBackdrop({
 }: ModalBackdropProps) {
   return (
     <div
-      className={`fixed inset-0 backdrop-blur-sm bg-black/20 ${className}`}
+      className={`fixed inset-0 bg-black/20 ${className}`}
       style={{ zIndex }}
       onClick={onClick}
       aria-hidden="true"
