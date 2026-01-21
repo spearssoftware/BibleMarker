@@ -366,8 +366,24 @@ export function sanitizeData<T>(data: any, validator: (data: any) => T): T {
     if (data && typeof data === 'object') {
       const sanitized = { ...data };
       for (const [key, value] of Object.entries(sanitized)) {
-        if ((key === 'createdAt' || key === 'updatedAt' || key === 'timestamp' || key === 'cachedAt') && typeof value === 'string') {
-          sanitized[key] = new Date(value);
+        if ((key === 'createdAt' || key === 'updatedAt' || key === 'timestamp' || key === 'cachedAt')) {
+          if (typeof value === 'string') {
+            const date = new Date(value);
+            if (!isNaN(date.getTime())) {
+              sanitized[key] = date;
+            } else {
+              console.warn(`Invalid date string for ${key}: ${value}`);
+            }
+          } else if (typeof value === 'number') {
+            // Handle timestamp numbers
+            const date = new Date(value);
+            if (!isNaN(date.getTime())) {
+              sanitized[key] = date;
+            } else {
+              console.warn(`Invalid timestamp for ${key}: ${value}`);
+            }
+          }
+          // If value is already a Date object, keep it as is
         }
       }
       return validator(sanitized);

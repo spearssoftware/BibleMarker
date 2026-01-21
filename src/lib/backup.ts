@@ -527,17 +527,61 @@ export async function restoreBackup(
       }
     }
 
-    if (typesToRestore.includes('sectionHeadings') && backup.data.sectionHeadings.length > 0) {
-      const { valid: validatedHeadings } = validateArray(backup.data.sectionHeadings, validateSectionHeading, 'section heading');
-      if (validatedHeadings.length > 0) {
-        await db.sectionHeadings.bulkPut(validatedHeadings);
+    if (typesToRestore.includes('sectionHeadings')) {
+      const headings = backup.data.sectionHeadings || [];
+      if (headings.length > 0) {
+        console.log(`Attempting to restore ${headings.length} section heading(s)...`);
+        const { valid: validatedHeadings, errors: headingErrors } = validateArray(headings, validateSectionHeading, 'section heading');
+        if (headingErrors.length > 0) {
+          console.warn(`Failed to validate ${headingErrors.length} section heading(s):`, headingErrors.map(e => e.message));
+        }
+        if (validatedHeadings.length > 0) {
+          try {
+            await db.sectionHeadings.bulkPut(validatedHeadings);
+            // Verify the data was saved
+            const savedCount = await db.sectionHeadings.count();
+            console.log(`✓ Successfully restored ${validatedHeadings.length} section heading(s). Total in database: ${savedCount}`);
+          } catch (error) {
+            console.error('Error saving section headings:', error);
+            throw new Error(`Failed to save section headings: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          }
+        } else if (headings.length > 0) {
+          const errorMsg = `No valid section headings found. ${headings.length} heading(s) failed validation.`;
+          console.error(errorMsg);
+          console.error('Validation errors:', headingErrors);
+          throw new Error(errorMsg);
+        }
+      } else {
+        console.log('No section headings to restore');
       }
     }
 
-    if (typesToRestore.includes('chapterTitles') && backup.data.chapterTitles.length > 0) {
-      const { valid: validatedTitles } = validateArray(backup.data.chapterTitles, validateChapterTitle, 'chapter title');
-      if (validatedTitles.length > 0) {
-        await db.chapterTitles.bulkPut(validatedTitles);
+    if (typesToRestore.includes('chapterTitles')) {
+      const titles = backup.data.chapterTitles || [];
+      if (titles.length > 0) {
+        console.log(`Attempting to restore ${titles.length} chapter title(s)...`);
+        const { valid: validatedTitles, errors: titleErrors } = validateArray(titles, validateChapterTitle, 'chapter title');
+        if (titleErrors.length > 0) {
+          console.warn(`Failed to validate ${titleErrors.length} chapter title(s):`, titleErrors.map(e => e.message));
+        }
+        if (validatedTitles.length > 0) {
+          try {
+            await db.chapterTitles.bulkPut(validatedTitles);
+            // Verify the data was saved
+            const savedCount = await db.chapterTitles.count();
+            console.log(`✓ Successfully restored ${validatedTitles.length} chapter title(s). Total in database: ${savedCount}`);
+          } catch (error) {
+            console.error('Error saving chapter titles:', error);
+            throw new Error(`Failed to save chapter titles: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          }
+        } else if (titles.length > 0) {
+          const errorMsg = `No valid chapter titles found. ${titles.length} title(s) failed validation.`;
+          console.error(errorMsg);
+          console.error('Validation errors:', titleErrors);
+          throw new Error(errorMsg);
+        }
+      } else {
+        console.log('No chapter titles to restore');
       }
     }
 
