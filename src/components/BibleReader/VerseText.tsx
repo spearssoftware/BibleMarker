@@ -14,6 +14,9 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 
+// Debug flag for verse text rendering - set to true to enable detailed logging
+const DEBUG_VERSE_TEXT = false;
+
 interface VerseTextProps {
   verse: Verse;
   annotations: Annotation[];
@@ -70,7 +73,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     const matches = findKeywordMatches(verseText, verse.ref, filteredPresets, moduleId);
     
     // Debug: log if we're looking at verse 1 and there are matches
-    if (verse.ref.verse === 1) {
+    if (DEBUG_VERSE_TEXT && verse.ref.verse === 1) {
       const jeremiahPresets = filteredPresets.filter(p => p.word?.toLowerCase().includes('jeremiah'));
       const jeremiahMatches = matches.filter(m => 
         ('selectedText' in m && m.selectedText?.toLowerCase().includes('jeremiah')) ||
@@ -160,7 +163,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         });
         
         // Debug: log if "Jeremiah" virtual annotation is being filtered out
-        if (verse.ref.verse === 1 && 
+        if (DEBUG_VERSE_TEXT && verse.ref.verse === 1 && 
             (('selectedText' in vann && vann.selectedText?.toLowerCase().includes('jeremiah')) ||
              verse.text.substring(vann.startOffset || 0, vann.endOffset || 0).toLowerCase().includes('jeremiah'))) {
           const overlappingReal = Array.from(filteredRealAnnotationMap.values()).filter(realRange => {

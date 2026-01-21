@@ -9,6 +9,9 @@ import type { TextAnnotation, SymbolAnnotation, Annotation } from '@/types/annot
 import type { VerseRef } from '@/types/bible';
 import { matchesPreset } from '@/types/keyWord';
 
+// Debug flag for keyword matching - set to true to enable detailed logging
+const DEBUG_KEYWORD_MATCHING = false;
+
 /**
  * Split text into words with their positions
  */
@@ -261,7 +264,7 @@ export function findKeywordMatches(
     const matchedRanges = matchedRangesByPreset.get(preset.id)!;
     
     // Debug: log if we're looking for "Jeremiah" in verse 1
-    if (phrase.toLowerCase().includes('jeremiah') && verseRef.verse === 1) {
+    if (DEBUG_KEYWORD_MATCHING && phrase.toLowerCase().includes('jeremiah') && verseRef.verse === 1) {
       console.log(`[KeywordMatching] Looking for "${phrase}" in verse 1:`, {
         presetId: preset.id,
         presetWord: preset.word,
@@ -287,7 +290,7 @@ export function findKeywordMatches(
       });
       
       // Debug: log if "Jeremiah" match is being filtered out
-      if (phrase.toLowerCase().includes('jeremiah') && verseRef.verse === 1) {
+      if (DEBUG_KEYWORD_MATCHING && phrase.toLowerCase().includes('jeremiah') && verseRef.verse === 1) {
         const overlappingRanges = Array.from(matchedRanges).filter(range => {
           const [start, end] = range.split('-').map(Number);
           return match.startIndex < end && match.endIndex > start;
