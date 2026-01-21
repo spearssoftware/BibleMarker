@@ -538,7 +538,13 @@ export async function restoreBackup(
         if (validatedHeadings.length > 0) {
           try {
             await db.sectionHeadings.bulkPut(validatedHeadings);
-            // Verify the data was saved
+            // Verify the data was saved by checking specific items
+            const savedIds = new Set(await db.sectionHeadings.toCollection().primaryKeys());
+            const restoredIds = new Set(validatedHeadings.map(h => h.id));
+            const missingIds = [...restoredIds].filter(id => !savedIds.has(id));
+            if (missingIds.length > 0) {
+              console.error(`Warning: ${missingIds.length} section heading(s) were not saved:`, missingIds);
+            }
             const savedCount = await db.sectionHeadings.count();
             console.log(`✓ Successfully restored ${validatedHeadings.length} section heading(s). Total in database: ${savedCount}`);
           } catch (error) {
@@ -567,7 +573,13 @@ export async function restoreBackup(
         if (validatedTitles.length > 0) {
           try {
             await db.chapterTitles.bulkPut(validatedTitles);
-            // Verify the data was saved
+            // Verify the data was saved by checking specific items
+            const savedIds = new Set(await db.chapterTitles.toCollection().primaryKeys());
+            const restoredIds = new Set(validatedTitles.map(t => t.id));
+            const missingIds = [...restoredIds].filter(id => !savedIds.has(id));
+            if (missingIds.length > 0) {
+              console.error(`Warning: ${missingIds.length} chapter title(s) were not saved:`, missingIds);
+            }
             const savedCount = await db.chapterTitles.count();
             console.log(`✓ Successfully restored ${validatedTitles.length} chapter title(s). Total in database: ${savedCount}`);
           } catch (error) {

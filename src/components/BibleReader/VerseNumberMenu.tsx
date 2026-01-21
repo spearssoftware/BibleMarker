@@ -28,7 +28,7 @@ export function VerseNumberMenu({
       
       {/* Menu */}
       <div 
-        className="absolute top-full left-0 mt-1 z-50 bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-2xl overflow-hidden animate-scale-in min-w-[200px] backdrop-blur-sm"
+        className="absolute top-full left-0 mt-1 z-50 bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-2xl overflow-hidden animate-scale-in-dropdown min-w-[200px] backdrop-blur-sm"
         role="menu"
         aria-label={`Options for verse ${verseNum}`}
       >
