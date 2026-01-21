@@ -37,8 +37,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const { fontSize, setFontSize } = useAnnotationStore();
   const { currentBook, currentModuleId } = useBibleStore();
   const [theme, setTheme] = useState<'dark' | 'light' | 'auto'>('dark');
+  const [highContrast, setHighContrast] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showClearBookConfirm, setShowClearBookConfirm] = useState(false);
+  const [clearBookSuccess, setClearBookSuccess] = useState<string | null>(null);
+  const [clearBookError, setClearBookError] = useState<string | null>(null);
 
   const [isLoadingPrefs, setIsLoadingPrefs] = useState(true);
   
@@ -73,8 +77,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         const prefs = await getPreferences();
         if (prefs.theme) {
           setTheme(prefs.theme);
-          applyTheme(prefs.theme);
         }
+        if (prefs.highContrast !== undefined) {
+          setHighContrast(prefs.highContrast);
+        }
+        applyTheme(prefs.theme || 'auto', prefs.highContrast || false);
         // Load API configs
         if (prefs.apiConfigs) {
           const bibliaConfig = prefs.apiConfigs.find(c => c.provider === 'biblia');
@@ -176,7 +183,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
   const handleThemeChange = async (newTheme: 'dark' | 'light' | 'auto') => {
     setTheme(newTheme);
-    applyTheme(newTheme);
+    applyTheme(newTheme, highContrast);
     try {
       await updatePreferences({ theme: newTheme });
     } catch (error) {
@@ -184,18 +191,41 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     }
   };
 
-  const handleClearBook = async () => {
+  const handleHighContrastChange = async (enabled: boolean) => {
+    setHighContrast(enabled);
+    applyTheme(theme, enabled);
+    try {
+      await updatePreferences({ highContrast: enabled });
+    } catch (error) {
+      console.error('Error updating high contrast:', error);
+    }
+  };
+
+  const handleClearBook = () => {
+    setClearBookSuccess(null);
+    setClearBookError(null);
+    setShowClearBookConfirm(true);
+  };
+
+  const confirmClearBook = async () => {
+    setShowClearBookConfirm(false);
+    setClearBookSuccess(null);
+    setClearBookError(null);
+    
     const bookInfo = getBookById(currentBook);
     const bookName = bookInfo?.name || currentBook;
-    if (confirm(`Clear all highlights and annotations for ${bookName}? This action cannot be undone.`)) {
-      try {
-        const count = await clearBookAnnotations(currentBook, currentModuleId || undefined);
-        alert(`Cleared ${count} annotation${count !== 1 ? 's' : ''} for ${bookName}`);
-        // Reload annotations to reflect changes
-        window.dispatchEvent(new CustomEvent('annotationsUpdated'));
-      } catch (error) {
-        alert('Failed to clear annotations: ' + (error instanceof Error ? error.message : 'Unknown error'));
-      }
+    
+    try {
+      const count = await clearBookAnnotations(currentBook, currentModuleId || undefined);
+      setClearBookSuccess(`Cleared ${count} annotation${count !== 1 ? 's' : ''} for ${bookName}`);
+      // Reload annotations to reflect changes
+      window.dispatchEvent(new CustomEvent('annotationsUpdated'));
+      // Clear success message after 5 seconds
+      setTimeout(() => setClearBookSuccess(null), 5000);
+    } catch (error) {
+      setClearBookError('Failed to clear annotations: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      // Clear error message after 5 seconds
+      setTimeout(() => setClearBookError(null), 5000);
     }
   };
 
@@ -350,6 +380,16 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         onCancel={() => setShowClearConfirm(false)}
         destructive={true}
       />
+      <ConfirmationDialog
+        isOpen={showClearBookConfirm}
+        title={`Clear Highlights for ${getBookById(currentBook)?.name || currentBook}`}
+        message={`Are you sure you want to clear all highlights and annotations for ${getBookById(currentBook)?.name || currentBook}? This action cannot be undone.`}
+        confirmLabel="Clear Highlights"
+        cancelLabel="Cancel"
+        onConfirm={confirmClearBook}
+        onCancel={() => setShowClearBookConfirm(false)}
+        destructive={true}
+      />
       <div 
         className="flex-1 min-h-0 flex flex-col relative" 
         role="dialog" 
@@ -450,6 +490,35 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 <p className="text-xs text-scripture-muted mt-2">
                   Choose your preferred theme. Auto mode follows your system preference.
                 </p>
+              </div>
+
+              <div className="border-t border-scripture-border/30"></div>
+
+              <div className="p-4">
+                <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Accessibility</h3>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="font-ui font-medium text-scripture-text mb-1">High Contrast Mode</div>
+                    <p className="text-xs text-scripture-muted">
+                      Increases color contrast for better readability. Meets WCAG AAA contrast requirements.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleHighContrastChange(!highContrast)}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-scripture-accent focus:ring-offset-2 ${
+                      highContrast ? 'bg-scripture-accent' : 'bg-scripture-border'
+                    }`}
+                    role="switch"
+                    aria-checked={highContrast}
+                    aria-label="Toggle high contrast mode"
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        highContrast ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
             </div>
             </div>
@@ -976,6 +1045,18 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     <p className="text-xs text-scripture-muted mt-2">
                       Remove all highlights and annotations for the current book
                     </p>
+                    
+                    {clearBookSuccess && (
+                      <div className="mt-3 p-3 bg-green-600/20 border border-green-600/30 rounded-lg text-green-400 text-sm">
+                        ✓ {clearBookSuccess}
+                      </div>
+                    )}
+                    
+                    {clearBookError && (
+                      <div className="mt-3 p-3 bg-scripture-errorBg border border-scripture-error/30 rounded-lg text-scripture-errorText text-sm">
+                        ✗ {clearBookError}
+                      </div>
+                    )}
                   </div>
 
                   <div>
