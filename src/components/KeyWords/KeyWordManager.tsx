@@ -4,7 +4,7 @@
  * UI for creating, editing, and managing key word definitions.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
@@ -938,13 +938,75 @@ function ColorSelect({
   onChange: (color: HighlightColor | undefined) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [openAbove, setOpenAbove] = useState(true);
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
   const allColors = Object.entries(HIGHLIGHT_COLORS) as [HighlightColor, string][];
+
+  // Determine if dropdown should open above or below based on available space
+  const handleToggle = () => {
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      
+      // Find the scrollable container (closest ancestor with overflow-y-auto)
+      let container: HTMLElement | null = buttonRef.current.parentElement;
+      let scrollableContainer: HTMLElement | null = null;
+      
+      while (container && container !== document.body) {
+        const style = window.getComputedStyle(container);
+        if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+          scrollableContainer = container;
+          break;
+        }
+        container = container.parentElement;
+      }
+      
+      if (scrollableContainer) {
+        const containerRect = scrollableContainer.getBoundingClientRect();
+        const spaceAbove = rect.top - containerRect.top;
+        const spaceBelow = containerRect.bottom - rect.bottom;
+        // Estimate dropdown height (max-h-60 = ~240px)
+        const estimatedDropdownHeight = 240;
+        // Only open above if there's significantly more space above AND enough space
+        // Default to opening below to avoid overflow issues
+        setOpenAbove(spaceAbove >= estimatedDropdownHeight + 20 && spaceAbove > spaceBelow + 100);
+      } else {
+        // No scrollable container found - check window bounds
+        const spaceAbove = rect.top;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const estimatedDropdownHeight = 240;
+        // Default to opening below unless there's clearly more space above
+        setOpenAbove(spaceAbove >= estimatedDropdownHeight + 20 && spaceAbove > spaceBelow + 100);
+      }
+    }
+    setIsOpen(!isOpen);
+  };
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        buttonRef.current &&
+        dropdownRef.current &&
+        !buttonRef.current.contains(e.target as Node) &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
 
   return (
     <div className="relative">
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
                  rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text
                  flex items-center gap-2 justify-between hover:bg-scripture-elevated transition-colors"
@@ -966,44 +1028,42 @@ function ColorSelect({
       </button>
       
       {isOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setIsOpen(false)}
-          />
-          <div className="absolute z-20 w-full bottom-full mb-1 bg-scripture-elevated border border-scripture-border/50 
-                        rounded-lg shadow-lg max-h-60 overflow-y-auto custom-scrollbar">
+        <div
+          ref={dropdownRef}
+          className={`absolute z-50 w-full bg-scripture-elevated border border-scripture-border/50 
+                      rounded-lg shadow-lg max-h-60 overflow-y-auto custom-scrollbar
+                      ${openAbove ? 'bottom-full mb-1' : 'top-full mt-1'}`}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              onChange(undefined);
+              setIsOpen(false);
+            }}
+            className={`w-full px-3 py-2 text-sm text-left hover:bg-scripture-border/30 transition-colors
+                       ${!value ? 'bg-scripture-border/20' : ''}`}
+          >
+            Default
+          </button>
+          {allColors.map(([key, hex]) => (
             <button
+              key={key}
               type="button"
               onClick={() => {
-                onChange(undefined);
+                onChange(key);
                 setIsOpen(false);
               }}
               className={`w-full px-3 py-2 text-sm text-left hover:bg-scripture-border/30 transition-colors
-                         ${!value ? 'bg-scripture-border/20' : ''}`}
+                         flex items-center gap-2 ${value === key ? 'bg-scripture-border/20' : ''}`}
             >
-              Default
+              <span
+                className="w-4 h-4 rounded border border-scripture-border/30 flex-shrink-0"
+                style={{ backgroundColor: hex }}
+              />
+              <span>{key}</span>
             </button>
-            {allColors.map(([key, hex]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => {
-                  onChange(key);
-                  setIsOpen(false);
-                }}
-                className={`w-full px-3 py-2 text-sm text-left hover:bg-scripture-border/30 transition-colors
-                           flex items-center gap-2 ${value === key ? 'bg-scripture-border/20' : ''}`}
-              >
-                <span
-                  className="w-4 h-4 rounded border border-scripture-border/30 flex-shrink-0"
-                  style={{ backgroundColor: hex }}
-                />
-                <span>{key}</span>
-              </button>
-            ))}
-          </div>
-        </>
+          ))}
+        </div>
       )}
     </div>
   );
