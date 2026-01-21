@@ -553,6 +553,7 @@ export async function importUserData(data: {
 
 /**
  * Clear all database stores (for testing/debugging)
+ * Note: This does NOT clear preferences - use clearPreferences() separately if needed
  */
 export async function clearDatabase(): Promise<void> {
   await Promise.all([
@@ -570,6 +571,9 @@ export async function clearDatabase(): Promise<void> {
     // Note: modules and moduleFiles tables are deprecated (Sword support removed)
     // but kept in schema for backwards compatibility
   ]);
+  
+  // Dispatch events to notify stores to reset
+  window.dispatchEvent(new CustomEvent('databaseCleared'));
 }
 
 // ============================================================================

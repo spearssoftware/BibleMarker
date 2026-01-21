@@ -14,6 +14,8 @@ import { applyTheme } from '@/lib/theme';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { AboutSection } from './AboutSection';
 import { GettingStartedSection } from './GettingStartedSection';
+import { ConfirmationDialog } from '@/components/shared';
+import { resetAllStores } from '@/lib/storeReset';
 import {
   bibliaClient,
   bibleGatewayClient,
@@ -36,6 +38,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const { currentBook, currentModuleId } = useBibleStore();
   const [theme, setTheme] = useState<'dark' | 'light' | 'auto'>('dark');
   const [isClearing, setIsClearing] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const [isLoadingPrefs, setIsLoadingPrefs] = useState(true);
   
@@ -197,20 +200,25 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   };
 
   const handleClearDatabase = async () => {
-    if (!confirm('Are you sure you want to clear all annotations, notes, and cache? This cannot be undone.')) {
-      return;
-    }
-    
+    setShowClearConfirm(true);
+  };
+
+  const confirmClearDatabase = async () => {
+    setShowClearConfirm(false);
     setIsClearing(true);
     try {
       await clearDatabase();
-      alert('Database cleared successfully!');
-      // Reload the page to refresh the UI
+      // Reset all stores to prevent crashes from stale data
+      resetAllStores();
+      // Reload the page immediately - no need for alert since page will refresh
       window.location.reload();
     } catch (error) {
       console.error('Error clearing database:', error);
-      alert('Error clearing database. Check console for details.');
       setIsClearing(false);
+      setShowClearConfirm(false);
+      // Show error inline instead of blocking alert
+      const errorMsg = error instanceof Error ? error.message : 'Failed to clear database. Check console for details.';
+      alert(errorMsg); // Only show alert on error, user can dismiss it
     }
   };
 
@@ -332,7 +340,22 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
   return (
     <>
-      <div className="flex-1 min-h-0 flex flex-col relative" role="dialog" aria-label="Settings" aria-modal="true">
+      <ConfirmationDialog
+        isOpen={showClearConfirm}
+        title="Clear Database"
+        message="Are you sure you want to clear all annotations, notes, and cache? This cannot be undone."
+        confirmLabel="Clear All"
+        cancelLabel="Cancel"
+        onConfirm={confirmClearDatabase}
+        onCancel={() => setShowClearConfirm(false)}
+        destructive={true}
+      />
+      <div 
+        className="flex-1 min-h-0 flex flex-col relative" 
+        role="dialog" 
+        aria-label="Settings" 
+        aria-modal="true"
+      >
         {/* Close button - floating in top-right */}
         <button
           onClick={onClose}

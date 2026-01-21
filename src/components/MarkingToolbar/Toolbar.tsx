@@ -17,8 +17,10 @@ import { AnnotationLegend } from '@/components/BibleReader';
 import { AddToList } from '@/components/Lists';
 import { StudyToolsPanel } from '@/components/Summary';
 import { SettingsPanel } from '@/components/Settings';
+import { ConfirmationDialog } from '@/components/shared';
 import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
 import { clearDatabase, updatePreferences, clearBookAnnotations } from '@/lib/db';
+import { resetAllStores } from '@/lib/storeReset';
 import { useBibleStore } from '@/stores/bibleStore';
 import { getBookById } from '@/types/bible';
 import { findMatchingPresets, isCommonPronoun, type MarkingPreset } from '@/types/keyWord';
@@ -71,6 +73,7 @@ export function Toolbar() {
   const [showStudyToolsPanel, setShowStudyToolsPanel] = useState(false);
   const [showAddToList, setShowAddToList] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // Load marking presets on mount
   useEffect(() => {
@@ -116,21 +119,25 @@ export function Toolbar() {
   const handleClearDatabase = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (!confirm('Are you sure you want to clear all annotations, notes, and cache? This cannot be undone.')) {
-      return;
-    }
-    
+    setShowClearConfirm(true);
+  };
+
+  const confirmClearDatabase = async () => {
+    setShowClearConfirm(false);
     setIsClearing(true);
     try {
       await clearDatabase();
-      alert('Database cleared successfully!');
-      // Reload the page to refresh the UI
+      // Reset all stores to prevent crashes from stale data
+      resetAllStores();
+      // Reload the page immediately - no need for alert since page will refresh
       window.location.reload();
     } catch (error) {
       console.error('Error clearing database:', error);
-      alert('Error clearing database. Check console for details.');
       setIsClearing(false);
+      setShowClearConfirm(false);
+      // Show error inline instead of blocking alert
+      const errorMsg = error instanceof Error ? error.message : 'Failed to clear database. Check console for details.';
+      alert(errorMsg); // Only show alert on error, user can dismiss it
     }
   };
 
@@ -395,6 +402,17 @@ export function Toolbar() {
   if (!toolbarVisible) return null;
 
   return (
+    <>
+      <ConfirmationDialog
+        isOpen={showClearConfirm}
+        title="Clear Database"
+        message="Are you sure you want to clear all annotations, notes, and cache? This cannot be undone."
+        confirmLabel="Clear All"
+        cancelLabel="Cancel"
+        onConfirm={confirmClearDatabase}
+        onCancel={() => setShowClearConfirm(false)}
+        destructive={true}
+      />
     <div className="fixed bottom-0 left-0 right-0 z-30 
                     pb-[env(safe-area-inset-bottom)]"
          data-marking-toolbar
@@ -808,5 +826,6 @@ export function Toolbar() {
         </div>
       </div>
     </div>
+    </>
   );
 }
