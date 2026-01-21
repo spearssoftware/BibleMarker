@@ -42,6 +42,8 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
 
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     loadPresets();
@@ -73,7 +75,7 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
       // Show keywords that belong to the active study
       return preset.studyId === activeStudyId;
     });
-  }, [getFilteredPresets, activeStudyId]);
+  }, [getFilteredPresets, activeStudyId, presets, filterCategory, searchQuery]);
 
   function handleCreate() {
     setIsCreating(true);
@@ -155,16 +157,37 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this key word?')) {
+  function handleDeleteClick(id: string, e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Prevent multiple simultaneous deletions
+    if (deletingId || confirmDeleteId) {
       return;
     }
+    
+    setConfirmDeleteId(id);
+  }
+
+  async function confirmDelete() {
+    if (!confirmDeleteId) return;
+    
+    const idToDelete = confirmDeleteId;
+    setConfirmDeleteId(null);
+    setDeletingId(idToDelete);
+    
     try {
-      await removePreset(id);
+      await removePreset(idToDelete);
     } catch (error) {
       console.error('Failed to delete key word:', error);
       alert('Failed to delete key word. Please try again.');
+    } finally {
+      setDeletingId(null);
     }
+  }
+
+  function cancelDelete() {
+    setConfirmDeleteId(null);
   }
 
   return (
@@ -235,6 +258,36 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
         </div>
       )}
 
+      {/* Delete Confirmation Dialog */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-scripture-surface border border-scripture-border rounded-lg p-6 max-w-md mx-4 shadow-xl">
+            <h3 className="text-lg font-semibold text-scripture-text mb-2">
+              Delete Key Word?
+            </h3>
+            <p className="text-scripture-muted mb-6">
+              Are you sure you want to delete this key word? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={cancelDelete}
+                className="px-4 py-2 text-sm font-ui bg-scripture-elevated text-scripture-text rounded-lg hover:bg-scripture-border/50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="px-4 py-2 text-sm font-ui bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {isLoading ? (
@@ -274,7 +327,8 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
                     key={preset.id}
                     preset={preset}
                     onEdit={() => handleEdit(preset)}
-                    onDelete={() => handleDelete(preset.id)}
+                    onDelete={(e) => handleDeleteClick(preset.id, e)}
+                    isDeleting={deletingId === preset.id}
                   />
                 ))}
               </div>
@@ -291,10 +345,12 @@ function KeyWordCard({
   preset,
   onEdit,
   onDelete,
+  isDeleting,
 }: {
   preset: MarkingPreset;
   onEdit: () => void;
-  onDelete: () => void;
+  onDelete: (e: React.MouseEvent) => void;
+  isDeleting?: boolean;
 }) {
   const { studies } = useStudyStore();
   const categoryInfo = KEY_WORD_CATEGORIES[preset.category || 'custom'];
@@ -354,16 +410,19 @@ function KeyWordCard({
         </div>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={onEdit}
             className="px-2 py-1 text-xs font-ui text-scripture-text hover:bg-scripture-border/50 rounded transition-colors"
           >
             Edit
           </button>
           <button
+            type="button"
             onClick={onDelete}
-            className="px-2 py-1 text-xs font-ui text-red-400 hover:bg-red-500/20 rounded transition-colors"
+            disabled={isDeleting}
+            className="px-2 py-1 text-xs font-ui text-red-400 hover:bg-red-500/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Delete
+            {isDeleting ? 'Deleting...' : 'Delete'}
           </button>
         </div>
       </div>
