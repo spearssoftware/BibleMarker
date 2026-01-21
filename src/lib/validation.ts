@@ -128,9 +128,8 @@ export function validateSectionHeading(heading: any): SectionHeading {
   if (typeof heading.id !== 'string' || heading.id.trim() === '') {
     throw new ValidationError('Section heading must have a valid id', 'id', heading.id);
   }
-  if (typeof heading.moduleId !== 'string' || heading.moduleId.trim() === '') {
-    throw new ValidationError('Section heading must have a valid moduleId', 'moduleId', heading.moduleId);
-  }
+  // moduleId is optional (deprecated - section headings are now translation-agnostic)
+  // Keep it for backward compatibility but don't require it
   if (typeof heading.title !== 'string' || heading.title.trim() === '') {
     throw new ValidationError('Section heading must have a valid title', 'title', heading.title);
   }
@@ -157,9 +156,8 @@ export function validateChapterTitle(title: any): ChapterTitle {
   if (typeof title.id !== 'string' || title.id.trim() === '') {
     throw new ValidationError('Chapter title must have a valid id', 'id', title.id);
   }
-  if (typeof title.moduleId !== 'string' || title.moduleId.trim() === '') {
-    throw new ValidationError('Chapter title must have a valid moduleId', 'moduleId', title.moduleId);
-  }
+  // moduleId is optional (deprecated - chapter titles are now translation-agnostic)
+  // Keep it for backward compatibility but don't require it
   if (typeof title.book !== 'string' || title.book.trim() === '') {
     throw new ValidationError('Chapter title must have a valid book', 'book', title.book);
   }

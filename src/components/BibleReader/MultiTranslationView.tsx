@@ -42,9 +42,10 @@ export function MultiTranslationView() {
   const [annotationsByTranslation, setAnnotationsByTranslation] = useState<Map<string, Annotation[]>>(new Map());
   
   // Get the primary translation ID (first valid one) for section headings, chapter titles, and notes
+  // Fall back to currentModuleId if no active view or if active view has no translations
   const primaryTranslationId = activeView?.translationIds.find(
     id => id !== 'observation-lists'
-  ) || null;
+  ) || currentModuleId || null;
   
   const { removeAnnotation } = useAnnotations();
   
@@ -58,16 +59,17 @@ export function MultiTranslationView() {
   
   // Load section headings, chapter title, and notes for primary translation
   const loadSectionHeadings = useCallback(async () => {
-    if (!primaryTranslationId) return;
-    const headings = await getChapterHeadings(primaryTranslationId, currentBook, currentChapter);
+    // Section headings are now translation-agnostic - just query by book/chapter
+    const headings = await getChapterHeadings(null, currentBook, currentChapter);
     setSectionHeadings(headings);
-  }, [primaryTranslationId, currentBook, currentChapter]);
+  }, [currentBook, currentChapter]);
   
   const loadChapterTitle = useCallback(async () => {
-    if (!primaryTranslationId) return;
-    const title = await getChapterTitle(primaryTranslationId, currentBook, currentChapter);
+    // Chapter titles are now translation-agnostic - just query by book/chapter
+    const title = await getChapterTitle(null, currentBook, currentChapter);
+    console.log(`[MultiTranslationView] loadChapterTitle: Found title:`, title);
     setChapterTitle(title || null);
-  }, [primaryTranslationId, currentBook, currentChapter]);
+  }, [currentBook, currentChapter]);
   
   const loadNotes = useCallback(async () => {
     if (!primaryTranslationId) return;
@@ -75,13 +77,13 @@ export function MultiTranslationView() {
     setNotes(notesData);
   }, [primaryTranslationId, currentBook, currentChapter]);
   
-  // Create/update/delete functions that use primary translation ID
+  // Create/update/delete functions (translation-agnostic)
   const createSectionHeading = useCallback(async (verseNum: number, title: string) => {
-    if (!primaryTranslationId || !title.trim()) return null;
+    if (!title.trim()) return null;
     
     const heading: SectionHeading = {
       id: globalThis.crypto.randomUUID(),
-      moduleId: primaryTranslationId,
+      // moduleId no longer required - section headings are translation-agnostic
       beforeRef: {
         book: currentBook,
         chapter: currentChapter,
@@ -95,7 +97,7 @@ export function MultiTranslationView() {
     await saveSectionHeading(heading);
     await loadSectionHeadings();
     return heading;
-  }, [primaryTranslationId, currentBook, currentChapter, loadSectionHeadings]);
+  }, [currentBook, currentChapter, loadSectionHeadings]);
   
   const updateSectionHeading = useCallback(async (heading: SectionHeading) => {
     const updated = {
@@ -112,11 +114,11 @@ export function MultiTranslationView() {
   }, [loadSectionHeadings]);
   
   const createChapterTitle = useCallback(async (title: string) => {
-    if (!primaryTranslationId || !title.trim()) return null;
+    if (!title.trim()) return null;
     
     const chapterTitleData = {
       id: globalThis.crypto.randomUUID(),
-      moduleId: primaryTranslationId,
+      // moduleId no longer required - chapter titles are translation-agnostic
       book: currentBook,
       chapter: currentChapter,
       title: title.trim(),
@@ -127,7 +129,7 @@ export function MultiTranslationView() {
     await saveChapterTitle(chapterTitleData);
     await loadChapterTitle();
     return chapterTitleData;
-  }, [primaryTranslationId, currentBook, currentChapter, loadChapterTitle]);
+  }, [currentBook, currentChapter, loadChapterTitle]);
   
   const updateChapterTitle = useCallback(async (title: typeof chapterTitle) => {
     if (!title) return;

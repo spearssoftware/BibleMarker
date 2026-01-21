@@ -276,6 +276,11 @@ class BibleMarkerDB extends Dexie {
 
 export const db = new BibleMarkerDB();
 
+// Expose db to window for debugging (browser console access)
+if (typeof window !== 'undefined') {
+  (window as any).db = db;
+}
+
 /**
  * Get or create user preferences
  */
@@ -356,18 +361,18 @@ export async function getChapterAnnotations(
  * Get section headings for a chapter
  */
 export async function getChapterHeadings(
-  moduleId: string,
+  moduleId: string | null | undefined, // Ignored - kept for backward compatibility
   book: string,
   chapter: number
 ): Promise<SectionHeading[]> {
-  const allHeadings = await db.sectionHeadings
-    .where('moduleId')
-    .equals(moduleId)
-    .toArray();
-  
-  return allHeadings.filter(h => 
-    h.beforeRef.book === book && h.beforeRef.chapter === chapter
+  // Get all headings for this book/chapter (translation-agnostic)
+  const allHeadings = await db.sectionHeadings.toArray();
+  const matchingHeadings = allHeadings.filter(h => 
+    h.beforeRef.book === book && 
+    h.beforeRef.chapter === chapter
   );
+  
+  return matchingHeadings;
 }
 
 /**
@@ -418,16 +423,19 @@ export async function deleteSectionHeading(id: string): Promise<void> {
  * Get chapter title for a chapter
  */
 export async function getChapterTitle(
-  moduleId: string,
+  moduleId: string | null | undefined, // Ignored - kept for backward compatibility
   book: string,
   chapter: number
 ): Promise<ChapterTitle | undefined> {
-  const allTitles = await db.chapterTitles
-    .where('moduleId')
-    .equals(moduleId)
-    .toArray();
+  // Get title for this book/chapter (translation-agnostic)
+  const allTitles = await db.chapterTitles.toArray();
+  const found = allTitles.find(t => t.book === book && t.chapter === chapter);
   
-  return allTitles.find(t => t.book === book && t.chapter === chapter);
+  if (!found) {
+    console.log(`[getChapterTitle] No title found for book="${book}", chapter=${chapter}`);
+    console.log(`[getChapterTitle] Available titles:`, allTitles.map(t => ({ book: t.book, chapter: t.chapter, title: t.title })));
+  }
+  return found;
 }
 
 /**
@@ -460,14 +468,24 @@ export async function getChapterNotes(
   book: string,
   chapter: number
 ): Promise<Note[]> {
-  const allNotes = await db.notes
-    .where('moduleId')
-    .equals(moduleId)
-    .toArray();
+  // Normalize moduleId to uppercase for case-insensitive matching
+  const normalizedModuleId = moduleId.toUpperCase();
   
-  return allNotes.filter(note => 
-    note.ref.book === book && note.ref.chapter === chapter
-  );
+  // Get all notes and filter case-insensitively
+  const allNotes = await db.notes.toArray();
+  const matchingNotes = allNotes.filter(note => {
+    const noteModuleIdMatches = note.moduleId.toUpperCase() === normalizedModuleId;
+    if (note.range) {
+      return noteModuleIdMatches &&
+             note.range.start.book === book && 
+             note.range.start.chapter === chapter;
+    }
+    return noteModuleIdMatches &&
+           note.ref.book === book && 
+           note.ref.chapter === chapter;
+  });
+  
+  return matchingNotes;
 }
 
 /**

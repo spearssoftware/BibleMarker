@@ -61,11 +61,11 @@ export function ChapterAtAGlance({ onObservationClick }: ChapterAtAGlanceProps =
       setIsLoading(true);
       
       try {
-        // Load chapter title
-        const title = await getChapterTitle(primaryTranslationId, currentBook, currentChapter);
+        // Load chapter title (translation-agnostic)
+        const title = await getChapterTitle(null, currentBook, currentChapter);
         
-        // Load section headings
-        const headings = await getChapterHeadings(primaryTranslationId, currentBook, currentChapter);
+        // Load section headings (translation-agnostic)
+        const headings = await getChapterHeadings(null, currentBook, currentChapter);
         
         // Load annotations to find keywords used
         const annotations = await getChapterAnnotations(primaryTranslationId, currentBook, currentChapter);

@@ -44,29 +44,27 @@ export function useAnnotations() {
    * Load section headings for the current chapter
    */
   const loadSectionHeadings = useCallback(async () => {
-    if (!currentModuleId) return;
-    
+    // Section headings are now translation-agnostic
     const headings = await getChapterHeadings(
-      currentModuleId,
+      null,
       currentBook,
       currentChapter
     );
     setSectionHeadings(headings);
-  }, [currentModuleId, currentBook, currentChapter, setSectionHeadings]);
+  }, [currentBook, currentChapter, setSectionHeadings]);
 
   /**
    * Load chapter title for the current chapter
    */
   const loadChapterTitle = useCallback(async () => {
-    if (!currentModuleId) return;
-    
+    // Chapter titles are now translation-agnostic
     const title = await getChapterTitle(
-      currentModuleId,
+      null,
       currentBook,
       currentChapter
     );
     setChapterTitle(title || null);
-  }, [currentModuleId, currentBook, currentChapter, setChapterTitle]);
+  }, [currentBook, currentChapter, setChapterTitle]);
 
   /**
    * Load notes for the current chapter
@@ -125,7 +123,7 @@ export function useAnnotations() {
 
     await saveAnnotation(annotation);
     
-    addRecentColor(color);
+    await addRecentColor(color);
     
     // Reload annotations
     await loadAnnotations();
@@ -186,7 +184,7 @@ export function useAnnotations() {
     };
 
     await saveAnnotation(annotation);
-    addRecentSymbol(symbol);
+    await addRecentSymbol(symbol);
 
     await loadAnnotations();
     
@@ -246,11 +244,11 @@ export function useAnnotations() {
     verseNum: number,
     title: string
   ): Promise<SectionHeading | null> => {
-    if (!currentModuleId || !title.trim()) return null;
+    if (!title.trim()) return null;
 
     const heading: SectionHeading = {
       id: crypto.randomUUID(),
-      moduleId: currentModuleId,
+      // moduleId no longer required - section headings are translation-agnostic
       beforeRef: {
         book: currentBook,
         chapter: currentChapter,
@@ -264,7 +262,7 @@ export function useAnnotations() {
     await saveSectionHeading(heading);
     await loadSectionHeadings();
     return heading;
-  }, [currentModuleId, currentBook, currentChapter, loadSectionHeadings]);
+  }, [currentBook, currentChapter, loadSectionHeadings]);
 
   /**
    * Update a section heading
@@ -290,11 +288,11 @@ export function useAnnotations() {
    * Create a chapter title
    */
   const createChapterTitle = useCallback(async (title: string): Promise<ChapterTitle | null> => {
-    if (!currentModuleId || !title.trim()) return null;
+    if (!title.trim()) return null;
 
     const chapterTitle: ChapterTitle = {
       id: crypto.randomUUID(),
-      moduleId: currentModuleId,
+      // moduleId no longer required - chapter titles are translation-agnostic
       book: currentBook,
       chapter: currentChapter,
       title: title.trim(),
@@ -305,7 +303,7 @@ export function useAnnotations() {
     await saveChapterTitle(chapterTitle);
     await loadChapterTitle();
     return chapterTitle;
-  }, [currentModuleId, currentBook, currentChapter, loadChapterTitle]);
+  }, [currentBook, currentChapter, loadChapterTitle]);
 
   /**
    * Update a chapter title

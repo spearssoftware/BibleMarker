@@ -60,11 +60,11 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
         
         // Load summary for each chapter
         for (let chapter = 1; chapter <= bookInfo.chapters; chapter++) {
-          // Load chapter title
-          const title = await getChapterTitle(primaryTranslationId, currentBook, chapter);
+          // Load chapter title (translation-agnostic)
+          const title = await getChapterTitle(null, currentBook, chapter);
           
-          // Load section headings
-          const headings = await getChapterHeadings(primaryTranslationId, currentBook, chapter);
+          // Load section headings (translation-agnostic)
+          const headings = await getChapterHeadings(null, currentBook, chapter);
           
           // Load annotations to count keywords
           const annotations = await getChapterAnnotations(primaryTranslationId, currentBook, chapter);

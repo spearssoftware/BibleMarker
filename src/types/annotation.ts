@@ -5,29 +5,51 @@
 
 import type { VerseRef, VerseRange } from './bible';
 
-/** Available highlight colors */
+/** Available highlight colors - arranged in rainbow order, then neutrals */
 export const HIGHLIGHT_COLORS = {
+  // Reds & Pinks
   red: '#ef4444',
   rose: '#f43f5e',
-  salmon: '#ff9c9c',
   coral: '#ff7875',
+  salmon: '#ff9c9c',
   pink: '#ec4899',
+  fuchsia: '#d946ef',
+  
+  // Oranges & Yellows
   orange: '#f97316',
   amber: '#f59e0b',
   yellow: '#eab308',
+  
+  // Greens
   lime: '#84cc16',
   green: '#22c55e',
   emerald: '#10b981',
   mint: '#36cfc9',
-  teal: '#14b8a6',
+  
+  // Blues & Cyans
   cyan: '#06b6d4',
   sky: '#0ea5e9',
   blue: '#3b82f6',
   indigo: '#6366f1',
+  teal: '#14b8a6',
+  
+  // Purples & Violets
   violet: '#8b5cf6',
   purple: '#a855f7',
   lavender: '#b37feb',
-  fuchsia: '#d946ef',
+  
+  // Browns & Tans
+  brown: '#a16207',
+  tan: '#d4a574',
+  beige: '#e5d5c5',
+  
+  // Grays & Neutrals (lighter gray for better visibility)
+  gray: '#9ca3af',      // Lighter gray that works in both themes
+  slate: '#64748b',
+  stone: '#78716c',
+  neutral: '#737373',
+  black: '#1f2937',
+  white: '#f9fafb',
 } as const;
 
 export type HighlightColor = keyof typeof HIGHLIGHT_COLORS;
@@ -90,6 +112,7 @@ export const SYMBOLS = {
   tree: '🌳',        // Tree / Growth / Life
   river: '〰',       // River / Stream / Water source
   house: '🏠',       // House / Temple / Dwelling
+  city: '🏙️',       // City / Urban / Civilization
 
   // Actions & States
   water: '💧',       // Baptism / Cleansing
@@ -208,7 +231,8 @@ export type Annotation = TextAnnotation | SymbolAnnotation;
 /** User-created section heading */
 export interface SectionHeading {
   id: string;
-  moduleId: string;
+  /** @deprecated moduleId is no longer used - section headings are translation-agnostic */
+  moduleId?: string; // Optional for backward compatibility
   
   // Position - heading appears before this verse
   beforeRef: VerseRef;
@@ -226,7 +250,8 @@ export interface SectionHeading {
 /** User-created chapter title */
 export interface ChapterTitle {
   id: string;
-  moduleId: string;
+  /** @deprecated moduleId is no longer used - chapter titles are translation-agnostic */
+  moduleId?: string; // Optional for backward compatibility
   
   // Position - chapter this title belongs to
   book: string;
