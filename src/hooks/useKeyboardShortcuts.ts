@@ -16,11 +16,10 @@ interface KeyboardShortcutsOptions {
 
 const TOOLBAR_TOOLS = [
   'color',      // 1
-  'symbol',     // 2
-  'legend',     // 3
-  'keyWords',   // 4
-  'studyTools', // 5
-  'more',       // 6
+  'legend',     // 2
+  'keyWords',   // 3
+  'studyTools', // 4
+  'more',       // 5
 ] as const;
 
 export function useKeyboardShortcuts({
@@ -88,7 +87,7 @@ export function useKeyboardShortcuts({
         return;
       }
 
-      // Toolbar shortcuts (number keys 1-6)
+      // Toolbar shortcuts (number keys 1-5)
       // Only trigger when not in an input and not holding modifier keys
       if (
         !e.metaKey &&
@@ -96,14 +95,14 @@ export function useKeyboardShortcuts({
         !e.altKey &&
         !e.shiftKey &&
         e.key >= '1' &&
-        e.key <= '6'
+        e.key <= '5'
       ) {
         const toolIndex = parseInt(e.key, 10) - 1;
         if (toolIndex >= 0 && toolIndex < TOOLBAR_TOOLS.length) {
           e.preventDefault();
           const toolType = TOOLBAR_TOOLS[toolIndex];
           // Map toolbar tools to annotation tool types
-          const annotationTool = toolType === 'color' ? 'highlight' : toolType === 'symbol' ? 'symbol' : null;
+          const annotationTool = toolType === 'color' ? 'highlight' : null;
           if (annotationTool) {
             setActiveTool(annotationTool);
           }
@@ -138,12 +137,11 @@ export function getKeyboardShortcutsHelp(): Array<{ keys: string[]; description:
     { keys: ['←', '→'], description: 'Previous/Next chapter' },
     { keys: ['J', 'K'], description: 'Next/Previous chapter (vim-style)' },
     { keys: ['Cmd/Ctrl', 'F'], description: 'Search (handled by NavigationBar)' },
-    { keys: ['1'], description: 'Color tool' },
-    { keys: ['2'], description: 'Symbol tool' },
-    { keys: ['3'], description: 'Legend' },
-    { keys: ['4'], description: 'Key Words' },
-    { keys: ['5'], description: 'Study Tools' },
-    { keys: ['6'], description: 'Settings' },
+    { keys: ['1'], description: 'Annotate' },
+    { keys: ['2'], description: 'Legend' },
+    { keys: ['3'], description: 'Key Words' },
+    { keys: ['4'], description: 'Study Tools' },
+    { keys: ['5'], description: 'Settings' },
     { keys: ['Esc'], description: 'Close modals/overlays' },
   ];
 }

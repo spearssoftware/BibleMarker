@@ -33,9 +33,8 @@ const COLOR_STYLE_LABELS: Record<(typeof COLOR_STYLES)[number], string> = {
   underline: 'Underline',
 };
 
-const TOOLS: { type: 'color' | 'symbol' | 'keyWords' | 'legend' | 'studyTools' | 'more'; icon: string; label: string }[] = [
-  { type: 'color', icon: '🖍', label: 'Color' },
-  { type: 'symbol', icon: '✝', label: 'Symbol' },
+const TOOLS: { type: 'color' | 'keyWords' | 'legend' | 'studyTools' | 'more'; icon: string; label: string }[] = [
+  { type: 'color', icon: '✏️', label: 'Annotate' },
   { type: 'legend', icon: '📋', label: 'Legend' },
   { type: 'keyWords', icon: '🔑', label: 'Key Words' },
   { type: 'studyTools', icon: '📚', label: 'Study' },
@@ -64,6 +63,8 @@ export function Toolbar() {
   const { presets, loadPresets, markPresetUsed, updatePreset } = useMarkingPresetStore();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showSymbolPicker, setShowSymbolPicker] = useState(false);
+  const [showPickerOverlay, setShowPickerOverlay] = useState(false);
+  const [pickerTab, setPickerTab] = useState<'color' | 'symbol'>('color');
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [showModuleManager, setShowModuleManager] = useState(false);
   const [showKeyWordManager, setShowKeyWordManager] = useState(false);
@@ -103,6 +104,7 @@ export function Toolbar() {
         clearSelection();
         setShowColorPicker(false);
         setShowSymbolPicker(false);
+        setShowPickerOverlay(false);
         setShowKeyWordManager(false);
         setShowKeyWordApplyPicker(false);
         setShowAddAsVariantPicker(false);
@@ -260,11 +262,12 @@ export function Toolbar() {
       setActiveColor(preset.highlight.color);
       await createTextAnnotation(preset.highlight.style, preset.highlight.color, pid);
     }
-    setShowKeyWordApplyPicker(false);
-    setShowAddAsVariantPicker(false);
-    setShowColorPicker(false);
-    setShowSymbolPicker(false);
-    setActiveTool(null);
+      setShowKeyWordApplyPicker(false);
+      setShowAddAsVariantPicker(false);
+      setShowPickerOverlay(false);
+      setShowColorPicker(false);
+      setShowSymbolPicker(false);
+      setActiveTool(null);
   };
 
   // Add the selection as a variant to a key word and apply. If it's already the word or a variant, just apply.
@@ -322,27 +325,18 @@ export function Toolbar() {
 
   const handleToolClick = (toolType: (typeof TOOLS)[number]['type']) => {
     if (toolType === 'color') {
-      if (isColorActive) {
+      if ((isColorActive || activeTool === 'symbol') && showPickerOverlay) {
         setActiveTool(null);
+        setShowPickerOverlay(false);
         setShowColorPicker(false);
+        setShowSymbolPicker(false);
       } else {
+        // Default to highlight when opening annotate overlay
         setActiveTool('highlight');
+        setPickerTab('color');
+        setShowPickerOverlay(true);
         setShowColorPicker(true);
         setShowSymbolPicker(false);
-        setShowKeyWordManager(false);
-        setShowLegendOverlay(false);
-        setShowStudyToolsPanel(false);
-        setShowSettingsPanel(false);
-        if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
-      }
-    } else if (toolType === 'symbol') {
-      if (activeTool === 'symbol') {
-        setActiveTool(null);
-        setShowSymbolPicker(false);
-      } else {
-        setActiveTool('symbol');
-        setShowSymbolPicker(true);
-        setShowColorPicker(false);
         setShowKeyWordManager(false);
         setShowLegendOverlay(false);
         setShowStudyToolsPanel(false);
@@ -352,6 +346,7 @@ export function Toolbar() {
     } else if (toolType === 'keyWords') {
       const willOpen = !showKeyWordManager;
       setShowKeyWordManager((v) => !v);
+      setShowPickerOverlay(false);
       setShowColorPicker(false);
       setShowSymbolPicker(false);
       setShowSettingsPanel(false);
@@ -361,6 +356,7 @@ export function Toolbar() {
       if (willOpen && selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
     } else if (toolType === 'legend') {
       setShowLegendOverlay((v) => !v);
+      setShowPickerOverlay(false);
       setShowColorPicker(false);
       setShowSymbolPicker(false);
       setShowKeyWordManager(false);
@@ -370,6 +366,7 @@ export function Toolbar() {
     } else if (toolType === 'studyTools') {
       const willOpen = !showStudyToolsPanel;
       setShowStudyToolsPanel((v) => !v);
+      setShowPickerOverlay(false);
       setShowColorPicker(false);
       setShowSymbolPicker(false);
       setShowKeyWordManager(false);
@@ -379,6 +376,7 @@ export function Toolbar() {
     } else if (toolType === 'more') {
       const willOpen = !showSettingsPanel;
       setShowSettingsPanel(!showSettingsPanel);
+      setShowPickerOverlay(false);
       setShowColorPicker(false);
       setShowSymbolPicker(false);
       setShowKeyWordManager(false);
@@ -426,7 +424,7 @@ export function Toolbar() {
               Selected: {selection.text.slice(0, 50)}
               {selection.text.length > 50 ? '...' : ''}
             </span>
-              <div className="flex items-center gap-2 ml-2 bg-scripture-elevated rounded-lg p-1.5">
+              <div className="flex items-center gap-2 ml-2 p-1.5">
               {/* Apply key word: pick Jesus, Nicodemus, etc. to mark He/him the same way */}
               <div className="relative">
                 <button
@@ -562,6 +560,7 @@ export function Toolbar() {
                   setShowKeyWordApplyPicker(false);
                   setShowAddAsVariantPicker(false);
                   setShowStudyToolsPanel(true);
+                  setShowPickerOverlay(false);
                   setShowColorPicker(false);
                   setShowSymbolPicker(false);
                   setActiveTool(null);
@@ -578,6 +577,7 @@ export function Toolbar() {
                 onClick={() => {
                   setShowKeyWordApplyPicker(false);
                   setShowAddAsVariantPicker(false);
+                  setShowPickerOverlay(false);
                   setShowColorPicker(false);
                   setShowSymbolPicker(false);
                   setShowKeyWordManager(false);
@@ -656,59 +656,99 @@ export function Toolbar() {
         </>
       )}
 
-      {/* Color picker: style (Highlight / Text / Underline) + color grid */}
-      {showColorPicker && isColorActive && (
+      {/* Combined Annotate overlay (Color and Symbol) */}
+      {showPickerOverlay && (isColorActive || activeTool === 'symbol') && (
         <ToolbarOverlay>
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <div className="p-4 flex-shrink-0">
-              <div className="text-xs font-ui font-semibold text-scripture-text uppercase tracking-wider mb-3">
-                Style
+            {/* Tab selector - more prominent */}
+            <div className="p-4 flex-shrink-0 border-b border-scripture-border/50 bg-scripture-elevated/30">
+              <div className="flex gap-3 mb-4">
+                <button
+                  onClick={() => {
+                    setPickerTab('color');
+                    setShowColorPicker(true);
+                    setShowSymbolPicker(false);
+                    // If no color tool is active, default to highlight
+                    if (!isColorActive) {
+                      setActiveTool('highlight');
+                    }
+                  }}
+                  className={`flex-1 px-4 py-2.5 rounded-lg font-ui text-sm font-medium transition-all duration-200
+                            ${pickerTab === 'color'
+                              ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                              : 'bg-scripture-surface text-scripture-text border border-scripture-border/50 hover:bg-scripture-border hover:border-scripture-border'}`}
+                >
+                  🖍 Color
+                </button>
+                <button
+                  onClick={() => {
+                    setPickerTab('symbol');
+                    setShowSymbolPicker(true);
+                    setShowColorPicker(false);
+                    if (activeTool !== 'symbol') {
+                      setActiveTool('symbol');
+                    }
+                  }}
+                  className={`flex-1 px-4 py-2.5 rounded-lg font-ui text-sm font-medium transition-all duration-200
+                            ${pickerTab === 'symbol'
+                              ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                              : 'bg-scripture-surface text-scripture-text border border-scripture-border/50 hover:bg-scripture-border hover:border-scripture-border'}`}
+                >
+                  ✝ Symbol
+                </button>
               </div>
-              <div className="flex gap-2">
-                {COLOR_STYLES.map((style) => (
-                  <button
-                    key={style}
-                    onClick={() => setActiveTool(style)}
-                    className={`flex-1 px-3 py-2 rounded-lg font-ui text-sm transition-all duration-200
-                              ${activeTool === style
-                                ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                                : 'bg-scripture-elevated text-scripture-text border border-scripture-border/50 hover:bg-scripture-border'}`}
-                  >
-                    {COLOR_STYLE_LABELS[style]}
-                  </button>
-                ))}
-              </div>
+              
+              {/* Style selector - only show for color tab */}
+              {pickerTab === 'color' && (
+                <div>
+                  <div className="text-xs font-ui font-semibold text-scripture-text uppercase tracking-wider mb-2.5">
+                    Style
+                  </div>
+                  <div className="flex gap-2">
+                    {COLOR_STYLES.map((style) => (
+                      <button
+                        key={style}
+                        onClick={() => setActiveTool(style)}
+                        className={`flex-1 px-3 py-2 rounded-lg font-ui text-sm transition-all duration-200
+                                  ${activeTool === style
+                                    ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                                    : 'bg-scripture-surface text-scripture-text border border-scripture-border/50 hover:bg-scripture-border'}`}
+                      >
+                        {COLOR_STYLE_LABELS[style]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 pt-0 custom-scrollbar">
-              <ColorPicker
-                selectedColor={activeColor}
-                onSelect={async (color) => {
-                  setActiveColor(color);
-                  if (selection) await applyCurrentTool(color);
-                }}
-                recents={preferences.recentColors}
-              />
+            
+            {/* Content area */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
+              {pickerTab === 'color' && showColorPicker && (
+                <ColorPicker
+                  selectedColor={activeColor}
+                  onSelect={async (color) => {
+                    setActiveColor(color);
+                    if (selection) await applyCurrentTool(color);
+                  }}
+                  recents={preferences.recentColors}
+                />
+              )}
+              {pickerTab === 'symbol' && showSymbolPicker && (
+                <SymbolPicker
+                  selectedSymbol={activeSymbol}
+                  onSelect={async (symbol) => {
+                    setActiveSymbol(symbol);
+                    // Auto-apply when symbol is selected - pass the new symbol directly
+                    // to avoid race condition with state update
+                    if (selection) {
+                      await applyCurrentTool(undefined, symbol);
+                    }
+                  }}
+                  recents={preferences.recentSymbols}
+                />
+              )}
             </div>
-          </div>
-        </ToolbarOverlay>
-      )}
-
-      {/* Symbol picker dropdown */}
-      {showSymbolPicker && activeTool === 'symbol' && (
-        <ToolbarOverlay>
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-            <SymbolPicker
-              selectedSymbol={activeSymbol}
-              onSelect={async (symbol) => {
-                setActiveSymbol(symbol);
-                // Auto-apply when symbol is selected - pass the new symbol directly
-                // to avoid race condition with state update
-                if (selection) {
-                  await applyCurrentTool(undefined, symbol);
-                }
-              }}
-              recents={preferences.recentSymbols}
-            />
           </div>
         </ToolbarOverlay>
       )}
@@ -795,13 +835,12 @@ export function Toolbar() {
         </ToolbarOverlay>
       )}
 
-      {/* Main toolbar: Color | Symbol | Key Words | Settings */}
+      {/* Main toolbar: Annotate | Legend | Key Words | Study | Settings */}
       <div className="bg-scripture-surface shadow-lg" data-marking-toolbar>
         <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
           {TOOLS.map((tool) => {
             const isActive =
-              tool.type === 'color' ? isColorActive
-              : tool.type === 'symbol' ? activeTool === 'symbol'
+              tool.type === 'color' ? ((isColorActive || activeTool === 'symbol') && showPickerOverlay)
               : tool.type === 'keyWords' ? showKeyWordManager
               : tool.type === 'legend' ? showLegendOverlay
               : tool.type === 'studyTools' ? showStudyToolsPanel

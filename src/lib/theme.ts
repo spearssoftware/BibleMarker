@@ -170,7 +170,7 @@ export function applyTheme(theme: Theme, highContrast: boolean = false): void {
   void html.offsetHeight;
   
   // Debug: Log border color for verification
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV) {
     console.log('[Theme] Applied border color:', themeColors['--scripture-border']);
   }
 }

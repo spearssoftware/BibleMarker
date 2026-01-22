@@ -11,7 +11,7 @@ import type { VerseRef } from '@/types/bible';
 import { formatVerseRef } from '@/types/bible';
 import { stripSymbols } from '@/lib/textUtils';
 import { useModal } from '@/hooks/useModal';
-import { Modal, Button, Textarea, Select, ReadOnlyField } from '@/components/shared';
+import { Modal, Button, Textarea, Select, ReadOnlyField, Input } from '@/components/shared';
 import { Z_INDEX } from '@/lib/modalConstants';
 
 interface AddToListProps {
@@ -214,7 +214,7 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
                     label="New List Title"
                     type="text"
                     value={newListTitle}
-                    onChange={(e) => setNewListTitle(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewListTitle(e.target.value)}
                     placeholder="e.g., 'What I learn about God in John 1'"
                   />
                   <Select
