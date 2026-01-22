@@ -4,7 +4,7 @@
  * Displays and allows editing of user-created section headings.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { SectionHeading } from '@/types/annotation';
 
 interface SectionHeadingEditorProps {
@@ -21,8 +21,21 @@ export function SectionHeadingEditor({
 }: SectionHeadingEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(heading.title);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Sync editText when heading prop changes (but not while editing)
+  useEffect(() => {
+    if (!isEditing) {
+      setEditText(heading.title);
+    }
+  }, [heading.title, isEditing]);
 
   const handleSave = () => {
+    // Don't save if we're deleting
+    if (isDeleting) {
+      setIsDeleting(false);
+      return;
+    }
     if (editText.trim() && onSave) {
       onSave({
         ...heading,
@@ -31,6 +44,14 @@ export function SectionHeadingEditor({
       });
     }
     setIsEditing(false);
+  };
+
+  const handleDelete = () => {
+    if (onDelete) {
+      setIsDeleting(true);
+      onDelete(heading.id);
+      setIsEditing(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -64,7 +85,11 @@ export function SectionHeadingEditor({
         </button>
         {onDelete && (
           <button
-            onClick={() => onDelete(heading.id)}
+            onClick={handleDelete}
+            onMouseDown={(e) => {
+              // Prevent input blur from firing before delete
+              e.preventDefault();
+            }}
             className="p-2 text-highlight-red hover:bg-scripture-elevated rounded"
           >
             ✗

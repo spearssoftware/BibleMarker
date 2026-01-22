@@ -4,7 +4,7 @@
  * Displays and allows editing of user-created chapter titles.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ChapterTitle } from '@/types/annotation';
 
 interface ChapterTitleEditorProps {
@@ -20,8 +20,21 @@ export function ChapterTitleEditor({
 }: ChapterTitleEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(title.title);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Sync editText when title prop changes (but not while editing)
+  useEffect(() => {
+    if (!isEditing) {
+      setEditText(title.title);
+    }
+  }, [title.title, isEditing]);
 
   const handleSave = () => {
+    // Don't save if we're deleting
+    if (isDeleting) {
+      setIsDeleting(false);
+      return;
+    }
     if (editText.trim() && onSave) {
       onSave({
         ...title,
@@ -30,6 +43,14 @@ export function ChapterTitleEditor({
       });
     }
     setIsEditing(false);
+  };
+
+  const handleDelete = () => {
+    if (onDelete) {
+      setIsDeleting(true);
+      onDelete(title.id);
+      setIsEditing(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -63,7 +84,11 @@ export function ChapterTitleEditor({
         </button>
         {onDelete && (
           <button
-            onClick={() => onDelete(title.id)}
+            onClick={handleDelete}
+            onMouseDown={(e) => {
+              // Prevent input blur from firing before delete
+              e.preventDefault();
+            }}
             className="p-2 text-highlight-red hover:bg-scripture-elevated rounded"
           >
             ✗

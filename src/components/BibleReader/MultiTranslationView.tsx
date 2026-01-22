@@ -165,13 +165,16 @@ export function MultiTranslationView() {
   }, [currentBook, currentChapter, loadChapterTitle]);
   
   const updateChapterTitle = useCallback(async (title: ChapterTitle) => {
+    // Ensure we use the current book and chapter, not the title's (which might be stale)
     const updated = {
       ...title,
+      book: currentBook,
+      chapter: currentChapter,
       updatedAt: new Date(),
     };
     await saveChapterTitle(updated);
     await loadChapterTitle();
-  }, [loadChapterTitle]);
+  }, [currentBook, currentChapter, loadChapterTitle]);
   
   const removeChapterTitle = useCallback(async (id: string) => {
     await deleteChapterTitle(id);

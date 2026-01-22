@@ -4,7 +4,7 @@
  * Displays and allows editing of user-created notes.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Note } from '@/types/annotation';
 
 interface NoteEditorProps {
@@ -23,8 +23,21 @@ export function NoteEditor({
 }: NoteEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(note.content);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Sync editContent when note prop changes (but not while editing)
+  useEffect(() => {
+    if (!isEditing) {
+      setEditContent(note.content);
+    }
+  }, [note.content, isEditing]);
 
   const handleSave = () => {
+    // Don't save if we're deleting
+    if (isDeleting) {
+      setIsDeleting(false);
+      return;
+    }
     if (editContent.trim() && onSave) {
       onSave({
         ...note,
@@ -33,6 +46,14 @@ export function NoteEditor({
       });
     }
     setIsEditing(false);
+  };
+
+  const handleDelete = () => {
+    if (onDelete) {
+      setIsDeleting(true);
+      onDelete(note.id);
+      setIsEditing(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -71,7 +92,11 @@ export function NoteEditor({
           </button>
           {onDelete && (
             <button
-              onClick={() => onDelete(note.id)}
+              onClick={handleDelete}
+              onMouseDown={(e) => {
+                // Prevent textarea blur from firing before delete
+                e.preventDefault();
+              }}
               className="px-3 py-1.5 text-xs font-ui bg-scripture-errorBg text-scripture-error rounded-lg
                        hover:bg-scripture-errorBg/80 transition-colors"
             >
