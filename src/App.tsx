@@ -111,11 +111,28 @@ export default function App() {
         // Check if current module ID is valid, if not reset to default
         // Don't load chapter here - let the second useEffect handle it
         const { currentModuleId: existingModuleId } = useBibleStore.getState();
-        if (!existingModuleId || existingModuleId.includes('undefined') || 
-            existingModuleId.trim() === '' || existingModuleId === 'observation-lists') {
-          // Set the module ID so annotations work (use getBible translation)
-          // This will trigger the second useEffect to load the chapter
-          setCurrentModule('kjv');
+        const { activeView } = useMultiTranslationStore.getState();
+        
+        // Only set default if no translation is currently selected and no active view exists
+        if ((!existingModuleId || existingModuleId.includes('undefined') || 
+            existingModuleId.trim() === '' || existingModuleId === 'observation-lists') &&
+            (!activeView || activeView.translationIds.length === 0)) {
+          // Check for default translation preference
+          const prefs = await getPreferences();
+          const defaultTranslation = prefs.defaultTranslation;
+          
+          if (defaultTranslation) {
+            // Use the default translation from preferences
+            setCurrentModule(defaultTranslation);
+            // Also add it to the multi-translation view
+            const { addTranslation } = useMultiTranslationStore.getState();
+            await addTranslation(defaultTranslation);
+          } else {
+            // Fall back to KJV if no default is set
+            setCurrentModule('kjv');
+            const { addTranslation } = useMultiTranslationStore.getState();
+            await addTranslation('kjv');
+          }
         }
       } catch (err) {
         console.error('[App] Error during initialization:', err);

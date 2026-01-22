@@ -37,6 +37,8 @@ import {
   clearTranslationsCache,
   saveApiConfig as saveApiConfigToDb,
   BIBLEGATEWAY_ENABLED,
+  getAllTranslations,
+  type ApiTranslation,
 } from '@/lib/bible-api';
 
 type SettingsTab = 'appearance' | 'bible' | 'data' | 'help';
@@ -83,6 +85,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [bibleGatewayPassword, setBibleGatewayPassword] = useState('');
   const [savingApi, setSavingApi] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  
+  // Default translation state
+  const [defaultTranslation, setDefaultTranslation] = useState<string>('');
+  const [availableTranslations, setAvailableTranslations] = useState<ApiTranslation[]>([]);
+  const [savingDefaultTranslation, setSavingDefaultTranslation] = useState(false);
 
   // Auto-backup state
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(true);
@@ -150,6 +157,15 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             setBibleGatewayPassword(bibleGatewayConfig.password || '');
           }
         }
+        
+        // Load default translation
+        if (prefs.defaultTranslation) {
+          setDefaultTranslation(prefs.defaultTranslation);
+        }
+        
+        // Load available translations
+        const translations = await getAllTranslations();
+        setAvailableTranslations(translations);
       } catch (error) {
         console.error('Error loading preferences:', error);
       } finally {
@@ -158,11 +174,24 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     }
     loadPrefs();
     
-    // Cleanup interval on unmount
+    // Listen for translations updated event to refresh the list
+    const handleTranslationsUpdated = async () => {
+      try {
+        const translations = await getAllTranslations();
+        setAvailableTranslations(translations);
+      } catch (error) {
+        console.error('Error reloading translations:', error);
+      }
+    };
+    
+    window.addEventListener('translationsUpdated', handleTranslationsUpdated);
+    
+    // Cleanup interval and event listener on unmount
     return () => {
       if (statsInterval !== undefined) {
         clearInterval(statsInterval);
       }
+      window.removeEventListener('translationsUpdated', handleTranslationsUpdated);
     };
   }, []);
 
@@ -206,6 +235,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       // Clear cache to reflect changes
       await clearTranslationsCache();
       window.dispatchEvent(new Event('translationsUpdated'));
+      
+      // Reload available translations for the default translation selector
+      const translations = await getAllTranslations();
+      setAvailableTranslations(translations);
     } catch (err) {
       console.error('Failed to save API config:', err);
       setApiError(err instanceof Error ? err.message : 'Failed to save API config');
@@ -596,6 +629,53 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   {apiError}
                 </div>
               )}
+
+              {/* Default Translation Section */}
+              <div className="p-4">
+                <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Default Translation</h3>
+                <p className="text-sm text-scripture-muted mb-4">
+                  Choose a default translation to use when the app starts. This will be automatically selected if no translation is currently active.
+                </p>
+                <div className="mb-4">
+                  <select
+                    value={defaultTranslation}
+                    onChange={async (e) => {
+                      const newValue = e.target.value;
+                      setDefaultTranslation(newValue);
+                      // Save immediately when changed
+                      setSavingDefaultTranslation(true);
+                      try {
+                        await updatePreferences({ defaultTranslation: newValue || undefined });
+                        // Reload translations to ensure the list is up to date
+                        const translations = await getAllTranslations();
+                        setAvailableTranslations(translations);
+                      } catch (error) {
+                        console.error('Failed to save default translation:', error);
+                      } finally {
+                        setSavingDefaultTranslation(false);
+                      }
+                    }}
+                    disabled={savingDefaultTranslation}
+                    className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
+                             rounded-lg focus:outline-none focus:border-scripture-accent
+                             text-scripture-text disabled:opacity-50"
+                  >
+                    <option value="">None (no default)</option>
+                    {availableTranslations.map((translation) => (
+                      <option key={translation.id} value={translation.id}>
+                        {translation.name} {translation.abbreviation ? `(${translation.abbreviation})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {defaultTranslation && (
+                  <p className="text-xs text-scripture-muted">
+                    Default translation: {availableTranslations.find(t => t.id === defaultTranslation)?.name || defaultTranslation}
+                  </p>
+                )}
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
 
               {/* getBible API Section */}
               <div className="p-4">
