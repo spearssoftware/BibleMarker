@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { Textarea } from '@/components/shared';
 
 interface NoteCreatorProps {
   verseNum: number;
@@ -40,17 +41,12 @@ export function NoteCreator({
     <div className="note-creator my-3 p-3 rounded-xl bg-scripture-elevated/50 border border-scripture-border/50 animate-scale-in" role="dialog" aria-label={`Create note for verse ${verseNum}${range ? ` (verses ${range.startVerse}-${range.endVerse})` : ''}`}>
       <div className="flex items-start gap-2">
         <span className="text-scripture-accent text-sm font-ui font-semibold mt-1" aria-hidden="true">📝</span>
-        <label htmlFor={`note-textarea-${verseNum}`} className="sr-only">
-          Note content for verse {verseNum}
-        </label>
-        <textarea
+        <Textarea
           id={`note-textarea-${verseNum}`}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="flex-1 bg-scripture-surface border border-scripture-border rounded-lg px-3 py-2
-                     text-scripture-text font-ui text-sm focus:outline-none focus:border-scripture-accent
-                     resize-none min-h-[80px]"
+          className="flex-1 min-h-[80px]"
           placeholder="Enter your note... (Cmd/Ctrl+Enter to save)"
           autoFocus
           aria-label="Note content"

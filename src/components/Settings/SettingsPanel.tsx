@@ -27,7 +27,7 @@ import {
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { AboutSection } from './AboutSection';
 import { GettingStartedSection } from './GettingStartedSection';
-import { ConfirmationDialog } from '@/components/shared';
+import { ConfirmationDialog, Input, Select } from '@/components/shared';
 import { resetAllStores } from '@/lib/storeReset';
 import {
   bibliaClient,
@@ -636,40 +636,36 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 <p className="text-sm text-scripture-muted mb-4">
                   Choose a default translation to use when the app starts. This will be automatically selected if no translation is currently active.
                 </p>
-                <div className="mb-4">
-                  <select
-                    value={defaultTranslation}
-                    onChange={async (e) => {
-                      const newValue = e.target.value;
-                      setDefaultTranslation(newValue);
-                      // Save immediately when changed
-                      setSavingDefaultTranslation(true);
-                      try {
-                        await updatePreferences({ defaultTranslation: newValue || undefined });
-                        // Reload translations to ensure the list is up to date
-                        const translations = await getAllTranslations();
-                        setAvailableTranslations(translations);
-                      } catch (error) {
-                        console.error('Failed to save default translation:', error);
-                      } finally {
-                        setSavingDefaultTranslation(false);
-                      }
-                    }}
-                    disabled={savingDefaultTranslation}
-                    className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                             rounded-lg focus:outline-none focus:border-scripture-accent
-                             text-scripture-text disabled:opacity-50"
-                  >
-                    <option value="">None (no default)</option>
-                    {availableTranslations.map((translation) => (
-                      <option key={translation.id} value={translation.id}>
-                        {translation.name} {translation.abbreviation ? `(${translation.abbreviation})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <Select
+                  label="Default Translation"
+                  value={defaultTranslation}
+                  onChange={async (e) => {
+                    const newValue = e.target.value;
+                    setDefaultTranslation(newValue);
+                    // Save immediately when changed
+                    setSavingDefaultTranslation(true);
+                    try {
+                      await updatePreferences({ defaultTranslation: newValue || undefined });
+                      // Reload translations to ensure the list is up to date
+                      const translations = await getAllTranslations();
+                      setAvailableTranslations(translations);
+                    } catch (error) {
+                      console.error('Failed to save default translation:', error);
+                    } finally {
+                      setSavingDefaultTranslation(false);
+                    }
+                  }}
+                  disabled={savingDefaultTranslation}
+                  options={[
+                    { value: '', label: 'None (no default)' },
+                    ...availableTranslations.map((translation) => ({
+                      value: translation.id,
+                      label: `${translation.name}${translation.abbreviation ? ` (${translation.abbreviation})` : ''}`
+                    }))
+                  ]}
+                />
                 {defaultTranslation && (
-                  <p className="text-xs text-scripture-muted">
+                  <p className="text-xs text-scripture-muted mt-1">
                     Default translation: {availableTranslations.find(t => t.id === defaultTranslation)?.name || defaultTranslation}
                   </p>
                 )}
@@ -742,14 +738,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   </ol>
                 </div>
                 <div className="flex gap-2">
-                  <input
+                  <Input
                     type="text"
                     value={bibliaApiKey}
                     onChange={(e) => setBibliaApiKey(e.target.value)}
                     placeholder={bibliaClient.isConfigured() ? "Edit your Biblia API key" : "Paste your Biblia API key here"}
-                    className="flex-1 px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                             rounded-lg focus:outline-none focus:border-scripture-accent
-                             text-scripture-text placeholder-scripture-muted"
+                    className="flex-1"
                   />
                   <button
                     onClick={() => saveApiConfig('biblia', bibliaApiKey)}
@@ -804,21 +798,17 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     BibleGateway API Documentation
                   </a>
                   <div className="mb-4 flex flex-col gap-2">
-                    <input
+                    <Input
                       type="text"
                       value={bibleGatewayUsername}
                       onChange={(e) => setBibleGatewayUsername(e.target.value)}
                       placeholder="BibleGateway username"
-                      className="px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg
-                               focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted"
                     />
-                    <input
+                    <Input
                       type="password"
                       value={bibleGatewayPassword}
                       onChange={(e) => setBibleGatewayPassword(e.target.value)}
                       placeholder="BibleGateway password"
-                      className="px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg
-                               focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted"
                     />
                   </div>
                   <div className="flex gap-2">
@@ -893,14 +883,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <input
+                  <Input
                     type="text"
                     value={esvApiKey}
                     onChange={(e) => setEsvApiKey(e.target.value)}
                     placeholder={esvClient.isConfigured() ? "Edit your ESV API key" : "Paste your ESV API key here"}
-                    className="flex-1 px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                             rounded-lg focus:outline-none focus:border-scripture-accent
-                             text-scripture-text placeholder-scripture-muted"
+                    className="flex-1"
                   />
                   <button
                     onClick={() => saveApiConfig('esv', esvApiKey)}
@@ -1201,82 +1189,64 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   {autoBackupEnabled && (
                     <>
                       {/* Backup Interval */}
-                      <div>
-                        <label className="block text-sm font-medium text-scripture-text mb-2">
-                          Backup Interval (minutes)
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="60"
-                          value={autoBackupInterval}
-                          onChange={(e) => {
-                            const value = Math.max(1, Math.min(60, parseInt(e.target.value) || 5));
-                            setAutoBackupInterval(value);
-                          }}
-                          onBlur={async () => {
-                            setSavingAutoBackup(true);
-                            try {
-                              await updateAutoBackupConfig({ intervalMinutes: autoBackupInterval });
-                              await autoBackupService.restart();
-                            } catch (error) {
-                              console.error('Failed to update auto-backup interval:', error);
-                            } finally {
-                              setSavingAutoBackup(false);
-                            }
-                          }}
-                          disabled={savingAutoBackup}
-                          className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                                   rounded-lg focus:outline-none focus:border-scripture-accent
-                                   text-scripture-text disabled:opacity-50"
-                        />
-                        <p className="text-xs text-scripture-muted mt-1">
-                          Backups will be created every {autoBackupInterval} minute{autoBackupInterval !== 1 ? 's' : ''}
-                        </p>
-                      </div>
+                      <Input
+                        type="number"
+                        label="Backup Interval (minutes)"
+                        min="1"
+                        max="60"
+                        value={autoBackupInterval}
+                        onChange={(e) => {
+                          const value = Math.max(1, Math.min(60, parseInt(e.target.value) || 5));
+                          setAutoBackupInterval(value);
+                        }}
+                        onBlur={async () => {
+                          setSavingAutoBackup(true);
+                          try {
+                            await updateAutoBackupConfig({ intervalMinutes: autoBackupInterval });
+                            await autoBackupService.restart();
+                          } catch (error) {
+                            console.error('Failed to update auto-backup interval:', error);
+                          } finally {
+                            setSavingAutoBackup(false);
+                          }
+                        }}
+                        disabled={savingAutoBackup}
+                        helpText={`Backups will be created every ${autoBackupInterval} minute${autoBackupInterval !== 1 ? 's' : ''}`}
+                      />
 
                       {/* Max Backups */}
-                      <div>
-                        <label className="block text-sm font-medium text-scripture-text mb-2">
-                          Maximum Backups to Keep
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="50"
-                          value={autoBackupMaxBackups}
-                          onChange={(e) => {
-                            const value = Math.max(1, Math.min(50, parseInt(e.target.value) || 10));
-                            setAutoBackupMaxBackups(value);
-                          }}
-                          onBlur={async () => {
-                            setSavingAutoBackup(true);
-                            try {
-                              await updateAutoBackupConfig({ maxBackups: autoBackupMaxBackups });
-                              // Trigger rotation by performing a backup (which includes rotation)
-                              if (autoBackupEnabled) {
-                                await performBackup();
-                                // Refresh statistics
-                                const backups = await getStoredBackups();
-                                const totalSize = await getTotalBackupSize();
-                                setStoredBackups(backups);
-                                setTotalBackupSize(totalSize);
-                              }
-                            } catch (error) {
-                              console.error('Failed to update max backups:', error);
-                            } finally {
-                              setSavingAutoBackup(false);
+                      <Input
+                        type="number"
+                        label="Maximum Backups to Keep"
+                        min="1"
+                        max="50"
+                        value={autoBackupMaxBackups}
+                        onChange={(e) => {
+                          const value = Math.max(1, Math.min(50, parseInt(e.target.value) || 10));
+                          setAutoBackupMaxBackups(value);
+                        }}
+                        onBlur={async () => {
+                          setSavingAutoBackup(true);
+                          try {
+                            await updateAutoBackupConfig({ maxBackups: autoBackupMaxBackups });
+                            // Trigger rotation by performing a backup (which includes rotation)
+                            if (autoBackupEnabled) {
+                              await performBackup();
+                              // Refresh statistics
+                              const backups = await getStoredBackups();
+                              const totalSize = await getTotalBackupSize();
+                              setStoredBackups(backups);
+                              setTotalBackupSize(totalSize);
                             }
-                          }}
-                          disabled={savingAutoBackup}
-                          className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                                   rounded-lg focus:outline-none focus:border-scripture-accent
-                                   text-scripture-text disabled:opacity-50"
-                        />
-                        <p className="text-xs text-scripture-muted mt-1">
-                          Older backups will be automatically deleted when this limit is reached
-                        </p>
-                      </div>
+                          } catch (error) {
+                            console.error('Failed to update max backups:', error);
+                          } finally {
+                            setSavingAutoBackup(false);
+                          }
+                        }}
+                        disabled={savingAutoBackup}
+                        helpText="Older backups will be automatically deleted when this limit is reached"
+                      />
 
                       {/* Backup Statistics */}
                       <div className="p-3 bg-scripture-elevated/50 rounded-lg border border-scripture-border/50">

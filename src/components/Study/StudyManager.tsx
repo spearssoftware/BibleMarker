@@ -127,11 +127,10 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
                     >
                       {editingStudy?.id === study.id ? (
                         <div className="flex-1 space-y-2">
-                          <input
+                          <Input
                             type="text"
                             value={editingStudy.name}
                             onChange={(e) => setEditingStudy({ ...editingStudy, name: e.target.value })}
-                            className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
                             autoFocus
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
@@ -141,16 +140,14 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
                               }
                             }}
                           />
-                          <select
+                          <Select
                             value={editingStudy.book || ''}
                             onChange={(e) => setEditingStudy({ ...editingStudy, book: e.target.value || undefined })}
-                            className="w-full px-3 py-2 bg-scripture-background border border-scripture-muted/30 rounded text-scripture-text focus:outline-none focus:ring-2 focus:ring-scripture-accent"
-                          >
-                            <option value="">All books</option>
-                            {BIBLE_BOOKS.map(book => (
-                              <option key={book.id} value={book.id}>{book.name}</option>
-                            ))}
-                          </select>
+                            options={[
+                              { value: '', label: 'All books' },
+                              ...BIBLE_BOOKS.map(book => ({ value: book.id, label: book.name }))
+                            ]}
+                          />
                           <div className="flex gap-2">
                             <Button size="sm" onClick={handleUpdate}>
                               Save

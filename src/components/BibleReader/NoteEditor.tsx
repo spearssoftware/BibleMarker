@@ -6,6 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import type { Note } from '@/types/annotation';
+import { Textarea } from '@/components/shared';
 
 interface NoteEditorProps {
   note: Note;
@@ -70,14 +71,12 @@ export function NoteEditor({
       <div className="note-editor my-3 p-3 rounded-xl bg-scripture-elevated/50 border border-scripture-border/50">
         <div className="flex items-start gap-2">
           <span className="text-scripture-accent text-sm font-ui font-semibold mt-1">📝</span>
-          <textarea
+          <Textarea
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={handleSave}
-            className="flex-1 bg-scripture-surface border border-scripture-border rounded-lg px-3 py-2
-                       text-scripture-text font-ui text-sm focus:outline-none focus:border-scripture-accent
-                       resize-none min-h-[80px]"
+            className="flex-1 min-h-[80px]"
             placeholder="Enter your note..."
             autoFocus
           />

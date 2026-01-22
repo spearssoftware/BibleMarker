@@ -10,6 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, type KeyWordCategory, type MarkingPreset, type Variant } from '@/types/keyWord';
 import { SYMBOLS, HIGHLIGHT_COLORS, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types/annotation';
+import { Input, Textarea, Select, Label } from '@/components/shared';
 
 interface KeyWordManagerProps {
   onClose?: () => void;
@@ -225,8 +226,8 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search key words..."
               className="flex-1 min-w-0 px-2.5 py-1.5 text-sm bg-scripture-bg border border-scripture-border/50 
-                       rounded-lg focus:outline-none focus:ring-1 focus:ring-scripture-accent focus:border-scripture-accent
-                       text-scripture-text placeholder-scripture-muted"
+                       rounded-lg focus:outline-none focus:border-scripture-accent
+                       text-scripture-text placeholder-scripture-muted transition-colors"
             />
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -539,24 +540,16 @@ function KeyWordEditor({
     <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
       {/* Scrollable fields */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 custom-scrollbar pb-2">
-        <div>
-          <label className="block text-sm font-ui text-scripture-text mb-1">
-            Word or Phrase *
-          </label>
-          <input
-            type="text"
-            value={word}
-            onChange={(e) => setWord(e.target.value)}
-            required
-            className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                     rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-          />
-        </div>
+        <Input
+          type="text"
+          label="Word or Phrase"
+          value={word}
+          onChange={(e) => setWord(e.target.value)}
+          required
+        />
 
         <div>
-          <label className="block text-sm font-ui text-scripture-text mb-1">
-            Variants
-          </label>
+          <Label>Variants</Label>
           <div className="space-y-2">
             {variants.map((variant, index) => (
               <VariantEditor
@@ -586,36 +579,28 @@ function KeyWordEditor({
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-ui text-scripture-text mb-1">
-              Symbol
-            </label>
-            <select
-              value={symbol || ''}
-              onChange={(e) => {
-                const newSymbol = (e.target.value as SymbolKey) || undefined;
-                setSymbol(newSymbol);
-                if (newSymbol) {
-                  setCategory(getCategoryForSymbol(newSymbol));
-                  setColor(getRandomHighlightColor());
-                }
-              }}
-              className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                       rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-            >
-              <option value="">None</option>
-              {Object.entries(SYMBOLS).map(([key, sym]) => (
-                <option key={key} value={key}>
-                  {sym} {key}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            label="Symbol"
+            value={symbol || ''}
+            onChange={(e) => {
+              const newSymbol = (e.target.value as SymbolKey) || undefined;
+              setSymbol(newSymbol);
+              if (newSymbol) {
+                setCategory(getCategoryForSymbol(newSymbol));
+                setColor(getRandomHighlightColor());
+              }
+            }}
+            options={[
+              { value: '', label: 'None' },
+              ...Object.entries(SYMBOLS).map(([key, sym]) => ({
+                value: key,
+                label: `${sym} ${key}`
+              }))
+            ]}
+          />
 
           <div>
-            <label className="block text-sm font-ui text-scripture-text mb-1">
-              Color
-            </label>
+            <Label>Color</Label>
             <ColorSelect
               value={color}
               onChange={setColor}
@@ -623,36 +608,22 @@ function KeyWordEditor({
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-ui text-scripture-text mb-1">
-            Category
-          </label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value as KeyWordCategory)}
-            className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                     rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-          >
-            {Object.entries(KEY_WORD_CATEGORIES).map(([key, info]) => (
-              <option key={key} value={key}>
-                {info.icon} {info.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Select
+          label="Category"
+          value={category}
+          onChange={(e) => setCategory(e.target.value as KeyWordCategory)}
+          options={Object.entries(KEY_WORD_CATEGORIES).map(([key, info]) => ({
+            value: key,
+            label: `${info.icon} ${info.label}`
+          }))}
+        />
 
-        <div>
-          <label className="block text-sm font-ui text-scripture-text mb-1">
-            Description
-          </label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={2}
-            className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                     rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-          />
-        </div>
+        <Textarea
+          label="Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+        />
 
         <div className="flex items-center gap-2">
           <input
@@ -701,14 +672,14 @@ function KeyWordEditor({
               </label>
             </div>
             {scopeType === 'book' && (
-              <input
-                type="text"
-                value={bookScope}
-                onChange={(e) => setBookScope(e.target.value)}
-                placeholder="e.g., John"
-                className="ml-6 w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                         rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-              />
+              <div className="ml-6">
+                <Input
+                  type="text"
+                  value={bookScope}
+                  onChange={(e) => setBookScope(e.target.value)}
+                  placeholder="e.g., John"
+                />
+              </div>
             )}
             <div className="flex items-center gap-2">
               <input
@@ -726,22 +697,18 @@ function KeyWordEditor({
             </div>
             {scopeType === 'chapter' && (
               <div className="ml-6 grid grid-cols-2 gap-3">
-                <input
+                <Input
                   type="text"
                   value={bookScope}
                   onChange={(e) => setBookScope(e.target.value)}
                   placeholder="Book (e.g., John)"
-                  className="px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                           rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
                 />
-                <input
+                <Input
                   type="number"
                   value={chapterScope}
                   onChange={(e) => setChapterScope(parseInt(e.target.value) || 1)}
                   placeholder="Chapter"
                   min="1"
-                  className="px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                           rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
                 />
               </div>
             )}
@@ -749,25 +716,19 @@ function KeyWordEditor({
         </div>
 
         <div className="border-t border-scripture-border/30 mt-4 pt-4">
-          <label className="block text-sm font-ui text-scripture-text mb-2">
-            Study (Optional)
-          </label>
-          <select
+          <Select
+            label="Study (Optional)"
             value={studyId || ''}
             onChange={(e) => setStudyId(e.target.value || undefined)}
-            className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                     rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-          >
-            <option value="">Global (visible in all studies)</option>
-            {studies.map(study => (
-              <option key={study.id} value={study.id}>
-                {study.name} {study.book ? `(${study.book})` : ''}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-scripture-muted mt-1">
-            Assign this keyword to a specific study. Global keywords are visible in all studies.
-          </p>
+            helpText="Assign this keyword to a specific study. Global keywords are visible in all studies."
+            options={[
+              { value: '', label: 'Global (visible in all studies)' },
+              ...studies.map(study => ({
+                value: study.id,
+                label: `${study.name}${study.book ? ` (${study.book})` : ''}`
+              }))
+            ]}
+          />
         </div>
         
         {/* Extra padding at bottom to ensure last field is scrollable above save button */}
@@ -832,13 +793,12 @@ function VariantEditor({
   return (
     <div className="p-3 bg-scripture-elevated border border-scripture-border/30 rounded-lg space-y-2">
       <div className="flex items-center gap-2">
-        <input
+        <Input
           type="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Variant text"
-          className="flex-1 px-3 py-1.5 text-sm bg-scripture-bg border border-scripture-border/50 
-                   rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
+          className="flex-1"
         />
         <button
           type="button"
@@ -878,14 +838,15 @@ function VariantEditor({
           </label>
         </div>
         {scopeType === 'book' && (
-          <input
-            type="text"
-            value={bookScope}
-            onChange={(e) => setBookScope(e.target.value)}
-            placeholder="Book name (e.g., John)"
-            className="ml-5 w-full px-2 py-1 text-xs bg-scripture-bg border border-scripture-border/50 
-                     rounded focus:outline-none focus:border-scripture-accent text-scripture-text"
-          />
+          <div className="ml-5">
+            <Input
+              type="text"
+              value={bookScope}
+              onChange={(e) => setBookScope(e.target.value)}
+              placeholder="Book name (e.g., John)"
+              className="text-xs"
+            />
+          </div>
         )}
         <div className="flex items-center gap-2 text-xs">
           <input
@@ -903,22 +864,20 @@ function VariantEditor({
         </div>
         {scopeType === 'chapter' && (
           <div className="ml-5 grid grid-cols-2 gap-2">
-            <input
+            <Input
               type="text"
               value={bookScope}
               onChange={(e) => setBookScope(e.target.value)}
               placeholder="Book"
-              className="px-2 py-1 text-xs bg-scripture-bg border border-scripture-border/50 
-                       rounded focus:outline-none focus:border-scripture-accent text-scripture-text"
+              className="text-xs"
             />
-            <input
+            <Input
               type="number"
               value={chapterScope}
               onChange={(e) => setChapterScope(parseInt(e.target.value) || 1)}
               placeholder="Chapter"
               min="1"
-              className="px-2 py-1 text-xs bg-scripture-bg border border-scripture-border/50 
-                       rounded focus:outline-none focus:border-scripture-accent text-scripture-text"
+              className="text-xs"
             />
           </div>
         )}

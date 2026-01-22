@@ -11,7 +11,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import type { ObservationList } from '@/types/list';
 import { BIBLE_BOOKS, getBookById } from '@/types/bible';
-import { Modal } from '@/components/shared';
+import { Modal, Input, Select, Label } from '@/components/shared';
 
 interface ListEditorProps {
   list?: ObservationList;
@@ -108,43 +108,33 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
       <div className={`${inline ? 'flex-1 min-h-0 overflow-y-auto p-4 space-y-4 custom-scrollbar pb-2' : 'space-y-4'}`}>
         <div className="space-y-4">
               {/* Title */}
-              <div>
-                <label htmlFor="list-title-input" className="block text-sm font-medium text-scripture-text mb-2">
-                  List Title
-                </label>
-                <input
-                  id="list-title-input"
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g., 'What I learn about God in John 1'"
-                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted"
-                  autoFocus
-                  aria-required="false"
-                />
-              </div>
+              <Input
+                id="list-title-input"
+                label="List Title"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g., 'What I learn about God in John 1'"
+                autoFocus
+              />
 
               {/* Keyword (required) - List is about this keyword */}
               <div>
-                <label htmlFor="list-keyword-select" className="block text-sm font-medium text-scripture-text mb-2">
-                  Keyword <span className="text-highlight-red" aria-label="required">*</span>
-                  <span className="text-xs text-scripture-muted ml-2">(This list is about observations of this keyword)</span>
-                </label>
-                <select
+                <Select
                   id="list-keyword-select"
+                  label="Keyword"
+                  required
+                  helpText="This list is about observations of this keyword"
                   value={selectedKeywordId}
                   onChange={(e) => setSelectedKeywordId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-                  required
-                  aria-required="true"
-                >
-                  <option value="">Select a keyword...</option>
-                  {keywordPresets.map(preset => (
-                    <option key={preset.id} value={preset.id}>
-                      {preset.word} {preset.symbol && `(${preset.symbol})`}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: 'Select a keyword...' },
+                    ...keywordPresets.map(preset => ({
+                      value: preset.id,
+                      label: `${preset.word}${preset.symbol ? ` (${preset.symbol})` : ''}`
+                    }))
+                  ]}
+                />
                 {keywordPresets.length === 0 && (
                   <p className="mt-2 text-xs text-scripture-muted">
                     No keywords yet. Create a keyword first from the toolbar.
@@ -166,47 +156,40 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
               </div>
 
               {/* Link to Study (optional) */}
-              <div>
-                <label className="block text-sm font-medium text-scripture-text mb-2">
-                  Link to Study (optional)
-                </label>
-                <select
-                  value={selectedStudyId}
-                  onChange={(e) => setSelectedStudyId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-                >
-                  <option value="">No study</option>
-                  {studies.map(study => (
-                    <option key={study.id} value={study.id}>
-                      {study.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                label="Link to Study (optional)"
+                value={selectedStudyId}
+                onChange={(e) => setSelectedStudyId(e.target.value)}
+                options={[
+                  { value: '', label: 'No study' },
+                  ...studies.map(study => ({
+                    value: study.id,
+                    label: study.name
+                  }))
+                ]}
+              />
 
               {/* Scope */}
               <div>
-                <label className="block text-sm font-medium text-scripture-text mb-2">
-                  Scope (optional)
-                </label>
+                <Label>Scope (optional)</Label>
                 <div className="space-y-2">
-                  <select
+                  <Select
                     value={scopeBook}
                     onChange={(e) => setScopeBook(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-                  >
-                    <option value="">All books</option>
-                    {BIBLE_BOOKS.map(book => (
-                      <option key={book.id} value={book.id}>{book.name}</option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: '', label: 'All books' },
+                      ...BIBLE_BOOKS.map(book => ({
+                        value: book.id,
+                        label: book.name
+                      }))
+                    ]}
+                  />
                   {scopeBook && (
-                    <input
+                    <Input
                       type="text"
                       value={scopeChapters}
                       onChange={(e) => setScopeChapters(e.target.value)}
                       placeholder="Chapters (e.g., '1, 2, 3' or leave empty for all)"
-                      className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted"
                     />
                   )}
                 </div>
