@@ -87,7 +87,7 @@ export function useKeyboardShortcuts({
         return;
       }
 
-      // Toolbar shortcuts (number keys 1-5)
+      // Toolbar shortcuts (number keys 1-3)
       // Only trigger when not in an input and not holding modifier keys
       if (
         !e.metaKey &&

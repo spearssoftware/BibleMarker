@@ -142,7 +142,7 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                 </h3>
                 <ul className="space-y-1.5 text-xs text-scripture-muted ml-4 list-disc">
                   <li>Use arrow keys or J/K to navigate between chapters</li>
-                  <li>Press number keys 1-6 to quickly access toolbar tools</li>
+                  <li>Press number keys 1-3 to quickly access toolbar tools</li>
                   <li>Press Cmd/Ctrl+F to search</li>
                   <li>Click verse numbers to add notes</li>
                   <li>Access Settings from the toolbar (⚙️ icon)</li>

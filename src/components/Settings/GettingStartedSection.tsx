@@ -26,10 +26,10 @@ export function GettingStartedSection() {
           <div>
             <div className="font-medium text-scripture-text mb-2">🖍️ Marking Text</div>
             <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
-              <li>Select text to highlight, color, underline, or add symbols</li>
-              <li>Use the toolbar at the bottom to choose marking tools</li>
-              <li>Previous markings are suggested when you select similar text</li>
-              <li>Press number keys 1-6 to quickly access toolbar tools</li>
+              <li>Select text and create or choose a keyword to mark it</li>
+              <li>All markings use keywords for consistency across translations</li>
+              <li>Keywords automatically highlight matching text in all visible translations</li>
+              <li>Press number keys 1-3 to quickly access toolbar tools</li>
             </ul>
           </div>
 
@@ -39,7 +39,7 @@ export function GettingStartedSection() {
               <li>Define key words (e.g., "God", "Jesus", "love") with colors and symbols</li>
               <li>Key words automatically highlight across all visible translations</li>
               <li>Create studies to scope keywords to specific books</li>
-              <li>Access Key Words from the toolbar (🔑 icon or press 4)</li>
+              <li>Access Key Words from the toolbar (🔑 icon or press 1)</li>
             </ul>
           </div>
 
@@ -49,7 +49,7 @@ export function GettingStartedSection() {
               <li>Click verse numbers to add notes (supports Markdown)</li>
               <li>Create observation lists linked to key words</li>
               <li>Add section headings and chapter titles</li>
-              <li>View summaries in Study Tools (📚 icon or press 5)</li>
+              <li>View summaries in Study Tools (📚 icon or press 2)</li>
             </ul>
           </div>
 

@@ -15,7 +15,7 @@ The app already has a solid foundation:
 - **Multi-Translation View**: ✅ Side-by-side view of up to 3 translations with synchronized scrolling
 - **Study System**: ✅ Create and manage studies with book-scoped keywords
 - **Clear Book Highlights**: ✅ Clear all annotations for a book to start fresh
-- **Keyboard Shortcuts**: ✅ Navigation (arrow keys, J/K) and toolbar shortcuts (1-6)
+- **Keyboard Shortcuts**: ✅ Navigation (arrow keys, J/K) and toolbar shortcuts (1-3)
 - **Help & Documentation**: ✅ Help tab in Settings with Getting Started, Keyboard Shortcuts, and About sections
 - **Settings Panel**: ✅ Full settings UI with tabs (Appearance, Bible, Studies, Data, Help)
 - **Light/Dark Theme**: ✅ Theme support with Light, Dark, and Auto (follow OS) modes
@@ -228,10 +228,7 @@ Keywords defined in one translation are automatically highlighted in all visible
 
 **TODO - Pronoun Marking Rework**:
 
-- ⚠️ **Current Issue**: When manually marking pronouns (e.g., "He" as Jesus), the annotation only appears in the translation where it was marked. It does not carry across to other translations like normal keywords do.
-- **Desired Behavior**: Manually marked pronouns should also appear highlighted across all translations, similar to how normal keywords work.
-- **Potential Solutions**:
-  - Add pronouns as variants to the keyword when manually marked (but this would cause all instances to highlight, not just the marked one)
+- ✅ **Resolved**: Manual annotations have been removed. All annotations must use keywords/presets, ensuring consistency across translations. Pronouns can be added as variants to keywords when needed.
   - Create a separate system for "contextual pronouns" that are marked once but appear across translations
   - Use a different annotation type that can be matched across translations based on verse position/context
 - **Status**: Needs rework - current `moduleScope` approach limits pronouns to single translation only
@@ -490,7 +487,7 @@ Essential features and polish needed for a production-ready v1 release:
 
    - ✅ Navigation: Arrow keys, J/K for next/prev chapter
    - ✅ Quick actions: Cmd/Ctrl+F for search (handled by NavigationBar)
-   - ✅ Toolbar shortcuts: Number keys 1-6 for tools
+   - ✅ Toolbar shortcuts: Number keys 1-3 for tools
    - ✅ Keyboard shortcuts help reference in Settings → Help tab
 
 9. ✅ **Onboarding/Tutorial** - ✅ COMPLETE - First-time user guidance
@@ -533,7 +530,7 @@ Essential features and polish needed for a production-ready v1 release:
 13. ✅ **Keyboard Navigation** - ✅ COMPLETE - Full keyboard accessibility
 
     - ✅ Enhanced focus indicators (visible outline on focus-visible)
-    - ✅ Keyboard shortcuts already implemented (arrow keys, J/K, Cmd/Ctrl+F, number keys 1-6)
+    - ✅ Keyboard shortcuts already implemented (arrow keys, J/K, Cmd/Ctrl+F, number keys 1-3)
     - ✅ Forms support keyboard navigation (Enter to save, Esc to cancel)
     - ✅ Modal management with useModal hook (handles Escape key, focus management)
     - ✅ Initial focus management in modals (AddToList, Search)
@@ -985,13 +982,7 @@ For a solid v1 release, prioritize these features:
 
 These can wait for v1.1 or later:
 
-- **Cross-Translation Manual Annotations** - Allow manual annotations (highlights, symbols, text colors) to appear across all translations in multi-translation view, not just the translation where they were created. Currently, annotations are scoped to a single `moduleId`. This enhancement would:
-  - Add an option when creating annotations to "Apply to all translations" or "Translation-specific"
-  - Store annotations with a flag indicating cross-translation scope
-  - Modify `getChapterAnnotations` to optionally return cross-translation annotations
-  - Update `MultiTranslationView` to show cross-translation annotations in all columns
-  - Handle offset mapping between translations (text may differ slightly)
-  - Consider UI indicator to distinguish cross-translation vs translation-specific annotations
+- ~~**Cross-Translation Manual Annotations**~~ - **REMOVED**: Manual annotations have been removed. All annotations now use keywords/presets which automatically work across translations. This feature is no longer needed.
 - **Export/Print** - Export marked chapters as PDF, observation lists as markdown, print-friendly stylesheet, export all notes (Post-MVP)
 - Onboarding/Tutorial (nice but not critical)
 - Undo/Redo (convenience feature)

@@ -233,9 +233,8 @@ export function Toolbar() {
     
     // If the selected text doesn't match the word or any variant, and it's a common pronoun,
     // we don't add it as a variant (which would cause it to match everywhere).
-    // Instead, we just create the manual annotation - it will show up in this translation,
-    // but won't trigger cross-translation matching because it's not in the variants list.
-    // This way pronouns are only marked once (the instance you mark), not across all translations.
+    // The user can still create a keyword for the pronoun if they want it to match across translations,
+    // or they can add it as a variant to an existing keyword.
     
     await markPresetUsed(preset.id);
     const pid = preset.id;
@@ -338,7 +337,7 @@ export function Toolbar() {
     }
   };
 
-  // Set up keyboard shortcuts for toolbar tools (number keys 1-6)
+  // Set up keyboard shortcuts for toolbar tools (number keys 1-3)
   // Must be after handleToolClick is defined
   useKeyboardShortcuts({
     onToolbarTool: (toolIndex: number) => {
