@@ -71,15 +71,17 @@ export function NoteEditor({
       <div className="note-editor my-3 p-3 rounded-xl bg-scripture-elevated/50 border border-scripture-border/50">
         <div className="flex items-start gap-2">
           <span className="text-scripture-accent text-sm font-ui font-semibold mt-1">📝</span>
-          <Textarea
-            value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onBlur={handleSave}
-            className="flex-1 min-h-[80px]"
-            placeholder="Enter your note..."
-            autoFocus
-          />
+          <div className="flex-1 min-w-0">
+            <Textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={handleSave}
+              className="w-full min-h-[80px]"
+              placeholder="Enter your note..."
+              autoFocus
+            />
+          </div>
         </div>
         <div className="flex items-center justify-end gap-2 mt-2">
           <button

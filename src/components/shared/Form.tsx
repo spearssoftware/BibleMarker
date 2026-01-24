@@ -101,7 +101,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({
   const hasError = !!error;
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 w-full">
       {label && <Label htmlFor={textareaId}>{label}</Label>}
       <textarea
         ref={ref}

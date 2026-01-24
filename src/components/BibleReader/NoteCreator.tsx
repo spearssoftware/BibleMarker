@@ -41,16 +41,18 @@ export function NoteCreator({
     <div className="note-creator my-3 p-3 rounded-xl bg-scripture-elevated/50 border border-scripture-border/50 animate-scale-in" role="dialog" aria-label={`Create note for verse ${verseNum}${range ? ` (verses ${range.startVerse}-${range.endVerse})` : ''}`}>
       <div className="flex items-start gap-2">
         <span className="text-scripture-accent text-sm font-ui font-semibold mt-1" aria-hidden="true">📝</span>
-        <Textarea
-          id={`note-textarea-${verseNum}`}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className="flex-1 min-h-[80px]"
-          placeholder="Enter your note... (Cmd/Ctrl+Enter to save)"
-          autoFocus
-          aria-label="Note content"
-        />
+        <div className="flex-1 min-w-0">
+          <Textarea
+            id={`note-textarea-${verseNum}`}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="w-full min-h-[80px]"
+            placeholder="Enter your note... (Cmd/Ctrl+Enter to save)"
+            autoFocus
+            aria-label="Note content"
+          />
+        </div>
       </div>
       {range && (
         <p className="text-scripture-muted text-xs font-ui mt-2 ml-6" role="note" aria-live="polite">
