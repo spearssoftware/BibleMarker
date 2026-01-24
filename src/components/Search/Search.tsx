@@ -124,8 +124,6 @@ export function Search({ onClose, onNavigate }: SearchProps) {
         return '📖';
       case 'note':
         return '📝';
-      case 'annotation':
-        return '🖍';
       default:
         return '🔍';
     }
@@ -146,7 +144,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
           zIndex: Z_INDEX.MODAL,
         }}
         role="dialog"
-        aria-label="Search Bible, notes, and annotations"
+                aria-label="Search Bible and notes"
         aria-modal="true"
       >
         <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden mx-2 my-2">
@@ -154,8 +152,8 @@ export function Search({ onClose, onNavigate }: SearchProps) {
         <div className="p-4 border-b border-scripture-border/50">
           <div className="flex items-center gap-3">
             <div className="flex-1 relative">
-              <label htmlFor="search-input" className="sr-only">
-                Search Bible, notes, annotations, or enter verse reference
+                <label htmlFor="search-input" className="sr-only">
+                Search Bible, notes, or enter verse reference
               </label>
               <input
                 id="search-input"
@@ -163,7 +161,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search Bible, notes, annotations... or enter verse reference (e.g., John 3:16)"
+                placeholder="Search Bible, notes... or enter verse reference (e.g., John 3:16)"
                 className="w-full px-4 py-2.5 pl-10 rounded-xl bg-scripture-bg border border-scripture-border/50
                          text-scripture-text placeholder-scripture-muted focus:outline-none focus:ring-2
                          focus:ring-scripture-accent focus:border-transparent"
@@ -192,7 +190,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
           {/* Scope selector */}
           <div className="flex items-center gap-2 mt-3">
             <span className="text-xs text-scripture-muted font-ui">Search in:</span>
-            {(['all', 'bible', 'notes', 'annotations'] as const).map((s) => (
+            {(['all', 'bible', 'notes'] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setScope(s)}
@@ -203,7 +201,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
                 aria-label={`Search in ${s === 'all' ? 'all' : s}`}
                 aria-pressed={scope === s}
               >
-                {s === 'all' ? 'All' : s === 'bible' ? 'Bible' : s === 'notes' ? 'Notes' : 'Annotations'}
+                {s === 'all' ? 'All' : s === 'bible' ? 'Bible' : 'Notes'}
               </button>
             ))}
           </div>

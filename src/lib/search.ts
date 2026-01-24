@@ -9,7 +9,7 @@ import { parseVerseRef } from '@/types/bible';
 import type { VerseRef } from '@/types/bible';
 
 export interface SearchResult {
-  type: 'verse' | 'note' | 'annotation';
+  type: 'verse' | 'note';
   book: string;
   chapter: number;
   verse: number;
@@ -17,10 +17,9 @@ export interface SearchResult {
   context?: string;
   moduleId?: string;
   noteId?: string;
-  annotationId?: string;
 }
 
-export type SearchScope = 'all' | 'bible' | 'notes' | 'annotations';
+export type SearchScope = 'all' | 'bible' | 'notes';
 
 /**
  * Search Bible text across all cached chapters
@@ -113,49 +112,6 @@ export async function searchNotes(
 }
 
 /**
- * Search annotations by selected text
- */
-export async function searchAnnotations(
-  query: string,
-  moduleId?: string,
-  limit = 100
-): Promise<SearchResult[]> {
-  if (!query.trim()) return [];
-
-  const normalizedQuery = query.toLowerCase();
-  const results: SearchResult[] = [];
-
-  // Get all annotations (optionally filtered by moduleId)
-  let allAnnotations = await db.annotations.toArray();
-  if (moduleId) {
-    allAnnotations = allAnnotations.filter(a => a.moduleId === moduleId);
-  }
-
-  for (const annotation of allAnnotations) {
-    // Check if annotation has selected text that matches
-    if ('selectedText' in annotation && annotation.selectedText) {
-      const selectedText = annotation.selectedText.toLowerCase();
-      if (selectedText.includes(normalizedQuery)) {
-        const verseRef = 'startRef' in annotation ? annotation.startRef : annotation.ref;
-        results.push({
-          type: 'annotation',
-          book: verseRef.book,
-          chapter: verseRef.chapter,
-          verse: verseRef.verse,
-          text: annotation.selectedText,
-          moduleId: annotation.moduleId,
-          annotationId: annotation.id,
-        });
-
-        if (results.length >= limit) break;
-      }
-    }
-  }
-
-  return results;
-}
-
-/**
  * Parse verse reference from query string
  * Returns null if not a valid verse reference
  */
@@ -233,33 +189,6 @@ export async function searchAll(
       }
     }
 
-    // Also search for annotations on this verse
-    if (scope === 'all' || scope === 'annotations') {
-      let annotations = await db.annotations.toArray();
-      if (moduleId) {
-        annotations = annotations.filter(a => a.moduleId === moduleId);
-      }
-      for (const annotation of annotations) {
-        const verseRefForAnn = 'startRef' in annotation ? annotation.startRef : annotation.ref;
-        if (
-          verseRefForAnn.book === verseRef.book &&
-          verseRefForAnn.chapter === verseRef.chapter &&
-          verseRefForAnn.verse === verseRef.verse
-        ) {
-          const selectedText = 'selectedText' in annotation ? annotation.selectedText : '';
-          results.push({
-            type: 'annotation',
-            book: verseRefForAnn.book,
-            chapter: verseRefForAnn.chapter,
-            verse: verseRefForAnn.verse,
-            text: selectedText || 'Annotation',
-            moduleId: annotation.moduleId,
-            annotationId: annotation.id,
-          });
-        }
-      }
-    }
-
     return results.slice(0, limit);
   }
 
@@ -274,11 +203,6 @@ export async function searchAll(
   if (scope === 'all' || scope === 'notes') {
     const noteResults = await searchNotes(query, moduleId, limit);
     results.push(...noteResults);
-  }
-
-  if (scope === 'all' || scope === 'annotations') {
-    const annotationResults = await searchAnnotations(query, moduleId, limit);
-    results.push(...annotationResults);
   }
 
   // Sort by book, chapter, verse (canonical order)

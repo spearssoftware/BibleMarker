@@ -73,8 +73,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [importStep, setImportStep] = useState<'select' | 'preview' | 'restoring'>('select');
   const [backupPreview, setBackupPreview] = useState<BackupData | null>(null);
   const [previewCounts, setPreviewCounts] = useState<Record<string, number> | null>(null);
-  const [restoreMode, setRestoreMode] = useState<'replace' | 'merge' | 'selective'>('replace');
-  const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
   const [importError, setImportError] = useState<string | null>(null);
   const [restoreSuccess, setRestoreSuccess] = useState(false);
   
@@ -401,9 +399,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       setBackupPreview(backup);
       setPreviewCounts(counts);
       setImportStep('preview');
-      
-      // Pre-select all types for selective mode
-      setSelectedTypes(new Set(Object.keys(counts)));
     } catch (error) {
       if (error instanceof Error && error.message === 'Import cancelled') {
         // User cancelled - don't show error
@@ -423,11 +418,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     setRestoreSuccess(false);
 
     try {
-      const typesToRestore = restoreMode === 'selective' 
-        ? Array.from(selectedTypes)
-        : undefined;
-
-      await restoreBackup(backupPreview, restoreMode, typesToRestore);
+      await restoreBackup(backupPreview);
 
       setRestoreSuccess(true);
       
@@ -445,22 +436,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     }
   };
 
-  const toggleDataType = (type: string) => {
-    const newSelected = new Set(selectedTypes);
-    if (newSelected.has(type)) {
-      newSelected.delete(type);
-    } else {
-      newSelected.add(type);
-    }
-    setSelectedTypes(newSelected);
-  };
-
   const handleCancelImport = () => {
     setImportStep('select');
     setBackupPreview(null);
     setPreviewCounts(null);
-    setRestoreMode('replace');
-    setSelectedTypes(new Set());
     setImportError(null);
   };
 
@@ -1026,85 +1005,19 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     </div>
 
                     <div className="bg-scripture-surface/50 border border-scripture-border/50 rounded-xl p-4">
-                      <label className="block text-sm font-medium text-scripture-text mb-3">
-                        Restore Mode:
-                      </label>
-                      <div className="space-y-2">
-                        <label className="flex items-center gap-2 text-sm text-scripture-text cursor-pointer">
-                          <input
-                            type="radio"
-                            name="restoreMode"
-                            value="replace"
-                            checked={restoreMode === 'replace'}
-                            onChange={() => setRestoreMode('replace')}
-                            className="w-4 h-4 text-scripture-accent focus:ring-scripture-accent"
-                          />
-                          <span>
-                            <strong>Full Restore</strong> - Replace all existing data with backup data
-                          </span>
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-scripture-text cursor-pointer">
-                          <input
-                            type="radio"
-                            name="restoreMode"
-                            value="merge"
-                            checked={restoreMode === 'merge'}
-                            onChange={() => setRestoreMode('merge')}
-                            className="w-4 h-4 text-scripture-accent focus:ring-scripture-accent"
-                          />
-                          <span>
-                            <strong>Merge</strong> - Add/update data without deleting existing items
-                          </span>
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-scripture-text cursor-pointer">
-                          <input
-                            type="radio"
-                            name="restoreMode"
-                            value="selective"
-                            checked={restoreMode === 'selective'}
-                            onChange={() => setRestoreMode('selective')}
-                            className="w-4 h-4 text-scripture-accent focus:ring-scripture-accent"
-                          />
-                          <span>
-                            <strong>Selective Restore</strong> - Choose which data types to restore
-                          </span>
-                        </label>
+                      <div className="mb-4">
+                        <p className="text-sm text-scripture-muted mb-3">
+                          This will replace all your existing data with the backup data. This action cannot be undone.
+                        </p>
                       </div>
 
-                      {restoreMode === 'selective' && (
-                        <div className="mt-4">
-                          <label className="block text-sm font-medium text-scripture-text mb-2">
-                            Select data types to restore:
-                          </label>
-                          <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar p-3 bg-scripture-elevated/50 rounded-lg border border-scripture-border/50">
-                            {Object.keys(previewCounts).map((type) => (
-                              <label key={type} className="flex items-center gap-2 text-sm text-scripture-text cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedTypes.has(type)}
-                                  onChange={() => toggleDataType(type)}
-                                  className="w-4 h-4 rounded border-scripture-border text-scripture-accent focus:ring-scripture-accent"
-                                />
-                                <span>{DATA_TYPE_LABELS[type] || type} ({previewCounts[type]})</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex gap-3 mt-4">
+                      <div className="flex gap-3">
                         <button
                           onClick={handleRestore}
-                          disabled={restoreMode === 'selective' && selectedTypes.size === 0}
                           className="flex-1 px-3 py-2 bg-scripture-warning text-white rounded-lg hover:bg-scripture-warning/90 
-                                   disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 
-                                   font-ui text-sm shadow-md"
+                                   transition-all duration-200 font-ui text-sm shadow-md"
                         >
-                          {restoreMode === 'replace' 
-                            ? '⚠️ Restore (Replace All Data)'
-                            : restoreMode === 'merge'
-                            ? '🔄 Merge Data'
-                            : '✅ Restore Selected'}
+                          ⚠️ Restore Backup
                         </button>
                         <button
                           onClick={handleCancelImport}
@@ -1115,11 +1028,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                         </button>
                       </div>
 
-                      {restoreMode === 'replace' && (
-                        <div className="mt-3 p-3 bg-scripture-warningBg border border-scripture-warning/30 rounded-lg text-scripture-warningText text-sm">
-                          ⚠️ Warning: This will replace all your existing data. This action cannot be undone.
-                        </div>
-                      )}
+                      <div className="mt-3 p-3 bg-scripture-warningBg border border-scripture-warning/30 rounded-lg text-scripture-warningText text-sm">
+                        ⚠️ Warning: This will replace all your existing data. This action cannot be undone.
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1292,7 +1203,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                             try {
                               const backupData = await restoreFromLatestBackup();
                               if (backupData) {
-                                await restoreBackup(backupData, 'replace');
+                                await restoreBackup(backupData);
                                 alert('Backup restored successfully! The page will reload.');
                                 window.location.reload();
                               } else {

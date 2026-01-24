@@ -455,184 +455,133 @@ export async function importBackup(): Promise<BackupData> {
 
     return backup;
   } catch (error) {
+    // Preserve cancellation errors without wrapping
+    if (error instanceof Error && error.message === 'Import cancelled') {
+      throw error;
+    }
     throw new Error(`Failed to import backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
 /**
- * Restore data from backup to database
+ * Restore data from backup to database (replaces all existing data)
  */
-export async function restoreBackup(
-  backup: BackupData,
-  restoreMode: 'replace' | 'merge' | 'selective',
-  selectedTypes?: string[]
-): Promise<void> {
+export async function restoreBackup(backup: BackupData): Promise<void> {
   try {
-    // Determine which data types to restore
-    const typesToRestore = restoreMode === 'selective' && selectedTypes
-      ? selectedTypes
-      : [
-          'preferences',
-          'annotations',
-          'sectionHeadings',
-          'chapterTitles',
-          'notes',
-          'markingPresets',
-          'studies',
-          'multiTranslationViews',
-          'observationLists',
-          'cachedChapters',
-        ];
+    // Clear all existing data (full replace)
+    await db.annotations.clear();
+    await db.sectionHeadings.clear();
+    await db.chapterTitles.clear();
+    await db.notes.clear();
+    await db.markingPresets.clear();
+    await db.studies.clear();
+    await db.multiTranslationViews.clear();
+    await db.observationLists.clear();
+    await db.chapterCache.clear();
 
-    // Clear existing data if replacing
-    if (restoreMode === 'replace') {
-      if (typesToRestore.includes('annotations')) {
-        await db.annotations.clear();
-      }
-      if (typesToRestore.includes('sectionHeadings')) {
-        await db.sectionHeadings.clear();
-      }
-      if (typesToRestore.includes('chapterTitles')) {
-        await db.chapterTitles.clear();
-      }
-      if (typesToRestore.includes('notes')) {
-        await db.notes.clear();
-      }
-      if (typesToRestore.includes('markingPresets')) {
-        await db.markingPresets.clear();
-      }
-      if (typesToRestore.includes('studies')) {
-        await db.studies.clear();
-      }
-      if (typesToRestore.includes('multiTranslationViews')) {
-        await db.multiTranslationViews.clear();
-      }
-      if (typesToRestore.includes('observationLists')) {
-        await db.observationLists.clear();
-      }
-      if (typesToRestore.includes('cachedChapters')) {
-        await db.chapterCache.clear();
-      }
-    }
-
-    // Restore data (with validation and sanitization)
-    if (typesToRestore.includes('preferences') && backup.data.preferences) {
+    // Restore preferences
+    if (backup.data.preferences) {
       await db.preferences.put(backup.data.preferences);
     }
 
-    if (typesToRestore.includes('annotations') && backup.data.annotations.length > 0) {
+    // Restore annotations
+    if (backup.data.annotations.length > 0) {
       const { valid: validatedAnnotations } = validateArray(backup.data.annotations, validateAnnotation, 'annotation');
       if (validatedAnnotations.length > 0) {
         await db.annotations.bulkPut(validatedAnnotations);
       }
     }
 
-    if (typesToRestore.includes('sectionHeadings')) {
-      const headings = backup.data.sectionHeadings || [];
-      if (headings.length > 0) {
-        console.log(`Attempting to restore ${headings.length} section heading(s)...`);
-        const { valid: validatedHeadings, errors: headingErrors } = validateArray(headings, validateSectionHeading, 'section heading');
-        if (headingErrors.length > 0) {
-          console.warn(`Failed to validate ${headingErrors.length} section heading(s):`, headingErrors.map(e => e.message));
+    // Restore section headings
+    const headings = backup.data.sectionHeadings || [];
+    if (headings.length > 0) {
+      console.log(`Attempting to restore ${headings.length} section heading(s)...`);
+      const { valid: validatedHeadings, errors: headingErrors } = validateArray(headings, validateSectionHeading, 'section heading');
+      if (headingErrors.length > 0) {
+        console.warn(`Failed to validate ${headingErrors.length} section heading(s):`, headingErrors.map(e => e.message));
+      }
+      if (validatedHeadings.length > 0) {
+        try {
+          await db.sectionHeadings.bulkPut(validatedHeadings);
+          const savedCount = await db.sectionHeadings.count();
+          console.log(`✓ Successfully restored ${validatedHeadings.length} section heading(s). Total in database: ${savedCount}`);
+        } catch (error) {
+          console.error('Error saving section headings:', error);
+          throw new Error(`Failed to save section headings: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
-        if (validatedHeadings.length > 0) {
-          try {
-            await db.sectionHeadings.bulkPut(validatedHeadings);
-            // Verify the data was saved by checking specific items
-            const savedIds = new Set(await db.sectionHeadings.toCollection().primaryKeys());
-            const restoredIds = new Set(validatedHeadings.map(h => h.id));
-            const missingIds = [...restoredIds].filter(id => !savedIds.has(id));
-            if (missingIds.length > 0) {
-              console.error(`Warning: ${missingIds.length} section heading(s) were not saved:`, missingIds);
-            }
-            const savedCount = await db.sectionHeadings.count();
-            console.log(`✓ Successfully restored ${validatedHeadings.length} section heading(s). Total in database: ${savedCount}`);
-          } catch (error) {
-            console.error('Error saving section headings:', error);
-            throw new Error(`Failed to save section headings: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          }
-        } else if (headings.length > 0) {
-          const errorMsg = `No valid section headings found. ${headings.length} heading(s) failed validation.`;
-          console.error(errorMsg);
-          console.error('Validation errors:', headingErrors);
-          throw new Error(errorMsg);
-        }
-      } else {
-        console.log('No section headings to restore');
+      } else if (headings.length > 0) {
+        const errorMsg = `No valid section headings found. ${headings.length} heading(s) failed validation.`;
+        console.error(errorMsg);
+        throw new Error(errorMsg);
       }
     }
 
-    if (typesToRestore.includes('chapterTitles')) {
-      const titles = backup.data.chapterTitles || [];
-      if (titles.length > 0) {
-        console.log(`Attempting to restore ${titles.length} chapter title(s)...`);
-        const { valid: validatedTitles, errors: titleErrors } = validateArray(titles, validateChapterTitle, 'chapter title');
-        if (titleErrors.length > 0) {
-          console.warn(`Failed to validate ${titleErrors.length} chapter title(s):`, titleErrors.map(e => e.message));
+    // Restore chapter titles
+    const titles = backup.data.chapterTitles || [];
+    if (titles.length > 0) {
+      console.log(`Attempting to restore ${titles.length} chapter title(s)...`);
+      const { valid: validatedTitles, errors: titleErrors } = validateArray(titles, validateChapterTitle, 'chapter title');
+      if (titleErrors.length > 0) {
+        console.warn(`Failed to validate ${titleErrors.length} chapter title(s):`, titleErrors.map(e => e.message));
+      }
+      if (validatedTitles.length > 0) {
+        try {
+          await db.chapterTitles.bulkPut(validatedTitles);
+          const savedCount = await db.chapterTitles.count();
+          console.log(`✓ Successfully restored ${validatedTitles.length} chapter title(s). Total in database: ${savedCount}`);
+        } catch (error) {
+          console.error('Error saving chapter titles:', error);
+          throw new Error(`Failed to save chapter titles: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
-        if (validatedTitles.length > 0) {
-          try {
-            await db.chapterTitles.bulkPut(validatedTitles);
-            // Verify the data was saved by checking specific items
-            const savedIds = new Set(await db.chapterTitles.toCollection().primaryKeys());
-            const restoredIds = new Set(validatedTitles.map(t => t.id));
-            const missingIds = [...restoredIds].filter(id => !savedIds.has(id));
-            if (missingIds.length > 0) {
-              console.error(`Warning: ${missingIds.length} chapter title(s) were not saved:`, missingIds);
-            }
-            const savedCount = await db.chapterTitles.count();
-            console.log(`✓ Successfully restored ${validatedTitles.length} chapter title(s). Total in database: ${savedCount}`);
-          } catch (error) {
-            console.error('Error saving chapter titles:', error);
-            throw new Error(`Failed to save chapter titles: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          }
-        } else if (titles.length > 0) {
-          const errorMsg = `No valid chapter titles found. ${titles.length} title(s) failed validation.`;
-          console.error(errorMsg);
-          console.error('Validation errors:', titleErrors);
-          throw new Error(errorMsg);
-        }
-      } else {
-        console.log('No chapter titles to restore');
+      } else if (titles.length > 0) {
+        const errorMsg = `No valid chapter titles found. ${titles.length} title(s) failed validation.`;
+        console.error(errorMsg);
+        throw new Error(errorMsg);
       }
     }
 
-    if (typesToRestore.includes('notes') && backup.data.notes.length > 0) {
+    // Restore notes
+    if (backup.data.notes.length > 0) {
       const { valid: validatedNotes } = validateArray(backup.data.notes, validateNote, 'note');
       if (validatedNotes.length > 0) {
         await db.notes.bulkPut(validatedNotes);
       }
     }
 
-    if (typesToRestore.includes('markingPresets') && backup.data.markingPresets.length > 0) {
+    // Restore marking presets
+    if (backup.data.markingPresets.length > 0) {
       const { valid: validatedPresets } = validateArray(backup.data.markingPresets, validateMarkingPreset, 'marking preset');
       if (validatedPresets.length > 0) {
         await db.markingPresets.bulkPut(validatedPresets);
       }
     }
 
-    if (typesToRestore.includes('studies') && backup.data.studies.length > 0) {
+    // Restore studies
+    if (backup.data.studies.length > 0) {
       const { valid: validatedStudies } = validateArray(backup.data.studies, validateStudy, 'study');
       if (validatedStudies.length > 0) {
         await db.studies.bulkPut(validatedStudies);
       }
     }
 
-    if (typesToRestore.includes('multiTranslationViews') && backup.data.multiTranslationViews.length > 0) {
+    // Restore multi-translation views
+    if (backup.data.multiTranslationViews.length > 0) {
       const { valid: validatedViews } = validateArray(backup.data.multiTranslationViews, validateMultiTranslationView, 'multi-translation view');
       if (validatedViews.length > 0) {
         await db.multiTranslationViews.bulkPut(validatedViews);
       }
     }
 
-    if (typesToRestore.includes('observationLists') && backup.data.observationLists.length > 0) {
+    // Restore observation lists
+    if (backup.data.observationLists.length > 0) {
       const { valid: validatedLists } = validateArray(backup.data.observationLists, validateObservationList, 'observation list');
       if (validatedLists.length > 0) {
         await db.observationLists.bulkPut(validatedLists);
       }
     }
 
-    if (typesToRestore.includes('cachedChapters') && backup.data.cachedChapters && backup.data.cachedChapters.length > 0) {
+    // Restore cached chapters
+    if (backup.data.cachedChapters && backup.data.cachedChapters.length > 0) {
       const chapters = backup.data.cachedChapters.map(ch => ({
         ...ch,
         cachedAt: new Date(ch.cachedAt),
