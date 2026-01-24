@@ -42,9 +42,7 @@ export function ChapterAtAGlance({ onObservationClick }: ChapterAtAGlanceProps =
   const { activeView } = useMultiTranslationStore();
   
   // Get the primary translation ID (first valid one) for section headings, chapter titles
-  const primaryTranslationId = activeView?.translationIds.find(
-    id => id !== 'observation-lists'
-  ) || currentModuleId || null;
+  const primaryTranslationId = activeView?.translationIds[0] || currentModuleId || null;
   
   const [summary, setSummary] = useState<ChapterSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);

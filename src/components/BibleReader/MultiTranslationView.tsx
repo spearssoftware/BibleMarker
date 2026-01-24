@@ -49,7 +49,7 @@ export function MultiTranslationView() {
     if (!translationIds || translationIds.length === 0) {
       return currentModuleId || null;
     }
-    return translationIds.find(id => id !== 'observation-lists') || currentModuleId || null;
+    return translationIds[0] || currentModuleId || null;
   }, [activeView?.translationIds?.join(','), currentModuleId]);
   
   const { removeAnnotation } = useAnnotations();
@@ -258,21 +258,14 @@ export function MultiTranslationView() {
     }
     
     if (activeView && activeView.translationIds.length > 0 && translations.length > 0) {
-      // Filter out invalid translation IDs
-      const validTranslationIds = activeView.translationIds.filter(
-        id => id !== 'observation-lists'
-      );
+      loadChapters();
+      loadAnnotations();
       
-      if (validTranslationIds.length > 0) {
-        loadChapters();
-        loadAnnotations();
-        
-        // Load section headings, chapter title, and notes for primary translation
-        if (primaryTranslationId && primaryTranslationId !== 'observation-lists') {
-          loadSectionHeadings();
-          loadChapterTitle();
-          loadNotes();
-        }
+      // Load section headings, chapter title, and notes for primary translation
+      if (primaryTranslationId) {
+        loadSectionHeadings();
+        loadChapterTitle();
+        loadNotes();
       }
     }
     // Only depend on actual values, not the callback functions
@@ -301,13 +294,8 @@ export function MultiTranslationView() {
     
     const newAnnotations = new Map<string, Annotation[]>();
     
-    // Filter out any invalid translation IDs (like "observation-lists")
-    const validTranslationIds = activeView.translationIds.filter(
-      id => id !== 'observation-lists'
-    );
-    
     // Load annotations for each translation
-    for (const translationId of validTranslationIds) {
+    for (const translationId of activeView.translationIds) {
       try {
         const annotations = await getChapterAnnotations(translationId, currentBook, currentChapter);
         newAnnotations.set(translationId, annotations);
@@ -642,13 +630,8 @@ export function MultiTranslationView() {
 
     const newChapters = new Map<string, TranslationChapter>();
 
-    // Filter out any invalid translation IDs (like "observation-lists")
-    const validTranslationIds = activeView.translationIds.filter(
-      id => id !== 'observation-lists'
-    );
-
     // Initialize all translations with loading state
-    for (const translationId of validTranslationIds) {
+    for (const translationId of activeView.translationIds) {
       const translation = translations.find(t => t.id === translationId);
       if (!translation) continue;
 
@@ -703,8 +686,8 @@ export function MultiTranslationView() {
 
       // Add a small delay between requests to prevent overwhelming browser resources
       // Only delay if there are more translations to load
-      const remainingTranslations = validTranslationIds.slice(
-        validTranslationIds.indexOf(translationId) + 1
+      const remainingTranslations = activeView.translationIds.slice(
+        activeView.translationIds.indexOf(translationId) + 1
       );
       if (remainingTranslations.length > 0) {
         await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay

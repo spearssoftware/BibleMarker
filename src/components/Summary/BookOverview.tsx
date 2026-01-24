@@ -36,9 +36,7 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
   const { activeView } = useMultiTranslationStore();
   
   // Get the primary translation ID
-  const primaryTranslationId = activeView?.translationIds.find(
-    id => id !== 'observation-lists'
-  ) || currentModuleId || null;
+  const primaryTranslationId = activeView?.translationIds[0] || currentModuleId || null;
   
   const [summaries, setSummaries] = useState<ChapterSummaryData[]>([]);
   const [isLoading, setIsLoading] = useState(true);

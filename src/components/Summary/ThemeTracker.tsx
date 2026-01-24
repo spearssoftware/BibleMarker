@@ -37,9 +37,7 @@ export function ThemeTracker() {
   const { activeStudyId } = useStudyStore();
   
   // Get the primary translation ID
-  const primaryTranslationId = activeView?.translationIds.find(
-    id => id !== 'observation-lists'
-  ) || currentModuleId || null;
+  const primaryTranslationId = activeView?.translationIds[0] || currentModuleId || null;
   
   const [keywordData, setKeywordData] = useState<KeywordChapterData[]>([]);
   const [isLoading, setIsLoading] = useState(true);

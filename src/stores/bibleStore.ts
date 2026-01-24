@@ -50,9 +50,9 @@ export const useBibleStore = create<BibleState>()(
       navSelectedVerse: null,
       
       setCurrentModule: (moduleId) => {
-        // Validate moduleId - must be a non-empty string and not contain "undefined" or "observation-lists"
+        // Validate moduleId - must be a non-empty string and not contain "undefined"
         if (!moduleId || typeof moduleId !== 'string' || moduleId.trim() === '' || 
-            moduleId.includes('undefined') || moduleId === 'observation-lists') {
+            moduleId.includes('undefined')) {
           console.error('Invalid moduleId provided to setCurrentModule:', moduleId);
           return; // Don't update if invalid
         }
@@ -145,7 +145,7 @@ export const useBibleStore = create<BibleState>()(
       }),
       onRehydrateStorage: () => (state) => {
         // Clean up invalid module IDs when rehydrating from storage
-        if (state && state.currentModuleId === 'observation-lists') {
+        if (state && state.currentModuleId && state.currentModuleId.includes('undefined')) {
           state.currentModuleId = null;
         }
       },

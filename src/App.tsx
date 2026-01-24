@@ -115,7 +115,7 @@ export default function App() {
         
         // Only set default if no translation is currently selected and no active view exists
         if ((!existingModuleId || existingModuleId.includes('undefined') || 
-            existingModuleId.trim() === '' || existingModuleId === 'observation-lists') &&
+            existingModuleId.trim() === '') &&
             (!activeView || activeView.translationIds.length === 0)) {
           // Check for default translation preference
           const prefs = await getPreferences();
@@ -145,8 +145,8 @@ export default function App() {
   // Load chapter when location or module changes
   useEffect(() => {
     async function load() {
-      if (!currentModuleId || currentModuleId === 'observation-lists') {
-        return; // Don't load if no module selected or if it's observation-lists
+      if (!currentModuleId) {
+        return; // Don't load if no module selected
       }
       setLoading(true);
       setError(null);
