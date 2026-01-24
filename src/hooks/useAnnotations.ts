@@ -196,35 +196,7 @@ export function useAnnotations() {
     return annotation;
   }, [selection, currentModuleId, addRecentSymbol, loadAnnotations, clearSelection]);
 
-  /**
-   * Apply the current tool with current settings
-   * @param overrideColor - Optional color to use instead of activeColor (for immediate application)
-   * @param overrideSymbol - Optional symbol to use instead of activeSymbol (for immediate application)
-   */
-  const applyCurrentTool = useCallback(async (overrideColor?: HighlightColor, overrideSymbol?: SymbolKey) => {
-    const colorToUse = overrideColor ?? activeColor;
-    const symbolToUse = overrideSymbol ?? activeSymbol;
-    
-    if (!selection || !activeTool) {
-      return;
-    }
-
-    try {
-      if (activeTool === 'symbol') {
-        // Symbol inline before the word; when a color is selected, also apply it to the word as highlight
-        if (colorToUse) {
-          await createSymbolAnnotation(symbolToUse, 'before', colorToUse, 'above', undefined, { clearSelection: false });
-          await createTextAnnotation('highlight', colorToUse);
-        } else {
-          await createSymbolAnnotation(symbolToUse, 'before', undefined, 'above');
-        }
-      } else {
-        await createTextAnnotation(activeTool as 'highlight' | 'textColor' | 'underline', colorToUse);
-      }
-    } catch (error) {
-      console.error('[useAnnotations] Error applying tool:', error);
-    }
-  }, [selection, activeTool, activeColor, activeSymbol, currentModuleId, createTextAnnotation, createSymbolAnnotation]);
+  // applyCurrentTool removed - all annotations must use keywords/presets (no manual annotations)
 
   /**
    * Remove an annotation
@@ -400,7 +372,6 @@ export function useAnnotations() {
     loadNotes,
     createTextAnnotation,
     createSymbolAnnotation,
-    applyCurrentTool,
     removeAnnotation,
     quickHighlight,
     createSectionHeading,

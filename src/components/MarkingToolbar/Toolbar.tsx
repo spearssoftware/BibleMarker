@@ -13,7 +13,6 @@ import { ColorPicker } from './ColorPicker';
 import { SymbolPicker } from './SymbolPicker';
 import { ToolbarOverlay } from './ToolbarOverlay';
 import { KeyWordManager } from '@/components/KeyWords';
-import { AnnotationLegend } from '@/components/BibleReader';
 import { AddToList } from '@/components/Lists';
 import { StudyToolsPanel } from '@/components/Summary';
 import { SettingsPanel } from '@/components/Settings';
@@ -33,9 +32,7 @@ const COLOR_STYLE_LABELS: Record<(typeof COLOR_STYLES)[number], string> = {
   underline: 'Underline',
 };
 
-const TOOLS: { type: 'color' | 'keyWords' | 'legend' | 'studyTools' | 'more'; icon: string; label: string }[] = [
-  { type: 'color', icon: '✏️', label: 'Annotate' },
-  { type: 'legend', icon: '📋', label: 'Legend' },
+const TOOLS: { type: 'keyWords' | 'studyTools' | 'more'; icon: string; label: string }[] = [
   { type: 'keyWords', icon: '🔑', label: 'Key Words' },
   { type: 'studyTools', icon: '📚', label: 'Study' },
   { type: 'more', icon: '⚙️', label: 'Settings' },
@@ -59,7 +56,7 @@ export function Toolbar() {
   } = useAnnotationStore();
 
   const { currentBook, currentModuleId } = useBibleStore();
-  const { applyCurrentTool, createTextAnnotation, createSymbolAnnotation } = useAnnotations();
+  const { createTextAnnotation, createSymbolAnnotation } = useAnnotations();
   const { presets, loadPresets, markPresetUsed, updatePreset } = useMarkingPresetStore();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showSymbolPicker, setShowSymbolPicker] = useState(false);
@@ -70,7 +67,6 @@ export function Toolbar() {
   const [showKeyWordManager, setShowKeyWordManager] = useState(false);
   const [showKeyWordApplyPicker, setShowKeyWordApplyPicker] = useState(false);
   const [showAddAsVariantPicker, setShowAddAsVariantPicker] = useState(false);
-  const [showLegendOverlay, setShowLegendOverlay] = useState(false);
   const [showStudyToolsPanel, setShowStudyToolsPanel] = useState(false);
   const [showAddToList, setShowAddToList] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
@@ -108,7 +104,6 @@ export function Toolbar() {
         setShowKeyWordManager(false);
         setShowKeyWordApplyPicker(false);
         setShowAddAsVariantPicker(false);
-        setShowLegendOverlay(false);
         setShowStudyToolsPanel(false);
         setActiveTool(null);
       }
@@ -292,7 +287,7 @@ export function Toolbar() {
     await applyPresetToSelection(preset);
   };
 
-  // Apply suggestion with one click
+  // Apply suggestion with one click - only presets are supported (no manual annotations)
   const handleApplySuggestion = async (suggestion: typeof previousAnnotations[0]) => {
     if (!selection) return;
     
@@ -302,48 +297,14 @@ export function Toolbar() {
       return;
     }
     
-    if (suggestion.type === 'symbol' && suggestion.symbol) {
-      setActiveTool('symbol');
-      setActiveSymbol(suggestion.symbol as any);
-      if (suggestion.color) setActiveColor(suggestion.color as any);
-      if (suggestion.color) {
-        await createSymbolAnnotation(suggestion.symbol as any, 'before', suggestion.color as any, 'above', undefined, { clearSelection: false });
-        await createTextAnnotation('highlight', suggestion.color as any);
-      } else {
-        await createSymbolAnnotation(suggestion.symbol as any, 'before', undefined, 'above');
-      }
-    } else if (suggestion.type !== 'preset' && suggestion.color) {
-      // Update state for consistency
-      setActiveTool(suggestion.type as AnnotationType);
-      setActiveColor(suggestion.color as any);
-      // Create text annotation directly
-      await createTextAnnotation(suggestion.type as 'highlight' | 'textColor' | 'underline', suggestion.color as any);
-    }
+    // Manual annotations are no longer supported - all annotations must use keywords/presets
+    // If suggestion doesn't have a presetId, ignore it
   };
 
   const isColorActive = activeTool === 'highlight' || activeTool === 'textColor' || activeTool === 'underline';
 
   const handleToolClick = (toolType: (typeof TOOLS)[number]['type']) => {
-    if (toolType === 'color') {
-      if ((isColorActive || activeTool === 'symbol') && showPickerOverlay) {
-        setActiveTool(null);
-        setShowPickerOverlay(false);
-        setShowColorPicker(false);
-        setShowSymbolPicker(false);
-      } else {
-        // Default to highlight when opening annotate overlay
-        setActiveTool('highlight');
-        setPickerTab('color');
-        setShowPickerOverlay(true);
-        setShowColorPicker(true);
-        setShowSymbolPicker(false);
-        setShowKeyWordManager(false);
-        setShowLegendOverlay(false);
-        setShowStudyToolsPanel(false);
-        setShowSettingsPanel(false);
-        if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
-      }
-    } else if (toolType === 'keyWords') {
+    if (toolType === 'keyWords') {
       const willOpen = !showKeyWordManager;
       setShowKeyWordManager((v) => !v);
       setShowPickerOverlay(false);
@@ -354,15 +315,6 @@ export function Toolbar() {
       setShowStudyToolsPanel(false);
       if (willOpen) setActiveTool(null);
       if (willOpen && selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
-    } else if (toolType === 'legend') {
-      setShowLegendOverlay((v) => !v);
-      setShowPickerOverlay(false);
-      setShowColorPicker(false);
-      setShowSymbolPicker(false);
-      setShowKeyWordManager(false);
-      setShowSettingsPanel(false);
-      setShowStudyToolsPanel(false);
-      if (!showLegendOverlay) setActiveTool(null);
     } else if (toolType === 'studyTools') {
       const willOpen = !showStudyToolsPanel;
       setShowStudyToolsPanel((v) => !v);
@@ -729,7 +681,10 @@ export function Toolbar() {
                   selectedColor={activeColor}
                   onSelect={async (color) => {
                     setActiveColor(color);
-                    if (selection) await applyCurrentTool(color);
+                    // Close picker and open keyword manager with selected color
+                    setShowPickerOverlay(false);
+                    setShowColorPicker(false);
+                    setShowKeyWordManager(true);
                   }}
                   recents={preferences.recentColors}
                 />
@@ -739,11 +694,10 @@ export function Toolbar() {
                   selectedSymbol={activeSymbol}
                   onSelect={async (symbol) => {
                     setActiveSymbol(symbol);
-                    // Auto-apply when symbol is selected - pass the new symbol directly
-                    // to avoid race condition with state update
-                    if (selection) {
-                      await applyCurrentTool(undefined, symbol);
-                    }
+                    // Close picker and open keyword manager with selected symbol
+                    setShowPickerOverlay(false);
+                    setShowSymbolPicker(false);
+                    setShowKeyWordManager(true);
                   }}
                   recents={preferences.recentSymbols}
                 />
@@ -816,33 +770,12 @@ export function Toolbar() {
         </ToolbarOverlay>
       )}
 
-      {/* Annotation Legend overlay */}
-      {showLegendOverlay && (
-        <ToolbarOverlay>
-          <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
-            {/* Close button - floating in top-right */}
-            <button
-              onClick={() => setShowLegendOverlay(false)}
-              className="absolute top-2 right-2 z-10 text-scripture-muted hover:text-scripture-text transition-colors p-1.5 rounded-lg hover:bg-scripture-elevated"
-              aria-label="Close legend"
-            >
-              ✕
-            </button>
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-              <AnnotationLegend annotations={annotations} />
-            </div>
-          </div>
-        </ToolbarOverlay>
-      )}
-
-      {/* Main toolbar: Annotate | Legend | Key Words | Study | Settings */}
+      {/* Main toolbar: Key Words | Study | Settings */}
       <div className="bg-scripture-surface shadow-lg" data-marking-toolbar>
         <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
           {TOOLS.map((tool) => {
             const isActive =
-              tool.type === 'color' ? ((isColorActive || activeTool === 'symbol') && showPickerOverlay)
-              : tool.type === 'keyWords' ? showKeyWordManager
-              : tool.type === 'legend' ? showLegendOverlay
+              tool.type === 'keyWords' ? showKeyWordManager
               : tool.type === 'studyTools' ? showStudyToolsPanel
               : tool.type === 'more' ? showSettingsPanel
               : false;
