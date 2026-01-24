@@ -10,7 +10,8 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, type KeyWordCategory, type MarkingPreset, type Variant } from '@/types/keyWord';
 import { SYMBOLS, HIGHLIGHT_COLORS, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types/annotation';
-import { Input, Textarea, Select, Label } from '@/components/shared';
+import { Input, Textarea, Label } from '@/components/shared';
+import { getBookById, BIBLE_BOOKS } from '@/types/bible';
 
 interface KeyWordManagerProps {
   onClose?: () => void;
@@ -45,6 +46,7 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [filterScope, setFilterScope] = useState<'all' | 'global' | 'book' | 'chapter'>('all');
 
   useEffect(() => {
     loadPresets();
@@ -58,25 +60,54 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
     }
   }, [initialWord]);
 
-  // Filter presets by active study
+  // Filter presets by active study and scope, then sort by scope and alphabetical
   const filteredPresets = useMemo(() => {
-    const baseFiltered = getFilteredPresets();
+    let filtered = getFilteredPresets();
     
-    // If no study is active, show all keywords (global + study-scoped)
-    if (!activeStudyId) {
-      return baseFiltered;
+    // Filter by active study
+    if (activeStudyId) {
+      filtered = filtered.filter(preset => {
+        // Global keywords (no studyId) are always visible
+        if (!preset.studyId) return true;
+        // Show keywords that belong to the active study
+        return preset.studyId === activeStudyId;
+      });
     }
     
-    // If a study is active, show:
-    // - Global keywords (no studyId)
-    // - Keywords belonging to the active study
-    return baseFiltered.filter(preset => {
-      // Global keywords (no studyId) are always visible
-      if (!preset.studyId) return true;
-      // Show keywords that belong to the active study
-      return preset.studyId === activeStudyId;
+    // Filter by scope
+    if (filterScope !== 'all') {
+      filtered = filtered.filter(preset => {
+        if (filterScope === 'global') {
+          return !preset.bookScope && !preset.chapterScope;
+        } else if (filterScope === 'book') {
+          return preset.bookScope && !preset.chapterScope;
+        } else if (filterScope === 'chapter') {
+          return preset.chapterScope !== undefined;
+        }
+        return true;
+      });
+    }
+    
+    // Sort by scope first (global, then book, then chapter), then alphabetical
+    return filtered.sort((a, b) => {
+      // Determine scope order: global = 0, book = 1, chapter = 2
+      const getScopeOrder = (preset: MarkingPreset) => {
+        if (preset.chapterScope !== undefined) return 2;
+        if (preset.bookScope) return 1;
+        return 0;
+      };
+      
+      const scopeA = getScopeOrder(a);
+      const scopeB = getScopeOrder(b);
+      
+      if (scopeA !== scopeB) {
+        return scopeA - scopeB;
+      }
+      
+      // Same scope, sort alphabetically by word
+      return (a.word || '').localeCompare(b.word || '');
     });
-  }, [getFilteredPresets, activeStudyId, presets, filterCategory, searchQuery]);
+  }, [getFilteredPresets, activeStudyId, presets, filterCategory, searchQuery, filterScope]);
 
   function handleCreate() {
     setIsCreating(true);
@@ -230,7 +261,8 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
                        text-scripture-text placeholder-scripture-muted transition-colors"
             />
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            <span className="text-xs text-scripture-muted font-medium self-center mr-1">Category:</span>
             <button
               onClick={() => setFilterCategory('all')}
               className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors
@@ -253,6 +285,45 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
                 <span>{info.label}</span>
               </button>
             ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <span className="text-xs text-scripture-muted font-medium self-center mr-1">Scope:</span>
+            <button
+              onClick={() => setFilterScope('all')}
+              className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors
+                          ${filterScope === 'all'
+                            ? 'bg-scripture-accent text-scripture-bg'
+                            : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilterScope('global')}
+              className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors
+                          ${filterScope === 'global'
+                            ? 'bg-scripture-accent text-scripture-bg'
+                            : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
+            >
+              🌍 Global
+            </button>
+            <button
+              onClick={() => setFilterScope('book')}
+              className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors
+                          ${filterScope === 'book'
+                            ? 'bg-scripture-accent text-scripture-bg'
+                            : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
+            >
+              📖 Book
+            </button>
+            <button
+              onClick={() => setFilterScope('chapter')}
+              className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors
+                          ${filterScope === 'chapter'
+                            ? 'bg-scripture-accent text-scripture-bg'
+                            : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
+            >
+              📄 Chapter
+            </button>
           </div>
         </div>
       )}
@@ -320,21 +391,161 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
                 )}
               </div>
             ) : (
-              <div className="space-y-2">
-                {filteredPresets.filter((p) => p.word).map((preset) => (
-                  <KeyWordCard
-                    key={preset.id}
-                    preset={preset}
-                    onEdit={() => handleEdit(preset)}
-                    onDelete={(e) => handleDeleteClick(preset.id, e)}
-                    isDeleting={deletingId === preset.id}
-                  />
-                ))}
-              </div>
+              <KeywordListByScope 
+                presets={filteredPresets.filter((p) => p.word)}
+                onEdit={handleEdit}
+                onDelete={handleDeleteClick}
+                deletingId={deletingId}
+              />
             )}
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Keyword List Grouped by Scope Component */
+function KeywordListByScope({
+  presets,
+  onEdit,
+  onDelete,
+  deletingId,
+}: {
+  presets: MarkingPreset[];
+  onEdit: (preset: MarkingPreset) => void;
+  onDelete: (id: string, e: React.MouseEvent) => void;
+  deletingId: string | null;
+}) {
+  // Group presets by scope
+  const grouped = useMemo(() => {
+    const groups: {
+      global: MarkingPreset[];
+      book: Record<string, MarkingPreset[]>;
+      chapter: Record<string, MarkingPreset[]>;
+    } = {
+      global: [],
+      book: {},
+      chapter: {},
+    };
+
+    presets.forEach(preset => {
+      if (preset.chapterScope !== undefined) {
+        const key = `${preset.bookScope}:${preset.chapterScope}`;
+        if (!groups.chapter[key]) groups.chapter[key] = [];
+        groups.chapter[key].push(preset);
+      } else if (preset.bookScope) {
+        if (!groups.book[preset.bookScope]) groups.book[preset.bookScope] = [];
+        groups.book[preset.bookScope].push(preset);
+      } else {
+        groups.global.push(preset);
+      }
+    });
+
+    return groups;
+  }, [presets]);
+
+  return (
+    <div className="space-y-4">
+      {/* Global Keywords Section */}
+      {grouped.global.length > 0 && (
+        <div className="border border-scripture-border/50 rounded-lg bg-scripture-surface/30 p-3">
+          <div className="flex items-center gap-2 mb-3 pb-2 border-b border-scripture-border/30">
+            <span className="text-lg">🌍</span>
+            <h3 className="text-sm font-semibold text-scripture-text">Global Keywords</h3>
+            <span className="text-xs text-scripture-muted ml-auto">
+              {grouped.global.length} {grouped.global.length === 1 ? 'keyword' : 'keywords'}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {grouped.global.map((preset) => (
+              <KeyWordCard
+                key={preset.id}
+                preset={preset}
+                onEdit={() => onEdit(preset)}
+                onDelete={(e) => onDelete(preset.id, e)}
+                isDeleting={deletingId === preset.id}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Book-scoped Keywords Sections */}
+      {Object.entries(grouped.book)
+        .sort(([a], [b]) => {
+          // Sort by full book name for better readability
+          const bookA = getBookById(a)?.name || a;
+          const bookB = getBookById(b)?.name || b;
+          return bookA.localeCompare(bookB);
+        })
+        .map(([bookId, bookPresets]) => {
+          const bookInfo = getBookById(bookId);
+          const bookName = bookInfo?.name || bookId;
+          return (
+            <div key={`book-${bookId}`} className="border border-scripture-border/50 rounded-lg bg-scripture-surface/30 p-3">
+              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-scripture-border/30">
+                <span className="text-lg">📖</span>
+                <h3 className="text-sm font-semibold text-scripture-text">{bookName}</h3>
+                <span className="text-xs text-scripture-muted ml-auto">
+                  {bookPresets.length} {bookPresets.length === 1 ? 'keyword' : 'keywords'}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {bookPresets.map((preset) => (
+                  <KeyWordCard
+                    key={preset.id}
+                    preset={preset}
+                    onEdit={() => onEdit(preset)}
+                    onDelete={(e) => onDelete(preset.id, e)}
+                    isDeleting={deletingId === preset.id}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+
+      {/* Chapter-scoped Keywords Sections */}
+      {Object.entries(grouped.chapter)
+        .sort(([a], [b]) => {
+          // Sort by full book name, then chapter number
+          const [bookA, chapterA] = a.split(':');
+          const [bookB, chapterB] = b.split(':');
+          const bookNameA = getBookById(bookA)?.name || bookA;
+          const bookNameB = getBookById(bookB)?.name || bookB;
+          if (bookNameA !== bookNameB) {
+            return bookNameA.localeCompare(bookNameB);
+          }
+          return parseInt(chapterA) - parseInt(chapterB);
+        })
+        .map(([key, chapterPresets]) => {
+          const [bookId, chapter] = key.split(':');
+          const bookInfo = getBookById(bookId);
+          const bookName = bookInfo?.name || bookId;
+          return (
+            <div key={`chapter-${key}`} className="border border-scripture-border/50 rounded-lg bg-scripture-surface/30 p-3">
+              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-scripture-border/30">
+                <span className="text-lg">📄</span>
+                <h3 className="text-sm font-semibold text-scripture-text">{bookName} {chapter}</h3>
+                <span className="text-xs text-scripture-muted ml-auto">
+                  {chapterPresets.length} {chapterPresets.length === 1 ? 'keyword' : 'keywords'}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {chapterPresets.map((preset) => (
+                  <KeyWordCard
+                    key={preset.id}
+                    preset={preset}
+                    onEdit={() => onEdit(preset)}
+                    onDelete={(e) => onDelete(preset.id, e)}
+                    isDeleting={deletingId === preset.id}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
     </div>
   );
 }
@@ -371,11 +582,15 @@ function KeyWordCard({
             <span className="text-xs px-2 py-0.5 bg-scripture-surface rounded">
               {categoryInfo.label}
             </span>
-            {preset.bookScope && (
-              <span className="text-xs px-2 py-0.5 bg-scripture-infoBg text-scripture-infoText rounded">
-                📖 {preset.bookScope}{preset.chapterScope ? `:${preset.chapterScope}` : ''}
-              </span>
-            )}
+            {preset.bookScope && (() => {
+              const bookInfo = getBookById(preset.bookScope);
+              const bookName = bookInfo?.name || preset.bookScope;
+              return (
+                <span className="text-xs px-2 py-0.5 bg-scripture-infoBg text-scripture-infoText rounded">
+                  📖 {bookName}{preset.chapterScope ? ` ${preset.chapterScope}` : ''}
+                </span>
+              );
+            })()}
             {!preset.bookScope && (
               <span className="text-xs px-2 py-0.5 bg-scripture-elevated text-scripture-muted rounded">
                 🌐 Global
@@ -396,9 +611,12 @@ function KeyWordCard({
             <p className="text-xs text-scripture-muted mb-1">
               Variants: {preset.variants!.map(v => {
                 const text = typeof v === 'string' ? v : v.text;
-                const scope = typeof v === 'object' && v.bookScope 
-                  ? ` (${v.bookScope}${v.chapterScope ? `:${v.chapterScope}` : ''})`
-                  : '';
+                let scope = '';
+                if (typeof v === 'object' && v.bookScope) {
+                  const bookInfo = getBookById(v.bookScope);
+                  const bookName = bookInfo?.name || v.bookScope;
+                  scope = ` (${bookName}${v.chapterScope ? ` ${v.chapterScope}` : ''})`;
+                }
                 return text + scope;
               }).join(', ')}
             </p>
@@ -579,11 +797,11 @@ function KeyWordEditor({
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <Select
+          <DropdownSelect
             label="Symbol"
             value={symbol || ''}
-            onChange={(e) => {
-              const newSymbol = (e.target.value as SymbolKey) || undefined;
+            onChange={(val) => {
+              const newSymbol = (val as SymbolKey) || undefined;
               setSymbol(newSymbol);
               if (newSymbol) {
                 setCategory(getCategoryForSymbol(newSymbol));
@@ -597,6 +815,7 @@ function KeyWordEditor({
                 label: `${sym} ${key}`
               }))
             ]}
+            placeholder="Select a symbol..."
           />
 
           <div>
@@ -608,14 +827,15 @@ function KeyWordEditor({
           </div>
         </div>
 
-        <Select
+        <DropdownSelect
           label="Category"
           value={category}
-          onChange={(e) => setCategory(e.target.value as KeyWordCategory)}
+          onChange={(val) => setCategory(val as KeyWordCategory)}
           options={Object.entries(KEY_WORD_CATEGORIES).map(([key, info]) => ({
             value: key,
             label: `${info.icon} ${info.label}`
           }))}
+          placeholder="Select a category..."
         />
 
         <Textarea
@@ -673,11 +893,18 @@ function KeyWordEditor({
             </div>
             {scopeType === 'book' && (
               <div className="ml-6">
-                <Input
-                  type="text"
+                <DropdownSelect
+                  label="Book"
                   value={bookScope}
-                  onChange={(e) => setBookScope(e.target.value)}
-                  placeholder="e.g., John"
+                  onChange={(val) => setBookScope(val)}
+                  options={[
+                    { value: '', label: 'Select a book...' },
+                    ...BIBLE_BOOKS.map(book => ({
+                      value: book.id,
+                      label: book.name
+                    }))
+                  ]}
+                  placeholder="Select a book..."
                 />
               </div>
             )}
@@ -697,18 +924,48 @@ function KeyWordEditor({
             </div>
             {scopeType === 'chapter' && (
               <div className="ml-6 grid grid-cols-2 gap-3">
-                <Input
-                  type="text"
+                <DropdownSelect
+                  label="Book"
                   value={bookScope}
-                  onChange={(e) => setBookScope(e.target.value)}
-                  placeholder="Book (e.g., John)"
+                  onChange={(val) => {
+                    setBookScope(val);
+                    // Reset chapter when book changes
+                    if (val) {
+                      const bookInfo = getBookById(val);
+                      if (bookInfo && chapterScope > bookInfo.chapters) {
+                        setChapterScope(1);
+                      }
+                    }
+                  }}
+                  options={[
+                    { value: '', label: 'Select a book...' },
+                    ...BIBLE_BOOKS.map(book => ({
+                      value: book.id,
+                      label: book.name
+                    }))
+                  ]}
+                  placeholder="Select a book..."
                 />
                 <Input
                   type="number"
+                  label="Chapter"
                   value={chapterScope}
-                  onChange={(e) => setChapterScope(parseInt(e.target.value) || 1)}
-                  placeholder="Chapter"
+                  onChange={(e) => {
+                    const newChapter = parseInt(e.target.value) || 1;
+                    if (bookScope) {
+                      const bookInfo = getBookById(bookScope);
+                      if (bookInfo) {
+                        const maxChapter = bookInfo.chapters;
+                        setChapterScope(Math.min(Math.max(1, newChapter), maxChapter));
+                      } else {
+                        setChapterScope(newChapter);
+                      }
+                    } else {
+                      setChapterScope(newChapter);
+                    }
+                  }}
                   min="1"
+                  max={bookScope ? getBookById(bookScope)?.chapters : undefined}
                 />
               </div>
             )}
@@ -716,10 +973,10 @@ function KeyWordEditor({
         </div>
 
         <div className="border-t border-scripture-border/30 mt-4 pt-4">
-          <Select
+          <DropdownSelect
             label="Study (Optional)"
             value={studyId || ''}
-            onChange={(e) => setStudyId(e.target.value || undefined)}
+            onChange={(val) => setStudyId(val || undefined)}
             helpText="Assign this keyword to a specific study. Global keywords are visible in all studies."
             options={[
               { value: '', label: 'Global (visible in all studies)' },
@@ -728,6 +985,7 @@ function KeyWordEditor({
                 label: `${study.name}${study.book ? ` (${study.book})` : ''}`
               }))
             ]}
+            placeholder="Select a study..."
           />
         </div>
         
@@ -839,12 +1097,18 @@ function VariantEditor({
         </div>
         {scopeType === 'book' && (
           <div className="ml-5">
-            <Input
-              type="text"
+            <DropdownSelect
+              label="Book"
               value={bookScope}
-              onChange={(e) => setBookScope(e.target.value)}
-              placeholder="Book name (e.g., John)"
-              className="text-xs"
+              onChange={(val) => setBookScope(val)}
+              options={[
+                { value: '', label: 'Select a book...' },
+                ...BIBLE_BOOKS.map(book => ({
+                  value: book.id,
+                  label: book.name
+                }))
+              ]}
+              placeholder="Select a book..."
             />
           </div>
         )}
@@ -864,24 +1128,188 @@ function VariantEditor({
         </div>
         {scopeType === 'chapter' && (
           <div className="ml-5 grid grid-cols-2 gap-2">
-            <Input
-              type="text"
+            <DropdownSelect
+              label="Book"
               value={bookScope}
-              onChange={(e) => setBookScope(e.target.value)}
-              placeholder="Book"
-              className="text-xs"
+              onChange={(val) => {
+                setBookScope(val);
+                // Reset chapter when book changes
+                if (val) {
+                  const bookInfo = getBookById(val);
+                  if (bookInfo && chapterScope > bookInfo.chapters) {
+                    setChapterScope(1);
+                  }
+                }
+              }}
+              options={[
+                { value: '', label: 'Select a book...' },
+                ...BIBLE_BOOKS.map(book => ({
+                  value: book.id,
+                  label: book.name
+                }))
+              ]}
+              placeholder="Select a book..."
             />
             <Input
               type="number"
+              label="Chapter"
               value={chapterScope}
-              onChange={(e) => setChapterScope(parseInt(e.target.value) || 1)}
-              placeholder="Chapter"
+              onChange={(e) => {
+                const newChapter = parseInt(e.target.value) || 1;
+                if (bookScope) {
+                  const bookInfo = getBookById(bookScope);
+                  if (bookInfo) {
+                    const maxChapter = bookInfo.chapters;
+                    setChapterScope(Math.min(Math.max(1, newChapter), maxChapter));
+                  } else {
+                    setChapterScope(newChapter);
+                  }
+                } else {
+                  setChapterScope(newChapter);
+                }
+              }}
               min="1"
-              className="text-xs"
+              max={bookScope ? getBookById(bookScope)?.chapters : undefined}
             />
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Custom Dropdown Select Component - Button-based dropdown matching ColorSelect style */
+function DropdownSelect({
+  value,
+  onChange,
+  options,
+  label,
+  helpText,
+  error,
+  placeholder = 'Select...',
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+  label?: string;
+  helpText?: string;
+  error?: string;
+  placeholder?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [openAbove, setOpenAbove] = useState(false);
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  const selectedOption = options.find(opt => opt.value === value);
+  const displayText = selectedOption ? selectedOption.label : placeholder;
+
+  // Determine if dropdown should open above or below based on available space
+  const handleToggle = () => {
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      
+      // Find the scrollable container
+      let container: HTMLElement | null = buttonRef.current.parentElement;
+      let scrollableContainer: HTMLElement | null = null;
+      
+      while (container && container !== document.body) {
+        const style = window.getComputedStyle(container);
+        if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+          scrollableContainer = container;
+          break;
+        }
+        container = container.parentElement;
+      }
+      
+      if (scrollableContainer) {
+        const containerRect = scrollableContainer.getBoundingClientRect();
+        const spaceAbove = rect.top - containerRect.top;
+        const spaceBelow = containerRect.bottom - rect.bottom;
+        const estimatedDropdownHeight = 240;
+        setOpenAbove(spaceAbove >= estimatedDropdownHeight + 50 && spaceAbove > spaceBelow + 150);
+      } else {
+        const spaceAbove = rect.top;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const estimatedDropdownHeight = 240;
+        setOpenAbove(spaceAbove >= estimatedDropdownHeight + 50 && spaceAbove > spaceBelow + 150);
+      }
+    }
+    setIsOpen(!isOpen);
+  };
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        buttonRef.current &&
+        dropdownRef.current &&
+        !buttonRef.current.contains(e.target as Node) &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const hasError = !!error;
+
+  return (
+    <div className="space-y-1">
+      {label && <Label>{label}</Label>}
+      <div className="relative">
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={handleToggle}
+          className={`w-full px-3 py-2 text-sm bg-scripture-bg border rounded-lg 
+                   focus:outline-none focus:border-scripture-accent text-scripture-text
+                   flex items-center gap-2 justify-between hover:bg-scripture-elevated transition-colors
+                   ${hasError ? 'border-scripture-error focus:border-scripture-error' : 'border-scripture-border/50'}`}
+        >
+          <span className={selectedOption ? '' : 'text-scripture-muted'}>{displayText}</span>
+          <span className="text-scripture-muted">{isOpen ? '▲' : '▼'}</span>
+        </button>
+        
+        {isOpen && (
+          <div
+            ref={dropdownRef}
+            className={`absolute z-50 w-full bg-scripture-elevated border border-scripture-border/50 
+                        rounded-lg shadow-lg max-h-60 overflow-y-auto custom-scrollbar
+                        ${openAbove ? 'bottom-full mb-1' : 'top-full mt-1'}`}
+          >
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onChange(option.value);
+                  setIsOpen(false);
+                }}
+                className={`w-full px-3 py-2 text-sm text-left hover:bg-scripture-border/30 transition-colors
+                           ${value === option.value ? 'bg-scripture-border/20' : ''}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {error && (
+        <p className="text-xs text-scripture-error" role="alert">
+          {error}
+        </p>
+      )}
+      {helpText && !error && (
+        <p className="text-xs text-scripture-muted">
+          {helpText}
+        </p>
+      )}
     </div>
   );
 }
