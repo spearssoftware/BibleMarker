@@ -10,7 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { formatVerseRef, getBookById } from '@/types/bible';
 import type { FiveWAndHEntry } from '@/types/observation';
 import type { VerseRef } from '@/types/bible';
-import { Textarea } from '@/components/shared';
+import { Textarea, ConfirmationDialog } from '@/components/shared';
 
 interface FiveWAndHProps {
   selectedText?: string;
@@ -60,6 +60,7 @@ export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndH
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedVerses, setExpandedVerses] = useState<Set<string>>(new Set());
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   
   // Form state
   const [formVerseRef, setFormVerseRef] = useState<VerseRef | null>(
@@ -197,13 +198,18 @@ export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndH
     }
   };
 
-  const handleDelete = async (entryId: string) => {
-    if (!confirm('Are you sure you want to delete this entry?')) {
-      return;
-    }
+  const handleDeleteClick = (entryId: string) => {
+    setConfirmDeleteId(entryId);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDeleteId) return;
+    
+    const idToDelete = confirmDeleteId;
+    setConfirmDeleteId(null);
     
     try {
-      await deleteFiveWAndH(entryId);
+      await deleteFiveWAndH(idToDelete);
       await loadFiveWAndH();
     } catch (error) {
       console.error('Error deleting entry:', error);
@@ -211,11 +217,26 @@ export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndH
     }
   };
 
+  const handleCancelDelete = () => {
+    setConfirmDeleteId(null);
+  };
+
   const verseGroups = groupByVerse(fiveWAndHEntries);
   const sortedGroups = sortVerseGroups(verseGroups);
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <>
+      <ConfirmationDialog
+        isOpen={confirmDeleteId !== null}
+        title="Delete Entry"
+        message="Are you sure you want to delete this entry?"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        destructive={true}
+      />
+      <div className="flex flex-col h-full min-h-0">
       {/* Create/Edit Form */}
       {(isCreating || editingId) && (
         <div className="flex-shrink-0 border-b border-scripture-border/50 bg-scripture-elevated/30 p-4 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
@@ -493,7 +514,7 @@ export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndH
                                 ✏️
                               </button>
                               <button
-                                onClick={() => handleDelete(entry.id)}
+                                onClick={() => handleDeleteClick(entry.id)}
                                 className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors rounded hover:bg-scripture-elevated"
                                 title="Delete entry"
                               >
@@ -511,6 +532,7 @@ export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndH
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }

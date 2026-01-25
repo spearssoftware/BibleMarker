@@ -1,0 +1,449 @@
+/**
+ * Contrast and Comparison Tracker
+ * 
+ * Component for recording and displaying contrasts and comparisons.
+ */
+
+import { useState, useEffect } from 'react';
+import { useContrastStore } from '@/stores/contrastStore';
+import { useBibleStore } from '@/stores/bibleStore';
+import type { Contrast } from '@/types/contrast';
+import type { VerseRef } from '@/types/bible';
+import { formatVerseRef, getBookById } from '@/types/bible';
+import { ConfirmationDialog } from '@/components/shared';
+
+interface ContrastTrackerProps {
+  selectedText?: string;
+  verseRef?: VerseRef;
+}
+
+// Helper to create a unique key for a verse reference
+const getVerseKey = (ref: VerseRef): string => {
+  return `${ref.book}:${ref.chapter}:${ref.verse}`;
+};
+
+// Group contrasts by verse
+const groupByVerse = (contrasts: Contrast[]): Map<string, Contrast[]> => {
+  const map = new Map<string, Contrast[]>();
+  contrasts.forEach(contrast => {
+    const key = getVerseKey(contrast.verseRef);
+    if (!map.has(key)) {
+      map.set(key, []);
+    }
+    map.get(key)!.push(contrast);
+  });
+  return map;
+};
+
+// Sort verse groups by canonical order
+const sortVerseGroups = (groups: Map<string, Contrast[]>): Array<[string, Contrast[]]> => {
+  return Array.from(groups.entries()).sort(([keyA], [keyB]) => {
+    const [bookA, chapterA, verseA] = keyA.split(':').map(Number);
+    const [bookB, chapterB, verseB] = keyB.split(':').map(Number);
+    
+    if (bookA !== bookB) return bookA - bookB;
+    if (chapterA !== chapterB) return chapterA - chapterB;
+    return verseA - verseB;
+  });
+};
+
+export function ContrastTracker({ selectedText, verseRef: initialVerseRef }: ContrastTrackerProps) {
+  const { contrasts, loadContrasts, createContrast, updateContrast, deleteContrast } = useContrastStore();
+  const { currentBook, currentChapter } = useBibleStore();
+  const [isCreating, setIsCreating] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [newItemA, setNewItemA] = useState('');
+  const [newItemB, setNewItemB] = useState('');
+  const [newNotes, setNewNotes] = useState('');
+  const [editingItemA, setEditingItemA] = useState('');
+  const [editingItemB, setEditingItemB] = useState('');
+  const [editingNotes, setEditingNotes] = useState('');
+  const [expandedVerses, setExpandedVerses] = useState<Set<string>>(new Set());
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // Determine verse reference - use provided one, or current location
+  const getCurrentVerseRef = (): VerseRef | null => {
+    if (initialVerseRef) return initialVerseRef;
+    // Use current location from bible store, default to verse 1 if no verse selected
+    if (currentBook && currentChapter) {
+      return {
+        book: currentBook,
+        chapter: currentChapter,
+        verse: 1, // Default to verse 1 if no specific verse
+      };
+    }
+    return null;
+  };
+
+  // Load contrasts on mount
+  useEffect(() => {
+    loadContrasts();
+  }, [loadContrasts]);
+
+  // Pre-fill form if selectedText is provided
+  useEffect(() => {
+    if (selectedText && isCreating && !newItemA && !newItemB) {
+      // Try to split by common contrast words
+      const contrastWords = [' vs ', ' versus ', ' vs. ', ' vs. ', ' but ', ' however ', ' whereas ', ' while ', ' unlike '];
+      let found = false;
+      for (const word of contrastWords) {
+        if (selectedText.toLowerCase().includes(word.toLowerCase())) {
+          const parts = selectedText.split(new RegExp(word, 'i'));
+          if (parts.length === 2) {
+            setNewItemA(parts[0].trim());
+            setNewItemB(parts[1].trim());
+            found = true;
+            break;
+          }
+        }
+      }
+      // If no contrast word found, put all text in itemA and let user fill itemB
+      if (!found && selectedText.trim()) {
+        setNewItemA(selectedText.trim());
+      }
+    }
+  }, [selectedText, isCreating, newItemA, newItemB]);
+
+  const handleCreate = async () => {
+    const verseRef = getCurrentVerseRef();
+    if (!verseRef || !newItemA.trim() || !newItemB.trim()) {
+      alert('Please fill in both items and ensure you have a verse reference.');
+      return;
+    }
+
+    await createContrast(
+      newItemA.trim(),
+      newItemB.trim(),
+      verseRef,
+      newNotes.trim() || undefined
+    );
+
+    setIsCreating(false);
+    setNewItemA('');
+    setNewItemB('');
+    setNewNotes('');
+    loadContrasts();
+  };
+
+  const handleCancelCreate = () => {
+    setIsCreating(false);
+    setNewItemA('');
+    setNewItemB('');
+    setNewNotes('');
+  };
+
+  const handleStartEdit = (contrast: Contrast) => {
+    setEditingId(contrast.id);
+    setEditingItemA(contrast.itemA);
+    setEditingItemB(contrast.itemB);
+    setEditingNotes(contrast.notes || '');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditingItemA('');
+    setEditingItemB('');
+    setEditingNotes('');
+  };
+
+  const handleSaveEdit = async (contrastId: string) => {
+    if (!editingItemA.trim() || !editingItemB.trim()) {
+      alert('Both items are required.');
+      return;
+    }
+
+    const contrast = contrasts.find(c => c.id === contrastId);
+    if (!contrast) return;
+
+    await updateContrast({
+      ...contrast,
+      itemA: editingItemA.trim(),
+      itemB: editingItemB.trim(),
+      notes: editingNotes.trim() || undefined,
+    });
+
+    setEditingId(null);
+    setEditingItemA('');
+    setEditingItemB('');
+    setEditingNotes('');
+    loadContrasts();
+  };
+
+  const handleDeleteClick = (contrastId: string) => {
+    setConfirmDeleteId(contrastId);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDeleteId) return;
+
+    const idToDelete = confirmDeleteId;
+    setConfirmDeleteId(null);
+
+    await deleteContrast(idToDelete);
+    loadContrasts();
+  };
+
+  const handleCancelDelete = () => {
+    setConfirmDeleteId(null);
+  };
+
+  const toggleVerse = (verseKey: string) => {
+    const newExpanded = new Set(expandedVerses);
+    if (newExpanded.has(verseKey)) {
+      newExpanded.delete(verseKey);
+    } else {
+      newExpanded.add(verseKey);
+    }
+    setExpandedVerses(newExpanded);
+  };
+
+  // Expand all verses by default
+  useEffect(() => {
+    if (contrasts.length > 0 && expandedVerses.size === 0) {
+      const verseGroups = groupByVerse(contrasts);
+      setExpandedVerses(new Set(verseGroups.keys()));
+    }
+  }, [contrasts, expandedVerses.size]);
+
+  const verseGroups = groupByVerse(contrasts);
+  const sortedGroups = sortVerseGroups(verseGroups);
+
+  return (
+    <>
+      <ConfirmationDialog
+        isOpen={confirmDeleteId !== null}
+        title="Delete Contrast"
+        message="Are you sure you want to delete this contrast? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        destructive={true}
+      />
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
+      {/* Create new contrast button */}
+      {!isCreating && (
+        <div className="mb-4">
+          <button
+            onClick={() => setIsCreating(true)}
+            className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
+          >
+            + New Contrast
+          </button>
+        </div>
+      )}
+
+      {/* Create form */}
+      {isCreating && (
+        <div className="mb-4 p-4 bg-scripture-surface rounded-xl border border-scripture-border/50">
+          <h3 className="text-sm font-medium text-scripture-text mb-3">New Contrast</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs text-scripture-muted mb-1">Item A</label>
+              <input
+                type="text"
+                value={newItemA}
+                onChange={(e) => setNewItemA(e.target.value)}
+                placeholder="First item being compared/contrasted"
+                className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-scripture-muted mb-1">Item B</label>
+              <input
+                type="text"
+                value={newItemB}
+                onChange={(e) => setNewItemB(e.target.value)}
+                placeholder="Second item being compared/contrasted"
+                className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-scripture-muted mb-1">Notes (optional)</label>
+              <textarea
+                value={newNotes}
+                onChange={(e) => setNewNotes(e.target.value)}
+                placeholder="Additional notes about this contrast"
+                rows={2}
+                className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCreate}
+                disabled={!newItemA.trim() || !newItemB.trim() || !getCurrentVerseRef()}
+                className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Save
+              </button>
+              <button
+                onClick={handleCancelCreate}
+                className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+            {!getCurrentVerseRef() && (
+              <p className="text-xs text-scripture-muted">
+                Note: Verse reference will use current location or selected verse.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {contrasts.length === 0 && !isCreating && (
+        <div className="text-center py-12">
+          <p className="text-scripture-muted text-sm mb-4">No contrasts recorded yet.</p>
+          <p className="text-scripture-muted text-xs mb-4">
+            Record contrasts and comparisons you observe in the text. Use the ⇔ symbol to mark contrasts, then add details here.
+          </p>
+          <button
+            onClick={() => setIsCreating(true)}
+            className="px-4 py-2 bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
+          >
+            Create Your First Contrast
+          </button>
+        </div>
+      )}
+
+      {/* Contrasts list */}
+      {contrasts.length > 0 && (
+        <div className="space-y-3">
+          {sortedGroups.map(([verseKey, verseContrasts]) => {
+            const isExpanded = expandedVerses.has(verseKey);
+            const verseRef = verseContrasts[0].verseRef;
+            const bookName = getBookById(verseRef.book)?.name || verseRef.book;
+
+            return (
+              <div
+                key={verseKey}
+                className="bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm overflow-hidden"
+              >
+                {/* Verse header */}
+                <div className="p-4">
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => toggleVerse(verseKey)}
+                      className="flex-1 text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-scripture-accent">
+                          {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
+                        </span>
+                        <span className="text-xs text-scripture-muted">
+                          ({verseContrasts.length} {verseContrasts.length === 1 ? 'contrast' : 'contrasts'})
+                        </span>
+                        <span className="text-xs text-scripture-muted">{isExpanded ? '▼' : '▶'}</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Contrasts for this verse */}
+                {isExpanded && (
+                  <div className="border-t border-scripture-muted/20 p-4 bg-scripture-bg/50 space-y-3">
+                    {verseContrasts.map(contrast => {
+                      const isEditing = editingId === contrast.id;
+
+                      return (
+                        <div
+                          key={contrast.id}
+                          className="bg-scripture-surface rounded-lg border border-scripture-border/30 p-3"
+                        >
+                          {isEditing ? (
+                            <div className="space-y-3">
+                              <div>
+                                <label className="block text-xs text-scripture-muted mb-1">Item A</label>
+                                <input
+                                  type="text"
+                                  value={editingItemA}
+                                  onChange={(e) => setEditingItemA(e.target.value)}
+                                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
+                                  autoFocus
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-scripture-muted mb-1">Item B</label>
+                                <input
+                                  type="text"
+                                  value={editingItemB}
+                                  onChange={(e) => setEditingItemB(e.target.value)}
+                                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-scripture-muted mb-1">Notes (optional)</label>
+                                <textarea
+                                  value={editingNotes}
+                                  onChange={(e) => setEditingNotes(e.target.value)}
+                                  rows={2}
+                                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleSaveEdit(contrast.id)}
+                                  disabled={!editingItemA.trim() || !editingItemB.trim()}
+                                  className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={handleCancelEdit}
+                                  className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="group/contrast">
+                              <div className="flex items-start gap-2 mb-2">
+                                <div className="flex-1">
+                                  <div className="text-sm text-scripture-text">
+                                    <span className="font-medium">{contrast.itemA}</span>
+                                    <span className="mx-2 text-scripture-muted">⇔</span>
+                                    <span className="font-medium">{contrast.itemB}</span>
+                                  </div>
+                                  {contrast.notes && (
+                                    <div className="mt-2 text-xs text-scripture-muted italic">
+                                      {contrast.notes}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1 opacity-0 group-hover/contrast:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={() => handleStartEdit(contrast)}
+                                    className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated"
+                                    title="Edit contrast"
+                                  >
+                                    ✏️
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteClick(contrast.id)}
+                                    className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors rounded hover:bg-scripture-elevated"
+                                    title="Delete contrast"
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      </div>
+    </>
+  );
+}

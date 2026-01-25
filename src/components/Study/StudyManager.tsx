@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useStudyStore } from '@/stores/studyStore';
 import { getBookById, BIBLE_BOOKS } from '@/types/bible';
-import { Modal, Button, Input, Select } from '@/components/shared';
+import { Modal, Button, Input, Select, ConfirmationDialog } from '@/components/shared';
 
 interface StudyManagerProps {
   onClose?: () => void;
@@ -19,6 +19,7 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
   const [editingStudy, setEditingStudy] = useState<{ id: string; name: string; book?: string } | null>(null);
   const [newStudyName, setNewStudyName] = useState('');
   const [newStudyBook, setNewStudyBook] = useState<string>('');
+  const [confirmDeleteStudyId, setConfirmDeleteStudyId] = useState<string | null>(null);
 
   useEffect(() => {
     loadStudies();
@@ -46,12 +47,19 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
     setEditingStudy(null);
   };
 
-  const handleDelete = async (studyId: string) => {
-    if (!confirm('Are you sure you want to delete this study? This will not delete keywords, only the study grouping.')) {
-      return;
-    }
-    
-    await deleteStudy(studyId);
+  const handleDeleteClick = (studyId: string) => {
+    setConfirmDeleteStudyId(studyId);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDeleteStudyId) return;
+    const idToDelete = confirmDeleteStudyId;
+    setConfirmDeleteStudyId(null);
+    await deleteStudy(idToDelete);
+  };
+
+  const handleCancelDelete = () => {
+    setConfirmDeleteStudyId(null);
   };
 
   const handleClose = () => {
@@ -64,7 +72,18 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
   if (!isOpen) return null;
 
   return (
-    <Modal
+    <>
+      <ConfirmationDialog
+        isOpen={confirmDeleteStudyId !== null}
+        title="Delete Study"
+        message="Are you sure you want to delete this study? This will not delete keywords, only the study grouping."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        destructive={true}
+      />
+      <Modal
       isOpen={isOpen}
       onClose={handleClose}
       title="Study Manager"
@@ -183,7 +202,7 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
                               Edit
                             </button>
                             <button
-                              onClick={() => handleDelete(study.id)}
+                                  onClick={() => handleDeleteClick(study.id)}
                               className="px-3 py-1.5 text-sm text-scripture-error hover:text-scripture-error/90 transition-colors"
                             >
                               Delete
@@ -196,5 +215,6 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
                 )}
               </div>
     </Modal>
+    </>
   );
 }

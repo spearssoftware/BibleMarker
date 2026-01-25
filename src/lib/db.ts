@@ -22,6 +22,7 @@ import type { MultiTranslationView } from '@/types/multiTranslation';
 import type { ObservationList } from '@/types/list';
 import type { FiveWAndHEntry } from '@/types/observation';
 import type { Contrast } from '@/types/contrast';
+import type { TimeExpression } from '@/types/timeExpression';
 import {
   validateAnnotation,
   validateSectionHeading,
@@ -147,6 +148,7 @@ class BibleMarkerDB extends Dexie {
   observationLists!: EntityTable<ObservationList, 'id'>;
   fiveWAndH!: EntityTable<FiveWAndHEntry, 'id'>;
   contrasts!: EntityTable<Contrast, 'id'>;
+  timeExpressions!: EntityTable<TimeExpression, 'id'>;
 
   constructor() {
     super('BibleMarkerDB');
@@ -326,6 +328,29 @@ class BibleMarkerDB extends Dexie {
       observationLists: 'id, keyWordId, studyId',
       fiveWAndH: 'id',
       contrasts: 'id',
+    });
+
+    // Version 10: Time expressions tracker (Phase 1 - Agent 3)
+    this.version(10).stores({
+      modules: 'id, status',
+      moduleFiles: 'id, moduleId',
+      chapterCache: 'id, moduleId',
+      translationCache: 'id',
+      annotations: 'id, moduleId, type, createdAt, presetId',
+      sectionHeadings: 'id, moduleId',
+      chapterTitles: 'id, moduleId',
+      notes: 'id, moduleId',
+      keyWords: 'id, word, category',
+      markingPresets: 'id, word, category',
+      preferences: 'id',
+      readingHistory: 'id, moduleId, timestamp',
+      esvRateLimit: 'id',
+      studies: 'id',
+      multiTranslationViews: 'id',
+      observationLists: 'id, keyWordId, studyId',
+      fiveWAndH: 'id',
+      contrasts: 'id',
+      timeExpressions: 'id',
     });
   }
 }
@@ -648,6 +673,8 @@ export async function clearDatabase(): Promise<void> {
     db.multiTranslationViews.clear(),
     db.observationLists.clear(),
     db.fiveWAndH.clear(),
+    db.contrasts.clear(),
+    db.timeExpressions.clear(),
     // Note: modules and moduleFiles tables are deprecated (Sword support removed)
     // but kept in schema for backwards compatibility
   ]);

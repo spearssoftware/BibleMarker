@@ -12,7 +12,7 @@ import { getBookById, formatVerseRef, BIBLE_BOOKS } from '@/types/bible';
 import type { ObservationList, ObservationItem } from '@/types/list';
 import type { VerseRef } from '@/types/bible';
 import { ListEditor } from './ListEditor';
-import { Modal } from '@/components/shared';
+import { Modal, ConfirmationDialog } from '@/components/shared';
 
 interface ListPanelProps {
   onClose?: () => void;
@@ -81,6 +81,8 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
   const [newObservationText, setNewObservationText] = useState('');
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemText, setEditingItemText] = useState('');
+  const [confirmDeleteListId, setConfirmDeleteListId] = useState<string | null>(null);
+  const [confirmDeleteObservation, setConfirmDeleteObservation] = useState<{ listId: string; itemId: string } | null>(null);
 
   useEffect(() => {
     loadLists();
@@ -96,11 +98,19 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
     setExpandedLists(newExpanded);
   };
 
-  const handleDelete = async (listId: string) => {
-    if (!confirm('Are you sure you want to delete this list? All observations will be lost.')) {
-      return;
-    }
-    await deleteList(listId);
+  const handleDeleteClick = (listId: string) => {
+    setConfirmDeleteListId(listId);
+  };
+
+  const handleConfirmDeleteList = async () => {
+    if (!confirmDeleteListId) return;
+    const idToDelete = confirmDeleteListId;
+    setConfirmDeleteListId(null);
+    await deleteList(idToDelete);
+  };
+
+  const handleCancelDeleteList = () => {
+    setConfirmDeleteListId(null);
   };
 
   const handleExport = (list: ObservationList) => {
@@ -128,7 +138,7 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
       const ref = formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse);
       lines.push(ref);
       verseItems.forEach((item, index) => {
-        lines.push(`   ${item.content}`);
+        lines.push(`  ? ${item.content}`);
       });
       lines.push('');
     });
@@ -198,13 +208,20 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
     loadLists(); // Refresh to show updated observation
   };
 
-  const handleDeleteObservation = async (listId: string, itemId: string) => {
-    if (!confirm('Are you sure you want to delete this observation?')) {
-      return;
-    }
-    
+  const handleDeleteObservationClick = (listId: string, itemId: string) => {
+    setConfirmDeleteObservation({ listId, itemId });
+  };
+
+  const handleConfirmDeleteObservation = async () => {
+    if (!confirmDeleteObservation) return;
+    const { listId, itemId } = confirmDeleteObservation;
+    setConfirmDeleteObservation(null);
     await deleteItem(listId, itemId);
     loadLists(); // Refresh to remove deleted observation
+  };
+
+  const handleCancelDeleteObservation = () => {
+    setConfirmDeleteObservation(null);
   };
 
   if (isCreating) {
@@ -230,7 +247,28 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
   }
 
   return (
-    <Modal
+    <>
+      <ConfirmationDialog
+        isOpen={confirmDeleteListId !== null}
+        title="Delete List"
+        message="Are you sure you want to delete this list? All observations will be lost."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDeleteList}
+        onCancel={handleCancelDeleteList}
+        destructive={true}
+      />
+      <ConfirmationDialog
+        isOpen={confirmDeleteObservation !== null}
+        title="Delete Observation"
+        message="Are you sure you want to delete this observation?"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDeleteObservation}
+        onCancel={handleCancelDeleteObservation}
+        destructive={true}
+      />
+      <Modal
       isOpen={true}
       onClose={onClose || (() => {})}
       title="Observation Lists"
@@ -316,7 +354,7 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
                               ??
                             </button>
                             <button
-                              onClick={() => handleDelete(list.id)}
+                              onClick={() => handleDeleteClick(list.id)}
                               className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors"
                               title="Delete list"
                             >
@@ -403,7 +441,7 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
                                                     ??
                                                   </button>
                                                   <button
-                                                    onClick={() => handleDeleteObservation(list.id, item.id)}
+                                                    onClick={() => handleDeleteObservationClick(list.id, item.id)}
                                                     className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors rounded hover:bg-scripture-elevated"
                                                     title="Delete observation"
                                                   >
@@ -458,5 +496,6 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
               </div>
             )}
     </Modal>
+    </>
   );
 }

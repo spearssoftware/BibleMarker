@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { useStudyStore } from '@/stores/studyStore';
 import { getBookById, BIBLE_BOOKS } from '@/types/bible';
 import { ChapterAtAGlance, BookOverview, ThemeTracker } from './';
+import { ConfirmationDialog } from '@/components/shared';
 
 type StudyToolTab = 'chapter' | 'book' | 'theme' | 'studies';
 
@@ -24,6 +25,7 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
   const [editingStudy, setEditingStudy] = useState<{ id: string; name: string; book?: string } | null>(null);
   const [newStudyName, setNewStudyName] = useState('');
   const [newStudyBook, setNewStudyBook] = useState<string>('');
+  const [confirmDeleteStudyId, setConfirmDeleteStudyId] = useState<string | null>(null);
 
   useEffect(() => {
     loadStudies();
@@ -59,12 +61,19 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
     setEditingStudy(null);
   };
 
-  const handleDeleteStudy = async (studyId: string) => {
-    if (!confirm('Are you sure you want to delete this study? This will not delete keywords, only the study grouping.')) {
-      return;
-    }
-    
-    await deleteStudy(studyId);
+  const handleDeleteStudyClick = (studyId: string) => {
+    setConfirmDeleteStudyId(studyId);
+  };
+
+  const handleConfirmDeleteStudy = async () => {
+    if (!confirmDeleteStudyId) return;
+    const idToDelete = confirmDeleteStudyId;
+    setConfirmDeleteStudyId(null);
+    await deleteStudy(idToDelete);
+  };
+
+  const handleCancelDeleteStudy = () => {
+    setConfirmDeleteStudyId(null);
   };
 
   return (
@@ -264,7 +273,7 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
                                   Edit
                                 </button>
                                 <button
-                                  onClick={() => handleDeleteStudy(study.id)}
+                                  onClick={() => handleDeleteStudyClick(study.id)}
                                   className="px-3 py-2 text-sm font-ui text-scripture-errorText hover:text-scripture-error 
                                            transition-colors underline"
                                 >

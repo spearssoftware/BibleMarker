@@ -15,6 +15,8 @@ import type { VerseRef } from '@/types/bible';
 import { ListEditor } from '@/components/Lists/ListEditor';
 import { FiveWAndH } from './FiveWAndH';
 import { ContrastTracker } from './ContrastTracker';
+import { TimeTracker } from './TimeTracker';
+import { ConfirmationDialog } from '@/components/shared';
 
 export type ObservationTab = 'lists' | 'fiveWAndH' | 'contrasts' | 'time' | 'places' | 'conclusions' | 'theme';
 
@@ -74,6 +76,8 @@ export function ObservationToolsPanel({
   const [newObservationText, setNewObservationText] = useState('');
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemText, setEditingItemText] = useState('');
+  const [confirmDeleteListId, setConfirmDeleteListId] = useState<string | null>(null);
+  const [confirmDeleteObservation, setConfirmDeleteObservation] = useState<{ listId: string; itemId: string } | null>(null);
 
   // Update activeTab when initialTab changes (e.g., when opened from quick action)
   useEffect(() => {
@@ -105,8 +109,8 @@ export function ObservationToolsPanel({
     { id: 'lists', label: 'Lists', icon: '📝' },
     { id: 'fiveWAndH', label: '5 W\'s & H', icon: '❓' },
     { id: 'contrasts', label: 'Contrasts', icon: '⇔' },
+    { id: 'time', label: 'Time', icon: '🕐' },
     // Phase 1 agents will add:
-    // { id: 'time', label: 'Time', icon: '🕐' },
     // { id: 'places', label: 'Places', icon: '📍' },
     // { id: 'conclusions', label: 'Conclusions', icon: '→' },
     // { id: 'theme', label: 'Theme', icon: '🎯' },
@@ -122,11 +126,19 @@ export function ObservationToolsPanel({
     setExpandedLists(newExpanded);
   };
 
-  const handleDelete = async (listId: string) => {
-    if (!confirm('Are you sure you want to delete this list? All observations will be lost.')) {
-      return;
-    }
-    await deleteList(listId);
+  const handleDeleteClick = (listId: string) => {
+    setConfirmDeleteListId(listId);
+  };
+
+  const handleConfirmDeleteList = async () => {
+    if (!confirmDeleteListId) return;
+    const idToDelete = confirmDeleteListId;
+    setConfirmDeleteListId(null);
+    await deleteList(idToDelete);
+  };
+
+  const handleCancelDeleteList = () => {
+    setConfirmDeleteListId(null);
   };
 
   const handleExport = (list: ObservationList) => {
@@ -220,17 +232,45 @@ export function ObservationToolsPanel({
     loadLists();
   };
 
-  const handleDeleteObservation = async (listId: string, itemId: string) => {
-    if (!confirm('Are you sure you want to delete this observation?')) {
-      return;
-    }
-    
+  const handleDeleteObservationClick = (listId: string, itemId: string) => {
+    setConfirmDeleteObservation({ listId, itemId });
+  };
+
+  const handleConfirmDeleteObservation = async () => {
+    if (!confirmDeleteObservation) return;
+    const { listId, itemId } = confirmDeleteObservation;
+    setConfirmDeleteObservation(null);
     await deleteItem(listId, itemId);
     loadLists();
   };
 
+  const handleCancelDeleteObservation = () => {
+    setConfirmDeleteObservation(null);
+  };
+
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <>
+      <ConfirmationDialog
+        isOpen={confirmDeleteListId !== null}
+        title="Delete List"
+        message="Are you sure you want to delete this list? All observations will be lost."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDeleteList}
+        onCancel={handleCancelDeleteList}
+        destructive={true}
+      />
+      <ConfirmationDialog
+        isOpen={confirmDeleteObservation !== null}
+        title="Delete Observation"
+        message="Are you sure you want to delete this observation?"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDeleteObservation}
+        onCancel={handleCancelDeleteObservation}
+        destructive={true}
+      />
+      <div className="flex flex-col h-full min-h-0">
       {/* Header */}
       <div className="flex-shrink-0 px-4 py-3 border-b border-scripture-border/50 bg-scripture-elevated/30 flex items-center justify-between">
         <h2 className="text-lg font-ui font-semibold text-scripture-text">Observation Tools</h2>
@@ -381,7 +421,7 @@ export function ObservationToolsPanel({
                               ✏️
                             </button>
                             <button
-                              onClick={() => handleDelete(list.id)}
+                              onClick={() => handleDeleteClick(list.id)}
                               className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors"
                               title="Delete list"
                             >
@@ -468,7 +508,7 @@ export function ObservationToolsPanel({
                                                     ✏️
                                                   </button>
                                                   <button
-                                                    onClick={() => handleDeleteObservation(list.id, item.id)}
+                                                    onClick={() => handleDeleteObservationClick(list.id, item.id)}
                                                     className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors rounded hover:bg-scripture-elevated"
                                                     title="Delete observation"
                                                   >
@@ -527,10 +567,12 @@ export function ObservationToolsPanel({
           <FiveWAndH selectedText={selectedText} verseRef={verseRef} />
         ) : activeTab === 'contrasts' ? (
           <ContrastTracker selectedText={selectedText} verseRef={verseRef} />
+        ) : activeTab === 'time' ? (
+          <TimeTracker selectedText={selectedText} verseRef={verseRef} />
         ) : null}
         
         {/* Phase 1 agents will add their tab content here */}
-        {activeTab !== 'lists' && activeTab !== 'fiveWAndH' && activeTab !== 'contrasts' && (
+        {activeTab !== 'lists' && activeTab !== 'fiveWAndH' && activeTab !== 'contrasts' && activeTab !== 'time' && (
           <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
             <p className="text-sm text-scripture-muted">
               Tab "{activeTab}" will be implemented in Phase 1.
@@ -538,6 +580,7 @@ export function ObservationToolsPanel({
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }

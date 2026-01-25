@@ -1,0 +1,462 @@
+/**
+ * Time Expression Tracker
+ * 
+ * Component for recording and displaying chronological sequences and time references.
+ */
+
+import { useState, useEffect, useMemo } from 'react';
+import { useTimeStore } from '@/stores/timeStore';
+import { useBibleStore } from '@/stores/bibleStore';
+import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
+import type { TimeExpression } from '@/types/timeExpression';
+import type { VerseRef } from '@/types/bible';
+import { formatVerseRef, getBookById } from '@/types/bible';
+import { ConfirmationDialog } from '@/components/shared';
+import { saveAnnotation, deleteAnnotation } from '@/lib/db';
+import type { SymbolAnnotation } from '@/types/annotation';
+
+interface TimeTrackerProps {
+  selectedText?: string;
+  verseRef?: VerseRef;
+}
+
+// Helper to create a unique key for a verse reference
+const getVerseKey = (ref: VerseRef): string => {
+  return `${ref.book}:${ref.chapter}:${ref.verse}`;
+};
+
+// Group time expressions by verse
+const groupByVerse = (timeExpressions: TimeExpression[]): Map<string, TimeExpression[]> => {
+  const map = new Map<string, TimeExpression[]>();
+  timeExpressions.forEach(timeExpression => {
+    const key = getVerseKey(timeExpression.verseRef);
+    if (!map.has(key)) {
+      map.set(key, []);
+    }
+    map.get(key)!.push(timeExpression);
+  });
+  return map;
+};
+
+// Sort verse groups by canonical order
+const sortVerseGroups = (groups: Map<string, TimeExpression[]>): Array<[string, TimeExpression[]]> => {
+  return Array.from(groups.entries()).sort(([keyA], [keyB]) => {
+    const [bookA, chapterA, verseA] = keyA.split(':').map(Number);
+    const [bookB, chapterB, verseB] = keyB.split(':').map(Number);
+    
+    if (bookA !== bookB) return bookA - bookB;
+    if (chapterA !== chapterB) return chapterA - chapterB;
+    return verseA - verseB;
+  });
+};
+
+export function TimeTracker({ selectedText, verseRef: initialVerseRef }: TimeTrackerProps) {
+  const { timeExpressions, loadTimeExpressions, createTimeExpression, updateTimeExpression, deleteTimeExpression } = useTimeStore();
+  const { currentBook, currentChapter, currentModuleId } = useBibleStore();
+  const { activeView } = useMultiTranslationStore();
+  
+  // Get the primary translation ID (for multi-translation view) or fall back to currentModuleId
+  const primaryModuleId = useMemo(() => {
+    const translationIds = activeView?.translationIds;
+    if (translationIds && translationIds.length > 0) {
+      return translationIds[0];
+    }
+    return currentModuleId;
+  }, [activeView?.translationIds, currentModuleId]);
+  const [isCreating, setIsCreating] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [newExpression, setNewExpression] = useState('');
+  const [newNotes, setNewNotes] = useState('');
+  const [editingExpression, setEditingExpression] = useState('');
+  const [editingNotes, setEditingNotes] = useState('');
+  const [expandedVerses, setExpandedVerses] = useState<Set<string>>(new Set());
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // Determine verse reference - use provided one, or current location
+  const getCurrentVerseRef = (): VerseRef | null => {
+    if (initialVerseRef) return initialVerseRef;
+    // Use current location from bible store, default to verse 1 if no verse selected
+    if (currentBook && currentChapter) {
+      return {
+        book: currentBook,
+        chapter: currentChapter,
+        verse: 1, // Default to verse 1 if no specific verse
+      };
+    }
+    return null;
+  };
+
+  // Load time expressions on mount
+  useEffect(() => {
+    loadTimeExpressions();
+  }, [loadTimeExpressions]);
+
+  // Pre-fill form if selectedText is provided
+  useEffect(() => {
+    if (selectedText && isCreating && !newExpression) {
+      // Pre-fill with selected text
+      setNewExpression(selectedText.trim());
+    }
+  }, [selectedText, isCreating, newExpression]);
+
+  const handleCreate = async () => {
+    const verseRef = getCurrentVerseRef();
+    if (!verseRef || !newExpression.trim()) {
+      alert('Please fill in the time expression and ensure you have a verse reference.');
+      return;
+    }
+
+    // Create hourglass symbol annotation (no color) at the start of the verse
+    let annotationId: string | undefined;
+    if (primaryModuleId) {
+      try {
+        const annotation: SymbolAnnotation = {
+          id: crypto.randomUUID(),
+          moduleId: primaryModuleId,
+          type: 'symbol',
+          ref: verseRef,
+          // No wordIndex, startWordIndex, endWordIndex, or offsets
+          // This makes it appear before the verse (not before a word)
+          position: 'before',
+          symbol: 'hourglass',
+          // No color - as requested
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        annotationId = await saveAnnotation(annotation);
+        console.log('[TimeTracker] Created hourglass annotation:', { annotationId, verseRef, moduleId: primaryModuleId });
+        
+        // Dispatch event to notify other components to reload annotations
+        window.dispatchEvent(new CustomEvent('annotationsUpdated'));
+      } catch (error) {
+        console.error('[TimeTracker] Failed to create hourglass annotation:', error);
+        // Continue even if annotation creation fails
+      }
+    } else {
+      console.warn('[TimeTracker] No moduleId available, cannot create annotation');
+    }
+
+    await createTimeExpression(
+      newExpression.trim(),
+      verseRef,
+      newNotes.trim() || undefined,
+      annotationId
+    );
+
+    setIsCreating(false);
+    setNewExpression('');
+    setNewNotes('');
+    loadTimeExpressions();
+  };
+
+  const handleCancelCreate = () => {
+    setIsCreating(false);
+    setNewExpression('');
+    setNewNotes('');
+  };
+
+  const handleStartEdit = (timeExpression: TimeExpression) => {
+    setEditingId(timeExpression.id);
+    setEditingExpression(timeExpression.expression);
+    setEditingNotes(timeExpression.notes || '');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditingExpression('');
+    setEditingNotes('');
+  };
+
+  const handleSaveEdit = async (timeExpressionId: string) => {
+    if (!editingExpression.trim()) {
+      alert('Time expression is required.');
+      return;
+    }
+
+    const timeExpression = timeExpressions.find(t => t.id === timeExpressionId);
+    if (!timeExpression) return;
+
+    await updateTimeExpression({
+      ...timeExpression,
+      expression: editingExpression.trim(),
+      notes: editingNotes.trim() || undefined,
+    });
+
+    setEditingId(null);
+    setEditingExpression('');
+    setEditingNotes('');
+    loadTimeExpressions();
+  };
+
+  const handleDeleteClick = (timeExpressionId: string) => {
+    setConfirmDeleteId(timeExpressionId);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDeleteId) return;
+
+    const idToDelete = confirmDeleteId;
+    setConfirmDeleteId(null);
+
+    // Find the time expression to get its annotationId
+    const timeExpression = timeExpressions.find(t => t.id === idToDelete);
+    
+    // Delete the associated annotation if it exists
+    if (timeExpression?.annotationId) {
+      try {
+        await deleteAnnotation(timeExpression.annotationId);
+        // Dispatch event to notify other components to reload annotations
+        window.dispatchEvent(new CustomEvent('annotationsUpdated'));
+      } catch (error) {
+        console.warn('Failed to delete associated annotation:', error);
+        // Continue even if annotation deletion fails
+      }
+    }
+
+    await deleteTimeExpression(idToDelete);
+    loadTimeExpressions();
+  };
+
+  const handleCancelDelete = () => {
+    setConfirmDeleteId(null);
+  };
+
+  const toggleVerse = (verseKey: string) => {
+    const newExpanded = new Set(expandedVerses);
+    if (newExpanded.has(verseKey)) {
+      newExpanded.delete(verseKey);
+    } else {
+      newExpanded.add(verseKey);
+    }
+    setExpandedVerses(newExpanded);
+  };
+
+  // Expand all verses by default
+  useEffect(() => {
+    if (timeExpressions.length > 0 && expandedVerses.size === 0) {
+      const verseGroups = groupByVerse(timeExpressions);
+      setExpandedVerses(new Set(verseGroups.keys()));
+    }
+  }, [timeExpressions, expandedVerses.size]);
+
+  const verseGroups = groupByVerse(timeExpressions);
+  const sortedGroups = sortVerseGroups(verseGroups);
+
+  return (
+    <>
+      <ConfirmationDialog
+        isOpen={confirmDeleteId !== null}
+        title="Delete Time Expression"
+        message="Are you sure you want to delete this time expression? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        destructive={true}
+      />
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
+      {/* Create new time expression button */}
+      {!isCreating && (
+        <div className="mb-4">
+          <button
+            onClick={() => setIsCreating(true)}
+            className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
+          >
+            + New Time Expression
+          </button>
+        </div>
+      )}
+
+      {/* Create form */}
+      {isCreating && (
+        <div className="mb-4 p-4 bg-scripture-surface rounded-xl border border-scripture-border/50">
+          <h3 className="text-sm font-medium text-scripture-text mb-3">New Time Expression</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs text-scripture-muted mb-1">Time Expression</label>
+              <input
+                type="text"
+                value={newExpression}
+                onChange={(e) => setNewExpression(e.target.value)}
+                placeholder="e.g., 'in the morning', 'three days later', 'on the third day'"
+                className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-scripture-muted mb-1">Notes (optional)</label>
+              <textarea
+                value={newNotes}
+                onChange={(e) => setNewNotes(e.target.value)}
+                placeholder="Additional notes about this time expression"
+                rows={2}
+                className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCreate}
+                disabled={!newExpression.trim() || !getCurrentVerseRef()}
+                className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Save
+              </button>
+              <button
+                onClick={handleCancelCreate}
+                className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+            {!getCurrentVerseRef() && (
+              <p className="text-xs text-scripture-muted">
+                Note: Verse reference will use current location or selected verse.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {timeExpressions.length === 0 && !isCreating && (
+        <div className="text-center py-12">
+          <p className="text-scripture-muted text-sm mb-4">No time expressions recorded yet.</p>
+          <p className="text-scripture-muted text-xs mb-4">
+            Record time expressions and chronological sequences you observe in the text. Use the 🕐, 📅, or ⏳ symbols to mark time references, then add details here.
+          </p>
+          <button
+            onClick={() => setIsCreating(true)}
+            className="px-4 py-2 bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
+          >
+            Create Your First Time Expression
+          </button>
+        </div>
+      )}
+
+      {/* Time expressions list */}
+      {timeExpressions.length > 0 && (
+        <div className="space-y-3">
+          {sortedGroups.map(([verseKey, verseTimeExpressions]) => {
+            const isExpanded = expandedVerses.has(verseKey);
+            const verseRef = verseTimeExpressions[0].verseRef;
+            const bookName = getBookById(verseRef.book)?.name || verseRef.book;
+
+            return (
+              <div
+                key={verseKey}
+                className="bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm overflow-hidden"
+              >
+                {/* Verse header */}
+                <div className="p-4">
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => toggleVerse(verseKey)}
+                      className="flex-1 text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-scripture-accent">
+                          {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
+                        </span>
+                        <span className="text-xs text-scripture-muted">
+                          ({verseTimeExpressions.length} {verseTimeExpressions.length === 1 ? 'expression' : 'expressions'})
+                        </span>
+                        <span className="text-xs text-scripture-muted">{isExpanded ? '▼' : '▶'}</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Time expressions for this verse */}
+                {isExpanded && (
+                  <div className="border-t border-scripture-muted/20 p-4 bg-scripture-bg/50 space-y-3">
+                    {verseTimeExpressions.map(timeExpression => {
+                      const isEditing = editingId === timeExpression.id;
+
+                      return (
+                        <div
+                          key={timeExpression.id}
+                          className="bg-scripture-surface rounded-lg border border-scripture-border/30 p-3"
+                        >
+                          {isEditing ? (
+                            <div className="space-y-3">
+                              <div>
+                                <label className="block text-xs text-scripture-muted mb-1">Time Expression</label>
+                                <input
+                                  type="text"
+                                  value={editingExpression}
+                                  onChange={(e) => setEditingExpression(e.target.value)}
+                                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
+                                  autoFocus
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-scripture-muted mb-1">Notes (optional)</label>
+                                <textarea
+                                  value={editingNotes}
+                                  onChange={(e) => setEditingNotes(e.target.value)}
+                                  rows={2}
+                                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleSaveEdit(timeExpression.id)}
+                                  disabled={!editingExpression.trim()}
+                                  className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={handleCancelEdit}
+                                  className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="group/time">
+                              <div className="flex items-start gap-2 mb-2">
+                                <div className="flex-1">
+                                  <div className="text-sm text-scripture-text">
+                                    <span className="font-medium">🕐 {timeExpression.expression}</span>
+                                  </div>
+                                  {timeExpression.notes && (
+                                    <div className="mt-2 text-xs text-scripture-muted italic">
+                                      {timeExpression.notes}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1 opacity-0 group-hover/time:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={() => handleStartEdit(timeExpression)}
+                                    className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated"
+                                    title="Edit time expression"
+                                  >
+                                    ✏️
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteClick(timeExpression.id)}
+                                    className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors rounded hover:bg-scripture-elevated"
+                                    title="Delete time expression"
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      </div>
+    </>
+  );
+}
