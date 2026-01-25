@@ -10,6 +10,7 @@ import type { MarkingPreset } from '@/types/keyWord';
 import type { Study } from '@/types/study';
 import type { MultiTranslationView } from '@/types/multiTranslation';
 import type { ObservationList } from '@/types/list';
+import type { FiveWAndHEntry } from '@/types/observation';
 import type { VerseRef } from '@/types/bible';
 import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
 
@@ -353,6 +354,61 @@ export function validateObservationList(list: any): ObservationList {
   validateDate(list.updatedAt, 'updatedAt');
 
   return list as ObservationList;
+}
+
+/**
+ * Validate a 5W+H entry
+ */
+export function validateFiveWAndH(entry: any): FiveWAndHEntry {
+  if (!entry || typeof entry !== 'object') {
+    throw new ValidationError('5W+H entry must be an object', 'entry', entry);
+  }
+
+  if (typeof entry.id !== 'string' || entry.id.trim() === '') {
+    throw new ValidationError('5W+H entry must have a valid id', 'id', entry.id);
+  }
+
+  validateVerseRef(entry.verseRef);
+
+  // All fields are optional, but if present, must be strings
+  if (entry.who !== undefined && typeof entry.who !== 'string') {
+    throw new ValidationError('5W+H entry who must be a string if provided', 'who', entry.who);
+  }
+  if (entry.what !== undefined && typeof entry.what !== 'string') {
+    throw new ValidationError('5W+H entry what must be a string if provided', 'what', entry.what);
+  }
+  if (entry.when !== undefined && typeof entry.when !== 'string') {
+    throw new ValidationError('5W+H entry when must be a string if provided', 'when', entry.when);
+  }
+  if (entry.where !== undefined && typeof entry.where !== 'string') {
+    throw new ValidationError('5W+H entry where must be a string if provided', 'where', entry.where);
+  }
+  if (entry.why !== undefined && typeof entry.why !== 'string') {
+    throw new ValidationError('5W+H entry why must be a string if provided', 'why', entry.why);
+  }
+  if (entry.how !== undefined && typeof entry.how !== 'string') {
+    throw new ValidationError('5W+H entry how must be a string if provided', 'how', entry.how);
+  }
+  if (entry.notes !== undefined && typeof entry.notes !== 'string') {
+    throw new ValidationError('5W+H entry notes must be a string if provided', 'notes', entry.notes);
+  }
+
+  // At least one field should have content (who, what, when, where, why, how, or notes)
+  const hasContent = entry.who?.trim() || 
+                     entry.what?.trim() || 
+                     entry.when?.trim() || 
+                     entry.where?.trim() || 
+                     entry.why?.trim() || 
+                     entry.how?.trim() || 
+                     entry.notes?.trim();
+  if (!hasContent) {
+    throw new ValidationError('5W+H entry must have at least one field with content', 'entry', entry);
+  }
+
+  validateDate(entry.createdAt, 'createdAt');
+  validateDate(entry.updatedAt, 'updatedAt');
+
+  return entry as FiveWAndHEntry;
 }
 
 /**

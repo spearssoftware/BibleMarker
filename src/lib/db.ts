@@ -20,6 +20,8 @@ import { keyWordToMarkingPreset } from '@/types/keyWord';
 import type { Study } from '@/types/study';
 import type { MultiTranslationView } from '@/types/multiTranslation';
 import type { ObservationList } from '@/types/list';
+import type { FiveWAndHEntry } from '@/types/observation';
+import type { Contrast } from '@/types/contrast';
 import {
   validateAnnotation,
   validateSectionHeading,
@@ -143,6 +145,8 @@ class BibleMarkerDB extends Dexie {
   studies!: EntityTable<Study, 'id'>;
   multiTranslationViews!: EntityTable<MultiTranslationView, 'id'>;
   observationLists!: EntityTable<ObservationList, 'id'>;
+  fiveWAndH!: EntityTable<FiveWAndHEntry, 'id'>;
+  contrasts!: EntityTable<Contrast, 'id'>;
 
   constructor() {
     super('BibleMarkerDB');
@@ -279,6 +283,49 @@ class BibleMarkerDB extends Dexie {
       studies: 'id',
       multiTranslationViews: 'id',
       observationLists: 'id, keyWordId, studyId',
+    });
+
+    // Version 8: 5W+H worksheet entries (Phase 1 - Agent 1)
+    this.version(8).stores({
+      modules: 'id, status',
+      moduleFiles: 'id, moduleId',
+      chapterCache: 'id, moduleId',
+      translationCache: 'id',
+      annotations: 'id, moduleId, type, createdAt, presetId',
+      sectionHeadings: 'id, moduleId',
+      chapterTitles: 'id, moduleId',
+      notes: 'id, moduleId',
+      keyWords: 'id, word, category',
+      markingPresets: 'id, word, category',
+      preferences: 'id',
+      readingHistory: 'id, moduleId, timestamp',
+      esvRateLimit: 'id',
+      studies: 'id',
+      multiTranslationViews: 'id',
+      observationLists: 'id, keyWordId, studyId',
+      fiveWAndH: 'id',
+    });
+
+    // Version 9: Contrasts and comparisons tracker (Phase 1 - Agent 2)
+    this.version(9).stores({
+      modules: 'id, status',
+      moduleFiles: 'id, moduleId',
+      chapterCache: 'id, moduleId',
+      translationCache: 'id',
+      annotations: 'id, moduleId, type, createdAt, presetId',
+      sectionHeadings: 'id, moduleId',
+      chapterTitles: 'id, moduleId',
+      notes: 'id, moduleId',
+      keyWords: 'id, word, category',
+      markingPresets: 'id, word, category',
+      preferences: 'id',
+      readingHistory: 'id, moduleId, timestamp',
+      esvRateLimit: 'id',
+      studies: 'id',
+      multiTranslationViews: 'id',
+      observationLists: 'id, keyWordId, studyId',
+      fiveWAndH: 'id',
+      contrasts: 'id',
     });
   }
 }
@@ -600,6 +647,7 @@ export async function clearDatabase(): Promise<void> {
     db.studies.clear(),
     db.multiTranslationViews.clear(),
     db.observationLists.clear(),
+    db.fiveWAndH.clear(),
     // Note: modules and moduleFiles tables are deprecated (Sword support removed)
     // but kept in schema for backwards compatibility
   ]);

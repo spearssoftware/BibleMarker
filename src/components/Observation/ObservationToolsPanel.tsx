@@ -13,6 +13,8 @@ import { getBookById, formatVerseRef, BIBLE_BOOKS } from '@/types/bible';
 import type { ObservationList, ObservationItem } from '@/types/list';
 import type { VerseRef } from '@/types/bible';
 import { ListEditor } from '@/components/Lists/ListEditor';
+import { FiveWAndH } from './FiveWAndH';
+import { ContrastTracker } from './ContrastTracker';
 
 export type ObservationTab = 'lists' | 'fiveWAndH' | 'contrasts' | 'time' | 'places' | 'conclusions' | 'theme';
 
@@ -101,9 +103,9 @@ export function ObservationToolsPanel({
   // Tab definitions - Phase 1 agents will add their tabs here
   const tabs: { id: ObservationTab; label: string; icon: string }[] = [
     { id: 'lists', label: 'Lists', icon: '📝' },
+    { id: 'fiveWAndH', label: '5 W\'s & H', icon: '❓' },
+    { id: 'contrasts', label: 'Contrasts', icon: '⇔' },
     // Phase 1 agents will add:
-    // { id: 'fiveWAndH', label: '5 W\'s & H', icon: '❓' },
-    // { id: 'contrasts', label: 'Contrasts', icon: '⇔' },
     // { id: 'time', label: 'Time', icon: '🕐' },
     // { id: 'places', label: 'Places', icon: '📍' },
     // { id: 'conclusions', label: 'Conclusions', icon: '→' },
@@ -521,10 +523,14 @@ export function ObservationToolsPanel({
               </div>
             )}
           </div>
+        ) : activeTab === 'fiveWAndH' ? (
+          <FiveWAndH selectedText={selectedText} verseRef={verseRef} />
+        ) : activeTab === 'contrasts' ? (
+          <ContrastTracker selectedText={selectedText} verseRef={verseRef} />
         ) : null}
         
         {/* Phase 1 agents will add their tab content here */}
-        {activeTab !== 'lists' && (
+        {activeTab !== 'lists' && activeTab !== 'fiveWAndH' && activeTab !== 'contrasts' && (
           <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
             <p className="text-sm text-scripture-muted">
               Tab "{activeTab}" will be implemented in Phase 1.
