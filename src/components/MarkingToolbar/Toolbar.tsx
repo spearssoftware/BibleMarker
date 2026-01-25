@@ -16,6 +16,7 @@ import { KeyWordManager } from '@/components/KeyWords';
 import { AddToList } from '@/components/Lists';
 import { StudyToolsPanel } from '@/components/Summary';
 import { SettingsPanel } from '@/components/Settings';
+import { ObservationToolsPanel, type ObservationTab } from '@/components/Observation';
 import { ConfirmationDialog } from '@/components/shared';
 import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
 import { clearDatabase, updatePreferences, clearBookAnnotations } from '@/lib/db';
@@ -24,6 +25,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { getBookById } from '@/types/bible';
 import { findMatchingPresets, isCommonPronoun, type MarkingPreset } from '@/types/keyWord';
 import type { AnnotationType, TextAnnotation, SymbolAnnotation } from '@/types/annotation';
+import { getTrackerForSymbol, hasTrackerMapping, type ObservationTrackerType } from '@/lib/observationSymbols';
 
 const COLOR_STYLES = ['highlight', 'textColor', 'underline'] as const;
 const COLOR_STYLE_LABELS: Record<(typeof COLOR_STYLES)[number], string> = {
@@ -32,8 +34,9 @@ const COLOR_STYLE_LABELS: Record<(typeof COLOR_STYLES)[number], string> = {
   underline: 'Underline',
 };
 
-const TOOLS: { type: 'keyWords' | 'studyTools' | 'more'; icon: string; label: string }[] = [
+const TOOLS: { type: 'keyWords' | 'observe' | 'studyTools' | 'more'; icon: string; label: string }[] = [
   { type: 'keyWords', icon: '🔑', label: 'Key Words' },
+  { type: 'observe', icon: '🔍', label: 'Observe' },
   { type: 'studyTools', icon: '📚', label: 'Study' },
   { type: 'more', icon: '⚙️', label: 'Settings' },
 ];
@@ -68,6 +71,9 @@ export function Toolbar() {
   const [showKeyWordApplyPicker, setShowKeyWordApplyPicker] = useState(false);
   const [showAddAsVariantPicker, setShowAddAsVariantPicker] = useState(false);
   const [showStudyToolsPanel, setShowStudyToolsPanel] = useState(false);
+  const [showObservationToolsPanel, setShowObservationToolsPanel] = useState(false);
+  const [observationPanelInitialTab, setObservationPanelInitialTab] = useState<ObservationTab>('lists');
+  const [observationPanelInitialListId, setObservationPanelInitialListId] = useState<string | undefined>(undefined);
   const [showAddToList, setShowAddToList] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -76,6 +82,25 @@ export function Toolbar() {
   useEffect(() => {
     loadPresets();
   }, [loadPresets]);
+
+  // Listen for custom events to open ObservationToolsPanel
+  useEffect(() => {
+    const handleOpenObservationTools = (e: CustomEvent<{ tab?: ObservationTab; listId?: string }>) => {
+      const { tab = 'lists', listId } = e.detail || {};
+      setObservationPanelInitialTab(tab);
+      setObservationPanelInitialListId(listId);
+      setShowObservationToolsPanel(true);
+      setShowStudyToolsPanel(false);
+      setShowKeyWordManager(false);
+      setShowSettingsPanel(false);
+      setActiveTool(null);
+    };
+
+    window.addEventListener('openObservationTools', handleOpenObservationTools as EventListener);
+    return () => {
+      window.removeEventListener('openObservationTools', handleOpenObservationTools as EventListener);
+    };
+  }, []);
 
   // When the user clicks in the verse window (not in the overlay), and the browser selection 
   // is cleared/collapsed, clear our selection and close the overlays.
@@ -105,6 +130,7 @@ export function Toolbar() {
         setShowKeyWordApplyPicker(false);
         setShowAddAsVariantPicker(false);
         setShowStudyToolsPanel(false);
+        setShowObservationToolsPanel(false);
         setActiveTool(null);
       }
     };
@@ -310,7 +336,18 @@ export function Toolbar() {
       setShowColorPicker(false);
       setShowSymbolPicker(false);
       setShowSettingsPanel(false);
-      setShowLegendOverlay(false);
+      setShowStudyToolsPanel(false);
+      setShowObservationToolsPanel(false);
+      if (willOpen) setActiveTool(null);
+      if (willOpen && selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
+    } else if (toolType === 'observe') {
+      const willOpen = !showObservationToolsPanel;
+      setShowObservationToolsPanel((v) => !v);
+      setShowPickerOverlay(false);
+      setShowColorPicker(false);
+      setShowSymbolPicker(false);
+      setShowKeyWordManager(false);
+      setShowSettingsPanel(false);
       setShowStudyToolsPanel(false);
       if (willOpen) setActiveTool(null);
       if (willOpen && selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
@@ -322,7 +359,7 @@ export function Toolbar() {
       setShowSymbolPicker(false);
       setShowKeyWordManager(false);
       setShowSettingsPanel(false);
-      setShowLegendOverlay(false);
+      setShowObservationToolsPanel(false);
       if (willOpen) setActiveTool(null);
     } else if (toolType === 'more') {
       const willOpen = !showSettingsPanel;
@@ -331,8 +368,8 @@ export function Toolbar() {
       setShowColorPicker(false);
       setShowSymbolPicker(false);
       setShowKeyWordManager(false);
-      setShowLegendOverlay(false);
       setShowStudyToolsPanel(false);
+      setShowObservationToolsPanel(false);
       if (willOpen) setActiveTool(null);
     }
   };
@@ -508,22 +545,63 @@ export function Toolbar() {
               </button>
               <button
                 onClick={() => {
+                  setObservationPanelInitialTab('lists');
                   setShowKeyWordApplyPicker(false);
                   setShowAddAsVariantPicker(false);
-                  setShowStudyToolsPanel(true);
+                  setShowObservationToolsPanel(true);
                   setShowPickerOverlay(false);
                   setShowColorPicker(false);
                   setShowSymbolPicker(false);
+                  setShowStudyToolsPanel(false);
                   setActiveTool(null);
                   if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
                 }}
                 className="px-2.5 py-1 text-xs font-ui text-scripture-bg hover:text-scripture-bg
                            transition-colors flex items-center gap-1 font-medium"
-                title="Add observation to list"
+                title="Open observation tools"
               >
-                <span>📝</span>
-                <span>Add Observation</span>
+                <span>🔍</span>
+                <span>Observe</span>
               </button>
+              {/* Quick action for symbol-based observations */}
+              {activeSymbol && hasTrackerMapping(activeSymbol) && (() => {
+                const trackerMapping = getTrackerForSymbol(activeSymbol);
+                if (!trackerMapping) return null;
+                
+                const getTabForTracker = (tracker: ObservationTrackerType): ObservationTab => {
+                  switch (tracker) {
+                    case 'contrast': return 'contrasts';
+                    case 'time': return 'time';
+                    case 'place': return 'places';
+                    case 'conclusion': return 'conclusions';
+                    default: return 'lists';
+                  }
+                };
+                
+                return (
+                  <button
+                    onClick={() => {
+                      const tab = getTabForTracker(trackerMapping.tracker);
+                      setObservationPanelInitialTab(tab);
+                      setShowKeyWordApplyPicker(false);
+                      setShowAddAsVariantPicker(false);
+                      setShowObservationToolsPanel(true);
+                      setShowPickerOverlay(false);
+                      setShowColorPicker(false);
+                      setShowSymbolPicker(false);
+                      setShowStudyToolsPanel(false);
+                      setActiveTool(null);
+                      if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
+                    }}
+                    className="px-2.5 py-1 text-xs font-ui text-scripture-bg hover:text-scripture-bg
+                               transition-colors flex items-center gap-1 font-medium border border-scripture-bg/30"
+                    title={`Add to ${trackerMapping.label}`}
+                  >
+                    <span>{SYMBOLS[activeSymbol]}</span>
+                    <span>{trackerMapping.label}</span>
+                  </button>
+                );
+              })()}
               <button
                 onClick={() => {
                   setShowKeyWordApplyPicker(false);
@@ -714,6 +792,28 @@ export function Toolbar() {
       )}
 
 
+      {/* Observation Tools Panel */}
+      {showObservationToolsPanel && (
+        <ToolbarOverlay>
+          <ObservationToolsPanel 
+            onClose={() => {
+              setShowObservationToolsPanel(false);
+              setObservationPanelInitialTab('lists'); // Reset to default
+              setObservationPanelInitialListId(undefined); // Reset
+              clearSelection();
+            }}
+            initialTab={observationPanelInitialTab}
+            selectedText={selection?.text}
+            verseRef={selection ? {
+              book: selection.book,
+              chapter: selection.chapter,
+              verse: selection.startVerse,
+            } : undefined}
+            initialListId={observationPanelInitialListId}
+          />
+        </ToolbarOverlay>
+      )}
+
       {/* Study Tools Panel */}
       {showStudyToolsPanel && (
         <ToolbarOverlay>
@@ -722,7 +822,7 @@ export function Toolbar() {
               setShowStudyToolsPanel(false);
               clearSelection();
             }}
-            initialTab="lists"
+            initialTab="book"
           />
         </ToolbarOverlay>
       )}
@@ -775,10 +875,12 @@ export function Toolbar() {
           {TOOLS.map((tool) => {
             const isActive =
               tool.type === 'keyWords' ? showKeyWordManager
+              : tool.type === 'observe' ? showObservationToolsPanel
               : tool.type === 'studyTools' ? showStudyToolsPanel
               : tool.type === 'more' ? showSettingsPanel
               : false;
             const dataAttr = tool.type === 'keyWords' ? 'data-toolbar-keywords' 
+              : tool.type === 'observe' ? 'data-toolbar-observe'
               : tool.type === 'studyTools' ? 'data-toolbar-study'
               : tool.type === 'more' ? 'data-toolbar-settings'
               : undefined;

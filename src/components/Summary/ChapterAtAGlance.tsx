@@ -35,9 +35,11 @@ interface ChapterSummary {
 
 interface ChapterAtAGlanceProps {
   onObservationClick?: (listId: string) => void;
+  onOpenObservationTools?: (listId?: string) => void; // For opening ObservationToolsPanel
+  onEditTheme?: () => void; // For opening theme editor in ObservationToolsPanel
 }
 
-export function ChapterAtAGlance({ onObservationClick }: ChapterAtAGlanceProps = {}) {
+export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, onEditTheme }: ChapterAtAGlanceProps = {}) {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { activeView } = useMultiTranslationStore();
   
@@ -148,7 +150,25 @@ export function ChapterAtAGlance({ onObservationClick }: ChapterAtAGlanceProps =
       {/* Chapter Title */}
       {title && (
         <div className="pb-3 border-b border-scripture-border/50">
-          <div className="text-sm text-scripture-muted mb-1">Chapter Title</div>
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-sm text-scripture-muted">Chapter Title</div>
+            <button
+              onClick={() => {
+                if (onEditTheme) {
+                  onEditTheme();
+                } else {
+                  // Dispatch custom event to open ObservationToolsPanel with theme tab
+                  window.dispatchEvent(new CustomEvent('openObservationTools', { 
+                    detail: { tab: 'theme' } 
+                  }));
+                }
+              }}
+              className="text-xs text-scripture-accent hover:text-scripture-accent/80 transition-colors"
+              title="Edit theme in Observation Tools"
+            >
+              Edit Theme →
+            </button>
+          </div>
           <div className="text-scripture-text font-medium">{title.title}</div>
         </div>
       )}
@@ -226,12 +246,41 @@ export function ChapterAtAGlance({ onObservationClick }: ChapterAtAGlanceProps =
       {/* Observations */}
       {observations.length > 0 && (
         <div>
-          <div className="text-sm text-scripture-muted mb-2">Observations</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-sm text-scripture-muted">Observations</div>
+            <button
+              onClick={() => {
+                if (onOpenObservationTools) {
+                  onOpenObservationTools();
+                } else {
+                  // Dispatch custom event to open ObservationToolsPanel
+                  window.dispatchEvent(new CustomEvent('openObservationTools', { 
+                    detail: { tab: 'lists' } 
+                  }));
+                }
+              }}
+              className="text-xs text-scripture-accent hover:text-scripture-accent/80 transition-colors"
+              title="Open Observation Tools"
+            >
+              View All →
+            </button>
+          </div>
           <div className="space-y-2">
             {observations.map(({ list, items }) => (
               <button
                 key={list.id}
-                onClick={() => onObservationClick?.(list.id)}
+                onClick={() => {
+                  if (onOpenObservationTools) {
+                    onOpenObservationTools(list.id);
+                  } else if (onObservationClick) {
+                    onObservationClick(list.id);
+                  } else {
+                    // Dispatch custom event to open ObservationToolsPanel with specific list
+                    window.dispatchEvent(new CustomEvent('openObservationTools', { 
+                      detail: { tab: 'lists', listId: list.id } 
+                    }));
+                  }
+                }}
                 className="text-sm text-left w-full hover:bg-scripture-elevated/50 rounded p-2 transition-colors"
               >
                 <div className="text-scripture-text font-medium mb-1">{list.title}</div>
