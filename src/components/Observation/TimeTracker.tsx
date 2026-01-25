@@ -4,16 +4,13 @@
  * Component for recording and displaying chronological sequences and time references.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useTimeStore } from '@/stores/timeStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import type { TimeExpression } from '@/types/timeExpression';
 import type { VerseRef } from '@/types/bible';
 import { formatVerseRef, getBookById } from '@/types/bible';
 import { ConfirmationDialog } from '@/components/shared';
-import { saveAnnotation, deleteAnnotation } from '@/lib/db';
-import type { SymbolAnnotation } from '@/types/annotation';
 
 interface TimeTrackerProps {
   selectedText?: string;
@@ -52,17 +49,7 @@ const sortVerseGroups = (groups: Map<string, TimeExpression[]>): Array<[string, 
 
 export function TimeTracker({ selectedText, verseRef: initialVerseRef }: TimeTrackerProps) {
   const { timeExpressions, loadTimeExpressions, createTimeExpression, updateTimeExpression, deleteTimeExpression } = useTimeStore();
-  const { currentBook, currentChapter, currentModuleId } = useBibleStore();
-  const { activeView } = useMultiTranslationStore();
-  
-  // Get the primary translation ID (for multi-translation view) or fall back to currentModuleId
-  const primaryModuleId = useMemo(() => {
-    const translationIds = activeView?.translationIds;
-    if (translationIds && translationIds.length > 0) {
-      return translationIds[0];
-    }
-    return currentModuleId;
-  }, [activeView?.translationIds, currentModuleId]);
+  const { currentBook, currentChapter } = useBibleStore();
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newExpression, setNewExpression] = useState('');
@@ -106,41 +93,10 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef }: TimeTra
       return;
     }
 
-    // Create hourglass symbol annotation (no color) at the start of the verse
-    let annotationId: string | undefined;
-    if (primaryModuleId) {
-      try {
-        const annotation: SymbolAnnotation = {
-          id: crypto.randomUUID(),
-          moduleId: primaryModuleId,
-          type: 'symbol',
-          ref: verseRef,
-          // No wordIndex, startWordIndex, endWordIndex, or offsets
-          // This makes it appear before the verse (not before a word)
-          position: 'before',
-          symbol: 'hourglass',
-          // No color - as requested
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        annotationId = await saveAnnotation(annotation);
-        console.log('[TimeTracker] Created hourglass annotation:', { annotationId, verseRef, moduleId: primaryModuleId });
-        
-        // Dispatch event to notify other components to reload annotations
-        window.dispatchEvent(new CustomEvent('annotationsUpdated'));
-      } catch (error) {
-        console.error('[TimeTracker] Failed to create hourglass annotation:', error);
-        // Continue even if annotation creation fails
-      }
-    } else {
-      console.warn('[TimeTracker] No moduleId available, cannot create annotation');
-    }
-
     await createTimeExpression(
       newExpression.trim(),
       verseRef,
-      newNotes.trim() || undefined,
-      annotationId
+      newNotes.trim() || undefined
     );
 
     setIsCreating(false);
@@ -197,21 +153,6 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef }: TimeTra
 
     const idToDelete = confirmDeleteId;
     setConfirmDeleteId(null);
-
-    // Find the time expression to get its annotationId
-    const timeExpression = timeExpressions.find(t => t.id === idToDelete);
-    
-    // Delete the associated annotation if it exists
-    if (timeExpression?.annotationId) {
-      try {
-        await deleteAnnotation(timeExpression.annotationId);
-        // Dispatch event to notify other components to reload annotations
-        window.dispatchEvent(new CustomEvent('annotationsUpdated'));
-      } catch (error) {
-        console.warn('Failed to delete associated annotation:', error);
-        // Continue even if annotation deletion fails
-      }
-    }
 
     await deleteTimeExpression(idToDelete);
     loadTimeExpressions();
