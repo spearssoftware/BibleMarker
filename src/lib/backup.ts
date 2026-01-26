@@ -14,6 +14,7 @@ import type { MarkingPreset } from '@/types/keyWord';
 import type { Study } from '@/types/study';
 import type { MultiTranslationView } from '@/types/multiTranslation';
 import type { ObservationList } from '@/types/list';
+import type { ApplicationEntry } from '@/types/application';
 import {
   validateAnnotation,
   validateSectionHeading,
@@ -23,6 +24,7 @@ import {
   validateStudy,
   validateMultiTranslationView,
   validateObservationList,
+  validateApplication,
   validateArray,
   ValidationError,
 } from './validation';
@@ -41,6 +43,7 @@ export interface BackupData {
     studies: Study[];
     multiTranslationViews: MultiTranslationView[];
     observationLists: ObservationList[];
+    applications: ApplicationEntry[];
     cachedChapters?: Array<{
       id: string;
       moduleId: string;
@@ -92,6 +95,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
       studies,
       multiTranslationViews,
       observationLists,
+      applications,
       cachedChapters,
     ] = await Promise.all([
       db.preferences.get('main'),
@@ -103,6 +107,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
       db.studies.toArray(),
       db.multiTranslationViews.toArray(),
       db.observationLists.toArray(),
+      db.applications.toArray(),
       includeCache ? db.chapterCache.toArray() : Promise.resolve([]),
     ]);
 
@@ -144,6 +149,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
         studies,
         multiTranslationViews: cleanedMultiTranslationViews,
         observationLists,
+        applications,
       },
     };
 
@@ -258,6 +264,7 @@ export function validateBackup(data: any): { valid: boolean; errors: string[] } 
     'studies',
     'multiTranslationViews',
     'observationLists',
+    'applications',
   ];
 
   for (const field of requiredFields) {
@@ -338,6 +345,14 @@ export function validateBackup(data: any): { valid: boolean; errors: string[] } 
     }
   }
 
+  if (Array.isArray(data.data.applications)) {
+    const { errors: appErrors } = validateArray(data.data.applications, validateApplication, 'application entry');
+    if (appErrors.length > 0) {
+      errors.push(`Application entries validation errors: ${appErrors.length} invalid records`);
+      errors.push(...appErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }
+  }
+
   return { valid: errors.length === 0, errors };
 }
 
@@ -355,6 +370,7 @@ export function getBackupPreview(backup: BackupData): Record<string, number> {
     studies: backup.data.studies.length,
     multiTranslationViews: backup.data.multiTranslationViews.length,
     observationLists: backup.data.observationLists.length,
+    applications: backup.data.applications.length,
     cachedChapters: backup.data.cachedChapters?.length || 0,
   };
 }
@@ -477,6 +493,7 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
     await db.studies.clear();
     await db.multiTranslationViews.clear();
     await db.observationLists.clear();
+    await db.applications.clear();
     await db.chapterCache.clear();
 
     // Restore preferences
@@ -577,6 +594,14 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
       const { valid: validatedLists } = validateArray(backup.data.observationLists, validateObservationList, 'observation list');
       if (validatedLists.length > 0) {
         await db.observationLists.bulkPut(validatedLists);
+      }
+    }
+
+    // Restore application entries
+    if (backup.data.applications && backup.data.applications.length > 0) {
+      const { valid: validatedApplications } = validateArray(backup.data.applications, validateApplication, 'application entry');
+      if (validatedApplications.length > 0) {
+        await db.applications.bulkPut(validatedApplications);
       }
     }
 
