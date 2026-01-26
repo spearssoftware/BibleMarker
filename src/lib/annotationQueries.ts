@@ -94,3 +94,49 @@ export function getAnnotationText(annotation: SymbolAnnotation): string {
 export function getAnnotationVerseRef(annotation: SymbolAnnotation): VerseRef {
   return annotation.ref;
 }
+
+/**
+ * Analyze keyword frequency by chapter for theme suggestions
+ * Returns an array of keywords sorted by frequency in the specified chapter
+ */
+export async function analyzeKeywordFrequencyByChapter(
+  moduleId: string,
+  book: string,
+  chapter: number
+): Promise<Array<{ presetId: string; word: string; count: number }>> {
+  const { getChapterAnnotations, getMarkingPreset } = await import('./db');
+  
+  // Get all annotations for this chapter
+  const annotations = await getChapterAnnotations(moduleId, book, chapter);
+  
+  // Count keyword occurrences
+  const keywordMap = new Map<string, { presetId: string; count: number }>();
+  
+  for (const ann of annotations) {
+    if (ann.presetId) {
+      const existing = keywordMap.get(ann.presetId);
+      if (existing) {
+        existing.count++;
+      } else {
+        keywordMap.set(ann.presetId, { presetId: ann.presetId, count: 1 });
+      }
+    }
+  }
+  
+  // Fetch preset details and convert to array
+  const keywordArray: Array<{ presetId: string; word: string; count: number }> = [];
+  
+  for (const [presetId, data] of keywordMap.entries()) {
+    const preset = await getMarkingPreset(presetId);
+    if (preset && preset.word) {
+      keywordArray.push({
+        presetId,
+        word: preset.word,
+        count: data.count,
+      });
+    }
+  }
+  
+  // Sort by count descending
+  return keywordArray.sort((a, b) => b.count - a.count);
+}

@@ -7,6 +7,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
+import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { 
   getChapterTitle, 
   getChapterHeadings, 
@@ -15,6 +16,7 @@ import {
 } from '@/lib/db';
 import { db } from '@/lib/db';
 import type { ChapterTitle, SectionHeading, Annotation } from '@/types/annotation';
+import { SYMBOLS } from '@/types/annotation';
 import type { MarkingPreset } from '@/types/keyWord';
 import type { ObservationList } from '@/types/list';
 import { formatVerseRef } from '@/types/bible';
@@ -31,6 +33,8 @@ interface ChapterSummary {
     list: ObservationList;
     items: number; // Number of items in this chapter
   }>;
+  theme: string | null;
+  supportingPresetIds: string[];
 }
 
 interface ChapterAtAGlanceProps {
@@ -42,6 +46,7 @@ interface ChapterAtAGlanceProps {
 export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, onEditTheme }: ChapterAtAGlanceProps = {}) {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { activeView } = useMultiTranslationStore();
+  const { presets } = useMarkingPresetStore();
   
   // Get the primary translation ID (first valid one) for section headings, chapter titles
   const primaryTranslationId = activeView?.translationIds[0] || currentModuleId || null;
@@ -111,6 +116,8 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
           headings,
           keywords,
           observations,
+          theme: title?.theme || null,
+          supportingPresetIds: title?.supportingPresetIds || [],
         });
       } catch (error) {
         console.error('Error loading chapter summary:', error);
@@ -137,7 +144,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
     return null;
   }
   
-  const { title, headings, keywords, observations } = summary;
+  const { title, headings, keywords, observations, theme, supportingPresetIds } = summary;
   
   return (
     <div className="p-4 bg-scripture-surface rounded-lg space-y-4">
@@ -170,6 +177,91 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
             </button>
           </div>
           <div className="text-scripture-text font-medium">{title.title}</div>
+        </div>
+      )}
+      
+      {/* Chapter Theme */}
+      {theme && (
+        <div className="pb-3 border-b border-scripture-border/50">
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-sm text-scripture-muted">Chapter Theme</div>
+            <button
+              onClick={() => {
+                if (onEditTheme) {
+                  onEditTheme();
+                } else {
+                  // Dispatch custom event to open ObservationToolsPanel with theme tab
+                  window.dispatchEvent(new CustomEvent('openObservationTools', { 
+                    detail: { tab: 'theme' } 
+                  }));
+                }
+              }}
+              className="text-xs text-scripture-accent hover:text-scripture-accent/80 transition-colors"
+              title="Edit theme in Observation Tools"
+            >
+              Edit →
+            </button>
+          </div>
+          <div className="text-scripture-text italic">{theme}</div>
+          {supportingPresetIds.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {supportingPresetIds.map(presetId => {
+                const preset = presets.find(p => p.id === presetId);
+                if (!preset) return null;
+                
+                return (
+                  <div
+                    key={presetId}
+                    className="inline-flex items-center gap-1.5 px-2 py-1 bg-scripture-elevated rounded text-xs"
+                  >
+                    {preset.symbol && (
+                      <span className="text-sm">{SYMBOLS[preset.symbol]}</span>
+                    )}
+                    {preset.highlight && (
+                      <span
+                        className="w-2.5 h-2.5 rounded"
+                        style={{
+                          backgroundColor: preset.highlight.color === 'yellow' ? '#eab308' :
+                                          preset.highlight.color === 'blue' ? '#3b82f6' :
+                                          preset.highlight.color === 'green' ? '#22c55e' :
+                                          preset.highlight.color === 'red' ? '#ef4444' :
+                                          preset.highlight.color === 'orange' ? '#f97316' :
+                                          '#eab308',
+                        }}
+                      />
+                    )}
+                    <span className="text-scripture-text">{preset.word}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Theme prompt if no theme exists */}
+      {!theme && title && (
+        <div className="pb-3 border-b border-scripture-border/50">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-scripture-muted">Chapter Theme</div>
+            <button
+              onClick={() => {
+                if (onEditTheme) {
+                  onEditTheme();
+                } else {
+                  // Dispatch custom event to open ObservationToolsPanel with theme tab
+                  window.dispatchEvent(new CustomEvent('openObservationTools', { 
+                    detail: { tab: 'theme' } 
+                  }));
+                }
+              }}
+              className="text-xs text-scripture-accent hover:text-scripture-accent/80 transition-colors"
+              title="Add theme in Observation Tools"
+            >
+              Add Theme →
+            </button>
+          </div>
+          <div className="text-xs text-scripture-muted italic mt-1">No theme recorded yet</div>
         </div>
       )}
       

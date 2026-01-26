@@ -18,6 +18,7 @@ import { ContrastTracker } from './ContrastTracker';
 import { TimeTracker } from './TimeTracker';
 import { PlaceTracker } from './PlaceTracker';
 import { ConclusionTracker } from './ConclusionTracker';
+import { ThemeEditor } from './ThemeEditor';
 import { ConfirmationDialog } from '@/components/shared';
 
 export type ObservationTab = 'lists' | 'fiveWAndH' | 'contrasts' | 'time' | 'places' | 'conclusions' | 'theme';
@@ -114,8 +115,7 @@ export function ObservationToolsPanel({
     { id: 'time', label: 'Time', icon: '🕐' },
     { id: 'places', label: 'Places', icon: '📍' },
     { id: 'conclusions', label: 'Conclusions', icon: '→' },
-    // Phase 1 agents will add:
-    // { id: 'theme', label: 'Theme', icon: '🎯' },
+    { id: 'theme', label: 'Theme', icon: '🎯' },
   ];
 
   const toggleList = (listId: string) => {
@@ -272,34 +272,36 @@ export function ObservationToolsPanel({
         onCancel={handleCancelDeleteObservation}
         destructive={true}
       />
-      <div className="flex flex-col h-full min-h-0">
-      {/* Header */}
-      <div className="flex-shrink-0 px-4 py-3 border-b border-scripture-border/50 bg-scripture-elevated/30 flex items-center justify-end">
-        <button
-          onClick={onClose}
-          className="text-scripture-muted hover:text-scripture-text transition-colors p-1"
-          aria-label="Close"
-        >
-          ✕
-        </button>
-      </div>
+      <div className="flex-1 min-h-0 flex flex-col relative" role="dialog" aria-label="Observation Tools" aria-modal="true">
+      {/* Close button - floating in top-right */}
+      <button
+        onClick={onClose}
+        className="absolute top-2 right-2 z-10 text-scripture-muted hover:text-scripture-text transition-colors p-1.5 rounded-lg hover:bg-scripture-elevated"
+        aria-label="Close observation tools"
+      >
+        <span aria-hidden="true">✕</span>
+      </button>
 
       {/* Tabs */}
-      <div className="flex-shrink-0 px-4 py-3 border-b border-scripture-border/50 bg-scripture-elevated/30">
+      <div className="px-4 py-2 flex-shrink-0" role="tablist" aria-label="Observation tools sections">
         <div className="flex gap-2 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              role="tab"
+              id={`observation-tab-${tab.id}`}
+              aria-selected={activeTab === tab.id}
+              aria-controls={`observation-tabpanel-${tab.id}`}
               className={`
                 px-4 py-2 rounded-lg text-sm font-ui font-medium transition-all whitespace-nowrap
                 ${activeTab === tab.id
                   ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                  : 'bg-scripture-surface text-scripture-text hover:bg-scripture-border/50'
+                  : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'
                 }
               `}
             >
-              <span className="mr-2">{tab.icon}</span>
+              <span className="mr-2" aria-hidden="true">{tab.icon}</span>
               {tab.label}
             </button>
           ))}
@@ -307,7 +309,7 @@ export function ObservationToolsPanel({
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-h-0 flex flex-col">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
         {/* Show ListEditor inline when creating or editing */}
         {activeTab === 'lists' && (isCreating || editingListId) ? (
           <div className="flex-1 min-h-0 flex flex-col">
@@ -337,7 +339,7 @@ export function ObservationToolsPanel({
             })() : null}
           </div>
         ) : activeTab === 'lists' ? (
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
+          <div role="tabpanel" id="observation-tabpanel-lists" aria-labelledby="observation-tab-lists">
             {/* New List button */}
             {!isCreating && !editingListId && (
               <div className="mb-4">
@@ -565,25 +567,30 @@ export function ObservationToolsPanel({
             )}
           </div>
         ) : activeTab === 'fiveWAndH' ? (
-          <FiveWAndH selectedText={selectedText} verseRef={verseRef} />
-        ) : activeTab === 'contrasts' ? (
-          <ContrastTracker selectedText={selectedText} verseRef={verseRef} />
-        ) : activeTab === 'time' ? (
-          <TimeTracker selectedText={selectedText} verseRef={verseRef} />
-        ) : activeTab === 'places' ? (
-          <PlaceTracker selectedText={selectedText} verseRef={verseRef} />
-        ) : activeTab === 'conclusions' ? (
-          <ConclusionTracker selectedText={selectedText} verseRef={verseRef} />
-        ) : null}
-        
-        {/* Phase 1 agents will add their tab content here */}
-        {activeTab !== 'lists' && activeTab !== 'fiveWAndH' && activeTab !== 'contrasts' && activeTab !== 'time' && activeTab !== 'places' && activeTab !== 'conclusions' && (
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-            <p className="text-sm text-scripture-muted">
-              Tab "{activeTab}" will be implemented in Phase 1.
-            </p>
+          <div role="tabpanel" id="observation-tabpanel-fiveWAndH" aria-labelledby="observation-tab-fiveWAndH">
+            <FiveWAndH selectedText={selectedText} verseRef={verseRef} />
           </div>
-        )}
+        ) : activeTab === 'contrasts' ? (
+          <div role="tabpanel" id="observation-tabpanel-contrasts" aria-labelledby="observation-tab-contrasts">
+            <ContrastTracker selectedText={selectedText} verseRef={verseRef} />
+          </div>
+        ) : activeTab === 'time' ? (
+          <div role="tabpanel" id="observation-tabpanel-time" aria-labelledby="observation-tab-time">
+            <TimeTracker selectedText={selectedText} verseRef={verseRef} />
+          </div>
+        ) : activeTab === 'places' ? (
+          <div role="tabpanel" id="observation-tabpanel-places" aria-labelledby="observation-tab-places">
+            <PlaceTracker selectedText={selectedText} verseRef={verseRef} />
+          </div>
+        ) : activeTab === 'conclusions' ? (
+          <div role="tabpanel" id="observation-tabpanel-conclusions" aria-labelledby="observation-tab-conclusions">
+            <ConclusionTracker selectedText={selectedText} verseRef={verseRef} />
+          </div>
+        ) : activeTab === 'theme' ? (
+          <div role="tabpanel" id="observation-tabpanel-theme" aria-labelledby="observation-tab-theme">
+            <ThemeEditor selectedText={selectedText} verseRef={verseRef} />
+          </div>
+        ) : null}
       </div>
       </div>
     </>

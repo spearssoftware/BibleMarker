@@ -36,11 +36,19 @@ export function ChapterTitleEditor({
       return;
     }
     if (editText.trim() && onSave) {
-      onSave({
+      const newTitle = editText.trim();
+      const updatedTitle: ChapterTitle = {
         ...title,
-        title: editText.trim(),
+        title: newTitle,
         updatedAt: new Date(),
-      });
+      };
+      
+      // If theme matches the old title, sync it to the new title
+      if (title.theme === title.title) {
+        updatedTitle.theme = newTitle;
+      }
+      
+      onSave(updatedTitle);
     }
     setIsEditing(false);
   };

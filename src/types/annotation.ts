@@ -263,6 +263,12 @@ export interface ChapterTitle {
   // Content
   title: string;
   
+  // Theme (optional) - statement about the chapter's theme
+  theme?: string;
+  
+  // Supporting keyword preset IDs that support this theme
+  supportingPresetIds?: string[];
+  
   createdAt: Date;
   updatedAt: Date;
 }

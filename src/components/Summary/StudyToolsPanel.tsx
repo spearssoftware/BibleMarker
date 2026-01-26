@@ -93,12 +93,16 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
       </button>
 
       {/* Tabs */}
-      <div className="px-4 py-2 flex-shrink-0">
+      <div className="px-4 py-2 flex-shrink-0" role="tablist" aria-label="Study tools sections">
         <div className="flex gap-2">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              role="tab"
+              id={`study-tab-${tab.id}`}
+              aria-selected={activeTab === tab.id}
+              aria-controls={`study-tabpanel-${tab.id}`}
               className={`
                 px-4 py-2 rounded-lg text-sm font-ui font-medium transition-all
                 ${activeTab === tab.id
@@ -107,7 +111,7 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
                 }
               `}
             >
-              <span className="mr-2">{tab.icon}</span>
+              <span className="mr-2" aria-hidden="true">{tab.icon}</span>
               {tab.label}
             </button>
           ))}
@@ -115,24 +119,24 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-h-0 flex flex-col">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
         {activeTab === 'chapter' && (
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
+          <div role="tabpanel" id="study-tabpanel-chapter" aria-labelledby="study-tab-chapter">
             <ChapterAtAGlance />
           </div>
         )}
             {activeTab === 'book' && (
-              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+              <div role="tabpanel" id="study-tabpanel-book" aria-labelledby="study-tab-book">
                 <BookOverview onChapterClick={() => setActiveTab('chapter')} />
               </div>
             )}
             {activeTab === 'theme' && (
-              <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
+              <div role="tabpanel" id="study-tabpanel-theme" aria-labelledby="study-tab-theme">
                 <ThemeTracker />
               </div>
             )}
             {activeTab === 'studies' && (
-              <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar space-y-0">
+              <div role="tabpanel" id="study-tabpanel-studies" aria-labelledby="study-tab-studies" className="space-y-0">
                 {/* Create new study */}
                 <div className="mb-4">
                   <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Create New Study</h3>

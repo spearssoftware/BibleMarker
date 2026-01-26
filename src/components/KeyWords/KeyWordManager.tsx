@@ -242,7 +242,7 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
 
       {/* Filters: only when viewing the list (hidden when adding/editing) */}
       {!(isCreating || editingId) && (
-        <div className="px-3 py-2 pr-10 border-b border-scripture-border/50 flex-shrink-0">
+        <div className="px-4 py-2 pr-10 border-b border-scripture-border/50 flex-shrink-0">
           <div className="flex items-center gap-2 mb-2">
             <button
               onClick={handleCreate}
