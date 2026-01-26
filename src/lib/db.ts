@@ -25,6 +25,8 @@ import type { Contrast } from '@/types/contrast';
 import type { TimeExpression } from '@/types/timeExpression';
 import type { Place } from '@/types/place';
 import type { Conclusion } from '@/types/conclusion';
+import type { InterpretationEntry } from '@/types/interpretation';
+import type { ApplicationEntry } from '@/types/application';
 import {
   validateAnnotation,
   validateSectionHeading,
@@ -153,6 +155,8 @@ class BibleMarkerDB extends Dexie {
   timeExpressions!: EntityTable<TimeExpression, 'id'>;
   places!: EntityTable<Place, 'id'>;
   conclusions!: EntityTable<Conclusion, 'id'>;
+  interpretations!: EntityTable<InterpretationEntry, 'id'>;
+  applications!: EntityTable<ApplicationEntry, 'id'>;
 
   constructor() {
     super('BibleMarkerDB');
@@ -404,6 +408,59 @@ class BibleMarkerDB extends Dexie {
       timeExpressions: 'id',
       places: 'id',
       conclusions: 'id',
+    });
+
+    // Version 13: Interpretation worksheet (Phase 2 - Agent 1)
+    this.version(13).stores({
+      modules: 'id, status',
+      moduleFiles: 'id, moduleId',
+      chapterCache: 'id, moduleId',
+      translationCache: 'id',
+      annotations: 'id, moduleId, type, createdAt, presetId',
+      sectionHeadings: 'id, moduleId',
+      chapterTitles: 'id, moduleId',
+      notes: 'id, moduleId',
+      keyWords: 'id, word, category',
+      markingPresets: 'id, word, category',
+      preferences: 'id',
+      readingHistory: 'id, moduleId, timestamp',
+      esvRateLimit: 'id',
+      studies: 'id',
+      multiTranslationViews: 'id',
+      observationLists: 'id, keyWordId, studyId',
+      fiveWAndH: 'id',
+      contrasts: 'id',
+      timeExpressions: 'id',
+      places: 'id',
+      conclusions: 'id',
+      interpretations: 'id, studyId',
+    });
+
+    // Version 14: Application worksheet (Phase 2 - Agent 2)
+    this.version(14).stores({
+      modules: 'id, status',
+      moduleFiles: 'id, moduleId',
+      chapterCache: 'id, moduleId',
+      translationCache: 'id',
+      annotations: 'id, moduleId, type, createdAt, presetId',
+      sectionHeadings: 'id, moduleId',
+      chapterTitles: 'id, moduleId',
+      notes: 'id, moduleId',
+      keyWords: 'id, word, category',
+      markingPresets: 'id, word, category',
+      preferences: 'id',
+      readingHistory: 'id, moduleId, timestamp',
+      esvRateLimit: 'id',
+      studies: 'id',
+      multiTranslationViews: 'id',
+      observationLists: 'id, keyWordId, studyId',
+      fiveWAndH: 'id',
+      contrasts: 'id',
+      timeExpressions: 'id',
+      places: 'id',
+      conclusions: 'id',
+      interpretations: 'id, studyId',
+      applications: 'id',
     });
   }
 }

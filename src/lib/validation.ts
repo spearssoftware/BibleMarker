@@ -12,6 +12,8 @@ import type { MultiTranslationView } from '@/types/multiTranslation';
 import type { ObservationList } from '@/types/list';
 import type { FiveWAndHEntry } from '@/types/observation';
 import type { Place } from '@/types/place';
+import type { InterpretationEntry } from '@/types/interpretation';
+import type { ApplicationEntry } from '@/types/application';
 import type { VerseRef } from '@/types/bible';
 import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
 
@@ -422,6 +424,134 @@ export function validateFiveWAndH(entry: any): FiveWAndHEntry {
   validateDate(entry.updatedAt, 'updatedAt');
 
   return entry as FiveWAndHEntry;
+}
+
+/**
+ * Validate an interpretation entry
+ */
+export function validateInterpretation(entry: any): InterpretationEntry {
+  if (!entry || typeof entry !== 'object') {
+    throw new ValidationError('Interpretation entry must be an object', 'entry', entry);
+  }
+
+  if (typeof entry.id !== 'string' || entry.id.trim() === '') {
+    throw new ValidationError('Interpretation entry must have a valid id', 'id', entry.id);
+  }
+
+  validateVerseRef(entry.verseRef);
+
+  // Validate endVerseRef if provided
+  if (entry.endVerseRef !== undefined) {
+    validateVerseRef(entry.endVerseRef);
+    // Ensure endVerseRef is after or equal to verseRef
+    if (entry.endVerseRef.book !== entry.verseRef.book || 
+        entry.endVerseRef.chapter !== entry.verseRef.chapter ||
+        entry.endVerseRef.verse < entry.verseRef.verse) {
+      throw new ValidationError('Interpretation entry endVerseRef must be after or equal to verseRef', 'endVerseRef', entry.endVerseRef);
+    }
+  }
+
+  // All fields are optional, but if present, must be strings
+  const optionalStringFields = ['meaning', 'authorIntent', 'keyThemes', 'context', 'implications', 'crossReferences', 'questions', 'insights'];
+  for (const field of optionalStringFields) {
+    if (entry[field] !== undefined && typeof entry[field] !== 'string') {
+      throw new ValidationError(`Interpretation entry ${field} must be a string if provided`, field, entry[field]);
+    }
+  }
+
+  // Validate linkedPresetIds if provided
+  if (entry.linkedPresetIds !== undefined) {
+    if (!Array.isArray(entry.linkedPresetIds)) {
+      throw new ValidationError('Interpretation entry linkedPresetIds must be an array if provided', 'linkedPresetIds', entry.linkedPresetIds);
+    }
+    for (const presetId of entry.linkedPresetIds) {
+      if (typeof presetId !== 'string' || presetId.trim() === '') {
+        throw new ValidationError('Interpretation entry linkedPresetIds must contain valid string IDs', 'linkedPresetIds', entry.linkedPresetIds);
+      }
+    }
+  }
+
+  // Validate studyId if provided
+  if (entry.studyId !== undefined && (typeof entry.studyId !== 'string' || entry.studyId.trim() === '')) {
+    throw new ValidationError('Interpretation entry studyId must be a valid string if provided', 'studyId', entry.studyId);
+  }
+
+  // At least one field should have content
+  const hasContent = entry.meaning?.trim() || 
+                     entry.authorIntent?.trim() || 
+                     entry.keyThemes?.trim() || 
+                     entry.context?.trim() || 
+                     entry.implications?.trim() || 
+                     entry.crossReferences?.trim() || 
+                     entry.questions?.trim() || 
+                     entry.insights?.trim();
+  if (!hasContent) {
+    throw new ValidationError('Interpretation entry must have at least one field with content', 'entry', entry);
+  }
+
+  validateDate(entry.createdAt, 'createdAt');
+  validateDate(entry.updatedAt, 'updatedAt');
+
+  return entry as InterpretationEntry;
+}
+
+/**
+ * Validate an application entry
+ */
+export function validateApplication(entry: any): ApplicationEntry {
+  if (!entry || typeof entry !== 'object') {
+    throw new ValidationError('Application entry must be an object', 'entry', entry);
+  }
+
+  if (typeof entry.id !== 'string' || entry.id.trim() === '') {
+    throw new ValidationError('Application entry must have a valid id', 'id', entry.id);
+  }
+
+  validateVerseRef(entry.verseRef);
+
+  // All fields are optional, but if present, must be strings
+  if (entry.teaching !== undefined && typeof entry.teaching !== 'string') {
+    throw new ValidationError('Application entry teaching must be a string if provided', 'teaching', entry.teaching);
+  }
+  if (entry.reproof !== undefined && typeof entry.reproof !== 'string') {
+    throw new ValidationError('Application entry reproof must be a string if provided', 'reproof', entry.reproof);
+  }
+  if (entry.correction !== undefined && typeof entry.correction !== 'string') {
+    throw new ValidationError('Application entry correction must be a string if provided', 'correction', entry.correction);
+  }
+  if (entry.training !== undefined && typeof entry.training !== 'string') {
+    throw new ValidationError('Application entry training must be a string if provided', 'training', entry.training);
+  }
+  if (entry.notes !== undefined && typeof entry.notes !== 'string') {
+    throw new ValidationError('Application entry notes must be a string if provided', 'notes', entry.notes);
+  }
+
+  // Validate linkedPresetIds if provided
+  if (entry.linkedPresetIds !== undefined) {
+    if (!Array.isArray(entry.linkedPresetIds)) {
+      throw new ValidationError('Application entry linkedPresetIds must be an array if provided', 'linkedPresetIds', entry.linkedPresetIds);
+    }
+    for (const presetId of entry.linkedPresetIds) {
+      if (typeof presetId !== 'string' || presetId.trim() === '') {
+        throw new ValidationError('Application entry linkedPresetIds must contain valid string IDs', 'linkedPresetIds', entry.linkedPresetIds);
+      }
+    }
+  }
+
+  // At least one field should have content (teaching, reproof, correction, training, or notes)
+  const hasContent = entry.teaching?.trim() || 
+                     entry.reproof?.trim() || 
+                     entry.correction?.trim() || 
+                     entry.training?.trim() || 
+                     entry.notes?.trim();
+  if (!hasContent) {
+    throw new ValidationError('Application entry must have at least one field with content', 'entry', entry);
+  }
+
+  validateDate(entry.createdAt, 'createdAt');
+  validateDate(entry.updatedAt, 'updatedAt');
+
+  return entry as ApplicationEntry;
 }
 
 /**

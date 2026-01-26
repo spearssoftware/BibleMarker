@@ -9,8 +9,10 @@ import { useStudyStore } from '@/stores/studyStore';
 import { getBookById, BIBLE_BOOKS } from '@/types/bible';
 import { ChapterAtAGlance, BookOverview, ThemeTracker } from './';
 import { ConfirmationDialog } from '@/components/shared';
+import { InterpretationWorksheet } from '@/components/Interpretation';
+import { ApplicationWorksheet } from '@/components/Application';
 
-type StudyToolTab = 'chapter' | 'book' | 'theme' | 'studies';
+type StudyToolTab = 'chapter' | 'book' | 'theme' | 'studies' | 'interpretation' | 'application';
 
 interface StudyToolsPanelProps {
   onClose: () => void;
@@ -35,6 +37,8 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
     { id: 'book', label: 'Overview', icon: '📚' },
     { id: 'chapter', label: 'Chapter', icon: '📄' },
     { id: 'theme', label: 'Theme', icon: '🔍' },
+    { id: 'interpretation', label: 'Interpretation', icon: '💭' },
+    { id: 'application', label: 'Application', icon: '✍️' },
     { id: 'studies', label: 'Studies', icon: '📖' },
   ];
 
@@ -133,6 +137,16 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
             {activeTab === 'theme' && (
               <div role="tabpanel" id="study-tabpanel-theme" aria-labelledby="study-tab-theme">
                 <ThemeTracker />
+              </div>
+            )}
+            {activeTab === 'interpretation' && (
+              <div role="tabpanel" id="study-tabpanel-interpretation" aria-labelledby="study-tab-interpretation">
+                <InterpretationWorksheet />
+              </div>
+            )}
+            {activeTab === 'application' && (
+              <div role="tabpanel" id="study-tabpanel-application" aria-labelledby="study-tab-application">
+                <ApplicationWorksheet />
               </div>
             )}
             {activeTab === 'studies' && (
