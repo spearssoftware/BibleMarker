@@ -9,3 +9,4 @@ export type { ObservationTab } from './ObservationToolsPanel';
 export { ContrastTracker } from './ContrastTracker';
 export { TimeTracker } from './TimeTracker';
 export { PlaceTracker } from './PlaceTracker';
+export { ConclusionTracker } from './ConclusionTracker';

@@ -24,6 +24,7 @@ import type { FiveWAndHEntry } from '@/types/observation';
 import type { Contrast } from '@/types/contrast';
 import type { TimeExpression } from '@/types/timeExpression';
 import type { Place } from '@/types/place';
+import type { Conclusion } from '@/types/conclusion';
 import {
   validateAnnotation,
   validateSectionHeading,
@@ -151,6 +152,7 @@ class BibleMarkerDB extends Dexie {
   contrasts!: EntityTable<Contrast, 'id'>;
   timeExpressions!: EntityTable<TimeExpression, 'id'>;
   places!: EntityTable<Place, 'id'>;
+  conclusions!: EntityTable<Conclusion, 'id'>;
 
   constructor() {
     super('BibleMarkerDB');
@@ -377,6 +379,31 @@ class BibleMarkerDB extends Dexie {
       contrasts: 'id',
       timeExpressions: 'id',
       places: 'id',
+    });
+
+    // Version 12: Conclusion terms tracker (Phase 1 - Agent 5)
+    this.version(12).stores({
+      modules: 'id, status',
+      moduleFiles: 'id, moduleId',
+      chapterCache: 'id, moduleId',
+      translationCache: 'id',
+      annotations: 'id, moduleId, type, createdAt, presetId',
+      sectionHeadings: 'id, moduleId',
+      chapterTitles: 'id, moduleId',
+      notes: 'id, moduleId',
+      keyWords: 'id, word, category',
+      markingPresets: 'id, word, category',
+      preferences: 'id',
+      readingHistory: 'id, moduleId, timestamp',
+      esvRateLimit: 'id',
+      studies: 'id',
+      multiTranslationViews: 'id',
+      observationLists: 'id, keyWordId, studyId',
+      fiveWAndH: 'id',
+      contrasts: 'id',
+      timeExpressions: 'id',
+      places: 'id',
+      conclusions: 'id',
     });
   }
 }
