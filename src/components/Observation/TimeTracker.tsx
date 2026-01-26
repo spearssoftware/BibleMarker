@@ -73,9 +73,19 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef }: TimeTra
     return null;
   };
 
-  // Load time expressions on mount
+  // Load time expressions on mount and auto-import from annotations
   useEffect(() => {
-    loadTimeExpressions();
+    const initialize = async () => {
+      await loadTimeExpressions();
+      // Auto-import existing keyword annotations with time symbols
+      const { autoImportFromAnnotations } = useTimeStore.getState();
+      const importedCount = await autoImportFromAnnotations();
+      if (importedCount > 0) {
+        // Reload after import
+        await loadTimeExpressions();
+      }
+    };
+    initialize();
   }, [loadTimeExpressions]);
 
   // Pre-fill form if selectedText is provided
@@ -96,7 +106,10 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef }: TimeTra
     await createTimeExpression(
       newExpression.trim(),
       verseRef,
-      newNotes.trim() || undefined
+      newNotes.trim() || undefined,
+      undefined, // presetId - manual entry, no preset
+      undefined, // annotationId - manual entry, no annotation
+      undefined  // timeOrder - will be assigned if needed
     );
 
     setIsCreating(false);
@@ -359,8 +372,20 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef }: TimeTra
                             <div className="group/time">
                               <div className="flex items-start gap-2 mb-2">
                                 <div className="flex-1">
-                                  <div className="text-sm text-scripture-text">
-                                    <span className="font-medium">🕐 {timeExpression.expression}</span>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <div className="text-sm text-scripture-text">
+                                      <span className="font-medium">🕐 {timeExpression.expression}</span>
+                                    </div>
+                                    {timeExpression.presetId && (
+                                      <span className="text-xs bg-scripture-accent/20 text-scripture-accent px-2 py-0.5 rounded" title="Auto-imported from keyword annotation">
+                                        Keyword
+                                      </span>
+                                    )}
+                                    {timeExpression.timeOrder && (
+                                      <span className="text-xs bg-scripture-elevated text-scripture-muted px-2 py-0.5 rounded" title="Chronological order">
+                                        #{timeExpression.timeOrder}
+                                      </span>
+                                    )}
                                   </div>
                                   {timeExpression.notes && (
                                     <div className="mt-2 text-xs text-scripture-muted italic">

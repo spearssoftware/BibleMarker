@@ -4,13 +4,17 @@
  * Worksheet for recording Who, What, When, Where, Why, and How observations.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useObservationStore } from '@/stores/observationStore';
 import { useBibleStore } from '@/stores/bibleStore';
+import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { formatVerseRef, getBookById } from '@/types/bible';
 import type { FiveWAndHEntry } from '@/types/observation';
 import type { VerseRef } from '@/types/bible';
 import { Textarea, ConfirmationDialog } from '@/components/shared';
+import { getChapterAnnotations } from '@/lib/db';
+import { useAnnotationStore } from '@/stores/annotationStore';
+import type { Annotation } from '@/types/annotation';
 
 interface FiveWAndHProps {
   selectedText?: string;
@@ -48,7 +52,7 @@ const sortVerseGroups = (groups: Map<string, FiveWAndHEntry[]>): Array<[string, 
 };
 
 export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndHProps) {
-  const { currentBook, currentChapter } = useBibleStore();
+  const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { 
     fiveWAndHEntries, 
     loadFiveWAndH, 
@@ -56,11 +60,13 @@ export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndH
     updateFiveWAndH, 
     deleteFiveWAndH 
   } = useObservationStore();
+  const { presets } = useMarkingPresetStore();
   
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedVerses, setExpandedVerses] = useState<Set<string>>(new Set());
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [availableKeywords, setAvailableKeywords] = useState<Array<{ id: string; word: string }>>([]);
   
   // Form state
   const [formVerseRef, setFormVerseRef] = useState<VerseRef | null>(
@@ -73,11 +79,69 @@ export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndH
   const [formWhy, setFormWhy] = useState('');
   const [formHow, setFormHow] = useState('');
   const [formNotes, setFormNotes] = useState('');
+  const [formLinkedPresetIds, setFormLinkedPresetIds] = useState<string[]>([]);
 
   // Load entries on mount
   useEffect(() => {
     loadFiveWAndH();
   }, [loadFiveWAndH]);
+
+  // Load available keywords for the current verse when formVerseRef changes
+  useEffect(() => {
+    const loadKeywordsForVerse = async () => {
+      if (!formVerseRef || !currentModuleId) {
+        setAvailableKeywords([]);
+        return;
+      }
+
+      try {
+        // Get all annotations for the chapter
+        const annotations = await getChapterAnnotations(
+          currentModuleId,
+          formVerseRef.book,
+          formVerseRef.chapter
+        );
+
+        // Filter annotations for this specific verse that have presetId
+        const verseAnnotations = annotations.filter(ann => {
+          if (ann.type === 'symbol') {
+            return ann.ref.book === formVerseRef.book &&
+                   ann.ref.chapter === formVerseRef.chapter &&
+                   ann.ref.verse === formVerseRef.verse &&
+                   ann.presetId;
+          } else {
+            return ann.startRef.book === formVerseRef.book &&
+                   ann.startRef.chapter === formVerseRef.chapter &&
+                   ann.startRef.verse === formVerseRef.verse &&
+                   ann.presetId;
+          }
+        });
+
+        // Get unique presetIds and find their words
+        const presetIds = new Set<string>();
+        verseAnnotations.forEach(ann => {
+          if (ann.presetId) {
+            presetIds.add(ann.presetId);
+          }
+        });
+
+        // Map to preset words
+        const keywords = Array.from(presetIds)
+          .map(presetId => {
+            const preset = presets.find(p => p.id === presetId);
+            return preset && preset.word ? { id: presetId, word: preset.word } : null;
+          })
+          .filter((k): k is { id: string; word: string } => k !== null);
+
+        setAvailableKeywords(keywords);
+      } catch (error) {
+        console.error('Error loading keywords for verse:', error);
+        setAvailableKeywords([]);
+      }
+    };
+
+    loadKeywordsForVerse();
+  }, [formVerseRef, currentModuleId, presets]);
 
   // If initialVerseRef is provided, expand that verse and scroll to it
   useEffect(() => {
@@ -113,6 +177,7 @@ export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndH
     setFormWhy('');
     setFormHow('');
     setFormNotes('');
+    setFormLinkedPresetIds([]);
     setIsCreating(false);
     setEditingId(null);
   };
@@ -131,6 +196,7 @@ export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndH
     setFormWhy(entry.why || '');
     setFormHow(entry.how || '');
     setFormNotes(entry.notes || '');
+    setFormLinkedPresetIds(entry.linkedPresetIds || []);
     setEditingId(entry.id);
     setIsCreating(false);
   };
@@ -174,6 +240,7 @@ export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndH
             why: formWhy.trim() || undefined,
             how: formHow.trim() || undefined,
             notes: formNotes.trim() || undefined,
+            linkedPresetIds: formLinkedPresetIds.length > 0 ? formLinkedPresetIds : undefined,
           });
         }
       } else {
@@ -187,6 +254,7 @@ export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndH
           why: formWhy.trim() || undefined,
           how: formHow.trim() || undefined,
           notes: formNotes.trim() || undefined,
+          linkedPresetIds: formLinkedPresetIds.length > 0 ? formLinkedPresetIds : undefined,
         });
       }
       
@@ -360,6 +428,43 @@ export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndH
             />
           </div>
 
+          {/* Linked Keywords */}
+          {formVerseRef && availableKeywords.length > 0 && (
+            <div>
+              <label className="block text-xs font-ui font-semibold text-scripture-text uppercase tracking-wider mb-2">
+                Link to Marked Keywords
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {availableKeywords.map(keyword => {
+                  const isLinked = formLinkedPresetIds.includes(keyword.id);
+                  return (
+                    <button
+                      key={keyword.id}
+                      type="button"
+                      onClick={() => {
+                        if (isLinked) {
+                          setFormLinkedPresetIds(formLinkedPresetIds.filter(id => id !== keyword.id));
+                        } else {
+                          setFormLinkedPresetIds([...formLinkedPresetIds, keyword.id]);
+                        }
+                      }}
+                      className={`px-3 py-1.5 text-xs rounded transition-colors ${
+                        isLinked
+                          ? 'bg-scripture-accent text-white'
+                          : 'bg-scripture-surface text-scripture-text border border-scripture-border/50 hover:bg-scripture-border/50'
+                      }`}
+                    >
+                      {keyword.word} {isLinked ? '✓' : '+'}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-scripture-muted mt-1">
+                Link this entry to keywords marked in this verse
+              </p>
+            </div>
+          )}
+
           {/* Save/Cancel */}
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-scripture-border/30">
             <button
@@ -502,6 +607,26 @@ export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndH
                                     Notes
                                   </div>
                                   <div className="text-sm text-scripture-text">{entry.notes}</div>
+                                </div>
+                              )}
+                              {entry.linkedPresetIds && entry.linkedPresetIds.length > 0 && (
+                                <div>
+                                  <div className="text-xs font-ui font-semibold text-scripture-muted uppercase tracking-wider mb-1">
+                                    Linked Keywords
+                                  </div>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {entry.linkedPresetIds.map(presetId => {
+                                      const preset = presets.find(p => p.id === presetId);
+                                      return preset && preset.word ? (
+                                        <span
+                                          key={presetId}
+                                          className="inline-flex items-center px-2 py-0.5 text-xs bg-scripture-accent/20 text-scripture-accent rounded"
+                                        >
+                                          {preset.word}
+                                        </span>
+                                      ) : null;
+                                    })}
+                                  </div>
                                 </div>
                               )}
                             </div>

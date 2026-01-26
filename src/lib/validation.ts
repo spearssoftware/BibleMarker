@@ -394,6 +394,18 @@ export function validateFiveWAndH(entry: any): FiveWAndHEntry {
     throw new ValidationError('5W+H entry notes must be a string if provided', 'notes', entry.notes);
   }
 
+  // Validate linkedPresetIds if provided
+  if (entry.linkedPresetIds !== undefined) {
+    if (!Array.isArray(entry.linkedPresetIds)) {
+      throw new ValidationError('5W+H entry linkedPresetIds must be an array if provided', 'linkedPresetIds', entry.linkedPresetIds);
+    }
+    for (const presetId of entry.linkedPresetIds) {
+      if (typeof presetId !== 'string' || presetId.trim() === '') {
+        throw new ValidationError('5W+H entry linkedPresetIds must contain valid string IDs', 'linkedPresetIds', entry.linkedPresetIds);
+      }
+    }
+  }
+
   // At least one field should have content (who, what, when, where, why, how, or notes)
   const hasContent = entry.who?.trim() || 
                      entry.what?.trim() || 

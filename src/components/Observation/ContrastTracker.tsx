@@ -7,10 +7,12 @@
 import { useState, useEffect } from 'react';
 import { useContrastStore } from '@/stores/contrastStore';
 import { useBibleStore } from '@/stores/bibleStore';
+import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import type { Contrast } from '@/types/contrast';
 import type { VerseRef } from '@/types/bible';
 import { formatVerseRef, getBookById } from '@/types/bible';
 import { ConfirmationDialog } from '@/components/shared';
+import { getAnnotationsBySymbol, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 
 interface ContrastTrackerProps {
   selectedText?: string;
@@ -50,6 +52,7 @@ const sortVerseGroups = (groups: Map<string, Contrast[]>): Array<[string, Contra
 export function ContrastTracker({ selectedText, verseRef: initialVerseRef }: ContrastTrackerProps) {
   const { contrasts, loadContrasts, createContrast, updateContrast, deleteContrast } = useContrastStore();
   const { currentBook, currentChapter } = useBibleStore();
+  const { presets } = useMarkingPresetStore();
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newItemA, setNewItemA] = useState('');
@@ -60,6 +63,7 @@ export function ContrastTracker({ selectedText, verseRef: initialVerseRef }: Con
   const [editingNotes, setEditingNotes] = useState('');
   const [expandedVerses, setExpandedVerses] = useState<Set<string>>(new Set());
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [hasCheckedAutoImport, setHasCheckedAutoImport] = useState(false);
 
   // Determine verse reference - use provided one, or current location
   const getCurrentVerseRef = (): VerseRef | null => {
@@ -79,6 +83,110 @@ export function ContrastTracker({ selectedText, verseRef: initialVerseRef }: Con
   useEffect(() => {
     loadContrasts();
   }, [loadContrasts]);
+
+  // Auto-import existing keyword annotations with contrast symbol
+  useEffect(() => {
+    if (hasCheckedAutoImport || contrasts.length > 0) return;
+    
+    const autoImportAnnotations = async () => {
+      try {
+        // Get all annotations with the contrast symbol (doubleArrow)
+        const contrastAnnotations = await getAnnotationsBySymbol('doubleArrow');
+        
+        if (contrastAnnotations.length === 0) {
+          setHasCheckedAutoImport(true);
+          return;
+        }
+
+        // Group by presetId to create contrasts
+        const annotationsByPreset = new Map<string, typeof contrastAnnotations>();
+        for (const ann of contrastAnnotations) {
+          if (ann.presetId) {
+            if (!annotationsByPreset.has(ann.presetId)) {
+              annotationsByPreset.set(ann.presetId, []);
+            }
+            annotationsByPreset.get(ann.presetId)!.push(ann);
+          }
+        }
+
+        // For each preset, try to create contrasts from pairs of annotations
+        // If only one annotation, create a contrast with the annotation text as itemA
+        let importedCount = 0;
+        for (const [presetId, annotations] of annotationsByPreset.entries()) {
+          const preset = presets.find(p => p.id === presetId);
+          const keywordName = preset?.word || 'Unknown';
+          
+          if (annotations.length >= 2) {
+            // Create contrasts from pairs
+            for (let i = 0; i < annotations.length - 1; i += 2) {
+              const ann1 = annotations[i];
+              const ann2 = annotations[i + 1];
+              const text1 = getAnnotationText(ann1) || keywordName;
+              const text2 = getAnnotationText(ann2) || keywordName;
+              
+              // Check if contrast already exists
+              const verseRef1 = getAnnotationVerseRef(ann1);
+              const existing = contrasts.find(c => 
+                c.presetId === presetId &&
+                c.verseRef.book === verseRef1.book &&
+                c.verseRef.chapter === verseRef1.chapter &&
+                c.verseRef.verse === verseRef1.verse &&
+                (c.itemA === text1 || c.itemA === text2) &&
+                (c.itemB === text1 || c.itemB === text2)
+              );
+              
+              if (!existing) {
+                await createContrast(
+                  text1,
+                  text2,
+                  verseRef1,
+                  `Auto-imported from keyword: ${keywordName}`,
+                  presetId,
+                  ann1.id
+                );
+                importedCount++;
+              }
+            }
+          } else if (annotations.length === 1) {
+            // Single annotation - create contrast with keyword as one item
+            const ann = annotations[0];
+            const text = getAnnotationText(ann) || keywordName;
+            const verseRef = getAnnotationVerseRef(ann);
+            
+            // Check if contrast already exists
+            const existing = contrasts.find(c => 
+              c.presetId === presetId &&
+              c.verseRef.book === verseRef.book &&
+              c.verseRef.chapter === verseRef.chapter &&
+              c.verseRef.verse === verseRef.verse
+            );
+            
+            if (!existing) {
+              await createContrast(
+                keywordName,
+                text,
+                verseRef,
+                `Auto-imported from keyword annotation`,
+                presetId,
+                ann.id
+              );
+              importedCount++;
+            }
+          }
+        }
+        
+        if (importedCount > 0) {
+          await loadContrasts();
+        }
+      } catch (error) {
+        console.error('Error auto-importing contrast annotations:', error);
+      } finally {
+        setHasCheckedAutoImport(true);
+      }
+    };
+
+    autoImportAnnotations();
+  }, [contrasts.length, hasCheckedAutoImport, loadContrasts, createContrast, presets]);
 
   // Pre-fill form if selectedText is provided
   useEffect(() => {
@@ -115,7 +223,9 @@ export function ContrastTracker({ selectedText, verseRef: initialVerseRef }: Con
       newItemA.trim(),
       newItemB.trim(),
       verseRef,
-      newNotes.trim() || undefined
+      newNotes.trim() || undefined,
+      undefined, // presetId - can be added later if needed
+      undefined  // annotationId - can be added later if needed
     );
 
     setIsCreating(false);

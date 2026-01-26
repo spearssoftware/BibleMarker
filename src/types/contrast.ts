@@ -13,6 +13,7 @@ export interface Contrast {
   itemB: string;           // Second item being compared/contrasted
   verseRef: VerseRef;      // Source verse reference
   notes?: string;          // Optional notes about the contrast
+  presetId?: string;      // Optional link to a MarkingPreset (keyword)
   annotationId?: string;  // Optional link to an annotation (if contrast came from a marked instance)
   createdAt: Date;
   updatedAt: Date;

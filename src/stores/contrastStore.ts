@@ -16,7 +16,7 @@ interface ContrastState {
   
   // Actions
   loadContrasts: () => Promise<void>;
-  createContrast: (itemA: string, itemB: string, verseRef: VerseRef, notes?: string, annotationId?: string) => Promise<Contrast>;
+  createContrast: (itemA: string, itemB: string, verseRef: VerseRef, notes?: string, presetId?: string, annotationId?: string) => Promise<Contrast>;
   updateContrast: (contrast: Contrast) => Promise<void>;
   deleteContrast: (contrastId: string) => Promise<void>;
   getContrast: (contrastId: string) => Contrast | null;
@@ -34,13 +34,14 @@ export const useContrastStore = create<ContrastState>()(
         set({ contrasts: allContrasts });
       },
       
-      createContrast: async (itemA, itemB, verseRef, notes, annotationId) => {
+      createContrast: async (itemA, itemB, verseRef, notes, presetId, annotationId) => {
         const newContrast: Contrast = {
           id: crypto.randomUUID(),
           itemA: itemA.trim(),
           itemB: itemB.trim(),
           verseRef,
           notes: notes?.trim() || undefined,
+          presetId,
           annotationId,
           createdAt: new Date(),
           updatedAt: new Date(),

@@ -22,6 +22,7 @@ export interface FiveWAndHEntry {
   why?: string;              // Why - reasons/motivations
   how?: string;              // How - methods/means
   notes?: string;            // Additional notes
+  linkedPresetIds?: string[]; // Optional: link to marked keywords (MarkingPresets) in this verse
   createdAt: Date;
   updatedAt: Date;
 }
