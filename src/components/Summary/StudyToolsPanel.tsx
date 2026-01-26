@@ -11,6 +11,7 @@ import { ChapterAtAGlance, BookOverview, ThemeTracker } from './';
 import { ConfirmationDialog } from '@/components/shared';
 import { InterpretationWorksheet } from '@/components/Interpretation';
 import { ApplicationWorksheet } from '@/components/Application';
+import { exportStudyData } from '@/lib/export';
 
 type StudyToolTab = 'chapter' | 'book' | 'theme' | 'studies' | 'interpretation' | 'application';
 
@@ -28,6 +29,7 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
   const [newStudyName, setNewStudyName] = useState('');
   const [newStudyBook, setNewStudyBook] = useState<string>('');
   const [confirmDeleteStudyId, setConfirmDeleteStudyId] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     loadStudies();
@@ -80,6 +82,19 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
     setConfirmDeleteStudyId(null);
   };
 
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      await exportStudyData();
+    } catch (error: any) {
+      if (error.message !== 'Export cancelled') {
+        alert(`Failed to export study data: ${error.message || 'Unknown error'}`);
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div 
       className="flex-1 min-h-0 flex flex-col overflow-hidden relative" 
@@ -95,6 +110,22 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
       >
         <span aria-hidden="true">✕</span>
       </button>
+
+      {/* Header with Export button */}
+      <div className="px-4 py-2 flex-shrink-0 flex items-center justify-between border-b border-scripture-border/30">
+        <div className="flex-1"></div>
+        <button
+          onClick={handleExport}
+          disabled={isExporting}
+          className="px-4 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg 
+                   hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed 
+                   transition-all duration-200 shadow-md flex items-center gap-2"
+          aria-label="Export study data"
+        >
+          <span aria-hidden="true">📥</span>
+          {isExporting ? 'Exporting...' : 'Export Study Data'}
+        </button>
+      </div>
 
       {/* Tabs */}
       <div className="px-4 py-2 flex-shrink-0" role="tablist" aria-label="Study tools sections">
