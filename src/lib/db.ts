@@ -23,6 +23,7 @@ import type { ObservationList } from '@/types/list';
 import type { FiveWAndHEntry } from '@/types/observation';
 import type { Contrast } from '@/types/contrast';
 import type { TimeExpression } from '@/types/timeExpression';
+import type { Place } from '@/types/place';
 import {
   validateAnnotation,
   validateSectionHeading,
@@ -149,6 +150,7 @@ class BibleMarkerDB extends Dexie {
   fiveWAndH!: EntityTable<FiveWAndHEntry, 'id'>;
   contrasts!: EntityTable<Contrast, 'id'>;
   timeExpressions!: EntityTable<TimeExpression, 'id'>;
+  places!: EntityTable<Place, 'id'>;
 
   constructor() {
     super('BibleMarkerDB');
@@ -351,6 +353,30 @@ class BibleMarkerDB extends Dexie {
       fiveWAndH: 'id',
       contrasts: 'id',
       timeExpressions: 'id',
+    });
+
+    // Version 11: Geographic locations tracker (Phase 1 - Agent 4)
+    this.version(11).stores({
+      modules: 'id, status',
+      moduleFiles: 'id, moduleId',
+      chapterCache: 'id, moduleId',
+      translationCache: 'id',
+      annotations: 'id, moduleId, type, createdAt, presetId',
+      sectionHeadings: 'id, moduleId',
+      chapterTitles: 'id, moduleId',
+      notes: 'id, moduleId',
+      keyWords: 'id, word, category',
+      markingPresets: 'id, word, category',
+      preferences: 'id',
+      readingHistory: 'id, moduleId, timestamp',
+      esvRateLimit: 'id',
+      studies: 'id',
+      multiTranslationViews: 'id',
+      observationLists: 'id, keyWordId, studyId',
+      fiveWAndH: 'id',
+      contrasts: 'id',
+      timeExpressions: 'id',
+      places: 'id',
     });
   }
 }
@@ -675,6 +701,7 @@ export async function clearDatabase(): Promise<void> {
     db.fiveWAndH.clear(),
     db.contrasts.clear(),
     db.timeExpressions.clear(),
+    db.places.clear(),
     // Note: modules and moduleFiles tables are deprecated (Sword support removed)
     // but kept in schema for backwards compatibility
   ]);

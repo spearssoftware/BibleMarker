@@ -11,6 +11,7 @@ import type { Study } from '@/types/study';
 import type { MultiTranslationView } from '@/types/multiTranslation';
 import type { ObservationList } from '@/types/list';
 import type { FiveWAndHEntry } from '@/types/observation';
+import type { Place } from '@/types/place';
 import type { VerseRef } from '@/types/bible';
 import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
 
@@ -409,6 +410,39 @@ export function validateFiveWAndH(entry: any): FiveWAndHEntry {
   validateDate(entry.updatedAt, 'updatedAt');
 
   return entry as FiveWAndHEntry;
+}
+
+/**
+ * Validate a place entry
+ */
+export function validatePlace(place: any): Place {
+  if (!place || typeof place !== 'object') {
+    throw new ValidationError('Place must be an object', 'place', place);
+  }
+
+  if (typeof place.id !== 'string' || place.id.trim() === '') {
+    throw new ValidationError('Place must have a valid id', 'id', place.id);
+  }
+  if (typeof place.name !== 'string' || place.name.trim() === '') {
+    throw new ValidationError('Place must have a valid name', 'name', place.name);
+  }
+
+  validateVerseRef(place.verseRef);
+
+  if (place.notes !== undefined && typeof place.notes !== 'string') {
+    throw new ValidationError('Place notes must be a string if provided', 'notes', place.notes);
+  }
+  if (place.presetId !== undefined && typeof place.presetId !== 'string') {
+    throw new ValidationError('Place presetId must be a string if provided', 'presetId', place.presetId);
+  }
+  if (place.annotationId !== undefined && typeof place.annotationId !== 'string') {
+    throw new ValidationError('Place annotationId must be a string if provided', 'annotationId', place.annotationId);
+  }
+
+  validateDate(place.createdAt, 'createdAt');
+  validateDate(place.updatedAt, 'updatedAt');
+
+  return place as Place;
 }
 
 /**

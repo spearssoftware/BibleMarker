@@ -16,6 +16,7 @@ import { ListEditor } from '@/components/Lists/ListEditor';
 import { FiveWAndH } from './FiveWAndH';
 import { ContrastTracker } from './ContrastTracker';
 import { TimeTracker } from './TimeTracker';
+import { PlaceTracker } from './PlaceTracker';
 import { ConfirmationDialog } from '@/components/shared';
 
 export type ObservationTab = 'lists' | 'fiveWAndH' | 'contrasts' | 'time' | 'places' | 'conclusions' | 'theme';
@@ -110,8 +111,8 @@ export function ObservationToolsPanel({
     { id: 'fiveWAndH', label: '5 W\'s & H', icon: '❓' },
     { id: 'contrasts', label: 'Contrasts', icon: '⇔' },
     { id: 'time', label: 'Time', icon: '🕐' },
+    { id: 'places', label: 'Places', icon: '📍' },
     // Phase 1 agents will add:
-    // { id: 'places', label: 'Places', icon: '📍' },
     // { id: 'conclusions', label: 'Conclusions', icon: '→' },
     // { id: 'theme', label: 'Theme', icon: '🎯' },
   ];
@@ -569,10 +570,12 @@ export function ObservationToolsPanel({
           <ContrastTracker selectedText={selectedText} verseRef={verseRef} />
         ) : activeTab === 'time' ? (
           <TimeTracker selectedText={selectedText} verseRef={verseRef} />
+        ) : activeTab === 'places' ? (
+          <PlaceTracker selectedText={selectedText} verseRef={verseRef} />
         ) : null}
         
         {/* Phase 1 agents will add their tab content here */}
-        {activeTab !== 'lists' && activeTab !== 'fiveWAndH' && activeTab !== 'contrasts' && activeTab !== 'time' && (
+        {activeTab !== 'lists' && activeTab !== 'fiveWAndH' && activeTab !== 'contrasts' && activeTab !== 'time' && activeTab !== 'places' && (
           <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
             <p className="text-sm text-scripture-muted">
               Tab "{activeTab}" will be implemented in Phase 1.
