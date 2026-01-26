@@ -63,9 +63,10 @@ export function GettingStartedSection() {
           </div>
 
           <div>
-            <div className="font-medium text-scripture-text mb-2">💾 Backup & Restore</div>
+            <div className="font-medium text-scripture-text mb-2">💾 Backup & Export</div>
             <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
-              <li>Export all your data from Settings → Data</li>
+              <li>Export data backup (JSON) from Settings → Data for data recovery</li>
+              <li>Export study notes (Markdown) for a readable, formatted document</li>
               <li>Save backups to cloud folders (iCloud Drive, Google Drive) for automatic syncing</li>
               <li>Restore from backups to recover your study work</li>
             </ul>

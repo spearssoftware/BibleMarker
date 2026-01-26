@@ -14,6 +14,12 @@ import type { MarkingPreset } from '@/types/keyWord';
 import type { Study } from '@/types/study';
 import type { MultiTranslationView } from '@/types/multiTranslation';
 import type { ObservationList } from '@/types/list';
+import type { FiveWAndHEntry } from '@/types/observation';
+import type { Contrast } from '@/types/contrast';
+import type { TimeExpression } from '@/types/timeExpression';
+import type { Place } from '@/types/place';
+import type { Conclusion } from '@/types/conclusion';
+import type { InterpretationEntry } from '@/types/interpretation';
 import type { ApplicationEntry } from '@/types/application';
 import {
   validateAnnotation,
@@ -24,7 +30,10 @@ import {
   validateStudy,
   validateMultiTranslationView,
   validateObservationList,
+  validateFiveWAndH,
   validateApplication,
+  validateInterpretation,
+  validatePlace,
   validateArray,
   ValidationError,
 } from './validation';
@@ -43,6 +52,12 @@ export interface BackupData {
     studies: Study[];
     multiTranslationViews: MultiTranslationView[];
     observationLists: ObservationList[];
+    fiveWAndH: FiveWAndHEntry[];
+    contrasts: Contrast[];
+    timeExpressions: TimeExpression[];
+    places: Place[];
+    conclusions: Conclusion[];
+    interpretations: InterpretationEntry[];
     applications: ApplicationEntry[];
     cachedChapters?: Array<{
       id: string;
@@ -95,6 +110,12 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
       studies,
       multiTranslationViews,
       observationLists,
+      fiveWAndH,
+      contrasts,
+      timeExpressions,
+      places,
+      conclusions,
+      interpretations,
       applications,
       cachedChapters,
     ] = await Promise.all([
@@ -107,6 +128,12 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
       db.studies.toArray(),
       db.multiTranslationViews.toArray(),
       db.observationLists.toArray(),
+      db.fiveWAndH.toArray(),
+      db.contrasts.toArray(),
+      db.timeExpressions.toArray(),
+      db.places.toArray(),
+      db.conclusions.toArray(),
+      db.interpretations.toArray(),
       db.applications.toArray(),
       includeCache ? db.chapterCache.toArray() : Promise.resolve([]),
     ]);
@@ -149,6 +176,12 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
         studies,
         multiTranslationViews: cleanedMultiTranslationViews,
         observationLists,
+        fiveWAndH,
+        contrasts,
+        timeExpressions,
+        places,
+        conclusions,
+        interpretations,
         applications,
       },
     };
@@ -345,6 +378,67 @@ export function validateBackup(data: any): { valid: boolean; errors: string[] } 
     }
   }
 
+  if (Array.isArray(data.data.fiveWAndH)) {
+    const { errors: fiveWErrors } = validateArray(data.data.fiveWAndH, validateFiveWAndH, '5W+H entry');
+    if (fiveWErrors.length > 0) {
+      errors.push(`5W+H entries validation errors: ${fiveWErrors.length} invalid records`);
+      errors.push(...fiveWErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }
+  }
+
+  if (Array.isArray(data.data.contrasts)) {
+    const { errors: contrastErrors } = validateArray(data.data.contrasts, (entry: any) => {
+      // Basic validation for contrasts (full validation would require importing validateContrast)
+      if (!entry || typeof entry !== 'object') throw new ValidationError('Contrast must be an object');
+      if (typeof entry.id !== 'string' || entry.id.trim() === '') throw new ValidationError('Contrast must have valid id');
+      return entry;
+    }, 'contrast');
+    if (contrastErrors.length > 0) {
+      errors.push(`Contrasts validation errors: ${contrastErrors.length} invalid records`);
+      errors.push(...contrastErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }
+  }
+
+  if (Array.isArray(data.data.timeExpressions)) {
+    const { errors: timeErrors } = validateArray(data.data.timeExpressions, (entry: any) => {
+      if (!entry || typeof entry !== 'object') throw new ValidationError('Time expression must be an object');
+      if (typeof entry.id !== 'string' || entry.id.trim() === '') throw new ValidationError('Time expression must have valid id');
+      return entry;
+    }, 'time expression');
+    if (timeErrors.length > 0) {
+      errors.push(`Time expressions validation errors: ${timeErrors.length} invalid records`);
+      errors.push(...timeErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }
+  }
+
+  if (Array.isArray(data.data.places)) {
+    const { errors: placeErrors } = validateArray(data.data.places, validatePlace, 'place');
+    if (placeErrors.length > 0) {
+      errors.push(`Places validation errors: ${placeErrors.length} invalid records`);
+      errors.push(...placeErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }
+  }
+
+  if (Array.isArray(data.data.conclusions)) {
+    const { errors: conclusionErrors } = validateArray(data.data.conclusions, (entry: any) => {
+      if (!entry || typeof entry !== 'object') throw new ValidationError('Conclusion must be an object');
+      if (typeof entry.id !== 'string' || entry.id.trim() === '') throw new ValidationError('Conclusion must have valid id');
+      return entry;
+    }, 'conclusion');
+    if (conclusionErrors.length > 0) {
+      errors.push(`Conclusions validation errors: ${conclusionErrors.length} invalid records`);
+      errors.push(...conclusionErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }
+  }
+
+  if (Array.isArray(data.data.interpretations)) {
+    const { errors: interpErrors } = validateArray(data.data.interpretations, validateInterpretation, 'interpretation entry');
+    if (interpErrors.length > 0) {
+      errors.push(`Interpretation entries validation errors: ${interpErrors.length} invalid records`);
+      errors.push(...interpErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }
+  }
+
   if (Array.isArray(data.data.applications)) {
     const { errors: appErrors } = validateArray(data.data.applications, validateApplication, 'application entry');
     if (appErrors.length > 0) {
@@ -370,6 +464,12 @@ export function getBackupPreview(backup: BackupData): Record<string, number> {
     studies: backup.data.studies.length,
     multiTranslationViews: backup.data.multiTranslationViews.length,
     observationLists: backup.data.observationLists.length,
+    fiveWAndH: backup.data.fiveWAndH?.length || 0,
+    contrasts: backup.data.contrasts?.length || 0,
+    timeExpressions: backup.data.timeExpressions?.length || 0,
+    places: backup.data.places?.length || 0,
+    conclusions: backup.data.conclusions?.length || 0,
+    interpretations: backup.data.interpretations?.length || 0,
     applications: backup.data.applications.length,
     cachedChapters: backup.data.cachedChapters?.length || 0,
   };
@@ -493,6 +593,12 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
     await db.studies.clear();
     await db.multiTranslationViews.clear();
     await db.observationLists.clear();
+    await db.fiveWAndH.clear();
+    await db.contrasts.clear();
+    await db.timeExpressions.clear();
+    await db.places.clear();
+    await db.conclusions.clear();
+    await db.interpretations.clear();
     await db.applications.clear();
     await db.chapterCache.clear();
 
@@ -594,6 +700,45 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
       const { valid: validatedLists } = validateArray(backup.data.observationLists, validateObservationList, 'observation list');
       if (validatedLists.length > 0) {
         await db.observationLists.bulkPut(validatedLists);
+      }
+    }
+
+    // Restore 5W+H entries
+    if (backup.data.fiveWAndH && backup.data.fiveWAndH.length > 0) {
+      const { valid: validatedFiveW } = validateArray(backup.data.fiveWAndH, validateFiveWAndH, '5W+H entry');
+      if (validatedFiveW.length > 0) {
+        await db.fiveWAndH.bulkPut(validatedFiveW);
+      }
+    }
+
+    // Restore contrasts
+    if (backup.data.contrasts && backup.data.contrasts.length > 0) {
+      await db.contrasts.bulkPut(backup.data.contrasts);
+    }
+
+    // Restore time expressions
+    if (backup.data.timeExpressions && backup.data.timeExpressions.length > 0) {
+      await db.timeExpressions.bulkPut(backup.data.timeExpressions);
+    }
+
+    // Restore places
+    if (backup.data.places && backup.data.places.length > 0) {
+      const { valid: validatedPlaces } = validateArray(backup.data.places, validatePlace, 'place');
+      if (validatedPlaces.length > 0) {
+        await db.places.bulkPut(validatedPlaces);
+      }
+    }
+
+    // Restore conclusions
+    if (backup.data.conclusions && backup.data.conclusions.length > 0) {
+      await db.conclusions.bulkPut(backup.data.conclusions);
+    }
+
+    // Restore interpretations
+    if (backup.data.interpretations && backup.data.interpretations.length > 0) {
+      const { valid: validatedInterpretations } = validateArray(backup.data.interpretations, validateInterpretation, 'interpretation entry');
+      if (validatedInterpretations.length > 0) {
+        await db.interpretations.bulkPut(validatedInterpretations);
       }
     }
 

@@ -10,6 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { getBookById } from '@/types/bible';
 import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences } from '@/lib/db';
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
+import { exportStudyData } from '@/lib/export';
 import { applyTheme } from '@/lib/theme';
 import { clearDebugFlagsCache, getDebugFlags } from '@/lib/debug';
 import { 
@@ -69,6 +70,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [includeCache, setIncludeCache] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportSuccess, setExportSuccess] = useState(false);
+  
+  // Study Export state
+  const [isExportingStudy, setIsExportingStudy] = useState(false);
+  const [studyExportError, setStudyExportError] = useState<string | null>(null);
+  const [studyExportSuccess, setStudyExportSuccess] = useState(false);
   
   const [importStep, setImportStep] = useState<'select' | 'preview' | 'restoring'>('select');
   const [backupPreview, setBackupPreview] = useState<BackupData | null>(null);
@@ -357,6 +363,13 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     studies: 'Studies',
     multiTranslationViews: 'Multi-Translation Views',
     observationLists: 'Observation Lists',
+    fiveWAndH: '5W+H Entries',
+    contrasts: 'Contrasts',
+    timeExpressions: 'Time Expressions',
+    places: 'Places',
+    conclusions: 'Conclusions',
+    interpretations: 'Interpretations',
+    applications: 'Applications',
     cachedChapters: 'Cached Bible Text',
   };
 
@@ -375,6 +388,26 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       setExportError(error instanceof Error ? error.message : 'Failed to export backup');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleExportStudy = async () => {
+    setIsExportingStudy(true);
+    setStudyExportError(null);
+    setStudyExportSuccess(false);
+
+    try {
+      await exportStudyData();
+      setStudyExportSuccess(true);
+      setTimeout(() => {
+        setStudyExportSuccess(false);
+      }, 3000);
+    } catch (error: any) {
+      if (error.message !== 'Export cancelled') {
+        setStudyExportError(error instanceof Error ? error.message : 'Failed to export study data');
+      }
+    } finally {
+      setIsExportingStudy(false);
     }
   };
 
@@ -902,9 +935,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             <div className="space-y-0">
               {/* Backup & Restore Section */}
               <div className="p-4">
-                <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Backup & Restore</h3>
+                <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Data Backup & Restore</h3>
                 <p className="text-sm text-scripture-muted mb-4">
-                  Export your study data to a JSON file or restore from a previously exported backup. You can save backups to your cloud folder (iCloud Drive, Google Drive, etc.) for automatic syncing.
+                  Create a complete backup of all your data (annotations, keywords, notes, studies, etc.) as a JSON file for data recovery. This backup can be restored to recover your work if needed. You can save backups to your cloud folder (iCloud Drive, Google Drive, etc.) for automatic syncing. <strong>Note:</strong> This creates a technical backup file, not a readable document. For a formatted, readable export of your study notes, use the Study Export section below.
                 </p>
 
                 {importStep === 'select' && (
@@ -937,7 +970,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                         ) : (
                           <>
                             <span>📥</span>
-                            <span>Export Backup</span>
+                            <span>Export Data Backup (JSON)</span>
                           </>
                         )}
                       </button>
@@ -957,7 +990,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                         ) : (
                           <>
                             <span>📤</span>
-                            <span>Import Backup</span>
+                            <span>Restore from Backup</span>
                           </>
                         )}
                       </button>
@@ -1054,6 +1087,48 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 {importError && importStep !== 'restoring' && (
                   <div className="mt-3 p-3 bg-scripture-errorBg border border-scripture-error/30 rounded-lg text-scripture-errorText text-sm">
                     ✗ {importError}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
+
+              {/* Study Export Section */}
+              <div className="p-4">
+                <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Study Export</h3>
+                <p className="text-sm text-scripture-muted mb-4">
+                  Export your study observations, interpretations, and applications as a formatted Markdown document. This creates a readable summary of your Bible study organized by book and chapter.
+                </p>
+
+                <button
+                  onClick={handleExportStudy}
+                  disabled={isExportingStudy}
+                  className="w-full px-3 py-2 bg-scripture-accent text-scripture-bg rounded-lg hover:bg-scripture-accent/90 
+                           disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 
+                           font-ui text-sm shadow-md flex items-center justify-center gap-2"
+                >
+                  {isExportingStudy ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin"></div>
+                      <span>Exporting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>📄</span>
+                      <span>Export Study Data (Markdown)</span>
+                    </>
+                  )}
+                </button>
+
+                {studyExportSuccess && (
+                  <div className="mt-3 p-3 bg-scripture-successBg border border-scripture-success/30 rounded-lg text-scripture-successText text-sm">
+                    ✓ Study data exported successfully!
+                  </div>
+                )}
+
+                {studyExportError && (
+                  <div className="mt-3 p-3 bg-scripture-errorBg border border-scripture-error/30 rounded-lg text-scripture-errorText text-sm">
+                    ✗ {studyExportError}
                   </div>
                 )}
               </div>
