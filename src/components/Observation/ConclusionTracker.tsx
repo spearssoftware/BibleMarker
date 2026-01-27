@@ -4,7 +4,7 @@
  * Component for recording and displaying logical flow of conclusions and therefore statements.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useConclusionStore } from '@/stores/conclusionStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import type { Conclusion } from '@/types/conclusion';
@@ -15,6 +15,8 @@ import { ConfirmationDialog } from '@/components/shared';
 interface ConclusionTrackerProps {
   selectedText?: string;
   verseRef?: VerseRef;
+  filterByChapter?: boolean;
+  onNavigate?: (verseRef: VerseRef) => void;
 }
 
 // Helper to create a unique key for a verse reference
@@ -38,16 +40,37 @@ const groupByVerse = (conclusions: Conclusion[]): Map<string, Conclusion[]> => {
 // Sort verse groups by canonical order
 const sortVerseGroups = (groups: Map<string, Conclusion[]>): Array<[string, Conclusion[]]> => {
   return Array.from(groups.entries()).sort(([keyA], [keyB]) => {
-    const [bookA, chapterA, verseA] = keyA.split(':').map(Number);
-    const [bookB, chapterB, verseB] = keyB.split(':').map(Number);
+    const [bookA, chapterA, verseA] = keyA.split(':');
+    const [bookB, chapterB, verseB] = keyB.split(':');
     
-    if (bookA !== bookB) return bookA - bookB;
-    if (chapterA !== chapterB) return chapterA - chapterB;
-    return verseA - verseB;
+    // Compare books using canonical order
+    const bookInfoA = getBookById(bookA);
+    const bookInfoB = getBookById(bookB);
+    
+    if (bookInfoA && bookInfoB && bookInfoA.order !== bookInfoB.order) {
+      return bookInfoA.order - bookInfoB.order;
+    }
+    
+    // If one book not found, put found book first (shouldn't happen normally)
+    if (!bookInfoA && !bookInfoB) return 0;
+    if (!bookInfoA) return 1;
+    if (!bookInfoB) return -1;
+    
+    // Same book: compare chapters
+    const chapterANum = parseInt(chapterA, 10);
+    const chapterBNum = parseInt(chapterB, 10);
+    if (chapterANum !== chapterBNum) {
+      return chapterANum - chapterBNum;
+    }
+    
+    // Same chapter: compare verses
+    const verseANum = parseInt(verseA, 10);
+    const verseBNum = parseInt(verseB, 10);
+    return verseANum - verseBNum;
   });
 };
 
-export function ConclusionTracker({ selectedText, verseRef: initialVerseRef }: ConclusionTrackerProps) {
+export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = false, onNavigate }: ConclusionTrackerProps) {
   const { conclusions, loadConclusions, createConclusion, updateConclusion, deleteConclusion } = useConclusionStore();
   const { currentBook, currentChapter } = useBibleStore();
   const [isCreating, setIsCreating] = useState(false);
@@ -193,7 +216,15 @@ export function ConclusionTracker({ selectedText, verseRef: initialVerseRef }: C
     }
   }, [conclusions, expandedVerses.size]);
 
-  const verseGroups = groupByVerse(conclusions);
+  // Filter conclusions by chapter if filterByChapter is enabled
+  const filteredConclusions = useMemo(() => {
+    if (!filterByChapter) return conclusions;
+    return conclusions.filter(conclusion => 
+      conclusion.verseRef.book === currentBook && conclusion.verseRef.chapter === currentChapter
+    );
+  }, [conclusions, filterByChapter, currentBook, currentChapter]);
+
+  const verseGroups = groupByVerse(filteredConclusions);
   const sortedGroups = sortVerseGroups(verseGroups);
 
   return (
@@ -302,15 +333,28 @@ export function ConclusionTracker({ selectedText, verseRef: initialVerseRef }: C
               >
                 {/* Verse header */}
                 <div className="p-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <button
                       onClick={() => toggleVerse(verseKey)}
                       className="flex-1 text-left"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-scripture-accent">
-                          {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
-                        </span>
+                        {onNavigate ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onNavigate(verseRef);
+                            }}
+                            className="text-sm font-medium text-scripture-accent hover:text-scripture-accent/80 cursor-pointer underline transition-colors"
+                            title="Click to navigate to verse"
+                          >
+                            {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
+                          </button>
+                        ) : (
+                          <span className="text-sm font-medium text-scripture-accent">
+                            {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
+                          </span>
+                        )}
                         <span className="text-xs text-scripture-muted">
                           ({verseConclusions.length} {verseConclusions.length === 1 ? 'conclusion' : 'conclusions'})
                         </span>

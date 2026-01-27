@@ -19,6 +19,8 @@ import type { Annotation } from '@/types/annotation';
 interface FiveWAndHProps {
   selectedText?: string;
   verseRef?: VerseRef;
+  filterByChapter?: boolean;
+  onNavigate?: (verseRef: VerseRef) => void;
 }
 
 // Helper to create a unique key for a verse reference
@@ -42,16 +44,37 @@ const groupByVerse = (entries: FiveWAndHEntry[]): Map<string, FiveWAndHEntry[]> 
 // Sort verse groups by canonical order
 const sortVerseGroups = (groups: Map<string, FiveWAndHEntry[]>): Array<[string, FiveWAndHEntry[]]> => {
   return Array.from(groups.entries()).sort(([keyA], [keyB]) => {
-    const [bookA, chapterA, verseA] = keyA.split(':').map(Number);
-    const [bookB, chapterB, verseB] = keyB.split(':').map(Number);
+    const [bookA, chapterA, verseA] = keyA.split(':');
+    const [bookB, chapterB, verseB] = keyB.split(':');
     
-    if (bookA !== bookB) return bookA - bookB;
-    if (chapterA !== chapterB) return chapterA - chapterB;
-    return verseA - verseB;
+    // Compare books using canonical order
+    const bookInfoA = getBookById(bookA);
+    const bookInfoB = getBookById(bookB);
+    
+    if (bookInfoA && bookInfoB && bookInfoA.order !== bookInfoB.order) {
+      return bookInfoA.order - bookInfoB.order;
+    }
+    
+    // If one book not found, put found book first (shouldn't happen normally)
+    if (!bookInfoA && !bookInfoB) return 0;
+    if (!bookInfoA) return 1;
+    if (!bookInfoB) return -1;
+    
+    // Same book: compare chapters
+    const chapterANum = parseInt(chapterA, 10);
+    const chapterBNum = parseInt(chapterB, 10);
+    if (chapterANum !== chapterBNum) {
+      return chapterANum - chapterBNum;
+    }
+    
+    // Same chapter: compare verses
+    const verseANum = parseInt(verseA, 10);
+    const verseBNum = parseInt(verseB, 10);
+    return verseANum - verseBNum;
   });
 };
 
-export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndHProps) {
+export function FiveWAndH({ selectedText, verseRef: initialVerseRef, filterByChapter = false, onNavigate }: FiveWAndHProps) {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { 
     fiveWAndHEntries, 
@@ -289,7 +312,15 @@ export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndH
     setConfirmDeleteId(null);
   };
 
-  const verseGroups = groupByVerse(fiveWAndHEntries);
+  // Filter entries by chapter if filterByChapter is enabled
+  const filteredEntries = useMemo(() => {
+    if (!filterByChapter) return fiveWAndHEntries;
+    return fiveWAndHEntries.filter(entry => 
+      entry.verseRef.book === currentBook && entry.verseRef.chapter === currentChapter
+    );
+  }, [fiveWAndHEntries, filterByChapter, currentBook, currentChapter]);
+
+  const verseGroups = groupByVerse(filteredEntries);
   const sortedGroups = sortVerseGroups(verseGroups);
 
   return (
@@ -525,22 +556,37 @@ export function FiveWAndH({ selectedText, verseRef: initialVerseRef }: FiveWAndH
                 >
                   {/* Verse header */}
                   <div className="p-4">
-                    <button
-                      onClick={() => toggleVerse(verseKey)}
-                      className="w-full flex items-center justify-between text-left"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-scripture-accent">
-                          {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
+                    <div className="w-full flex items-center justify-between gap-2">
+                      <button
+                        onClick={() => toggleVerse(verseKey)}
+                        className="flex-1 flex items-center justify-between text-left"
+                      >
+                        <div className="flex items-center gap-2">
+                          {onNavigate ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onNavigate(verseRef);
+                              }}
+                              className="text-sm font-medium text-scripture-accent hover:text-scripture-accent/80 cursor-pointer underline transition-colors"
+                              title="Click to navigate to verse"
+                            >
+                              {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
+                            </button>
+                          ) : (
+                            <span className="text-sm font-medium text-scripture-accent">
+                              {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
+                            </span>
+                          )}
+                          <span className="text-xs text-scripture-muted bg-scripture-elevated px-2 py-0.5 rounded">
+                            {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
+                          </span>
+                        </div>
+                        <span className="text-scripture-muted">
+                          {isExpanded ? '▼' : '▶'}
                         </span>
-                        <span className="text-xs text-scripture-muted bg-scripture-elevated px-2 py-0.5 rounded">
-                          {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
-                        </span>
-                      </div>
-                      <span className="text-scripture-muted">
-                        {isExpanded ? '▼' : '▶'}
-                      </span>
-                    </button>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Entries (collapsible) */}

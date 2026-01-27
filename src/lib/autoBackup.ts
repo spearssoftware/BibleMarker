@@ -227,6 +227,13 @@ async function createBackupData(): Promise<BackupData> {
     studies,
     multiTranslationViews,
     observationLists,
+    fiveWAndH,
+    contrasts,
+    timeExpressions,
+    places,
+    conclusions,
+    interpretations,
+    applications,
   ] = await Promise.all([
     db.preferences.get('main'),
     db.annotations.toArray(),
@@ -237,6 +244,13 @@ async function createBackupData(): Promise<BackupData> {
     db.studies.toArray(),
     db.multiTranslationViews.toArray(),
     db.observationLists.toArray(),
+    db.fiveWAndH.toArray(),
+    db.contrasts.toArray(),
+    db.timeExpressions.toArray(),
+    db.places.toArray(),
+    db.conclusions.toArray(),
+    db.interpretations.toArray(),
+    db.applications.toArray(),
   ]);
 
   // Ensure preferences exist
@@ -277,6 +291,13 @@ async function createBackupData(): Promise<BackupData> {
       studies,
       multiTranslationViews: cleanedMultiTranslationViews,
       observationLists,
+      fiveWAndH,
+      contrasts,
+      timeExpressions,
+      places,
+      conclusions,
+      interpretations,
+      applications,
     },
   };
 

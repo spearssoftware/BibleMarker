@@ -28,7 +28,7 @@ import {
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { AboutSection } from './AboutSection';
 import { GettingStartedSection } from './GettingStartedSection';
-import { ConfirmationDialog, Input, Select } from '@/components/shared';
+import { ConfirmationDialog, Input, DropdownSelect } from '@/components/shared';
 import { resetAllStores } from '@/lib/storeReset';
 import {
   bibliaClient,
@@ -648,11 +648,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 <p className="text-sm text-scripture-muted mb-4">
                   Choose a default translation to use when the app starts. This will be automatically selected if no translation is currently active.
                 </p>
-                <Select
+                <DropdownSelect
                   label="Default Translation"
                   value={defaultTranslation}
-                  onChange={async (e) => {
-                    const newValue = e.target.value;
+                  onChange={async (newValue) => {
                     setDefaultTranslation(newValue);
                     // Save immediately when changed
                     setSavingDefaultTranslation(true);

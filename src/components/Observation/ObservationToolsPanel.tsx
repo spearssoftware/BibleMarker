@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { useListStore } from '@/stores/listStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
+import { useBibleStore } from '@/stores/bibleStore';
 import { getBookById, formatVerseRef, BIBLE_BOOKS } from '@/types/bible';
 import type { ObservationList, ObservationItem } from '@/types/list';
 import type { VerseRef } from '@/types/bible';
@@ -72,6 +73,7 @@ export function ObservationToolsPanel({
   const { lists, loadLists, deleteList, addItemToList, updateItem, deleteItem } = useListStore();
   const { presets } = useMarkingPresetStore();
   const { studies } = useStudyStore();
+  const { currentBook, currentChapter, setLocation, setNavSelectedVerse } = useBibleStore();
   const [editingListId, setEditingListId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [expandedLists, setExpandedLists] = useState<Set<string>>(new Set());
@@ -81,6 +83,7 @@ export function ObservationToolsPanel({
   const [editingItemText, setEditingItemText] = useState('');
   const [confirmDeleteListId, setConfirmDeleteListId] = useState<string | null>(null);
   const [confirmDeleteObservation, setConfirmDeleteObservation] = useState<{ listId: string; itemId: string } | null>(null);
+  const [filterByChapter, setFilterByChapter] = useState(false);
 
   // Update activeTab when initialTab changes (e.g., when opened from quick action)
   useEffect(() => {
@@ -250,6 +253,37 @@ export function ObservationToolsPanel({
     setConfirmDeleteObservation(null);
   };
 
+  // Navigation handler for verse references
+  const handleNavigateToVerse = (verseRef: VerseRef) => {
+    // Navigate to the book/chapter if different from current
+    if (verseRef.book !== currentBook || verseRef.chapter !== currentChapter) {
+      setLocation(verseRef.book, verseRef.chapter);
+      // Wait for navigation to complete before scrolling
+      setTimeout(() => {
+        setNavSelectedVerse(verseRef.verse);
+        const verseElement = document.querySelector(`[data-verse="${verseRef.verse}"]`);
+        if (verseElement) {
+          verseElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        // Clear highlight after 3 seconds
+        setTimeout(() => {
+          setNavSelectedVerse(null);
+        }, 3000);
+      }, 100);
+    } else {
+      // Same chapter, just scroll to verse
+      setNavSelectedVerse(verseRef.verse);
+      const verseElement = document.querySelector(`[data-verse="${verseRef.verse}"]`);
+      if (verseElement) {
+        verseElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      // Clear highlight after 3 seconds
+      setTimeout(() => {
+        setNavSelectedVerse(null);
+      }, 3000);
+    }
+  };
+
   return (
     <>
       <ConfirmationDialog
@@ -282,29 +316,43 @@ export function ObservationToolsPanel({
         <span aria-hidden="true">✕</span>
       </button>
 
-      {/* Tabs */}
+      {/* Tabs and Filter */}
       <div className="px-4 py-2 flex-shrink-0" role="tablist" aria-label="Observation tools sections">
-        <div className="flex gap-2 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              role="tab"
-              id={`observation-tab-${tab.id}`}
-              aria-selected={activeTab === tab.id}
-              aria-controls={`observation-tabpanel-${tab.id}`}
-              className={`
-                px-4 py-2 rounded-lg text-sm font-ui font-medium transition-all whitespace-nowrap
-                ${activeTab === tab.id
-                  ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                  : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'
-                }
-              `}
-            >
-              <span className="mr-2" aria-hidden="true">{tab.icon}</span>
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex items-center justify-between gap-4 mb-2">
+          <div className="flex gap-2 overflow-x-auto flex-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                role="tab"
+                id={`observation-tab-${tab.id}`}
+                aria-selected={activeTab === tab.id}
+                aria-controls={`observation-tabpanel-${tab.id}`}
+                className={`
+                  px-4 py-2 rounded-lg text-sm font-ui font-medium transition-all whitespace-nowrap
+                  ${activeTab === tab.id
+                    ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                    : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'
+                  }
+                `}
+              >
+                <span className="mr-2" aria-hidden="true">{tab.icon}</span>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          {/* Chapter filter toggle - only show for observation tabs (not lists or theme) */}
+          {activeTab !== 'lists' && activeTab !== 'theme' && (
+            <label className="flex items-center gap-2 text-xs text-scripture-text cursor-pointer whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={filterByChapter}
+                onChange={(e) => setFilterByChapter(e.target.checked)}
+                className="w-4 h-4 rounded border-scripture-border text-scripture-accent focus:ring-scripture-accent focus:ring-2"
+              />
+              <span>Current chapter only</span>
+            </label>
+          )}
         </div>
       </div>
 
@@ -568,23 +616,48 @@ export function ObservationToolsPanel({
           </div>
         ) : activeTab === 'fiveWAndH' ? (
           <div role="tabpanel" id="observation-tabpanel-fiveWAndH" aria-labelledby="observation-tab-fiveWAndH">
-            <FiveWAndH selectedText={selectedText} verseRef={verseRef} />
+            <FiveWAndH 
+              selectedText={selectedText} 
+              verseRef={verseRef}
+              filterByChapter={filterByChapter}
+              onNavigate={handleNavigateToVerse}
+            />
           </div>
         ) : activeTab === 'contrasts' ? (
           <div role="tabpanel" id="observation-tabpanel-contrasts" aria-labelledby="observation-tab-contrasts">
-            <ContrastTracker selectedText={selectedText} verseRef={verseRef} />
+            <ContrastTracker 
+              selectedText={selectedText} 
+              verseRef={verseRef}
+              filterByChapter={filterByChapter}
+              onNavigate={handleNavigateToVerse}
+            />
           </div>
         ) : activeTab === 'time' ? (
           <div role="tabpanel" id="observation-tabpanel-time" aria-labelledby="observation-tab-time">
-            <TimeTracker selectedText={selectedText} verseRef={verseRef} />
+            <TimeTracker 
+              selectedText={selectedText} 
+              verseRef={verseRef}
+              filterByChapter={filterByChapter}
+              onNavigate={handleNavigateToVerse}
+            />
           </div>
         ) : activeTab === 'places' ? (
           <div role="tabpanel" id="observation-tabpanel-places" aria-labelledby="observation-tab-places">
-            <PlaceTracker selectedText={selectedText} verseRef={verseRef} />
+            <PlaceTracker 
+              selectedText={selectedText} 
+              verseRef={verseRef}
+              filterByChapter={filterByChapter}
+              onNavigate={handleNavigateToVerse}
+            />
           </div>
         ) : activeTab === 'conclusions' ? (
           <div role="tabpanel" id="observation-tabpanel-conclusions" aria-labelledby="observation-tab-conclusions">
-            <ConclusionTracker selectedText={selectedText} verseRef={verseRef} />
+            <ConclusionTracker 
+              selectedText={selectedText} 
+              verseRef={verseRef}
+              filterByChapter={filterByChapter}
+              onNavigate={handleNavigateToVerse}
+            />
           </div>
         ) : activeTab === 'theme' ? (
           <div role="tabpanel" id="observation-tabpanel-theme" aria-labelledby="observation-tab-theme">

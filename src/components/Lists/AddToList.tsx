@@ -11,7 +11,7 @@ import type { VerseRef } from '@/types/bible';
 import { formatVerseRef } from '@/types/bible';
 import { stripSymbols } from '@/lib/textUtils';
 import { useModal } from '@/hooks/useModal';
-import { Modal, Button, Textarea, Select, ReadOnlyField, Input } from '@/components/shared';
+import { Modal, Button, Textarea, DropdownSelect, ReadOnlyField, Input } from '@/components/shared';
 import { Z_INDEX } from '@/lib/modalConstants';
 
 interface AddToListProps {
@@ -180,10 +180,10 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
                       No lists yet. Create one below.
                     </div>
                   ) : (
-                    <Select
+                    <DropdownSelect
                       label="Add to Observation List"
                       value={selectedListId}
-                      onChange={(e) => setSelectedListId(e.target.value)}
+                      onChange={(value) => setSelectedListId(value)}
                       helpText="Select a list about a keyword. You can add multiple observations for the same verse."
                       options={[
                         { value: '', label: 'Select a list...' },
@@ -217,12 +217,11 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewListTitle(e.target.value)}
                     placeholder="e.g., 'What I learn about God in John 1'"
                   />
-                  <Select
+                  <DropdownSelect
                     label="Keyword"
-                    required
                     helpText="This list is about observations of this keyword"
                     value={newListKeywordId}
-                    onChange={(e) => setNewListKeywordId(e.target.value)}
+                    onChange={(value) => setNewListKeywordId(value)}
                     options={[
                       { value: '', label: 'Select a keyword...' },
                       ...keywordPresets.map(preset => ({

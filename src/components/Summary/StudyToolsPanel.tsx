@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react';
 import { useStudyStore } from '@/stores/studyStore';
 import { getBookById, BIBLE_BOOKS } from '@/types/bible';
 import { ChapterAtAGlance, BookOverview, ThemeTracker } from './';
-import { ConfirmationDialog } from '@/components/shared';
+import { ConfirmationDialog, DropdownSelect } from '@/components/shared';
 import { InterpretationWorksheet } from '@/components/Interpretation';
 import { ApplicationWorksheet } from '@/components/Application';
 
@@ -167,16 +167,17 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
                         }
                       }}
                     />
-                    <select
+                    <DropdownSelect
                       value={newStudyBook}
-                      onChange={(e) => setNewStudyBook(e.target.value)}
-                      className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-                    >
-                      <option value="">All books (global study)</option>
-                      {BIBLE_BOOKS.map(book => (
-                        <option key={book.id} value={book.id}>{book.name}</option>
-                      ))}
-                    </select>
+                      onChange={(value) => setNewStudyBook(value)}
+                      options={[
+                        { value: '', label: 'All books (global study)' },
+                        ...BIBLE_BOOKS.map(book => ({
+                          value: book.id,
+                          label: book.name
+                        }))
+                      ]}
+                    />
                     <button
                       onClick={handleCreateStudy}
                       disabled={!newStudyName.trim()}
@@ -231,16 +232,17 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
                                   }
                                 }}
                               />
-                              <select
+                              <DropdownSelect
                                 value={editingStudy.book || ''}
-                                onChange={(e) => setEditingStudy({ ...editingStudy, book: e.target.value || undefined })}
-                                className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-                              >
-                                <option value="">All books</option>
-                                {BIBLE_BOOKS.map(book => (
-                                  <option key={book.id} value={book.id}>{book.name}</option>
-                                ))}
-                              </select>
+                                onChange={(value) => setEditingStudy({ ...editingStudy, book: value || undefined })}
+                                options={[
+                                  { value: '', label: 'All books' },
+                                  ...BIBLE_BOOKS.map(book => ({
+                                    value: book.id,
+                                    label: book.name
+                                  }))
+                                ]}
+                              />
                               <div className="flex gap-2">
                                 <button
                                   onClick={handleUpdateStudy}
