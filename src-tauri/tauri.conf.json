@@ -1,6 +1,6 @@
 {
   "productName": "BibleMarker",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "identifier": "com.biblemarker",
   "build": {
     "beforeDevCommand": "pnpm dev",

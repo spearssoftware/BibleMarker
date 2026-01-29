@@ -82,17 +82,21 @@ export async function getAnnotationsBySymbolsWithPreset(symbols: SymbolKey[]): P
 
 /**
  * Get the selected text from an annotation
- * For symbol annotations, returns selectedText if available, otherwise empty string
+ * Returns selectedText if available, otherwise empty string
  */
-export function getAnnotationText(annotation: SymbolAnnotation): string {
+export function getAnnotationText(annotation: Annotation): string {
   return annotation.selectedText || '';
 }
 
 /**
  * Get verse reference from an annotation
  */
-export function getAnnotationVerseRef(annotation: SymbolAnnotation): VerseRef {
-  return annotation.ref;
+export function getAnnotationVerseRef(annotation: Annotation): VerseRef {
+  if (annotation.type === 'symbol') {
+    return annotation.ref;
+  }
+  // For text annotations (highlight, textColor, underline), use startRef
+  return annotation.startRef;
 }
 
 /**

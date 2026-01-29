@@ -18,7 +18,7 @@ import type {
 import { DEFAULT_MARKING_PREFERENCES } from '@/types/annotation';
 import { updatePreferences } from '@/lib/db';
 
-interface TextSelection {
+export interface TextSelection {
   moduleId: string;
   book: string;
   chapter: number;

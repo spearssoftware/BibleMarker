@@ -74,6 +74,8 @@ export function Toolbar() {
   const [observationPanelInitialTab, setObservationPanelInitialTab] = useState<ObservationTab>('lists');
   const [observationPanelInitialListId, setObservationPanelInitialListId] = useState<string | undefined>(undefined);
   const [showAddToList, setShowAddToList] = useState(false);
+  const [showKeyWordApplyPicker, setShowKeyWordApplyPicker] = useState(false);
+  const [showAddAsVariantPicker, setShowAddAsVariantPicker] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [selectionMenuPosition, setSelectionMenuPosition] = useState<{ x: number; y: number } | null>(null);
