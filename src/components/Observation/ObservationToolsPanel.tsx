@@ -323,8 +323,8 @@ export function ObservationToolsPanel({
         <span aria-hidden="true">✕</span>
       </button>
 
-      {/* Tabs and Filter */}
-      <div className="px-4 py-2 flex-shrink-0" role="tablist" aria-label="Observation tools sections">
+      {/* Tabs and Filter - pr-12 reserves space for the close X button */}
+      <div className="pl-4 pr-12 py-2 flex-shrink-0" role="tablist" aria-label="Observation tools sections">
         <div className="flex items-center justify-between gap-4 mb-2">
           <div className="flex gap-2 overflow-x-auto flex-1">
             {tabs.map((tab) => (
