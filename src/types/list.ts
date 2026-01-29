@@ -12,6 +12,7 @@ export interface ObservationItem {
   content: string;        // The observation text
   verseRef: VerseRef;      // Source verse reference
   annotationId?: string;   // Optional link to an annotation (if observation came from a marked instance)
+  notes?: string;          // Optional notes about this observation
   createdAt: Date;
   updatedAt: Date;
 }

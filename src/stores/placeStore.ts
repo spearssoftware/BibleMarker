@@ -27,6 +27,7 @@ interface PlaceState {
   getPlacesByVerse: (verseRef: VerseRef) => Place[];
   getPlacesByBook: (book: string) => Place[];
   autoImportFromAnnotations: () => Promise<number>; // Returns count of imported places
+  autoPopulateFromChapter: (book: string, chapter: number, moduleId?: string) => Promise<number>; // Auto-populate places for keywords found in chapter
 }
 
 export const usePlaceStore = create<PlaceState>()(
@@ -40,6 +41,25 @@ export const usePlaceStore = create<PlaceState>()(
       },
       
       createPlace: async (name, verseRef, notes, presetId, annotationId) => {
+        const { places } = get();
+        
+        // Check for duplicates: same presetId + verseRef, or same annotationId
+        const existingPlace = places.find(p => {
+          if (annotationId && p.annotationId === annotationId) return true;
+          if (presetId && p.presetId === presetId &&
+              p.verseRef.book === verseRef.book &&
+              p.verseRef.chapter === verseRef.chapter &&
+              p.verseRef.verse === verseRef.verse) {
+            return true;
+          }
+          return false;
+        });
+        
+        if (existingPlace) {
+          // Return existing place instead of creating duplicate
+          return existingPlace;
+        }
+        
         const newPlace: Place = {
           id: crypto.randomUUID(),
           name: name.trim(),
@@ -55,7 +75,6 @@ export const usePlaceStore = create<PlaceState>()(
           const validated = sanitizeData(newPlace, validatePlace);
           await db.places.put(validated);
           
-          const { places } = get();
           set({ 
             places: [...places, validated],
           });
@@ -198,6 +217,89 @@ export const usePlaceStore = create<PlaceState>()(
         }
         
         return importedCount;
+      },
+
+      autoPopulateFromChapter: async (book, chapter, moduleId) => {
+        const { places, createPlace } = get();
+        
+        // Get cached chapter data
+        const cacheKey = moduleId ? `${moduleId}:${book}:${chapter}` : undefined;
+        const chapterCache = cacheKey 
+          ? await db.chapterCache.get(cacheKey)
+          : await db.chapterCache
+              .where('[book+chapter]')
+              .equals([book, chapter])
+              .first();
+        
+        if (!chapterCache || !chapterCache.verses) {
+          return 0;
+        }
+        
+        // Get all keyword presets with 'places' category
+        const { useMarkingPresetStore } = await import('@/stores/markingPresetStore');
+        const { presets } = useMarkingPresetStore.getState();
+        const placePresets = presets.filter(p => 
+          p.word && 
+          p.category === 'places' &&
+          (p.highlight || p.symbol)
+        );
+        
+        let totalAdded = 0;
+        
+        // For each verse in the chapter, find which place keywords appear
+        for (const [verseNum, verseText] of Object.entries(chapterCache.verses)) {
+          const text = verseText as string;
+          const verseNumInt = parseInt(verseNum, 10);
+          if (isNaN(verseNumInt) || verseNumInt <= 0) continue;
+          
+          const verseRef: VerseRef = {
+            book,
+            chapter,
+            verse: verseNumInt,
+          };
+          
+          // Find which place keywords appear in this verse
+          for (const preset of placePresets) {
+            // Check if preset applies to this verse (scope check)
+            if (preset.bookScope && preset.bookScope !== book) continue;
+            if (preset.chapterScope !== undefined && preset.chapterScope !== chapter) continue;
+            if (preset.moduleScope && preset.moduleScope !== moduleId) continue;
+            
+            // Check if keyword appears in this verse
+            const effectiveModuleId = chapterCache.moduleId || moduleId;
+            const { findKeywordMatches } = await import('@/lib/keywordMatching');
+            const matches = findKeywordMatches(text, verseRef, [preset], effectiveModuleId);
+            if (matches.length === 0) continue;
+            
+            // Check if this place already exists for this preset+verse
+            const existingPlace = places.find(p => 
+              p.presetId === preset.id &&
+              p.verseRef.book === verseRef.book &&
+              p.verseRef.chapter === verseRef.chapter &&
+              p.verseRef.verse === verseRef.verse
+            );
+            
+            if (!existingPlace) {
+              // Use preset word as place name
+              const placeName = preset.word || 'Place';
+              
+              try {
+                await createPlace(
+                  placeName,
+                  verseRef,
+                  undefined, // notes - user can add later
+                  preset.id,
+                  undefined // annotationId - no specific annotation, just keyword match
+                );
+                totalAdded++;
+              } catch (error) {
+                console.error(`[autoPopulateFromChapter] Failed to add place "${placeName}":`, error);
+              }
+            }
+          }
+        }
+        
+        return totalAdded;
       },
     }),
     {

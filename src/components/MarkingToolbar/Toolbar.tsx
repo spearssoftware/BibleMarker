@@ -12,6 +12,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { ColorPicker } from './ColorPicker';
 import { SymbolPicker } from './SymbolPicker';
 import { ToolbarOverlay } from './ToolbarOverlay';
+import { SelectionMenu } from './SelectionMenu';
 import { KeyWordManager } from '@/components/KeyWords';
 import { AddToList } from '@/components/Lists';
 import { StudyToolsPanel } from '@/components/Summary';
@@ -68,8 +69,6 @@ export function Toolbar() {
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [showModuleManager, setShowModuleManager] = useState(false);
   const [showKeyWordManager, setShowKeyWordManager] = useState(false);
-  const [showKeyWordApplyPicker, setShowKeyWordApplyPicker] = useState(false);
-  const [showAddAsVariantPicker, setShowAddAsVariantPicker] = useState(false);
   const [showStudyToolsPanel, setShowStudyToolsPanel] = useState(false);
   const [showObservationToolsPanel, setShowObservationToolsPanel] = useState(false);
   const [observationPanelInitialTab, setObservationPanelInitialTab] = useState<ObservationTab>('lists');
@@ -77,11 +76,36 @@ export function Toolbar() {
   const [showAddToList, setShowAddToList] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [selectionMenuPosition, setSelectionMenuPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Load marking presets on mount
   useEffect(() => {
     loadPresets();
   }, [loadPresets]);
+
+  // Calculate selection menu position when selection changes
+  useEffect(() => {
+    if (!selection) {
+      setSelectionMenuPosition(null);
+      return;
+    }
+
+    // Get selection bounds from DOM
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) {
+      setSelectionMenuPosition(null);
+      return;
+    }
+
+    const range = sel.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    
+    // Position menu near the selection (prefer above, center horizontally)
+    const x = rect.left + rect.width / 2;
+    const y = rect.top;
+    
+    setSelectionMenuPosition({ x, y });
+  }, [selection]);
 
   // Listen for custom events to open ObservationToolsPanel
   useEffect(() => {
@@ -403,226 +427,50 @@ export function Toolbar() {
                     pb-[env(safe-area-inset-bottom)]"
          data-marking-toolbar
         onWheel={(e) => e.stopPropagation()}>
-      {/* Selection indicator */}
+      {/* Selection Menu */}
+      {selection && selectionMenuPosition && (
+        <SelectionMenu
+          selection={selection}
+          position={selectionMenuPosition}
+          presets={presets}
+          activeSymbol={activeSymbol}
+          onApplyPreset={applyPresetToSelection}
+          onAddAsVariant={addToVariantsAndApply}
+          onOpenKeyWordManager={() => {
+            setShowKeyWordManager(true);
+            setShowColorPicker(false);
+            setShowSymbolPicker(false);
+            setActiveTool(null);
+            if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
+          }}
+          onOpenObservationTools={(tab) => {
+            setObservationPanelInitialTab(tab || 'lists');
+            setShowObservationToolsPanel(true);
+            setShowPickerOverlay(false);
+            setShowColorPicker(false);
+            setShowSymbolPicker(false);
+            setShowStudyToolsPanel(false);
+            setActiveTool(null);
+            if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
+          }}
+          onAddToList={() => {
+            setShowAddToList(true);
+          }}
+          onCancel={() => {
+            window.getSelection()?.removeAllRanges();
+            clearSelection();
+          }}
+          onClose={() => {
+            setSelectionMenuPosition(null);
+          }}
+        />
+      )}
+
+      {/* Selection indicator (minimal) */}
       {selection && (
         <>
-          <div className="bg-scripture-accent text-scripture-bg px-3 py-2 
-                          flex items-center justify-between animate-slide-up shadow-lg">
-            <span className="text-sm font-ui truncate flex-1 font-medium text-scripture-bg">
-              Selected: {selection.text.slice(0, 50)}
-              {selection.text.length > 50 ? '...' : ''}
-            </span>
-              <div className="flex items-center gap-2 ml-2 p-1.5">
-              {/* Apply key word: pick Jesus, Nicodemus, etc. to mark He/him the same way */}
-              <div className="relative">
-                <button
-                  onClick={() => {
-                    setShowAddAsVariantPicker(false);
-                    setShowKeyWordApplyPicker((v) => !v);
-                  }}
-                  className="px-2.5 py-1 text-xs font-ui text-scripture-bg hover:text-scripture-bg
-                           transition-colors flex items-center gap-1 font-medium"
-                  title="Apply a key word (e.g. mark He/him as Jesus)"
-                >
-                  <span>🔑</span>
-                  <span>Apply key word</span>
-                  <span className="text-[0.7rem] opacity-90">▼</span>
-                </button>
-                {showKeyWordApplyPicker && (
-                  <div
-                    className="absolute right-0 bottom-full mb-1 w-56 max-h-64 overflow-y-auto
-                               bg-scripture-surface border border-scripture-border/50 border-t-0 rounded-xl shadow-xl
-                               py-1.5 z-50 custom-scrollbar"
-                  >
-                    {presets
-                      .filter((p) => p.word)
-                      .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0) || (a.word || '').localeCompare(b.word || ''))
-                      .map((p) => (
-                        <button
-                          key={p.id}
-                          onClick={() => applyPresetToSelection(p)}
-                          className="w-full px-3 py-2 text-left text-sm font-ui text-scripture-text
-                                   hover:bg-scripture-elevated hover:border-l-2 hover:border-l-scripture-accent flex items-center gap-2"
-                        >
-                          {p.symbol && (
-                            <span
-                              className="text-base"
-                              style={{
-                                color: p.highlight?.color ? HIGHLIGHT_COLORS[p.highlight.color] : undefined,
-                              }}
-                            >
-                              {SYMBOLS[p.symbol]}
-                            </span>
-                          )}
-                          {p.highlight && (
-                            <span
-                              className="w-4 h-4 rounded border border-scripture-border/30 flex-shrink-0"
-                              style={{ backgroundColor: HIGHLIGHT_COLORS[p.highlight.color] + '60' }}
-                            />
-                          )}
-                          <span className="truncate">{p.word}</span>
-                        </button>
-                      ))}
-                    {presets.filter((p) => p.word).length === 0 && (
-                      <div className="px-3 py-3 text-xs text-scripture-muted">
-                        No key words yet. Add one in Key Words.
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              {/* Add as variant: only when selection is not a pronoun and we have key words */}
-              {!isCommonPronoun(selection.text) && presets.filter((p) => p.word).length > 0 && (
-                <div className="relative">
-                  <button
-                    onClick={() => {
-                      setShowKeyWordApplyPicker(false);
-                      setShowAddAsVariantPicker((v) => !v);
-                    }}
-                    className="px-2.5 py-1 text-xs font-ui text-scripture-bg hover:text-scripture-bg
-                             transition-colors flex items-center gap-1 font-medium"
-                    title="Add this word as a variant to an existing key word"
-                  >
-                    <span>➕</span>
-                    <span>Add as variant</span>
-                    <span className="text-[0.7rem] opacity-90">▼</span>
-                  </button>
-                  {showAddAsVariantPicker && (
-                    <div
-                      className="absolute right-0 bottom-full mb-1 w-56 max-h-64 overflow-y-auto
-                                 bg-scripture-surface border border-scripture-border/50 border-t-0 rounded-xl shadow-xl
-                                 py-1.5 z-50 custom-scrollbar backdrop-blur-sm"
-                    >
-                      {presets
-                        .filter((p) => p.word)
-                        .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0) || (a.word || '').localeCompare(b.word || ''))
-                        .map((p) => (
-                          <button
-                            key={p.id}
-                            onClick={() => addToVariantsAndApply(p)}
-                            className="w-full px-3 py-2 text-left text-sm font-ui text-scripture-text
-                                     hover:bg-scripture-border/50 flex items-center gap-2"
-                          >
-                            {p.symbol && (
-                              <span
-                                className="text-base"
-                                style={{
-                                  color: p.highlight?.color ? HIGHLIGHT_COLORS[p.highlight.color] : undefined,
-                                }}
-                              >
-                                {SYMBOLS[p.symbol]}
-                              </span>
-                            )}
-                            {p.highlight && (
-                              <span
-                                className="w-4 h-4 rounded border border-scripture-border/30 flex-shrink-0"
-                                style={{ backgroundColor: HIGHLIGHT_COLORS[p.highlight.color] + '60' }}
-                              />
-                            )}
-                            <span className="truncate">{p.word}</span>
-                          </button>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              <button
-                onClick={() => {
-                  setShowKeyWordApplyPicker(false);
-                  setShowAddAsVariantPicker(false);
-                  setShowKeyWordManager(true);
-                  setShowColorPicker(false);
-                  setShowSymbolPicker(false);
-                  setActiveTool(null);
-                  if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
-                }}
-                className="px-2.5 py-1 text-xs font-ui text-scripture-bg hover:text-scripture-bg
-                           transition-colors flex items-center gap-1 font-medium"
-                title="Make this a key word"
-              >
-                <span>➕</span>
-                <span>Key Word</span>
-              </button>
-              <button
-                onClick={() => {
-                  setObservationPanelInitialTab('lists');
-                  setShowKeyWordApplyPicker(false);
-                  setShowAddAsVariantPicker(false);
-                  setShowObservationToolsPanel(true);
-                  setShowPickerOverlay(false);
-                  setShowColorPicker(false);
-                  setShowSymbolPicker(false);
-                  setShowStudyToolsPanel(false);
-                  setActiveTool(null);
-                  if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
-                }}
-                className="px-2.5 py-1 text-xs font-ui text-scripture-bg hover:text-scripture-bg
-                           transition-colors flex items-center gap-1 font-medium"
-                title="Open observation tools"
-              >
-                <span>🔍</span>
-                <span>Observe</span>
-              </button>
-              {/* Quick action for symbol-based observations */}
-              {activeSymbol && hasTrackerMapping(activeSymbol) && (() => {
-                const trackerMapping = getTrackerForSymbol(activeSymbol);
-                if (!trackerMapping) return null;
-                
-                const getTabForTracker = (tracker: ObservationTrackerType): ObservationTab => {
-                  switch (tracker) {
-                    case 'contrast': return 'contrasts';
-                    case 'time': return 'time';
-                    case 'place': return 'places';
-                    case 'conclusion': return 'conclusions';
-                    default: return 'lists';
-                  }
-                };
-                
-                return (
-                  <button
-                    onClick={() => {
-                      const tab = getTabForTracker(trackerMapping.tracker);
-                      setObservationPanelInitialTab(tab);
-                      setShowKeyWordApplyPicker(false);
-                      setShowAddAsVariantPicker(false);
-                      setShowObservationToolsPanel(true);
-                      setShowPickerOverlay(false);
-                      setShowColorPicker(false);
-                      setShowSymbolPicker(false);
-                      setShowStudyToolsPanel(false);
-                      setActiveTool(null);
-                      if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
-                    }}
-                    className="px-2.5 py-1 text-xs font-ui text-scripture-bg hover:text-scripture-bg
-                               transition-colors flex items-center gap-1 font-medium border border-scripture-bg/30"
-                    title={`Add to ${trackerMapping.label}`}
-                  >
-                    <span>{SYMBOLS[activeSymbol]}</span>
-                    <span>{trackerMapping.label}</span>
-                  </button>
-                );
-              })()}
-              <button
-                onClick={() => {
-                  setShowKeyWordApplyPicker(false);
-                  setShowAddAsVariantPicker(false);
-                  setShowPickerOverlay(false);
-                  setShowColorPicker(false);
-                  setShowSymbolPicker(false);
-                  setShowKeyWordManager(false);
-                  setActiveTool(null);
-                  window.getSelection()?.removeAllRanges();
-                  clearSelection();
-                }}
-                className="px-2.5 py-1 text-xs font-ui text-scripture-bg hover:text-scripture-bg
-                           transition-colors font-medium"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
 
-          {/* Smart suggestions */}
+          {/* Smart suggestions - keep this below selection menu */}
           {previousAnnotations.length > 0 && (
             <div className="bg-scripture-surface border-t border-scripture-border/50 animate-slide-up">
               <div className="bg-scripture-surface px-3 py-2 mx-2 my-2 rounded-xl">

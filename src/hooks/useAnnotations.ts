@@ -7,8 +7,10 @@
 import { useCallback } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
-import { db, saveAnnotation, deleteAnnotation, getChapterAnnotations, getChapterHeadings, saveSectionHeading, deleteSectionHeading, getChapterTitle, saveChapterTitle, deleteChapterTitle, getChapterNotes, saveNote, deleteNote } from '@/lib/db';
+import { db, saveAnnotation, deleteAnnotation, getChapterAnnotations, getChapterHeadings, saveSectionHeading, deleteSectionHeading, getChapterTitle, saveChapterTitle, deleteChapterTitle, getChapterNotes, saveNote, deleteNote, getMarkingPreset } from '@/lib/db';
 import type { Annotation, TextAnnotation, SymbolAnnotation, AnnotationType, HighlightColor, SymbolKey, SectionHeading, ChapterTitle, Note } from '@/types/annotation';
+import { autoAddToObservationTracker } from '@/lib/observationAutoAdd';
+import { getAnnotationVerseRef } from '@/lib/annotationQueries';
 
 export function useAnnotations() {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
@@ -131,6 +133,20 @@ export function useAnnotations() {
     // Dispatch event to notify other components (like MultiTranslationView) to reload
     window.dispatchEvent(new CustomEvent('annotationsUpdated'));
     
+    // Auto-add to observation trackers if preset has place/time symbols
+    if (presetId) {
+      try {
+        const preset = await getMarkingPreset(presetId);
+        if (preset) {
+          const verseRef = getAnnotationVerseRef(annotation);
+          await autoAddToObservationTracker(preset, annotation, verseRef);
+        }
+      } catch (error) {
+        // Don't block annotation creation if auto-add fails
+        console.error('[createTextAnnotation] Auto-add failed:', error);
+      }
+    }
+    
     clearSelection();
     
     return annotation;
@@ -190,6 +206,20 @@ export function useAnnotations() {
     
     // Dispatch event to notify other components (like MultiTranslationView) to reload
     window.dispatchEvent(new CustomEvent('annotationsUpdated'));
+    
+    // Auto-add to observation trackers if preset has place/time symbols
+    if (presetId) {
+      try {
+        const preset = await getMarkingPreset(presetId);
+        if (preset) {
+          const verseRef = getAnnotationVerseRef(annotation);
+          await autoAddToObservationTracker(preset, annotation, verseRef);
+        }
+      } catch (error) {
+        // Don't block annotation creation if auto-add fails
+        console.error('[createSymbolAnnotation] Auto-add failed:', error);
+      }
+    }
     
     if (opts?.clearSelection !== false) clearSelection();
 

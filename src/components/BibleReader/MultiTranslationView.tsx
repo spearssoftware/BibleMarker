@@ -22,6 +22,9 @@ import { NoteEditor } from './NoteEditor';
 import { NoteCreator } from './NoteCreator';
 import { VerseNumberMenu } from './VerseNumberMenu';
 import { getBookById } from '@/types/bible';
+import { useListStore } from '@/stores/listStore';
+import { usePlaceStore } from '@/stores/placeStore';
+import { useTimeStore } from '@/stores/timeStore';
 import type { Chapter } from '@/types/bible';
 import type { Annotation, SectionHeading, Note, ChapterTitle } from '@/types/annotation';
 import type { VerseRange } from '@/types/bible';
@@ -53,6 +56,9 @@ export function MultiTranslationView() {
   }, [activeView?.translationIds?.join(','), currentModuleId]);
   
   const { removeAnnotation } = useAnnotations();
+  const { autoPopulateFromChapter: autoPopulateListsFromChapter } = useListStore();
+  const { autoPopulateFromChapter: autoPopulatePlacesFromChapter } = usePlaceStore();
+  const { autoPopulateFromChapter: autoPopulateTimeFromChapter } = useTimeStore();
   
   const [sectionHeadings, setSectionHeadings] = useState<SectionHeading[]>([]);
   const [chapterTitle, setChapterTitle] = useState<ChapterTitle | null>(null);
@@ -66,6 +72,8 @@ export function MultiTranslationView() {
   const lastLoadedRef = useRef<{ book: string; chapter: number } | null>(null);
   const isLoadingRef = useRef<boolean>(false);
   const pendingLoadRef = useRef<string | null>(null);
+  // Track which chapters have been auto-populated to avoid doing it multiple times
+  const autoPopulatedRef = useRef<Set<string>>(new Set());
   
   // Load section headings, chapter title, and notes for primary translation
   const loadSectionHeadings = useCallback(async () => {
@@ -674,6 +682,23 @@ export function MultiTranslationView() {
           error: null,
         });
         setTranslationChapters(new Map(newChapters));
+        
+        // Auto-populate observation lists, places, and time expressions for keywords found in this chapter
+        // Only do this once per chapter (use primary translation)
+        if (translationId === primaryTranslationId) {
+          const autoPopulateKey = `${currentBook}:${currentChapter}:${translationId}`;
+          if (!autoPopulatedRef.current.has(autoPopulateKey)) {
+            autoPopulatedRef.current.add(autoPopulateKey);
+            // Run in background - don't block UI
+            Promise.all([
+              autoPopulateListsFromChapter(currentBook, currentChapter, translationId),
+              autoPopulatePlacesFromChapter(currentBook, currentChapter, translationId),
+              autoPopulateTimeFromChapter(currentBook, currentChapter, translationId),
+            ]).catch(error => {
+              console.error('[MultiTranslationView] Auto-populate failed:', error);
+            });
+          }
+        }
       } catch (error) {
         newChapters.set(translationId, {
           translation,

@@ -81,6 +81,9 @@ export function ObservationToolsPanel({
   const [newObservationText, setNewObservationText] = useState('');
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemText, setEditingItemText] = useState('');
+  const [editingItemNotes, setEditingItemNotes] = useState('');
+  const [addingNotesToItemId, setAddingNotesToItemId] = useState<string | null>(null);
+  const [newItemNotes, setNewItemNotes] = useState('');
   const [confirmDeleteListId, setConfirmDeleteListId] = useState<string | null>(null);
   const [confirmDeleteObservation, setConfirmDeleteObservation] = useState<{ listId: string; itemId: string } | null>(null);
   const [filterByChapter, setFilterByChapter] = useState(false);
@@ -215,11 +218,13 @@ export function ObservationToolsPanel({
   const handleStartEdit = (item: ObservationItem) => {
     setEditingItemId(item.id);
     setEditingItemText(item.content);
+    setEditingItemNotes(item.notes || '');
   };
 
   const handleCancelEdit = () => {
     setEditingItemId(null);
     setEditingItemText('');
+    setEditingItemNotes('');
   };
 
   const handleSaveEdit = async (listId: string, itemId: string) => {
@@ -230,10 +235,12 @@ export function ObservationToolsPanel({
     
     await updateItem(listId, itemId, {
       content: editingItemText.trim(),
+      notes: editingItemNotes.trim() || undefined,
     });
     
     setEditingItemId(null);
     setEditingItemText('');
+    setEditingItemNotes('');
     loadLists();
   };
 
@@ -531,6 +538,16 @@ export function ObservationToolsPanel({
                                                   className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
                                                   autoFocus
                                                 />
+                                                <div>
+                                                  <label className="block text-xs text-scripture-muted mb-1">Notes (optional)</label>
+                                                  <textarea
+                                                    value={editingItemNotes}
+                                                    onChange={(e) => setEditingItemNotes(e.target.value)}
+                                                    placeholder="Add additional notes about this observation..."
+                                                    rows={2}
+                                                    className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
+                                                  />
+                                                </div>
                                                 <div className="flex items-center gap-2">
                                                   <button
                                                     onClick={() => handleSaveEdit(list.id, item.id)}
@@ -548,24 +565,78 @@ export function ObservationToolsPanel({
                                                 </div>
                                               </div>
                                             ) : (
-                                              <div className="flex items-start gap-2">
-                                                <span className="flex-1">{item.content}</span>
-                                                <div className="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                                  <button
-                                                    onClick={() => handleStartEdit(item)}
-                                                    className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated"
-                                                    title="Edit observation"
-                                                  >
-                                                    ✏️
-                                                  </button>
-                                                  <button
-                                                    onClick={() => handleDeleteObservationClick(list.id, item.id)}
-                                                    className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors rounded hover:bg-scripture-elevated"
-                                                    title="Delete observation"
-                                                  >
-                                                    🗑️
-                                                  </button>
+                                              <div className="flex flex-col gap-1.5 -ml-4">
+                                                <div className="flex items-start gap-2">
+                                                  <span className="flex-1">{item.content}</span>
+                                                  <div className="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                                                    <button
+                                                      onClick={() => handleStartEdit(item)}
+                                                      className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated"
+                                                      title="Edit observation"
+                                                    >
+                                                      ✏️
+                                                    </button>
+                                                    <button
+                                                      onClick={() => handleDeleteObservationClick(list.id, item.id)}
+                                                      className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors rounded hover:bg-scripture-elevated"
+                                                      title="Delete observation"
+                                                    >
+                                                      🗑️
+                                                    </button>
+                                                  </div>
                                                 </div>
+                                                {item.notes && (
+                                                  <div className="text-xs text-scripture-muted italic pl-2 border-l-2 border-scripture-border/30">
+                                                    {item.notes}
+                                                  </div>
+                                                )}
+                                                {!item.notes && (
+                                                  <button
+                                                    onClick={() => {
+                                                      setAddingNotesToItemId(item.id);
+                                                      setNewItemNotes('');
+                                                    }}
+                                                    className="text-xs text-scripture-muted hover:text-scripture-accent transition-colors text-left pl-2 opacity-0 group-hover/item:opacity-100"
+                                                  >
+                                                    + Add notes
+                                                  </button>
+                                                )}
+                                                {addingNotesToItemId === item.id && (
+                                                  <div className="pl-2 border-l-2 border-scripture-border/30 mt-1">
+                                                    <textarea
+                                                      value={newItemNotes}
+                                                      onChange={(e) => setNewItemNotes(e.target.value)}
+                                                      placeholder="Add notes..."
+                                                      rows={2}
+                                                      className="w-full px-2 py-1.5 text-xs bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
+                                                      autoFocus
+                                                    />
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                      <button
+                                                        onClick={async () => {
+                                                          await updateItem(list.id, item.id, {
+                                                            notes: newItemNotes.trim() || undefined,
+                                                          });
+                                                          setAddingNotesToItemId(null);
+                                                          setNewItemNotes('');
+                                                          loadLists();
+                                                        }}
+                                                        className="px-2 py-1 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
+                                                      >
+                                                        Save
+                                                      </button>
+                                                      <button
+                                                        onClick={() => {
+                                                          setAddingNotesToItemId(null);
+                                                          setNewItemNotes('');
+                                                        }}
+                                                        className="px-2 py-1 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
+                                                      >
+                                                        Cancel
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                )}
                                               </div>
                                             )}
                                           </li>

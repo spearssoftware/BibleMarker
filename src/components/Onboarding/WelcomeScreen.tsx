@@ -88,7 +88,7 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                     <div>
                       <div className="font-medium text-scripture-text mb-1">Mark & Highlight</div>
                       <p className="text-scripture-muted">
-                        Select text to highlight, color, underline, or add symbols. Smart suggestions remember your previous markings.
+                        Select text to open the selection menu: apply key words, add as a variant, create keywords, or add to observation lists. All marking uses keywords for consistency across translations.
                       </p>
                     </div>
                   </div>
@@ -108,7 +108,7 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                     <div>
                       <div className="font-medium text-scripture-text mb-1">Notes & Observations</div>
                       <p className="text-scripture-muted">
-                        Add notes to verses (supports Markdown), create observation lists, and organize your study with section headings.
+                        Add notes to verses (supports Markdown). Use “Add to List” from the selection menu to capture observations, or open Observe (🔍) for lists, time, places, contrasts, and conclusions.
                       </p>
                     </div>
                   </div>
@@ -141,11 +141,11 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                   Quick Tips
                 </h3>
                 <ul className="space-y-1.5 text-xs text-scripture-muted ml-4 list-disc">
+                  <li>Select text to open the selection menu (mark, add to list, observe)</li>
                   <li>Use arrow keys or J/K to navigate between chapters</li>
-                  <li>Press number keys 1-3 to quickly access toolbar tools</li>
+                  <li>Press 1–4 for Key Words, Observe, Study, Settings</li>
                   <li>Press Cmd/Ctrl+F to search</li>
                   <li>Click verse numbers to add notes</li>
-                  <li>Access Settings from the toolbar (⚙️ icon)</li>
                 </ul>
               </div>
             </div>

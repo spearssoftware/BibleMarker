@@ -26,10 +26,10 @@ export function GettingStartedSection() {
           <div>
             <div className="font-medium text-scripture-text mb-2">🖍️ Marking Text</div>
             <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
-              <li>Select text and create or choose a keyword to mark it</li>
+              <li>Select text to open the selection menu: apply key words, add as variant, create keywords, or add to observation lists</li>
               <li>All markings use keywords for consistency across translations</li>
               <li>Keywords automatically highlight matching text in all visible translations</li>
-              <li>Press number keys 1-3 to quickly access toolbar tools</li>
+              <li>Press 1–4 for Key Words, Observe, Study, Settings</li>
             </ul>
           </div>
 
@@ -39,7 +39,7 @@ export function GettingStartedSection() {
               <li>Define key words (e.g., "God", "Jesus", "love") with colors and symbols</li>
               <li>Key words automatically highlight across all visible translations</li>
               <li>Create studies to scope keywords to specific books</li>
-              <li>Access Key Words from the toolbar (🔑 icon or press 1)</li>
+              <li>Access Key Words from the toolbar (🔑 or press 1) or from the selection menu</li>
             </ul>
           </div>
 
@@ -47,9 +47,9 @@ export function GettingStartedSection() {
             <div className="font-medium text-scripture-text mb-2">📝 Notes & Observations</div>
             <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
               <li>Click verse numbers to add notes (supports Markdown)</li>
-              <li>Create observation lists linked to key words</li>
-              <li>Add section headings and chapter titles</li>
-              <li>View summaries in Study Tools (📚 icon or press 2)</li>
+              <li>Use “Add to List” from the selection menu to capture observations</li>
+              <li>Open Observe (🔍 or press 2) for lists, time, places, contrasts, conclusions</li>
+              <li>View summaries in Study Tools (📚 icon or press 3)</li>
             </ul>
           </div>
 

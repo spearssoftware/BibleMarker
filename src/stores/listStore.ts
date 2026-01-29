@@ -33,6 +33,8 @@ interface ListState {
   getListsByStudy: (studyId: string) => ObservationList[];
   autoPopulateFromKeyword: (listId: string, keyWordId: string) => Promise<number>;
   getMostRecentlyUsedList: () => ObservationList | null;
+  autoPopulateFromChapter: (book: string, chapter: number, moduleId?: string) => Promise<number>; // Auto-populate lists for keywords found in chapter
+  getOrCreateListForKeyword: (keyWordId: string, book?: string, chapter?: number) => Promise<ObservationList>; // Get existing list or create default one
 }
 
 export const useListStore = create<ListState>()(
@@ -334,6 +336,147 @@ export const useListStore = create<ListState>()(
         });
 
         return uniqueItems.length;
+      },
+
+      getOrCreateListForKeyword: async (keyWordId, book, chapter) => {
+        const { lists } = get();
+        
+        // Try to find existing list for this keyword
+        // If book/chapter provided, prefer lists scoped to that book/chapter
+        let existingList = lists.find(l => l.keyWordId === keyWordId);
+        
+        if (book && chapter) {
+          // Prefer list scoped to this chapter
+          const chapterScopedList = lists.find(l => 
+            l.keyWordId === keyWordId &&
+            l.scope?.book === book &&
+            l.scope?.chapters?.includes(chapter)
+          );
+          if (chapterScopedList) existingList = chapterScopedList;
+        } else if (book) {
+          // Prefer list scoped to this book
+          const bookScopedList = lists.find(l => 
+            l.keyWordId === keyWordId &&
+            l.scope?.book === book &&
+            !l.scope?.chapters
+          );
+          if (bookScopedList) existingList = bookScopedList;
+        }
+        
+        if (existingList) {
+          return existingList;
+        }
+        
+        // Create a new default list
+        const preset = await getMarkingPreset(keyWordId);
+        if (!preset || !preset.word) {
+          throw new Error(`Preset not found: ${keyWordId}`);
+        }
+        
+        // Generate default title
+        let title = `Observations about "${preset.word}"`;
+        if (book) {
+          const { getBookById } = await import('@/types/bible');
+          const bookInfo = getBookById(book);
+          if (chapter) {
+            title = `Observations about "${preset.word}" in ${bookInfo?.name || book} ${chapter}`;
+          } else {
+            title = `Observations about "${preset.word}" in ${bookInfo?.name || book}`;
+          }
+        }
+        
+        const scope = book ? { book, chapters: chapter ? [chapter] : undefined } : undefined;
+        const newList = await get().createList(title, keyWordId, scope);
+        return newList;
+      },
+
+      autoPopulateFromChapter: async (book, chapter, moduleId) => {
+        const { lists, getOrCreateListForKeyword } = get();
+        
+        // Get cached chapter data
+        const cacheKey = moduleId ? `${moduleId}:${book}:${chapter}` : undefined;
+        const chapterCache = cacheKey 
+          ? await db.chapterCache.get(cacheKey)
+          : await db.chapterCache
+              .where('[book+chapter]')
+              .equals([book, chapter])
+              .first();
+        
+        if (!chapterCache || !chapterCache.verses) {
+          return 0;
+        }
+        
+        // Get all keyword presets
+        const { useMarkingPresetStore } = await import('@/stores/markingPresetStore');
+        const { presets } = useMarkingPresetStore.getState();
+        const keywordPresets = presets.filter(p => p.word && (p.highlight || p.symbol));
+        
+        let totalAdded = 0;
+        
+        // For each verse in the chapter, find which keywords appear
+        for (const [verseNum, verseText] of Object.entries(chapterCache.verses)) {
+          const text = verseText as string;
+          const verseNumInt = parseInt(verseNum, 10);
+          if (isNaN(verseNumInt) || verseNumInt <= 0) continue;
+          
+          const verseRef: VerseRef = {
+            book,
+            chapter,
+            verse: verseNumInt,
+          };
+          
+          // Find which keywords appear in this verse
+          for (const preset of keywordPresets) {
+            // Check if preset applies to this verse (scope check)
+            if (preset.bookScope && preset.bookScope !== book) continue;
+            if (preset.chapterScope !== undefined && preset.chapterScope !== chapter) continue;
+            if (preset.moduleScope && preset.moduleScope !== moduleId) continue;
+            
+            // Check if keyword appears in this verse
+            // Use chapterCache.moduleId if available, otherwise use provided moduleId
+            const effectiveModuleId = chapterCache.moduleId || moduleId;
+            const matches = findKeywordMatches(text, verseRef, [preset], effectiveModuleId);
+            if (matches.length === 0) continue;
+            
+            // Get or create list for this keyword
+            try {
+              const list = await getOrCreateListForKeyword(preset.id, book, chapter);
+              
+              // Check if this verse already exists in the list
+              const verseKey = `${verseRef.book}:${verseRef.chapter}:${verseRef.verse}`;
+              const existingItem = list.items.find(item => 
+                `${item.verseRef.book}:${item.verseRef.chapter}:${item.verseRef.verse}` === verseKey
+              );
+              
+              if (!existingItem) {
+                // Extract context snippet
+                const lowerText = text.toLowerCase();
+                const lowerWord = (preset.word || '').toLowerCase();
+                let snippet = text;
+                
+                const wordIndex = lowerText.indexOf(lowerWord);
+                if (wordIndex !== -1) {
+                  const start = Math.max(0, wordIndex - 30);
+                  const end = Math.min(text.length, wordIndex + lowerWord.length + 30);
+                  snippet = text.substring(start, end);
+                  if (start > 0) snippet = '...' + snippet;
+                  if (end < text.length) snippet = snippet + '...';
+                }
+                
+                // Add item to list
+                await get().addItemToList(list.id, {
+                  content: snippet.trim() || 'Keyword appears in this verse',
+                  verseRef,
+                });
+                totalAdded++;
+              }
+            } catch (error) {
+              console.error(`[autoPopulateFromChapter] Failed to add keyword "${preset.word}" to list:`, error);
+            }
+          }
+        }
+        
+        return totalAdded;
       },
     }),
     {

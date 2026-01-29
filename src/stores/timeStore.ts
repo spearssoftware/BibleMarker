@@ -27,6 +27,7 @@ interface TimeState {
   getTimeExpressionsByVerse: (verseRef: VerseRef) => TimeExpression[];
   getTimeExpressionsByBook: (book: string) => TimeExpression[];
   autoImportFromAnnotations: () => Promise<number>; // Returns count of imported entries
+  autoPopulateFromChapter: (book: string, chapter: number, moduleId?: string) => Promise<number>; // Auto-populate time expressions for keywords found in chapter
 }
 
 export const useTimeStore = create<TimeState>()(
@@ -40,6 +41,25 @@ export const useTimeStore = create<TimeState>()(
       },
       
       createTimeExpression: async (expression, verseRef, notes, presetId, annotationId, timeOrder) => {
+        const { timeExpressions } = get();
+        
+        // Check for duplicates: same presetId + verseRef, or same annotationId
+        const existingTimeExpression = timeExpressions.find(t => {
+          if (annotationId && t.annotationId === annotationId) return true;
+          if (presetId && t.presetId === presetId &&
+              t.verseRef.book === verseRef.book &&
+              t.verseRef.chapter === verseRef.chapter &&
+              t.verseRef.verse === verseRef.verse) {
+            return true;
+          }
+          return false;
+        });
+        
+        if (existingTimeExpression) {
+          // Return existing time expression instead of creating duplicate
+          return existingTimeExpression;
+        }
+        
         const newTimeExpression: TimeExpression = {
           id: crypto.randomUUID(),
           expression: expression.trim(),
@@ -54,7 +74,6 @@ export const useTimeStore = create<TimeState>()(
         
         await db.timeExpressions.put(newTimeExpression);
         
-        const { timeExpressions } = get();
         set({ 
           timeExpressions: [...timeExpressions, newTimeExpression],
         });
@@ -173,6 +192,110 @@ export const useTimeStore = create<TimeState>()(
         }
         
         return newTimeExpressions.length;
+      },
+
+      autoPopulateFromChapter: async (book, chapter, moduleId) => {
+        const { timeExpressions, createTimeExpression } = get();
+        
+        // Get cached chapter data
+        const cacheKey = moduleId ? `${moduleId}:${book}:${chapter}` : undefined;
+        const chapterCache = cacheKey 
+          ? await db.chapterCache.get(cacheKey)
+          : await db.chapterCache
+              .where('[book+chapter]')
+              .equals([book, chapter])
+              .first();
+        
+        if (!chapterCache || !chapterCache.verses) {
+          return 0;
+        }
+        
+        // Get all keyword presets with 'time' category
+        const { useMarkingPresetStore } = await import('@/stores/markingPresetStore');
+        const { presets } = useMarkingPresetStore.getState();
+        const timePresets = presets.filter(p => 
+          p.word && 
+          p.category === 'time' &&
+          (p.highlight || p.symbol)
+        );
+        
+        // Import dependencies
+        const { findKeywordMatches } = await import('@/lib/keywordMatching');
+        const { getBookById } = await import('@/types/bible');
+        
+        let totalAdded = 0;
+        const timeExpressionsForOrdering: Array<{ preset: typeof timePresets[0]; verseRef: VerseRef; expression: string }> = [];
+        
+        // For each verse in the chapter, find which time keywords appear
+        for (const [verseNum, verseText] of Object.entries(chapterCache.verses)) {
+          const text = verseText as string;
+          const verseNumInt = parseInt(verseNum, 10);
+          if (isNaN(verseNumInt) || verseNumInt <= 0) continue;
+          
+          const verseRef: VerseRef = {
+            book,
+            chapter,
+            verse: verseNumInt,
+          };
+          
+          // Find which time keywords appear in this verse
+          for (const preset of timePresets) {
+            // Check if preset applies to this verse (scope check)
+            if (preset.bookScope && preset.bookScope !== book) continue;
+            if (preset.chapterScope !== undefined && preset.chapterScope !== chapter) continue;
+            if (preset.moduleScope && preset.moduleScope !== moduleId) continue;
+            
+            // Check if keyword appears in this verse
+            const effectiveModuleId = chapterCache.moduleId || moduleId;
+            const matches = findKeywordMatches(text, verseRef, [preset], effectiveModuleId);
+            if (matches.length === 0) continue;
+            
+            // Check if this time expression already exists for this preset+verse
+            const existingTimeExpression = timeExpressions.find(t => 
+              t.presetId === preset.id &&
+              t.verseRef.book === verseRef.book &&
+              t.verseRef.chapter === verseRef.chapter &&
+              t.verseRef.verse === verseRef.verse
+            );
+            
+            if (!existingTimeExpression) {
+              // Use preset word as expression
+              const expression = preset.word || 'Time expression';
+              
+              // Store for ordering later
+              timeExpressionsForOrdering.push({ preset, verseRef, expression });
+            }
+          }
+        }
+        
+        // Sort by verse reference (canonical order) before assigning timeOrder
+        timeExpressionsForOrdering.sort((a, b) => {
+          const bookA = getBookById(a.verseRef.book);
+          const bookB = getBookById(b.verseRef.book);
+          if (bookA && bookB && bookA.order !== bookB.order) return bookA.order - bookB.order;
+          if (a.verseRef.chapter !== b.verseRef.chapter) return a.verseRef.chapter - b.verseRef.chapter;
+          return a.verseRef.verse - b.verseRef.verse;
+        });
+        
+        // Create time expressions with proper ordering
+        for (let i = 0; i < timeExpressionsForOrdering.length; i++) {
+          const { preset, verseRef, expression } = timeExpressionsForOrdering[i];
+          try {
+            await createTimeExpression(
+              expression,
+              verseRef,
+              undefined, // notes - user can add later
+              preset.id,
+              undefined, // annotationId - no specific annotation, just keyword match
+              i + 1 // timeOrder based on sorted order
+            );
+            totalAdded++;
+          } catch (error) {
+            console.error(`[autoPopulateFromChapter] Failed to add time expression "${expression}":`, error);
+          }
+        }
+        
+        return totalAdded;
       },
     }),
     {
