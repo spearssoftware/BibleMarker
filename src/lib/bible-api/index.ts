@@ -101,8 +101,51 @@ let cachedTranslations: ApiTranslation[] | null = null;
 const CACHE_KEY = 'all-translations';
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+function applyLanguageFilter(
+  translations: ApiTranslation[],
+  filter: string[] | undefined
+): ApiTranslation[] {
+  if (!filter || filter.length === 0) return translations;
+  const allowed = new Set(filter.map((lang) => lang.toLowerCase()));
+  // getBible and others may use "eng" for English; treat as "en" when "en" is selected
+  if (allowed.has('en')) allowed.add('eng');
+  return translations.filter((t) =>
+    allowed.has((t.language || '').toLowerCase())
+  );
+}
+
 /** Get all available translations from all configured APIs */
 export async function getAllTranslations(): Promise<ApiTranslation[]> {
+  const prefs = await db.preferences.get('main');
+  const apiResourcesEnabled = prefs?.apiResourcesEnabled !== false;
+  // Default to English when no preference set; explicit [] means show all languages
+  const raw = prefs?.translationLanguageFilter;
+  const languageFilter =
+    raw !== undefined && raw.length === 0
+      ? undefined
+      : (raw?.length ? raw : ['en']);
+
+  // When API resources disabled: return cached list (filtered) or []
+  if (!apiResourcesEnabled) {
+    try {
+      const cached = await db.translationCache.get(CACHE_KEY);
+      if (cached?.cachedAt) {
+        const now = new Date();
+        const cacheAge = now.getTime() - cached.cachedAt.getTime();
+        if (cacheAge < CACHE_DURATION_MS && cached.translations) {
+          const list = cached.translations as ApiTranslation[];
+          return applyLanguageFilter(list, languageFilter);
+        }
+      }
+    } catch {
+      // ignore cache read errors
+    }
+    if (cachedTranslations) {
+      return applyLanguageFilter(cachedTranslations, languageFilter);
+    }
+    return [];
+  }
+
   // Check IndexedDB cache first (24 hour TTL)
   try {
     const cached = await db.translationCache.get(CACHE_KEY);
@@ -111,24 +154,23 @@ export async function getAllTranslations(): Promise<ApiTranslation[]> {
       const cacheAge = now.getTime() - cached.cachedAt.getTime();
       if (cacheAge < CACHE_DURATION_MS) {
         const translations = cached.translations as ApiTranslation[];
-        // Update in-memory cache
         cachedTranslations = translations;
-        return translations;
+        return applyLanguageFilter(translations, languageFilter);
       }
     }
   } catch (error) {
-    // If translationCache table doesn't exist yet, just continue to fetch
     console.warn('[getAllTranslations] Error reading cache, fetching fresh:', error);
   }
 
   // Check in-memory cache (for same-session calls)
   if (cachedTranslations) {
-    return cachedTranslations;
+    return applyLanguageFilter(cachedTranslations, languageFilter);
   }
 
   // If a request is already in progress, wait for it instead of starting a new one
   if (getAllTranslationsPromise) {
-    return getAllTranslationsPromise;
+    const result = await getAllTranslationsPromise;
+    return applyLanguageFilter(result, languageFilter);
   }
 
   // Ensure getBible is configured (it's free and always available)
@@ -138,22 +180,21 @@ export async function getAllTranslations(): Promise<ApiTranslation[]> {
       enabled: true,
     });
   }
-  
+
   // Create the promise and store it so concurrent calls can wait for it
   getAllTranslationsPromise = (async () => {
     const translations: ApiTranslation[] = [];
     const seenIds = new Set<string>();
-    
+
     // Load translations sequentially to avoid overwhelming browser resources
-    // This prevents net::ERR_INSUFFICIENT_RESOURCES errors
     const allProviderTranslations: ApiTranslation[][] = [];
-    
+
     for (const [provider, client] of Object.entries(clients)) {
       if (!client) continue;
       if (provider === 'biblegateway' && !BIBLEGATEWAY_ENABLED) continue;
 
       const isConfigured = client.isConfigured();
-      
+
       if (isConfigured) {
         try {
           const providerTranslations = await client.getTranslations();
@@ -165,44 +206,38 @@ export async function getAllTranslations(): Promise<ApiTranslation[]> {
       } else {
         allProviderTranslations.push([]);
       }
-      
-      // Add a small delay between API calls to prevent overwhelming browser resources
-      // Only delay if there are more providers to process
+
       const remainingProviders = Object.entries(clients).slice(
         Object.entries(clients).findIndex(([p]) => p === provider) + 1
       );
       if (remainingProviders.length > 0) {
-        await new Promise(resolve => setTimeout(resolve, 150)); // 150ms delay
+        await new Promise((resolve) => setTimeout(resolve, 150));
       }
     }
-    
-    // Combine and deduplicate translations
+
+    // Combine and deduplicate translations (unfiltered for cache)
     for (const providerTranslations of allProviderTranslations) {
       for (const translation of providerTranslations) {
-        // Skip translations without valid IDs
         if (!translation.id || typeof translation.id !== 'string' || translation.id.trim() === '') {
           console.warn(`Skipping translation without valid ID:`, translation);
           continue;
         }
-        
-        // Create unique ID by prefixing with provider if duplicate exists
+
         let uniqueId = translation.id.trim();
         if (seenIds.has(uniqueId)) {
           uniqueId = `${translation.provider}-${translation.id.trim()}`;
         }
         seenIds.add(uniqueId);
-        
+
         translations.push({
           ...translation,
           id: uniqueId,
         });
       }
     }
-    
-    // Cache the result in memory
+
     cachedTranslations = translations;
-    
-    // Persist to IndexedDB for next session
+
     try {
       await db.translationCache.put({
         id: CACHE_KEY,
@@ -212,15 +247,14 @@ export async function getAllTranslations(): Promise<ApiTranslation[]> {
     } catch (error) {
       console.warn('[getAllTranslations] Failed to cache translations:', error);
     }
-    
+
     return translations;
   })();
 
   try {
     const result = await getAllTranslationsPromise;
-    return result;
+    return applyLanguageFilter(result, languageFilter);
   } finally {
-    // Clear the promise so future calls can start a new request
     getAllTranslationsPromise = null;
   }
 }
@@ -293,6 +327,16 @@ export async function fetchChapter(
       chapter,
       verses,
     };
+  }
+
+  // API resources disabled: do not fetch from any provider
+  const prefs = await db.preferences.get('main');
+  if (prefs?.apiResourcesEnabled === false) {
+    throw new BibleApiError(
+      'API resources are disabled. Enable them in Settings to fetch new content.',
+      'getbible',
+      undefined
+    );
   }
 
   // Determine which API to use based on translation ID

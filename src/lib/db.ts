@@ -96,6 +96,8 @@ export interface UserPreferences {
   favoriteTranslations?: string[];  // Array of translation IDs
   recentTranslations?: string[];    // Array of translation IDs (most recent first)
   defaultTranslation?: string;      // Default translation ID to use when app starts
+  apiResourcesEnabled?: boolean;     // When false, no translation/chapter fetches from APIs (cache-only)
+  translationLanguageFilter?: string[];  // e.g. ['en'] for English only; omit or empty = all languages
   onboarding?: OnboardingState;    // Onboarding state for first-time users
   autoBackup?: AutoBackupConfig;    // Auto-backup configuration
   debug?: {

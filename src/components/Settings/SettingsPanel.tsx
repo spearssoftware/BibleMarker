@@ -27,7 +27,7 @@ import {
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { AboutSection } from './AboutSection';
 import { GettingStartedSection } from './GettingStartedSection';
-import { ConfirmationDialog, Input, DropdownSelect } from '@/components/shared';
+import { ConfirmationDialog, Input, DropdownSelect, Checkbox } from '@/components/shared';
 import { resetAllStores } from '@/lib/storeReset';
 import {
   bibliaClient,
@@ -88,6 +88,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [savingApi, setSavingApi] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   
+  // API resources and language filter state
+  const [apiResourcesEnabled, setApiResourcesEnabled] = useState(true);
+  const [selectedLanguageCodes, setSelectedLanguageCodes] = useState<string[]>([]);
+
   // Default translation state
   const [defaultTranslation, setDefaultTranslation] = useState<string>('');
   const [availableTranslations, setAvailableTranslations] = useState<ApiTranslation[]>([]);
@@ -160,6 +164,14 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           }
         }
         
+        // Load API resources and language filter (default to English when unset)
+        setApiResourcesEnabled(prefs.apiResourcesEnabled !== false);
+        setSelectedLanguageCodes(
+          prefs.translationLanguageFilter !== undefined
+            ? prefs.translationLanguageFilter
+            : ['en']
+        );
+
         // Load default translation
         if (prefs.defaultTranslation) {
           setDefaultTranslation(prefs.defaultTranslation);
@@ -640,6 +652,95 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   {apiError}
                 </div>
               )}
+
+              {/* Enable API resources */}
+              <div className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="font-ui font-medium text-scripture-text mb-1">Enable API resources</div>
+                    <p className="text-xs text-scripture-muted">
+                      Fetch translations and Bible text from getBible, Biblia, ESV. When off, only cached content is used.
+                    </p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const next = !apiResourcesEnabled;
+                      setApiResourcesEnabled(next);
+                      try {
+                        await updatePreferences({ apiResourcesEnabled: next });
+                        const translations = await getAllTranslations();
+                        setAvailableTranslations(translations);
+                      } catch (error) {
+                        console.error('Failed to save API resources preference:', error);
+                        setApiResourcesEnabled(!next);
+                      }
+                    }}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-scripture-accent focus:ring-offset-2 ${
+                      apiResourcesEnabled ? 'bg-scripture-accent' : 'bg-scripture-border'
+                    }`}
+                    role="switch"
+                    aria-checked={apiResourcesEnabled}
+                    aria-label="Enable API resources"
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        apiResourcesEnabled ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Show translations in (language filter) */}
+              <div className="p-4">
+                <div className="font-ui font-medium text-scripture-text mb-2">Show translations in</div>
+                <p className="text-xs text-scripture-muted mb-3">
+                  Leave all unchecked to show every language. Check one or more to limit the translation list.
+                </p>
+                <div className="flex flex-wrap gap-x-6 gap-y-2">
+                  {[
+                    { code: 'en', label: 'English' },
+                    { code: 'es', label: 'Spanish' },
+                    { code: 'fr', label: 'French' },
+                    { code: 'de', label: 'German' },
+                    { code: 'pt', label: 'Portuguese' },
+                    { code: 'it', label: 'Italian' },
+                    { code: 'nl', label: 'Dutch' },
+                    { code: 'ru', label: 'Russian' },
+                    { code: 'zh', label: 'Chinese' },
+                    { code: 'ar', label: 'Arabic' },
+                    { code: 'ko', label: 'Korean' },
+                    { code: 'ja', label: 'Japanese' },
+                  ].map(({ code, label }) => (
+                    <Checkbox
+                      key={code}
+                      id={`lang-filter-${code}`}
+                      label={label}
+                      checked={selectedLanguageCodes.includes(code)}
+                      onChange={async () => {
+                        const next = selectedLanguageCodes.includes(code)
+                          ? selectedLanguageCodes.filter((c) => c !== code)
+                          : [...selectedLanguageCodes, code];
+                        setSelectedLanguageCodes(next);
+                        try {
+                          await updatePreferences({
+                            translationLanguageFilter: next.length > 0 ? next : undefined,
+                          });
+                          await clearTranslationsCache();
+                          window.dispatchEvent(new Event('translationsUpdated'));
+                          const translations = await getAllTranslations();
+                          setAvailableTranslations(translations);
+                        } catch (error) {
+                          console.error('Failed to save language filter:', error);
+                          setSelectedLanguageCodes(selectedLanguageCodes);
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
 
               {/* Default Translation Section */}
               <div className="p-4">
