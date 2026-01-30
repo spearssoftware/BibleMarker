@@ -57,30 +57,6 @@ export function MultiTranslationView() {
   
   const { removeAnnotation } = useAnnotations();
   const { autoPopulateFromChapter: autoPopulateListsFromChapter } = useListStore();
-
-  // #region agent log
-  useEffect(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => {
-      const scrollW = el.clientWidth;
-      const scrollH = el.clientHeight;
-      const firstRow = el.querySelector('[data-verse]');
-      const firstCell = el.querySelector('.verse-cell');
-      const rowRect = firstRow?.getBoundingClientRect?.();
-      const cellRect = firstCell?.getBoundingClientRect?.();
-      const rowStyle = firstRow ? window.getComputedStyle(firstRow as Element) : null;
-      const transition = rowStyle?.transitionDuration ?? '';
-      const contents = el.querySelectorAll('.verse-content');
-      const r0 = contents[0]?.getBoundingClientRect?.();
-      const r1 = contents[1]?.getBoundingClientRect?.();
-      const overlapY = r0 && r1 ? r0.bottom > r1.top : false;
-      fetch('http://127.0.0.1:7244/ingest/7bae6f6b-ddad-4636-a785-c264fa6ff797', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'MultiTranslationView.tsx:resize', message: 'resize', data: { scrollW, scrollH, rowWidth: rowRect?.width, rowHeight: rowRect?.height, cellWidth: cellRect?.width, cellHeight: cellRect?.height, transitionDuration: transition, verseContent0Bottom: r0?.bottom, verseContent1Top: r1?.top, overlapY }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1-transition' }) }).catch(() => {});
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  // #endregion
   const { autoPopulateFromChapter: autoPopulatePlacesFromChapter } = usePlaceStore();
   const { autoPopulateFromChapter: autoPopulateTimeFromChapter } = useTimeStore();
   
@@ -98,8 +74,7 @@ export function MultiTranslationView() {
   const pendingLoadRef = useRef<string | null>(null);
   // Track which chapters have been auto-populated to avoid doing it multiple times
   const autoPopulatedRef = useRef<Set<string>>(new Set());
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  
+
   // Load section headings, chapter title, and notes for primary translation
   const loadSectionHeadings = useCallback(async () => {
     // Section headings are now translation-agnostic - just query by book/chapter
@@ -854,7 +829,7 @@ export function MultiTranslationView() {
       </div>
 
       {/* Verse rows - scrollable container */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp}>
+      <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp}>
           <div className="px-4 py-4 space-y-1.5 border-b border-scripture-border/50">
             {sortedVerseNumbers.map(verseNum => (
               <div key={verseNum}>
@@ -886,7 +861,7 @@ export function MultiTranslationView() {
 
                 {/* Verse row */}
                 <div
-                  className={`grid gap-4 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} transition-all duration-1000 ease-out ${navSelectedVerse === verseNum ? 'bg-scripture-accent/10 dark:bg-scripture-accent/30 rounded-lg px-2 py-1' : ''}`}
+                  className={`grid gap-4 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} transition-colors duration-200 ${navSelectedVerse === verseNum ? 'bg-scripture-accent/10 dark:bg-scripture-accent/30 rounded-lg px-2 py-1' : ''}`}
                   data-verse={verseNum}
                 >
                   {translationList.map(({ translation, chapter, isLoading, error }) => {
