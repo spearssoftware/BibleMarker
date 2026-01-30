@@ -26,7 +26,7 @@ export function SectionHeadingEditor({
   // Sync editText when heading prop changes (but not while editing)
   useEffect(() => {
     if (!isEditing) {
-      setEditText(heading.title);
+      queueMicrotask(() => setEditText(heading.title));
     }
   }, [heading.title, isEditing]);
 

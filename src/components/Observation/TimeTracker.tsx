@@ -115,7 +115,7 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
   useEffect(() => {
     if (selectedText && isCreating && !newExpression) {
       // Pre-fill with selected text
-      setNewExpression(selectedText.trim());
+      queueMicrotask(() => setNewExpression(selectedText.trim()));
     }
   }, [selectedText, isCreating, newExpression]);
 
@@ -212,7 +212,7 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
   useEffect(() => {
     if (timeExpressions.length > 0 && expandedVerses.size === 0) {
       const verseGroups = groupByVerse(timeExpressions);
-      setExpandedVerses(new Set(verseGroups.keys()));
+      queueMicrotask(() => setExpandedVerses(new Set(verseGroups.keys())));
     }
   }, [timeExpressions, expandedVerses.size]);
 

@@ -51,10 +51,10 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
     if (lists.length > 0 && !selectedListId) {
       const recentList = getMostRecentlyUsedList();
       if (recentList && lists.some(l => l.id === recentList.id)) {
-        setSelectedListId(recentList.id);
+        queueMicrotask(() => setSelectedListId(recentList.id));
       } else {
         // Default to first list if no recent list
-        setSelectedListId(lists[0].id);
+        queueMicrotask(() => setSelectedListId(lists[0].id));
       }
     }
   }, [lists, getMostRecentlyUsedList, selectedListId]);

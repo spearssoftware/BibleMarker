@@ -41,7 +41,7 @@ export function VersePicker({
     }
   }, [triggerRef]);
 
-  const effectiveTriggerRef = (triggerRef as React.RefObject<HTMLElement>) || { current: fallbackTriggerRef.current };
+  const effectiveTriggerRef = (triggerRef as React.RefObject<HTMLElement>) ?? fallbackTriggerRef;
 
   const { top, left, width, isReady } = useDropdownPosition({
     triggerRef: effectiveTriggerRef,

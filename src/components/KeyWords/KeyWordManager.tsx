@@ -691,20 +691,20 @@ function KeyWordEditor({
   // Update word when initialWord changes (e.g., new selection made)
   useEffect(() => {
     if (initialWord && !preset) {
-      setWord(initialWord);
+      queueMicrotask(() => setWord(initialWord));
     }
   }, [initialWord, preset]);
 
   // Update symbol and color when initial values change
   useEffect(() => {
     if (initialSymbol !== undefined && !preset) {
-      setSymbol(initialSymbol);
+      queueMicrotask(() => setSymbol(initialSymbol));
     }
   }, [initialSymbol, preset]);
 
   useEffect(() => {
     if (initialColor !== undefined && !preset) {
-      setColor(initialColor);
+      queueMicrotask(() => setColor(initialColor));
     }
   }, [initialColor, preset]);
   const { studies, activeStudyId, getActiveStudy } = useStudyStore();

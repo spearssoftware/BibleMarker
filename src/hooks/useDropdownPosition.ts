@@ -42,14 +42,14 @@ export function useDropdownPosition({
 
   useEffect(() => {
     if (!triggerRef.current) {
-      setIsReady(false);
+      queueMicrotask(() => setIsReady(false));
       return;
     }
 
     const calculatePosition = () => {
       const trigger = triggerRef.current;
       if (!trigger) {
-        setIsReady(false);
+        queueMicrotask(() => setIsReady(false));
         return;
       }
 
@@ -80,12 +80,15 @@ export function useDropdownPosition({
       const estimatedHeight = 300; // Rough estimate, could be passed as prop
       const wouldOverflow = top + estimatedHeight > viewportHeight;
 
-      setPosition({
+      const nextPosition = {
         top: wouldOverflow ? triggerRect.top - estimatedHeight - offset : top,
         left,
         width,
+      };
+      queueMicrotask(() => {
+        setPosition(nextPosition);
+        setIsReady(true);
       });
-      setIsReady(true);
     };
 
     // Use requestAnimationFrame to ensure DOM is ready

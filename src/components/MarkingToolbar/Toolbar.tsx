@@ -84,14 +84,14 @@ export function Toolbar() {
   // Calculate selection menu position when selection changes
   useEffect(() => {
     if (!selection) {
-      setSelectionMenuPosition(null);
+      queueMicrotask(() => setSelectionMenuPosition(null));
       return;
     }
 
     // Get selection bounds from DOM
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) {
-      setSelectionMenuPosition(null);
+      queueMicrotask(() => setSelectionMenuPosition(null));
       return;
     }
 
@@ -102,7 +102,7 @@ export function Toolbar() {
     const x = rect.left + rect.width / 2;
     const y = rect.top;
     
-    setSelectionMenuPosition({ x, y });
+    queueMicrotask(() => setSelectionMenuPosition({ x, y }));
   }, [selection]);
 
   // Listen for custom events to open ObservationToolsPanel
@@ -258,7 +258,7 @@ export function Toolbar() {
     }
 
     return suggestions;
-  }, [selection?.text, annotations, presets]);
+  }, [selection, annotations, presets]);
 
   // Apply a key word (preset) to the current selection — e.g. mark "He" as Jesus when context shows it
   const applyPresetToSelection = async (preset: MarkingPreset) => {

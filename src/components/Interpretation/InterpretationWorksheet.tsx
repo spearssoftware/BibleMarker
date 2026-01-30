@@ -153,7 +153,7 @@ export function InterpretationWorksheet({ verseRef: initialVerseRef }: Interpret
   useEffect(() => {
     if (initialVerseRef && interpretationEntries.length > 0) {
       const key = getVerseKey(initialVerseRef);
-      setExpandedVerses(new Set([key]));
+      queueMicrotask(() => setExpandedVerses(new Set([key])));
       // Small delay to ensure the expansion completes before scrolling
       setTimeout(() => {
         const verseElement = document.querySelector(`[data-verse-key="${key}"]`);

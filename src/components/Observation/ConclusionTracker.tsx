@@ -115,7 +115,7 @@ export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, fil
   useEffect(() => {
     if (selectedText && isCreating && !newTerm) {
       // Pre-fill with selected text
-      setNewTerm(selectedText.trim());
+      queueMicrotask(() => setNewTerm(selectedText.trim()));
     }
   }, [selectedText, isCreating, newTerm]);
 
@@ -212,7 +212,7 @@ export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, fil
   useEffect(() => {
     if (conclusions.length > 0 && expandedVerses.size === 0) {
       const verseGroups = groupByVerse(conclusions);
-      setExpandedVerses(new Set(verseGroups.keys()));
+      queueMicrotask(() => setExpandedVerses(new Set(verseGroups.keys())));
     }
   }, [conclusions, expandedVerses.size]);
 

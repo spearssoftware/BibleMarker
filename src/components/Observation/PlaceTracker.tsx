@@ -121,7 +121,7 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
   useEffect(() => {
     if (selectedText && isCreating && !newName) {
       // Pre-fill with selected text
-      setNewName(selectedText.trim());
+      queueMicrotask(() => setNewName(selectedText.trim()));
     }
   }, [selectedText, isCreating, newName]);
 
@@ -217,7 +217,7 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
   useEffect(() => {
     if (places.length > 0 && expandedVerses.size === 0) {
       const verseGroups = groupByVerse(places);
-      setExpandedVerses(new Set(verseGroups.keys()));
+      queueMicrotask(() => setExpandedVerses(new Set(verseGroups.keys())));
     }
   }, [places, expandedVerses.size]);
 

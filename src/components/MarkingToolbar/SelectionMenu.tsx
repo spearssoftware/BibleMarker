@@ -105,7 +105,7 @@ export function SelectionMenu({
       y = viewportHeight - rect.height - 10;
     }
     
-    setMenuPosition({ x, y });
+    queueMicrotask(() => setMenuPosition({ x, y }));
   }, [position]);
 
   const keywordPresets = presets.filter((p) => p.word);

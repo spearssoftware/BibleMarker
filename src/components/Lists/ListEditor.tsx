@@ -36,7 +36,7 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
   useEffect(() => {
     // If creating new list and we're in a book, suggest that book as scope
     if (!list && currentBook) {
-      setScopeBook(currentBook);
+      queueMicrotask(() => setScopeBook(currentBook));
     }
   }, [list, currentBook]);
 

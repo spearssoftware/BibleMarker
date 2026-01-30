@@ -25,7 +25,7 @@ export function ChapterTitleEditor({
   // Sync editText when title prop changes (but not while editing)
   useEffect(() => {
     if (!isEditing) {
-      setEditText(title.title);
+      queueMicrotask(() => setEditText(title.title));
     }
   }, [title.title, isEditing]);
 

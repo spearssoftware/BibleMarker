@@ -29,7 +29,7 @@ export function NoteEditor({
   // Sync editContent when note prop changes (but not while editing)
   useEffect(() => {
     if (!isEditing) {
-      setEditContent(note.content);
+      queueMicrotask(() => setEditContent(note.content));
     }
   }, [note.content, isEditing]);
 

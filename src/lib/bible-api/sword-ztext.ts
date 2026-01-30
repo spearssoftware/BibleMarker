@@ -291,12 +291,7 @@ export function getVerseRaw(
   const { offset, compSize } = readBufferSizes(files, testamentFiles, bufferNum);
   const dataBuf = getFileByKey(files, testamentFiles.data);
   if (!dataBuf) return '';
-  let uncompressed: Uint8Array;
-  try {
-    uncompressed = decompressBuffer(dataBuf, offset, compSize);
-  } catch (err) {
-    throw err;
-  }
+  const uncompressed = decompressBuffer(dataBuf, offset, compSize);
   if (bufferCache && cacheKey) {
     bufferCache.set(cacheKey, uncompressed);
   }

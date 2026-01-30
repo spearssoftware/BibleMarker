@@ -4,7 +4,7 @@
  * UI to select up to 3 translations for multi-translation view.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { getAllTranslations, type ApiTranslation } from '@/lib/bible-api';
 
@@ -13,15 +13,15 @@ export function TranslationSelector() {
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
-  useEffect(() => {
-    loadActiveView();
-    loadTranslations();
-  }, [loadActiveView]);
-
-  const loadTranslations = async () => {
+  const loadTranslations = useCallback(async () => {
     const all = await getAllTranslations();
     setTranslations(all);
-  };
+  }, []);
+
+  useEffect(() => {
+    loadActiveView();
+    queueMicrotask(() => loadTranslations());
+  }, [loadActiveView, loadTranslations]);
 
   const handleAdd = async (translationId: string) => {
     await addTranslation(translationId);
