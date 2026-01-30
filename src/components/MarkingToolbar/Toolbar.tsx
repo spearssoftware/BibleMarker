@@ -701,7 +701,7 @@ export function Toolbar() {
       )}
 
       {/* Main toolbar: Key Words | Study | Settings */}
-      <div className="bg-scripture-surface shadow-lg" data-marking-toolbar>
+      <div className="bg-scripture-surface/80 backdrop-blur-md shadow-lg" data-marking-toolbar>
         <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
           {TOOLS.map((tool) => {
             const isActive =
@@ -724,8 +724,8 @@ export function Toolbar() {
                            transition-all duration-200 touch-target
                            border border-scripture-border/30 hover:border-scripture-border/50
                            ${isActive
-                             ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
-                             : 'hover:bg-scripture-elevated hover:scale-105 active:scale-95'}`}
+                             ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                             : 'hover:bg-scripture-elevated'}`}
                 aria-label={tool.label}
               >
                 <span className="text-lg">{tool.icon}</span>

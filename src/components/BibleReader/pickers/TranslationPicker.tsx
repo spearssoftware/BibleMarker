@@ -117,7 +117,7 @@ export function TranslationPicker({
       {/* Picker - uses absolute positioning relative to parent */}
       <div 
         className="absolute top-full left-0 mt-2
-                    bg-scripture-surface rounded-2xl shadow-2xl
+                    bg-scripture-surface rounded-xl shadow-modal dark:shadow-modal-dark
                     w-[400px] max-w-[min(400px,calc(100vw-2rem))] max-h-[70vh] overflow-hidden animate-scale-in-dropdown"
         style={{ zIndex: Z_INDEX.MODAL }}
         role="dialog"

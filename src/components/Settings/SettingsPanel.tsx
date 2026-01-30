@@ -574,7 +574,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                       onClick={() => handleFontSizeChange(fs.size)}
                       className={`px-3 py-2 rounded-lg font-ui text-sm transition-all duration-200 text-center
                                 ${fontSize === fs.size
-                                  ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
+                                  ? 'bg-scripture-accent text-scripture-bg shadow-md'
                                   : 'bg-scripture-elevated hover:bg-scripture-border/50 border border-scripture-border/50'
                                 }`}
                     >
@@ -598,7 +598,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                       onClick={() => handleThemeChange(t.value)}
                       className={`px-3 py-2 rounded-lg font-ui text-sm transition-all duration-200 text-center
                                 ${theme === t.value
-                                  ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
+                                  ? 'bg-scripture-accent text-scripture-bg shadow-md'
                                   : 'bg-scripture-elevated hover:bg-scripture-border/50 border border-scripture-border/50 text-scripture-text'
                                 }`}
                     >

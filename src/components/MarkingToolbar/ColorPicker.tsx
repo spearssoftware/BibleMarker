@@ -73,7 +73,7 @@ function ColorButton({ color, isSelected, onSelect }: ColorButtonProps) {
       className={`w-11 h-11 rounded-xl transition-all duration-200 touch-target shadow-sm
                  ${isSelected 
                    ? 'ring-2 ring-scripture-accent ring-offset-2 ring-offset-scripture-surface scale-110 shadow-md' 
-                   : 'hover:scale-105 hover:shadow-md active:scale-95'}`}
+                   : 'hover:shadow-md'}`}
       style={{ backgroundColor: HIGHLIGHT_COLORS[color] }}
       aria-label={`Select ${color}`}
       title={color}

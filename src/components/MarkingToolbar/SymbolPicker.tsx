@@ -118,7 +118,7 @@ function SymbolButton({ symbol, isSelected, onSelect }: SymbolButtonProps) {
                  transition-all duration-200 touch-target shadow-sm
                  ${isSelected 
                    ? 'bg-scripture-accent text-scripture-bg scale-110 shadow-md ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' 
-                   : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border hover:scale-105 hover:shadow-md active:scale-95'}`}
+                   : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border hover:shadow-md'}`}
       aria-label={`Select ${symbol}`}
       title={symbol}
     >

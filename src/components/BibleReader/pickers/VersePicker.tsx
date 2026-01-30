@@ -65,7 +65,7 @@ export function VersePicker({
       {/* Picker */}
       <div 
         ref={pickerRef}
-        className="fixed bg-scripture-surface rounded-2xl shadow-2xl
+        className="fixed bg-scripture-surface rounded-xl shadow-modal dark:shadow-modal-dark
                     max-h-[50vh] overflow-hidden transition-opacity duration-150"
         style={{ 
           top: `${top}px`,
@@ -90,8 +90,8 @@ export function VersePicker({
                 }}
                 className={`w-9 h-9 text-xs font-ui rounded-lg transition-all duration-200
                           ${num === currentVerse 
-                            ? 'bg-scripture-accent text-scripture-bg shadow-sm scale-105' 
-                            : 'hover:bg-scripture-elevated hover:shadow-sm hover:scale-105'}`}
+                            ? 'bg-scripture-accent text-scripture-bg shadow-sm' 
+                            : 'hover:bg-scripture-elevated hover:shadow-sm'}`}
                 aria-label={`Select verse ${num}`}
               >
                 {num}

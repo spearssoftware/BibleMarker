@@ -87,7 +87,7 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={title ? 'modal-title' : undefined}
       >
-        <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full mx-2 my-2">
+        <div className="bg-scripture-surface rounded-xl shadow-modal dark:shadow-modal-dark overflow-hidden flex flex-col h-full mx-2 my-2">
           {/* Header */}
           {(title || showCloseButton || headerActions) && (
             <div className="flex items-center justify-between p-4 border-b border-scripture-border/50 flex-shrink-0">

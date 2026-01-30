@@ -148,7 +148,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
                 aria-label="Search Bible and notes"
         aria-modal="true"
       >
-        <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden mx-2 my-2">
+        <div className="bg-scripture-surface rounded-xl shadow-modal dark:shadow-modal-dark overflow-hidden mx-2 my-2">
         {/* Header */}
         <div className="p-4 border-b border-scripture-border/50">
           <div className="flex items-center gap-3">

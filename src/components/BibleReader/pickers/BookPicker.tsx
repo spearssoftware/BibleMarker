@@ -60,7 +60,7 @@ export function BookPicker({ currentBook, onSelect, onClose, triggerRef }: BookP
       {/* Picker */}
       <div 
         ref={pickerRef}
-        className="fixed bg-scripture-surface rounded-2xl shadow-2xl
+        className="fixed bg-scripture-surface rounded-xl shadow-modal dark:shadow-modal-dark
                     max-h-[70vh] overflow-hidden transition-opacity duration-150"
         style={{ 
           top: `${top}px`,

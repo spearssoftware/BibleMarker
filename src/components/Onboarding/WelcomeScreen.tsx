@@ -53,7 +53,7 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                    max-w-2xl w-[calc(100%-2rem)] max-h-[85vh] overflow-hidden flex flex-col animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-scripture-surface rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full mx-2 my-2">
+        <div className="bg-scripture-surface rounded-xl shadow-modal dark:shadow-modal-dark overflow-hidden flex flex-col h-full mx-2 my-2">
           {/* Header */}
           <div className="p-6 border-b border-scripture-overlayBorder/50">
             <h1 className="text-2xl font-ui font-bold text-scripture-text mb-2">

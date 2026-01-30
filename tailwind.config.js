@@ -51,7 +51,7 @@ export default {
       },
       fontFamily: {
         scripture: ['"Crimson Pro"', 'Georgia', 'serif'],
-        ui: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', '"Helvetica Neue"', 'system-ui', 'sans-serif'],
+        ui: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', '"Helvetica Neue"', '"Segoe UI"', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         'scripture-sm': ['1rem', { lineHeight: '1.8' }],
@@ -63,6 +63,10 @@ export default {
         'fade-in': 'fadeIn 0.3s ease-out',
         'slide-up': 'slideUp 0.3s ease-out',
         'scale-in': 'scaleIn 0.2s ease-out',
+      },
+      boxShadow: {
+        modal: '0 12px 40px -12px rgba(0,0,0,0.15)',
+        'modal-dark': '0 12px 40px -12px rgba(0,0,0,0.4)',
       },
       keyframes: {
         fadeIn: {

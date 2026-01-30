@@ -179,7 +179,7 @@ export function NavigationBar() {
           }
         `}</style>
       ) : null}
-      <nav className="navigation-bar bg-scripture-surface shadow-sm sticky top-0 z-[45]" data-nav-bar role="navigation" aria-label="Bible navigation">
+      <nav className="navigation-bar bg-scripture-surface/80 backdrop-blur-md shadow-sm sticky top-0 z-[45]" data-nav-bar role="navigation" aria-label="Bible navigation">
         <div className="max-w-4xl mx-auto px-4 py-2.5 grid grid-cols-3 items-center relative">
         {/* Left side: Previous button and Translation selector */}
         <div className="flex items-center gap-2 justify-start">
@@ -195,9 +195,9 @@ export function NavigationBar() {
               e.stopPropagation();
             }}
             disabled={!canGoPrevious()}
-            className="p-2 rounded-xl hover:bg-scripture-elevated disabled:opacity-30
+            className="p-2 rounded-lg hover:bg-scripture-elevated disabled:opacity-30
                        disabled:cursor-not-allowed transition-all duration-200 touch-target
-                       hover:scale-105 active:scale-95 select-none"
+                       select-none"
             aria-label="Previous chapter"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -220,12 +220,12 @@ export function NavigationBar() {
                 e.preventDefault();
                 e.stopPropagation();
               }}
-              className={`px-4 py-2 rounded-xl font-ui font-semibold text-sm transition-all duration-200
+              className={`px-4 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
                          border border-scripture-border/30 touch-target min-w-[60px] h-[36px] flex items-center justify-center
                          select-none
                          ${showTranslationPicker
-                           ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
-                           : 'hover:bg-scripture-elevated hover:border-scripture-border/50 hover:scale-105 active:scale-95'}`}
+                           ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                           : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
               aria-label={activeView && activeView.translationIds.length > 0
                 ? `${activeView.translationIds.length} translation${activeView.translationIds.length !== 1 ? 's' : ''} selected. Click to change translations.`
                 : 'Select translation'}
@@ -296,12 +296,12 @@ export function NavigationBar() {
                 e.preventDefault();
                 e.stopPropagation();
               }}
-              className={`px-4 py-2 rounded-xl font-ui font-semibold text-sm transition-all duration-200
+              className={`px-4 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
                          border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center
                          select-none
                          ${showBookPicker
-                           ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
-                           : 'hover:bg-scripture-elevated hover:border-scripture-border/50 hover:scale-105 active:scale-95'}`}
+                           ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                           : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
               aria-label={`Current book: ${bookInfo?.name || currentBook}. Click to select a different book.`}
               aria-expanded={showBookPicker}
               aria-haspopup="listbox"
@@ -338,11 +338,11 @@ export function NavigationBar() {
                 e.preventDefault();
                 e.stopPropagation();
               }}
-              className={`px-4 py-2 rounded-xl font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
+              className={`px-4 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
                          border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center select-none
                          ${showChapterPicker
-                           ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
-                           : 'hover:bg-scripture-elevated hover:border-scripture-border/50 hover:scale-105 active:scale-95'}`}
+                           ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                           : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
               aria-label={`Current chapter: ${currentChapter}. Click to select a different chapter.`}
               aria-expanded={showChapterPicker}
               aria-haspopup="listbox"
@@ -381,12 +381,12 @@ export function NavigationBar() {
                   e.preventDefault();
                   e.stopPropagation();
                 }}
-                className={`px-4 py-2 rounded-xl font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
+                className={`px-4 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
                            border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center
                            select-none
                            ${showVersePicker
-                             ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
-                             : 'hover:bg-scripture-elevated hover:border-scripture-border/50 hover:scale-105 active:scale-95'}`}
+                             ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                             : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
                 aria-label={`Current verse: ${currentVerse || 1}. Click to select a different verse.`}
                 aria-expanded={showVersePicker}
                 aria-haspopup="listbox"
@@ -440,10 +440,10 @@ export function NavigationBar() {
               e.preventDefault();
               e.stopPropagation();
             }}
-            className={`p-2 rounded-xl transition-all duration-200 touch-target select-none
+            className={`p-2 rounded-lg transition-all duration-200 touch-target select-none
                        ${showSearch
-                         ? 'bg-scripture-accent text-scripture-bg shadow-md scale-105'
-                         : 'hover:bg-scripture-elevated hover:scale-105 active:scale-95'}`}
+                         ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                         : 'hover:bg-scripture-elevated'}`}
             aria-label="Search (Cmd/Ctrl+F)"
             title="Search (Cmd/Ctrl+F)"
           >
@@ -464,9 +464,9 @@ export function NavigationBar() {
               e.stopPropagation();
             }}
             disabled={!canGoNext()}
-            className="p-2 rounded-xl hover:bg-scripture-elevated disabled:opacity-30
+            className="p-2 rounded-lg hover:bg-scripture-elevated disabled:opacity-30
                        disabled:cursor-not-allowed transition-all duration-200 touch-target
-                       hover:scale-105 active:scale-95 select-none"
+                       select-none"
             aria-label="Next chapter"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">

@@ -808,7 +808,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
 
   return (
     <span 
-      className={`verse inline group ${isSelected ? 'bg-scripture-accent/20 rounded' : ''}`}
+      className={`verse inline group ${isSelected ? 'bg-scripture-accent/20 dark:bg-scripture-accent/40 rounded' : ''}`}
       data-verse={verse.ref.verse}
     >
       {/* Symbols before verse */}

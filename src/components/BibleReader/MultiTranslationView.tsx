@@ -861,7 +861,7 @@ export function MultiTranslationView() {
 
                 {/* Verse row */}
                 <div
-                  className={`grid gap-4 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} transition-all duration-1000 ease-out ${navSelectedVerse === verseNum ? 'bg-scripture-accent/10 rounded-lg px-2 py-1' : ''}`}
+                  className={`grid gap-4 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} transition-all duration-1000 ease-out ${navSelectedVerse === verseNum ? 'bg-scripture-accent/10 dark:bg-scripture-accent/30 rounded-lg px-2 py-1' : ''}`}
                   data-verse={verseNum}
                 >
                   {translationList.map(({ translation, chapter, isLoading, error }) => {
