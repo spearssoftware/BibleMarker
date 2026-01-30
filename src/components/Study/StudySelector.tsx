@@ -15,7 +15,7 @@ export function StudySelector() {
     loadStudies();
   }, [loadStudies]);
 
-  const activeStudy = getActiveStudy();
+  getActiveStudy(); // ensure active study is resolved for dropdown
 
   const handleChange = async (studyId: string) => {
     if (studyId === 'none') {

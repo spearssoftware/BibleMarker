@@ -16,7 +16,7 @@ interface ChapterPickerProps {
   onSelect: (chapter: number) => void;
   onClose: () => void;
   /** Ref to the trigger button element */
-  triggerRef?: React.RefObject<HTMLElement>;
+  triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
 export function ChapterPicker({ 

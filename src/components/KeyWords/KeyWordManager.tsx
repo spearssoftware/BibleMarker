@@ -40,7 +40,7 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
   } = useMarkingPresetStore();
   
   const { currentBook, currentChapter } = useBibleStore();
-  const { activeStudyId, studies } = useStudyStore();
+  const { activeStudyId } = useStudyStore();
 
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -107,7 +107,8 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
       // Same scope, sort alphabetically by word
       return (a.word || '').localeCompare(b.word || '');
     });
-  }, [getFilteredPresets, activeStudyId, presets, filterCategory, searchQuery, filterScope]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- filterCategory, presets, searchQuery are for stability; getFilteredPresets already reflects them
+  }, [getFilteredPresets, activeStudyId, filterScope, presets, filterCategory, searchQuery]);
 
   function handleCreate() {
     setIsCreating(true);

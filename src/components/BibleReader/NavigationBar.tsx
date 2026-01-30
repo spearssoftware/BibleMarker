@@ -12,13 +12,10 @@ import { getPreferences, db } from '@/lib/db';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { Search } from '@/components/Search';
 import { BookPicker, ChapterPicker, VersePicker, TranslationPicker } from './pickers';
-import { useScrollLock } from '@/hooks/useScrollLock';
-
 export function NavigationBar() {
   const {
     currentBook,
     currentChapter,
-    currentModuleId,
     setLocation,
     setCurrentModule,
     nextChapter,
@@ -48,10 +45,9 @@ export function NavigationBar() {
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const [currentVerse, setCurrentVerse] = useState<number | null>(null);
   
-  const { activeView, loadActiveView, addTranslation, removeTranslation, clearView } = useMultiTranslationStore();
+  const { activeView, loadActiveView, addTranslation, removeTranslation } = useMultiTranslationStore();
 
   const bookInfo = getBookById(currentBook);
-  const currentTranslation = translations.find(t => t.id === currentModuleId);
   
   // Get verse count for current chapter
   const verseCount = getVerseCount(currentBook, currentChapter);

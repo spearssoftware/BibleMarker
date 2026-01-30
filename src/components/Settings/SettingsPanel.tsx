@@ -20,7 +20,6 @@ import {
   getTotalBackupSize,
   autoBackupService,
   performBackup,
-  getStoredBackup,
   restoreFromLatestBackup,
   getBackupLocation,
   type StoredBackup 
@@ -34,7 +33,6 @@ import {
   bibliaClient,
   bibleGatewayClient,
   esvClient,
-  getBibleClient,
   clearTranslationsCache,
   saveApiConfig as saveApiConfigToDb,
   BIBLEGATEWAY_ENABLED,
@@ -206,7 +204,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     setSavingApi(true);
     setApiError(null);
     try {
-      let configToSave: any;
+      let configToSave: { provider: 'biblia' | 'esv' | 'biblegateway'; apiKey?: string; username?: string; password?: string; enabled: boolean };
       if (provider === 'biblegateway') {
         const { username, password } = apiKeyOrCreds as { username: string; password: string };
         configToSave = {
@@ -402,9 +400,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       setTimeout(() => {
         setStudyExportSuccess(false);
       }, 3000);
-    } catch (error: any) {
-      if (error.message !== 'Export cancelled') {
-        setStudyExportError(error instanceof Error ? error.message : 'Failed to export study data');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to export study data';
+      if (msg !== 'Export cancelled') {
+        setStudyExportError(msg);
       }
     } finally {
       setIsExportingStudy(false);
@@ -1422,7 +1421,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   <button
                     onClick={async () => {
                       // Reset onboarding state
-                      const prefs = await getPreferences();
+                      await getPreferences(); // ensure prefs loaded before partial update
                       await updatePreferences({
                         onboarding: {
                           hasSeenWelcome: false,

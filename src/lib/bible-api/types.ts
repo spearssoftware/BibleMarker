@@ -4,7 +4,7 @@
  * Common types for Bible API providers (Biblia, ESV API, etc.)
  */
 
-import type { VerseRef, Chapter, Verse } from '@/types/bible';
+import type { VerseRef } from '@/types/bible';
 
 /** Supported Bible API providers */
 export type BibleApiProvider = 'biblia' | 'esv' | 'getbible' | 'biblegateway';

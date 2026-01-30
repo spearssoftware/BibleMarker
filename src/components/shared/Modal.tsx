@@ -34,7 +34,7 @@ interface ModalProps {
   /** Whether to handle Escape key */
   handleEscape?: boolean;
   /** Initial focus ref */
-  initialFocusRef?: React.RefObject<HTMLElement>;
+  initialFocusRef?: React.RefObject<HTMLElement | null>;
   /** Additional className for the modal container */
   className?: string;
 }

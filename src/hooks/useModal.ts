@@ -19,7 +19,7 @@ interface UseModalOptions {
   /** Whether to restore focus on close */
   restoreFocus?: boolean;
   /** Initial focus element (optional) */
-  initialFocusRef?: React.RefObject<HTMLElement>;
+  initialFocusRef?: React.RefObject<HTMLElement | null>;
 }
 
 export function useModal({

@@ -324,8 +324,6 @@ export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, fil
           {sortedGroups.map(([verseKey, verseConclusions]) => {
             const isExpanded = expandedVerses.has(verseKey);
             const verseRef = verseConclusions[0].verseRef;
-            const bookName = getBookById(verseRef.book)?.name || verseRef.book;
-
             return (
               <div
                 key={verseKey}

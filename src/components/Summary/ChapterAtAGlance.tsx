@@ -15,11 +15,10 @@ import {
   getMarkingPreset,
 } from '@/lib/db';
 import { db } from '@/lib/db';
-import type { ChapterTitle, SectionHeading, Annotation } from '@/types/annotation';
+import type { ChapterTitle, SectionHeading } from '@/types/annotation';
 import { SYMBOLS } from '@/types/annotation';
 import type { MarkingPreset } from '@/types/keyWord';
 import type { ObservationList } from '@/types/list';
-import { formatVerseRef } from '@/types/bible';
 import { getBookById } from '@/types/bible';
 
 interface ChapterSummary {

@@ -209,6 +209,7 @@ export function ContrastTracker({ selectedText, verseRef: initialVerseRef, filte
     };
 
     autoImportAnnotations();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- run once when contrasts length/loadContrasts change
   }, [contrasts.length, hasCheckedAutoImport, loadContrasts, createContrast, presets]);
 
   // Pre-fill form if selectedText is provided
@@ -456,8 +457,6 @@ export function ContrastTracker({ selectedText, verseRef: initialVerseRef, filte
           {sortedGroups.map(([verseKey, verseContrasts]) => {
             const isExpanded = expandedVerses.has(verseKey);
             const verseRef = verseContrasts[0].verseRef;
-            const bookName = getBookById(verseRef.book)?.name || verseRef.book;
-
             return (
               <div
                 key={verseKey}

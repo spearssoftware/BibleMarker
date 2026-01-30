@@ -10,7 +10,7 @@ import type { VerseRef } from '@/types/bible';
 // No longer need getSymbolsForTracker - using category instead
 import { usePlaceStore } from '@/stores/placeStore';
 import { useTimeStore } from '@/stores/timeStore';
-import { getAnnotationText, getAnnotationVerseRef } from './annotationQueries';
+import { getAnnotationText } from './annotationQueries';
 
 /**
  * Automatically add a keyword to the Place tracker if it has 'places' category
@@ -40,7 +40,7 @@ export async function autoAddToPlaceTracker(
   }
 
   // Get place name from preset word or annotation text
-  let placeName = preset.word || getAnnotationText(annotation) || 'Place';
+  const placeName = preset.word || getAnnotationText(annotation) || 'Place';
   
   try {
     await placeStore.createPlace(
@@ -84,7 +84,7 @@ export async function autoAddToTimeTracker(
   }
 
   // Get expression text from preset word or annotation text
-  let expression = preset.word || getAnnotationText(annotation) || 'Time expression';
+  const expression = preset.word || getAnnotationText(annotation) || 'Time expression';
   
   try {
     await timeStore.createTimeExpression(

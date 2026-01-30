@@ -4,11 +4,11 @@
  * Sidebar panel showing all observation lists.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useListStore } from '@/stores/listStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { getBookById, formatVerseRef, BIBLE_BOOKS } from '@/types/bible';
+import { getBookById, formatVerseRef } from '@/types/bible';
 import type { ObservationList, ObservationItem } from '@/types/list';
 import type { VerseRef } from '@/types/bible';
 import { ListEditor } from './ListEditor';
@@ -63,7 +63,7 @@ const compareVerseRefs = (a: VerseRef, b: VerseRef): number => {
 
 // Sort verse groups by verse reference
 const sortVerseGroups = (verseGroups: Map<string, ObservationItem[]>): Array<[string, ObservationItem[]]> => {
-  return Array.from(verseGroups.entries()).sort(([keyA, itemsA], [keyB, itemsB]) => {
+  return Array.from(verseGroups.entries()).sort(([, itemsA], [, itemsB]) => {
     const refA = itemsA[0].verseRef;
     const refB = itemsB[0].verseRef;
     return compareVerseRefs(refA, refB);
@@ -133,11 +133,11 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
 
     // Group by verse and export (sorted by verse reference)
     const verseGroups = groupByVerse(list.items);
-    sortVerseGroups(verseGroups).forEach(([verseKey, verseItems]) => {
+    sortVerseGroups(verseGroups).forEach(([, verseItems]) => {
       const verseRef = verseItems[0].verseRef;
       const ref = formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse);
       lines.push(ref);
-      verseItems.forEach((item, index) => {
+      verseItems.forEach((item) => {
         lines.push(`  ? ${item.content}`);
       });
       lines.push('');

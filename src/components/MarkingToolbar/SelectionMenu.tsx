@@ -8,12 +8,12 @@
 import { useState, useEffect, useRef } from 'react';
 import type { TextSelection } from '@/stores/annotationStore';
 import type { MarkingPreset } from '@/types/keyWord';
-import type { SymbolKey, HighlightColor } from '@/types/annotation';
+import type { SymbolKey } from '@/types/annotation';
 import type { ObservationTab } from '@/components/Observation';
 import type { ObservationTrackerType } from '@/lib/observationSymbols';
 import { SYMBOLS, HIGHLIGHT_COLORS } from '@/types/annotation';
 import { isCommonPronoun } from '@/types/keyWord';
-import { getTrackerForSymbol, hasTrackerMapping } from '@/lib/observationSymbols';
+import { getTrackerForSymbol } from '@/lib/observationSymbols';
 
 interface SelectionMenuProps {
   selection: TextSelection;

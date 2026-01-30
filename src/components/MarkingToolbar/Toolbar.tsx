@@ -20,13 +20,11 @@ import { SettingsPanel } from '@/components/Settings';
 import { ObservationToolsPanel, type ObservationTab } from '@/components/Observation';
 import { ConfirmationDialog } from '@/components/shared';
 import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
-import { clearDatabase, updatePreferences, clearBookAnnotations } from '@/lib/db';
+import { clearDatabase } from '@/lib/db';
 import { resetAllStores } from '@/lib/storeReset';
 import { useBibleStore } from '@/stores/bibleStore';
-import { getBookById } from '@/types/bible';
-import { findMatchingPresets, isCommonPronoun, type MarkingPreset } from '@/types/keyWord';
-import type { AnnotationType, TextAnnotation, SymbolAnnotation } from '@/types/annotation';
-import { getTrackerForSymbol, hasTrackerMapping, type ObservationTrackerType } from '@/lib/observationSymbols';
+import { findMatchingPresets, type MarkingPreset } from '@/types/keyWord';
+import type { TextAnnotation, SymbolAnnotation } from '@/types/annotation';
 
 const COLOR_STYLES = ['highlight', 'textColor', 'underline'] as const;
 const COLOR_STYLE_LABELS: Record<(typeof COLOR_STYLES)[number], string> = {
@@ -55,11 +53,9 @@ export function Toolbar() {
     toolbarVisible,
     preferences,
     annotations,
-    fontSize,
-    setFontSize,
   } = useAnnotationStore();
 
-  const { currentBook, currentModuleId } = useBibleStore();
+  useBibleStore();
   const { createTextAnnotation, createSymbolAnnotation } = useAnnotations();
   const { presets, loadPresets, markPresetUsed, updatePreset } = useMarkingPresetStore();
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -67,16 +63,16 @@ export function Toolbar() {
   const [showPickerOverlay, setShowPickerOverlay] = useState(false);
   const [pickerTab, setPickerTab] = useState<'color' | 'symbol'>('color');
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
-  const [showModuleManager, setShowModuleManager] = useState(false);
+  const [, _setShowModuleManager] = useState(false);
   const [showKeyWordManager, setShowKeyWordManager] = useState(false);
   const [showStudyToolsPanel, setShowStudyToolsPanel] = useState(false);
   const [showObservationToolsPanel, setShowObservationToolsPanel] = useState(false);
   const [observationPanelInitialTab, setObservationPanelInitialTab] = useState<ObservationTab>('lists');
   const [observationPanelInitialListId, setObservationPanelInitialListId] = useState<string | undefined>(undefined);
   const [showAddToList, setShowAddToList] = useState(false);
-  const [showKeyWordApplyPicker, setShowKeyWordApplyPicker] = useState(false);
-  const [showAddAsVariantPicker, setShowAddAsVariantPicker] = useState(false);
-  const [isClearing, setIsClearing] = useState(false);
+  const [, setShowKeyWordApplyPicker] = useState(false);
+  const [, setShowAddAsVariantPicker] = useState(false);
+  const [, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [selectionMenuPosition, setSelectionMenuPosition] = useState<{ x: number; y: number } | null>(null);
 
@@ -126,7 +122,7 @@ export function Toolbar() {
     return () => {
       window.removeEventListener('openObservationTools', handleOpenObservationTools as EventListener);
     };
-  }, []);
+  }, [setActiveTool]);
 
   // When the user clicks in the verse window (not in the overlay), and the browser selection 
   // is cleared/collapsed, clear our selection and close the overlays.
@@ -164,12 +160,6 @@ export function Toolbar() {
     document.addEventListener('mousedown', handleMouseDown);
     return () => document.removeEventListener('mousedown', handleMouseDown);
   }, [clearSelection, setActiveTool]);
-
-  const handleClearDatabase = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setShowClearConfirm(true);
-  };
 
   const confirmClearDatabase = async () => {
     setShowClearConfirm(false);
@@ -273,15 +263,6 @@ export function Toolbar() {
   // Apply a key word (preset) to the current selection — e.g. mark "He" as Jesus when context shows it
   const applyPresetToSelection = async (preset: MarkingPreset) => {
     if (!selection) return;
-    
-    // Check if the selected text matches the preset's word or variants
-    const trimmed = selection.text.trim();
-    const lower = trimmed.toLowerCase();
-    const isAlreadyWord = preset.word && lower === preset.word.toLowerCase();
-    const isAlreadyVariant = (preset.variants || []).some((v) => {
-      const variantText = typeof v === 'string' ? v : v.text;
-      return variantText.toLowerCase() === lower;
-    });
     
     // If the selected text doesn't match the word or any variant, and it's a common pronoun,
     // we don't add it as a variant (which would cause it to match everywhere).
@@ -705,7 +686,7 @@ export function Toolbar() {
             initialWord={selection?.text?.trim() || undefined}
             initialSymbol={activeSymbol}
             initialColor={activeColor}
-            onPresetCreated={async (preset) => {
+            onPresetCreated={async () => {
               // Don't create a manual annotation when creating a keyword preset
               // The keyword preset will automatically create virtual annotations for all matches
               // via findKeywordMatches, so we don't need to manually mark the selected text

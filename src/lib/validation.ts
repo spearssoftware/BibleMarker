@@ -22,7 +22,7 @@ export class ValidationError extends Error {
   constructor(
     message: string,
     public field?: string,
-    public value?: any
+    public value?: unknown
   ) {
     super(message);
     this.name = 'ValidationError';
@@ -32,18 +32,19 @@ export class ValidationError extends Error {
 /**
  * Validate a verse reference
  */
-function validateVerseRef(ref: any): ref is VerseRef {
+function validateVerseRef(ref: unknown): ref is VerseRef {
   if (!ref || typeof ref !== 'object') {
     throw new ValidationError('Verse reference must be an object', 'ref', ref);
   }
-  if (typeof ref.book !== 'string' || ref.book.trim() === '') {
-    throw new ValidationError('Verse reference must have a valid book', 'ref.book', ref.book);
+  const r = ref as VerseRef;
+  if (typeof r.book !== 'string' || r.book.trim() === '') {
+    throw new ValidationError('Verse reference must have a valid book', 'ref.book', r.book);
   }
-  if (typeof ref.chapter !== 'number' || ref.chapter < 1) {
-    throw new ValidationError('Verse reference must have a valid chapter (>= 1)', 'ref.chapter', ref.chapter);
+  if (typeof r.chapter !== 'number' || r.chapter < 1) {
+    throw new ValidationError('Verse reference must have a valid chapter (>= 1)', 'ref.chapter', r.chapter);
   }
-  if (typeof ref.verse !== 'number' || ref.verse < 1) {
-    throw new ValidationError('Verse reference must have a valid verse (>= 1)', 'ref.verse', ref.verse);
+  if (typeof r.verse !== 'number' || r.verse < 1) {
+    throw new ValidationError('Verse reference must have a valid verse (>= 1)', 'ref.verse', r.verse);
   }
   return true;
 }
@@ -51,7 +52,7 @@ function validateVerseRef(ref: any): ref is VerseRef {
 /**
  * Validate a date (can be Date object or ISO string)
  */
-function validateDate(date: any, fieldName: string): Date {
+function validateDate(date: unknown, fieldName: string): Date {
   if (date instanceof Date) {
     if (isNaN(date.getTime())) {
       throw new ValidationError(`${fieldName} must be a valid date`, fieldName, date);
@@ -71,28 +72,29 @@ function validateDate(date: any, fieldName: string): Date {
 /**
  * Validate an annotation
  */
-export function validateAnnotation(annotation: any): Annotation {
+export function validateAnnotation(annotation: unknown): Annotation {
   if (!annotation || typeof annotation !== 'object') {
     throw new ValidationError('Annotation must be an object', 'annotation', annotation);
   }
+  const a = annotation as Record<string, unknown>;
 
   // Required fields
-  if (typeof annotation.id !== 'string' || annotation.id.trim() === '') {
-    throw new ValidationError('Annotation must have a valid id', 'id', annotation.id);
+  if (typeof a.id !== 'string' || (a.id as string).trim() === '') {
+    throw new ValidationError('Annotation must have a valid id', 'id', a.id);
   }
-  if (typeof annotation.moduleId !== 'string' || annotation.moduleId.trim() === '') {
-    throw new ValidationError('Annotation must have a valid moduleId', 'moduleId', annotation.moduleId);
+  if (typeof a.moduleId !== 'string' || (a.moduleId as string).trim() === '') {
+    throw new ValidationError('Annotation must have a valid moduleId', 'moduleId', a.moduleId);
   }
-  if (!['highlight', 'textColor', 'underline', 'symbol'].includes(annotation.type)) {
-    throw new ValidationError('Annotation must have a valid type', 'type', annotation.type);
+  if (!['highlight', 'textColor', 'underline', 'symbol'].includes(a.type as string)) {
+    throw new ValidationError('Annotation must have a valid type', 'type', a.type);
   }
 
   // Validate dates
-  validateDate(annotation.createdAt, 'createdAt');
-  validateDate(annotation.updatedAt, 'updatedAt');
+  validateDate(a.createdAt, 'createdAt');
+  validateDate(a.updatedAt, 'updatedAt');
 
   // Type-specific validation
-  if (annotation.type === 'symbol') {
+  if (a.type === 'symbol') {
     const symAnn = annotation as SymbolAnnotation;
     validateVerseRef(symAnn.ref);
     if (!symAnn.symbol || !(symAnn.symbol in SYMBOLS)) {
@@ -124,477 +126,407 @@ export function validateAnnotation(annotation: any): Annotation {
 /**
  * Validate a section heading
  */
-export function validateSectionHeading(heading: any): SectionHeading {
+export function validateSectionHeading(heading: unknown): SectionHeading {
   if (!heading || typeof heading !== 'object') {
     throw new ValidationError('Section heading must be an object', 'heading', heading);
   }
-
-  if (typeof heading.id !== 'string' || heading.id.trim() === '') {
-    throw new ValidationError('Section heading must have a valid id', 'id', heading.id);
+  const h = heading as SectionHeading;
+  if (typeof h.id !== 'string' || h.id.trim() === '') {
+    throw new ValidationError('Section heading must have a valid id', 'id', h.id);
   }
   // moduleId is optional (deprecated - section headings are now translation-agnostic)
   // Keep it for backward compatibility but don't require it
-  if (typeof heading.title !== 'string' || heading.title.trim() === '') {
-    throw new ValidationError('Section heading must have a valid title', 'title', heading.title);
+  if (typeof h.title !== 'string' || h.title.trim() === '') {
+    throw new ValidationError('Section heading must have a valid title', 'title', h.title);
   }
-
-  validateVerseRef(heading.beforeRef);
-  if (heading.coversUntil) {
-    validateVerseRef(heading.coversUntil);
+  validateVerseRef(h.beforeRef);
+  if (h.coversUntil) {
+    validateVerseRef(h.coversUntil);
   }
-
-  validateDate(heading.createdAt, 'createdAt');
-  validateDate(heading.updatedAt, 'updatedAt');
-
-  return heading as SectionHeading;
+  validateDate(h.createdAt, 'createdAt');
+  validateDate(h.updatedAt, 'updatedAt');
+  return h;
 }
 
 /**
  * Validate a chapter title
  */
-export function validateChapterTitle(title: any): ChapterTitle {
+export function validateChapterTitle(title: unknown): ChapterTitle {
   if (!title || typeof title !== 'object') {
     throw new ValidationError('Chapter title must be an object', 'title', title);
   }
-
-  if (typeof title.id !== 'string' || title.id.trim() === '') {
-    throw new ValidationError('Chapter title must have a valid id', 'id', title.id);
+  const t = title as ChapterTitle;
+  if (typeof t.id !== 'string' || t.id.trim() === '') {
+    throw new ValidationError('Chapter title must have a valid id', 'id', t.id);
   }
   // moduleId is optional (deprecated - chapter titles are now translation-agnostic)
   // Keep it for backward compatibility but don't require it
-  if (typeof title.book !== 'string' || title.book.trim() === '') {
-    throw new ValidationError('Chapter title must have a valid book', 'book', title.book);
+  if (typeof t.book !== 'string' || t.book.trim() === '') {
+    throw new ValidationError('Chapter title must have a valid book', 'book', t.book);
   }
-  if (typeof title.chapter !== 'number' || title.chapter < 1) {
-    throw new ValidationError('Chapter title must have a valid chapter (>= 1)', 'chapter', title.chapter);
+  if (typeof t.chapter !== 'number' || t.chapter < 1) {
+    throw new ValidationError('Chapter title must have a valid chapter (>= 1)', 'chapter', t.chapter);
   }
-  if (typeof title.title !== 'string' || title.title.trim() === '') {
-    throw new ValidationError('Chapter title must have a valid title', 'title', title.title);
+  if (typeof t.title !== 'string' || t.title.trim() === '') {
+    throw new ValidationError('Chapter title must have a valid title', 'title', t.title);
   }
-
-  validateDate(title.createdAt, 'createdAt');
-  validateDate(title.updatedAt, 'updatedAt');
-
-  return title as ChapterTitle;
+  validateDate(t.createdAt, 'createdAt');
+  validateDate(t.updatedAt, 'updatedAt');
+  return t;
 }
 
 /**
  * Validate a note
  */
-export function validateNote(note: any): Note {
+export function validateNote(note: unknown): Note {
   if (!note || typeof note !== 'object') {
     throw new ValidationError('Note must be an object', 'note', note);
   }
-
-  if (typeof note.id !== 'string' || note.id.trim() === '') {
-    throw new ValidationError('Note must have a valid id', 'id', note.id);
+  const n = note as Note;
+  if (typeof n.id !== 'string' || n.id.trim() === '') {
+    throw new ValidationError('Note must have a valid id', 'id', n.id);
   }
-  if (typeof note.moduleId !== 'string' || note.moduleId.trim() === '') {
-    throw new ValidationError('Note must have a valid moduleId', 'moduleId', note.moduleId);
+  if (typeof n.moduleId !== 'string' || n.moduleId.trim() === '') {
+    throw new ValidationError('Note must have a valid moduleId', 'moduleId', n.moduleId);
   }
-  if (typeof note.content !== 'string') {
-    throw new ValidationError('Note must have content', 'content', note.content);
+  if (typeof n.content !== 'string') {
+    throw new ValidationError('Note must have content', 'content', n.content);
   }
-
-  validateVerseRef(note.ref);
-  if (note.range) {
-    validateVerseRef(note.range.start);
-    validateVerseRef(note.range.end);
+  validateVerseRef(n.ref);
+  if (n.range) {
+    validateVerseRef(n.range.start);
+    validateVerseRef(n.range.end);
   }
-
-  validateDate(note.createdAt, 'createdAt');
-  validateDate(note.updatedAt, 'updatedAt');
-
-  return note as Note;
+  validateDate(n.createdAt, 'createdAt');
+  validateDate(n.updatedAt, 'updatedAt');
+  return n;
 }
 
 /**
  * Validate a marking preset
  */
-export function validateMarkingPreset(preset: any): MarkingPreset {
+export function validateMarkingPreset(preset: unknown): MarkingPreset {
   if (!preset || typeof preset !== 'object') {
     throw new ValidationError('Marking preset must be an object', 'preset', preset);
   }
-
-  if (typeof preset.id !== 'string' || preset.id.trim() === '') {
-    throw new ValidationError('Marking preset must have a valid id', 'id', preset.id);
+  const p = preset as MarkingPreset;
+  if (typeof p.id !== 'string' || p.id.trim() === '') {
+    throw new ValidationError('Marking preset must have a valid id', 'id', p.id);
   }
-
   // Must have at least symbol or highlight
-  if (!preset.symbol && !preset.highlight) {
+  if (!p.symbol && !p.highlight) {
     throw new ValidationError('Marking preset must have at least symbol or highlight', 'preset', preset);
   }
-
-  if (preset.symbol && !(preset.symbol in SYMBOLS)) {
-    throw new ValidationError('Marking preset must have a valid symbol if provided', 'symbol', preset.symbol);
+  if (p.symbol && !(p.symbol in SYMBOLS)) {
+    throw new ValidationError('Marking preset must have a valid symbol if provided', 'symbol', p.symbol);
   }
-
-  if (preset.highlight) {
-    if (typeof preset.highlight !== 'object') {
-      throw new ValidationError('Marking preset highlight must be an object', 'highlight', preset.highlight);
+  if (p.highlight) {
+    if (typeof p.highlight !== 'object') {
+      throw new ValidationError('Marking preset highlight must be an object', 'highlight', p.highlight);
     }
-    if (!['highlight', 'textColor', 'underline'].includes(preset.highlight.style)) {
-      throw new ValidationError('Marking preset highlight must have a valid style', 'highlight.style', preset.highlight.style);
+    if (!['highlight', 'textColor', 'underline'].includes(p.highlight.style)) {
+      throw new ValidationError('Marking preset highlight must have a valid style', 'highlight.style', p.highlight.style);
     }
-    if (!(preset.highlight.color in HIGHLIGHT_COLORS)) {
-      throw new ValidationError('Marking preset highlight must have a valid color', 'highlight.color', preset.highlight.color);
+    if (!(p.highlight.color in HIGHLIGHT_COLORS)) {
+      throw new ValidationError('Marking preset highlight must have a valid color', 'highlight.color', p.highlight.color);
     }
   }
-
-  if (!Array.isArray(preset.variants)) {
-    throw new ValidationError('Marking preset must have variants array', 'variants', preset.variants);
+  if (!Array.isArray(p.variants)) {
+    throw new ValidationError('Marking preset must have variants array', 'variants', p.variants);
   }
-
-  if (typeof preset.autoSuggest !== 'boolean') {
-    throw new ValidationError('Marking preset must have autoSuggest boolean', 'autoSuggest', preset.autoSuggest);
+  if (typeof p.autoSuggest !== 'boolean') {
+    throw new ValidationError('Marking preset must have autoSuggest boolean', 'autoSuggest', p.autoSuggest);
   }
-
-  if (typeof preset.usageCount !== 'number' || preset.usageCount < 0) {
-    throw new ValidationError('Marking preset must have a valid usageCount (>= 0)', 'usageCount', preset.usageCount);
+  if (typeof p.usageCount !== 'number' || p.usageCount < 0) {
+    throw new ValidationError('Marking preset must have a valid usageCount (>= 0)', 'usageCount', p.usageCount);
   }
-
   // Validate scope constraints
-  if (preset.chapterScope !== undefined && !preset.bookScope) {
-    throw new ValidationError('Marking preset chapterScope requires bookScope', 'chapterScope', preset.chapterScope);
+  if (p.chapterScope !== undefined && !p.bookScope) {
+    throw new ValidationError('Marking preset chapterScope requires bookScope', 'chapterScope', p.chapterScope);
   }
-
-  validateDate(preset.createdAt, 'createdAt');
-  validateDate(preset.updatedAt, 'updatedAt');
-
-  return preset as MarkingPreset;
+  validateDate(p.createdAt, 'createdAt');
+  validateDate(p.updatedAt, 'updatedAt');
+  return p;
 }
 
 /**
  * Validate a study
  */
-export function validateStudy(study: any): Study {
+export function validateStudy(study: unknown): Study {
   if (!study || typeof study !== 'object') {
     throw new ValidationError('Study must be an object', 'study', study);
   }
-
-  if (typeof study.id !== 'string' || study.id.trim() === '') {
-    throw new ValidationError('Study must have a valid id', 'id', study.id);
+  const s = study as Study;
+  if (typeof s.id !== 'string' || s.id.trim() === '') {
+    throw new ValidationError('Study must have a valid id', 'id', s.id);
   }
-  if (typeof study.name !== 'string' || study.name.trim() === '') {
-    throw new ValidationError('Study must have a valid name', 'name', study.name);
+  if (typeof s.name !== 'string' || s.name.trim() === '') {
+    throw new ValidationError('Study must have a valid name', 'name', s.name);
   }
-  if (typeof study.isActive !== 'boolean') {
-    throw new ValidationError('Study must have isActive boolean', 'isActive', study.isActive);
+  if (typeof s.isActive !== 'boolean') {
+    throw new ValidationError('Study must have isActive boolean', 'isActive', s.isActive);
   }
-
-  validateDate(study.createdAt, 'createdAt');
-  validateDate(study.updatedAt, 'updatedAt');
-
-  return study as Study;
+  validateDate(s.createdAt, 'createdAt');
+  validateDate(s.updatedAt, 'updatedAt');
+  return s;
 }
 
 /**
  * Validate a multi-translation view
  */
-export function validateMultiTranslationView(view: any): MultiTranslationView {
+export function validateMultiTranslationView(view: unknown): MultiTranslationView {
   if (!view || typeof view !== 'object') {
     throw new ValidationError('Multi-translation view must be an object', 'view', view);
   }
-
-  if (typeof view.id !== 'string' || view.id.trim() === '') {
-    throw new ValidationError('Multi-translation view must have a valid id', 'id', view.id);
+  const v = view as MultiTranslationView & { primaryTranslationId?: string };
+  if (typeof v.id !== 'string' || v.id.trim() === '') {
+    throw new ValidationError('Multi-translation view must have a valid id', 'id', v.id);
   }
-  if (!Array.isArray(view.translationIds)) {
-    throw new ValidationError('Multi-translation view must have translationIds array', 'translationIds', view.translationIds);
+  if (!Array.isArray(v.translationIds)) {
+    throw new ValidationError('Multi-translation view must have translationIds array', 'translationIds', v.translationIds);
   }
-  // Allow empty arrays (will be populated later) but if non-empty, must have 1-3 translation IDs
-  if (view.translationIds.length > 0 && view.translationIds.length > 3) {
-    throw new ValidationError('Multi-translation view must have at most 3 translation IDs', 'translationIds', view.translationIds);
+  if (v.translationIds.length > 0 && v.translationIds.length > 3) {
+    throw new ValidationError('Multi-translation view must have at most 3 translation IDs', 'translationIds', v.translationIds);
   }
-  
-  if (typeof view.syncScrolling !== 'boolean') {
-    throw new ValidationError('Multi-translation view must have syncScrolling boolean', 'syncScrolling', view.syncScrolling);
+  if (typeof v.syncScrolling !== 'boolean') {
+    throw new ValidationError('Multi-translation view must have syncScrolling boolean', 'syncScrolling', v.syncScrolling);
   }
-
-  // Strip primaryTranslationId if present (it's computed dynamically, not stored in the type)
-  const { primaryTranslationId, ...validatedView } = view;
+  const { primaryTranslationId: _primaryTranslationId, ...validatedView } = v;
   return validatedView as MultiTranslationView;
 }
 
 /**
  * Validate an observation list
  */
-export function validateObservationList(list: any): ObservationList {
+export function validateObservationList(list: unknown): ObservationList {
   if (!list || typeof list !== 'object') {
     throw new ValidationError('Observation list must be an object', 'list', list);
   }
-
-  if (typeof list.id !== 'string' || list.id.trim() === '') {
-    throw new ValidationError('Observation list must have a valid id', 'id', list.id);
+  const l = list as ObservationList;
+  if (typeof l.id !== 'string' || l.id.trim() === '') {
+    throw new ValidationError('Observation list must have a valid id', 'id', l.id);
   }
-  if (typeof list.title !== 'string' || list.title.trim() === '') {
-    throw new ValidationError('Observation list must have a valid title', 'title', list.title);
+  if (typeof l.title !== 'string' || l.title.trim() === '') {
+    throw new ValidationError('Observation list must have a valid title', 'title', l.title);
   }
-  if (typeof list.keyWordId !== 'string' || list.keyWordId.trim() === '') {
-    throw new ValidationError('Observation list must have a valid keyWordId', 'keyWordId', list.keyWordId);
+  if (typeof l.keyWordId !== 'string' || l.keyWordId.trim() === '') {
+    throw new ValidationError('Observation list must have a valid keyWordId', 'keyWordId', l.keyWordId);
   }
-  if (!Array.isArray(list.items)) {
-    throw new ValidationError('Observation list must have items array', 'items', list.items);
+  if (!Array.isArray(l.items)) {
+    throw new ValidationError('Observation list must have items array', 'items', l.items);
   }
-
   // Validate items
-  for (const item of list.items) {
+  for (const item of l.items) {
     if (!item || typeof item !== 'object') {
       throw new ValidationError('Observation list item must be an object', 'item', item);
     }
-    if (typeof item.id !== 'string' || item.id.trim() === '') {
-      throw new ValidationError('Observation list item must have a valid id', 'item.id', item.id);
+    const i = item as { id: string; content: string; verseRef: VerseRef; createdAt?: unknown; updatedAt?: unknown };
+    if (typeof i.id !== 'string' || i.id.trim() === '') {
+      throw new ValidationError('Observation list item must have a valid id', 'item.id', i.id);
     }
-    if (typeof item.content !== 'string' || item.content.trim() === '') {
-      throw new ValidationError('Observation list item must have valid content', 'item.content', item.content);
+    if (typeof i.content !== 'string' || i.content.trim() === '') {
+      throw new ValidationError('Observation list item must have valid content', 'item.content', i.content);
     }
-    validateVerseRef(item.verseRef);
-    if (item.createdAt) validateDate(item.createdAt, 'item.createdAt');
-    if (item.updatedAt) validateDate(item.updatedAt, 'item.updatedAt');
+    validateVerseRef(i.verseRef);
+    if (i.createdAt) validateDate(i.createdAt, 'item.createdAt');
+    if (i.updatedAt) validateDate(i.updatedAt, 'item.updatedAt');
   }
 
-  validateDate(list.createdAt, 'createdAt');
-  validateDate(list.updatedAt, 'updatedAt');
-
-  return list as ObservationList;
+  validateDate(l.createdAt, 'createdAt');
+  validateDate(l.updatedAt, 'updatedAt');
+  return l;
 }
 
 /**
  * Validate a 5W+H entry
  */
-export function validateFiveWAndH(entry: any): FiveWAndHEntry {
+export function validateFiveWAndH(entry: unknown): FiveWAndHEntry {
   if (!entry || typeof entry !== 'object') {
     throw new ValidationError('5W+H entry must be an object', 'entry', entry);
   }
-
-  if (typeof entry.id !== 'string' || entry.id.trim() === '') {
-    throw new ValidationError('5W+H entry must have a valid id', 'id', entry.id);
+  const e = entry as FiveWAndHEntry;
+  if (typeof e.id !== 'string' || e.id.trim() === '') {
+    throw new ValidationError('5W+H entry must have a valid id', 'id', e.id);
   }
-
-  validateVerseRef(entry.verseRef);
-
-  // All fields are optional, but if present, must be strings
-  if (entry.who !== undefined && typeof entry.who !== 'string') {
-    throw new ValidationError('5W+H entry who must be a string if provided', 'who', entry.who);
+  validateVerseRef(e.verseRef);
+  if (e.who !== undefined && typeof e.who !== 'string') {
+    throw new ValidationError('5W+H entry who must be a string if provided', 'who', e.who);
   }
-  if (entry.what !== undefined && typeof entry.what !== 'string') {
-    throw new ValidationError('5W+H entry what must be a string if provided', 'what', entry.what);
+  if (e.what !== undefined && typeof e.what !== 'string') {
+    throw new ValidationError('5W+H entry what must be a string if provided', 'what', e.what);
   }
-  if (entry.when !== undefined && typeof entry.when !== 'string') {
-    throw new ValidationError('5W+H entry when must be a string if provided', 'when', entry.when);
+  if (e.when !== undefined && typeof e.when !== 'string') {
+    throw new ValidationError('5W+H entry when must be a string if provided', 'when', e.when);
   }
-  if (entry.where !== undefined && typeof entry.where !== 'string') {
-    throw new ValidationError('5W+H entry where must be a string if provided', 'where', entry.where);
+  if (e.where !== undefined && typeof e.where !== 'string') {
+    throw new ValidationError('5W+H entry where must be a string if provided', 'where', e.where);
   }
-  if (entry.why !== undefined && typeof entry.why !== 'string') {
-    throw new ValidationError('5W+H entry why must be a string if provided', 'why', entry.why);
+  if (e.why !== undefined && typeof e.why !== 'string') {
+    throw new ValidationError('5W+H entry why must be a string if provided', 'why', e.why);
   }
-  if (entry.how !== undefined && typeof entry.how !== 'string') {
-    throw new ValidationError('5W+H entry how must be a string if provided', 'how', entry.how);
+  if (e.how !== undefined && typeof e.how !== 'string') {
+    throw new ValidationError('5W+H entry how must be a string if provided', 'how', e.how);
   }
-  if (entry.notes !== undefined && typeof entry.notes !== 'string') {
-    throw new ValidationError('5W+H entry notes must be a string if provided', 'notes', entry.notes);
+  if (e.notes !== undefined && typeof e.notes !== 'string') {
+    throw new ValidationError('5W+H entry notes must be a string if provided', 'notes', e.notes);
   }
-
-  // Validate linkedPresetIds if provided
-  if (entry.linkedPresetIds !== undefined) {
-    if (!Array.isArray(entry.linkedPresetIds)) {
-      throw new ValidationError('5W+H entry linkedPresetIds must be an array if provided', 'linkedPresetIds', entry.linkedPresetIds);
+  if (e.linkedPresetIds !== undefined) {
+    if (!Array.isArray(e.linkedPresetIds)) {
+      throw new ValidationError('5W+H entry linkedPresetIds must be an array if provided', 'linkedPresetIds', e.linkedPresetIds);
     }
-    for (const presetId of entry.linkedPresetIds) {
+    for (const presetId of e.linkedPresetIds) {
       if (typeof presetId !== 'string' || presetId.trim() === '') {
-        throw new ValidationError('5W+H entry linkedPresetIds must contain valid string IDs', 'linkedPresetIds', entry.linkedPresetIds);
+        throw new ValidationError('5W+H entry linkedPresetIds must contain valid string IDs', 'linkedPresetIds', e.linkedPresetIds);
       }
     }
   }
-
-  // At least one field should have content (who, what, when, where, why, how, or notes)
-  const hasContent = entry.who?.trim() || 
-                     entry.what?.trim() || 
-                     entry.when?.trim() || 
-                     entry.where?.trim() || 
-                     entry.why?.trim() || 
-                     entry.how?.trim() || 
-                     entry.notes?.trim();
+  const hasContent = e.who?.trim() || e.what?.trim() || e.when?.trim() || e.where?.trim() || e.why?.trim() || e.how?.trim() || e.notes?.trim();
   if (!hasContent) {
-    throw new ValidationError('5W+H entry must have at least one field with content', 'entry', entry);
+    throw new ValidationError('5W+H entry must have at least one field with content', 'entry', e);
   }
-
-  validateDate(entry.createdAt, 'createdAt');
-  validateDate(entry.updatedAt, 'updatedAt');
-
-  return entry as FiveWAndHEntry;
+  validateDate(e.createdAt, 'createdAt');
+  validateDate(e.updatedAt, 'updatedAt');
+  return e;
 }
 
 /**
  * Validate an interpretation entry
  */
-export function validateInterpretation(entry: any): InterpretationEntry {
+export function validateInterpretation(entry: unknown): InterpretationEntry {
   if (!entry || typeof entry !== 'object') {
     throw new ValidationError('Interpretation entry must be an object', 'entry', entry);
   }
-
-  if (typeof entry.id !== 'string' || entry.id.trim() === '') {
-    throw new ValidationError('Interpretation entry must have a valid id', 'id', entry.id);
+  const e = entry as InterpretationEntry;
+  if (typeof e.id !== 'string' || e.id.trim() === '') {
+    throw new ValidationError('Interpretation entry must have a valid id', 'id', e.id);
   }
-
-  validateVerseRef(entry.verseRef);
-
-  // Validate endVerseRef if provided
-  if (entry.endVerseRef !== undefined) {
-    validateVerseRef(entry.endVerseRef);
-    // Ensure endVerseRef is after or equal to verseRef
-    if (entry.endVerseRef.book !== entry.verseRef.book || 
-        entry.endVerseRef.chapter !== entry.verseRef.chapter ||
-        entry.endVerseRef.verse < entry.verseRef.verse) {
-      throw new ValidationError('Interpretation entry endVerseRef must be after or equal to verseRef', 'endVerseRef', entry.endVerseRef);
+  validateVerseRef(e.verseRef);
+  if (e.endVerseRef !== undefined) {
+    validateVerseRef(e.endVerseRef);
+    if (e.endVerseRef.book !== e.verseRef.book || e.endVerseRef.chapter !== e.verseRef.chapter || e.endVerseRef.verse < e.verseRef.verse) {
+      throw new ValidationError('Interpretation entry endVerseRef must be after or equal to verseRef', 'endVerseRef', e.endVerseRef);
     }
   }
-
-  // All fields are optional, but if present, must be strings
-  const optionalStringFields = ['meaning', 'authorIntent', 'keyThemes', 'context', 'implications', 'crossReferences', 'questions', 'insights'];
+  const optionalStringFields = ['meaning', 'authorIntent', 'keyThemes', 'context', 'implications', 'crossReferences', 'questions', 'insights'] as const;
+  const eRecord = e as unknown as Record<string, unknown>;
   for (const field of optionalStringFields) {
-    if (entry[field] !== undefined && typeof entry[field] !== 'string') {
-      throw new ValidationError(`Interpretation entry ${field} must be a string if provided`, field, entry[field]);
+    const val = eRecord[field];
+    if (val !== undefined && typeof val !== 'string') {
+      throw new ValidationError(`Interpretation entry ${field} must be a string if provided`, field, val);
     }
   }
-
-  // Validate linkedPresetIds if provided
-  if (entry.linkedPresetIds !== undefined) {
-    if (!Array.isArray(entry.linkedPresetIds)) {
-      throw new ValidationError('Interpretation entry linkedPresetIds must be an array if provided', 'linkedPresetIds', entry.linkedPresetIds);
+  if (e.linkedPresetIds !== undefined) {
+    if (!Array.isArray(e.linkedPresetIds)) {
+      throw new ValidationError('Interpretation entry linkedPresetIds must be an array if provided', 'linkedPresetIds', e.linkedPresetIds);
     }
-    for (const presetId of entry.linkedPresetIds) {
+    for (const presetId of e.linkedPresetIds) {
       if (typeof presetId !== 'string' || presetId.trim() === '') {
-        throw new ValidationError('Interpretation entry linkedPresetIds must contain valid string IDs', 'linkedPresetIds', entry.linkedPresetIds);
+        throw new ValidationError('Interpretation entry linkedPresetIds must contain valid string IDs', 'linkedPresetIds', e.linkedPresetIds);
       }
     }
   }
-
-  // Validate studyId if provided
-  if (entry.studyId !== undefined && (typeof entry.studyId !== 'string' || entry.studyId.trim() === '')) {
-    throw new ValidationError('Interpretation entry studyId must be a valid string if provided', 'studyId', entry.studyId);
+  if (e.studyId !== undefined && (typeof e.studyId !== 'string' || e.studyId.trim() === '')) {
+    throw new ValidationError('Interpretation entry studyId must be a valid string if provided', 'studyId', e.studyId);
   }
-
-  // At least one field should have content
-  const hasContent = entry.meaning?.trim() || 
-                     entry.authorIntent?.trim() || 
-                     entry.keyThemes?.trim() || 
-                     entry.context?.trim() || 
-                     entry.implications?.trim() || 
-                     entry.crossReferences?.trim() || 
-                     entry.questions?.trim() || 
-                     entry.insights?.trim();
+  const hasContent = e.meaning?.trim() || e.authorIntent?.trim() || e.keyThemes?.trim() || e.context?.trim() || e.implications?.trim() || e.crossReferences?.trim() || e.questions?.trim() || e.insights?.trim();
   if (!hasContent) {
-    throw new ValidationError('Interpretation entry must have at least one field with content', 'entry', entry);
+    throw new ValidationError('Interpretation entry must have at least one field with content', 'entry', e);
   }
-
-  validateDate(entry.createdAt, 'createdAt');
-  validateDate(entry.updatedAt, 'updatedAt');
-
-  return entry as InterpretationEntry;
+  validateDate(e.createdAt, 'createdAt');
+  validateDate(e.updatedAt, 'updatedAt');
+  return e;
 }
 
 /**
  * Validate an application entry
  */
-export function validateApplication(entry: any): ApplicationEntry {
+export function validateApplication(entry: unknown): ApplicationEntry {
   if (!entry || typeof entry !== 'object') {
     throw new ValidationError('Application entry must be an object', 'entry', entry);
   }
-
-  if (typeof entry.id !== 'string' || entry.id.trim() === '') {
-    throw new ValidationError('Application entry must have a valid id', 'id', entry.id);
+  const e = entry as ApplicationEntry;
+  if (typeof e.id !== 'string' || e.id.trim() === '') {
+    throw new ValidationError('Application entry must have a valid id', 'id', e.id);
   }
-
-  validateVerseRef(entry.verseRef);
-
+  validateVerseRef(e.verseRef);
   // All fields are optional, but if present, must be strings
-  if (entry.teaching !== undefined && typeof entry.teaching !== 'string') {
-    throw new ValidationError('Application entry teaching must be a string if provided', 'teaching', entry.teaching);
+  if (e.teaching !== undefined && typeof e.teaching !== 'string') {
+    throw new ValidationError('Application entry teaching must be a string if provided', 'teaching', e.teaching);
   }
-  if (entry.reproof !== undefined && typeof entry.reproof !== 'string') {
-    throw new ValidationError('Application entry reproof must be a string if provided', 'reproof', entry.reproof);
+  if (e.reproof !== undefined && typeof e.reproof !== 'string') {
+    throw new ValidationError('Application entry reproof must be a string if provided', 'reproof', e.reproof);
   }
-  if (entry.correction !== undefined && typeof entry.correction !== 'string') {
-    throw new ValidationError('Application entry correction must be a string if provided', 'correction', entry.correction);
+  if (e.correction !== undefined && typeof e.correction !== 'string') {
+    throw new ValidationError('Application entry correction must be a string if provided', 'correction', e.correction);
   }
-  if (entry.training !== undefined && typeof entry.training !== 'string') {
-    throw new ValidationError('Application entry training must be a string if provided', 'training', entry.training);
+  if (e.training !== undefined && typeof e.training !== 'string') {
+    throw new ValidationError('Application entry training must be a string if provided', 'training', e.training);
   }
-  if (entry.notes !== undefined && typeof entry.notes !== 'string') {
-    throw new ValidationError('Application entry notes must be a string if provided', 'notes', entry.notes);
+  if (e.notes !== undefined && typeof e.notes !== 'string') {
+    throw new ValidationError('Application entry notes must be a string if provided', 'notes', e.notes);
   }
-
   // Validate linkedPresetIds if provided
-  if (entry.linkedPresetIds !== undefined) {
-    if (!Array.isArray(entry.linkedPresetIds)) {
-      throw new ValidationError('Application entry linkedPresetIds must be an array if provided', 'linkedPresetIds', entry.linkedPresetIds);
+  if (e.linkedPresetIds !== undefined) {
+    if (!Array.isArray(e.linkedPresetIds)) {
+      throw new ValidationError('Application entry linkedPresetIds must be an array if provided', 'linkedPresetIds', e.linkedPresetIds);
     }
-    for (const presetId of entry.linkedPresetIds) {
+    for (const presetId of e.linkedPresetIds) {
       if (typeof presetId !== 'string' || presetId.trim() === '') {
-        throw new ValidationError('Application entry linkedPresetIds must contain valid string IDs', 'linkedPresetIds', entry.linkedPresetIds);
+        throw new ValidationError('Application entry linkedPresetIds must contain valid string IDs', 'linkedPresetIds', e.linkedPresetIds);
       }
     }
   }
-
   // At least one field should have content (teaching, reproof, correction, training, or notes)
-  const hasContent = entry.teaching?.trim() || 
-                     entry.reproof?.trim() || 
-                     entry.correction?.trim() || 
-                     entry.training?.trim() || 
-                     entry.notes?.trim();
+  const hasContent = e.teaching?.trim() ||
+                     e.reproof?.trim() ||
+                     e.correction?.trim() ||
+                     e.training?.trim() ||
+                     e.notes?.trim();
   if (!hasContent) {
     throw new ValidationError('Application entry must have at least one field with content', 'entry', entry);
   }
-
-  validateDate(entry.createdAt, 'createdAt');
-  validateDate(entry.updatedAt, 'updatedAt');
-
-  return entry as ApplicationEntry;
+  validateDate(e.createdAt, 'createdAt');
+  validateDate(e.updatedAt, 'updatedAt');
+  return e;
 }
 
 /**
  * Validate a place entry
  */
-export function validatePlace(place: any): Place {
+export function validatePlace(place: unknown): Place {
   if (!place || typeof place !== 'object') {
     throw new ValidationError('Place must be an object', 'place', place);
   }
-
-  if (typeof place.id !== 'string' || place.id.trim() === '') {
-    throw new ValidationError('Place must have a valid id', 'id', place.id);
+  const p = place as Place;
+  if (typeof p.id !== 'string' || p.id.trim() === '') {
+    throw new ValidationError('Place must have a valid id', 'id', p.id);
   }
-  if (typeof place.name !== 'string' || place.name.trim() === '') {
-    throw new ValidationError('Place must have a valid name', 'name', place.name);
+  if (typeof p.name !== 'string' || p.name.trim() === '') {
+    throw new ValidationError('Place must have a valid name', 'name', p.name);
   }
-
-  validateVerseRef(place.verseRef);
-
-  if (place.notes !== undefined && typeof place.notes !== 'string') {
-    throw new ValidationError('Place notes must be a string if provided', 'notes', place.notes);
+  validateVerseRef(p.verseRef);
+  if (p.notes !== undefined && typeof p.notes !== 'string') {
+    throw new ValidationError('Place notes must be a string if provided', 'notes', p.notes);
   }
-  if (place.presetId !== undefined && typeof place.presetId !== 'string') {
-    throw new ValidationError('Place presetId must be a string if provided', 'presetId', place.presetId);
+  if (p.presetId !== undefined && typeof p.presetId !== 'string') {
+    throw new ValidationError('Place presetId must be a string if provided', 'presetId', p.presetId);
   }
-  if (place.annotationId !== undefined && typeof place.annotationId !== 'string') {
-    throw new ValidationError('Place annotationId must be a string if provided', 'annotationId', place.annotationId);
+  if (p.annotationId !== undefined && typeof p.annotationId !== 'string') {
+    throw new ValidationError('Place annotationId must be a string if provided', 'annotationId', p.annotationId);
   }
-
-  validateDate(place.createdAt, 'createdAt');
-  validateDate(place.updatedAt, 'updatedAt');
-
-  return place as Place;
+  validateDate(p.createdAt, 'createdAt');
+  validateDate(p.updatedAt, 'updatedAt');
+  return p;
 }
 
 /**
  * Validate and sanitize data, converting date strings to Date objects
  */
-export function sanitizeData<T>(data: any, validator: (data: any) => T): T {
+export function sanitizeData<T>(data: unknown, validator: (data: unknown) => T): T {
   try {
     // Convert date strings to Date objects if needed
     if (data && typeof data === 'object') {
-      const sanitized = { ...data };
+      const sanitized: Record<string, unknown> = { ...(data as Record<string, unknown>) };
       for (const [key, value] of Object.entries(sanitized)) {
         if ((key === 'createdAt' || key === 'updatedAt' || key === 'timestamp' || key === 'cachedAt')) {
           if (typeof value === 'string') {
@@ -631,8 +563,8 @@ export function sanitizeData<T>(data: any, validator: (data: any) => T): T {
  * Validate an array of items, returning valid items and errors
  */
 export function validateArray<T>(
-  items: any[],
-  validator: (item: any) => T,
+  items: unknown[],
+  validator: (item: unknown) => T,
   itemName: string = 'item'
 ): { valid: T[]; errors: ValidationError[] } {
   const valid: T[] = [];

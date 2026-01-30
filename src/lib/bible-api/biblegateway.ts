@@ -109,15 +109,6 @@ function parseTranslationList(list: string[]): ApiTranslation[] {
     });
 }
 
-interface TokenResponse {
-  access_token: string;
-  expiration: number;
-}
-
-interface BibleGatewayError {
-  error?: { errcode: number; errmsg: string };
-}
-
 export class BibleGatewayClient implements BibleApiClient {
   readonly provider: BibleApiProvider = 'biblegateway';
   private username: string | null = null;
@@ -294,7 +285,9 @@ export class BibleGatewayClient implements BibleApiClient {
         if (cached?.translations && Array.isArray(cached.translations)) {
           return parseTranslationList(cached.translations as string[]);
         }
-      } catch (_) {}
+      } catch {
+        // ignore cache read errors
+      }
       throw e;
     }
   }

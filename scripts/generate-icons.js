@@ -13,7 +13,7 @@
  * - OR use ImageMagick: brew install imagemagick
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -39,7 +39,7 @@ async function generateIcons() {
   try {
     sharp = (await import('sharp')).default;
     console.log('✅ Using sharp for icon generation\n');
-  } catch (e) {
+  } catch {
     console.error('❌ sharp not found. Installing...\n');
     console.log('Please run: pnpm add -D sharp\n');
     console.log('Or use ImageMagick manually:\n');

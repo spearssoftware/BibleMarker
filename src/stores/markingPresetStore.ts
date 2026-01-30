@@ -117,7 +117,7 @@ export const useMarkingPresetStore = create<MarkingPresetState>((set, get) => ({
     // Filter by active study (if any)
     // Show: global keywords (no studyId) + keywords matching active study
     // When no study is active, show all keywords
-    const activeStudyId = (window as any).__studyStore?.getState?.()?.activeStudyId;
+    const activeStudyId = (window as Window & { __studyStore?: { getState?: () => { activeStudyId?: string } } }).__studyStore?.getState?.()?.activeStudyId;
     if (activeStudyId !== undefined) {
       // We need to access studyStore, but to avoid circular dependency, we'll filter in KeyWordManager
       // For now, keep all presets - filtering will happen in KeyWordManager component

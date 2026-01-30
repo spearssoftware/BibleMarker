@@ -6,8 +6,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
-import { getPreferences, updatePreferences } from '@/lib/db';
-import type { ApiConfigRecord } from '@/lib/db';
+import { getPreferences } from '@/lib/db';
 import { 
   bibliaClient, 
   bibleGatewayClient,
@@ -31,7 +30,7 @@ interface ModuleManagerProps {
 export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerProps) {
   const { currentModuleId, setCurrentModule } = useBibleStore();
   const [apiTranslations, setApiTranslations] = useState<ApiTranslation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   // API Configuration state
@@ -112,7 +111,7 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
     try {
       // Use the centralized saveApiConfig function from bible-api
       // This ensures consistency and proper persistence
-      let configToSave: any;
+      let configToSave: { provider: 'biblia' | 'esv' | 'biblegateway'; apiKey?: string; username?: string; password?: string; enabled: boolean };
       if (provider === 'biblegateway') {
         const { username, password } = apiKeyOrCreds as { username: string; password: string };
         configToSave = {

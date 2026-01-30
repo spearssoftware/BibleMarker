@@ -100,7 +100,7 @@ const OSIS_TO_GETBIBLE: Record<string, string> = {
 };
 
 // Map getBible book numbers to OSIS IDs
-const GETBIBLE_BOOK_NUMBERS: Record<number, string> = {
+const _GETBIBLE_BOOK_NUMBERS: Record<number, string> = {
   1: 'Gen', 2: 'Exod', 3: 'Lev', 4: 'Num', 5: 'Deut',
   6: 'Josh', 7: 'Judg', 8: 'Ruth', 9: '1Sam', 10: '2Sam',
   11: '1Kgs', 12: '2Kgs', 13: '1Chr', 14: '2Chr', 15: 'Ezra',
@@ -127,7 +127,7 @@ function getBookNumber(osisId: string): number | null {
   return bookInfo.order;
 }
 
-interface GetBibleChapterResponse {
+interface _GetBibleChapterResponse {
   reference: string;
   verses: Record<string, string | number | object>; // verse number -> text (may be string, number, or object)
   text: string; // full chapter text
@@ -197,9 +197,9 @@ class GetBibleClient implements BibleApiClient {
         const cacheAge = now.getTime() - cached.cachedAt.getTime();
         if (cacheAge < CACHE_DURATION_MS) {
           // Parse cached translations
-          const translations: GetBibleTranslation[] = Array.isArray(cached.translations) 
-            ? cached.translations 
-            : Object.values(cached.translations || {});
+          const translations: GetBibleTranslation[] = Array.isArray(cached.translations)
+            ? (cached.translations as GetBibleTranslation[])
+            : (Object.values(cached.translations || {}) as GetBibleTranslation[]);
           
           return this.parseTranslations(translations);
         }
@@ -219,8 +219,8 @@ class GetBibleClient implements BibleApiClient {
       }
       
       const data = await response.json();
-      const translations: GetBibleTranslation[] = Array.isArray(data) ? data : Object.values(data);
-      
+      const translations: GetBibleTranslation[] = Array.isArray(data) ? (data as GetBibleTranslation[]) : (Object.values(data as Record<string, unknown>) as GetBibleTranslation[]);
+
       // Parse and return immediately, cache in background
       const parsed = this.parseTranslations(translations);
       
@@ -241,9 +241,9 @@ class GetBibleClient implements BibleApiClient {
       try {
         const cached = await db.translationCache.get(CACHE_KEY);
         if (cached && cached.translations) {
-          const translations: GetBibleTranslation[] = Array.isArray(cached.translations) 
-            ? cached.translations 
-            : Object.values(cached.translations || {});
+          const translations: GetBibleTranslation[] = Array.isArray(cached.translations)
+            ? (cached.translations as GetBibleTranslation[])
+            : (Object.values(cached.translations || {}) as GetBibleTranslation[]);
           return this.parseTranslations(translations);
         }
       } catch (fallbackError) {
@@ -319,26 +319,31 @@ class GetBibleClient implements BibleApiClient {
         );
       }
 
-      const data: any = await response.json();
-      
+      type GetBibleVerseItem = { verse?: number | string; text?: string | { text?: string; content?: string } };
+      type GetBibleChapterData = {
+        verses?: GetBibleVerseItem[] | Record<string, unknown>;
+        result?: Record<string, { verses?: GetBibleVerseItem[] }>;
+        translation_note?: string;
+      };
+      const data = await response.json() as GetBibleChapterData;
+
       // getBible API v2 Main API returns verses as an array of objects
       // Format: { verses: [{ chapter: 1, verse: 1, name: "Genesis 1:1", text: "..." }, ...] }
-      let versesArray: any[] = [];
-      
+      let versesArray: GetBibleVerseItem[] = [];
+
       if (Array.isArray(data.verses)) {
-        // Main API format - verses is an array
         versesArray = data.verses;
       } else if (data.verses && typeof data.verses === 'object' && !Array.isArray(data.verses)) {
         // Legacy format - verses is an object with verse numbers as keys
-        versesArray = Object.entries(data.verses).map(([verseNum, text]: [string, any]) => ({
+        versesArray = Object.entries(data.verses as Record<string, unknown>).map(([verseNum, text]) => ({
           verse: parseInt(verseNum, 10),
-          text: typeof text === 'string' ? text : (text?.text || String(text || '')),
+          text: typeof text === 'string' ? text : (typeof text === 'object' && text !== null && 'text' in text ? (text as { text?: string }).text : String(text ?? '')),
         }));
       } else if (data.result) {
         // Query API format - extract from result
         const firstKey = Object.keys(data.result)[0];
         if (firstKey && data.result[firstKey].verses) {
-          versesArray = data.result[firstKey].verses;
+          versesArray = data.result[firstKey].verses as GetBibleVerseItem[];
         }
       }
       
@@ -359,28 +364,23 @@ class GetBibleClient implements BibleApiClient {
       
       // Convert getBible format to our format
       const verses: VerseResponse[] = versesArray
-        .filter((verse: any) => {
-          // Only process valid verses with verse numbers
-          return verse && (verse.verse !== undefined && verse.verse !== null);
-        })
-        .map((verse: any) => {
-          // Extract text from verse object
+        .filter((verse): verse is GetBibleVerseItem & { verse: number | string } => verse != null && verse.verse !== undefined && verse.verse !== null)
+        .map((verse) => {
           let textStr = '';
           if (typeof verse.text === 'string') {
             textStr = verse.text;
           } else if (verse.text && typeof verse.text === 'object') {
-            // Handle nested text object
             textStr = String(verse.text.text || verse.text.content || '');
           } else {
             textStr = String(verse.text || '');
           }
-          
+          const verseNum = typeof verse.verse === 'number' ? verse.verse : parseInt(String(verse.verse ?? '0'), 10);
           return {
             book,
             chapter,
-            verse: typeof verse.verse === 'number' ? verse.verse : parseInt(String(verse.verse || '0'), 10),
+            verse: verseNum,
             text: textStr.trim(),
-            html: textStr.trim(), // getBible doesn't provide separate HTML
+            html: textStr.trim(),
           };
         })
         .filter(v => v.verse > 0) // Filter out invalid verses
@@ -480,7 +480,7 @@ class GetBibleClient implements BibleApiClient {
 
       const data = await response.json();
       
-      return (data.verses || []).map((verse: any) => ({
+      return ((data as { verses?: Array<{ verse?: number; text?: string }> }).verses || []).map((verse) => ({
         book: startRef.book,
         chapter: startRef.chapter,
         verse: verse.verse || 0,

@@ -8,7 +8,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
-import { getChapterTitle, saveChapterTitle, deleteChapterTitle } from '@/lib/db';
+import { getChapterTitle, saveChapterTitle } from '@/lib/db';
 import { analyzeKeywordFrequencyByChapter } from '@/lib/annotationQueries';
 import type { ChapterTitle } from '@/types/annotation';
 import { SYMBOLS } from '@/types/annotation';
@@ -21,7 +21,7 @@ interface ThemeEditorProps {
   verseRef?: { book: string; chapter: number; verse: number };
 }
 
-export function ThemeEditor({ selectedText, verseRef }: ThemeEditorProps) {
+export function ThemeEditor({ verseRef }: ThemeEditorProps) {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { activeView } = useMultiTranslationStore();
   const { presets } = useMarkingPresetStore();

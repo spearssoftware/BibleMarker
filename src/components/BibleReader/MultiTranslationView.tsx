@@ -8,7 +8,6 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import React from 'react';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import type { VerseRef } from '@/types/bible';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
 import { getAllTranslations, type ApiTranslation, fetchChapter } from '@/lib/bible-api';
@@ -21,13 +20,12 @@ import { ChapterTitleCreator } from './ChapterTitleCreator';
 import { NoteEditor } from './NoteEditor';
 import { NoteCreator } from './NoteCreator';
 import { VerseNumberMenu } from './VerseNumberMenu';
-import { getBookById } from '@/types/bible';
 import { useListStore } from '@/stores/listStore';
 import { usePlaceStore } from '@/stores/placeStore';
 import { useTimeStore } from '@/stores/timeStore';
+import { getBookById } from '@/types/bible';
 import type { Chapter } from '@/types/bible';
 import type { Annotation, SectionHeading, Note, ChapterTitle } from '@/types/annotation';
-import type { VerseRange } from '@/types/bible';
 
 interface TranslationChapter {
   translation: ApiTranslation;
@@ -47,13 +45,15 @@ export function MultiTranslationView() {
   // Get the primary translation ID (first valid one) for section headings, chapter titles, and notes
   // Fall back to currentModuleId if no active view or if active view has no translations
   // Memoize to prevent unnecessary re-renders - use stringified array to compare by value, not reference
+  const translationIdsJoin = activeView?.translationIds?.join(',');
   const primaryTranslationId = useMemo(() => {
     const translationIds = activeView?.translationIds;
     if (!translationIds || translationIds.length === 0) {
       return currentModuleId || null;
     }
     return translationIds[0] || currentModuleId || null;
-  }, [activeView?.translationIds?.join(','), currentModuleId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- translationIdsJoin captures activeView?.translationIds
+  }, [translationIdsJoin, currentModuleId]);
   
   const { removeAnnotation } = useAnnotations();
   const { autoPopulateFromChapter: autoPopulateListsFromChapter } = useListStore();
@@ -117,7 +117,22 @@ export function MultiTranslationView() {
     const notesData = await getChapterNotes(primaryTranslationId, currentBook, currentChapter);
     setNotes(notesData);
   }, [primaryTranslationId, currentBook, currentChapter]);
-  
+
+  const loadAnnotations = useCallback(async () => {
+    if (!activeView) return;
+    const newAnnotations = new Map<string, Annotation[]>();
+    for (const translationId of activeView.translationIds) {
+      try {
+        const annotations = await getChapterAnnotations(translationId, currentBook, currentChapter);
+        newAnnotations.set(translationId, annotations);
+      } catch (error) {
+        console.error(`Failed to load annotations for ${translationId}:`, error);
+        newAnnotations.set(translationId, []);
+      }
+    }
+    setAnnotationsByTranslation(newAnnotations);
+  }, [activeView, currentBook, currentChapter]);
+
   // Create/update/delete functions (translation-agnostic)
   const createSectionHeading = useCallback(async (verseNum: number, title: string) => {
     if (!title.trim()) return null;
@@ -295,26 +310,7 @@ export function MultiTranslationView() {
     return () => {
       window.removeEventListener('annotationsUpdated', handleAnnotationsUpdated);
     };
-  }, [activeView, currentBook, currentChapter]);
-
-  const loadAnnotations = async () => {
-    if (!activeView) return;
-    
-    const newAnnotations = new Map<string, Annotation[]>();
-    
-    // Load annotations for each translation
-    for (const translationId of activeView.translationIds) {
-      try {
-        const annotations = await getChapterAnnotations(translationId, currentBook, currentChapter);
-        newAnnotations.set(translationId, annotations);
-      } catch (error) {
-        console.error(`Failed to load annotations for ${translationId}:`, error);
-        newAnnotations.set(translationId, []);
-      }
-    }
-    
-    setAnnotationsByTranslation(newAnnotations);
-  };
+  }, [activeView, currentBook, currentChapter, loadAnnotations]);
 
   // Helper function to expand selection to word boundaries
   const expandToWordBoundaries = (range: Range): { expandedRange: Range; text: string } => {
@@ -353,9 +349,6 @@ export function MultiTranslationView() {
         const lastWordMatch = selectedText.match(/\w(?=[\s\p{P}]*$)/u);
         
         if (firstWordMatch && lastWordMatch) {
-          const firstWordIndex = selectedText.indexOf(firstWordMatch[0]);
-          const lastWordIndex = selectedText.lastIndexOf(lastWordMatch[0]);
-          
           // Try to adjust the range to start/end at word boundaries
           // This is approximate - we'll refine the text after
           const startContainer = expandedRange.startContainer;
@@ -407,8 +400,7 @@ export function MultiTranslationView() {
           null
         );
         
-        let textNode;
-        while (textNode = walker.nextNode()) {
+        for (let textNode = walker.nextNode(); textNode; textNode = walker.nextNode()) {
           if (textNode.textContent) {
             textParts.push(textNode.textContent);
           }
@@ -422,7 +414,7 @@ export function MultiTranslationView() {
     
     // Trim leading/trailing punctuation, whitespace, but keep internal punctuation
     // Remove common punctuation and whitespace from edges
-    expandedText = expandedText.replace(/^[\s.,;:!?'"()\[\]{}—–-]+|[\s.,;:!?'"()\[\]{}—–-]+$/g, '');
+    expandedText = expandedText.replace(/^[\s.,;:!?'"()[\]+{}—–-]+|[\s.,;:!?'"()[\]+{}—–-]+$/g, '');
     
     return { expandedRange, text: expandedText };
   };
@@ -782,12 +774,6 @@ export function MultiTranslationView() {
   
   const sortedVerseNumbers = Array.from(allVerseNumbers).sort((a, b) => a - b);
   
-  // Helper to check if a translation column is fully loading (no chapter loaded at all)
-  const isTranslationLoading = (translationId: string) => {
-    const translationData = translationList.find(t => t.translation.id === translationId);
-    return translationData?.isLoading && !translationData?.chapter;
-  };
-
   return (
     <div className="multi-translation-view h-full flex flex-col" onClick={handleClick} data-bible-reader>
       {/* Chapter title section */}

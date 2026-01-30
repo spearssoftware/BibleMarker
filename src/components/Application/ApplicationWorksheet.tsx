@@ -14,13 +14,11 @@ import { useState, useEffect } from 'react';
 import { useApplicationStore } from '@/stores/applicationStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
-import { formatVerseRef, getBookById } from '@/types/bible';
+import { formatVerseRef } from '@/types/bible';
 import type { ApplicationEntry } from '@/types/application';
 import type { VerseRef } from '@/types/bible';
 import { Textarea, ConfirmationDialog } from '@/components/shared';
 import { getChapterAnnotations } from '@/lib/db';
-import { useAnnotationStore } from '@/stores/annotationStore';
-import type { Annotation } from '@/types/annotation';
 
 interface ApplicationWorksheetProps {
   selectedText?: string;
@@ -57,7 +55,7 @@ const sortVerseGroups = (groups: Map<string, ApplicationEntry[]>): Array<[string
   });
 };
 
-export function ApplicationWorksheet({ selectedText, verseRef: initialVerseRef }: ApplicationWorksheetProps) {
+export function ApplicationWorksheet({ verseRef: initialVerseRef }: ApplicationWorksheetProps) {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { 
     applicationEntries, 

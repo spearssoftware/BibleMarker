@@ -12,7 +12,6 @@ import { formatVerseRef } from '@/types/bible';
 import { stripSymbols } from '@/lib/textUtils';
 import { useModal } from '@/hooks/useModal';
 import { Modal, Button, Textarea, DropdownSelect, ReadOnlyField, Input } from '@/components/shared';
-import { Z_INDEX } from '@/lib/modalConstants';
 
 interface AddToListProps {
   verseRef: VerseRef;
@@ -35,7 +34,7 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
   // Initialize with most recently used list if available
   const [selectedListId, setSelectedListId] = useState<string>('');
 
-  const { handleBackdropClick } = useModal({
+  useModal({
     isOpen: true,
     onClose,
     lockScroll: true,

@@ -12,7 +12,6 @@ import type {
   ApiConfig,
   ApiTranslation,
   ChapterResponse,
-  VerseResponse,
   SearchResult,
   BibleApiClient,
 } from './types';
@@ -21,7 +20,7 @@ import { bibliaClient } from './biblia';
 import { bibleGatewayClient } from './biblegateway';
 import { esvClient, parseVerseText } from './esv';
 import { getBibleClient } from './getbible';
-import type { VerseRef, Chapter } from '@/types/bible';
+import type { Chapter } from '@/types/bible';
 import { db } from '@/lib/db';
 import { retryWithBackoff, isNetworkError, getNetworkErrorMessage, isOnline } from '../offline';
 
@@ -40,25 +39,25 @@ export const BIBLEGATEWAY_ENABLED = false;
  * Usage: In browser console, type: window.testBibleAvailability('NASB')
  */
 if (typeof window !== 'undefined') {
-  (window as any).testBibleAvailability = async (bibleId: string) => {
+  (window as Window & { testBibleAvailability?: (bibleId: string) => Promise<boolean> }).testBibleAvailability = async (bibleId: string) => {
     const { bibliaClient } = await import('./biblia');
     const isAvailable = await bibliaClient.isBibleAvailable(bibleId);
     return isAvailable;
   };
 
-  (window as any).listAvailableBibles = async () => {
+  (window as Window & { listAvailableBibles?: () => Promise<string[]> }).listAvailableBibles = async () => {
     const { bibliaClient } = await import('./biblia');
     const bibleIds = await bibliaClient.getAvailableBibleIds();
     return bibleIds;
   };
 
-  (window as any).clearChapterCache = async () => {
+  (window as Window & { clearChapterCache?: () => Promise<number> }).clearChapterCache = async () => {
     const count = await db.chapterCache.count();
     await db.chapterCache.clear();
     return count;
   };
 
-  (window as any).clearTranslationCache = async () => {
+  (window as Window & { clearTranslationCache?: () => Promise<number> }).clearTranslationCache = async () => {
     const count = await db.translationCache.count();
     await db.translationCache.clear();
     return count;
@@ -269,7 +268,7 @@ export async function fetchChapter(
         textStr = text;
       } else if (text && typeof text === 'object') {
         // Old format - extract text property
-        textStr = String((text as any).text || (text as any).content || '');
+        textStr = String((text as { text?: string; content?: string }).text || (text as { text?: string; content?: string }).content || '');
       } else {
         textStr = String(text || '');
       }
@@ -527,7 +526,6 @@ export async function fetchChapter(
         for (let i = 0; i < sortedChapters.length; i++) {
           // Start a new sequence from this chapter
           let sequenceVerses = 0;
-          let sequenceStart = sortedChapters[i];
           let includesNewChapter = false;
           
           // Count verses in the starting chapter

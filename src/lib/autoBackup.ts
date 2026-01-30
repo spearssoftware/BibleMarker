@@ -135,7 +135,7 @@ export async function getBackupLocation(): Promise<string> {
         return backupDir;
       }
       return 'Unable to determine backup location';
-    } catch (error) {
+    } catch {
       return 'Error getting backup location';
     }
   }
@@ -153,8 +153,6 @@ export async function getBackupLocation(): Promise<string> {
  */
 async function saveBackupToFile(backup: BackupData, filename: string): Promise<string | null> {
   const json = JSON.stringify(backup, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  
   if (isTauri()) {
     try {
       const backupDir = await getBackupDirectory();
@@ -273,7 +271,7 @@ async function createBackupData(): Promise<BackupData> {
 
   // Clean up multi-translation views - remove primaryTranslationId if present (it's computed dynamically)
   const cleanedMultiTranslationViews = multiTranslationViews.map(view => {
-    const { primaryTranslationId, ...cleanedView } = view as MultiTranslationView & { primaryTranslationId?: string };
+    const { primaryTranslationId: _, ...cleanedView } = view as MultiTranslationView & { primaryTranslationId?: string };
     return cleanedView;
   });
 
@@ -331,7 +329,7 @@ async function rotateBackups(maxBackups: number): Promise<void> {
       await metadataDb.backupFiles.delete(backup.id);
       try {
         await metadataDb.backupData.delete(backup.id);
-      } catch (error) {
+      } catch {
         // Ignore if doesn't exist
       }
     }
@@ -465,7 +463,7 @@ export async function deleteStoredBackup(id: string): Promise<void> {
   await metadataDb.backupFiles.delete(id);
   try {
     await metadataDb.backupData.delete(id);
-  } catch (error) {
+  } catch {
     // Ignore if doesn't exist
   }
 }
@@ -482,8 +480,8 @@ export async function clearAllBackups(): Promise<void> {
       try {
         const { remove } = await import('@tauri-apps/plugin-fs');
         await remove(backup.filepath);
-      } catch (error) {
-        console.warn(`[AutoBackup] Failed to delete backup file:`, error);
+      } catch (err) {
+        console.warn(`[AutoBackup] Failed to delete backup file:`, err);
       }
     }
   }
@@ -492,7 +490,7 @@ export async function clearAllBackups(): Promise<void> {
   await metadataDb.backupFiles.clear();
   try {
     await metadataDb.backupData.clear();
-  } catch (error) {
+  } catch {
     // Ignore if doesn't exist
   }
 }

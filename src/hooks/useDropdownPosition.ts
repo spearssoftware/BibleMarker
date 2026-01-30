@@ -10,7 +10,7 @@ import { useEffect, useState, RefObject } from 'react';
 export type DropdownAlignment = 'center' | 'left' | 'right';
 
 interface UseDropdownPositionOptions {
-  triggerRef: RefObject<HTMLElement>;
+  triggerRef: RefObject<HTMLElement | null>;
   /** Width of the dropdown in pixels */
   width: number;
   /** Alignment relative to trigger: center (default), left, or right */

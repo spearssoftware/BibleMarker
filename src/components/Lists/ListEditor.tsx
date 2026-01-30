@@ -10,7 +10,7 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import type { ObservationList } from '@/types/list';
-import { BIBLE_BOOKS, getBookById } from '@/types/bible';
+import { BIBLE_BOOKS } from '@/types/bible';
 import { Modal, Input, Select, Label } from '@/components/shared';
 
 interface ListEditorProps {
@@ -24,7 +24,7 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
   const { createList, updateList, autoPopulateFromKeyword } = useListStore();
   const { presets } = useMarkingPresetStore();
   const { studies } = useStudyStore();
-  const { currentBook, currentChapter } = useBibleStore();
+  const { currentBook } = useBibleStore();
   
   const [title, setTitle] = useState(list?.title || '');
   const [selectedKeywordId, setSelectedKeywordId] = useState<string>(list?.keyWordId || '');

@@ -12,7 +12,6 @@ import type { VerseRef } from '@/types/bible';
 import { getBookById } from '@/types/bible';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 import { getSymbolsForTracker } from '@/lib/observationSymbols';
-import type { SymbolAnnotation } from '@/types/annotation';
 
 interface TimeState {
   // Time expressions (cached)

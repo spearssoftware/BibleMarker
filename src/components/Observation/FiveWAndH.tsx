@@ -13,8 +13,6 @@ import type { FiveWAndHEntry } from '@/types/observation';
 import type { VerseRef } from '@/types/bible';
 import { Textarea, ConfirmationDialog } from '@/components/shared';
 import { getChapterAnnotations } from '@/lib/db';
-import { useAnnotationStore } from '@/stores/annotationStore';
-import type { Annotation } from '@/types/annotation';
 
 interface FiveWAndHProps {
   selectedText?: string;
@@ -74,7 +72,7 @@ const sortVerseGroups = (groups: Map<string, FiveWAndHEntry[]>): Array<[string, 
   });
 };
 
-export function FiveWAndH({ selectedText, verseRef: initialVerseRef, filterByChapter = false, onNavigate }: FiveWAndHProps) {
+export function FiveWAndH({ verseRef: initialVerseRef, filterByChapter = false, onNavigate }: FiveWAndHProps) {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { 
     fiveWAndHEntries, 

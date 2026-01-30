@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { getAllTranslations, type ApiTranslation } from '@/lib/bible-api';
+import { type ApiTranslation } from '@/lib/bible-api';
 import { getPreferences, db } from '@/lib/db';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useModal } from '@/hooks/useModal';

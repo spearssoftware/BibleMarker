@@ -76,6 +76,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSelectResult/scrollToSelected stable; key handler only needs results/selectedIndex
   }, [results, selectedIndex, onClose]);
 
   const { handleBackdropClick } = useModal({

@@ -9,7 +9,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { getChapterAnnotations, getMarkingPreset, db } from '@/lib/db';
+import { db } from '@/lib/db';
 import { getBookById } from '@/types/bible';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { SYMBOLS, HIGHLIGHT_COLORS } from '@/types/annotation';
@@ -20,7 +20,6 @@ function extractPlainText(html: string): string {
   temp.innerHTML = html;
   return temp.textContent || temp.innerText || '';
 }
-import type { Annotation } from '@/types/annotation';
 import type { MarkingPreset } from '@/types/keyWord';
 
 interface KeywordChapterData {

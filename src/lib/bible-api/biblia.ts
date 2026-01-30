@@ -24,8 +24,6 @@ import type {
 } from './types';
 import { BibleApiError } from './types';
 import type { VerseRef } from '@/types/bible';
-import { getBookById } from '@/types/bible';
-
 // Use proxy in development, direct API in production
 // In development, Vite proxy forwards /api/biblia/* to https://api.biblia.com/v1/bible/*
 const BIBLIA_BASE_URL = import.meta.env.DEV 
@@ -267,13 +265,13 @@ export class BibliaClient implements BibleApiClient {
           // Get list of available Bible IDs from API
           const availableBibleIds = new Set(
             response.bibles
-              .map((b: any) => b.bible?.toUpperCase())
-              .filter((id: string) => id)
+              .map((b: { bible?: string }) => b.bible?.toUpperCase())
+              .filter((id: string | undefined): id is string => Boolean(id))
           );
           
           // Mark which translations are confirmed available (for future use)
           mainTranslations.forEach(translation => {
-            const isAvailable = availableBibleIds.has(translation.id.toUpperCase());
+            availableBibleIds.has(translation.id.toUpperCase());
             // Translation availability is checked but not logged
           });
         }
@@ -302,7 +300,6 @@ export class BibliaClient implements BibleApiClient {
     const lines = response.text.split('\n').filter(line => line.trim());
     const verses: VerseResponse[] = [];
     
-    let matchedCount = 0;
     let chapterMismatchCount = 0;
     let failedMatchCount = 0;
     
@@ -325,7 +322,6 @@ export class BibliaClient implements BibleApiClient {
       }
       
       if (match) {
-        matchedCount++;
         const verseChapter = parseInt(match[1], 10);
         const verseNum = parseInt(match[2], 10);
         let verseText = match[3]?.trim() || '';

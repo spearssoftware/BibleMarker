@@ -27,14 +27,6 @@ interface VerseTextProps {
   onShowVerse?: (ref: VerseRef) => void; // Show verse in overlay
 }
 
-// Helper to extract plain text from HTML (removes tags but keeps text)
-function extractPlainText(html: string): string {
-  // Create a temporary element to parse HTML and extract text
-  const temp = document.createElement('div');
-  temp.innerHTML = html;
-  return temp.textContent || temp.innerText || '';
-}
-
 export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAnnotation, onVerseNumberClick, verseMenu, onNavigate, onShowVerse }: VerseTextProps) {
   const [crossRefState, setCrossRefState] = useState<{ refs: string[]; position: { x: number; y: number } } | null>(null);
   const [overlayVerse, setOverlayVerse] = useState<VerseRef | null>(null);
@@ -148,8 +140,9 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     }
     
     return matches;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- filteredPresets already reflects presets/activeStudyId; debug output only
   }, [verse.text, verse.ref, filteredPresets, moduleId]);
-  
+
   // Merge real annotations with virtual annotations
   // Virtual annotations are filtered out if a real annotation already covers the same range
   // EXCEPT: if the real annotation has the same presetId, prefer the virtual one (it's from the keyword preset)
@@ -303,8 +296,9 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     });
     
     return [...filteredRealAnnotations, ...filteredVirtual];
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- verse text/ref only used for debug output
   }, [annotations, virtualAnnotations]);
-  
+
   // Separate annotation types
   const textAnnotations = allAnnotations.filter(
     (a): a is TextAnnotation => a.type !== 'symbol'

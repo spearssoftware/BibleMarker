@@ -7,8 +7,8 @@
 import { useCallback } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
-import { db, saveAnnotation, deleteAnnotation, getChapterAnnotations, getChapterHeadings, saveSectionHeading, deleteSectionHeading, getChapterTitle, saveChapterTitle, deleteChapterTitle, getChapterNotes, saveNote, deleteNote, getMarkingPreset } from '@/lib/db';
-import type { Annotation, TextAnnotation, SymbolAnnotation, AnnotationType, HighlightColor, SymbolKey, SectionHeading, ChapterTitle, Note } from '@/types/annotation';
+import { saveAnnotation, deleteAnnotation, getChapterAnnotations, getChapterHeadings, saveSectionHeading, deleteSectionHeading, getChapterTitle, saveChapterTitle, deleteChapterTitle, getChapterNotes, saveNote, deleteNote, getMarkingPreset } from '@/lib/db';
+import type { Annotation, TextAnnotation, SymbolAnnotation, HighlightColor, SymbolKey, SectionHeading, ChapterTitle, Note } from '@/types/annotation';
 import { autoAddToObservationTracker } from '@/lib/observationAutoAdd';
 import { getAnnotationVerseRef } from '@/lib/annotationQueries';
 
@@ -16,9 +16,6 @@ export function useAnnotations() {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { 
     selection, 
-    activeColor, 
-    activeSymbol, 
-    activeTool,
     setAnnotations,
     setSectionHeadings,
     setChapterTitle,

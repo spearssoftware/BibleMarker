@@ -35,7 +35,6 @@ import {
   validateMarkingPreset,
   validateStudy,
   validateMultiTranslationView,
-  validateObservationList,
   sanitizeData,
   ValidationError,
 } from './validation';
@@ -65,7 +64,7 @@ interface ChapterCache {
 /** Cached translation list from getBible API */
 interface TranslationCache {
   id: string;                    // 'getbible-translations'
-  translations: any[];            // Array of translation objects
+  translations: unknown[];        // Array of translation objects
   cachedAt: Date;
 }
 
@@ -469,14 +468,14 @@ export const db = new BibleMarkerDB();
 
 // Expose db to window for debugging (browser console access)
 if (typeof window !== 'undefined') {
-  (window as any).db = db;
+  (window as Window & { db?: BibleMarkerDB }).db = db;
 }
 
 /**
  * Get or create user preferences
  */
 export async function getPreferences(): Promise<UserPreferences> {
-  let prefs = await db.preferences.get('main');
+  const prefs = await db.preferences.get('main');
   
   if (!prefs) {
     const newPrefs: UserPreferences = {
@@ -914,7 +913,7 @@ export async function deleteMultiTranslationView(id: string = 'active'): Promise
  * Preserves keyword definitions, notes, section headings, and chapter titles.
  */
 export async function clearBookAnnotations(book: string, moduleId?: string): Promise<number> {
-  let query = db.annotations.filter(ann => {
+  const query = db.annotations.filter(ann => {
     if (ann.type === 'symbol') {
       return ann.ref.book === book;
     }

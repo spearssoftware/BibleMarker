@@ -46,7 +46,7 @@ export function applyTheme(theme: Theme, highContrast: boolean = false): void {
   try {
     localStorage.setItem('theme', theme);
     localStorage.setItem('highContrast', String(highContrast));
-  } catch (e) {
+  } catch {
     // localStorage might not be available (e.g., in private mode)
   }
   
@@ -175,8 +175,8 @@ export function applyTheme(theme: Theme, highContrast: boolean = false): void {
   }
 }
 
-// Store current theme preference for watcher
-let currentThemePreference: Theme = 'dark';
+// Store current theme preference for watcher (reserved for future use)
+let _currentThemePreference: Theme = 'dark';
 
 /**
  * Watch OS theme changes and update when in auto mode
@@ -216,7 +216,7 @@ export async function initTheme(): Promise<void> {
     const prefs = await getPreferences();
     const theme = prefs.theme || 'auto';
     const highContrast = prefs.highContrast || false;
-    currentThemePreference = theme;
+    _currentThemePreference = theme;
     applyTheme(theme, highContrast);
     
     // Set up OS theme watcher (will only apply if in auto mode)
@@ -224,7 +224,7 @@ export async function initTheme(): Promise<void> {
   } catch (error) {
     console.error('Error initializing theme:', error);
     // Fallback to auto theme (follows OS)
-    currentThemePreference = 'auto';
+    _currentThemePreference = 'auto';
     applyTheme('auto', false);
   }
 }

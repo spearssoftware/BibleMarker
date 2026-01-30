@@ -89,6 +89,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   useEffect(() => {
     stepRef.current = currentStep;
     updateHighlight();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- updateHighlight is intentional on currentStep only
   }, [currentStep]);
 
   function updateHighlight() {
@@ -287,6 +288,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
       window.removeEventListener('scroll', handleUpdate, true);
       window.removeEventListener('resize', handleUpdate);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- updateHighlightPosition intentional on showTour only
   }, [showTour]);
 
   function handleNext() {

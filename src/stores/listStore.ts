@@ -9,8 +9,6 @@ import { persist } from 'zustand/middleware';
 import type { ObservationList, ObservationItem } from '@/types/list';
 import { db } from '@/lib/db';
 import { getMarkingPreset } from '@/lib/db';
-import type { Annotation } from '@/types/annotation';
-import { stripSymbols } from '@/lib/textUtils';
 import type { VerseRef } from '@/types/bible';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { validateObservationList, sanitizeData, ValidationError } from '@/lib/validation';
@@ -391,7 +389,7 @@ export const useListStore = create<ListState>()(
       },
 
       autoPopulateFromChapter: async (book, chapter, moduleId) => {
-        const { lists, getOrCreateListForKeyword } = get();
+        const { getOrCreateListForKeyword } = get();
         
         // Get cached chapter data
         const cacheKey = moduleId ? `${moduleId}:${book}:${chapter}` : undefined;

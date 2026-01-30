@@ -11,13 +11,10 @@ import {
   getChapterTitle, 
   getChapterHeadings, 
   getChapterAnnotations,
-  getMarkingPreset,
 } from '@/lib/db';
 import { db } from '@/lib/db';
-import type { ChapterTitle, SectionHeading, Annotation } from '@/types/annotation';
-import type { MarkingPreset } from '@/types/keyWord';
-import type { ObservationList } from '@/types/list';
-import { getBookById, BIBLE_BOOKS } from '@/types/bible';
+import type { ChapterTitle } from '@/types/annotation';
+import { getBookById } from '@/types/bible';
 
 interface ChapterSummaryData {
   chapter: number;

@@ -131,7 +131,7 @@ export const useMultiTranslationStore = create<MultiTranslationState>()(
     }),
     {
       name: 'multi-translation-state',
-      partialize: (state) => ({
+      partialize: (_state) => ({
         // Don't persist activeView - load from DB on mount
       }),
     }

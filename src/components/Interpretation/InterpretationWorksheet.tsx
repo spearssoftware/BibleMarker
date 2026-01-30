@@ -4,17 +4,16 @@
  * Worksheet for recording interpretation insights with guided questions.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useInterpretationStore } from '@/stores/interpretationStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { formatVerseRef, getBookById } from '@/types/bible';
+import { formatVerseRef } from '@/types/bible';
 import type { InterpretationEntry } from '@/types/interpretation';
 import type { VerseRef } from '@/types/bible';
 import { Textarea, ConfirmationDialog } from '@/components/shared';
 import { getChapterAnnotations } from '@/lib/db';
-import type { Annotation } from '@/types/annotation';
 
 interface InterpretationWorksheetProps {
   selectedText?: string;
@@ -60,7 +59,7 @@ const sortVerseGroups = (groups: Map<string, InterpretationEntry[]>): Array<[str
   });
 };
 
-export function InterpretationWorksheet({ selectedText, verseRef: initialVerseRef }: InterpretationWorksheetProps) {
+export function InterpretationWorksheet({ verseRef: initialVerseRef }: InterpretationWorksheetProps) {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { 
     interpretationEntries, 

@@ -82,8 +82,8 @@ export default defineConfig({
           // Rewrite to /v1/bible + everything after /api/biblia
           return path.replace(/^\/api\/biblia/, '/v1/bible');
         },
-        configure: (proxy, _options) => {
-          proxy.on('error', (err, req, res) => {
+        configure: (proxy) => {
+          proxy.on('error', (err, _req, _res) => {
             console.error('[Vite Proxy] Proxy error:', err);
           });
         },

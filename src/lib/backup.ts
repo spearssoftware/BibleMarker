@@ -158,7 +158,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
 
     // Clean up multi-translation views - remove primaryTranslationId if present (it's computed dynamically)
     const cleanedMultiTranslationViews = multiTranslationViews.map(view => {
-      const { primaryTranslationId, ...cleanedView } = view as MultiTranslationView & { primaryTranslationId?: string };
+      const { primaryTranslationId: _pt, ...cleanedView } = view as MultiTranslationView & { primaryTranslationId?: string };
       return cleanedView;
     });
 
@@ -218,18 +218,19 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
 
         await writeTextFile(filePath, json);
         return;
-      } catch (error: any) {
-        if (error.message === 'Export cancelled') {
+      } catch (error: unknown) {
+        if (error instanceof Error && error.message === 'Export cancelled') {
           throw error;
         }
-        throw new Error(`Failed to save backup: ${error.message || 'Unknown error'}`);
+        throw new Error(`Failed to save backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
 
     // Use File System Access API if available (browser)
     if (isFileSystemAccessSupported()) {
       try {
-        const fileHandle = await (window as any).showSaveFilePicker({
+        const w = window as Window & { showSaveFilePicker?: (options?: unknown) => Promise<{ createWritable: () => Promise<{ write: (data: Blob) => Promise<void>; close: () => Promise<void> }> }> };
+        const fileHandle = await w.showSaveFilePicker!({
           suggestedName: generateBackupFilename(),
           types: [{
             description: 'BibleMarker Backup',
@@ -241,9 +242,9 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
         await writable.write(blob);
         await writable.close();
         return;
-      } catch (error: any) {
+      } catch (error: unknown) {
         // User cancelled or error - fall through to download
-        if (error.name === 'AbortError') {
+        if (error instanceof Error && error.name === 'AbortError') {
           throw new Error('Export cancelled');
         }
         console.warn('File System Access API failed, falling back to download:', error);
@@ -267,22 +268,29 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
 /**
  * Validate backup file structure with detailed validation
  */
-export function validateBackup(data: any): { valid: boolean; errors: string[] } {
+interface BackupDataShape {
+  version?: string;
+  timestamp?: string;
+  data?: Record<string, unknown>;
+}
+
+export function validateBackup(data: unknown): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
   if (!data || typeof data !== 'object') {
     return { valid: false, errors: ['Backup data must be an object'] };
   }
+  const d = data as BackupDataShape;
 
-  if (typeof data.version !== 'string' || data.version.trim() === '') {
+  if (typeof d.version !== 'string' || d.version.trim() === '') {
     errors.push('Backup must have a valid version string');
   }
 
-  if (typeof data.timestamp !== 'string' || data.timestamp.trim() === '') {
+  if (typeof d.timestamp !== 'string' || d.timestamp.trim() === '') {
     errors.push('Backup must have a valid timestamp string');
   }
 
-  if (!data.data || typeof data.data !== 'object') {
+  if (!d.data || typeof d.data !== 'object') {
     return { valid: false, errors: ['Backup must have a data object'] };
   }
 
@@ -302,19 +310,19 @@ export function validateBackup(data: any): { valid: boolean; errors: string[] } 
 
   for (const field of requiredFields) {
     if (field === 'preferences') {
-      if (!data.data.preferences || typeof data.data.preferences !== 'object') {
+      if (!d.data.preferences || typeof d.data.preferences !== 'object') {
         errors.push('Backup must have preferences object');
       }
     } else {
-      if (!Array.isArray(data.data[field])) {
+      if (!Array.isArray(d.data[field])) {
         errors.push(`Backup must have ${field} as an array`);
       }
     }
   }
 
   // Validate individual records if arrays exist
-  if (Array.isArray(data.data.annotations)) {
-    const { errors: annErrors } = validateArray(data.data.annotations, validateAnnotation, 'annotation');
+  if (Array.isArray(d.data.annotations)) {
+    const { errors: annErrors } = validateArray(d.data.annotations, validateAnnotation, 'annotation');
     if (annErrors.length > 0) {
       errors.push(`Annotations validation errors: ${annErrors.length} invalid records`);
       // Include first few errors as examples
@@ -322,75 +330,76 @@ export function validateBackup(data: any): { valid: boolean; errors: string[] } 
     }
   }
 
-  if (Array.isArray(data.data.sectionHeadings)) {
-    const { errors: headingErrors } = validateArray(data.data.sectionHeadings, validateSectionHeading, 'section heading');
+  if (Array.isArray(d.data.sectionHeadings)) {
+    const { errors: headingErrors } = validateArray(d.data.sectionHeadings, validateSectionHeading, 'section heading');
     if (headingErrors.length > 0) {
       errors.push(`Section headings validation errors: ${headingErrors.length} invalid records`);
       errors.push(...headingErrors.slice(0, 3).map(e => `  - ${e.message}`));
     }
   }
 
-  if (Array.isArray(data.data.chapterTitles)) {
-    const { errors: titleErrors } = validateArray(data.data.chapterTitles, validateChapterTitle, 'chapter title');
+  if (Array.isArray(d.data.chapterTitles)) {
+    const { errors: titleErrors } = validateArray(d.data.chapterTitles, validateChapterTitle, 'chapter title');
     if (titleErrors.length > 0) {
       errors.push(`Chapter titles validation errors: ${titleErrors.length} invalid records`);
       errors.push(...titleErrors.slice(0, 3).map(e => `  - ${e.message}`));
     }
   }
 
-  if (Array.isArray(data.data.notes)) {
-    const { errors: noteErrors } = validateArray(data.data.notes, validateNote, 'note');
+  if (Array.isArray(d.data.notes)) {
+    const { errors: noteErrors } = validateArray(d.data.notes, validateNote, 'note');
     if (noteErrors.length > 0) {
       errors.push(`Notes validation errors: ${noteErrors.length} invalid records`);
       errors.push(...noteErrors.slice(0, 3).map(e => `  - ${e.message}`));
     }
   }
 
-  if (Array.isArray(data.data.markingPresets)) {
-    const { errors: presetErrors } = validateArray(data.data.markingPresets, validateMarkingPreset, 'marking preset');
+  if (Array.isArray(d.data.markingPresets)) {
+    const { errors: presetErrors } = validateArray(d.data.markingPresets, validateMarkingPreset, 'marking preset');
     if (presetErrors.length > 0) {
       errors.push(`Marking presets validation errors: ${presetErrors.length} invalid records`);
       errors.push(...presetErrors.slice(0, 3).map(e => `  - ${e.message}`));
     }
   }
 
-  if (Array.isArray(data.data.studies)) {
-    const { errors: studyErrors } = validateArray(data.data.studies, validateStudy, 'study');
+  if (Array.isArray(d.data.studies)) {
+    const { errors: studyErrors } = validateArray(d.data.studies, validateStudy, 'study');
     if (studyErrors.length > 0) {
       errors.push(`Studies validation errors: ${studyErrors.length} invalid records`);
       errors.push(...studyErrors.slice(0, 3).map(e => `  - ${e.message}`));
     }
   }
 
-  if (Array.isArray(data.data.multiTranslationViews)) {
-    const { errors: viewErrors } = validateArray(data.data.multiTranslationViews, validateMultiTranslationView, 'multi-translation view');
+  if (Array.isArray(d.data.multiTranslationViews)) {
+    const { errors: viewErrors } = validateArray(d.data.multiTranslationViews, validateMultiTranslationView, 'multi-translation view');
     if (viewErrors.length > 0) {
       errors.push(`Multi-translation views validation errors: ${viewErrors.length} invalid records`);
       errors.push(...viewErrors.slice(0, 3).map(e => `  - ${e.message}`));
     }
   }
 
-  if (Array.isArray(data.data.observationLists)) {
-    const { errors: listErrors } = validateArray(data.data.observationLists, validateObservationList, 'observation list');
+  if (Array.isArray(d.data.observationLists)) {
+    const { errors: listErrors } = validateArray(d.data.observationLists, validateObservationList, 'observation list');
     if (listErrors.length > 0) {
       errors.push(`Observation lists validation errors: ${listErrors.length} invalid records`);
       errors.push(...listErrors.slice(0, 3).map(e => `  - ${e.message}`));
     }
   }
 
-  if (Array.isArray(data.data.fiveWAndH)) {
-    const { errors: fiveWErrors } = validateArray(data.data.fiveWAndH, validateFiveWAndH, '5W+H entry');
+  if (Array.isArray(d.data.fiveWAndH)) {
+    const { errors: fiveWErrors } = validateArray(d.data.fiveWAndH, validateFiveWAndH, '5W+H entry');
     if (fiveWErrors.length > 0) {
       errors.push(`5W+H entries validation errors: ${fiveWErrors.length} invalid records`);
       errors.push(...fiveWErrors.slice(0, 3).map(e => `  - ${e.message}`));
     }
   }
 
-  if (Array.isArray(data.data.contrasts)) {
-    const { errors: contrastErrors } = validateArray(data.data.contrasts, (entry: any) => {
+  if (Array.isArray(d.data.contrasts)) {
+    const { errors: contrastErrors } = validateArray(d.data.contrasts, (entry: unknown) => {
       // Basic validation for contrasts (full validation would require importing validateContrast)
       if (!entry || typeof entry !== 'object') throw new ValidationError('Contrast must be an object');
-      if (typeof entry.id !== 'string' || entry.id.trim() === '') throw new ValidationError('Contrast must have valid id');
+      const e = entry as { id: string };
+      if (typeof e.id !== 'string' || e.id.trim() === '') throw new ValidationError('Contrast must have valid id');
       return entry;
     }, 'contrast');
     if (contrastErrors.length > 0) {
@@ -399,10 +408,11 @@ export function validateBackup(data: any): { valid: boolean; errors: string[] } 
     }
   }
 
-  if (Array.isArray(data.data.timeExpressions)) {
-    const { errors: timeErrors } = validateArray(data.data.timeExpressions, (entry: any) => {
+  if (Array.isArray(d.data.timeExpressions)) {
+    const { errors: timeErrors } = validateArray(d.data.timeExpressions, (entry: unknown) => {
       if (!entry || typeof entry !== 'object') throw new ValidationError('Time expression must be an object');
-      if (typeof entry.id !== 'string' || entry.id.trim() === '') throw new ValidationError('Time expression must have valid id');
+      const e = entry as { id: string };
+      if (typeof e.id !== 'string' || e.id.trim() === '') throw new ValidationError('Time expression must have valid id');
       return entry;
     }, 'time expression');
     if (timeErrors.length > 0) {
@@ -411,18 +421,19 @@ export function validateBackup(data: any): { valid: boolean; errors: string[] } 
     }
   }
 
-  if (Array.isArray(data.data.places)) {
-    const { errors: placeErrors } = validateArray(data.data.places, validatePlace, 'place');
+  if (Array.isArray(d.data.places)) {
+    const { errors: placeErrors } = validateArray(d.data.places, validatePlace, 'place');
     if (placeErrors.length > 0) {
       errors.push(`Places validation errors: ${placeErrors.length} invalid records`);
       errors.push(...placeErrors.slice(0, 3).map(e => `  - ${e.message}`));
     }
   }
 
-  if (Array.isArray(data.data.conclusions)) {
-    const { errors: conclusionErrors } = validateArray(data.data.conclusions, (entry: any) => {
+  if (Array.isArray(d.data.conclusions)) {
+    const { errors: conclusionErrors } = validateArray(d.data.conclusions, (entry: unknown) => {
       if (!entry || typeof entry !== 'object') throw new ValidationError('Conclusion must be an object');
-      if (typeof entry.id !== 'string' || entry.id.trim() === '') throw new ValidationError('Conclusion must have valid id');
+      const e = entry as { id: string };
+      if (typeof e.id !== 'string' || e.id.trim() === '') throw new ValidationError('Conclusion must have valid id');
       return entry;
     }, 'conclusion');
     if (conclusionErrors.length > 0) {
@@ -431,16 +442,16 @@ export function validateBackup(data: any): { valid: boolean; errors: string[] } 
     }
   }
 
-  if (Array.isArray(data.data.interpretations)) {
-    const { errors: interpErrors } = validateArray(data.data.interpretations, validateInterpretation, 'interpretation entry');
+  if (Array.isArray(d.data.interpretations)) {
+    const { errors: interpErrors } = validateArray(d.data.interpretations, validateInterpretation, 'interpretation entry');
     if (interpErrors.length > 0) {
       errors.push(`Interpretation entries validation errors: ${interpErrors.length} invalid records`);
       errors.push(...interpErrors.slice(0, 3).map(e => `  - ${e.message}`));
     }
   }
 
-  if (Array.isArray(data.data.applications)) {
-    const { errors: appErrors } = validateArray(data.data.applications, validateApplication, 'application entry');
+  if (Array.isArray(d.data.applications)) {
+    const { errors: appErrors } = validateArray(d.data.applications, validateApplication, 'application entry');
     if (appErrors.length > 0) {
       errors.push(`Application entries validation errors: ${appErrors.length} invalid records`);
       errors.push(...appErrors.slice(0, 3).map(e => `  - ${e.message}`));
@@ -479,7 +490,7 @@ export function getBackupPreview(backup: BackupData): Record<string, number> {
  * Import backup from file (returns backup data for preview)
  */
 export async function importBackup(): Promise<BackupData> {
-  let fileHandle: any = null;  // FileSystemFileHandle (browser API, not in TypeScript types)
+  let _fileHandle: FileSystemFileHandle | null = null;  // Reserved for future use (e.g. close)
   let file: File;
   let text: string;
 
@@ -503,16 +514,17 @@ export async function importBackup(): Promise<BackupData> {
         }
 
         text = await readTextFile(filePath);
-      } catch (error: any) {
-        if (error.message === 'Import cancelled') {
+      } catch (error: unknown) {
+        if (error instanceof Error && error.message === 'Import cancelled') {
           throw error;
         }
-        throw new Error(`Failed to read backup file: ${error.message || 'Unknown error'}`);
+        throw new Error(`Failed to read backup file: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     } else if (isFileSystemAccessSupported()) {
       // Use File System Access API if available (browser)
       try {
-        const [handle] = await (window as any).showOpenFilePicker({
+        const w = window as Window & { showOpenFilePicker?: (options?: unknown) => Promise<FileSystemFileHandle[]> };
+        const [handle] = await w.showOpenFilePicker!({
           types: [{
             description: 'BibleMarker Backup',
             accept: { 'application/json': ['.json'] },
@@ -520,11 +532,11 @@ export async function importBackup(): Promise<BackupData> {
           multiple: false,
         });
 
-        fileHandle = handle;
+        _fileHandle = handle;
         file = await handle.getFile();
         text = await file.text();
-      } catch (error: any) {
-        if (error.name === 'AbortError') {
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name === 'AbortError') {
           throw new Error('Import cancelled');
         }
         throw error;

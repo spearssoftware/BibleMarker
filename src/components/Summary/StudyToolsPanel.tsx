@@ -81,6 +81,17 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
   };
 
   return (
+    <>
+      <ConfirmationDialog
+        isOpen={confirmDeleteStudyId != null}
+        title="Delete Study"
+        message="Are you sure you want to delete this study? This cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDeleteStudy}
+        onCancel={handleCancelDeleteStudy}
+        destructive
+      />
     <div 
       className="flex-1 min-h-0 flex flex-col overflow-hidden relative" 
       role="dialog" 
@@ -311,5 +322,6 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
             )}
           </div>
     </div>
+    </>
   );
 }

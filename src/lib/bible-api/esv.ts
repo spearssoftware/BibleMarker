@@ -229,7 +229,7 @@ export class EsvClient implements BibleApiClient {
     // Note: We can't check debug flags here since this is in the API layer
     // This will only log if called from a context where debug is enabled
     const isESVDebug = book === 'Jer' && chapter === 29;
-    if (isESVDebug && typeof window !== 'undefined' && (window as any).__ESV_DEBUG__) {
+    if (isESVDebug && typeof window !== 'undefined' && (window as Window & { __ESV_DEBUG__?: boolean }).__ESV_DEBUG__) {
       console.log(`%c[ESV DEBUG] ========== Parsing ${book} ${chapter} ==========`, 'color: green; font-weight: bold; font-size: 16px;');
       console.log(`[ESV DEBUG] Full text length: ${fullText.length}`);
       console.log(`[ESV DEBUG] First 500 chars:`, fullText.substring(0, 500));

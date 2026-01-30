@@ -16,7 +16,7 @@ interface BookPickerProps {
   onSelect: (bookId: string) => void;
   onClose: () => void;
   /** Ref to the trigger button element */
-  triggerRef?: React.RefObject<HTMLElement>;
+  triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
 export function BookPicker({ currentBook, onSelect, onClose, triggerRef }: BookPickerProps) {

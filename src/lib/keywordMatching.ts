@@ -5,9 +5,8 @@
  */
 
 import type { MarkingPreset } from '@/types/keyWord';
-import type { TextAnnotation, SymbolAnnotation, Annotation } from '@/types/annotation';
+import type { TextAnnotation, SymbolAnnotation } from '@/types/annotation';
 import type { VerseRef } from '@/types/bible';
-import { matchesPreset } from '@/types/keyWord';
 import { getDebugFlagsSync } from '@/lib/debug';
 
 /**
@@ -30,19 +29,11 @@ export function splitIntoWords(text: string): Array<{ word: string; startIndex: 
 }
 
 /**
- * Normalize a word by removing punctuation for comparison
- */
-function normalizeWord(word: string): string {
-  return word.replace(/^[^\w]*|[^\w]*$/g, '').toLowerCase();
-}
-
-/**
  * Trim punctuation from the start and end of text, but keep apostrophes
  * Returns the trimmed text and the number of characters trimmed from start and end
  */
 function trimPunctuation(text: string): { trimmed: string; startOffset: number; endOffset: number } {
   // Characters to trim: punctuation except apostrophes
-  const punctRegex = /^[^\w']*|[^\w']*$/g;
   const startMatch = text.match(/^[^\w']*/);
   const endMatch = text.match(/[^\w']*$/);
   

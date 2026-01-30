@@ -329,8 +329,6 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
           {sortedGroups.map(([verseKey, versePlaces]) => {
             const isExpanded = expandedVerses.has(verseKey);
             const verseRef = versePlaces[0].verseRef;
-            const bookName = getBookById(verseRef.book)?.name || verseRef.book;
-
             return (
               <div
                 key={verseKey}

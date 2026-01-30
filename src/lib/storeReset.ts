@@ -6,10 +6,6 @@
  */
 
 import { useAnnotationStore } from '@/stores/annotationStore';
-import { useMarkingPresetStore } from '@/stores/markingPresetStore';
-import { useListStore } from '@/stores/listStore';
-import { useStudyStore } from '@/stores/studyStore';
-import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { DEFAULT_MARKING_PREFERENCES } from '@/types/annotation';
 
 /**

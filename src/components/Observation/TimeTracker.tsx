@@ -324,8 +324,6 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
           {sortedGroups.map(([verseKey, verseTimeExpressions]) => {
             const isExpanded = expandedVerses.has(verseKey);
             const verseRef = verseTimeExpressions[0].verseRef;
-            const bookName = getBookById(verseRef.book)?.name || verseRef.book;
-
             return (
               <div
                 key={verseKey}

@@ -29,6 +29,7 @@ export function KeyWordFinder({ preset, onClose }: KeyWordFinderProps) {
 
   useEffect(() => {
     searchOccurrences();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- searchOccurrences is stable; deps are scope only
   }, [preset, currentBook, currentChapter, currentModuleId, searchScope]);
 
   async function searchOccurrences() {

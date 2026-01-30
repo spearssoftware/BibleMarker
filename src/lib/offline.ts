@@ -41,7 +41,7 @@ export function isOnline(): boolean {
 /**
  * Check if an error is a network error
  */
-export function isNetworkError(error: any): boolean {
+export function isNetworkError(error: unknown): boolean {
   if (!error) return false;
   
   // Check for network-related error messages
@@ -55,7 +55,7 @@ export function isNetworkError(error: any): boolean {
     'networkerror',
   ];
   
-  const errorMessage = (error.message || String(error)).toLowerCase();
+  const errorMessage = (error instanceof Error ? error.message : String(error)).toLowerCase();
   if (networkErrorMessages.some(msg => errorMessage.includes(msg))) {
     return true;
   }
@@ -66,7 +66,7 @@ export function isNetworkError(error: any): boolean {
   }
   
   // Check for HTTP status codes that indicate network issues
-  if (error.statusCode && [0, 408, 502, 503, 504].includes(error.statusCode)) {
+  if (typeof error === 'object' && error !== null && 'statusCode' in error && [0, 408, 502, 503, 504].includes((error as { statusCode: number }).statusCode)) {
     return true;
   }
   
@@ -76,22 +76,22 @@ export function isNetworkError(error: any): boolean {
 /**
  * Get user-friendly error message for network errors
  */
-export function getNetworkErrorMessage(error: any): string {
+export function getNetworkErrorMessage(error: unknown): string {
   if (!isOnline()) {
     return 'You are currently offline. Please check your internet connection and try again.';
   }
   
   if (isNetworkError(error)) {
-    if (error.statusCode === 408 || error.message?.toLowerCase().includes('timeout')) {
+    if (typeof error === 'object' && error !== null && 'statusCode' in error && (error as { statusCode: number }).statusCode === 408 || error instanceof Error && error.message?.toLowerCase().includes('timeout')) {
       return 'Request timed out. Please check your internet connection and try again.';
     }
-    if (error.statusCode === 503 || error.message?.toLowerCase().includes('service unavailable')) {
+    if (typeof error === 'object' && error !== null && 'statusCode' in error && (error as { statusCode: number }).statusCode === 503 || error instanceof Error && error.message?.toLowerCase().includes('service unavailable')) {
       return 'Service temporarily unavailable. Please try again in a moment.';
     }
     return 'Network error occurred. Please check your internet connection and try again.';
   }
   
-  return error?.message || 'An error occurred. Please try again.';
+  return (error instanceof Error ? error.message : null) || 'An error occurred. Please try again.';
 }
 
 /**
@@ -102,7 +102,7 @@ export async function retryWithBackoff<T>(
   config: Partial<RetryConfig> = {}
 ): Promise<T> {
   const retryConfig = { ...DEFAULT_RETRY_CONFIG, ...config };
-  let lastError: any;
+  let lastError: unknown;
   
   for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
     try {
@@ -191,7 +191,7 @@ export async function getCacheStatus(
       cachedAt,
       age,
     };
-  } catch (error) {
+  } catch {
     return { isCached: false };
   }
 }

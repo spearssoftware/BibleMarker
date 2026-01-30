@@ -65,7 +65,8 @@ function groupEntries(
 ): GroupedEntries {
   const grouped: GroupedEntries = {};
 
-  const addEntry = (book: string, chapter: number, type: keyof GroupedEntries[string][number], entry: any) => {
+  type GroupedEntry = FiveWAndHEntry | Contrast | TimeExpression | Place | Conclusion | InterpretationEntry | ApplicationEntry;
+  const addEntry = (book: string, chapter: number, type: keyof GroupedEntries[string][number], entry: GroupedEntry) => {
     if (!grouped[book]) {
       grouped[book] = {};
     }
@@ -80,7 +81,7 @@ function groupEntries(
         applications: [],
       };
     }
-    grouped[book][chapter][type].push(entry);
+    (grouped[book][chapter][type] as GroupedEntry[]).push(entry);
   };
 
   // Group 5W+H entries
@@ -471,18 +472,18 @@ export async function exportStudyData(): Promise<void> {
           await writeTextFile(filePath, markdown);
           return;
         }
-      } catch (error: any) {
-        if (error.message === 'Export cancelled') {
+      } catch (error: unknown) {
+        if (error instanceof Error && error.message === 'Export cancelled') {
           throw error;
         }
-        throw new Error(`Failed to save export: ${error.message || 'Unknown error'}`);
+        throw new Error(`Failed to save export: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
 
     // File System Access API (browser)
     if ('showSaveFilePicker' in window) {
       try {
-        const fileHandle = await (window as any).showSaveFilePicker({
+        const fileHandle = await (window as Window & { showSaveFilePicker?: (options?: unknown) => Promise<FileSystemFileHandle> }).showSaveFilePicker!({
           suggestedName: filename,
           types: [{
             description: 'Markdown',
@@ -494,8 +495,8 @@ export async function exportStudyData(): Promise<void> {
         await writable.write(blob);
         await writable.close();
         return;
-      } catch (error: any) {
-        if (error.name === 'AbortError') {
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name === 'AbortError') {
           throw new Error('Export cancelled');
         }
         console.warn('File System Access API failed, falling back to download:', error);
@@ -511,10 +512,10 @@ export async function exportStudyData(): Promise<void> {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  } catch (error: any) {
-    if (error.message === 'Export cancelled' || error.message === 'Export cancelled') {
+  } catch (error: unknown) {
+    if (error instanceof Error && (error.message === 'Export cancelled' || error.message === 'Export cancelled')) {
       return; // User cancelled, don't show error
     }
-    throw new Error(`Failed to export study data: ${error.message || 'Unknown error'}`);
+    throw new Error(`Failed to export study data: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

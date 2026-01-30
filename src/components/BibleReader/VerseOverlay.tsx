@@ -4,7 +4,7 @@
  * Displays a verse in an overlay/popup, allowing quick reference without navigation.
  */
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { formatVerseRef } from '@/types/bible';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
@@ -22,7 +22,6 @@ export function VerseOverlay({ verseRef, onClose, onNavigate }: VerseOverlayProp
   const [verseText, setVerseText] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
   const { currentModuleId } = useBibleStore();
   const { fontSize } = useAnnotationStore();
 

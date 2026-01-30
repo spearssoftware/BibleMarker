@@ -29,7 +29,7 @@ export default function App() {
   const { setCurrentModule } = useBibleStore();
   const { setFontSize } = useAnnotationStore();
   const { loadStudies } = useStudyStore();
-  const { loadActiveView, activeView } = useMultiTranslationStore();
+  const { loadActiveView } = useMultiTranslationStore();
   const { loadLists } = useListStore();
   
   // Onboarding state

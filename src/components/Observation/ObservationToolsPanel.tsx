@@ -10,7 +10,7 @@ import { useListStore } from '@/stores/listStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import { getBookById, formatVerseRef, BIBLE_BOOKS } from '@/types/bible';
+import { getBookById, formatVerseRef } from '@/types/bible';
 import type { ObservationList, ObservationItem } from '@/types/list';
 import type { VerseRef } from '@/types/bible';
 import { ListEditor } from '@/components/Lists/ListEditor';
@@ -168,7 +168,7 @@ export function ObservationToolsPanel({
     }
 
     const verseGroups = groupByVerse(list.items);
-    sortVerseGroups(verseGroups).forEach(([verseKey, verseItems]) => {
+    sortVerseGroups(verseGroups).forEach(([, verseItems]) => {
       const verseRef = verseItems[0].verseRef;
       const ref = formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse);
       lines.push(ref);
