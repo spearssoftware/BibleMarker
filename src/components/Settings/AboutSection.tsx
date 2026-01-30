@@ -5,7 +5,7 @@
  */
 
 export function AboutSection() {
-  const version = '0.1.0'; // From package.json
+  const version = __APP_VERSION__;
 
   return (
     <div className="space-y-4">

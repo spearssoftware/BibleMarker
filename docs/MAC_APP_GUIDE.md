@@ -240,6 +240,17 @@ This creates:
 
 Double-click the `.app` file in `src-tauri/target/release/bundle/macos/` to test.
 
+### Version and build number
+
+The app uses a **single source of truth** for version/build number:
+
+- **`package.json`** – Update the `version` field here (e.g. `"0.2.0"`).
+- **Tauri** – Reads version from `package.json` via `tauri.conf.json` (`"version": "../package.json"`).
+- **Frontend** – Version is injected at build time as `__APP_VERSION__` (About screen, backups).
+- **Cargo.toml** – Synced from `package.json` when you run `pnpm tauri:build` (via `pnpm version:sync`).
+
+To bump the version: change it in `package.json` only, then run `pnpm tauri:build`. For frontend-only builds, run `pnpm version:sync` before releasing if you also ship the Tauri app.
+
 ---
 
 ## Code Signing & Notarization (for App Store/Distribution)

@@ -70,8 +70,8 @@ export interface BackupData {
   };
 }
 
-/** App version for backup compatibility */
-const APP_VERSION = '0.1.0';
+/** App version for backup compatibility (unified with package.json) */
+const APP_VERSION = __APP_VERSION__;
 
 /**
  * Check if File System Access API is available

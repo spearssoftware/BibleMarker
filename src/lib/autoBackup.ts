@@ -277,7 +277,7 @@ async function createBackupData(): Promise<BackupData> {
 
   // Prepare backup data
   const backup: BackupData = {
-    version: '0.1.0',
+    version: __APP_VERSION__,
     timestamp: new Date().toISOString(),
     data: {
       preferences: prefs,
