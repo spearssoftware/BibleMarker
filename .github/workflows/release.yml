@@ -67,7 +67,12 @@ jobs:
         with:
           tagName: app-v__VERSION__
           releaseName: "BibleMarker v__VERSION__"
-          releaseBody: "See the assets to download this version and install."
+          releaseBody: |
+  See the assets to download this version and install.
+
+  **macOS:** If you see "BibleMarker is damaged and can't be opened", the app is not actually damaged—Gatekeeper blocks unsigned downloads. Right-click the app → **Open** → then click **Open** in the dialog. Or run in Terminal: `xattr -cr /path/to/BibleMarker.app`
+
+  **Windows:** SmartScreen may warn "Windows protected your PC" because the app is unsigned. Click **More info** → **Run anyway** to install or run.
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

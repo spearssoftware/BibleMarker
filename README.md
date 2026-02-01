@@ -56,6 +56,27 @@ A cross-platform Bible study application for deep text study using the Inductive
 
 BibleMarker is built with [Tauri](https://tauri.app) for native desktop performance.
 
+#### Downloading a pre-built release (macOS)
+
+Pre-built macOS apps are not code-signed (no Apple Developer certificate). When you download the app from [GitHub Releases](https://github.com/spearssoftware/BibleMarker/releases), macOS may show **"BibleMarker is damaged and can't be opened"**. The app is not actually damaged—this is Gatekeeper blocking unsigned downloads.
+
+**To open the app:**
+
+1. **Right-click** (or Control-click) the BibleMarker app.
+2. Choose **Open**, then click **Open** in the dialog.
+
+Alternatively, remove the quarantine attribute in Terminal (replace the path with where you placed the app):
+
+```bash
+xattr -cr /Applications/BibleMarker.app
+```
+
+After that, you can open the app normally.
+
+**Windows:** SmartScreen may show "Windows protected your PC" for unsigned downloads. Click **More info** → **Run anyway** to install or run. To remove the warning entirely (signed builds), see [docs/WINDOWS_CODE_SIGNING.md](./docs/WINDOWS_CODE_SIGNING.md).
+
+#### Building from source
+
 1. Clone the repository:
 ```bash
 git clone https://github.com/spearssoftware/BibleMarker.git
