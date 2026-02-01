@@ -6,13 +6,6 @@ A cross-platform Bible study application for deep text study using the Inductive
 
 ![BibleMarker Screenshot](./public/biblemaker-screenshot-202601.png)
 
-## Download
-
-Pre-built desktop apps (macOS, Windows, Linux) are available on [GitHub Releases](https://github.com/spearssoftware/BibleMarker/releases).
-
-- **macOS:** If you see "BibleMarker is damaged and can't be opened", right-click the app → **Open** → then click **Open** in the dialog. The app is unsigned; Gatekeeper blocks it by default. See [Installation](#installation) for details.
-- **Windows:** SmartScreen may warn for unsigned downloads. Click **More info** → **Run anyway**. For signed builds (no warning), see [Windows code signing](./docs/WINDOWS_CODE_SIGNING.md).
-
 ## Features
 
 ### 📖 Bible Reading
@@ -57,32 +50,17 @@ Pre-built desktop apps (macOS, Windows, Linux) are available on [GitHub Releases
 - **Responsive Design**: Works on desktop and mobile devices
 - **PWA Support**: Install as a progressive web app
 
-## Installation
+## Download & Installation
 
-### Desktop App (macOS, Windows, Linux)
+Pre-built desktop apps (macOS, Windows, Linux) are on [GitHub Releases](https://github.com/spearssoftware/BibleMarker/releases). BibleMarker is built with [Tauri](https://tauri.app) for native desktop.
 
-BibleMarker is built with [Tauri](https://tauri.app) for native desktop performance.
+**macOS:** If you see "BibleMarker is damaged and can't be opened", the app is not damaged—Gatekeeper blocks unsigned downloads. Right-click the app → **Open** → then click **Open** in the dialog. Or in Terminal: `xattr -cr /Applications/BibleMarker.app` (adjust path if needed).
 
-#### Downloading a pre-built release (macOS)
+**Windows:** SmartScreen may warn for unsigned downloads. Click **More info** → **Run anyway**. For signed builds (no warning), see [Windows code signing](./docs/WINDOWS_CODE_SIGNING.md).
 
-Pre-built macOS apps are not code-signed (no Apple Developer certificate). When you download the app from [GitHub Releases](https://github.com/spearssoftware/BibleMarker/releases), macOS may show **"BibleMarker is damaged and can't be opened"**. The app is not actually damaged—this is Gatekeeper blocking unsigned downloads.
+**Web app:** Run in the browser without installing: `pnpm install` then `pnpm dev`, and open the URL shown in the terminal.
 
-**To open the app:**
-
-1. **Right-click** (or Control-click) the BibleMarker app.
-2. Choose **Open**, then click **Open** in the dialog.
-
-Alternatively, remove the quarantine attribute in Terminal (replace the path with where you placed the app):
-
-```bash
-xattr -cr /Applications/BibleMarker.app
-```
-
-After that, you can open the app normally.
-
-**Windows:** SmartScreen may show "Windows protected your PC" for unsigned downloads. Click **More info** → **Run anyway** to install or run. To remove the warning entirely (signed builds), see [docs/WINDOWS_CODE_SIGNING.md](./docs/WINDOWS_CODE_SIGNING.md).
-
-#### Building from source
+## Building from source
 
 1. Clone the repository:
 ```bash
@@ -97,34 +75,19 @@ corepack prepare pnpm@latest --activate
 pnpm install
 ```
 
-3. Run in development mode:
+3. Run desktop app in development:
 ```bash
 pnpm tauri:dev
 ```
 
-4. Build for production:
+4. Build desktop app for production:
 ```bash
 pnpm tauri:build
 ```
 
 See [docs/MAC_APP_GUIDE.md](./docs/MAC_APP_GUIDE.md) for detailed macOS-specific instructions.
 
-### Web App
-
-1. Install dependencies:
-```bash
-pnpm install
-```
-
-2. Run development server:
-```bash
-pnpm dev
-```
-
-3. Build for production:
-```bash
-pnpm build
-```
+To build and run the web app only: `pnpm install`, `pnpm dev` (development) or `pnpm build` (production).
 
 ## Configuration
 
