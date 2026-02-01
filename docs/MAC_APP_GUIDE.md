@@ -511,7 +511,7 @@ cask 'bible-study' do
   version '0.1.0'
   sha256 '...'
   
-  url "https://yourdomain.com/releases/BibleStudy-#{version}.dmg"
+  url "https://biblemarker.app/releases/BibleMarker-#{version}.dmg"
   name 'Bible Study'
   
   app 'Bible Study.app'

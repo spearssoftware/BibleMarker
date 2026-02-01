@@ -16,6 +16,15 @@ export function AboutSection() {
             <div className="font-medium mb-1">BibleMarker</div>
             <div className="text-scripture-muted text-xs">
               Version {version}
+              {' · '}
+              <a
+                href="https://biblemarker.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-scripture-accent hover:underline"
+              >
+                biblemarker.app
+              </a>
             </div>
           </div>
           <p className="text-xs text-scripture-muted">

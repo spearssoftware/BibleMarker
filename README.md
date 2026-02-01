@@ -2,6 +2,8 @@
 
 A cross-platform Bible study application for deep text study using the Inductive Bible Study Method. Mark, annotate, and analyze Scripture with powerful study tools.
 
+**Website:** [biblemarker.app](https://biblemarker.app)
+
 ![BibleMarker Screenshot](./public/biblemaker-screenshot-202601.png)
 
 ## Features
@@ -56,7 +58,7 @@ BibleMarker is built with [Tauri](https://tauri.app) for native desktop performa
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/biblemarker.git
+git clone https://github.com/spearssoftware/BibleMarker.git
 cd biblemarker
 ```
 
@@ -209,7 +211,8 @@ See [docs/CROSS_PLATFORM_STRATEGY.md](./docs/CROSS_PLATFORM_STRATEGY.md) for the
 ## Support
 
 For questions or issues:
-- Open an issue on GitHub
+- **Website:** [biblemarker.app](https://biblemarker.app)
+- Open an issue on [GitHub](https://github.com/spearssoftware/BibleMarker)
 - Check the built-in help: **Settings → Help → Getting Started**
 
 ## Acknowledgments
