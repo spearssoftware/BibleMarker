@@ -6,6 +6,13 @@ A cross-platform Bible study application for deep text study using the Inductive
 
 ![BibleMarker Screenshot](./public/biblemaker-screenshot-202601.png)
 
+## Download
+
+Pre-built desktop apps (macOS, Windows, Linux) are available on [GitHub Releases](https://github.com/spearssoftware/BibleMarker/releases).
+
+- **macOS:** If you see "BibleMarker is damaged and can't be opened", right-click the app → **Open** → then click **Open** in the dialog. The app is unsigned; Gatekeeper blocks it by default. See [Installation](#installation) for details.
+- **Windows:** SmartScreen may warn for unsigned downloads. Click **More info** → **Run anyway**. For signed builds (no warning), see [Windows code signing](./docs/WINDOWS_CODE_SIGNING.md).
+
 ## Features
 
 ### 📖 Bible Reading
