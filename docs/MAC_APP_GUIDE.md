@@ -12,6 +12,25 @@ This guide will walk you through converting your Bible Study web app into a nati
 
 ---
 
+## Opening a Downloaded App (GitHub Releases)
+
+If you downloaded the macOS app from [GitHub Releases](https://github.com/spearssoftware/BibleMarker/releases) and see **"BibleMarker is damaged and can't be opened"**, the app is not actually damaged. macOS Gatekeeper blocks unsigned apps downloaded from the internet.
+
+**To open the app:**
+
+1. **Right-click** (or Control-click) the BibleMarker app.
+2. Choose **Open**, then click **Open** in the dialog.
+
+Or remove the quarantine attribute in Terminal (adjust the path if needed):
+
+```bash
+xattr -cr /Applications/BibleMarker.app
+```
+
+After that, you can open the app normally. For signed builds and notarization, see the **Code Signing & Notarization** section below.
+
+---
+
 ## Prerequisites
 
 ### 1. Install Rust
