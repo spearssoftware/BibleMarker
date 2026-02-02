@@ -40,7 +40,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
       - id: get-release-id
-        run: echo "id=$(gh release view app-v${{ steps.version.outputs.version }} --json id -q .id)" >> $GITHUB_OUTPUT
+        run: echo "id=$(gh release view app-v${{ steps.version.outputs.version }} --json databaseId -q .databaseId)" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
