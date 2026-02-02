@@ -203,6 +203,7 @@ See [docs/CROSS_PLATFORM_STRATEGY.md](./docs/CROSS_PLATFORM_STRATEGY.md) for the
 
 For questions or issues:
 - **Website:** [biblemarker.app](https://biblemarker.app)
+- **Documentation:** [GitHub Wiki](https://github.com/spearssoftware/BibleMarker/wiki)
 - Open an issue on [GitHub](https://github.com/spearssoftware/BibleMarker)
 - Check the built-in help: **Settings → Help → Getting Started**
 

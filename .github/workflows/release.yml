@@ -54,12 +54,16 @@ jobs:
         include:
           - platform: macos-latest
             args: --target aarch64-apple-darwin
+            tauri_target: aarch64-apple-darwin
           - platform: macos-latest
             args: --target x86_64-apple-darwin
+            tauri_target: x86_64-apple-darwin
           - platform: ubuntu-22.04
             args: ""
+            tauri_target: ""
           - platform: windows-latest
             args: ""
+            tauri_target: ""
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout repository
@@ -145,7 +149,7 @@ jobs:
       # macOS only: re-sign with hardened runtime + timestamp for notarization
       - name: Re-sign for notarization
         if: matrix.platform == 'macos-latest'
-        run: ./scripts/sign-macos.sh
+        run: ./scripts/sign-macos.sh src-tauri/target/${{ matrix.tauri_target }}/release/bundle/macos
 
       # macOS only: notarize
       - name: Notarize app
@@ -155,7 +159,7 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          cd src-tauri/target/release/bundle/macos
+          cd src-tauri/target/${{ matrix.tauri_target }}/release/bundle/macos
           ditto -c -k --keepParent BibleMarker.app BibleMarker.zip
           xcrun notarytool submit BibleMarker.zip \
             --apple-id "$APPLE_ID" \
@@ -163,7 +167,7 @@ jobs:
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --wait
           xcrun stapler staple BibleMarker.app
-          ARCH=$([[ "${{ matrix.args }}" == *aarch64* ]] && echo "aarch64" || echo "x64")
+          ARCH=$([[ "${{ matrix.tauri_target }}" == *aarch64* ]] && echo "aarch64" || echo "x64")
           ditto -c -k --keepParent BibleMarker.app "$GITHUB_WORKSPACE/BibleMarker-macos-$ARCH.zip"
 
       # macOS only: upload stapled app to release (same tag updates existing release)
@@ -172,6 +176,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: app-v${{ needs.prepare.outputs.version }}
-          files: BibleMarker-macos-${{ matrix.args == '--target aarch64-apple-darwin' && 'aarch64' || 'x64' }}.zip
+          files: BibleMarker-macos-${{ matrix.tauri_target == 'aarch64-apple-darwin' && 'aarch64' || 'x64' }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
