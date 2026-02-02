@@ -38,10 +38,11 @@
     "macOS": {
       "frameworks": [],
       "minimumSystemVersion": "10.13",
+      "hardenedRuntime": true,
       "exceptionDomain": "",
       "signingIdentity": null,
       "providerShortName": null,
-      "entitlements": null
+      "entitlements": "entitlements.plist"
     }
   }
 }
