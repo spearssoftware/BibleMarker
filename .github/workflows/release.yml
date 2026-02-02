@@ -12,10 +12,12 @@ jobs:
     permissions:
       contents: write
     outputs:
-      release_id: ${{ steps.release.outputs.id }}
+      release_id: ${{ steps.get-release-id.outputs.id }}
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
         with:
           version: 10
@@ -40,6 +42,10 @@ jobs:
           generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - id: get-release-id
+        run: echo "id=$(gh release view app-v${{ steps.version.outputs.version }} --json id -q .id)" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish-tauri:
     needs: prepare
@@ -86,6 +92,7 @@ jobs:
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
+        continue-on-error: true
         with:
           workspaces: "./src-tauri -> target"
 
