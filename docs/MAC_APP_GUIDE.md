@@ -331,6 +331,18 @@ pnpm tauri build
 
 Tauri will automatically code sign the app if certificates are configured.
 
+### 4b. Re-sign for Notarization (Hardened Runtime + Timestamp)
+
+Apple notarization requires the main executable to be signed with **hardened runtime** and a **secure timestamp**. If notarization returns "Invalid" with errors about "signature does not include a secure timestamp" or "executable does not have the hardened runtime enabled", re-sign after building:
+
+```bash
+# Replace with your exact signing identity from Keychain
+export APPLE_SIGNING_IDENTITY="Developer ID Application: Your Name (TEAM_ID)"
+./scripts/sign-macos.sh
+```
+
+Then zip and submit for notarization (see below).
+
 ### 5. Notarization (for Distribution Outside App Store)
 
 After building, notarize the app:
@@ -343,23 +355,51 @@ xcrun altool --notarize-app \
   --file "src-tauri/target/release/bundle/macos/Bible Study.app"
 ```
 
-Or use `notarytool` (newer method):
+Or use `notarytool` (newer method). **Submit a .zip** (not the raw .app):
 
 ```bash
-xcrun notarytool submit "Bible Study.app" \
+cd src-tauri/target/release/bundle/macos
+ditto -c -k --keepParent BibleMarker.app BibleMarker.zip
+xcrun notarytool submit BibleMarker.zip \
   --apple-id "your@email.com" \
   --team-id "TEAM_ID" \
-  --password "@keychain:AC_PASSWORD" \
+  --keychain-profile "AC_PASSWORD" \
   --wait
 ```
 
+Use `--keychain-profile "AC_PASSWORD"` if you stored credentials with `notarytool store-credentials "AC_PASSWORD" ...` (not `--password`).
+
 ### 6. Staple the Ticket
 
-After notarization succeeds:
+After notarization succeeds, staple to the **.app** (not the zip):
 
 ```bash
-xcrun stapler staple "Bible Study.app"
+xcrun stapler staple BibleMarker.app
 ```
+
+Then distribute the stapled `BibleMarker.app` (or a DMG containing it).
+
+---
+
+## CI (GitHub Actions)
+
+The release workflow (`.github/workflows/release.yml`) can sign and notarize the macOS build in CI. It:
+
+1. **prepare** – Creates a draft release and tag.
+2. **publish-tauri** (matrix) – For **macOS**: imports your Apple cert, builds, re-signs (hardened runtime + timestamp), notarizes, staples, and uploads `BibleMarker-macos-aarch64.zip` / `BibleMarker-macos-x64.zip`. For **Linux/Windows**: builds and uploads to the same release.
+
+**Required GitHub secrets** (for macOS signing and notarization):
+
+| Secret | Description |
+|--------|-------------|
+| `APPLE_CERTIFICATE` | Base64-encoded `.p12` (export from Keychain, then `base64 -i cert.p12` or `openssl base64 -A -in cert.p12`) |
+| `APPLE_CERTIFICATE_PASSWORD` | Password you set when exporting the `.p12` |
+| `KEYCHAIN_PASSWORD` | Temporary keychain password (e.g. a random string; used only in CI) |
+| `APPLE_ID` | Apple ID email (e.g. for notarytool) |
+| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password from [appleid.apple.com](https://appleid.apple.com) → App-Specific Passwords |
+| `APPLE_TEAM_ID` | Team ID from [developer.apple.com/account](https://developer.apple.com/account) (e.g. `GRR34N6W9V`) |
+
+If these secrets are **not** set, the macOS matrix jobs will fail at “Import Apple Developer Certificate” or “Notarize app”. You can still run the workflow for Linux/Windows only by temporarily removing or skipping the macOS matrix entries.
 
 ---
 

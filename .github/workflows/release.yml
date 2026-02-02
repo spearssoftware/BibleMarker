@@ -3,11 +3,46 @@ name: publish
 on:
   workflow_dispatch:
   push:
-    branches:
-      - release
+    tags:
+      - 'app-v*'
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.release.outputs.id }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+      - id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+      - id: release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: app-v${{ steps.version.outputs.version }}
+          name: BibleMarker v${{ steps.version.outputs.version }}
+          body: |
+            See the assets to download this version and install.
+
+            **macOS:** Signed and notarized builds open without Gatekeeper warnings. If you see "damaged", right-click → **Open** (or run `xattr -cr /path/to/BibleMarker.app`).
+
+            **Windows:** SmartScreen may warn for unsigned builds. Click **More info** → **Run anyway**.
+          draft: true
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   publish-tauri:
+    needs: prepare
     permissions:
       contents: write
     strategy:
@@ -60,19 +95,79 @@ jobs:
       - name: Generate icons
         run: pnpm tauri icon public/icon.svg
 
+      # macOS only: import Apple Developer certificate for signing
+      - name: Import Apple Developer Certificate
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$APPLE_CERTIFICATE" | base64 --decode -o certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/pkgbuild -T /usr/bin/productbuild
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          echo "APPLE_SIGNING_IDENTITY=$(security find-identity -v -p codesigning build.keychain | grep 'Developer ID Application' | head -1 | sed -E 's/.*\"([^\"]+)\".*/\1/')" >> $GITHUB_ENV
+
+      # Build and upload (Linux/Windows): use existing release from prepare job
       - name: Build and release
+        id: build
+        if: matrix.platform != 'macos-latest'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: app-v__VERSION__
-          releaseName: "BibleMarker v__VERSION__"
-          releaseBody: |
-  See the assets to download this version and install.
-
-  **macOS:** If you see "BibleMarker is damaged and can't be opened", the app is not actually damaged—Gatekeeper blocks unsigned downloads. Right-click the app → **Open** → then click **Open** in the dialog. Or run in Terminal: `xattr -cr /path/to/BibleMarker.app`
-
-  **Windows:** SmartScreen may warn "Windows protected your PC" because the app is unsigned. Click **More info** → **Run anyway** to install or run.
+          releaseId: ${{ needs.prepare.outputs.release_id }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      # macOS: build only (no upload)
+      - name: Build (macOS only)
+        if: matrix.platform == 'macos-latest'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
+        with:
+          releaseDraft: true
+          args: ${{ matrix.args }}
+
+      # macOS only: re-sign with hardened runtime + timestamp for notarization
+      - name: Re-sign for notarization
+        if: matrix.platform == 'macos-latest'
+        run: ./scripts/sign-macos.sh
+
+      # macOS only: notarize
+      - name: Notarize app
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cd src-tauri/target/release/bundle/macos
+          ditto -c -k --keepParent BibleMarker.app BibleMarker.zip
+          xcrun notarytool submit BibleMarker.zip \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --wait
+          xcrun stapler staple BibleMarker.app
+          ARCH=$([[ "${{ matrix.args }}" == *aarch64* ]] && echo "aarch64" || echo "x64")
+          ditto -c -k --keepParent BibleMarker.app "$GITHUB_WORKSPACE/BibleMarker-macos-$ARCH.zip"
+
+      # macOS only: upload stapled app to release (same tag updates existing release)
+      - name: Upload macOS artifact to release
+        if: matrix.platform == 'macos-latest'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: app-v${{ needs.prepare.outputs.version }}
+          files: BibleMarker-macos-${{ matrix.args == '--target aarch64-apple-darwin' && 'aarch64' || 'x64' }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
