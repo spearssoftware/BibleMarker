@@ -24,24 +24,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
-          cache: "pnpm"
       - id: version
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
-      - id: release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: app-v${{ steps.version.outputs.version }}
-          name: BibleMarker v${{ steps.version.outputs.version }}
-          body: |
-            See the assets to download this version and install.
+      - name: Create draft release for tag
+        run: |
+          gh release create "app-v${{ steps.version.outputs.version }}" \
+            --title "BibleMarker v${{ steps.version.outputs.version }}" \
+            --notes "See the assets to download this version and install.
 
-            **macOS:** Signed and notarized builds open without Gatekeeper warnings. If you see "damaged", right-click → **Open** (or run `xattr -cr /path/to/BibleMarker.app`).
+          **macOS:** Signed and notarized builds open without Gatekeeper warnings. If you see \"damaged\", right-click → **Open** (or run \`xattr -cr /path/to/BibleMarker.app\`).
 
-            **Windows:** SmartScreen may warn for unsigned builds. Click **More info** → **Run anyway**.
-          draft: true
-          generate_release_notes: false
+          **Windows:** SmartScreen may warn for unsigned builds. Click **More info** → **Run anyway**." \
+            --draft
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
       - id: get-release-id
         run: echo "id=$(gh release view app-v${{ steps.version.outputs.version }} --json id -q .id)" >> $GITHUB_OUTPUT
         env:
