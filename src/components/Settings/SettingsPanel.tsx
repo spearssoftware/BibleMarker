@@ -54,6 +54,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [highContrast, setHighContrast] = useState(false);
   const [debugKeywordMatching, setDebugKeywordMatching] = useState(false);
   const [debugVerseText, setDebugVerseText] = useState(false);
+  const [checkForUpdates, setCheckForUpdates] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showClearBookConfirm, setShowClearBookConfirm] = useState(false);
@@ -126,6 +127,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         }
         if (prefs.debug?.verseText !== undefined) {
           setDebugVerseText(prefs.debug.verseText);
+        }
+        if (prefs.checkForUpdates !== undefined) {
+          setCheckForUpdates(prefs.checkForUpdates);
         }
         // Initialize debug flags cache so getDebugFlagsSync() works
         await getDebugFlags();
@@ -308,6 +312,15 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       await updatePreferences({ highContrast: enabled });
     } catch (error) {
       console.error('Error updating high contrast:', error);
+    }
+  };
+
+  const handleCheckForUpdatesChange = async (enabled: boolean) => {
+    setCheckForUpdates(enabled);
+    try {
+      await updatePreferences({ checkForUpdates: enabled });
+    } catch (error) {
+      console.error('Error updating check for updates preference:', error);
     }
   };
 
@@ -787,7 +800,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               {/* getBible API Section */}
               <div className="p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-ui font-semibold text-scripture-text">getBible API</h3>
+                  <h3 className="text-base font-ui font-semibold text-scripture-text mb-3">getBible API</h3>
                   <span className="text-xs px-2 py-1 bg-scripture-successBg text-scripture-successText rounded border border-scripture-success/30">
                     Free • No API Key Required
                   </span>
@@ -802,7 +815,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               {/* Biblia API Section */}
               <div className="p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-ui font-semibold text-scripture-text">Biblia API</h3>
+                  <h3 className="text-base font-ui font-semibold text-scripture-text mb-3">Biblia API</h3>
                   {bibliaClient.isConfigured() ? (
                     <span className="text-xs px-2 py-1 bg-scripture-successBg text-scripture-successText border border-scripture-success/30 rounded">
                       ✓ Configured
@@ -886,7 +899,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               {BIBLEGATEWAY_ENABLED && (
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-ui font-semibold text-scripture-text">BibleGateway API</h3>
+                    <h3 className="text-base font-ui font-semibold text-scripture-text mb-3">BibleGateway API</h3>
                     {bibleGatewayClient.isConfigured() ? (
                       <span className="text-xs px-2 py-1 bg-scripture-successBg text-scripture-successText border border-scripture-success/30 rounded">
                         ✓ Configured
@@ -954,7 +967,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               {/* ESV API Section */}
               <div className="p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-ui font-semibold text-scripture-text">ESV API</h3>
+                  <h3 className="text-base font-ui font-semibold text-scripture-text mb-3">ESV API</h3>
                   {esvClient.isConfigured() ? (
                     <span className="text-xs px-2 py-1 bg-scripture-successBg text-scripture-successText border border-scripture-success/30 rounded">
                       ✓ Configured
@@ -1518,7 +1531,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
               <div className="p-4">
                 <div className="mb-4">
-                  <h3 className="text-sm font-ui font-semibold text-scripture-text mb-3">Onboarding</h3>
+                  <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Onboarding</h3>
                   <button
                     onClick={async () => {
                       // Reset onboarding state
@@ -1555,7 +1568,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
               <div className="p-4">
                 <div className="mb-4">
-                  <h3 className="text-sm font-ui font-semibold text-scripture-text mb-3">Debug Logging</h3>
+                  <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Debug Logging</h3>
                   <p className="text-xs text-scripture-muted mb-4">
                     Enable detailed console logging for debugging keyword matching and verse rendering issues.
                   </p>
@@ -1625,7 +1638,35 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               <div className="border-t border-scripture-border/30 my-4"></div>
 
               <div className="p-4">
-                <AboutSection />
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-sm font-medium text-scripture-text">Check for updates automatically</div>
+                    <div className="text-xs text-scripture-muted mt-0.5">
+                      Check GitHub once per day for a new release (when this is on)
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleCheckForUpdatesChange(!checkForUpdates)}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-scripture-accent focus:ring-offset-2 ${
+                      checkForUpdates ? 'bg-scripture-accent' : 'bg-scripture-border'
+                    }`}
+                    role="switch"
+                    aria-checked={checkForUpdates}
+                    aria-label="Toggle check for updates automatically"
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        checkForUpdates ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
+
+              <div className="p-4">
+                <AboutSection checkForUpdates={checkForUpdates} />
               </div>
             </div>
             </div>

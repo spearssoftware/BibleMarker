@@ -100,6 +100,10 @@ export interface UserPreferences {
   translationLanguageFilter?: string[];  // e.g. ['en'] for English only; omit or empty = all languages
   onboarding?: OnboardingState;    // Onboarding state for first-time users
   autoBackup?: AutoBackupConfig;    // Auto-backup configuration
+  /** When false, app will not check GitHub for new releases (default true) */
+  checkForUpdates?: boolean;
+  /** ISO date string of last update check (used to throttle to once per 24h) */
+  lastUpdateCheck?: string;
   debug?: {
     keywordMatching?: boolean;      // Enable debug logging for keyword matching
     verseText?: boolean;            // Enable debug logging for verse text rendering
