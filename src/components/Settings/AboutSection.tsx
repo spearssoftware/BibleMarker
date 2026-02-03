@@ -21,11 +21,11 @@ export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true }:
 
   useEffect(() => {
     if (!checkForUpdatesEnabled) {
-      setUpdateResult(null);
+      queueMicrotask(() => setUpdateResult(null));
       return;
     }
     let cancelled = false;
-    setUpdateResult('checking');
+    queueMicrotask(() => setUpdateResult('checking'));
     checkForUpdateIfDue().then((result) => {
       if (!cancelled) {
         setUpdateResult(result);
