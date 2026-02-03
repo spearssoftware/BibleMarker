@@ -50,15 +50,51 @@ const groupByVerse = (items: ObservationItem[]): Map<string, ObservationItem[]> 
   return map;
 };
 
-// Sort verse groups by canonical order
+// Sort verse groups by canonical order (book order, then chapter, then verse)
 const sortVerseGroups = (groups: Map<string, ObservationItem[]>): Array<[string, ObservationItem[]]> => {
   return Array.from(groups.entries()).sort(([keyA], [keyB]) => {
-    const [bookA, chapterA, verseA] = keyA.split(':').map(Number);
-    const [bookB, chapterB, verseB] = keyB.split(':').map(Number);
-    
-    if (bookA !== bookB) return bookA - bookB;
-    if (chapterA !== chapterB) return chapterA - chapterB;
-    return verseA - verseB;
+    const [bookA, chapterA, verseA] = keyA.split(':');
+    const [bookB, chapterB, verseB] = keyB.split(':');
+    const orderA = getBookById(bookA)?.order ?? 999;
+    const orderB = getBookById(bookB)?.order ?? 999;
+    if (orderA !== orderB) return orderA - orderB;
+    const chA = parseInt(chapterA, 10);
+    const chB = parseInt(chapterB, 10);
+    if (chA !== chB) return chA - chB;
+    return parseInt(verseA, 10) - parseInt(verseB, 10);
+  });
+};
+
+// Sort lists by earliest verse in each list (canonical order)
+const sortListsByVerse = (lists: ObservationList[]): ObservationList[] => {
+  return [...lists].sort((a, b) => {
+    const itemsA = a.items.length > 0 ? a.items : [];
+    const itemsB = b.items.length > 0 ? b.items : [];
+    if (itemsA.length === 0 && itemsB.length === 0) return 0;
+    if (itemsA.length === 0) return 1;
+    if (itemsB.length === 0) return -1;
+    const minKey = (items: ObservationItem[]) => {
+      const keys = items.map(item => getVerseKey(item.verseRef));
+      keys.sort((keyA, keyB) => {
+        const [bookA, chapterA, verseA] = keyA.split(':');
+        const [bookB, chapterB, verseB] = keyB.split(':');
+        const orderA = getBookById(bookA)?.order ?? 999;
+        const orderB = getBookById(bookB)?.order ?? 999;
+        if (orderA !== orderB) return orderA - orderB;
+        if (parseInt(chapterA, 10) !== parseInt(chapterB, 10)) return parseInt(chapterA, 10) - parseInt(chapterB, 10);
+        return parseInt(verseA, 10) - parseInt(verseB, 10);
+      });
+      return keys[0];
+    };
+    const keyA = minKey(itemsA);
+    const keyB = minKey(itemsB);
+    const [bookA, chapterA, verseA] = keyA.split(':');
+    const [bookB, chapterB, verseB] = keyB.split(':');
+    const orderA = getBookById(bookA)?.order ?? 999;
+    const orderB = getBookById(bookB)?.order ?? 999;
+    if (orderA !== orderB) return orderA - orderB;
+    if (parseInt(chapterA, 10) !== parseInt(chapterB, 10)) return parseInt(chapterA, 10) - parseInt(chapterB, 10);
+    return parseInt(verseA, 10) - parseInt(verseB, 10);
   });
 };
 
@@ -72,7 +108,7 @@ export function ObservationToolsPanel({
   const [activeTab, setActiveTab] = useState<ObservationTab>(initialTab);
   const { lists, loadLists, deleteList, addItemToList, updateItem, deleteItem } = useListStore();
   const { presets } = useMarkingPresetStore();
-  const { studies } = useStudyStore();
+  const { studies, activeStudyId } = useStudyStore();
   const { currentBook, currentChapter, setLocation, setNavSelectedVerse } = useBibleStore();
   const [editingListId, setEditingListId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -86,7 +122,13 @@ export function ObservationToolsPanel({
   const [newItemNotes, setNewItemNotes] = useState('');
   const [confirmDeleteListId, setConfirmDeleteListId] = useState<string | null>(null);
   const [confirmDeleteObservation, setConfirmDeleteObservation] = useState<{ listId: string; itemId: string } | null>(null);
-  const [filterByChapter, setFilterByChapter] = useState(false);
+
+  // Show lists scoped to current study and book (no chapter filter)
+  const displayLists = lists.filter(l => {
+    const studyMatch = l.studyId == null || l.studyId === activeStudyId;
+    const bookMatch = l.scope?.book == null || l.scope.book === currentBook;
+    return studyMatch && bookMatch;
+  });
 
   // Update activeTab when initialTab changes (e.g., when opened from quick action)
   useEffect(() => {
@@ -348,18 +390,6 @@ export function ObservationToolsPanel({
               </button>
             ))}
           </div>
-          {/* Chapter filter toggle - only show for observation tabs (not lists or theme) */}
-          {activeTab !== 'lists' && activeTab !== 'theme' && (
-            <label className="flex items-center gap-2 text-xs text-scripture-text cursor-pointer whitespace-nowrap">
-              <input
-                type="checkbox"
-                checked={filterByChapter}
-                onChange={(e) => setFilterByChapter(e.target.checked)}
-                className="w-4 h-4 rounded border-scripture-border text-scripture-accent focus:ring-scripture-accent focus:ring-2"
-              />
-              <span>Current chapter only</span>
-            </label>
-          )}
         </div>
       </div>
 
@@ -395,7 +425,6 @@ export function ObservationToolsPanel({
           </div>
         ) : activeTab === 'lists' ? (
           <div role="tabpanel" id="observation-tabpanel-lists" aria-labelledby="observation-tab-lists">
-            {/* New List button */}
             {!isCreating && !editingListId && (
               <div className="mb-4">
                 <button
@@ -407,7 +436,7 @@ export function ObservationToolsPanel({
               </div>
             )}
 
-            {lists.length === 0 ? (
+            {displayLists.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-scripture-muted text-sm mb-4">No observation lists yet.</p>
                 <p className="text-scripture-muted text-xs mb-4">Create a list to record observations about a specific keyword found in scripture.</p>
@@ -420,10 +449,12 @@ export function ObservationToolsPanel({
               </div>
             ) : (
               <div className="space-y-3">
-                {lists.map(list => {
+                {sortListsByVerse(displayLists).map(list => {
                   const isExpanded = expandedLists.has(list.id);
                   const keywordName = getKeywordName(list.keyWordId);
                   const studyName = getStudyName(list.studyId);
+                  const itemsToShow = list.items;
+                  const verseGroups = groupByVerse(itemsToShow);
                   
                   return (
                     <div
@@ -438,13 +469,16 @@ export function ObservationToolsPanel({
                             <div className="flex items-center gap-2 mb-1">
                               <button
                                 onClick={() => toggleList(list.id)}
-                                className="text-scripture-text hover:text-scripture-accent transition-colors flex-1 text-left"
+                                className="text-scripture-text hover:text-scripture-accent transition-colors flex-1 text-left flex items-center gap-2"
                               >
+                                <span className="text-xs text-scripture-muted shrink-0" aria-hidden="true">
+                                  {isExpanded ? '▼' : '▶'}
+                                </span>
                                 <h3 className="font-medium text-scripture-text">{list.title}</h3>
+                                <span className="text-xs text-scripture-muted bg-scripture-elevated px-2 py-0.5 rounded">
+                                  {verseGroups.size} {verseGroups.size === 1 ? 'verse' : 'verses'}
+                                </span>
                               </button>
-                              <span className="text-xs text-scripture-muted bg-scripture-elevated px-2 py-0.5 rounded">
-                                {Array.from(groupByVerse(list.items).keys()).length} {Array.from(groupByVerse(list.items).keys()).length === 1 ? 'verse' : 'verses'}
-                              </span>
                             </div>
                             <div className="flex flex-wrap gap-2 text-xs">
                               <span className="bg-scripture-accent/20 text-scripture-accent px-2 py-0.5 rounded font-medium">
@@ -492,11 +526,13 @@ export function ObservationToolsPanel({
                       {/* List items (collapsible) - grouped by verse */}
                       {isExpanded && (
                         <div className="border-t border-scripture-muted/20 p-4 bg-scripture-bg/50">
-                          {list.items.length === 0 ? (
-                            <p className="text-sm text-scripture-muted">No observations yet. Add some from the Bible text.</p>
+                          {itemsToShow.length === 0 ? (
+                            <p className="text-sm text-scripture-muted">
+                              No observations yet. Add some from the Bible text.
+                            </p>
                           ) : (
                             <div className="space-y-4">
-                              {sortVerseGroups(groupByVerse(list.items)).map(([verseKey, verseItems]) => {
+                              {sortVerseGroups(verseGroups).map(([verseKey, verseItems]) => {
                                 const verseRef = verseItems[0].verseRef;
                                 const isAddingToThisVerse = addingToVerse?.listId === list.id && 
                                   verseKey === (addingToVerse ? getVerseKey(addingToVerse.verseRef) : '');
@@ -690,7 +726,6 @@ export function ObservationToolsPanel({
             <FiveWAndH 
               selectedText={selectedText} 
               verseRef={verseRef}
-              filterByChapter={filterByChapter}
               onNavigate={handleNavigateToVerse}
             />
           </div>
@@ -699,7 +734,6 @@ export function ObservationToolsPanel({
             <ContrastTracker 
               selectedText={selectedText} 
               verseRef={verseRef}
-              filterByChapter={filterByChapter}
               onNavigate={handleNavigateToVerse}
             />
           </div>
@@ -708,7 +742,6 @@ export function ObservationToolsPanel({
             <TimeTracker 
               selectedText={selectedText} 
               verseRef={verseRef}
-              filterByChapter={filterByChapter}
               onNavigate={handleNavigateToVerse}
             />
           </div>
@@ -717,7 +750,6 @@ export function ObservationToolsPanel({
             <PlaceTracker 
               selectedText={selectedText} 
               verseRef={verseRef}
-              filterByChapter={filterByChapter}
               onNavigate={handleNavigateToVerse}
             />
           </div>
@@ -726,7 +758,6 @@ export function ObservationToolsPanel({
             <ConclusionTracker 
               selectedText={selectedText} 
               verseRef={verseRef}
-              filterByChapter={filterByChapter}
               onNavigate={handleNavigateToVerse}
             />
           </div>

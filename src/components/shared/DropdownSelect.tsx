@@ -2,11 +2,11 @@
  * Dropdown Select Component
  * 
  * Custom button-based dropdown that matches the design system.
- * Used in toolbar overlays for consistent UI.
+ * Uses shared form input styling for consistency with Input, Select, etc.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Label } from './Form';
+import { Label, BASE_INPUT_CLASSES } from './Form';
 
 interface DropdownSelectProps {
   value: string;
@@ -105,10 +105,9 @@ export function DropdownSelect({
           type="button"
           onClick={handleToggle}
           disabled={disabled}
-          className={`w-full px-3 py-2 text-sm bg-scripture-bg border rounded-lg 
-                   focus:outline-none focus:border-scripture-accent text-scripture-text
-                   flex items-center gap-2 justify-between hover:bg-scripture-elevated transition-colors
-                   ${hasError ? 'border-scripture-error focus:border-scripture-error' : 'border-scripture-border/50'}
+          className={`${BASE_INPUT_CLASSES} flex items-center gap-2 justify-between
+                   hover:bg-scripture-elevated
+                   ${hasError ? 'border-scripture-error focus:border-scripture-error' : ''}
                    ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         >
           <span className={selectedOption ? '' : 'text-scripture-muted'}>{displayText}</span>

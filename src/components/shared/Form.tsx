@@ -6,8 +6,14 @@
 
 import { InputHTMLAttributes, TextareaHTMLAttributes, SelectHTMLAttributes, LabelHTMLAttributes, ReactNode, forwardRef } from 'react';
 
-// Base input classes used by all form inputs
-const BASE_INPUT_CLASSES = 'w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text transition-colors';
+/** Base input classes used by all form inputs (inputs, textareas, selects, dropdown triggers) */
+export const BASE_INPUT_CLASSES = 'w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text transition-colors';
+
+/** Spacing for a single form field (label + input + help/error) */
+export const FORM_FIELD_SPACING = 'space-y-1';
+
+/** Spacing between form field groups */
+export const FORM_GROUP_SPACING = 'space-y-4';
 
 // Label component
 interface LabelProps extends LabelHTMLAttributes<HTMLLabelElement> {

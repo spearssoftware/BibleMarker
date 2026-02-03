@@ -604,6 +604,13 @@ export function MultiTranslationView() {
       }
     }
 
+    // Capture menu position from selection rect (viewport coords) so the menu appears next to the selection
+    const selRect = expandedRange.getBoundingClientRect();
+    const menuAnchor = {
+      x: selRect.left + selRect.width / 2,
+      y: selRect.top,
+    };
+
     // Set selection with translation ID as moduleId
     setSelection({
       moduleId: translationId,
@@ -616,6 +623,7 @@ export function MultiTranslationView() {
       endOffset,
       startVerseText: originalText || undefined,
       endVerseText: originalText || undefined,
+      menuAnchor,
     });
     setIsSelecting(true);
   }, [activeView, currentBook, currentChapter, setSelection, setIsSelecting]);
