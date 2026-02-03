@@ -9,15 +9,15 @@ const GITHUB_RELEASES_URL = 'https://api.github.com/repos/spearssoftware/BibleMa
 const RELEASES_PAGE_URL = 'https://github.com/spearssoftware/BibleMarker/releases';
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-/** Parse "1.2.3" or "v1.2.3" into [major, minor, patch] for comparison */
-function parseVersion(version: string): [number, number, number] {
+/** Parse "1.2.3" or "v1.2.3" into [major, minor, patch] for comparison. Exported for testing. */
+export function parseVersion(version: string): [number, number, number] {
   const cleaned = version.replace(/^v/i, '').trim();
   const parts = cleaned.split('.').map((p) => parseInt(p, 10) || 0);
   return [parts[0] ?? 0, parts[1] ?? 0, parts[2] ?? 0];
 }
 
-/** True if a > b (semver) */
-function isNewer(a: string, b: string): boolean {
+/** True if a > b (semver). Exported for testing. */
+export function isNewer(a: string, b: string): boolean {
   const [aMajor, aMinor, aPatch] = parseVersion(a);
   const [bMajor, bMinor, bPatch] = parseVersion(b);
   if (aMajor !== bMajor) return aMajor > bMajor;
