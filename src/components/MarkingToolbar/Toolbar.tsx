@@ -89,7 +89,7 @@ export function Toolbar() {
     }
     // Use menuAnchor from the selection (captured at selection time in the reader) so menu appears next to the selection
     if (selection.menuAnchor) {
-      setSelectionMenuPosition(selection.menuAnchor);
+      queueMicrotask(() => setSelectionMenuPosition(selection.menuAnchor));
       return;
     }
     // Fallback: get selection bounds from DOM (may be stale or wrong in some layouts)
@@ -100,10 +100,8 @@ export function Toolbar() {
     }
     const range = sel.getRangeAt(0);
     const rect = range.getBoundingClientRect();
-    setSelectionMenuPosition({
-      x: rect.left + rect.width / 2,
-      y: rect.top,
-    });
+    const position = { x: rect.left + rect.width / 2, y: rect.top };
+    queueMicrotask(() => setSelectionMenuPosition(position));
   }, [selection]);
 
   // Listen for custom events to open ObservationToolsPanel
