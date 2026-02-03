@@ -12,7 +12,7 @@ export function KeyboardShortcutsHelp() {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-ui font-semibold text-scripture-text mb-3">Keyboard Shortcuts</h3>
+        <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Keyboard Shortcuts</h3>
         <p className="text-xs text-scripture-muted mb-4">
           Use these shortcuts to navigate and interact with the app quickly.
         </p>

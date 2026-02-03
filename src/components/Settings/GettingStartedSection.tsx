@@ -8,7 +8,7 @@ export function GettingStartedSection() {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-ui font-semibold text-scripture-text mb-3">Getting Started</h3>
+        <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Getting Started</h3>
         <p className="text-xs text-scripture-muted mb-4">
           This app follows the Precept Bible study method, emphasizing observation through consistent marking and keyword tracking.
         </p>

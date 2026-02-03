@@ -1,16 +1,45 @@
 /**
  * About Section Component
- * 
+ *
  * Displays app version, credits, and license information.
+ * Checks for new releases (at most once per 24h) when checkForUpdates is enabled.
  */
 
-export function AboutSection() {
+import { useEffect, useState } from 'react';
+import { checkForUpdateIfDue, type UpdateCheckResult } from '@/lib/updateCheck';
+
+interface AboutSectionProps {
+  /** When false, no update check is run and no "checking" state is shown */
+  checkForUpdates?: boolean;
+}
+
+export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true }: AboutSectionProps) {
   const version = __APP_VERSION__;
+  const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null | 'checking'>(
+    checkForUpdatesEnabled ? 'checking' : null
+  );
+
+  useEffect(() => {
+    if (!checkForUpdatesEnabled) {
+      setUpdateResult(null);
+      return;
+    }
+    let cancelled = false;
+    setUpdateResult('checking');
+    checkForUpdateIfDue().then((result) => {
+      if (!cancelled) {
+        setUpdateResult(result);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [checkForUpdatesEnabled]);
 
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-ui font-semibold text-scripture-text mb-3">About</h3>
+        <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">About</h3>
         <div className="space-y-3 text-sm text-scripture-text">
           <div>
             <div className="font-medium mb-1">BibleMarker</div>
@@ -26,6 +55,21 @@ export function AboutSection() {
                 biblemarker.app
               </a>
             </div>
+            {updateResult === 'checking' && (
+              <p className="text-xs text-scripture-muted mt-1">Checking for updates…</p>
+            )}
+            {updateResult && updateResult !== 'checking' && (
+              <p className="text-xs mt-1">
+                <a
+                  href={updateResult.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-scripture-accent hover:underline"
+                >
+                  A new version ({updateResult.version}) is available →
+                </a>
+              </p>
+            )}
           </div>
           <p className="text-xs text-scripture-muted">
             A Precept-style Bible study application with keyword marking, observation lists, and multi-translation support.
@@ -34,7 +78,7 @@ export function AboutSection() {
       </div>
 
       <div>
-        <h3 className="text-sm font-ui font-semibold text-scripture-text mb-3">Bible Translations</h3>
+        <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Bible Translations</h3>
         <div className="space-y-3 text-xs text-scripture-muted">
           <div>
             <div className="font-medium text-scripture-text mb-1">getBible API</div>
@@ -102,7 +146,7 @@ export function AboutSection() {
       </div>
 
       <div>
-        <h3 className="text-sm font-ui font-semibold text-scripture-text mb-3">License</h3>
+        <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">License</h3>
         <p className="text-xs text-scripture-muted">
           This application is provided for personal Bible study use. Bible text is provided by third-party APIs and is subject to their respective terms and copyrights.
         </p>
