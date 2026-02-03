@@ -32,6 +32,8 @@ export interface TextSelection {
   endOffset?: number;     // Character offset within end verse text
   startVerseText?: string; // Full text of start verse (for finding offset)
   endVerseText?: string;   // Full text of end verse (for finding offset)
+  /** Viewport position for the selection menu (captured when selection is made) */
+  menuAnchor?: { x: number; y: number };
 }
 
 type FontSize = 'sm' | 'base' | 'lg' | 'xl';

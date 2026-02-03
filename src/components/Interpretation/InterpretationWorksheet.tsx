@@ -12,7 +12,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { formatVerseRef } from '@/types/bible';
 import type { InterpretationEntry } from '@/types/interpretation';
 import type { VerseRef } from '@/types/bible';
-import { Textarea, ConfirmationDialog } from '@/components/shared';
+import { Textarea, ConfirmationDialog, DropdownSelect } from '@/components/shared';
 import { getChapterAnnotations } from '@/lib/db';
 
 interface InterpretationWorksheetProps {
@@ -396,21 +396,15 @@ export function InterpretationWorksheet({ verseRef: initialVerseRef }: Interpret
           )}
 
           {/* Study Selection */}
-          <div>
-            <label className="block text-xs font-ui font-semibold text-scripture-text uppercase tracking-wider mb-2">
-              Study (Optional)
-            </label>
-            <select
-              value={formStudyId}
-              onChange={(e) => setFormStudyId(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-            >
-              <option value="">No study (global)</option>
-              {studies.map(study => (
-                <option key={study.id} value={study.id}>{study.name}</option>
-              ))}
-            </select>
-          </div>
+          <DropdownSelect
+            label="Study (Optional)"
+            value={formStudyId}
+            onChange={setFormStudyId}
+            options={[
+              { value: '', label: 'No study (global)' },
+              ...studies.map(study => ({ value: study.id, label: study.name }))
+            ]}
+          />
 
           {/* Interpretation Fields */}
           <div className="space-y-4">

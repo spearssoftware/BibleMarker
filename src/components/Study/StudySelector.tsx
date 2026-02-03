@@ -7,6 +7,7 @@
 import { useEffect } from 'react';
 import { useStudyStore } from '@/stores/studyStore';
 import { getBookById } from '@/types/bible';
+import { DropdownSelect } from '@/components/shared';
 
 export function StudySelector() {
   const { studies, activeStudyId, loadStudies, setActiveStudy, getActiveStudy } = useStudyStore();
@@ -30,20 +31,20 @@ export function StudySelector() {
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <label className="text-sm text-scripture-muted">Active Study:</label>
-      <select
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="text-sm font-medium text-scripture-text whitespace-nowrap">Active Study:</span>
+      <DropdownSelect
         value={activeStudyId || 'none'}
-        onChange={(e) => handleChange(e.target.value)}
-        className="px-3 py-1.5 text-sm bg-scripture-background border border-scripture-muted/30 rounded text-scripture-text focus:outline-none focus:ring-2 focus:ring-scripture-accent"
-      >
-        <option value="none">None (show all keywords)</option>
-        {studies.map(study => (
-          <option key={study.id} value={study.id}>
-            {study.name} {study.book ? `(${getBookById(study.book)?.name || study.book})` : ''}
-          </option>
-        ))}
-      </select>
+        onChange={(value) => handleChange(value)}
+        options={[
+          { value: 'none', label: 'None (show all keywords)' },
+          ...studies.map(study => ({
+            value: study.id,
+            label: `${study.name}${study.book ? ` (${getBookById(study.book)?.name || study.book})` : ''}`
+          }))
+        ]}
+        className="min-w-[200px] flex-1 min-w-0 w-auto"
+      />
     </div>
   );
 }

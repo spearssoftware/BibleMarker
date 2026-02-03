@@ -18,6 +18,7 @@ interface FiveWAndHProps {
   selectedText?: string;
   verseRef?: VerseRef;
   filterByChapter?: boolean;
+  onFilterByChapterChange?: (value: boolean) => void;
   onNavigate?: (verseRef: VerseRef) => void;
 }
 
@@ -72,7 +73,7 @@ const sortVerseGroups = (groups: Map<string, FiveWAndHEntry[]>): Array<[string, 
   });
 };
 
-export function FiveWAndH({ verseRef: initialVerseRef, filterByChapter = false, onNavigate }: FiveWAndHProps) {
+export function FiveWAndH({ verseRef: initialVerseRef, filterByChapter = false, onFilterByChapterChange, onNavigate }: FiveWAndHProps) {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { 
     fiveWAndHEntries, 
@@ -515,15 +516,26 @@ export function FiveWAndH({ verseRef: initialVerseRef, filterByChapter = false, 
 
       {/* Entries List */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-        {/* New Entry button */}
+        {/* New Entry button and Current Chapter Only */}
         {!isCreating && !editingId && (
-          <div className="mb-4">
+          <div className="mb-4 flex flex-wrap items-center gap-3">
             <button
               onClick={handleStartCreate}
               className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
             >
               + New Entry
             </button>
+            {onFilterByChapterChange && (
+              <label className="flex items-center gap-2 text-xs text-scripture-text cursor-pointer whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={filterByChapter}
+                  onChange={(e) => onFilterByChapterChange(e.target.checked)}
+                  className="w-4 h-4 rounded border-scripture-border text-scripture-accent focus:ring-scripture-accent focus:ring-2"
+                />
+                <span>Current Chapter Only</span>
+              </label>
+            )}
           </div>
         )}
 
@@ -557,31 +569,27 @@ export function FiveWAndH({ verseRef: initialVerseRef, filterByChapter = false, 
                     <div className="w-full flex items-center justify-between gap-2">
                       <button
                         onClick={() => toggleVerse(verseKey)}
-                        className="flex-1 flex items-center justify-between text-left"
+                        className="flex-1 flex items-center gap-2 text-left"
                       >
-                        <div className="flex items-center gap-2">
-                          {onNavigate ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onNavigate(verseRef);
-                              }}
-                              className="text-sm font-medium text-scripture-accent hover:text-scripture-accent/80 cursor-pointer underline transition-colors"
-                              title="Click to navigate to verse"
-                            >
-                              {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
-                            </button>
-                          ) : (
-                            <span className="text-sm font-medium text-scripture-accent">
-                              {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
-                            </span>
-                          )}
-                          <span className="text-xs text-scripture-muted bg-scripture-elevated px-2 py-0.5 rounded">
-                            {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
+                        <span className="text-xs text-scripture-muted shrink-0">{isExpanded ? '▼' : '▶'}</span>
+                        {onNavigate ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onNavigate(verseRef);
+                            }}
+                            className="text-sm font-medium text-scripture-accent hover:text-scripture-accent/80 cursor-pointer underline transition-colors"
+                            title="Click to navigate to verse"
+                          >
+                            {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
+                          </button>
+                        ) : (
+                          <span className="text-sm font-medium text-scripture-accent">
+                            {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
                           </span>
-                        </div>
-                        <span className="text-scripture-muted">
-                          {isExpanded ? '▼' : '▶'}
+                        )}
+                        <span className="text-xs text-scripture-muted bg-scripture-elevated px-2 py-0.5 rounded">
+                          {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
                         </span>
                       </button>
                     </div>

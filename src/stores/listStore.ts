@@ -32,7 +32,7 @@ interface ListState {
   autoPopulateFromKeyword: (listId: string, keyWordId: string) => Promise<number>;
   getMostRecentlyUsedList: () => ObservationList | null;
   autoPopulateFromChapter: (book: string, chapter: number, moduleId?: string) => Promise<number>; // Auto-populate lists for keywords found in chapter
-  getOrCreateListForKeyword: (keyWordId: string, book?: string, chapter?: number) => Promise<ObservationList>; // Get existing list or create default one
+  getOrCreateListForKeyword: (keyWordId: string, book?: string, studyId?: string | null) => Promise<ObservationList>; // Get existing list or create default one (scoped to book, not chapter)
 }
 
 export const useListStore = create<ListState>()(
@@ -336,55 +336,34 @@ export const useListStore = create<ListState>()(
         return uniqueItems.length;
       },
 
-      getOrCreateListForKeyword: async (keyWordId, book, chapter) => {
+      getOrCreateListForKeyword: async (keyWordId, book, studyIdParam) => {
         const { lists } = get();
-        
-        // Try to find existing list for this keyword
-        // If book/chapter provided, prefer lists scoped to that book/chapter
-        let existingList = lists.find(l => l.keyWordId === keyWordId);
-        
-        if (book && chapter) {
-          // Prefer list scoped to this chapter
-          const chapterScopedList = lists.find(l => 
-            l.keyWordId === keyWordId &&
-            l.scope?.book === book &&
-            l.scope?.chapters?.includes(chapter)
-          );
-          if (chapterScopedList) existingList = chapterScopedList;
-        } else if (book) {
-          // Prefer list scoped to this book
-          const bookScopedList = lists.find(l => 
-            l.keyWordId === keyWordId &&
-            l.scope?.book === book &&
-            !l.scope?.chapters
-          );
-          if (bookScopedList) existingList = bookScopedList;
-        }
-        
+        // Use active study from store when not provided (e.g. from autoPopulateFromChapter)
+        const studyId = studyIdParam ?? (await import('@/stores/studyStore')).useStudyStore.getState().activeStudyId ?? undefined;
+
+        // Find existing list: same keyword, same study, same book scope (book-scoped only, no chapter)
+        const existingList = lists.find(l => 
+          l.keyWordId === keyWordId &&
+          (l.studyId ?? null) === (studyId ?? null) &&
+          (l.scope?.book ?? null) === (book ?? null) &&
+          !(l.scope?.chapters && l.scope.chapters.length > 0) // prefer book-scoped, not chapter-scoped
+        );
         if (existingList) {
           return existingList;
         }
-        
-        // Create a new default list
+
+        // Create a new default list (scoped to book only, no chapter)
         const preset = await getMarkingPreset(keyWordId);
         if (!preset || !preset.word) {
           throw new Error(`Preset not found: ${keyWordId}`);
         }
-        
-        // Generate default title
-        let title = `Observations about "${preset.word}"`;
-        if (book) {
-          const { getBookById } = await import('@/types/bible');
-          const bookInfo = getBookById(book);
-          if (chapter) {
-            title = `Observations about "${preset.word}" in ${bookInfo?.name || book} ${chapter}`;
-          } else {
-            title = `Observations about "${preset.word}" in ${bookInfo?.name || book}`;
-          }
-        }
-        
-        const scope = book ? { book, chapters: chapter ? [chapter] : undefined } : undefined;
-        const newList = await get().createList(title, keyWordId, scope);
+
+        const { getBookById } = await import('@/types/bible');
+        const title = book
+          ? `Observations about "${preset.word}" in ${getBookById(book)?.name || book}`
+          : `Observations about "${preset.word}"`;
+        const scope = book ? { book } : undefined; // book only, no chapters
+        const newList = await get().createList(title, keyWordId, scope, studyId ?? undefined);
         return newList;
       },
 
@@ -436,9 +415,9 @@ export const useListStore = create<ListState>()(
             const matches = findKeywordMatches(text, verseRef, [preset], effectiveModuleId);
             if (matches.length === 0) continue;
             
-            // Get or create list for this keyword
+            // Get or create list for this keyword (scoped to book, not chapter)
             try {
-              const list = await getOrCreateListForKeyword(preset.id, book, chapter);
+              const list = await getOrCreateListForKeyword(preset.id, book);
               
               // Check if this verse already exists in the list
               const verseKey = `${verseRef.book}:${verseRef.chapter}:${verseRef.verse}`;

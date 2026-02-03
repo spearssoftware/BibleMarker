@@ -11,7 +11,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import type { ObservationList } from '@/types/list';
 import { BIBLE_BOOKS } from '@/types/bible';
-import { Modal, Input, Select, Label } from '@/components/shared';
+import { Modal, Input, DropdownSelect, Label } from '@/components/shared';
 
 interface ListEditorProps {
   list?: ObservationList;
@@ -23,22 +23,21 @@ interface ListEditorProps {
 export function ListEditor({ list, onClose, onSave, inline = false }: ListEditorProps) {
   const { createList, updateList, autoPopulateFromKeyword } = useListStore();
   const { presets } = useMarkingPresetStore();
-  const { studies } = useStudyStore();
+  const { studies, activeStudyId } = useStudyStore();
   const { currentBook } = useBibleStore();
-  
   const [title, setTitle] = useState(list?.title || '');
   const [selectedKeywordId, setSelectedKeywordId] = useState<string>(list?.keyWordId || '');
   const [selectedStudyId, setSelectedStudyId] = useState<string>(list?.studyId || '');
   const [scopeBook, setScopeBook] = useState<string>(list?.scope?.book || '');
-  const [scopeChapters, setScopeChapters] = useState<string>(list?.scope?.chapters?.join(', ') || '');
   const [autoPopulate, setAutoPopulate] = useState(false);
 
   useEffect(() => {
-    // If creating new list and we're in a book, suggest that book as scope
-    if (!list && currentBook) {
-      queueMicrotask(() => setScopeBook(currentBook));
+    // If creating new list, default to current study and book (book-scoped only, no chapter)
+    if (!list) {
+      if (currentBook) queueMicrotask(() => setScopeBook(currentBook));
+      if (activeStudyId) queueMicrotask(() => setSelectedStudyId(activeStudyId));
     }
-  }, [list, currentBook]);
+  }, [list, currentBook, activeStudyId]);
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -51,12 +50,8 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
       return;
     }
 
-    const scope = scopeBook ? {
-      book: scopeBook,
-      chapters: scopeChapters.trim() 
-        ? scopeChapters.split(',').map(c => parseInt(c.trim(), 10)).filter(n => !isNaN(n))
-        : undefined,
-    } : undefined;
+    // Lists are scoped to book only (no chapter)
+    const scope = scopeBook ? { book: scopeBook } : undefined;
 
     let finalList: ObservationList;
     
@@ -119,14 +114,13 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
               />
 
               {/* Keyword (required) - List is about this keyword */}
-              <div>
-                <Select
-                  id="list-keyword-select"
+              <div id="list-keyword-select">
+                <DropdownSelect
                   label="Keyword"
-                  required
                   helpText="This list is about observations of this keyword"
                   value={selectedKeywordId}
-                  onChange={(e) => setSelectedKeywordId(e.target.value)}
+                  onChange={setSelectedKeywordId}
+                  placeholder="Select a keyword..."
                   options={[
                     { value: '', label: 'Select a keyword...' },
                     ...keywordPresets.map(preset => ({
@@ -156,10 +150,10 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
               </div>
 
               {/* Link to Study (optional) */}
-              <Select
+              <DropdownSelect
                 label="Link to Study (optional)"
                 value={selectedStudyId}
-                onChange={(e) => setSelectedStudyId(e.target.value)}
+                onChange={setSelectedStudyId}
                 options={[
                   { value: '', label: 'No study' },
                   ...studies.map(study => ({
@@ -169,30 +163,23 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
                 ]}
               />
 
-              {/* Scope */}
+              {/* Scope: book only (no chapter) */}
               <div>
                 <Label>Scope (optional)</Label>
-                <div className="space-y-2">
-                  <Select
-                    value={scopeBook}
-                    onChange={(e) => setScopeBook(e.target.value)}
-                    options={[
-                      { value: '', label: 'All books' },
-                      ...BIBLE_BOOKS.map(book => ({
-                        value: book.id,
-                        label: book.name
-                      }))
-                    ]}
-                  />
-                  {scopeBook && (
-                    <Input
-                      type="text"
-                      value={scopeChapters}
-                      onChange={(e) => setScopeChapters(e.target.value)}
-                      placeholder="Chapters (e.g., '1, 2, 3' or leave empty for all)"
-                    />
-                  )}
-                </div>
+                <DropdownSelect
+                  value={scopeBook}
+                  onChange={setScopeBook}
+                  options={[
+                    { value: '', label: 'All books' },
+                    ...BIBLE_BOOKS.map(book => ({
+                      value: book.id,
+                      label: book.name
+                    }))
+                  ]}
+                />
+                {scopeBook && (
+                  <p className="mt-1 text-xs text-scripture-muted">List applies to the whole book.</p>
+                )}
               </div>
         </div>
         

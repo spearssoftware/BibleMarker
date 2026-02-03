@@ -81,28 +81,29 @@ export function Toolbar() {
     loadPresets();
   }, [loadPresets]);
 
-  // Calculate selection menu position when selection changes
+  // Use selection menu position: prefer anchor captured when selection was made (next to selection/mouse)
   useEffect(() => {
     if (!selection) {
       queueMicrotask(() => setSelectionMenuPosition(null));
       return;
     }
-
-    // Get selection bounds from DOM
+    // Use menuAnchor from the selection (captured at selection time in the reader) so menu appears next to the selection
+    if (selection.menuAnchor) {
+      setSelectionMenuPosition(selection.menuAnchor);
+      return;
+    }
+    // Fallback: get selection bounds from DOM (may be stale or wrong in some layouts)
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) {
       queueMicrotask(() => setSelectionMenuPosition(null));
       return;
     }
-
     const range = sel.getRangeAt(0);
     const rect = range.getBoundingClientRect();
-    
-    // Position menu near the selection (prefer above, center horizontally)
-    const x = rect.left + rect.width / 2;
-    const y = rect.top;
-    
-    queueMicrotask(() => setSelectionMenuPosition({ x, y }));
+    setSelectionMenuPosition({
+      x: rect.left + rect.width / 2,
+      y: rect.top,
+    });
   }, [selection]);
 
   // Listen for custom events to open ObservationToolsPanel

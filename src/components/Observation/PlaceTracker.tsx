@@ -16,6 +16,7 @@ interface PlaceTrackerProps {
   selectedText?: string;
   verseRef?: VerseRef;
   filterByChapter?: boolean;
+  onFilterByChapterChange?: (value: boolean) => void;
   onNavigate?: (verseRef: VerseRef) => void;
 }
 
@@ -70,7 +71,7 @@ const sortVerseGroups = (groups: Map<string, Place[]>): Array<[string, Place[]]>
   });
 };
 
-export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = false, onNavigate }: PlaceTrackerProps) {
+export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = false, onFilterByChapterChange, onNavigate }: PlaceTrackerProps) {
   const { places, loadPlaces, createPlace, updatePlace, deletePlace, autoImportFromAnnotations } = usePlaceStore();
   const { currentBook, currentChapter } = useBibleStore();
   const [isCreating, setIsCreating] = useState(false);
@@ -245,15 +246,26 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
         destructive={true}
       />
       <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-      {/* Create new place button */}
+      {/* Create new place button and Current Chapter Only */}
       {!isCreating && (
-        <div className="mb-4">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
           <button
             onClick={() => setIsCreating(true)}
             className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
           >
             + New Place
           </button>
+          {onFilterByChapterChange && (
+            <label className="flex items-center gap-2 text-xs text-scripture-text cursor-pointer whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={filterByChapter}
+                onChange={(e) => onFilterByChapterChange(e.target.checked)}
+                className="w-4 h-4 rounded border-scripture-border text-scripture-accent focus:ring-scripture-accent focus:ring-2"
+              />
+              <span>Current Chapter Only</span>
+            </label>
+          )}
         </div>
       )}
 
@@ -342,6 +354,7 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
                       className="flex-1 text-left"
                     >
                       <div className="flex items-center gap-2">
+                        <span className="text-xs text-scripture-muted shrink-0">{isExpanded ? '▼' : '▶'}</span>
                         {onNavigate ? (
                           <button
                             onClick={(e) => {
@@ -361,7 +374,6 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
                         <span className="text-xs text-scripture-muted">
                           ({versePlaces.length} {versePlaces.length === 1 ? 'place' : 'places'})
                         </span>
-                        <span className="text-xs text-scripture-muted">{isExpanded ? '▼' : '▶'}</span>
                       </div>
                     </button>
                   </div>
