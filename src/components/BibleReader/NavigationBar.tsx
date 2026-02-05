@@ -6,12 +6,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
-import { getBookById, getVerseCount } from '@/types/bible';
+import { getBookById } from '@/types/bible';
 import { getAllTranslations, type ApiTranslation } from '@/lib/bible-api';
 import { getPreferences, db } from '@/lib/db';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { Search } from '@/components/Search';
-import { BookPicker, ChapterPicker, VersePicker, TranslationPicker, UnifiedPicker } from './pickers';
+import { TranslationPicker, UnifiedPicker } from './pickers';
 export function NavigationBar() {
   const {
     currentBook,
@@ -31,9 +31,6 @@ export function NavigationBar() {
   const [showUnifiedPicker, setShowUnifiedPicker] = useState(false);
 
   // Create refs for trigger buttons
-  const bookButtonRef = useRef<HTMLButtonElement>(null);
-  const chapterButtonRef = useRef<HTMLButtonElement>(null);
-  const verseButtonRef = useRef<HTMLButtonElement>(null);
   const translationButtonRef = useRef<HTMLButtonElement>(null);
   const referenceButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -60,9 +57,6 @@ export function NavigationBar() {
     }
     return `${activeView.translationIds.length}`;
   };
-  
-  // Get verse count for current chapter
-  const verseCount = getVerseCount(currentBook, currentChapter);
   
   // Get current verse from loaded chapter data or use first verse as default
   useEffect(() => {
