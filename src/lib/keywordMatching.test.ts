@@ -34,10 +34,8 @@ describe('findKeywordMatches', () => {
 
   function preset(overrides: Partial<MarkingPreset> & { id: string; word: string }): MarkingPreset {
     return {
-      id: overrides.id,
-      word: overrides.word,
-      highlight: overrides.highlight ?? { style: 'highlight', color: 'red' },
-      variants: overrides.variants ?? [],
+      highlight: { style: 'highlight', color: 'red' },
+      variants: [],
       autoSuggest: false,
       usageCount: 0,
       createdAt: new Date(),
