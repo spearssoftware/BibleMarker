@@ -356,19 +356,23 @@ export function ObservationToolsPanel({
         destructive={true}
       />
       <div className="flex-1 min-h-0 flex flex-col relative" role="dialog" aria-label="Observation Tools" aria-modal="true">
-      {/* Close button - floating in top-right */}
+      {/* Close button - compact floating in top-right */}
       <button
         onClick={onClose}
-        className="absolute top-2 right-2 z-10 text-scripture-muted hover:text-scripture-text transition-colors p-1.5 rounded-lg hover:bg-scripture-elevated"
+        className="absolute top-1 right-1 z-10 w-6 h-6 flex items-center justify-center
+                   bg-scripture-surface rounded-full shadow-sm border border-scripture-border/50
+                   text-scripture-muted hover:text-scripture-text hover:bg-scripture-elevated transition-colors"
         aria-label="Close observation tools"
       >
-        <span aria-hidden="true">✕</span>
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
       </button>
 
       {/* Tabs and Filter - pr-12 reserves space for the close X button */}
       <div className="pl-4 pr-12 py-2 flex-shrink-0" role="tablist" aria-label="Observation tools sections">
-        <div className="flex items-center justify-between gap-4 mb-2">
-          <div className="flex gap-2 overflow-x-auto flex-1">
+        <div className="flex items-center justify-between gap-2 sm:gap-4 mb-2">
+          <div className="flex gap-1 sm:gap-2 overflow-x-auto flex-1">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -377,16 +381,18 @@ export function ObservationToolsPanel({
                 id={`observation-tab-${tab.id}`}
                 aria-selected={activeTab === tab.id}
                 aria-controls={`observation-tabpanel-${tab.id}`}
+                title={tab.label}
                 className={`
-                  px-4 py-2 rounded-lg text-sm font-ui font-medium transition-all whitespace-nowrap
+                  px-2 sm:px-3 py-1.5 rounded-lg text-sm font-ui font-medium transition-all whitespace-nowrap
+                  flex items-center justify-center gap-1
                   ${activeTab === tab.id
                     ? 'bg-scripture-accent text-scripture-bg shadow-md'
                     : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'
                   }
                 `}
               >
-                <span className="mr-2" aria-hidden="true">{tab.icon}</span>
-                {tab.label}
+                <span className="text-base" aria-hidden="true">{tab.icon}</span>
+                <span className={`text-xs ${activeTab === tab.id ? 'inline' : 'hidden sm:inline'}`}>{tab.label}</span>
               </button>
             ))}
           </div>
