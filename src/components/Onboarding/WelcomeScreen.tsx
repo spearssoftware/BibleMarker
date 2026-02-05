@@ -47,12 +47,15 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
         onClick={handleGetStarted}
       />
       
-      {/* Modal */}
+      {/* Modal - safe area aware container */}
       <div
-        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[301]
-                   max-w-2xl w-[calc(100%-2rem)] max-h-[85vh] overflow-hidden flex flex-col animate-scale-in"
-        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 z-[301] flex items-center justify-center
+                   pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right p-4 pointer-events-none"
       >
+        <div
+          className="max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col animate-scale-in pointer-events-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
         <div className="bg-scripture-surface rounded-xl shadow-modal dark:shadow-modal-dark overflow-hidden flex flex-col h-full mx-2 my-2">
           {/* Header */}
           <div className="p-6 border-b border-scripture-overlayBorder/50">
@@ -170,6 +173,7 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
               Take Tour
             </button>
           </div>
+        </div>
         </div>
       </div>
     </>

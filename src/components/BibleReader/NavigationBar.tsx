@@ -179,7 +179,8 @@ export function NavigationBar() {
           }
         `}</style>
       ) : null}
-      <nav className="navigation-bar bg-scripture-surface/80 backdrop-blur-md shadow-sm sticky top-0 z-[45]" data-nav-bar role="navigation" aria-label="Bible navigation">
+      <nav className="navigation-bar bg-scripture-surface/80 backdrop-blur-md shadow-sm sticky top-0 z-[45]
+                      pt-safe-top pl-safe-left pr-safe-right" data-nav-bar role="navigation" aria-label="Bible navigation">
         <div className="max-w-4xl mx-auto px-4 py-2.5 grid grid-cols-3 items-center relative">
         {/* Left side: Previous button and Translation selector */}
         <div className="flex items-center gap-2 justify-start">

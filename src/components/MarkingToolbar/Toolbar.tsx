@@ -406,7 +406,7 @@ export function Toolbar() {
         destructive={true}
       />
     <div className="fixed bottom-0 left-0 right-0 z-30 
-                    pb-[env(safe-area-inset-bottom)]"
+                    pb-safe-bottom pl-safe-left pr-safe-right"
          data-marking-toolbar
         onWheel={(e) => e.stopPropagation()}>
       {/* Selection Menu */}

@@ -77,16 +77,23 @@ export function Modal({
   return (
     <>
       <ModalBackdrop onClick={handleBackdropClick} zIndex={backdropZIndex} />
+      {/* Outer container handles safe areas and centering */}
       <div
-        className={`fixed inset-x-4 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
-                   ${SIZE_CLASSES[size]} w-full max-h-[80vh] overflow-hidden flex flex-col
-                   animate-scale-in ${className}`}
+        className="fixed inset-0 flex items-center justify-center
+                   pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]
+                   pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]
+                   p-4 pointer-events-none"
         style={{ zIndex }}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={title ? 'modal-title' : undefined}
       >
+        {/* Inner modal container */}
+        <div
+          className={`${SIZE_CLASSES[size]} w-full max-h-[80vh] overflow-hidden flex flex-col
+                     animate-scale-in pointer-events-auto ${className}`}
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={title ? 'modal-title' : undefined}
+        >
         <div className="bg-scripture-surface rounded-xl shadow-modal dark:shadow-modal-dark overflow-hidden flex flex-col h-full mx-2 my-2">
           {/* Header */}
           {(title || showCloseButton || headerActions) && (
@@ -122,6 +129,7 @@ export function Modal({
               {footer}
             </div>
           )}
+        </div>
         </div>
       </div>
     </>
