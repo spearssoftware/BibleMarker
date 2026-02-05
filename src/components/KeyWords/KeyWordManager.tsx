@@ -230,24 +230,28 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
       aria-label="Key Word Manager"
       aria-modal="true"
     >
-      {/* Close button - always visible in top-right */}
+      {/* Close button - compact floating in top-right */}
       {onClose && (
         <button
           onClick={onClose}
-          className="absolute top-2 right-2 z-10 text-scripture-muted hover:text-scripture-text transition-colors p-1.5 rounded-lg hover:bg-scripture-elevated"
+          className="absolute top-1 right-1 z-10 w-6 h-6 flex items-center justify-center
+                     bg-scripture-surface rounded-full shadow-sm border border-scripture-border/50
+                     text-scripture-muted hover:text-scripture-text hover:bg-scripture-elevated transition-colors"
           aria-label="Close key word manager"
         >
-          ✕
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
       )}
 
-      {/* Filters: only when viewing the list (hidden when adding/editing) */}
+      {/* Search + New button: always visible when viewing the list */}
       {!(isCreating || editingId) && (
         <div className="px-4 py-2 pr-10 border-b border-scripture-border/50 flex-shrink-0">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={handleCreate}
-              className="px-2.5 py-1 text-xs font-ui bg-scripture-accent text-scripture-bg rounded-lg
+              className="px-2.5 py-1.5 text-xs font-ui bg-scripture-accent text-scripture-bg rounded-lg
                        hover:bg-scripture-accent/90 transition-colors whitespace-nowrap"
             >
               + New
@@ -262,71 +266,94 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
                        text-scripture-text placeholder-scripture-muted transition-colors"
             />
           </div>
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            <span className="text-xs text-scripture-muted font-medium self-center mr-1">Category:</span>
-            <button
-              onClick={() => setFilterCategory('all')}
-              className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors
-                          ${filterCategory === 'all'
-                            ? 'bg-scripture-accent text-scripture-bg'
-                            : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
-            >
-              All
-            </button>
-            {Object.entries(KEY_WORD_CATEGORIES).map(([cat, info]) => (
+        </div>
+      )}
+
+      {/* Collapsible Filters */}
+      {!(isCreating || editingId) && (
+        <details className="border-b border-scripture-border/30 flex-shrink-0">
+          <summary className="px-4 py-2 text-xs font-ui font-medium cursor-pointer text-scripture-muted 
+                             hover:text-scripture-text hover:bg-scripture-elevated/50 transition-colors
+                             flex items-center gap-2 select-none">
+            <svg className="w-3 h-3 transition-transform details-open:rotate-90" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+            <span>Filters</span>
+            {(filterCategory !== 'all' || filterScope !== 'all') && (
+              <span className="px-1.5 py-0.5 bg-scripture-accent/20 text-scripture-accent rounded text-[10px] font-semibold">
+                Active
+              </span>
+            )}
+          </summary>
+          <div className="px-4 pb-3 space-y-2">
+            {/* Category filters */}
+            <div className="flex flex-wrap gap-1.5">
+              <span className="text-xs text-scripture-muted font-medium self-center mr-1">Category:</span>
               <button
-                key={cat}
-                onClick={() => setFilterCategory(cat as KeyWordCategory)}
-                className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors flex items-center gap-1.5
-                            ${filterCategory === cat
+                onClick={() => setFilterCategory('all')}
+                className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors
+                            ${filterCategory === 'all'
                               ? 'bg-scripture-accent text-scripture-bg'
                               : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
               >
-                <span>{info.icon}</span>
-                <span>{info.label}</span>
+                All
               </button>
-            ))}
+              {Object.entries(KEY_WORD_CATEGORIES).map(([cat, info]) => (
+                <button
+                  key={cat}
+                  onClick={() => setFilterCategory(cat as KeyWordCategory)}
+                  className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors flex items-center gap-1.5
+                              ${filterCategory === cat
+                                ? 'bg-scripture-accent text-scripture-bg'
+                                : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
+                >
+                  <span>{info.icon}</span>
+                  <span>{info.label}</span>
+                </button>
+              ))}
+            </div>
+            {/* Scope filters */}
+            <div className="flex flex-wrap gap-1.5">
+              <span className="text-xs text-scripture-muted font-medium self-center mr-1">Scope:</span>
+              <button
+                onClick={() => setFilterScope('all')}
+                className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors
+                            ${filterScope === 'all'
+                              ? 'bg-scripture-accent text-scripture-bg'
+                              : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilterScope('global')}
+                className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors
+                            ${filterScope === 'global'
+                              ? 'bg-scripture-accent text-scripture-bg'
+                              : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
+              >
+                🌍 Global
+              </button>
+              <button
+                onClick={() => setFilterScope('book')}
+                className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors
+                            ${filterScope === 'book'
+                              ? 'bg-scripture-accent text-scripture-bg'
+                              : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
+              >
+                📖 Book
+              </button>
+              <button
+                onClick={() => setFilterScope('chapter')}
+                className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors
+                            ${filterScope === 'chapter'
+                              ? 'bg-scripture-accent text-scripture-bg'
+                              : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
+              >
+                📄 Chapter
+              </button>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            <span className="text-xs text-scripture-muted font-medium self-center mr-1">Scope:</span>
-            <button
-              onClick={() => setFilterScope('all')}
-              className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors
-                          ${filterScope === 'all'
-                            ? 'bg-scripture-accent text-scripture-bg'
-                            : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFilterScope('global')}
-              className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors
-                          ${filterScope === 'global'
-                            ? 'bg-scripture-accent text-scripture-bg'
-                            : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
-            >
-              🌍 Global
-            </button>
-            <button
-              onClick={() => setFilterScope('book')}
-              className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors
-                          ${filterScope === 'book'
-                            ? 'bg-scripture-accent text-scripture-bg'
-                            : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
-            >
-              📖 Book
-            </button>
-            <button
-              onClick={() => setFilterScope('chapter')}
-              className={`px-2.5 py-1 text-xs font-ui rounded-lg transition-colors
-                          ${filterScope === 'chapter'
-                            ? 'bg-scripture-accent text-scripture-bg'
-                            : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
-            >
-              📄 Chapter
-            </button>
-          </div>
-        </div>
+        </details>
       )}
 
       {/* Delete Confirmation Dialog */}

@@ -155,68 +155,66 @@ export function Search({ onClose, onNavigate }: SearchProps) {
       {/* Backdrop */}
       <ModalBackdrop onClick={handleBackdropClick} zIndex={Z_INDEX.BACKDROP} />
       
-      {/* Search Panel */}
+      {/* Search Panel - bottom sheet style for mobile consistency */}
       <div 
-        className="fixed top-16 left-1/2
-                    w-full max-w-2xl max-h-[80vh] overflow-hidden
-                    mt-safe-top px-safe-left pr-safe-right"
-        style={{
-          transform: 'translateX(-50%)',
-          animation: 'searchScaleIn 0.2s ease-out',
-          zIndex: Z_INDEX.MODAL,
-        }}
+        className="fixed top-[60px] left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-full sm:max-w-lg
+                   bg-scripture-surface rounded-2xl shadow-modal dark:shadow-modal-dark animate-slide-down 
+                   max-h-[80vh] flex flex-col mt-safe-top"
+        style={{ zIndex: Z_INDEX.MODAL }}
         role="dialog"
         aria-label="Search Bible and notes"
         aria-modal="true"
       >
-        <div className="bg-scripture-surface rounded-xl shadow-modal dark:shadow-modal-dark overflow-hidden mx-2 my-2">
         {/* Header */}
-        <div className="p-4 border-b border-scripture-border/50">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 relative">
-                <label htmlFor="search-input" className="sr-only">
-                Search Bible, notes, or enter verse reference
-              </label>
-              <input
-                id="search-input"
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search Bible, notes... or enter verse reference (e.g., John 3:16)"
-                className="w-full px-4 py-2.5 pl-10 rounded-xl bg-scripture-bg border border-scripture-border/50
-                         text-scripture-text placeholder-scripture-muted focus:outline-none focus:ring-2
-                         focus:ring-scripture-accent focus:border-transparent"
-                aria-label="Search input"
-              />
-              <svg 
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-scripture-muted"
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg hover:bg-scripture-elevated transition-colors text-scripture-muted hover:text-scripture-text"
-              aria-label="Close search"
+        <div className="flex items-center justify-between p-4 border-b border-scripture-border/30 flex-shrink-0">
+          <h2 className="text-lg font-semibold text-scripture-text">Search</h2>
+          <button
+            onClick={onClose}
+            className="p-2 -mr-2 rounded-full hover:bg-scripture-elevated transition-colors"
+            aria-label="Close"
+          >
+            <svg className="w-5 h-5 text-scripture-muted" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Search input */}
+        <div className="p-4 border-b border-scripture-border/30 flex-shrink-0">
+          <div className="relative">
+            <label htmlFor="search-input" className="sr-only">
+              Search Bible, notes, or enter verse reference
+            </label>
+            <input
+              id="search-input"
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search Bible, notes... or enter reference"
+              className="w-full px-4 py-2.5 pl-10 rounded-xl bg-scripture-bg border border-scripture-border/50
+                       text-scripture-text placeholder-scripture-muted focus:outline-none focus:ring-2
+                       focus:ring-scripture-accent focus:border-transparent"
+              aria-label="Search input"
+            />
+            <svg 
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-scripture-muted"
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
           </div>
 
           {/* Scope selector */}
-          <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <span className="text-xs text-scripture-muted font-ui">Search in:</span>
+          <div className="flex items-baseline gap-2 mt-3 flex-wrap">
+            <span className="text-xs text-scripture-muted font-ui leading-none py-1.5">Search in:</span>
             {(['all', 'bible', 'notes', 'chapter'] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setScope(s)}
-                className={`px-3 py-1 text-xs font-ui rounded-lg transition-colors
+                className={`px-3 py-1.5 text-xs font-ui rounded-lg transition-colors leading-none
                           ${scope === s
                             ? 'bg-scripture-accent text-scripture-bg'
                             : 'bg-scripture-surface/80 text-scripture-text hover:bg-scripture-surface border border-scripture-border/50'}`}
@@ -232,7 +230,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
         {/* Results */}
         <div 
           ref={resultsRef}
-          className="overflow-y-auto max-h-[calc(80vh-140px)] custom-scrollbar"
+          className="overflow-y-auto flex-1 custom-scrollbar"
         >
           {isSearching ? (
             <div className="p-8 flex flex-col items-center justify-center gap-3">
@@ -295,11 +293,10 @@ export function Search({ onClose, onNavigate }: SearchProps) {
 
         {/* Footer hint */}
         {results.length > 0 && (
-          <div className="px-4 py-2 border-t border-scripture-border/50 text-xs text-scripture-muted font-ui text-center">
+          <div className="px-4 py-2 border-t border-scripture-border/30 text-xs text-scripture-muted font-ui text-center flex-shrink-0">
             Use ↑↓ to navigate, Enter to select, Esc to close
           </div>
         )}
-        </div>
       </div>
     </>
   );

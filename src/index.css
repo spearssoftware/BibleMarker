@@ -342,4 +342,9 @@ select:focus-visible {
     transform: scale(1.1);
     transition: transform 0.15s ease-out;
   }
+
+  /* Details/summary chevron rotation for collapsible sections */
+  details[open] > summary .details-open\:rotate-90 {
+    transform: rotate(90deg);
+  }
 }

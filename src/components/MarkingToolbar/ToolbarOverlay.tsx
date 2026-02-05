@@ -187,7 +187,7 @@ export function ToolbarOverlay({ children }: ToolbarOverlayProps) {
       role="dialog"
       aria-modal="true"
     >
-      <div className="bg-scripture-surface/65 backdrop-blur-md shadow-lg flex-1 min-h-0 flex flex-col overflow-hidden mx-4 my-2 rounded-xl">
+      <div className="bg-scripture-surface/65 backdrop-blur-md shadow-lg flex-1 min-h-0 flex flex-col overflow-hidden mx-4 mt-2 mb-0 rounded-t-xl rounded-b-none">
         {/* Resize handle - integrated at top of overlay, z-20 to stay above panel content */}
         <div
           className={`flex-shrink-0 flex items-center justify-center py-3 cursor-ns-resize select-none transition-colors relative z-20

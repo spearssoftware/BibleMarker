@@ -11,7 +11,7 @@ import { getAllTranslations, type ApiTranslation } from '@/lib/bible-api';
 import { getPreferences, db } from '@/lib/db';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { Search } from '@/components/Search';
-import { BookPicker, ChapterPicker, VersePicker, TranslationPicker } from './pickers';
+import { BookPicker, ChapterPicker, VersePicker, TranslationPicker, UnifiedPicker } from './pickers';
 export function NavigationBar() {
   const {
     currentBook,
@@ -28,15 +28,17 @@ export function NavigationBar() {
   const [showChapterPicker, setShowChapterPicker] = useState(false);
   const [showTranslationPicker, setShowTranslationPicker] = useState(false);
   const [showVersePicker, setShowVersePicker] = useState(false);
+  const [showUnifiedPicker, setShowUnifiedPicker] = useState(false);
 
   // Create refs for trigger buttons
   const bookButtonRef = useRef<HTMLButtonElement>(null);
   const chapterButtonRef = useRef<HTMLButtonElement>(null);
   const verseButtonRef = useRef<HTMLButtonElement>(null);
   const translationButtonRef = useRef<HTMLButtonElement>(null);
+  const referenceButtonRef = useRef<HTMLButtonElement>(null);
 
   // Lock scroll when any picker is open (but not for dropdowns - they use lockScroll: false in useModal)
-  const anyPickerOpen = showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker;
+  const anyPickerOpen = showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker || showUnifiedPicker;
   // Note: Individual pickers use useModal with lockScroll: false, so scroll locking here is optional
   // Keeping this commented for now as dropdowns shouldn't lock scroll
   // useScrollLock(anyPickerOpen);
@@ -48,6 +50,16 @@ export function NavigationBar() {
   const { activeView, loadActiveView, addTranslation, removeTranslation } = useMultiTranslationStore();
 
   const bookInfo = getBookById(currentBook);
+  
+  // Get translation abbreviation for display
+  const getTranslationAbbrev = () => {
+    if (!activeView || activeView.translationIds.length === 0) return 'Select';
+    if (activeView.translationIds.length === 1) {
+      const trans = translations.find(t => t.id === activeView.translationIds[0]);
+      return trans?.abbreviation || trans?.id?.toUpperCase() || 'Bible';
+    }
+    return `${activeView.translationIds.length}`;
+  };
   
   // Get verse count for current chapter
   const verseCount = getVerseCount(currentBook, currentChapter);
@@ -144,6 +156,7 @@ export function NavigationBar() {
       setShowBookPicker(false);
       setShowChapterPicker(false);
       setShowVersePicker(false);
+      setShowUnifiedPicker(false);
     };
 
     // Keyboard shortcut for search (Cmd/Ctrl+F)
@@ -181,9 +194,9 @@ export function NavigationBar() {
       ) : null}
       <nav className="navigation-bar bg-scripture-surface/80 backdrop-blur-md shadow-sm sticky top-0 z-[45]
                       pt-safe-top pl-safe-left pr-safe-right" data-nav-bar role="navigation" aria-label="Bible navigation">
-        <div className="max-w-4xl mx-auto px-4 py-2.5 grid grid-cols-3 items-center relative">
+        <div className="max-w-4xl mx-auto px-2 sm:px-4 py-2.5 flex items-center justify-between gap-1 sm:gap-2 relative">
         {/* Left side: Previous button and Translation selector */}
-        <div className="flex items-center gap-2 justify-start">
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           {/* Previous button */}
           <button
             onClick={(e) => {
@@ -206,7 +219,7 @@ export function NavigationBar() {
             </svg>
           </button>
 
-          {/* Translation selector */}
+          {/* Translation selector - abbreviation only */}
           <div className="relative">
             <button
               ref={translationButtonRef}
@@ -216,14 +229,16 @@ export function NavigationBar() {
                 setShowTranslationPicker(!showTranslationPicker);
                 setShowBookPicker(false);
                 setShowChapterPicker(false);
+                setShowUnifiedPicker(false);
+                setShowSearch(false);
               }}
               onMouseDown={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
               }}
-              className={`px-4 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
-                         border border-scripture-border/30 touch-target min-w-[60px] h-[36px] flex items-center justify-center
-                         select-none
+              className={`px-2.5 sm:px-3 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
+                         border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center gap-1.5
+                         select-none min-w-[44px]
                          ${showTranslationPicker
                            ? 'bg-scripture-accent text-scripture-bg shadow-md'
                            : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
@@ -233,198 +248,51 @@ export function NavigationBar() {
               aria-expanded={showTranslationPicker}
               aria-haspopup="listbox"
             >
-              {activeView && activeView.translationIds.length > 0
-                ? `${activeView.translationIds.length} Translation${activeView.translationIds.length !== 1 ? 's' : ''}`
-                : 'Select Translation'}
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              <span className="hidden sm:inline">{getTranslationAbbrev()}</span>
             </button>
-
-            {showTranslationPicker && (
-              <TranslationPicker
-                translations={translations}
-                activeView={activeView}
-                onSelect={async (translationId) => {
-                  if (translationId && !translationId.includes('undefined')) {
-                    // Always use multi-translation mode: add/remove from multi-translation view
-                    if (activeView && activeView.translationIds.includes(translationId)) {
-                      // Already selected - remove it
-                      await removeTranslation(translationId);
-                    } else {
-                      // Check if we've reached the limit
-                      if (activeView && activeView.translationIds.length >= 3) {
-                        alert('Maximum of 3 translations allowed. Remove one first.');
-                        return;
-                      }
-                      // Add to multi-translation view
-                      await addTranslation(translationId);
-                      // Also set as current module for backward compatibility
-                      setCurrentModule(translationId);
-                      
-                      // Track as recent translation
-                      try {
-                        const prefs = await getPreferences();
-                        const recent = prefs.recentTranslations || [];
-                        // Remove if already exists, then add to front
-                        const updatedRecent = [translationId, ...recent.filter(id => id !== translationId)].slice(0, 10);
-                        await db.preferences.update('main', { recentTranslations: updatedRecent });
-                      } catch (error) {
-                        console.error('Failed to update recent translations:', error);
-                      }
-                    }
-                  } else {
-                    console.error('[NavigationBar] Invalid translation ID:', translationId);
-                  }
-                }}
-                onClose={() => setShowTranslationPicker(false)}
-              />
-            )}
           </div>
         </div>
 
-        {/* Center: Book, Chapter, Verse, Study selectors */}
-        <div className="flex items-center justify-center gap-2 col-start-2">
-          {/* Book selector */}
-          <div className="relative">
-            <button
-              ref={bookButtonRef}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setShowBookPicker(!showBookPicker);
-                setShowChapterPicker(false);
-                setShowTranslationPicker(false);
-              }}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              className={`px-4 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
-                         border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center
-                         select-none
-                         ${showBookPicker
-                           ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                           : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
-              aria-label={`Current book: ${bookInfo?.name || currentBook}. Click to select a different book.`}
-              aria-expanded={showBookPicker}
-              aria-haspopup="listbox"
-            >
-              {bookInfo?.name || currentBook}
-            </button>
-
-            {showBookPicker && (
-              <BookPicker
-                currentBook={currentBook}
-                onSelect={(bookId) => {
-                  setLocation(bookId, 1);
-                  setShowBookPicker(false);
-                }}
-                onClose={() => setShowBookPicker(false)}
-                triggerRef={bookButtonRef}
-              />
-            )}
-          </div>
-
-          {/* Chapter selector */}
-          <div className="relative">
-            <button
-              ref={chapterButtonRef}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setShowChapterPicker(!showChapterPicker);
-                setShowBookPicker(false);
-                setShowTranslationPicker(false);
-                setShowVersePicker(false);
-              }}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              className={`px-4 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
-                         border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center select-none
-                         ${showChapterPicker
-                           ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                           : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
-              aria-label={`Current chapter: ${currentChapter}. Click to select a different chapter.`}
-              aria-expanded={showChapterPicker}
-              aria-haspopup="listbox"
-            >
-              {currentChapter}
-            </button>
-
-            {showChapterPicker && bookInfo && (
-              <ChapterPicker
-                chapters={bookInfo.chapters}
-                currentChapter={currentChapter}
-                onSelect={(chapter) => {
-                  setLocation(currentBook, chapter);
-                  setShowChapterPicker(false);
-                }}
-                onClose={() => setShowChapterPicker(false)}
-                triggerRef={chapterButtonRef}
-              />
-            )}
-          </div>
-
-          {/* Verse selector */}
-          {verseCount > 0 && (
-            <div className="relative">
-              <button
-                ref={verseButtonRef}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowVersePicker(!showVersePicker);
-                  setShowBookPicker(false);
-                  setShowChapterPicker(false);
-                  setShowTranslationPicker(false);
-                }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                className={`px-4 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200 min-w-[60px]
-                           border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center
-                           select-none
-                           ${showVersePicker
-                             ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                             : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
-                aria-label={`Current verse: ${currentVerse || 1}. Click to select a different verse.`}
-                aria-expanded={showVersePicker}
-                aria-haspopup="listbox"
-              >
-                {currentVerse || '1'}
-              </button>
-
-              {showVersePicker && verseCount > 0 && (
-                <VersePicker
-                  verseCount={verseCount}
-                  currentVerse={currentVerse || 1}
-                  onSelect={(verse) => {
-                    setCurrentVerse(verse);
-                    // Set nav-selected verse in store for highlighting
-                    const { setNavSelectedVerse } = useBibleStore.getState();
-                    setNavSelectedVerse(verse);
-                    // Clear highlight after 3 seconds
-                    setTimeout(() => {
-                      setNavSelectedVerse(null);
-                    }, 3000);
-                    // Scroll to verse in the chapter view
-                    const verseElement = document.querySelector(`[data-verse="${verse}"]`);
-                    if (verseElement) {
-                      verseElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                    setShowVersePicker(false);
-                  }}
-                  onClose={() => setShowVersePicker(false)}
-                  triggerRef={verseButtonRef}
-                />
-              )}
-            </div>
-          )}
+        {/* Center: Combined reference button (Book Chapter:Verse) - absolutely positioned for true centering */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
+          <button
+            ref={referenceButtonRef}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowUnifiedPicker(!showUnifiedPicker);
+              setShowTranslationPicker(false);
+              setShowBookPicker(false);
+              setShowChapterPicker(false);
+              setShowVersePicker(false);
+              setShowSearch(false);
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            className={`px-3 sm:px-4 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
+                       border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center gap-1.5
+                       select-none whitespace-nowrap
+                       ${showUnifiedPicker
+                         ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                         : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
+            aria-label={`Current location: ${bookInfo?.name || currentBook} ${currentChapter}:${currentVerse || 1}. Click to navigate.`}
+            aria-expanded={showUnifiedPicker}
+            aria-haspopup="dialog"
+          >
+            <span className="truncate">{bookInfo?.name || currentBook} {currentChapter}:{currentVerse || 1}</span>
+            <svg className="w-3.5 h-3.5 flex-shrink-0 opacity-60" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
         </div>
 
         {/* Right side: Search and Next button */}
-        <div className="flex items-center gap-2 justify-end">
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           {/* Search button */}
           <button
             data-nav-search
@@ -436,6 +304,7 @@ export function NavigationBar() {
               setShowBookPicker(false);
               setShowChapterPicker(false);
               setShowVersePicker(false);
+              setShowUnifiedPicker(false);
             }}
             onMouseDown={(e) => {
               e.preventDefault();
@@ -477,7 +346,9 @@ export function NavigationBar() {
         </div>
       </div>
 
-      {/* Search Modal */}
+      </nav>
+
+      {/* Search Modal - rendered outside nav to escape backdrop-blur stacking context */}
       {showSearch && (
         <Search
           onClose={() => setShowSearch(false)}
@@ -496,7 +367,60 @@ export function NavigationBar() {
           }}
         />
       )}
-      </nav>
+
+      {/* TranslationPicker - rendered outside nav to escape backdrop-blur stacking context */}
+      {showTranslationPicker && (
+        <TranslationPicker
+          translations={translations}
+          activeView={activeView}
+          onSelect={async (translationId) => {
+            if (translationId && !translationId.includes('undefined')) {
+              // Always use multi-translation mode: add/remove from multi-translation view
+              if (activeView && activeView.translationIds.includes(translationId)) {
+                // Already selected - remove it
+                await removeTranslation(translationId);
+              } else {
+                // Check if we've reached the limit
+                if (activeView && activeView.translationIds.length >= 3) {
+                  alert('Maximum of 3 translations allowed. Remove one first.');
+                  return;
+                }
+                // Add to multi-translation view
+                await addTranslation(translationId);
+                // Also set as current module for backward compatibility
+                setCurrentModule(translationId);
+                
+                // Track as recent translation
+                try {
+                  const prefs = await getPreferences();
+                  const recent = prefs.recentTranslations || [];
+                  // Remove if already exists, then add to front
+                  const updatedRecent = [translationId, ...recent.filter(id => id !== translationId)].slice(0, 10);
+                  await db.preferences.update('main', { recentTranslations: updatedRecent });
+                } catch (error) {
+                  console.error('Failed to update recent translations:', error);
+                }
+              }
+            } else {
+              console.error('[NavigationBar] Invalid translation ID:', translationId);
+            }
+          }}
+          onClose={() => setShowTranslationPicker(false)}
+        />
+      )}
+
+      {/* UnifiedPicker - rendered outside nav to escape backdrop-blur stacking context */}
+      {showUnifiedPicker && (
+        <UnifiedPicker
+          currentBook={currentBook}
+          currentChapter={currentChapter}
+          onSelect={(bookId, chapter) => {
+            setLocation(bookId, chapter);
+            setShowUnifiedPicker(false);
+          }}
+          onClose={() => setShowUnifiedPicker(false)}
+        />
+      )}
     </>
   );
 }

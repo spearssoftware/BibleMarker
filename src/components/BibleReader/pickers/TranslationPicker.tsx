@@ -114,17 +114,30 @@ export function TranslationPicker({
       {/* Backdrop */}
       <ModalBackdrop onClick={handleBackdropClick} zIndex={Z_INDEX.BACKDROP} />
       
-      {/* Picker - uses absolute positioning relative to parent */}
+      {/* Picker - bottom sheet style for mobile consistency */}
       <div 
-        className="absolute top-full left-0 mt-2
-                    bg-scripture-surface rounded-xl shadow-modal dark:shadow-modal-dark
-                    w-[400px] max-w-[min(400px,calc(100vw-2rem))] max-h-[70vh] overflow-hidden animate-scale-in-dropdown"
+        className="fixed top-[60px] left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-full sm:max-w-sm
+                   bg-scripture-surface rounded-2xl shadow-modal dark:shadow-modal-dark animate-slide-down 
+                   max-h-[70vh] flex flex-col mt-safe-top"
         style={{ zIndex: Z_INDEX.MODAL }}
         role="dialog"
         aria-modal="true"
         aria-label="Select translation"
       >
-        <div className="overflow-y-auto max-h-[70vh] custom-scrollbar p-4">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-scripture-border/30 flex-shrink-0">
+          <h2 className="text-lg font-semibold text-scripture-text">Select Translation</h2>
+          <button
+            onClick={onClose}
+            className="p-2 -mr-2 rounded-full hover:bg-scripture-elevated transition-colors"
+            aria-label="Close"
+          >
+            <svg className="w-5 h-5 text-scripture-muted" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="overflow-y-auto flex-1 custom-scrollbar p-4">
           {/* Selected translations header */}
           {selectedInMultiView.length > 0 && (
             <div className="mb-4 pb-4 border-b border-scripture-border/30">

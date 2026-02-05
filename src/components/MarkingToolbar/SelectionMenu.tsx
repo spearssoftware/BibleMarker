@@ -71,10 +71,19 @@ export function SelectionMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Calculate menu position to avoid going off-screen and respect safe areas
+  // Check if we're on a small screen (mobile)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Calculate menu position to avoid going off-screen and respect safe areas (desktop only)
   const [menuPosition, setMenuPosition] = useState(position);
   useEffect(() => {
-    if (!menuRef.current) return;
+    if (!menuRef.current || isMobile) return;
     
     const rect = menuRef.current.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
@@ -125,7 +134,7 @@ export function SelectionMenu({
     }
     
     queueMicrotask(() => setMenuPosition({ x, y }));
-  }, [position]);
+  }, [position, isMobile]);
 
   const keywordPresets = presets.filter((p) => p.word);
   const sortedPresets = [...keywordPresets].sort(
@@ -148,16 +157,20 @@ export function SelectionMenu({
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 z-40" 
+        className="fixed inset-0 z-40 bg-black/20" 
         onClick={onClose}
         aria-hidden="true"
       />
       
-      {/* Menu */}
+      {/* Menu - bottom sheet on mobile, positioned on desktop */}
       <div 
         ref={menuRef}
-        className="fixed z-50 bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-2xl overflow-hidden animate-scale-in-dropdown min-w-[240px] max-w-[320px]"
-        style={{
+        className={`fixed z-50 bg-scripture-surface shadow-2xl overflow-hidden
+          ${isMobile 
+            ? 'bottom-0 left-0 right-0 rounded-t-2xl animate-slide-up pb-safe-bottom' 
+            : 'rounded-xl border border-scripture-border/50 animate-scale-in-dropdown min-w-[240px] max-w-[320px]'
+          }`}
+        style={isMobile ? undefined : {
           left: `${menuPosition.x}px`,
           top: `${menuPosition.y}px`,
         }}
@@ -165,7 +178,13 @@ export function SelectionMenu({
         aria-label="Text selection options"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-2 space-y-1 max-h-[80vh] overflow-y-auto custom-scrollbar">
+        {/* Drag handle for mobile */}
+        {isMobile && (
+          <div className="flex justify-center py-2">
+            <div className="w-10 h-1 bg-scripture-border/50 rounded-full" />
+          </div>
+        )}
+        <div className={`p-2 space-y-1 max-h-[70vh] overflow-y-auto custom-scrollbar ${isMobile ? 'px-4 pb-4' : ''}`}>
           {/* Apply Key Word */}
           {keywordPresets.length > 0 && (
             <div className="relative">

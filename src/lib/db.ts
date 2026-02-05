@@ -95,6 +95,7 @@ export interface UserPreferences {
   apiConfigs?: ApiConfigRecord[];  // Bible API configurations
   favoriteTranslations?: string[];  // Array of translation IDs
   recentTranslations?: string[];    // Array of translation IDs (most recent first)
+  recentBooks?: string[];           // Array of book IDs (most recent first)
   defaultTranslation?: string;      // Default translation ID to use when app starts
   apiResourcesEnabled?: boolean;     // When false, no translation/chapter fetches from APIs (cache-only)
   translationLanguageFilter?: string[];  // e.g. ['en'] for English only; omit or empty = all languages

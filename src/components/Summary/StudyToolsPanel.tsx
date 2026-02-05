@@ -98,39 +98,46 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
       aria-label="Study Tools" 
       aria-modal="true"
     >
-      {/* Close button - floating in top-right */}
-      <button
-        onClick={onClose}
-        className="absolute top-2 right-2 z-10 text-scripture-muted hover:text-scripture-text transition-colors p-1.5 rounded-lg hover:bg-scripture-elevated"
-        aria-label="Close study tools"
-      >
-        <span aria-hidden="true">✕</span>
-      </button>
-
-      {/* Tabs */}
-      <div className="px-4 py-2 flex-shrink-0" role="tablist" aria-label="Study tools sections">
-        <div className="flex gap-2">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              role="tab"
-              id={`study-tab-${tab.id}`}
-              aria-selected={activeTab === tab.id}
-              aria-controls={`study-tabpanel-${tab.id}`}
-              className={`
-                px-4 py-2 rounded-lg text-sm font-ui font-medium transition-all
-                ${activeTab === tab.id
-                  ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                  : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'
-                }
-              `}
-            >
-              <span className="mr-2" aria-hidden="true">{tab.icon}</span>
-              {tab.label}
-            </button>
-          ))}
+      {/* Header with tabs and close button */}
+      <div className="flex items-center justify-between px-4 py-2 flex-shrink-0 border-b border-scripture-border/30">
+        {/* Tabs */}
+        <div role="tablist" aria-label="Study tools sections">
+          <div className="flex gap-1 sm:gap-2">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                role="tab"
+                id={`study-tab-${tab.id}`}
+                aria-selected={activeTab === tab.id}
+                aria-controls={`study-tabpanel-${tab.id}`}
+                title={tab.label}
+                className={`
+                  px-2 sm:px-3 py-1.5 rounded-lg text-sm font-ui font-medium transition-all whitespace-nowrap
+                  flex items-center justify-center gap-1
+                  ${activeTab === tab.id
+                    ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                    : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'
+                  }
+                `}
+              >
+                <span className="text-base" aria-hidden="true">{tab.icon}</span>
+                <span className={`text-xs ${activeTab === tab.id ? 'inline' : 'hidden sm:inline'}`}>{tab.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded-lg text-scripture-muted hover:text-scripture-text hover:bg-scripture-elevated transition-colors flex-shrink-0 ml-2"
+          aria-label="Close study tools"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       {/* Content */}
