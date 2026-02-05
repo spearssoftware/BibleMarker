@@ -89,7 +89,7 @@ export function Toolbar() {
     }
     // Use menuAnchor from the selection (captured at selection time in the reader) so menu appears next to the selection
     if (selection.menuAnchor) {
-      queueMicrotask(() => setSelectionMenuPosition(selection.menuAnchor));
+      queueMicrotask(() => setSelectionMenuPosition(selection.menuAnchor ?? null));
       return;
     }
     // Fallback: get selection bounds from DOM (may be stale or wrong in some layouts)
