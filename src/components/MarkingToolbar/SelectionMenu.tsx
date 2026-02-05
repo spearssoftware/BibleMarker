@@ -71,7 +71,7 @@ export function SelectionMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Calculate menu position to avoid going off-screen
+  // Calculate menu position to avoid going off-screen and respect safe areas
   const [menuPosition, setMenuPosition] = useState(position);
   useEffect(() => {
     if (!menuRef.current) return;
@@ -80,19 +80,34 @@ export function SelectionMenu({
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     
+    // Get safe area insets from computed styles (these are set by viewport-fit=cover)
+    const computedStyle = getComputedStyle(document.documentElement);
+    const safeTop = parseInt(computedStyle.getPropertyValue('env(safe-area-inset-top)') || '0', 10) || 
+                    (/iPhone/.test(navigator.userAgent) ? 59 : 0); // Fallback: ~59px for Dynamic Island
+    const safeBottom = parseInt(computedStyle.getPropertyValue('env(safe-area-inset-bottom)') || '0', 10) || 
+                       (/iPhone/.test(navigator.userAgent) ? 34 : 0); // Fallback: ~34px for home indicator
+    const safeLeft = parseInt(computedStyle.getPropertyValue('env(safe-area-inset-left)') || '0', 10) || 0;
+    const safeRight = parseInt(computedStyle.getPropertyValue('env(safe-area-inset-right)') || '0', 10) || 0;
+    
     let x = position.x;
     let y = position.y;
     
-    // Adjust horizontal position if menu would go off-screen
-    if (x + rect.width > viewportWidth) {
-      x = viewportWidth - rect.width - 10;
+    // Define safe boundaries
+    const minX = safeLeft + 10;
+    const maxX = viewportWidth - safeRight - 10;
+    const minY = safeTop + 10;
+    const maxY = viewportHeight - safeBottom - 10;
+    
+    // Adjust horizontal position if menu would go off-screen or into safe areas
+    if (x + rect.width > maxX) {
+      x = maxX - rect.width;
     }
-    if (x < 10) {
-      x = 10;
+    if (x < minX) {
+      x = minX;
     }
     
     // Adjust vertical position - prefer above selection, fallback to below
-    if (y - rect.height < 10) {
+    if (y - rect.height < minY) {
       // Not enough space above, show below
       y = position.y + 20;
     } else {
@@ -100,9 +115,13 @@ export function SelectionMenu({
       y = position.y - rect.height - 5;
     }
     
-    // Ensure menu doesn't go below viewport
-    if (y + rect.height > viewportHeight - 10) {
-      y = viewportHeight - rect.height - 10;
+    // Ensure menu doesn't go below viewport or into bottom safe area
+    if (y + rect.height > maxY) {
+      y = maxY - rect.height;
+    }
+    // Ensure menu doesn't go above top safe area
+    if (y < minY) {
+      y = minY;
     }
     
     queueMicrotask(() => setMenuPosition({ x, y }));

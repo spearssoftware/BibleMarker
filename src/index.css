@@ -104,8 +104,9 @@ select:focus-visible {
     background-color: var(--scripture-bg);
     color: var(--scripture-text);
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', system-ui, sans-serif;
-    /* Safe area insets for iPad notch/home indicator */
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    /* Safe area insets are now applied selectively to individual components
+       (NavigationBar, Toolbar, Modals) rather than globally on body.
+       This prevents double-padding and allows fixed elements to position correctly. */
   }
 
   /* Reset default button borders to use CSS variables */
@@ -256,15 +257,15 @@ select:focus-visible {
     }
   }
 
-  /* Scale-in animation that preserves translate(-50%, -50%) for centering */
+  /* Scale-in animation for flexbox-centered modals */
   @keyframes scaleIn {
     0% {
       opacity: 0;
-      transform: translate(-50%, -50%) scale(0.95);
+      transform: scale(0.95);
     }
     100% {
       opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
+      transform: scale(1);
     }
   }
 

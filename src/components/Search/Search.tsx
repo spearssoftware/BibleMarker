@@ -12,20 +12,25 @@ import { useModal } from '@/hooks/useModal';
 import { ModalBackdrop } from '@/components/shared';
 import { Z_INDEX } from '@/lib/modalConstants';
 
+type DisplayScope = 'all' | 'bible' | 'notes' | 'chapter';
+
 interface SearchProps {
   onClose: () => void;
   onNavigate: (book: string, chapter: number, verse?: number) => void;
 }
 
 export function Search({ onClose, onNavigate }: SearchProps) {
-  const { currentModuleId } = useBibleStore();
+  const { currentModuleId, currentBook, currentChapter } = useBibleStore();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [scope, setScope] = useState<SearchScope>('all');
+  const [scope, setScope] = useState<DisplayScope>('all');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  
+  // Get book name for chapter scope display
+  const bookInfo = getBookById(currentBook);
 
   // Focus input on mount
   useEffect(() => {
@@ -38,7 +43,14 @@ export function Search({ onClose, onNavigate }: SearchProps) {
       if (query.trim()) {
         setIsSearching(true);
         try {
-          const searchResults = await searchAll(query, scope, currentModuleId || undefined, 100);
+          const searchResults = await searchAll(
+            query,
+            scope as SearchScope,
+            currentModuleId || undefined,
+            100,
+            scope === 'chapter' ? currentBook : undefined,
+            scope === 'chapter' ? currentChapter : undefined
+          );
           setResults(searchResults);
           setSelectedIndex(0);
         } catch (error) {
@@ -53,7 +65,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
     }, 300); // Debounce search
 
     return () => clearTimeout(timeoutId);
-  }, [query, scope, currentModuleId]);
+  }, [query, scope, currentModuleId, currentBook, currentChapter]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -95,6 +107,14 @@ export function Search({ onClose, onNavigate }: SearchProps) {
   };
 
   const handleSelectResult = (result: SearchResult) => {
+    // Set the nav-selected verse for highlighting (like verse picker does)
+    const { setNavSelectedVerse } = useBibleStore.getState();
+    setNavSelectedVerse(result.verse);
+    // Clear highlight after 3 seconds
+    setTimeout(() => {
+      setNavSelectedVerse(null);
+    }, 3000);
+    
     onNavigate(result.book, result.chapter, result.verse);
     onClose();
   };
@@ -138,14 +158,15 @@ export function Search({ onClose, onNavigate }: SearchProps) {
       {/* Search Panel */}
       <div 
         className="fixed top-16 left-1/2
-                    w-full max-w-2xl max-h-[80vh] overflow-hidden"
+                    w-full max-w-2xl max-h-[80vh] overflow-hidden
+                    mt-safe-top px-safe-left pr-safe-right"
         style={{
           transform: 'translateX(-50%)',
           animation: 'searchScaleIn 0.2s ease-out',
           zIndex: Z_INDEX.MODAL,
         }}
         role="dialog"
-                aria-label="Search Bible and notes"
+        aria-label="Search Bible and notes"
         aria-modal="true"
       >
         <div className="bg-scripture-surface rounded-xl shadow-modal dark:shadow-modal-dark overflow-hidden mx-2 my-2">
@@ -189,9 +210,9 @@ export function Search({ onClose, onNavigate }: SearchProps) {
           </div>
 
           {/* Scope selector */}
-          <div className="flex items-center gap-2 mt-3">
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
             <span className="text-xs text-scripture-muted font-ui">Search in:</span>
-            {(['all', 'bible', 'notes'] as const).map((s) => (
+            {(['all', 'bible', 'notes', 'chapter'] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setScope(s)}
@@ -199,10 +220,10 @@ export function Search({ onClose, onNavigate }: SearchProps) {
                           ${scope === s
                             ? 'bg-scripture-accent text-scripture-bg'
                             : 'bg-scripture-surface/80 text-scripture-text hover:bg-scripture-surface border border-scripture-border/50'}`}
-                aria-label={`Search in ${s === 'all' ? 'all' : s}`}
+                aria-label={`Search in ${s === 'all' ? 'all' : s === 'chapter' ? `${bookInfo?.name || currentBook} ${currentChapter}` : s}`}
                 aria-pressed={scope === s}
               >
-                {s === 'all' ? 'All' : s === 'bible' ? 'Bible' : 'Notes'}
+                {s === 'all' ? 'All' : s === 'bible' ? 'Bible' : s === 'notes' ? 'Notes' : `${bookInfo?.name || currentBook} ${currentChapter}`}
               </button>
             ))}
           </div>

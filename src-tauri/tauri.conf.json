@@ -43,6 +43,9 @@
       "signingIdentity": null,
       "providerShortName": null,
       "entitlements": "entitlements.plist"
+    },
+    "iOS": {
+      "developmentTeam": "GRR34N6W9V"
     }
   }
 }
