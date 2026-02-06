@@ -162,6 +162,7 @@ pub fn get_sync_status() -> SyncStatus {
 }
 
 /// Simple timestamp function without full chrono dependency
+/// Returns an ISO 8601 formatted string (e.g., "2024-01-01T12:00:00Z")
 fn chrono_lite_now() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     
@@ -169,8 +170,63 @@ fn chrono_lite_now() -> String {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default();
     
-    // Return Unix timestamp as ISO-ish string
-    format!("{}", duration.as_secs())
+    let secs = duration.as_secs();
+    
+    // Convert Unix timestamp to ISO 8601 format
+    // This is a simplified implementation that handles dates from 1970 onwards
+    const SECS_PER_MIN: u64 = 60;
+    const SECS_PER_HOUR: u64 = 3600;
+    const SECS_PER_DAY: u64 = 86400;
+    
+    // Days in each month (non-leap year)
+    const DAYS_IN_MONTH: [u64; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    
+    fn is_leap_year(year: u64) -> bool {
+        (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+    }
+    
+    fn days_in_year(year: u64) -> u64 {
+        if is_leap_year(year) { 366 } else { 365 }
+    }
+    
+    // Calculate time components
+    let time_of_day = secs % SECS_PER_DAY;
+    let hours = time_of_day / SECS_PER_HOUR;
+    let minutes = (time_of_day % SECS_PER_HOUR) / SECS_PER_MIN;
+    let seconds = time_of_day % SECS_PER_MIN;
+    
+    // Calculate date from days since epoch
+    let mut days = secs / SECS_PER_DAY;
+    let mut year = 1970u64;
+    
+    while days >= days_in_year(year) {
+        days -= days_in_year(year);
+        year += 1;
+    }
+    
+    // Find month and day
+    let mut month = 0usize;
+    loop {
+        let days_this_month = if month == 1 && is_leap_year(year) {
+            29
+        } else {
+            DAYS_IN_MONTH[month]
+        };
+        
+        if days < days_this_month {
+            break;
+        }
+        days -= days_this_month;
+        month += 1;
+    }
+    
+    let day = days + 1; // Days are 1-indexed
+    let month = month + 1; // Months are 1-indexed
+    
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        year, month, day, hours, minutes, seconds
+    )
 }
 
 #[cfg(test)]
@@ -188,5 +244,23 @@ mod tests {
         
         let json = serde_json::to_string(&status).unwrap();
         assert!(json.contains("synced"));
+    }
+    
+    #[test]
+    fn test_chrono_lite_now_format() {
+        let timestamp = chrono_lite_now();
+        
+        // Should match ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
+        assert_eq!(timestamp.len(), 20, "Timestamp should be 20 characters");
+        assert!(timestamp.ends_with('Z'), "Timestamp should end with Z");
+        assert_eq!(&timestamp[4..5], "-", "Should have dash after year");
+        assert_eq!(&timestamp[7..8], "-", "Should have dash after month");
+        assert_eq!(&timestamp[10..11], "T", "Should have T separator");
+        assert_eq!(&timestamp[13..14], ":", "Should have colon after hours");
+        assert_eq!(&timestamp[16..17], ":", "Should have colon after minutes");
+        
+        // Year should be reasonable (2020-2100)
+        let year: u32 = timestamp[0..4].parse().unwrap();
+        assert!(year >= 2020 && year <= 2100, "Year should be reasonable");
     }
 }
