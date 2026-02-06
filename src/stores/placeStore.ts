@@ -166,8 +166,8 @@ export const usePlaceStore = create<PlaceState>()(
         let importedCount = 0;
         
         for (const annotation of annotations) {
-          // Skip if we already have a place for this annotation
-          if (annotation.id && existingAnnotationIds.has(annotation.id)) {
+          // Skip if annotation has no id (can't track for deduplication) or already imported
+          if (!annotation.id || existingAnnotationIds.has(annotation.id)) {
             continue;
           }
           

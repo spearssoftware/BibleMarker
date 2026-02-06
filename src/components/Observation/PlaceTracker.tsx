@@ -107,28 +107,36 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
 
   // Clean up duplicates and auto-import existing keyword annotations (only once per mount)
   useEffect(() => {
+    let isMounted = true;
+    
     const initialize = async () => {
       if (!hasInitialized.current) {
         hasInitialized.current = true;
         
         // Clean up any existing duplicates first
         const removedCount = await removeDuplicates();
-        if (removedCount > 0) {
+        if (removedCount > 0 && isMounted) {
           console.log(`[PlaceTracker] Removed ${removedCount} duplicate places`);
         }
         
         // Auto-import existing keyword annotations with place symbols
         try {
           const count = await autoImportFromAnnotations();
-          if (count > 0) {
+          if (count > 0 && isMounted) {
             loadPlaces(); // Reload to show imported places
           }
         } catch (error) {
-          console.error('[PlaceTracker] Auto-import failed:', error);
+          if (isMounted) {
+            console.error('[PlaceTracker] Auto-import failed:', error);
+          }
         }
       }
     };
     initialize();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [autoImportFromAnnotations, loadPlaces, removeDuplicates]);
 
   // Pre-fill form if selectedText is provided

@@ -102,31 +102,39 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
   
   // Load time expressions on mount, clean up duplicates, and auto-import from annotations
   useEffect(() => {
+    let isMounted = true;
+    
     const initialize = async () => {
       await loadTimeExpressions();
       // Only run cleanup and auto-import once per mount
-      if (!hasInitialized.current) {
+      if (!hasInitialized.current && isMounted) {
         hasInitialized.current = true;
         
         // Clean up any existing duplicates first
         const removedCount = await removeDuplicates();
-        if (removedCount > 0) {
+        if (removedCount > 0 && isMounted) {
           console.log(`[TimeTracker] Removed ${removedCount} duplicate time expressions`);
         }
         
         // Auto-import existing keyword annotations with time symbols
         try {
           const importedCount = await autoImportFromAnnotations();
-          if (importedCount > 0) {
+          if (importedCount > 0 && isMounted) {
             // Reload after import
             await loadTimeExpressions();
           }
         } catch (error) {
-          console.error('[TimeTracker] Auto-import failed:', error);
+          if (isMounted) {
+            console.error('[TimeTracker] Auto-import failed:', error);
+          }
         }
       }
     };
     initialize();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [loadTimeExpressions, autoImportFromAnnotations, removeDuplicates]);
 
   // Pre-fill form if selectedText is provided
