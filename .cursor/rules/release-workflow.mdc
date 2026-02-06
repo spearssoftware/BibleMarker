@@ -5,26 +5,45 @@ alwaysApply: true
 
 # Release Workflow
 
-## Before Creating a Release Tag
+## REQUIRED Before Creating Any Release Tag
 
-When the user asks to push a tag or create a release:
+When pushing a tag or creating a release, you MUST complete ALL these steps:
 
-1. **Update RELEASE_NOTES.md** with a summary of changes since the last release
-   - Use `git log --oneline <last-tag>..HEAD` to see commits
-   - Group changes by category: Features, Bug Fixes, Improvements
-   - Keep it concise but informative for end users
+### 1. Check What Changed
+```bash
+git log --oneline <last-tag>..HEAD
+```
 
-2. **Update version in package.json** to match the new tag
+### 2. Update RELEASE_NOTES.md Content (NOT just version number)
+- Update the version number in the heading
+- **Write a NEW description** of what changed in this specific release
+- Group by: Features, Bug Fixes, Improvements
+- Be specific about user-visible changes
 
-3. **Commit release notes** before creating the tag
+### 3. Update package.json Version
+Match the version to the new tag.
+
+### 4. Commit BEFORE Tagging
+```bash
+git add RELEASE_NOTES.md package.json
+git commit -m "Release vX.Y.Z: <brief description>"
+```
+
+### 5. Then Create and Push Tag
+```bash
+git push origin main && git tag app-vX.Y.Z && git push origin app-vX.Y.Z
+```
+
+## DO NOT
+- Push a tag without updating release notes content
+- Copy the same release notes from previous version
+- Skip describing what changed in this release
 
 ## Tag Format
-
-- Use `app-v<version>` format (e.g., `app-v0.6.3`)
+- Use `app-v<version>` format (e.g., `app-v0.6.4`)
 - Version follows semver: `major.minor.patch`
 
 ## After Tagging
-
-Provide links to monitor the build:
-- GitHub Actions: `https://github.com/spearssoftware/BibleMarker/actions`
-- Release page: `https://github.com/spearssoftware/BibleMarker/releases/tag/<tag>`
+Provide monitoring links:
+- Actions: `https://github.com/spearssoftware/BibleMarker/actions`
+- Release: `https://github.com/spearssoftware/BibleMarker/releases/tag/<tag>`
