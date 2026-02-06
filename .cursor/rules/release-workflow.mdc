@@ -1,0 +1,30 @@
+---
+description: Release workflow and tagging conventions
+alwaysApply: true
+---
+
+# Release Workflow
+
+## Before Creating a Release Tag
+
+When the user asks to push a tag or create a release:
+
+1. **Update RELEASE_NOTES.md** with a summary of changes since the last release
+   - Use `git log --oneline <last-tag>..HEAD` to see commits
+   - Group changes by category: Features, Bug Fixes, Improvements
+   - Keep it concise but informative for end users
+
+2. **Update version in package.json** to match the new tag
+
+3. **Commit release notes** before creating the tag
+
+## Tag Format
+
+- Use `app-v<version>` format (e.g., `app-v0.6.3`)
+- Version follows semver: `major.minor.patch`
+
+## After Tagging
+
+Provide links to monitor the build:
+- GitHub Actions: `https://github.com/spearssoftware/BibleMarker/actions`
+- Release page: `https://github.com/spearssoftware/BibleMarker/releases/tag/<tag>`
