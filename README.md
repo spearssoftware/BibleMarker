@@ -3,7 +3,7 @@
 [![CI](https://github.com/spearssoftware/BibleMarker/actions/workflows/ci.yml/badge.svg)](https://github.com/spearssoftware/BibleMarker/actions/workflows/ci.yml)
 [![Security](https://github.com/spearssoftware/BibleMarker/actions/workflows/security.yml/badge.svg)](https://github.com/spearssoftware/BibleMarker/actions/workflows/security.yml)
 
-A cross-platform Bible study application for deep text study using the Inductive Bible Study Method. Mark, annotate, and analyze Scripture with powerful study tools.
+A cross-platform Bible study application for deep text study using the precepts of inductive Bible study—observation, interpretation, and application. Mark, annotate, and analyze Scripture with powerful study tools.
 
 **Website:** [biblemarker.app](https://biblemarker.app)
 
@@ -215,6 +215,10 @@ For questions or issues:
 - Bible text provided by getBible, Biblia API, and ESV API
 - Built with [Tauri](https://tauri.app), [React](https://react.dev), and [Dexie](https://dexie.org)
 - Icons generated using Sharp (see [docs/ICON_GENERATION.md](./docs/ICON_GENERATION.md))
+
+## Disclaimer
+
+BibleMarker is independent software and is not affiliated with or endorsed by Precept Ministries International or any other organization.
 
 ---
 
