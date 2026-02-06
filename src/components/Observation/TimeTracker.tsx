@@ -4,7 +4,7 @@
  * Component for recording and displaying chronological sequences and time references.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTimeStore } from '@/stores/timeStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import type { TimeExpression } from '@/types/timeExpression';
@@ -97,16 +97,30 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
     return null;
   };
 
-  // Load time expressions on mount and auto-import from annotations
+  // Track if we've already run initialization to prevent duplicates
+  const hasInitialized = useRef(false);
+  
+  // Load time expressions on mount, clean up duplicates, and auto-import from annotations
   useEffect(() => {
     const initialize = async () => {
       await loadTimeExpressions();
-      // Auto-import existing keyword annotations with time symbols
-      const { autoImportFromAnnotations } = useTimeStore.getState();
-      const importedCount = await autoImportFromAnnotations();
-      if (importedCount > 0) {
-        // Reload after import
-        await loadTimeExpressions();
+      // Only run cleanup and auto-import once per mount
+      if (!hasInitialized.current) {
+        hasInitialized.current = true;
+        
+        // Clean up any existing duplicates first
+        const { removeDuplicates, autoImportFromAnnotations } = useTimeStore.getState();
+        const removedCount = await removeDuplicates();
+        if (removedCount > 0) {
+          console.log(`[TimeTracker] Removed ${removedCount} duplicate time expressions`);
+        }
+        
+        // Auto-import existing keyword annotations with time symbols
+        const importedCount = await autoImportFromAnnotations();
+        if (importedCount > 0) {
+          // Reload after import
+          await loadTimeExpressions();
+        }
       }
     };
     initialize();

@@ -28,6 +28,7 @@ interface PlaceState {
   getPlacesByBook: (book: string) => Place[];
   autoImportFromAnnotations: () => Promise<number>; // Returns count of imported places
   autoPopulateFromChapter: (book: string, chapter: number, moduleId?: string) => Promise<number>; // Auto-populate places for keywords found in chapter
+  removeDuplicates: () => Promise<number>; // Remove duplicate places, returns count removed
 }
 
 export const usePlaceStore = create<PlaceState>()(
@@ -41,12 +42,22 @@ export const usePlaceStore = create<PlaceState>()(
       },
       
       createPlace: async (name, verseRef, notes, presetId, annotationId) => {
-        const { places } = get();
+        // Check for duplicates from DATABASE (not in-memory state) to avoid race conditions
+        const allPlaces = await db.places.toArray();
         
-        // Check for duplicates: same presetId + verseRef, or same annotationId
-        const existingPlace = places.find(p => {
+        // Check for duplicates: same annotationId, or same presetId + verseRef, or same name + verseRef
+        const existingPlace = allPlaces.find(p => {
+          // Exact annotationId match
           if (annotationId && p.annotationId === annotationId) return true;
+          // Same preset + verse
           if (presetId && p.presetId === presetId &&
+              p.verseRef.book === verseRef.book &&
+              p.verseRef.chapter === verseRef.chapter &&
+              p.verseRef.verse === verseRef.verse) {
+            return true;
+          }
+          // Same name + verse (catches manual duplicates)
+          if (name.trim().toLowerCase() === p.name.trim().toLowerCase() &&
               p.verseRef.book === verseRef.book &&
               p.verseRef.chapter === verseRef.chapter &&
               p.verseRef.verse === verseRef.verse) {
@@ -76,7 +87,7 @@ export const usePlaceStore = create<PlaceState>()(
           await db.places.put(validated);
           
           set({ 
-            places: [...places, validated],
+            places: [...allPlaces, validated],
           });
           
           return validated;
@@ -300,6 +311,38 @@ export const usePlaceStore = create<PlaceState>()(
         }
         
         return totalAdded;
+      },
+
+      removeDuplicates: async () => {
+        // Get all places from database
+        const allPlaces = await db.places.toArray();
+        
+        // Track seen items to identify duplicates
+        const seen = new Map<string, Place>();
+        const duplicateIds: string[] = [];
+        
+        for (const place of allPlaces) {
+          // Create a unique key based on name + verse (case insensitive)
+          const key = `${place.name.toLowerCase().trim()}:${place.verseRef.book}:${place.verseRef.chapter}:${place.verseRef.verse}`;
+          
+          if (seen.has(key)) {
+            // This is a duplicate - mark for deletion
+            duplicateIds.push(place.id);
+          } else {
+            seen.set(key, place);
+          }
+        }
+        
+        // Delete duplicates from database
+        if (duplicateIds.length > 0) {
+          await db.places.bulkDelete(duplicateIds);
+          
+          // Reload from database to get clean state
+          const cleaned = await db.places.toArray();
+          set({ places: cleaned });
+        }
+        
+        return duplicateIds.length;
       },
     }),
     {
