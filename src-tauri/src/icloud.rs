@@ -206,7 +206,7 @@ fn chrono_lite_now() -> String {
     
     // Find month and day
     let mut month = 0usize;
-    loop {
+    while month < 12 {
         let days_this_month = if month == 1 && is_leap_year(year) {
             29
         } else {
@@ -220,8 +220,11 @@ fn chrono_lite_now() -> String {
         month += 1;
     }
     
+    // Clamp month to valid range (0-11) in case of any edge cases
+    let month = month.min(11);
+    
     let day = days + 1; // Days are 1-indexed
-    let month = month + 1; // Months are 1-indexed
+    let month = month + 1; // Months are 1-indexed (1-12)
     
     format!(
         "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
@@ -262,5 +265,13 @@ mod tests {
         // Year should be reasonable (2020-2100)
         let year: u32 = timestamp[0..4].parse().unwrap();
         assert!(year >= 2020 && year <= 2100, "Year should be reasonable");
+        
+        // Month should be 01-12
+        let month: u32 = timestamp[5..7].parse().unwrap();
+        assert!(month >= 1 && month <= 12, "Month should be 1-12, got {}", month);
+        
+        // Day should be 01-31
+        let day: u32 = timestamp[8..10].parse().unwrap();
+        assert!(day >= 1 && day <= 31, "Day should be 1-31, got {}", day);
     }
 }
