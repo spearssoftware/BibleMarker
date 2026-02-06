@@ -11,8 +11,9 @@ Cross-platform Bible study app for inductive Bible study with marking, annotatio
 
 - **Frontend**: React 19, TypeScript, Tailwind CSS 4, Vite 7
 - **State**: Zustand (stores in `src/stores/`)
-- **Data**: TanStack Query + Dexie (IndexedDB)
-- **Desktop**: Tauri 2.0 (Rust in `src-tauri/`)
+- **Data**: TanStack Query + Dexie (IndexedDB for web) + SQLite (native apps)
+- **Desktop/Mobile**: Tauri 2.0 (Rust in `src-tauri/`)
+- **Sync**: iCloud Documents for iOS/macOS sync
 - **Build**: pnpm, Vitest, ESLint
 
 ## Folder Structure
@@ -20,9 +21,9 @@ Cross-platform Bible study app for inductive Bible study with marking, annotatio
 ```
 src/
 ├── components/     # Feature-based folders (BibleReader/, Observation/, etc.)
-│   └── shared/     # Reusable UI components (Modal, Button, Form)
+│   └── shared/     # Reusable UI components (Modal, Button, Form, SyncStatusIndicator)
 ├── hooks/          # Custom React hooks
-├── lib/            # Core utilities, bible-api/, db.ts, validation.ts
+├── lib/            # Core utilities, bible-api/, db.ts, sqlite-db.ts, sync.ts
 ├── stores/         # Zustand stores (useXxxStore naming)
 └── types/          # TypeScript definitions
 ```
@@ -34,4 +35,4 @@ src/
 - **Components**: Feature-based folders, named exports
 - **Stores**: `useXxxStore` naming, persist middleware for localStorage
 - **Styling**: Tailwind utilities + CSS variables (`--scripture-*`)
-- **Database**: Dexie with validation layer before writes
+- **Database**: Use `src/lib/database.ts` abstraction (routes to Dexie or SQLite based on platform)

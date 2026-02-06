@@ -1,31 +1,83 @@
 ---
-description: Dexie/IndexedDB patterns - schema, validation, CRUD operations
-globs: "**/lib/db.ts,**/lib/validation.ts"
+description: Database patterns - Dexie/IndexedDB (web) and SQLite (native) with iCloud sync
+globs: "**/lib/db.ts,**/lib/validation.ts,**/lib/sqlite-db.ts,**/lib/database.ts,**/lib/sync.ts"
 alwaysApply: false
 ---
 
-# Database Patterns (Dexie)
+# Database Patterns
 
 ## Architecture
 
-- **Database**: `src/lib/db.ts` - Dexie schema, tables, helper functions
+The app uses a dual-database architecture:
+- **Web**: Dexie (IndexedDB) - `src/lib/db.ts`
+- **Native (iOS/macOS)**: SQLite - `src/lib/sqlite-db.ts`
+- **Abstraction**: `src/lib/database.ts` - Unified interface
 - **Validation**: `src/lib/validation.ts` - Schema validation before writes
+- **Sync**: `src/lib/sync.ts` - iCloud sync for Apple platforms
 
-## Schema Versioning
-
-Add new tables by incrementing the version:
+## Platform Detection
 
 ```typescript
-// In db.ts
+import { useSqlite } from '@/lib/database';
+
+// Returns true on Tauri (native), false on web
+if (useSqlite()) {
+  // Using SQLite backend
+} else {
+  // Using IndexedDB (Dexie) backend
+}
+```
+
+## Using the Unified API
+
+Always use `src/lib/database.ts` for new code - it routes to the correct backend:
+
+```typescript
+import { 
+  getChapterAnnotations, 
+  saveAnnotation,
+  getAllMarkingPresets,
+} from '@/lib/database';
+
+// Works on both web and native
+const annotations = await getChapterAnnotations(moduleId, book, chapter);
+await saveAnnotation(annotation);
+```
+
+## Dexie Schema Versioning (Web)
+
+Add new tables by incrementing the version in `db.ts`:
+
+```typescript
 this.version(15).stores({
   // ... existing tables ...
-  newTable: 'id, indexedField',  // Add new table
+  newTable: 'id, indexedField',
 });
+```
+
+## SQLite Schema Updates (Native)
+
+Update the schema version and migration in `sqlite-db.ts`:
+
+```typescript
+const SCHEMA_VERSION = 2;
+
+async function migrateSchema(db, fromVersion, toVersion) {
+  if (fromVersion < 2) {
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS new_table (
+        id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        ...
+      )
+    `);
+  }
+}
 ```
 
 ## Validation Before Writes
 
-Always validate and sanitize data before saving:
+Always validate data before saving (works with both backends):
 
 ```typescript
 import { sanitizeData, ValidationError } from './validation';
@@ -33,7 +85,8 @@ import { sanitizeData, ValidationError } from './validation';
 export async function saveItem(item: Item): Promise<string> {
   try {
     const validated = sanitizeData(item, validateItem);
-    return await db.tableName.put(validated);
+    // Use unified API
+    return await saveToDatabase(validated);
   } catch (error) {
     if (error instanceof ValidationError) {
       throw new Error(`Invalid item: ${error.message}`);
@@ -43,49 +96,27 @@ export async function saveItem(item: Item): Promise<string> {
 }
 ```
 
-## Adding a Validator
+## iCloud Sync (iOS/macOS)
 
-In `validation.ts`:
+The sync module handles iCloud integration:
 
 ```typescript
-export function validateNewType(data: unknown): NewType {
-  if (!data || typeof data !== 'object') {
-    throw new ValidationError('Data must be an object');
-  }
-  const d = data as Record<string, unknown>;
-  
-  // Validate required fields
-  if (typeof d.id !== 'string' || d.id.trim() === '') {
-    throw new ValidationError('Must have valid id', 'id', d.id);
-  }
-  
-  // Validate dates
-  const createdAt = validateDate(d.createdAt, 'createdAt');
-  
-  return { ...d, createdAt } as NewType;
+import { 
+  checkICloudStatus, 
+  getSyncStatus, 
+  onSyncStatusChange 
+} from '@/lib/sync';
+
+// Check availability
+const status = await checkICloudStatus();
+if (status.available) {
+  // iCloud container available at status.container_path
 }
-```
 
-## Common Patterns
-
-```typescript
-// Get all items
-const items = await db.tableName.toArray();
-
-// Query by index
-const filtered = await db.tableName
-  .where('indexedField')
-  .equals(value)
-  .toArray();
-
-// Filter (non-indexed)
-const result = await db.tableName
-  .filter(item => item.field === value)
-  .toArray();
-
-// Bulk operations
-await db.tableName.bulkPut(items);
-await db.tableName.bulkDelete(ids);
+// Subscribe to status changes
+const unsubscribe = onSyncStatusChange((status) => {
+  console.log('Sync state:', status.state);
+});
 ```
 
 ## Key Tables
@@ -97,3 +128,16 @@ await db.tableName.bulkDelete(ids);
 | `studies` | Study sessions | `id` |
 | `chapterCache` | Cached Bible text | `moduleId` |
 | `preferences` | User settings | `id` (singleton: 'main') |
+
+## Data Migration
+
+On first native app launch, existing IndexedDB data is migrated to SQLite:
+
+```typescript
+import { needsMigration, migrateIndexedDbToSqlite } from '@/lib/migration';
+
+if (await needsMigration()) {
+  const result = await migrateIndexedDbToSqlite();
+  console.log(`Migrated ${result.recordCount} records`);
+}
+```
