@@ -4,7 +4,7 @@
  * Component for recording and displaying places and geographic locations.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { usePlaceStore } from '@/stores/placeStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import type { Place } from '@/types/place';
@@ -82,7 +82,9 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
   const [editingNotes, setEditingNotes] = useState('');
   const [expandedVerses, setExpandedVerses] = useState<Set<string>>(new Set());
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [hasAutoImported, setHasAutoImported] = useState(false);
+  
+  // Track if we've already run initialization to prevent duplicates
+  const hasInitialized = useRef(false);
 
   // Determine verse reference - use provided one, or current location
   const getCurrentVerseRef = (): VerseRef | null => {
@@ -103,20 +105,32 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
     loadPlaces();
   }, [loadPlaces]);
 
-  // Auto-import existing keyword annotations with place symbols
+  // Clean up duplicates and auto-import existing keyword annotations (only once per mount)
   useEffect(() => {
-    if (!hasAutoImported) {
-      autoImportFromAnnotations().then((count) => {
-        if (count > 0) {
-          loadPlaces(); // Reload to show imported places
+    const initialize = async () => {
+      if (!hasInitialized.current) {
+        hasInitialized.current = true;
+        
+        // Clean up any existing duplicates first
+        const { removeDuplicates } = usePlaceStore.getState();
+        const removedCount = await removeDuplicates();
+        if (removedCount > 0) {
+          console.log(`[PlaceTracker] Removed ${removedCount} duplicate places`);
         }
-        setHasAutoImported(true);
-      }).catch((error) => {
-        console.error('[PlaceTracker] Auto-import failed:', error);
-        setHasAutoImported(true);
-      });
-    }
-  }, [hasAutoImported, autoImportFromAnnotations, loadPlaces]);
+        
+        // Auto-import existing keyword annotations with place symbols
+        try {
+          const count = await autoImportFromAnnotations();
+          if (count > 0) {
+            loadPlaces(); // Reload to show imported places
+          }
+        } catch (error) {
+          console.error('[PlaceTracker] Auto-import failed:', error);
+        }
+      }
+    };
+    initialize();
+  }, [autoImportFromAnnotations, loadPlaces]);
 
   // Pre-fill form if selectedText is provided
   useEffect(() => {

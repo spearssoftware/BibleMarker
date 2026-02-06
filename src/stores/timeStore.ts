@@ -27,6 +27,7 @@ interface TimeState {
   getTimeExpressionsByBook: (book: string) => TimeExpression[];
   autoImportFromAnnotations: () => Promise<number>; // Returns count of imported entries
   autoPopulateFromChapter: (book: string, chapter: number, moduleId?: string) => Promise<number>; // Auto-populate time expressions for keywords found in chapter
+  removeDuplicates: () => Promise<number>; // Remove duplicate time expressions, returns count removed
 }
 
 export const useTimeStore = create<TimeState>()(
@@ -40,12 +41,22 @@ export const useTimeStore = create<TimeState>()(
       },
       
       createTimeExpression: async (expression, verseRef, notes, presetId, annotationId, timeOrder) => {
-        const { timeExpressions } = get();
+        // Check for duplicates from DATABASE (not in-memory state) to avoid race conditions
+        const allTimeExpressions = await db.timeExpressions.toArray();
         
-        // Check for duplicates: same presetId + verseRef, or same annotationId
-        const existingTimeExpression = timeExpressions.find(t => {
+        // Check for duplicates: same annotationId, or same presetId + verseRef, or same expression + verseRef
+        const existingTimeExpression = allTimeExpressions.find(t => {
+          // Exact annotationId match
           if (annotationId && t.annotationId === annotationId) return true;
+          // Same preset + verse
           if (presetId && t.presetId === presetId &&
+              t.verseRef.book === verseRef.book &&
+              t.verseRef.chapter === verseRef.chapter &&
+              t.verseRef.verse === verseRef.verse) {
+            return true;
+          }
+          // Same expression text + verse (catches manual duplicates)
+          if (expression.trim().toLowerCase() === t.expression.trim().toLowerCase() &&
               t.verseRef.book === verseRef.book &&
               t.verseRef.chapter === verseRef.chapter &&
               t.verseRef.verse === verseRef.verse) {
@@ -74,7 +85,7 @@ export const useTimeStore = create<TimeState>()(
         await db.timeExpressions.put(newTimeExpression);
         
         set({ 
-          timeExpressions: [...timeExpressions, newTimeExpression],
+          timeExpressions: [...allTimeExpressions, newTimeExpression],
         });
         
         return newTimeExpression;
@@ -295,6 +306,38 @@ export const useTimeStore = create<TimeState>()(
         }
         
         return totalAdded;
+      },
+
+      removeDuplicates: async () => {
+        // Get all time expressions from database
+        const allTimeExpressions = await db.timeExpressions.toArray();
+        
+        // Track seen items to identify duplicates
+        const seen = new Map<string, TimeExpression>();
+        const duplicateIds: string[] = [];
+        
+        for (const te of allTimeExpressions) {
+          // Create a unique key based on expression + verse (case insensitive)
+          const key = `${te.expression.toLowerCase().trim()}:${te.verseRef.book}:${te.verseRef.chapter}:${te.verseRef.verse}`;
+          
+          if (seen.has(key)) {
+            // This is a duplicate - mark for deletion
+            duplicateIds.push(te.id);
+          } else {
+            seen.set(key, te);
+          }
+        }
+        
+        // Delete duplicates from database
+        if (duplicateIds.length > 0) {
+          await db.timeExpressions.bulkDelete(duplicateIds);
+          
+          // Reload from database to get clean state
+          const cleaned = await db.timeExpressions.toArray();
+          set({ timeExpressions: cleaned });
+        }
+        
+        return duplicateIds.length;
       },
     }),
     {
