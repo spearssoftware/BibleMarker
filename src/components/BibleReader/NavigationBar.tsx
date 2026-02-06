@@ -12,6 +12,7 @@ import { getPreferences, db } from '@/lib/db';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { Search } from '@/components/Search';
 import { TranslationPicker, UnifiedPicker } from './pickers';
+import { SyncStatusIndicator } from '@/components/shared';
 export function NavigationBar() {
   const {
     currentBook,
@@ -285,8 +286,11 @@ export function NavigationBar() {
           </button>
         </div>
 
-        {/* Right side: Search and Next button */}
+        {/* Right side: Sync status, Search and Next button */}
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          {/* iCloud Sync Status */}
+          <SyncStatusIndicator compact className="hidden sm:block" />
+          
           {/* Search button */}
           <button
             data-nav-search

@@ -9,6 +9,7 @@
  */
 
 import Database from '@tauri-apps/plugin-sql';
+import { invoke } from '@tauri-apps/api/core';
 import type {
   Annotation,
   SectionHeading,
@@ -27,6 +28,7 @@ import type { Conclusion } from '@/types/conclusion';
 import type { InterpretationEntry } from '@/types/interpretation';
 import type { ApplicationEntry } from '@/types/application';
 import type { UserPreferences } from './db';
+import { isApplePlatform } from './platform';
 
 // ============================================================================
 // Database Connection
@@ -36,17 +38,31 @@ let sqliteDb: Database | null = null;
 
 /**
  * Get or initialize the SQLite database connection.
- * The database is stored in the app's data directory.
- * For iCloud sync, we'll later move this to the iCloud container.
+ * On Apple platforms (iOS/macOS), the database is stored in the iCloud
+ * container for cross-device sync. On other platforms, uses local storage.
  */
 export async function getSqliteDb(): Promise<Database> {
   if (sqliteDb) {
     return sqliteDb;
   }
 
+  // Determine database path
+  let dbPath = 'sqlite:biblemarker.db'; // Fallback for non-Apple platforms
+
+  // Try to get iCloud path on Apple platforms
+  if (isApplePlatform()) {
+    try {
+      const icloudPath = await invoke<string>('get_icloud_database_path');
+      dbPath = `sqlite:${icloudPath}`;
+      console.log('[SQLite] Using iCloud database path:', icloudPath);
+    } catch (error) {
+      console.warn('[SQLite] iCloud unavailable, using local storage:', error);
+      // Fall back to local storage if iCloud is not available
+    }
+  }
+
   // Connect to SQLite database
-  // The path will be updated for iCloud sync later
-  sqliteDb = await Database.load('sqlite:biblemarker.db');
+  sqliteDb = await Database.load(dbPath);
 
   // Initialize schema
   await initializeSchema(sqliteDb);
