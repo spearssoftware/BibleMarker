@@ -408,9 +408,27 @@ export function NavigationBar() {
         <UnifiedPicker
           currentBook={currentBook}
           currentChapter={currentChapter}
-          onSelect={(bookId, chapter) => {
+          currentVerse={currentVerse || 1}
+          onSelect={(bookId, chapter, verse) => {
+            const { setNavSelectedVerse } = useBibleStore.getState();
             setLocation(bookId, chapter);
             setShowUnifiedPicker(false);
+            // Scroll to verse and highlight if specified
+            if (verse) {
+              // Set highlight
+              setNavSelectedVerse(verse);
+              // Clear highlight after 3 seconds
+              setTimeout(() => {
+                setNavSelectedVerse(null);
+              }, 3000);
+              // Scroll to verse
+              setTimeout(() => {
+                const verseElement = document.querySelector(`[data-verse="${verse}"]`);
+                if (verseElement) {
+                  verseElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+              }, 100);
+            }
           }}
           onClose={() => setShowUnifiedPicker(false)}
         />
