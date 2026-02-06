@@ -15,11 +15,21 @@ IDENTITY="${APPLE_SIGNING_IDENTITY:-Developer ID Application: Your Name (GRR34N6
 
 APP_PATH="$BUNDLE_DIR/$APP_NAME.app"
 BINARY_PATH="$APP_PATH/Contents/MacOS/$BINARY_NAME"
+PROVISIONING_PROFILE="$ROOT_DIR/src-tauri/embedded.provisionprofile"
 
 if [[ ! -f "$BINARY_PATH" ]]; then
   echo "Error: Binary not found at $BINARY_PATH"
   echo "Run 'pnpm tauri build' first, then run this script."
   exit 1
+fi
+
+# Embed provisioning profile if it exists
+if [[ -f "$PROVISIONING_PROFILE" ]]; then
+  echo "Embedding provisioning profile..."
+  cp "$PROVISIONING_PROFILE" "$APP_PATH/Contents/embedded.provisionprofile"
+else
+  echo "Warning: No provisioning profile found at $PROVISIONING_PROFILE"
+  echo "         iCloud entitlements may not work without it."
 fi
 
 if [[ ! -f "$ENTITLEMENTS" ]]; then

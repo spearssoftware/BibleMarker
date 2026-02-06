@@ -1,4 +1,4 @@
-# BibleMarker v0.6.1
+# BibleMarker v0.6.2
 
 ## What's New
 
