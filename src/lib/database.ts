@@ -36,12 +36,15 @@ export type { UserPreferences, ApiConfigRecord, OnboardingState, AutoBackupConfi
 // ============================================================================
 
 /**
- * Use SQLite on Tauri (native apps) for iCloud sync support.
- * Use IndexedDB (Dexie) on web browsers.
+ * Check if SQLite should be used on Tauri (native apps) for iCloud sync support.
+ * Returns false for web browsers, which use IndexedDB (Dexie).
  */
-export function useSqlite(): boolean {
+export function shouldUseSqlite(): boolean {
   return isTauri();
 }
+
+// Alias for backwards compatibility
+export const useSqlite = shouldUseSqlite;
 
 // ============================================================================
 // Lazy imports to avoid loading unused backends
@@ -72,7 +75,7 @@ async function getDexieModule() {
  * Initialize the database connection
  */
 export async function initDatabase(): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     await sqlite.getSqliteDb();
   }
@@ -83,7 +86,7 @@ export async function initDatabase(): Promise<void> {
  * Close the database connection
  */
 export async function closeDatabase(): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     await sqlite.closeSqliteDb();
   }
@@ -99,7 +102,7 @@ export async function getChapterAnnotations(
   book: string,
   chapter: number
 ): Promise<Annotation[]> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteGetChapterAnnotations(moduleId, book, chapter);
   }
@@ -108,7 +111,7 @@ export async function getChapterAnnotations(
 }
 
 export async function saveAnnotation(annotation: Annotation): Promise<string> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteSaveAnnotation(annotation);
   }
@@ -117,7 +120,7 @@ export async function saveAnnotation(annotation: Annotation): Promise<string> {
 }
 
 export async function deleteAnnotation(id: string): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteDeleteAnnotation(id);
   }
@@ -134,7 +137,7 @@ export async function getChapterHeadings(
   book: string,
   chapter: number
 ): Promise<SectionHeading[]> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteGetChapterHeadings(book, chapter);
   }
@@ -143,7 +146,7 @@ export async function getChapterHeadings(
 }
 
 export async function saveSectionHeading(heading: SectionHeading): Promise<string> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteSaveSectionHeading(heading);
   }
@@ -152,7 +155,7 @@ export async function saveSectionHeading(heading: SectionHeading): Promise<strin
 }
 
 export async function deleteSectionHeading(id: string): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteDeleteSectionHeading(id);
   }
@@ -169,7 +172,7 @@ export async function getChapterTitle(
   book: string,
   chapter: number
 ): Promise<ChapterTitle | undefined> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteGetChapterTitle(book, chapter);
   }
@@ -178,7 +181,7 @@ export async function getChapterTitle(
 }
 
 export async function saveChapterTitle(title: ChapterTitle): Promise<string> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteSaveChapterTitle(title);
   }
@@ -187,7 +190,7 @@ export async function saveChapterTitle(title: ChapterTitle): Promise<string> {
 }
 
 export async function deleteChapterTitle(id: string): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteDeleteChapterTitle(id);
   }
@@ -204,7 +207,7 @@ export async function getChapterNotes(
   book: string,
   chapter: number
 ): Promise<Note[]> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteGetChapterNotes(moduleId, book, chapter);
   }
@@ -213,7 +216,7 @@ export async function getChapterNotes(
 }
 
 export async function saveNote(note: Note): Promise<string> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteSaveNote(note);
   }
@@ -222,7 +225,7 @@ export async function saveNote(note: Note): Promise<string> {
 }
 
 export async function deleteNote(id: string): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteDeleteNote(id);
   }
@@ -235,7 +238,7 @@ export async function deleteNote(id: string): Promise<void> {
 // ============================================================================
 
 export async function getAllMarkingPresets(): Promise<MarkingPreset[]> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteGetAllMarkingPresets();
   }
@@ -244,7 +247,7 @@ export async function getAllMarkingPresets(): Promise<MarkingPreset[]> {
 }
 
 export async function saveMarkingPreset(preset: MarkingPreset): Promise<string> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteSaveMarkingPreset(preset);
   }
@@ -253,7 +256,7 @@ export async function saveMarkingPreset(preset: MarkingPreset): Promise<string> 
 }
 
 export async function deleteMarkingPreset(id: string): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteDeleteMarkingPreset(id);
   }
@@ -266,7 +269,7 @@ export async function deleteMarkingPreset(id: string): Promise<void> {
 // ============================================================================
 
 export async function getAllStudies(): Promise<Study[]> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteGetAllStudies();
   }
@@ -275,7 +278,7 @@ export async function getAllStudies(): Promise<Study[]> {
 }
 
 export async function saveStudy(study: Study): Promise<string> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteSaveStudy(study);
   }
@@ -284,7 +287,7 @@ export async function saveStudy(study: Study): Promise<string> {
 }
 
 export async function deleteStudy(id: string): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteDeleteStudy(id);
   }
@@ -297,7 +300,7 @@ export async function deleteStudy(id: string): Promise<void> {
 // ============================================================================
 
 export async function getPreferences(): Promise<import('./db').UserPreferences> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     const prefs = await sqlite.sqliteGetPreferences();
     if (prefs) return prefs;
@@ -333,7 +336,7 @@ export async function getPreferences(): Promise<import('./db').UserPreferences> 
 export async function updatePreferences(
   updates: Partial<Omit<import('./db').UserPreferences, 'id'>>
 ): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     const current = await sqlite.sqliteGetPreferences();
     if (current) {
@@ -352,7 +355,7 @@ export async function updatePreferences(
 export async function getMultiTranslationView(
   id: string = 'active'
 ): Promise<MultiTranslationView | undefined> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     const views = await sqlite.sqliteGetAllFromTable<MultiTranslationView>('multi_translation_views');
     return views.find((v) => v.id === id);
@@ -362,7 +365,7 @@ export async function getMultiTranslationView(
 }
 
 export async function saveMultiTranslationView(view: MultiTranslationView): Promise<string> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteSaveToTable('multi_translation_views', view);
   }
@@ -371,7 +374,7 @@ export async function saveMultiTranslationView(view: MultiTranslationView): Prom
 }
 
 export async function deleteMultiTranslationView(id: string = 'active'): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteDeleteFromTable('multi_translation_views', id);
   }
@@ -384,7 +387,7 @@ export async function deleteMultiTranslationView(id: string = 'active'): Promise
 // ============================================================================
 
 export async function getAllObservationLists(): Promise<ObservationList[]> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteGetAllFromTable<ObservationList>('observation_lists');
   }
@@ -393,7 +396,7 @@ export async function getAllObservationLists(): Promise<ObservationList[]> {
 }
 
 export async function saveObservationList(list: ObservationList): Promise<string> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteSaveToTable('observation_lists', list);
   }
@@ -402,7 +405,7 @@ export async function saveObservationList(list: ObservationList): Promise<string
 }
 
 export async function deleteObservationList(id: string): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteDeleteFromTable('observation_lists', id);
   }
@@ -412,7 +415,7 @@ export async function deleteObservationList(id: string): Promise<void> {
 
 // 5W+H Operations
 export async function getAllFiveWAndH(): Promise<FiveWAndHEntry[]> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteGetAllFromTable<FiveWAndHEntry>('five_w_and_h');
   }
@@ -421,7 +424,7 @@ export async function getAllFiveWAndH(): Promise<FiveWAndHEntry[]> {
 }
 
 export async function saveFiveWAndH(entry: FiveWAndHEntry): Promise<string> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteSaveToTable('five_w_and_h', entry);
   }
@@ -430,7 +433,7 @@ export async function saveFiveWAndH(entry: FiveWAndHEntry): Promise<string> {
 }
 
 export async function deleteFiveWAndH(id: string): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteDeleteFromTable('five_w_and_h', id);
   }
@@ -440,7 +443,7 @@ export async function deleteFiveWAndH(id: string): Promise<void> {
 
 // Contrast Operations
 export async function getAllContrasts(): Promise<Contrast[]> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteGetAllFromTable<Contrast>('contrasts');
   }
@@ -449,7 +452,7 @@ export async function getAllContrasts(): Promise<Contrast[]> {
 }
 
 export async function saveContrast(entry: Contrast): Promise<string> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteSaveToTable('contrasts', entry);
   }
@@ -458,7 +461,7 @@ export async function saveContrast(entry: Contrast): Promise<string> {
 }
 
 export async function deleteContrast(id: string): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteDeleteFromTable('contrasts', id);
   }
@@ -468,7 +471,7 @@ export async function deleteContrast(id: string): Promise<void> {
 
 // Time Expression Operations
 export async function getAllTimeExpressions(): Promise<TimeExpression[]> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteGetAllFromTable<TimeExpression>('time_expressions');
   }
@@ -477,7 +480,7 @@ export async function getAllTimeExpressions(): Promise<TimeExpression[]> {
 }
 
 export async function saveTimeExpression(entry: TimeExpression): Promise<string> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteSaveToTable('time_expressions', entry);
   }
@@ -486,7 +489,7 @@ export async function saveTimeExpression(entry: TimeExpression): Promise<string>
 }
 
 export async function deleteTimeExpression(id: string): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteDeleteFromTable('time_expressions', id);
   }
@@ -496,7 +499,7 @@ export async function deleteTimeExpression(id: string): Promise<void> {
 
 // Place Operations
 export async function getAllPlaces(): Promise<Place[]> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteGetAllFromTable<Place>('places');
   }
@@ -505,7 +508,7 @@ export async function getAllPlaces(): Promise<Place[]> {
 }
 
 export async function savePlace(entry: Place): Promise<string> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteSaveToTable('places', entry);
   }
@@ -514,7 +517,7 @@ export async function savePlace(entry: Place): Promise<string> {
 }
 
 export async function deletePlace(id: string): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteDeleteFromTable('places', id);
   }
@@ -524,7 +527,7 @@ export async function deletePlace(id: string): Promise<void> {
 
 // Conclusion Operations
 export async function getAllConclusions(): Promise<Conclusion[]> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteGetAllFromTable<Conclusion>('conclusions');
   }
@@ -533,7 +536,7 @@ export async function getAllConclusions(): Promise<Conclusion[]> {
 }
 
 export async function saveConclusion(entry: Conclusion): Promise<string> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteSaveToTable('conclusions', entry);
   }
@@ -542,7 +545,7 @@ export async function saveConclusion(entry: Conclusion): Promise<string> {
 }
 
 export async function deleteConclusion(id: string): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteDeleteFromTable('conclusions', id);
   }
@@ -552,7 +555,7 @@ export async function deleteConclusion(id: string): Promise<void> {
 
 // Interpretation Operations
 export async function getAllInterpretations(): Promise<InterpretationEntry[]> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteGetAllFromTable<InterpretationEntry>('interpretations');
   }
@@ -561,7 +564,7 @@ export async function getAllInterpretations(): Promise<InterpretationEntry[]> {
 }
 
 export async function saveInterpretation(entry: InterpretationEntry): Promise<string> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteSaveToTable('interpretations', entry);
   }
@@ -570,7 +573,7 @@ export async function saveInterpretation(entry: InterpretationEntry): Promise<st
 }
 
 export async function deleteInterpretation(id: string): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteDeleteFromTable('interpretations', id);
   }
@@ -580,7 +583,7 @@ export async function deleteInterpretation(id: string): Promise<void> {
 
 // Application Operations
 export async function getAllApplications(): Promise<ApplicationEntry[]> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteGetAllFromTable<ApplicationEntry>('applications');
   }
@@ -589,7 +592,7 @@ export async function getAllApplications(): Promise<ApplicationEntry[]> {
 }
 
 export async function saveApplication(entry: ApplicationEntry): Promise<string> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteSaveToTable('applications', entry);
   }
@@ -598,7 +601,7 @@ export async function saveApplication(entry: ApplicationEntry): Promise<string> 
 }
 
 export async function deleteApplication(id: string): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteDeleteFromTable('applications', id);
   }
@@ -611,7 +614,7 @@ export async function deleteApplication(id: string): Promise<void> {
 // ============================================================================
 
 export async function clearDatabase(): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteClearDatabase();
   }
@@ -643,7 +646,7 @@ export interface DatabaseExportData {
 }
 
 export async function exportAllData(): Promise<DatabaseExportData> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteExportAll();
   }
@@ -671,7 +674,7 @@ export async function exportAllData(): Promise<DatabaseExportData> {
 }
 
 export async function importAllData(data: DatabaseExportData): Promise<void> {
-  if (useSqlite()) {
+  if (shouldUseSqlite()) {
     const sqlite = await getSqliteModule();
     return sqlite.sqliteImportAll(data);
   }

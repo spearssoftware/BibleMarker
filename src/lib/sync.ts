@@ -6,7 +6,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import { isTauri, isApplePlatform, isICloudAvailable } from './platform';
+import { isICloudAvailable } from './platform';
 
 // ============================================================================
 // Types
