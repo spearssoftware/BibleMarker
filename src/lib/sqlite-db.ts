@@ -403,11 +403,6 @@ function getDeviceId(): string {
   return crypto.randomUUID();
 }
 
-function parseDate(dateStr: string | null): Date | undefined {
-  if (!dateStr) return undefined;
-  return new Date(dateStr);
-}
-
 function toISOString(date: Date | undefined): string {
   return (date ?? new Date()).toISOString();
 }
@@ -1055,7 +1050,8 @@ export async function sqliteExportAll(): Promise<SqliteExportData> {
 }
 
 export async function sqliteImportAll(data: SqliteExportData): Promise<void> {
-  const db = await getSqliteDb();
+  // Ensure database is initialized before importing
+  await getSqliteDb();
 
   // Import in transaction for consistency
   // Note: tauri-plugin-sql doesn't support transactions directly,
