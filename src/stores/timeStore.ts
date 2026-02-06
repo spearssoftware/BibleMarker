@@ -313,12 +313,16 @@ export const useTimeStore = create<TimeState>()(
         const allTimeExpressions = await db.timeExpressions.toArray();
         
         // Track seen items to identify duplicates
+        // Key includes annotationId to avoid deleting entries linked to different annotations
         const seen = new Map<string, TimeExpression>();
         const duplicateIds: string[] = [];
         
         for (const te of allTimeExpressions) {
-          // Create a unique key based on expression + verse (case insensitive)
-          const key = `${te.expression.toLowerCase().trim()}:${te.verseRef.book}:${te.verseRef.chapter}:${te.verseRef.verse}`;
+          // Create a unique key based on expression + verse + annotationId (case insensitive)
+          // If annotationId exists, include it to preserve annotation-linked entries
+          // This ensures time expressions from different annotations with the same text/verse are kept
+          const annotationPart = te.annotationId ? `:${te.annotationId}` : '';
+          const key = `${te.expression.toLowerCase().trim()}:${te.verseRef.book}:${te.verseRef.chapter}:${te.verseRef.verse}${annotationPart}`;
           
           if (seen.has(key)) {
             // This is a duplicate - mark for deletion

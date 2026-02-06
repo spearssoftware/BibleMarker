@@ -227,6 +227,10 @@ export function resolveWithStrategy(
 
 /**
  * Trigger a manual sync
+ *
+ * For iCloud file-based sync, the actual synchronization happens automatically
+ * when the database file in the iCloud container is modified. This function
+ * refreshes the sync status from the backend to get the current state.
  */
 export async function triggerSync(): Promise<boolean> {
   if (!isICloudAvailable()) {
@@ -240,22 +244,13 @@ export async function triggerSync(): Promise<boolean> {
       state: 'syncing',
     });
 
-    // For file-based iCloud sync, the sync happens automatically
-    // when the file is modified. We just need to update the status.
-    
-    // TODO: Implement actual sync logic when we have the iCloud path working
-    // For now, we'll simulate a successful sync
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // For file-based iCloud sync, the sync happens automatically when the
+    // database file is modified. Triggering a "sync" means we refresh the
+    // status from the backend to see the current iCloud sync state.
+    const status = await invoke<SyncStatus>('get_sync_status');
+    notifySyncStatusChange(status);
 
-    const newStatus: SyncStatus = {
-      state: 'synced',
-      last_sync: new Date().toISOString(),
-      pending_changes: 0,
-      error: null,
-    };
-    notifySyncStatusChange(newStatus);
-    
-    return true;
+    return status.state === 'synced';
   } catch (error) {
     console.error('[Sync] Sync failed:', error);
     notifySyncStatusChange({

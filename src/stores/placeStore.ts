@@ -318,12 +318,16 @@ export const usePlaceStore = create<PlaceState>()(
         const allPlaces = await db.places.toArray();
         
         // Track seen items to identify duplicates
+        // Key includes annotationId to avoid deleting entries linked to different annotations
         const seen = new Map<string, Place>();
         const duplicateIds: string[] = [];
         
         for (const place of allPlaces) {
-          // Create a unique key based on name + verse (case insensitive)
-          const key = `${place.name.toLowerCase().trim()}:${place.verseRef.book}:${place.verseRef.chapter}:${place.verseRef.verse}`;
+          // Create a unique key based on name + verse + annotationId (case insensitive)
+          // If annotationId exists, include it to preserve annotation-linked entries
+          // This ensures places from different annotations with the same name/verse are kept
+          const annotationPart = place.annotationId ? `:${place.annotationId}` : '';
+          const key = `${place.name.toLowerCase().trim()}:${place.verseRef.book}:${place.verseRef.chapter}:${place.verseRef.verse}${annotationPart}`;
           
           if (seen.has(key)) {
             // This is a duplicate - mark for deletion
