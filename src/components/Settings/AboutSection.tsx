@@ -3,13 +3,14 @@
  *
  * Displays app version, credits, and license information.
  * Checks for new releases (at most once per 24h) when checkForUpdates is enabled.
+ * Provides a manual "Check now" button for on-demand update checks.
  */
 
-import { useEffect, useState } from 'react';
-import { checkForUpdateIfDue, type UpdateCheckResult } from '@/lib/updateCheck';
+import { useEffect, useState, useCallback } from 'react';
+import { checkForUpdateIfDue, checkForUpdateNow, type UpdateCheckResult } from '@/lib/updateCheck';
 
 interface AboutSectionProps {
-  /** When false, no update check is run and no "checking" state is shown */
+  /** When false, no automatic update check is run on mount */
   checkForUpdates?: boolean;
 }
 
@@ -36,6 +37,12 @@ export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true }:
     };
   }, [checkForUpdatesEnabled]);
 
+  const handleCheckNow = useCallback(async () => {
+    setUpdateResult('checking');
+    const result = await checkForUpdateNow();
+    setUpdateResult(result);
+  }, []);
+
   return (
     <div className="space-y-4">
       <div>
@@ -55,21 +62,30 @@ export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true }:
                 biblemarker.app
               </a>
             </div>
-            {updateResult === 'checking' && (
-              <p className="text-xs text-scripture-muted mt-1">Checking for updates…</p>
-            )}
-            {updateResult && updateResult !== 'checking' && (
-              <p className="text-xs mt-1">
+            <div className="mt-2 flex items-center gap-3">
+              {updateResult === 'checking' ? (
+                <span className="text-xs text-scripture-muted">Checking for updates…</span>
+              ) : updateResult ? (
                 <a
                   href={updateResult.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-scripture-accent hover:underline"
+                  className="text-xs text-scripture-accent hover:underline"
                 >
                   A new version ({updateResult.version}) is available →
                 </a>
-              </p>
-            )}
+              ) : (
+                <span className="text-xs text-scripture-muted">You're up to date</span>
+              )}
+              {updateResult !== 'checking' && (
+                <button
+                  onClick={handleCheckNow}
+                  className="text-xs text-scripture-accent hover:underline"
+                >
+                  Check now
+                </button>
+              )}
+            </div>
           </div>
           <p className="text-xs text-scripture-muted">
             A Precept-style Bible study application with keyword marking, observation lists, and multi-translation support.

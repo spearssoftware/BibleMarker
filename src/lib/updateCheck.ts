@@ -33,6 +33,30 @@ export interface UpdateCheckResult {
 }
 
 /**
+ * Internal function to fetch and compare versions.
+ * Returns the newer version info if available, null otherwise.
+ */
+async function fetchAndCompareVersion(): Promise<UpdateCheckResult | null> {
+  const res = await fetch(GITHUB_RELEASES_URL, {
+    headers: { Accept: 'application/vnd.github.v3+json' },
+  });
+  if (!res.ok) return null;
+  const data = (await res.json()) as { tag_name?: string };
+  const tag = data.tag_name;
+  if (!tag || typeof tag !== 'string') return null;
+
+  const latestVersion = tag.replace(/^v/i, '').trim();
+  const currentVersion = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
+
+  await updatePreferences({ lastUpdateCheck: new Date().toISOString() });
+
+  if (isNewer(latestVersion, currentVersion)) {
+    return { version: latestVersion, url: RELEASES_PAGE_URL };
+  }
+  return null;
+}
+
+/**
  * Check for a new release on GitHub if:
  * - checkForUpdates preference is not false
  * - last check was more than 24 hours ago (or never)
@@ -50,22 +74,22 @@ export async function checkForUpdateIfDue(): Promise<UpdateCheckResult | null> {
   }
 
   try {
-    const res = await fetch(GITHUB_RELEASES_URL, {
-      headers: { Accept: 'application/vnd.github.v3+json' },
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { tag_name?: string };
-    const tag = data.tag_name;
-    if (!tag || typeof tag !== 'string') return null;
-
-    const latestVersion = tag.replace(/^v/i, '').trim();
-    const currentVersion = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
-
+    return await fetchAndCompareVersion();
+  } catch {
+    // Network or parse error: still record that we tried
     await updatePreferences({ lastUpdateCheck: new Date().toISOString() });
+  }
+  return null;
+}
 
-    if (isNewer(latestVersion, currentVersion)) {
-      return { version: latestVersion, url: RELEASES_PAGE_URL };
-    }
+/**
+ * Manually check for updates, bypassing the 24-hour throttle.
+ * Use this when the user explicitly requests an update check.
+ * Returns the newer version and releases URL if one exists, otherwise null.
+ */
+export async function checkForUpdateNow(): Promise<UpdateCheckResult | null> {
+  try {
+    return await fetchAndCompareVersion();
   } catch {
     // Network or parse error: still record that we tried
     await updatePreferences({ lastUpdateCheck: new Date().toISOString() });
