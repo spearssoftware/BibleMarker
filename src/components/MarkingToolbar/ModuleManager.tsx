@@ -19,7 +19,7 @@ import {
   type ApiTranslation,
   type BibleApiProvider,
 } from '@/lib/bible-api';
-import { Modal } from '@/components/shared';
+import { Modal, Button, Input } from '@/components/shared';
 
 interface ModuleManagerProps {
   onClose: () => void;
@@ -218,13 +218,13 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                             </p>
                           </div>
                           {currentModuleId !== translation.id && (
-                            <button
+                            <Button
+                              variant="primary"
+                              size="sm"
                               onClick={() => handleSelectApiTranslation(translation)}
-                              className="px-3 py-1.5 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                                       hover:bg-scripture-accent/90 transition-colors"
                             >
                               Use
-                            </button>
+                            </Button>
                           )}
                         </div>
                       </div>
@@ -286,23 +286,20 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                   </ol>
                 </div>
                 <div className="flex gap-2 mb-3">
-                  <input
+                  <Input
                     type="text"
                     value={bibliaApiKey}
                     onChange={(e) => setBibliaApiKey(e.target.value)}
                     placeholder={bibliaClient.isConfigured() ? "Edit your Biblia API key" : "Paste your Biblia API key here"}
-                    className="flex-1 px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                             rounded-lg focus:outline-none focus:border-scripture-accent
-                             text-scripture-text placeholder-scripture-muted"
+                    className="flex-1"
                   />
-                  <button
+                  <Button
+                    variant="primary"
                     onClick={() => saveApiConfig('biblia', bibliaApiKey)}
                     disabled={savingApi}
-                    className="px-4 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                             hover:bg-scripture-accent/90 transition-colors disabled:opacity-50"
                   >
                     {savingApi ? 'Saving...' : bibliaClient.isConfigured() ? 'Update' : 'Save'}
-                  </button>
+                  </Button>
                 </div>
                 {bibliaClient.isConfigured() && (
                   <button
@@ -352,13 +349,13 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                             )}
                           </div>
                           {currentModuleId !== translation.id && (
-                            <button
+                            <Button
+                              variant="primary"
+                              size="sm"
                               onClick={() => handleSelectApiTranslation(translation)}
-                              className="px-3 py-1.5 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                                       hover:bg-scripture-accent/90 transition-colors"
                             >
                               Use
-                            </button>
+                            </Button>
                           )}
                         </div>
                       </div>
@@ -402,32 +399,27 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                   BibleGateway API Documentation
                 </a>
                 <div className="mb-3 flex flex-col gap-2">
-                  <input
+                  <Input
                     type="text"
                     value={bibleGatewayUsername}
                     onChange={(e) => setBibleGatewayUsername(e.target.value)}
                     placeholder="BibleGateway username"
-                    className="px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg
-                             focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted"
                   />
-                  <input
+                  <Input
                     type="password"
                     value={bibleGatewayPassword}
                     onChange={(e) => setBibleGatewayPassword(e.target.value)}
                     placeholder="BibleGateway password"
-                    className="px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg
-                             focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted"
                   />
                 </div>
                 <div className="flex gap-2 mb-3">
-                  <button
+                  <Button
+                    variant="primary"
                     onClick={() => saveApiConfig('biblegateway', { username: bibleGatewayUsername, password: bibleGatewayPassword })}
                     disabled={savingApi}
-                    className="px-4 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                             hover:bg-scripture-accent/90 transition-colors disabled:opacity-50"
                   >
                     {savingApi ? 'Saving...' : bibleGatewayClient.isConfigured() ? 'Update' : 'Save'}
-                  </button>
+                  </Button>
                 </div>
                 {bibleGatewayClient.isConfigured() && (
                   <button
@@ -465,12 +457,13 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                             <p className="text-xs text-scripture-muted mt-1">{translation.name}</p>
                           </div>
                           {currentModuleId !== translation.id && (
-                            <button
+                            <Button
+                              variant="primary"
+                              size="sm"
                               onClick={() => handleSelectApiTranslation(translation)}
-                              className="px-3 py-1.5 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg hover:bg-scripture-accent/90 transition-colors"
                             >
                               Use
-                            </button>
+                            </Button>
                           )}
                         </div>
                       </div>
@@ -531,23 +524,20 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                   </p>
                 </div>
                 <div className="flex gap-2 mb-3">
-                  <input
+                  <Input
                     type="text"
                     value={esvApiKey}
                     onChange={(e) => setEsvApiKey(e.target.value)}
                     placeholder={esvClient.isConfigured() ? "Edit your ESV API key" : "Paste your ESV API key here"}
-                    className="flex-1 px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                             rounded-lg focus:outline-none focus:border-scripture-accent
-                             text-scripture-text placeholder-scripture-muted"
+                    className="flex-1"
                   />
-                  <button
+                  <Button
+                    variant="primary"
                     onClick={() => saveApiConfig('esv', esvApiKey)}
                     disabled={savingApi}
-                    className="px-4 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                             hover:bg-scripture-accent/90 transition-colors disabled:opacity-50"
                   >
                     {savingApi ? 'Saving...' : esvClient.isConfigured() ? 'Update' : 'Save'}
-                  </button>
+                  </Button>
                 </div>
                 {esvClient.isConfigured() && (
                   <button
@@ -597,13 +587,13 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                             )}
                           </div>
                           {currentModuleId !== translation.id && (
-                            <button
+                            <Button
+                              variant="primary"
+                              size="sm"
                               onClick={() => handleSelectApiTranslation(translation)}
-                              className="px-3 py-1.5 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                                       hover:bg-scripture-accent/90 transition-colors"
                             >
                               Use
-                            </button>
+                            </Button>
                           )}
                         </div>
                       </div>
