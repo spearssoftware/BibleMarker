@@ -148,50 +148,45 @@ pnpm capacitor build android # Android
 
 Since you're on multiple platforms, you need a sync solution that works everywhere:
 
-### Option 1: Cloud Storage (Recommended)
+### Current Implementation: Platform-Specific Sync
 
-**Use a cloud service that works on all platforms:**
+**1. iCloud (Mac, iOS) - IMPLEMENTED**
+   - ✅ Works on Mac and iOS (Tauri)
+   - ✅ SQLite database stored in iCloud Documents container
+   - ✅ Automatic sync via iCloud
+   - ✅ Conflict resolution built-in
+   - See: [ICLOUD_SYNC.md](./ICLOUD_SYNC.md)
 
-1. **iCloud Drive** (Apple only - Mac, iOS)
-   - ❌ Doesn't work on Windows, Linux, Android
+**2. Web Browser - Local Only**
+   - ✅ Uses IndexedDB (Dexie)
+   - ✅ Manual backup/restore
+   - ❌ No automatic sync (local storage only)
 
-2. **Google Drive** (Cross-platform)
+### Future Options for Other Platforms
+
+**Google Drive** (Windows, Linux, Android)
    - ✅ Works on all platforms
-   - ✅ File-based sync (like current backup system)
-   - ✅ Free tier available
+   - ✅ File-based sync
    - ⚠️ Requires Google account
 
-3. **Dropbox** (Cross-platform)
-   - ✅ Works on all platforms
-   - ✅ File-based sync
-   - ⚠️ Requires Dropbox account
-   - ⚠️ Free tier limited
-
-4. **OneDrive** (Cross-platform)
-   - ✅ Works on all platforms
-   - ✅ File-based sync
+**OneDrive** (Windows)
+   - ✅ Native Windows integration
    - ⚠️ Requires Microsoft account
 
-5. **Custom Backend** (Full control)
-   - ✅ Works on all platforms
-   - ✅ Custom sync logic
-   - ✅ No third-party dependency
+**Custom Backend** (All platforms)
+   - ✅ Works everywhere
+   - ✅ Real-time sync
    - ❌ Requires server hosting
-   - ❌ More complex
 
-### Recommended: Google Drive or Custom Backend
+### Implementation Summary
 
-**Google Drive:**
-- Easy to implement (file-based, like current backup)
-- Works everywhere
-- Free tier sufficient for personal use
-- Users already have Google accounts
-
-**Custom Backend:**
-- Full control
-- Better sync (real-time, conflict resolution)
-- No third-party dependency
-- More work to build
+| Platform | Database | Sync Method |
+|----------|----------|-------------|
+| macOS (Tauri) | SQLite | iCloud Documents |
+| iOS (Tauri) | SQLite | iCloud Documents |
+| Windows (Tauri) | SQLite | Manual backup (future: OneDrive) |
+| Linux (Tauri) | SQLite | Manual backup |
+| Web | IndexedDB | Manual backup |
 
 ---
 

@@ -5,6 +5,9 @@ mod mobile;
 #[cfg(mobile)]
 pub use mobile::*;
 
+// iCloud integration for macOS/iOS
+mod icloud;
+
 pub type SetupHook = Box<dyn FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send>;
 
 #[derive(Default)]
@@ -32,6 +35,12 @@ impl AppBuilder {
             .plugin(tauri_plugin_shell::init())
             .plugin(tauri_plugin_dialog::init())
             .plugin(tauri_plugin_fs::init())
+            .plugin(tauri_plugin_sql::Builder::new().build())
+            .invoke_handler(tauri::generate_handler![
+                icloud::check_icloud_status,
+                icloud::get_icloud_database_path,
+                icloud::get_sync_status,
+            ])
             .setup(move |app| {
                 if let Some(setup) = setup {
                     (setup)(app)?;
