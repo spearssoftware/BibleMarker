@@ -11,7 +11,7 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { formatVerseRef, getBookById } from '@/types/bible';
 import type { FiveWAndHEntry } from '@/types/observation';
 import type { VerseRef } from '@/types/bible';
-import { Textarea, ConfirmationDialog } from '@/components/shared';
+import { Textarea, ConfirmationDialog, ReadOnlyField, Checkbox } from '@/components/shared';
 import { getChapterAnnotations } from '@/lib/db';
 
 interface FiveWAndHProps {
@@ -526,15 +526,11 @@ export function FiveWAndH({ verseRef: initialVerseRef, filterByChapter = false, 
               + New Entry
             </button>
             {onFilterByChapterChange && (
-              <label className="flex items-center gap-2 text-xs text-scripture-text cursor-pointer whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={filterByChapter}
-                  onChange={(e) => onFilterByChapterChange(e.target.checked)}
-                  className="w-4 h-4 rounded border-scripture-border text-scripture-accent focus:ring-scripture-accent focus:ring-2"
-                />
-                <span>Current Chapter Only</span>
-              </label>
+              <Checkbox
+                label="Current Chapter Only"
+                checked={filterByChapter}
+                onChange={(e) => onFilterByChapterChange(e.target.checked)}
+              />
             )}
           </div>
         )}

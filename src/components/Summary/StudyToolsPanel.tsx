@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react';
 import { useStudyStore } from '@/stores/studyStore';
 import { getBookById, BIBLE_BOOKS } from '@/types/bible';
 import { ChapterAtAGlance, BookOverview, ThemeTracker } from './';
-import { ConfirmationDialog, DropdownSelect } from '@/components/shared';
+import { ConfirmationDialog, DropdownSelect, Input } from '@/components/shared';
 import { InterpretationWorksheet } from '@/components/Interpretation';
 import { ApplicationWorksheet } from '@/components/Application';
 
@@ -173,12 +173,11 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
                 <div className="mb-4">
                   <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Create New Study</h3>
                   <div className="space-y-3">
-                    <input
+                    <Input
                       type="text"
                       value={newStudyName}
                       onChange={(e) => setNewStudyName(e.target.value)}
                       placeholder="Study name (e.g., 'John - Character Study')"
-                      className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           handleCreateStudy();
@@ -236,11 +235,10 @@ export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPane
                         >
                           {editingStudy?.id === study.id ? (
                             <div className="flex-1 space-y-2">
-                              <input
+                              <Input
                                 type="text"
                                 value={editingStudy.name}
                                 onChange={(e) => setEditingStudy({ ...editingStudy, name: e.target.value })}
-                                className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
                                 autoFocus
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {

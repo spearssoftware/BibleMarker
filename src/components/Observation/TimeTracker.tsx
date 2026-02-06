@@ -10,7 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import type { TimeExpression } from '@/types/timeExpression';
 import type { VerseRef } from '@/types/bible';
 import { formatVerseRef, getBookById } from '@/types/bible';
-import { ConfirmationDialog } from '@/components/shared';
+import { ConfirmationDialog, Input, Textarea, Checkbox } from '@/components/shared';
 
 interface TimeTrackerProps {
   selectedText?: string;
@@ -251,15 +251,11 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
             + New Time Expression
           </button>
           {onFilterByChapterChange && (
-            <label className="flex items-center gap-2 text-xs text-scripture-text cursor-pointer whitespace-nowrap">
-              <input
-                type="checkbox"
-                checked={filterByChapter}
-                onChange={(e) => onFilterByChapterChange(e.target.checked)}
-                className="w-4 h-4 rounded border-scripture-border text-scripture-accent focus:ring-scripture-accent focus:ring-2"
-              />
-              <span>Current Chapter Only</span>
-            </label>
+            <Checkbox
+              label="Current Chapter Only"
+              checked={filterByChapter}
+              onChange={(e) => onFilterByChapterChange(e.target.checked)}
+            />
           )}
         </div>
       )}
@@ -269,27 +265,21 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
         <div className="mb-4 p-4 bg-scripture-surface rounded-xl border border-scripture-border/50">
           <h3 className="text-sm font-medium text-scripture-text mb-3">New Time Expression</h3>
           <div className="space-y-3">
-            <div>
-              <label className="block text-xs text-scripture-muted mb-1">Time Expression</label>
-              <input
-                type="text"
-                value={newExpression}
-                onChange={(e) => setNewExpression(e.target.value)}
-                placeholder="e.g., 'in the morning', 'three days later', 'on the third day'"
-                className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-                autoFocus
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-scripture-muted mb-1">Notes (optional)</label>
-              <textarea
-                value={newNotes}
-                onChange={(e) => setNewNotes(e.target.value)}
-                placeholder="Additional notes about this time expression"
-                rows={2}
-                className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
-              />
-            </div>
+            <Input
+              label="Time Expression"
+              type="text"
+              value={newExpression}
+              onChange={(e) => setNewExpression(e.target.value)}
+              placeholder="e.g., 'in the morning', 'three days later', 'on the third day'"
+              autoFocus
+            />
+            <Textarea
+              label="Notes (optional)"
+              value={newNotes}
+              onChange={(e) => setNewNotes(e.target.value)}
+              placeholder="Additional notes about this time expression"
+              rows={2}
+            />
             <div className="flex items-center gap-2">
               <button
                 onClick={handleCreate}
@@ -387,25 +377,19 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
                         >
                           {isEditing ? (
                             <div className="space-y-3">
-                              <div>
-                                <label className="block text-xs text-scripture-muted mb-1">Time Expression</label>
-                                <input
-                                  type="text"
-                                  value={editingExpression}
-                                  onChange={(e) => setEditingExpression(e.target.value)}
-                                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-                                  autoFocus
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs text-scripture-muted mb-1">Notes (optional)</label>
-                                <textarea
-                                  value={editingNotes}
-                                  onChange={(e) => setEditingNotes(e.target.value)}
-                                  rows={2}
-                                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
-                                />
-                              </div>
+                              <Input
+                                label="Time Expression"
+                                type="text"
+                                value={editingExpression}
+                                onChange={(e) => setEditingExpression(e.target.value)}
+                                autoFocus
+                              />
+                              <Textarea
+                                label="Notes (optional)"
+                                value={editingNotes}
+                                onChange={(e) => setEditingNotes(e.target.value)}
+                                rows={2}
+                              />
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => handleSaveEdit(timeExpression.id)}

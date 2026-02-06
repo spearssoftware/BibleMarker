@@ -10,7 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, type KeyWordCategory, type MarkingPreset, type Variant } from '@/types/keyWord';
 import { SYMBOLS, HIGHLIGHT_COLORS, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types/annotation';
-import { Input, Textarea, Label, DropdownSelect } from '@/components/shared';
+import { Input, Textarea, Label, DropdownSelect, Checkbox, Button } from '@/components/shared';
 import { getBookById, BIBLE_BOOKS } from '@/types/bible';
 
 interface KeyWordManagerProps {
@@ -249,21 +249,15 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
       {!(isCreating || editingId) && (
         <div className="px-4 py-2 pr-10 border-b border-scripture-border/50 flex-shrink-0">
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleCreate}
-              className="px-2.5 py-1.5 text-xs font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                       hover:bg-scripture-accent/90 transition-colors whitespace-nowrap"
-            >
+            <Button variant="primary" size="sm" onClick={handleCreate}>
               + New
-            </button>
-            <input
+            </Button>
+            <Input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search key words..."
-              className="flex-1 min-w-0 px-2.5 py-1.5 text-sm bg-scripture-bg border border-scripture-border/50 
-                       rounded-lg focus:outline-none focus:border-scripture-accent
-                       text-scripture-text placeholder-scripture-muted transition-colors"
+              className="flex-1 min-w-0"
             />
           </div>
         </div>
@@ -367,20 +361,12 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
               Are you sure you want to delete this key word? This action cannot be undone.
             </p>
             <div className="flex gap-3 justify-end">
-              <button
-                type="button"
-                onClick={cancelDelete}
-                className="px-4 py-2 text-sm font-ui bg-scripture-elevated text-scripture-text rounded-lg hover:bg-scripture-border/50 transition-colors"
-              >
+              <Button variant="secondary" onClick={cancelDelete}>
                 Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                className="px-4 py-2 text-sm font-ui bg-scripture-error text-white rounded-lg hover:bg-scripture-error/90 transition-colors"
-              >
+              </Button>
+              <Button variant="destructive" onClick={confirmDelete}>
                 Delete
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -410,12 +396,9 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
                 {searchQuery || filterCategory !== 'all' ? (
                   <p className="text-scripture-muted text-sm">No key words match your filters</p>
                 ) : (
-                  <button
-                    onClick={handleCreate}
-                    className="px-4 py-2 bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-                  >
+                  <Button variant="primary" onClick={handleCreate}>
                     Create Your First Key Word
-                  </button>
+                  </Button>
                 )}
               </div>
             ) : (
@@ -654,21 +637,12 @@ function KeyWordCard({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onEdit}
-            className="px-2 py-1 text-xs font-ui text-scripture-text hover:bg-scripture-border/50 rounded transition-colors"
-          >
+          <Button variant="ghost" size="sm" onClick={onEdit}>
             Edit
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            disabled={isDeleting}
-            className="px-2 py-1 text-xs font-ui text-scripture-error hover:bg-scripture-errorBg rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          </Button>
+          <Button variant="destructive" size="sm" onClick={onDelete} disabled={isDeleting}>
             {isDeleting ? 'Deleting...' : 'Delete'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -813,14 +787,13 @@ function KeyWordEditor({
                 }}
               />
             ))}
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              fullWidth
               onClick={() => setVariants([...variants, { text: '' }])}
-              className="w-full px-3 py-2 text-sm bg-scripture-elevated border border-scripture-border/50 
-                       rounded-lg hover:bg-scripture-border/50 transition-colors text-scripture-text"
             >
               + Add Variant
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -873,18 +846,12 @@ function KeyWordEditor({
           rows={2}
         />
 
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="autoSuggest"
-            checked={autoSuggest}
-            onChange={(e) => setAutoSuggest(e.target.checked)}
-            className="w-4 h-4"
-          />
-          <label htmlFor="autoSuggest" className="text-sm text-scripture-text">
-            Auto-suggest when selecting matching text
-          </label>
-        </div>
+        <Checkbox
+          id="autoSuggest"
+          label="Auto-suggest when selecting matching text"
+          checked={autoSuggest}
+          onChange={(e) => setAutoSuggest(e.target.checked)}
+        />
 
         <div className="border-t border-scripture-border/30 mt-4 pt-4">
           <label className="block text-sm font-ui text-scripture-text mb-2">
@@ -1023,21 +990,12 @@ function KeyWordEditor({
 
       {/* Sticky Save/Cancel bar — always visible at bottom */}
       <div className="flex-shrink-0 p-4 border-t border-scripture-border/50 flex gap-2 bg-scripture-surface z-10">
-        <button
-          type="submit"
-          className="flex-1 px-4 py-2.5 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                   hover:bg-scripture-accent/90 transition-colors"
-        >
+        <Button variant="primary" type="submit" className="flex-1">
           Save
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="flex-1 px-4 py-2.5 text-sm font-ui bg-scripture-elevated text-scripture-text rounded-lg
-                   hover:bg-scripture-border/50 transition-colors"
-        >
+        </Button>
+        <Button variant="secondary" onClick={onCancel} className="flex-1">
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
   );
