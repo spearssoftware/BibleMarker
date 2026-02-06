@@ -1,0 +1,37 @@
+---
+description: Core project context for BibleMarker - tech stack, structure, conventions
+alwaysApply: true
+---
+
+# BibleMarker Project
+
+Cross-platform Bible study app for inductive Bible study with marking, annotations, and study tools.
+
+## Tech Stack
+
+- **Frontend**: React 19, TypeScript, Tailwind CSS 4, Vite 7
+- **State**: Zustand (stores in `src/stores/`)
+- **Data**: TanStack Query + Dexie (IndexedDB)
+- **Desktop**: Tauri 2.0 (Rust in `src-tauri/`)
+- **Build**: pnpm, Vitest, ESLint
+
+## Folder Structure
+
+```
+src/
+├── components/     # Feature-based folders (BibleReader/, Observation/, etc.)
+│   └── shared/     # Reusable UI components (Modal, Button, Form)
+├── hooks/          # Custom React hooks
+├── lib/            # Core utilities, bible-api/, db.ts, validation.ts
+├── stores/         # Zustand stores (useXxxStore naming)
+└── types/          # TypeScript definitions
+```
+
+## Key Conventions
+
+- **Imports**: Use `@/` path alias (maps to `src/`)
+- **Exports**: Barrel exports via `index.ts` files
+- **Components**: Feature-based folders, named exports
+- **Stores**: `useXxxStore` naming, persist middleware for localStorage
+- **Styling**: Tailwind utilities + CSS variables (`--scripture-*`)
+- **Database**: Dexie with validation layer before writes

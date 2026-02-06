@@ -1,0 +1,140 @@
+---
+description: Button patterns - ALWAYS use shared Button component, never raw buttons with inline styles
+globs: "**/*.tsx"
+alwaysApply: false
+---
+
+# Button Components
+
+## NEVER Use Raw Buttons with Inline Styles
+
+Always use the shared `Button` component from `@/components/shared`. Never use raw `<button>` elements with duplicated inline classes.
+
+```tsx
+// ❌ WRONG - raw button with duplicated classes
+<button
+  onClick={handleClick}
+  className="px-4 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg hover:bg-scripture-accent/90 transition-colors"
+>
+  Save
+</button>
+
+<button
+  onClick={handleCancel}
+  className="px-4 py-2 text-sm font-ui bg-scripture-elevated text-scripture-text rounded-lg hover:bg-scripture-border/50 transition-colors"
+>
+  Cancel
+</button>
+
+// ✅ CORRECT - use shared Button component
+import { Button } from '@/components/shared';
+
+<Button variant="primary" onClick={handleClick}>
+  Save
+</Button>
+
+<Button variant="secondary" onClick={handleCancel}>
+  Cancel
+</Button>
+```
+
+## Available Variants
+
+| Variant | Use For | Appearance |
+|---------|---------|------------|
+| `primary` | Main actions (Save, Create, Confirm) | Accent background, light text |
+| `secondary` | Alternative actions (Cancel, Back) | Elevated background, border |
+| `destructive` | Dangerous actions (Delete, Remove) | Red background, white text |
+| `ghost` | Subtle actions, toolbars | Muted background, blends in |
+
+```tsx
+<Button variant="primary">Save Changes</Button>
+<Button variant="secondary">Cancel</Button>
+<Button variant="destructive">Delete</Button>
+<Button variant="ghost">More Options</Button>
+```
+
+## Available Sizes
+
+| Size | Use For | Padding |
+|------|---------|---------|
+| `sm` | Compact UI, inline actions, toolbars | `px-3 py-1.5 text-sm` |
+| `md` | Default, most buttons | `px-4 py-2 text-sm` |
+| `lg` | Prominent CTAs, modals | `px-6 py-3 text-base` |
+
+```tsx
+<Button size="sm">Small</Button>
+<Button size="md">Medium (default)</Button>
+<Button size="lg">Large</Button>
+```
+
+## Component Props
+
+All `Button` props:
+- `variant` - Visual style (default: `'primary'`)
+- `size` - Button size (default: `'md'`)
+- `fullWidth` - Whether button spans full width
+- `disabled` - Disables the button with reduced opacity
+- All standard HTML button attributes (`onClick`, `type`, `aria-label`, etc.)
+
+## Common Patterns
+
+### Action Button Pairs
+```tsx
+<div className="flex gap-2">
+  <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+  <Button variant="primary" onClick={onSave}>Save</Button>
+</div>
+```
+
+### Destructive Confirmation
+```tsx
+<div className="flex gap-2">
+  <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+  <Button variant="destructive" onClick={onDelete}>Delete</Button>
+</div>
+```
+
+### Full Width in Forms
+```tsx
+<Button variant="primary" fullWidth type="submit">
+  Create Account
+</Button>
+```
+
+## When NOT to Use Button
+
+Some cases require custom styling:
+- **Icon-only buttons** in toolbars (use `<button>` with custom classes)
+- **Toggle/chip buttons** that show selected state (e.g., filter chips)
+- **Buttons inside HTML template strings** (can't use React components)
+
+For these cases, follow the theme variables pattern:
+```tsx
+// Icon-only button
+<button
+  onClick={onClose}
+  className="p-1 text-scripture-muted hover:text-scripture-text transition-colors"
+  aria-label="Close"
+>
+  ✕
+</button>
+
+// Toggle/chip button with active state
+<button
+  className={`px-3 py-1.5 text-sm rounded-lg transition-colors
+    ${isActive 
+      ? 'bg-scripture-accent text-scripture-bg' 
+      : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
+>
+  {label}
+</button>
+```
+
+## Accessibility
+
+The Button component automatically provides:
+- `focus:ring-2 focus:ring-scripture-accent` focus styling
+- `focus:ring-offset-2` for visibility
+- Proper disabled state with `cursor-not-allowed`
+- Inherits `aria-label` and other ARIA attributes

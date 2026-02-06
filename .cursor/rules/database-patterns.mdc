@@ -1,0 +1,99 @@
+---
+description: Dexie/IndexedDB patterns - schema, validation, CRUD operations
+globs: "**/lib/db.ts,**/lib/validation.ts"
+alwaysApply: false
+---
+
+# Database Patterns (Dexie)
+
+## Architecture
+
+- **Database**: `src/lib/db.ts` - Dexie schema, tables, helper functions
+- **Validation**: `src/lib/validation.ts` - Schema validation before writes
+
+## Schema Versioning
+
+Add new tables by incrementing the version:
+
+```typescript
+// In db.ts
+this.version(15).stores({
+  // ... existing tables ...
+  newTable: 'id, indexedField',  // Add new table
+});
+```
+
+## Validation Before Writes
+
+Always validate and sanitize data before saving:
+
+```typescript
+import { sanitizeData, ValidationError } from './validation';
+
+export async function saveItem(item: Item): Promise<string> {
+  try {
+    const validated = sanitizeData(item, validateItem);
+    return await db.tableName.put(validated);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      throw new Error(`Invalid item: ${error.message}`);
+    }
+    throw error;
+  }
+}
+```
+
+## Adding a Validator
+
+In `validation.ts`:
+
+```typescript
+export function validateNewType(data: unknown): NewType {
+  if (!data || typeof data !== 'object') {
+    throw new ValidationError('Data must be an object');
+  }
+  const d = data as Record<string, unknown>;
+  
+  // Validate required fields
+  if (typeof d.id !== 'string' || d.id.trim() === '') {
+    throw new ValidationError('Must have valid id', 'id', d.id);
+  }
+  
+  // Validate dates
+  const createdAt = validateDate(d.createdAt, 'createdAt');
+  
+  return { ...d, createdAt } as NewType;
+}
+```
+
+## Common Patterns
+
+```typescript
+// Get all items
+const items = await db.tableName.toArray();
+
+// Query by index
+const filtered = await db.tableName
+  .where('indexedField')
+  .equals(value)
+  .toArray();
+
+// Filter (non-indexed)
+const result = await db.tableName
+  .filter(item => item.field === value)
+  .toArray();
+
+// Bulk operations
+await db.tableName.bulkPut(items);
+await db.tableName.bulkDelete(ids);
+```
+
+## Key Tables
+
+| Table | Purpose | Key Indexes |
+|-------|---------|-------------|
+| `annotations` | Highlights, symbols | `moduleId`, `type`, `presetId` |
+| `markingPresets` | Keyword definitions | `word`, `category` |
+| `studies` | Study sessions | `id` |
+| `chapterCache` | Cached Bible text | `moduleId` |
+| `preferences` | User settings | `id` (singleton: 'main') |

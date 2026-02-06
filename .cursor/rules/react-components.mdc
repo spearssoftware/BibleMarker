@@ -1,0 +1,74 @@
+---
+description: React component patterns - shared components, styling, structure
+globs: "**/*.tsx"
+alwaysApply: false
+---
+
+# React Component Patterns
+
+## Use Shared Components
+
+Always use existing shared components from `@/components/shared/`:
+
+| Component | Use For |
+|-----------|---------|
+| `Button` | All buttons (variants: primary, secondary, destructive, ghost) |
+| `Modal` | All modals (sizes: sm, md, lg, xl, full) |
+| `ConfirmationDialog` | Destructive action confirmations |
+| `DropdownSelect` | Select inputs |
+| `Form` | Form layouts |
+| `Overlay` | Floating panels |
+
+```tsx
+import { Button, Modal } from '@/components/shared';
+```
+
+## Styling with CSS Variables
+
+Use `scripture-*` CSS variables for theming (supports dark mode):
+
+```tsx
+// ✅ Correct - uses theme variables
+<div className="bg-scripture-surface text-scripture-text border-scripture-border">
+<button className="bg-scripture-accent text-scripture-bg hover:bg-scripture-accent/90">
+
+// ❌ Wrong - hardcoded colors won't respect theme
+<div className="bg-white text-gray-900">
+```
+
+**Key variables**: `scripture-bg`, `scripture-surface`, `scripture-elevated`, `scripture-text`, `scripture-muted`, `scripture-accent`, `scripture-border`, `scripture-error`
+
+## Component Structure
+
+```tsx
+/**
+ * Component Name
+ * 
+ * What this component does.
+ */
+
+import { useState } from 'react';
+import { Button } from '@/components/shared';
+import { useXxxStore } from '@/stores/xxxStore';
+import type { SomeType } from '@/types/...';
+
+interface ComponentProps {
+  /** Description of prop */
+  requiredProp: string;
+  /** Optional with default */
+  size?: 'sm' | 'md' | 'lg';
+}
+
+export function ComponentName({ requiredProp, size = 'md' }: ComponentProps) {
+  // ...
+}
+```
+
+## Conventions
+
+- **Named exports**: `export function Foo()` (not default exports)
+- **Barrel exports**: Each feature folder has `index.ts` re-exporting components
+- **Props interface**: JSDoc comment on each prop
+- **UI text font**: Use `font-ui` class for UI labels/buttons
+- **Focus states**: Include `focus:ring-2 focus:ring-scripture-accent` for interactive elements
+- **Transitions**: Use `transition-colors` for hover states
