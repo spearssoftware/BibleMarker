@@ -11,7 +11,7 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { formatVerseRef, getBookById } from '@/types/bible';
 import type { FiveWAndHEntry } from '@/types/observation';
 import type { VerseRef } from '@/types/bible';
-import { Textarea, ConfirmationDialog, ReadOnlyField, Checkbox } from '@/components/shared';
+import { Textarea, ConfirmationDialog, Checkbox } from '@/components/shared';
 import { getChapterAnnotations } from '@/lib/db';
 
 interface FiveWAndHProps {
