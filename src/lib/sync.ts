@@ -248,7 +248,16 @@ export async function triggerSync(): Promise<boolean> {
     // database file is modified. Triggering a "sync" means we refresh the
     // status from the backend to see the current iCloud sync state.
     const status = await invoke<SyncStatus>('get_sync_status');
-    notifySyncStatusChange(status);
+    
+    // Clear pending changes when sync is successful
+    if (status.state === 'synced') {
+      notifySyncStatusChange({
+        ...status,
+        pending_changes: 0,
+      });
+    } else {
+      notifySyncStatusChange(status);
+    }
 
     return status.state === 'synced';
   } catch (error) {
@@ -272,6 +281,30 @@ export function markPendingSync(): void {
   notifySyncStatusChange({
     ...currentSyncStatus,
     pending_changes: currentSyncStatus.pending_changes + 1,
+  });
+}
+
+/**
+ * Clear pending sync count after successful sync
+ */
+export function clearPendingSync(): void {
+  if (!isICloudAvailable()) return;
+
+  notifySyncStatusChange({
+    ...currentSyncStatus,
+    pending_changes: 0,
+  });
+}
+
+/**
+ * Decrement pending sync count (e.g., when a single change is confirmed synced)
+ */
+export function decrementPendingSync(): void {
+  if (!isICloudAvailable()) return;
+
+  notifySyncStatusChange({
+    ...currentSyncStatus,
+    pending_changes: Math.max(0, currentSyncStatus.pending_changes - 1),
   });
 }
 

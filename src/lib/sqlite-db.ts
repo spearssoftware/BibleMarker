@@ -845,36 +845,74 @@ export async function sqliteSavePreferences(prefs: UserPreferences): Promise<voi
 // Generic Data Operations (for observation types)
 // ============================================================================
 
+// Whitelist of valid table names to prevent SQL injection
+const VALID_TABLE_NAMES = new Set([
+  'annotations',
+  'section_headings',
+  'chapter_titles',
+  'notes',
+  'marking_presets',
+  'studies',
+  'multi_translation_views',
+  'observation_lists',
+  'five_w_and_h',
+  'contrasts',
+  'time_expressions',
+  'places',
+  'conclusions',
+  'preferences',
+  'chapter_cache',
+]);
+
+function validateTableName(tableName: string): void {
+  if (!VALID_TABLE_NAMES.has(tableName)) {
+    throw new Error(`Invalid table name: ${tableName}`);
+  }
+}
+
+function safeJsonParse<T>(json: string, fallback: T): T {
+  try {
+    return JSON.parse(json) as T;
+  } catch (error) {
+    console.error('[SQLite] Failed to parse JSON:', error);
+    return fallback;
+  }
+}
+
 export async function sqliteGetAllFromTable<T>(tableName: string): Promise<T[]> {
+  validateTableName(tableName);
   const db = await getSqliteDb();
   const rows = await db.select<{ id: string; data: string }[]>(
     `SELECT id, data FROM ${tableName}`
   );
 
-  return rows.map((row) => {
-    const item = JSON.parse(row.data) as T;
-    return item;
-  });
+  return rows
+    .map((row) => safeJsonParse<T | null>(row.data, null))
+    .filter((item): item is T => item !== null);
 }
 
-export async function sqliteSaveToTable<T extends { id: string }>(
+export async function sqliteSaveToTable<T extends { id: string; createdAt?: Date }>(
   tableName: string,
   item: T
 ): Promise<string> {
+  validateTableName(tableName);
   const db = await getSqliteDb();
   const now = toISOString(new Date());
   const deviceId = getDeviceId();
+  // Preserve original createdAt if it exists, otherwise use current time
+  const createdAt = item.createdAt ? toISOString(item.createdAt) : now;
 
   await db.execute(
     `INSERT OR REPLACE INTO ${tableName} (id, data, created_at, updated_at, sync_status, device_id)
      VALUES (?, ?, ?, ?, 'pending', ?)`,
-    [item.id, JSON.stringify(item), now, now, deviceId]
+    [item.id, JSON.stringify(item), createdAt, now, deviceId]
   );
 
   return item.id;
 }
 
 export async function sqliteDeleteFromTable(tableName: string, id: string): Promise<void> {
+  validateTableName(tableName);
   const db = await getSqliteDb();
   await db.execute(`DELETE FROM ${tableName} WHERE id = ?`, [id]);
 }

@@ -154,8 +154,8 @@ export const useTimeStore = create<TimeState>()(
         const newTimeExpressions: TimeExpression[] = [];
         
         for (const ann of annotations) {
-          // Skip if already imported
-          if (existingAnnotationIds.has(ann.id)) continue;
+          // Skip if already imported or annotation has no id
+          if (!ann.id || existingAnnotationIds.has(ann.id)) continue;
           
           // Get expression text from annotation
           const expression = getAnnotationText(ann) || 'Time expression';
