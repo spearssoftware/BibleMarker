@@ -1,6 +1,21 @@
 # BibleMarker v0.6.4
 
-## What's New
+## Bug Fixes
+
+- **Fixed sync indicator click**: Clicking the sync status icon in the navigation bar now properly shows the details panel with error messages
+- **Added iCloud debug logging**: Console now shows detailed iCloud status checks to help diagnose sync issues
+
+---
+
+## v0.6.3
+
+- Updated provisioning profile with correct iCloud container entitlements
+
+## v0.6.2
+
+- Fixed provisioning profile embedding in macOS app bundle
+
+## v0.6.1
 
 ### iCloud Sync (macOS)
 Your Bible study data now syncs automatically across all your Mac devices via iCloud. Markings, notes, observations, and studies are stored in your iCloud Drive and stay in sync.
@@ -18,11 +33,6 @@ Your Bible study data now syncs automatically across all your Mac devices via iC
 - Fixed SQL injection vulnerabilities in database queries
 - Fixed potential array out-of-bounds in date formatting
 - Improved platform detection for Tauri file system permissions
-
-### Developer Experience
-- Added security scanning (Semgrep) to CI pipeline
-- Refactored forms to use shared UI components
-- Added Cursor rules for consistent AI-assisted development
 
 ---
 
