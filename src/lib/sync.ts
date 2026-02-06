@@ -94,7 +94,11 @@ function notifySyncStatusChange(status: SyncStatus): void {
  * Check if iCloud is available
  */
 export async function checkICloudStatus(): Promise<ICloudStatus> {
+  console.log('[Sync] Checking iCloud status...');
+  console.log('[Sync] isICloudAvailable():', isICloudAvailable());
+  
   if (!isICloudAvailable()) {
+    console.log('[Sync] iCloud not available (platform check failed)');
     return {
       available: false,
       container_path: null,
@@ -103,7 +107,9 @@ export async function checkICloudStatus(): Promise<ICloudStatus> {
   }
 
   try {
+    console.log('[Sync] Invoking check_icloud_status command...');
     const status = await invoke<ICloudStatus>('check_icloud_status');
+    console.log('[Sync] iCloud status result:', status);
     return status;
   } catch (error) {
     console.error('[Sync] Error checking iCloud status:', error);

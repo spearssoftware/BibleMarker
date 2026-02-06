@@ -84,23 +84,35 @@ export function SyncStatusIndicator({
   // Compact mode - just show icon
   if (compact) {
     return (
-      <button
-        onClick={() => setShowDetails(!showDetails)}
-        className={`
-          relative p-1 rounded hover:bg-white/10 transition-colors
-          ${getStatusColor()}
-          ${className}
-        `}
-        title={getSyncStatusMessage(status)}
-        aria-label="Sync status"
-      >
-        <span className={`text-lg ${status.state === 'syncing' ? 'animate-spin' : ''}`}>
-          {getSyncStatusIcon(status)}
-        </span>
-        {hasConflicts && (
-          <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+      <>
+        <button
+          onClick={() => setShowDetails(!showDetails)}
+          className={`
+            relative p-1 rounded hover:bg-white/10 transition-colors
+            ${getStatusColor()}
+            ${className}
+          `}
+          title={getSyncStatusMessage(status)}
+          aria-label="Sync status"
+        >
+          <span className={`text-lg ${status.state === 'syncing' ? 'animate-spin' : ''}`}>
+            {getSyncStatusIcon(status)}
+          </span>
+          {hasConflicts && (
+            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+          )}
+        </button>
+        {/* Details panel for compact mode */}
+        {showDetails && (
+          <SyncDetailsPanel
+            status={status}
+            conflicts={conflicts}
+            onClose={() => setShowDetails(false)}
+            onSync={handleSync}
+            isSyncing={isSyncing}
+          />
         )}
-      </button>
+      </>
     );
   }
 
