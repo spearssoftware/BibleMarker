@@ -1,0 +1,53 @@
+---
+description: Bible API integration - providers, caching, error handling
+globs: "**/bible-api/**"
+alwaysApply: false
+---
+
+# Bible API Integration
+
+## Architecture
+
+All Bible API logic lives in `src/lib/bible-api/`. The module provides a unified interface across multiple providers.
+
+## Providers
+
+| Provider | Module | Notes |
+|----------|--------|-------|
+| getBible | `getbible.ts` | Free, no API key, many translations |
+| Biblia | `biblia.ts` | LEB, DARBY, YLT (requires API key) |
+| ESV | `esv.ts` | ESV only (requires API key, storage limits) |
+
+## Key Functions
+
+```typescript
+// Fetch chapter with automatic caching
+fetchChapter(translationId, book, chapter): Promise<Chapter>
+
+// Get all available translations (cached 24h)
+getAllTranslations(): Promise<ApiTranslation[]>
+
+// Configure API providers
+configureApi(provider, config): void
+saveApiConfig(config): Promise<void>
+```
+
+## Caching Strategy
+
+1. **Chapter cache**: IndexedDB via Dexie (`db.chapterCache`)
+2. **Translation list**: IndexedDB + in-memory (24h TTL)
+3. **Request deduplication**: Prevents duplicate API calls
+
+## Error Handling
+
+- Use `BibleApiError` class with provider and status code
+- Check `isNetworkError()` and `isOnline()` before API calls
+- Use `retryWithBackoff()` for transient failures
+- ESV has storage limits: max 500 consecutive verses or half book
+
+## Adding a New Provider
+
+1. Create `src/lib/bible-api/newprovider.ts` implementing `BibleApiClient`
+2. Add to `clients` record in `index.ts`
+3. Add provider type to `BibleApiProvider` in `types.ts`
+4. Handle in `fetchChapter()` routing logic

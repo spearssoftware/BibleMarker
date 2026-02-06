@@ -1,0 +1,95 @@
+---
+description: Zustand state management patterns - store structure, persistence, database sync
+globs: "**/stores/*.ts"
+alwaysApply: false
+---
+
+# Zustand Store Patterns
+
+## Store Structure
+
+All stores live in `src/stores/` and follow this pattern:
+
+```typescript
+/**
+ * Store Name
+ * 
+ * Brief description of what state it manages.
+ */
+
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { db } from '@/lib/db';
+
+interface XxxState {
+  // State
+  items: Item[];
+  activeId: string | null;
+  
+  // Actions (async for DB operations)
+  loadItems: () => Promise<void>;
+  createItem: (data: CreateData) => Promise<Item>;
+  updateItem: (item: Item) => Promise<void>;
+  deleteItem: (id: string) => Promise<void>;
+}
+
+export const useXxxStore = create<XxxState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      activeId: null,
+      
+      loadItems: async () => {
+        const items = await db.tableName.toArray();
+        set({ items });
+      },
+      
+      // ... other actions
+    }),
+    {
+      name: 'xxx-state',           // localStorage key
+      partialize: (state) => ({    // Only persist minimal state
+        activeId: state.activeId,
+      }),
+    }
+  )
+);
+```
+
+## Conventions
+
+- **Naming**: `useXxxStore` (e.g., `useStudyStore`, `useBibleStore`)
+- **Persistence**: Use `persist` middleware for state that survives refresh
+- **Partialize**: Only persist IDs/preferences, not full data (reload from DB)
+- **Async actions**: All DB operations are async and return Promises
+- **Optimistic updates**: Update local state, then sync to DB
+
+## Database Sync Pattern
+
+```typescript
+createItem: async (name) => {
+  const newItem = {
+    id: crypto.randomUUID(),
+    name,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  
+  await db.tableName.put(newItem);  // Persist to IndexedDB
+  
+  const { items } = get();
+  set({ items: [...items, newItem] });  // Update local state
+  
+  return newItem;
+},
+```
+
+## Existing Stores
+
+| Store | Purpose |
+|-------|---------|
+| `bibleStore` | Current translation, book, chapter |
+| `studyStore` | Active study, study list |
+| `annotationStore` | Highlights, symbols, underlines |
+| `markingPresetStore` | Keyword definitions |
+| `observationStore` | 5W+H entries |

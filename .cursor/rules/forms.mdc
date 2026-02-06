@@ -1,0 +1,104 @@
+---
+description: Form patterns - ALWAYS use shared form components, never raw inputs
+globs: "**/*.tsx"
+alwaysApply: false
+---
+
+# Form Components
+
+## NEVER Use Raw HTML Inputs
+
+Always use the shared form components from `@/components/shared`. Never use raw `<input>`, `<textarea>`, or `<select>` elements with inline styles.
+
+```tsx
+// ❌ WRONG - raw elements with duplicated classes
+<input
+  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg..."
+  placeholder="Enter name"
+/>
+
+<textarea
+  className="w-full px-3 py-2 text-sm bg-scripture-bg border... resize-none"
+  rows={3}
+/>
+
+// ✅ CORRECT - use shared components
+import { Input, Textarea, Label, Select, Checkbox, RadioGroup } from '@/components/shared';
+
+<Input
+  label="Name"
+  placeholder="Enter name"
+  value={name}
+  onChange={(e) => setName(e.target.value)}
+  error={errors.name}
+  helpText="Optional guidance text"
+/>
+
+<Textarea
+  label="Notes"
+  placeholder="Add notes..."
+  rows={3}
+  value={notes}
+  onChange={(e) => setNotes(e.target.value)}
+/>
+```
+
+## Available Components
+
+| Component | Use For |
+|-----------|---------|
+| `Input` | Text inputs, email, password, number |
+| `Textarea` | Multi-line text (supports `ref` via `forwardRef`) |
+| `Select` | Dropdown with `options` array |
+| `Checkbox` | Single checkbox with label |
+| `Radio` | Single radio button |
+| `RadioGroup` | Group of related radio buttons |
+| `Label` | Standalone label (with optional `required` and `helpText`) |
+| `ReadOnlyField` | Display-only field (non-editable) |
+| `DropdownSelect` | Custom styled dropdown (for complex cases) |
+
+## Component Props
+
+All form components support:
+- `label` - Label text (auto-generates `id` and `htmlFor`)
+- `error` - Error message (shows red border + message)
+- `helpText` - Help text below input
+- Standard HTML attributes (`placeholder`, `disabled`, `required`, etc.)
+
+## Form Layout
+
+Use spacing constants for consistent layouts:
+
+```tsx
+import { FORM_GROUP_SPACING, FORM_FIELD_SPACING } from '@/components/shared/Form';
+
+// Between field groups
+<div className={FORM_GROUP_SPACING}>  {/* space-y-4 */}
+  <Input label="First" ... />
+  <Input label="Second" ... />
+</div>
+
+// Within a single field (label + input + help)
+<div className={FORM_FIELD_SPACING}>  {/* space-y-1 */}
+  ...
+</div>
+```
+
+## If You Need Custom Styling
+
+Import and extend `BASE_INPUT_CLASSES`:
+
+```tsx
+import { BASE_INPUT_CLASSES } from '@/components/shared/Form';
+
+// Only for truly custom cases (rare)
+<input className={`${BASE_INPUT_CLASSES} my-custom-class`} />
+```
+
+## Accessibility
+
+The shared components automatically handle:
+- `aria-invalid` on error
+- `aria-describedby` linking to error/help text
+- `role="alert"` on error messages
+- Proper `id` and `htmlFor` pairing
