@@ -22,6 +22,8 @@ import { initTheme } from '@/lib/theme';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { autoBackupService } from '@/lib/autoBackup';
 import { getDebugFlags } from '@/lib/debug';
+import { isICloudAvailable } from '@/lib/platform';
+import { initializeSync } from '@/lib/sync';
 
 export default function App() {
   const { setChapter, currentBook, currentChapter, currentModuleId, setLoading, setError } = useBibleStore();
@@ -78,6 +80,13 @@ export default function App() {
 
     // Start auto-backup service
     autoBackupService.start();
+    
+    // Initialize iCloud sync on Apple platforms
+    if (isICloudAvailable()) {
+      initializeSync().catch(err => {
+        console.error('[App] Failed to initialize iCloud sync:', err);
+      });
+    }
 
     // Cleanup: stop auto-backup service on unmount
     return () => {

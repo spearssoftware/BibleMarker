@@ -41,7 +41,7 @@
       "minimumSystemVersion": "10.13",
       "hardenedRuntime": true,
       "exceptionDomain": "",
-      "signingIdentity": null,
+      "signingIdentity": "Developer ID Application: Kevin Spears (GRR34N6W9V)",
       "providerShortName": null,
       "entitlements": "entitlements.plist"
     },
