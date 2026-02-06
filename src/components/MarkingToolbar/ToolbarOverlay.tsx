@@ -58,8 +58,8 @@ function setSharedHeight(newHeight: number) {
   heightListeners.forEach(listener => listener());
 }
 
-// Export for debugging/testing
-export function resetOverlayHeight() {
+// For debugging/testing (not exported to avoid fast refresh warning)
+function _resetOverlayHeight() {
   setSharedHeight(DEFAULT_HEIGHT_VH);
 }
 
