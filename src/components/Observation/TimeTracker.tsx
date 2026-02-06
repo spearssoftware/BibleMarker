@@ -72,7 +72,7 @@ const sortVerseGroups = (groups: Map<string, TimeExpression[]>): Array<[string, 
 };
 
 export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = false, onFilterByChapterChange, onNavigate }: TimeTrackerProps) {
-  const { timeExpressions, loadTimeExpressions, createTimeExpression, updateTimeExpression, deleteTimeExpression } = useTimeStore();
+  const { timeExpressions, loadTimeExpressions, createTimeExpression, updateTimeExpression, deleteTimeExpression, autoImportFromAnnotations, removeDuplicates } = useTimeStore();
   const { currentBook, currentChapter } = useBibleStore();
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -109,22 +109,25 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
         hasInitialized.current = true;
         
         // Clean up any existing duplicates first
-        const { removeDuplicates, autoImportFromAnnotations } = useTimeStore.getState();
         const removedCount = await removeDuplicates();
         if (removedCount > 0) {
           console.log(`[TimeTracker] Removed ${removedCount} duplicate time expressions`);
         }
         
         // Auto-import existing keyword annotations with time symbols
-        const importedCount = await autoImportFromAnnotations();
-        if (importedCount > 0) {
-          // Reload after import
-          await loadTimeExpressions();
+        try {
+          const importedCount = await autoImportFromAnnotations();
+          if (importedCount > 0) {
+            // Reload after import
+            await loadTimeExpressions();
+          }
+        } catch (error) {
+          console.error('[TimeTracker] Auto-import failed:', error);
         }
       }
     };
     initialize();
-  }, [loadTimeExpressions]);
+  }, [loadTimeExpressions, autoImportFromAnnotations, removeDuplicates]);
 
   // Pre-fill form if selectedText is provided
   useEffect(() => {

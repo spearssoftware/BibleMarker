@@ -72,7 +72,7 @@ const sortVerseGroups = (groups: Map<string, Place[]>): Array<[string, Place[]]>
 };
 
 export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = false, onFilterByChapterChange, onNavigate }: PlaceTrackerProps) {
-  const { places, loadPlaces, createPlace, updatePlace, deletePlace, autoImportFromAnnotations } = usePlaceStore();
+  const { places, loadPlaces, createPlace, updatePlace, deletePlace, autoImportFromAnnotations, removeDuplicates } = usePlaceStore();
   const { currentBook, currentChapter } = useBibleStore();
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -112,7 +112,6 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
         hasInitialized.current = true;
         
         // Clean up any existing duplicates first
-        const { removeDuplicates } = usePlaceStore.getState();
         const removedCount = await removeDuplicates();
         if (removedCount > 0) {
           console.log(`[PlaceTracker] Removed ${removedCount} duplicate places`);
@@ -130,7 +129,7 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
       }
     };
     initialize();
-  }, [autoImportFromAnnotations, loadPlaces]);
+  }, [autoImportFromAnnotations, loadPlaces, removeDuplicates]);
 
   // Pre-fill form if selectedText is provided
   useEffect(() => {

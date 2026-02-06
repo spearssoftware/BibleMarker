@@ -62,6 +62,7 @@ fn get_icloud_container_url() -> Result<String, String> {
         }
         
         // Create container identifier NSString
+        // Note: alloc+init creates an owned object that we must release
         let container_id = "iCloud.com.biblemarker";
         let ns_string: *mut objc::runtime::Object = msg_send![class!(NSString), alloc];
         let container_id_cstr = std::ffi::CString::new(container_id).unwrap();
@@ -71,16 +72,21 @@ fn get_icloud_container_url() -> Result<String, String> {
         ];
         
         // Get URL for ubiquity container
+        // Note: This returns an autoreleased object, no need to release
         let url: *mut objc::runtime::Object = msg_send![
             file_manager,
             URLForUbiquityContainerIdentifier: ns_container_id
         ];
+        
+        // Release the container ID string now that we're done with it
+        let _: () = msg_send![ns_container_id, release];
         
         if url.is_null() {
             return Err("iCloud container not available. Make sure iCloud is enabled and the user is signed in.".to_string());
         }
         
         // Get the path string from URL
+        // Note: This returns an autoreleased object, no need to release
         let path: *mut objc::runtime::Object = msg_send![url, path];
         if path.is_null() {
             return Err("Failed to get path from iCloud URL".to_string());
@@ -170,8 +176,11 @@ fn chrono_lite_now() -> String {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default();
     
-    let secs = duration.as_secs();
-    
+    chrono_lite_from_secs(duration.as_secs())
+}
+
+/// Converts Unix timestamp (seconds since epoch) to ISO 8601 formatted string
+fn chrono_lite_from_secs(secs: u64) -> String {
     // Convert Unix timestamp to ISO 8601 format
     // This is a simplified implementation that handles dates from 1970 onwards
     const SECS_PER_MIN: u64 = 60;
@@ -273,5 +282,87 @@ mod tests {
         // Day should be 01-31
         let day: u32 = timestamp[8..10].parse().unwrap();
         assert!(day >= 1 && day <= 31, "Day should be 1-31, got {}", day);
+    }
+    
+    #[test]
+    fn test_chrono_lite_known_timestamps() {
+        // Unix epoch: January 1, 1970 00:00:00 UTC
+        assert_eq!(
+            chrono_lite_from_secs(0),
+            "1970-01-01T00:00:00Z",
+            "Unix epoch should be January 1, 1970"
+        );
+        
+        // January 31, 1970 23:59:59 UTC (last second of January)
+        // 30 days * 86400 + 23*3600 + 59*60 + 59 = 2592000 + 82800 + 3540 + 59 = 2678399
+        assert_eq!(
+            chrono_lite_from_secs(2678399),
+            "1970-01-31T23:59:59Z",
+            "Should be last second of January 31, 1970"
+        );
+        
+        // February 1, 1970 00:00:00 UTC (first second of February)
+        // 31 days * 86400 = 2678400
+        assert_eq!(
+            chrono_lite_from_secs(2678400),
+            "1970-02-01T00:00:00Z",
+            "Should be first second of February 1, 1970"
+        );
+        
+        // December 31, 1970 00:00:00 UTC
+        // 364 days * 86400 = 31449600
+        assert_eq!(
+            chrono_lite_from_secs(31449600),
+            "1970-12-31T00:00:00Z",
+            "Should be December 31, 1970"
+        );
+        
+        // January 1, 1971 00:00:00 UTC
+        // 365 days * 86400 = 31536000
+        assert_eq!(
+            chrono_lite_from_secs(31536000),
+            "1971-01-01T00:00:00Z",
+            "Should be January 1, 1971"
+        );
+        
+        // February 29, 2000 00:00:00 UTC (leap year)
+        // This is a known timestamp: 951782400
+        assert_eq!(
+            chrono_lite_from_secs(951782400),
+            "2000-02-29T00:00:00Z",
+            "Should be February 29, 2000 (leap year)"
+        );
+        
+        // March 1, 2000 00:00:00 UTC (day after leap day)
+        // 951782400 + 86400 = 951868800
+        assert_eq!(
+            chrono_lite_from_secs(951868800),
+            "2000-03-01T00:00:00Z",
+            "Should be March 1, 2000 (day after leap day)"
+        );
+        
+        // A known recent date: January 1, 2024 00:00:00 UTC = 1704067200
+        assert_eq!(
+            chrono_lite_from_secs(1704067200),
+            "2024-01-01T00:00:00Z",
+            "Should be January 1, 2024"
+        );
+        
+        // End of month boundaries
+        // February 28, 2023 (non-leap year) 23:59:59
+        // February 28, 2023 = 1677542400 (midnight)
+        // + 23*3600 + 59*60 + 59 = 86399
+        assert_eq!(
+            chrono_lite_from_secs(1677628799),
+            "2023-02-28T23:59:59Z",
+            "Should be last second of February 28, 2023"
+        );
+        
+        // March 1, 2023 00:00:00 (first second after February in non-leap year)
+        assert_eq!(
+            chrono_lite_from_secs(1677628800),
+            "2023-03-01T00:00:00Z",
+            "Should be first second of March 1, 2023"
+        );
     }
 }
