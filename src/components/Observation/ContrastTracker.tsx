@@ -11,7 +11,7 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import type { Contrast } from '@/types/contrast';
 import type { VerseRef } from '@/types/bible';
 import { formatVerseRef, getBookById } from '@/types/bible';
-import { ConfirmationDialog } from '@/components/shared';
+import { ConfirmationDialog, Input, Textarea, Checkbox } from '@/components/shared';
 import { getAnnotationsBySymbol, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 
 interface ContrastTrackerProps {
@@ -374,15 +374,11 @@ export function ContrastTracker({ selectedText, verseRef: initialVerseRef, filte
             + New Contrast
           </button>
           {onFilterByChapterChange && (
-            <label className="flex items-center gap-2 text-xs text-scripture-text cursor-pointer whitespace-nowrap">
-              <input
-                type="checkbox"
-                checked={filterByChapter}
-                onChange={(e) => onFilterByChapterChange(e.target.checked)}
-                className="w-4 h-4 rounded border-scripture-border text-scripture-accent focus:ring-scripture-accent focus:ring-2"
-              />
-              <span>Current Chapter Only</span>
-            </label>
+            <Checkbox
+              label="Current Chapter Only"
+              checked={filterByChapter}
+              onChange={(e) => onFilterByChapterChange(e.target.checked)}
+            />
           )}
         </div>
       )}
@@ -392,37 +388,28 @@ export function ContrastTracker({ selectedText, verseRef: initialVerseRef, filte
         <div className="mb-4 p-4 bg-scripture-surface rounded-xl border border-scripture-border/50">
           <h3 className="text-sm font-medium text-scripture-text mb-3">New Contrast</h3>
           <div className="space-y-3">
-            <div>
-              <label className="block text-xs text-scripture-muted mb-1">Item A</label>
-              <input
-                type="text"
-                value={newItemA}
-                onChange={(e) => setNewItemA(e.target.value)}
-                placeholder="First item being compared/contrasted"
-                className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-                autoFocus
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-scripture-muted mb-1">Item B</label>
-              <input
-                type="text"
-                value={newItemB}
-                onChange={(e) => setNewItemB(e.target.value)}
-                placeholder="Second item being compared/contrasted"
-                className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-scripture-muted mb-1">Notes (optional)</label>
-              <textarea
-                value={newNotes}
-                onChange={(e) => setNewNotes(e.target.value)}
-                placeholder="Additional notes about this contrast"
-                rows={2}
-                className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
-              />
-            </div>
+            <Input
+              label="Item A"
+              type="text"
+              value={newItemA}
+              onChange={(e) => setNewItemA(e.target.value)}
+              placeholder="First item being compared/contrasted"
+              autoFocus
+            />
+            <Input
+              label="Item B"
+              type="text"
+              value={newItemB}
+              onChange={(e) => setNewItemB(e.target.value)}
+              placeholder="Second item being compared/contrasted"
+            />
+            <Textarea
+              label="Notes (optional)"
+              value={newNotes}
+              onChange={(e) => setNewNotes(e.target.value)}
+              placeholder="Additional notes about this contrast"
+              rows={2}
+            />
             <div className="flex items-center gap-2">
               <button
                 onClick={handleCreate}
@@ -520,34 +507,25 @@ export function ContrastTracker({ selectedText, verseRef: initialVerseRef, filte
                         >
                           {isEditing ? (
                             <div className="space-y-3">
-                              <div>
-                                <label className="block text-xs text-scripture-muted mb-1">Item A</label>
-                                <input
-                                  type="text"
-                                  value={editingItemA}
-                                  onChange={(e) => setEditingItemA(e.target.value)}
-                                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-                                  autoFocus
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs text-scripture-muted mb-1">Item B</label>
-                                <input
-                                  type="text"
-                                  value={editingItemB}
-                                  onChange={(e) => setEditingItemB(e.target.value)}
-                                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs text-scripture-muted mb-1">Notes (optional)</label>
-                                <textarea
-                                  value={editingNotes}
-                                  onChange={(e) => setEditingNotes(e.target.value)}
-                                  rows={2}
-                                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
-                                />
-                              </div>
+                              <Input
+                                label="Item A"
+                                type="text"
+                                value={editingItemA}
+                                onChange={(e) => setEditingItemA(e.target.value)}
+                                autoFocus
+                              />
+                              <Input
+                                label="Item B"
+                                type="text"
+                                value={editingItemB}
+                                onChange={(e) => setEditingItemB(e.target.value)}
+                              />
+                              <Textarea
+                                label="Notes (optional)"
+                                value={editingNotes}
+                                onChange={(e) => setEditingNotes(e.target.value)}
+                                rows={2}
+                              />
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => handleSaveEdit(contrast.id)}

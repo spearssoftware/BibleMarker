@@ -20,7 +20,7 @@ import { TimeTracker } from './TimeTracker';
 import { PlaceTracker } from './PlaceTracker';
 import { ConclusionTracker } from './ConclusionTracker';
 import { ThemeEditor } from './ThemeEditor';
-import { ConfirmationDialog } from '@/components/shared';
+import { ConfirmationDialog, Textarea } from '@/components/shared';
 
 export type ObservationTab = 'lists' | 'fiveWAndH' | 'contrasts' | 'time' | 'places' | 'conclusions' | 'theme';
 
@@ -572,24 +572,20 @@ export function ObservationToolsPanel({
                                           <li key={item.id} className="text-sm text-scripture-text list-disc group/item">
                                             {isEditing ? (
                                               <div className="flex flex-col gap-2 -ml-4">
-                                                <textarea
+                                                <Textarea
                                                   value={editingItemText}
                                                   onChange={(e) => setEditingItemText(e.target.value)}
                                                   placeholder={`What do you observe about "${keywordName || 'this keyword'}" in this verse?`}
                                                   rows={3}
-                                                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
                                                   autoFocus
                                                 />
-                                                <div>
-                                                  <label className="block text-xs text-scripture-muted mb-1">Notes (optional)</label>
-                                                  <textarea
-                                                    value={editingItemNotes}
-                                                    onChange={(e) => setEditingItemNotes(e.target.value)}
-                                                    placeholder="Add additional notes about this observation..."
-                                                    rows={2}
-                                                    className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
-                                                  />
-                                                </div>
+                                                <Textarea
+                                                  label="Notes (optional)"
+                                                  value={editingItemNotes}
+                                                  onChange={(e) => setEditingItemNotes(e.target.value)}
+                                                  placeholder="Add additional notes about this observation..."
+                                                  rows={2}
+                                                />
                                                 <div className="flex items-center gap-2">
                                                   <button
                                                     onClick={() => handleSaveEdit(list.id, item.id)}
@@ -645,12 +641,11 @@ export function ObservationToolsPanel({
                                                 )}
                                                 {addingNotesToItemId === item.id && (
                                                   <div className="pl-2 border-l-2 border-scripture-border/30 mt-1">
-                                                    <textarea
+                                                    <Textarea
                                                       value={newItemNotes}
                                                       onChange={(e) => setNewItemNotes(e.target.value)}
                                                       placeholder="Add notes..."
                                                       rows={2}
-                                                      className="w-full px-2 py-1.5 text-xs bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
                                                       autoFocus
                                                     />
                                                     <div className="flex items-center gap-2 mt-1">
@@ -689,12 +684,12 @@ export function ObservationToolsPanel({
                                     {/* Add observation form for this verse */}
                                     {isAddingToThisVerse && (
                                       <div className="mt-3 pt-3 border-t border-scripture-border/30">
-                                        <textarea
+                                        <Textarea
                                           value={newObservationText}
                                           onChange={(e) => setNewObservationText(e.target.value)}
                                           placeholder={`What do you observe about "${keywordName || 'this keyword'}" in this verse?`}
                                           rows={3}
-                                          className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none mb-2"
+                                          className="mb-2"
                                           autoFocus
                                         />
                                         <div className="flex items-center gap-2">

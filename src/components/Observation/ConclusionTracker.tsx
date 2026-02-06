@@ -10,7 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import type { Conclusion } from '@/types/conclusion';
 import type { VerseRef } from '@/types/bible';
 import { formatVerseRef, getBookById } from '@/types/bible';
-import { ConfirmationDialog } from '@/components/shared';
+import { ConfirmationDialog, Input, Textarea, Checkbox } from '@/components/shared';
 
 interface ConclusionTrackerProps {
   selectedText?: string;
@@ -251,15 +251,11 @@ export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, fil
             + New Conclusion
           </button>
           {onFilterByChapterChange && (
-            <label className="flex items-center gap-2 text-xs text-scripture-text cursor-pointer whitespace-nowrap">
-              <input
-                type="checkbox"
-                checked={filterByChapter}
-                onChange={(e) => onFilterByChapterChange(e.target.checked)}
-                className="w-4 h-4 rounded border-scripture-border text-scripture-accent focus:ring-scripture-accent focus:ring-2"
-              />
-              <span>Current Chapter Only</span>
-            </label>
+            <Checkbox
+              label="Current Chapter Only"
+              checked={filterByChapter}
+              onChange={(e) => onFilterByChapterChange(e.target.checked)}
+            />
           )}
         </div>
       )}
@@ -269,27 +265,21 @@ export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, fil
         <div className="mb-4 p-4 bg-scripture-surface rounded-xl border border-scripture-border/50">
           <h3 className="text-sm font-medium text-scripture-text mb-3">New Conclusion</h3>
           <div className="space-y-3">
-            <div>
-              <label className="block text-xs text-scripture-muted mb-1">Conclusion Term</label>
-              <input
-                type="text"
-                value={newTerm}
-                onChange={(e) => setNewTerm(e.target.value)}
-                placeholder="e.g., 'therefore', 'so', 'thus', 'consequently'"
-                className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-                autoFocus
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-scripture-muted mb-1">Notes (optional)</label>
-              <textarea
-                value={newNotes}
-                onChange={(e) => setNewNotes(e.target.value)}
-                placeholder="Additional notes about this conclusion"
-                rows={2}
-                className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
-              />
-            </div>
+            <Input
+              label="Conclusion Term"
+              type="text"
+              value={newTerm}
+              onChange={(e) => setNewTerm(e.target.value)}
+              placeholder="e.g., 'therefore', 'so', 'thus', 'consequently'"
+              autoFocus
+            />
+            <Textarea
+              label="Notes (optional)"
+              value={newNotes}
+              onChange={(e) => setNewNotes(e.target.value)}
+              placeholder="Additional notes about this conclusion"
+              rows={2}
+            />
             <div className="flex items-center gap-2">
               <button
                 onClick={handleCreate}
@@ -387,25 +377,19 @@ export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, fil
                         >
                           {isEditing ? (
                             <div className="space-y-3">
-                              <div>
-                                <label className="block text-xs text-scripture-muted mb-1">Conclusion Term</label>
-                                <input
-                                  type="text"
-                                  value={editingTerm}
-                                  onChange={(e) => setEditingTerm(e.target.value)}
-                                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text"
-                                  autoFocus
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs text-scripture-muted mb-1">Notes (optional)</label>
-                                <textarea
-                                  value={editingNotes}
-                                  onChange={(e) => setEditingNotes(e.target.value)}
-                                  rows={2}
-                                  className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
-                                />
-                              </div>
+                              <Input
+                                label="Conclusion Term"
+                                type="text"
+                                value={editingTerm}
+                                onChange={(e) => setEditingTerm(e.target.value)}
+                                autoFocus
+                              />
+                              <Textarea
+                                label="Notes (optional)"
+                                value={editingNotes}
+                                onChange={(e) => setEditingNotes(e.target.value)}
+                                rows={2}
+                              />
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => handleSaveEdit(conclusion.id)}
