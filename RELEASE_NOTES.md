@@ -1,4 +1,4 @@
-# BibleMarker v0.6.6
+# BibleMarker v0.6.7
 
 ## Bug Fixes
 
