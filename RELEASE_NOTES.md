@@ -9,3 +9,7 @@
 - **iCloud status in Settings**: Moved sync status indicator from the navigation bar to Settings > Data tab, showing connection state, container path, and errors for easier diagnostics
 - **Bundle ID migration**: Migrated from `com.biblemarker` to `app.biblemarker`
 - **Precepts terminology**: Added Precept Ministries attribution and terminology
+
+---
+
+**Windows:** SmartScreen may warn for unsigned builds. Click **More info** → **Run anyway**.

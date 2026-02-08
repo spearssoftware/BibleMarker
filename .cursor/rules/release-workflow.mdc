@@ -21,6 +21,7 @@ git log --oneline <last-tag>..HEAD
 - **Write a NEW description** of what changed in this specific release
 - Group by: Features, Bug Fixes, Improvements
 - Be specific about user-visible changes
+- Keep the Windows install tip at the bottom
 
 ### 3. Update package.json Version
 Match the version to the new tag.
