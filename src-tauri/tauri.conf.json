@@ -1,7 +1,7 @@
 {
   "productName": "BibleMarker",
   "version": "../package.json",
-  "identifier": "com.biblemarker",
+  "identifier": "app.biblemarker",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build",
