@@ -15,10 +15,13 @@ git log --oneline <last-tag>..HEAD
 ```
 
 ### 2. Update RELEASE_NOTES.md Content (NOT just version number)
+- **Replace** the entire file with notes for this release only
+- RELEASE_NOTES.md should only contain the CURRENT version's notes — old version history lives in git
 - Update the version number in the heading
 - **Write a NEW description** of what changed in this specific release
 - Group by: Features, Bug Fixes, Improvements
 - Be specific about user-visible changes
+- Keep the macOS/Windows install tips at the bottom
 
 ### 3. Update package.json Version
 Match the version to the new tag.
@@ -38,6 +41,7 @@ git push origin main && git tag app-vX.Y.Z && git push origin app-vX.Y.Z
 - Push a tag without updating release notes content
 - Copy the same release notes from previous version
 - Skip describing what changed in this release
+- Include notes from previous versions in RELEASE_NOTES.md (the workflow uses `--notes-file RELEASE_NOTES.md` so the entire file becomes the GitHub release body)
 
 ## Tag Format
 - Use `app-v<version>` format (e.g., `app-v0.6.4`)
