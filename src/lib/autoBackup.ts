@@ -7,7 +7,7 @@
  */
 
 import Dexie, { type EntityTable } from 'dexie';
-import { db, type UserPreferences, type AutoBackupConfig } from './db';
+import { exportAllData, getPreferences as getDbPreferences, updatePreferences as updateDbPreferences, type UserPreferences, type AutoBackupConfig } from './database';
 import { type BackupData } from './backup';
 import { isTauri, isCapacitor } from './platform';
 import type { MultiTranslationView } from '@/types/multiTranslation';
@@ -53,25 +53,19 @@ const DEFAULT_CONFIG: AutoBackupConfig = {
 
 /** Get auto-backup configuration from preferences */
 export async function getAutoBackupConfig(): Promise<AutoBackupConfig> {
-  const prefs = await db.preferences.get('main');
+  const prefs = await getDbPreferences();
   return prefs?.autoBackup || DEFAULT_CONFIG;
 }
 
 /** Update auto-backup configuration */
 export async function updateAutoBackupConfig(config: Partial<AutoBackupConfig>): Promise<void> {
-  const prefs = await db.preferences.get('main') || await getDefaultPreferences();
+  const prefs = await getDbPreferences();
   const currentConfig = prefs.autoBackup || DEFAULT_CONFIG;
   const updatedConfig: AutoBackupConfig = { ...currentConfig, ...config };
   
-  await db.preferences.update('main', {
+  await updateDbPreferences({
     autoBackup: updatedConfig,
   });
-}
-
-/** Get default preferences (helper) */
-async function getDefaultPreferences(): Promise<UserPreferences> {
-  const { getPreferences } = await import('./db');
-  return getPreferences();
 }
 
 /**
@@ -215,44 +209,11 @@ async function storeBackupInIndexedDB(backup: BackupData, metadataId: string): P
  * Create backup data (reuses logic from backup.ts)
  */
 async function createBackupData(): Promise<BackupData> {
-  const [
-    preferences,
-    annotations,
-    sectionHeadings,
-    chapterTitles,
-    notes,
-    markingPresets,
-    studies,
-    multiTranslationViews,
-    observationLists,
-    fiveWAndH,
-    contrasts,
-    timeExpressions,
-    places,
-    conclusions,
-    interpretations,
-    applications,
-  ] = await Promise.all([
-    db.preferences.get('main'),
-    db.annotations.toArray(),
-    db.sectionHeadings.toArray(),
-    db.chapterTitles.toArray(),
-    db.notes.toArray(),
-    db.markingPresets.toArray(),
-    db.studies.toArray(),
-    db.multiTranslationViews.toArray(),
-    db.observationLists.toArray(),
-    db.fiveWAndH.toArray(),
-    db.contrasts.toArray(),
-    db.timeExpressions.toArray(),
-    db.places.toArray(),
-    db.conclusions.toArray(),
-    db.interpretations.toArray(),
-    db.applications.toArray(),
-  ]);
+  // Collect all data via database abstraction (routes to SQLite on native, IndexedDB on web)
+  const allData = await exportAllData();
 
   // Ensure preferences exist
-  const prefs = preferences || {
+  const prefs = allData.preferences || {
     id: 'main',
     marking: {
       recentColors: [],
@@ -270,7 +231,7 @@ async function createBackupData(): Promise<BackupData> {
   };
 
   // Clean up multi-translation views - remove primaryTranslationId if present (it's computed dynamically)
-  const cleanedMultiTranslationViews = multiTranslationViews.map(view => {
+  const cleanedMultiTranslationViews = allData.multiTranslationViews.map(view => {
     const { primaryTranslationId: _, ...cleanedView } = view as MultiTranslationView & { primaryTranslationId?: string };
     return cleanedView;
   });
@@ -281,21 +242,21 @@ async function createBackupData(): Promise<BackupData> {
     timestamp: new Date().toISOString(),
     data: {
       preferences: prefs,
-      annotations,
-      sectionHeadings,
-      chapterTitles,
-      notes,
-      markingPresets,
-      studies,
+      annotations: allData.annotations,
+      sectionHeadings: allData.sectionHeadings,
+      chapterTitles: allData.chapterTitles,
+      notes: allData.notes,
+      markingPresets: allData.markingPresets,
+      studies: allData.studies,
       multiTranslationViews: cleanedMultiTranslationViews,
-      observationLists,
-      fiveWAndH,
-      contrasts,
-      timeExpressions,
-      places,
-      conclusions,
-      interpretations,
-      applications,
+      observationLists: allData.observationLists,
+      fiveWAndH: allData.fiveWAndH,
+      contrasts: allData.contrasts,
+      timeExpressions: allData.timeExpressions,
+      places: allData.places,
+      conclusions: allData.conclusions,
+      interpretations: allData.interpretations,
+      applications: allData.applications,
     },
   };
 

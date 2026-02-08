@@ -7,7 +7,7 @@
  * - Traditional download/upload fallback (for browsers without API support)
  */
 
-import { db, type UserPreferences } from './db';
+import { exportAllData, importAllData, clearDatabase as clearAllDatabases, type UserPreferences } from './database';
 import { isTauri } from './platform';
 import type { Annotation, SectionHeading, ChapterTitle, Note } from '@/types/annotation';
 import type { MarkingPreset } from '@/types/keyWord';
@@ -99,47 +99,11 @@ function generateBackupFilename(): string {
  */
 export async function exportBackup(includeCache: boolean = false): Promise<void> {
   try {
-    // Collect all data
-    const [
-      preferences,
-      annotations,
-      sectionHeadings,
-      chapterTitles,
-      notes,
-      markingPresets,
-      studies,
-      multiTranslationViews,
-      observationLists,
-      fiveWAndH,
-      contrasts,
-      timeExpressions,
-      places,
-      conclusions,
-      interpretations,
-      applications,
-      cachedChapters,
-    ] = await Promise.all([
-      db.preferences.get('main'),
-      db.annotations.toArray(),
-      db.sectionHeadings.toArray(),
-      db.chapterTitles.toArray(),
-      db.notes.toArray(),
-      db.markingPresets.toArray(),
-      db.studies.toArray(),
-      db.multiTranslationViews.toArray(),
-      db.observationLists.toArray(),
-      db.fiveWAndH.toArray(),
-      db.contrasts.toArray(),
-      db.timeExpressions.toArray(),
-      db.places.toArray(),
-      db.conclusions.toArray(),
-      db.interpretations.toArray(),
-      db.applications.toArray(),
-      includeCache ? db.chapterCache.toArray() : Promise.resolve([]),
-    ]);
+    // Collect all data via database abstraction (routes to SQLite on native, IndexedDB on web)
+    const allData = await exportAllData();
 
     // Ensure preferences exist
-    const prefs = preferences || {
+    const prefs = allData.preferences || {
       id: 'main',
       marking: {
         recentColors: [],
@@ -157,7 +121,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
     };
 
     // Clean up multi-translation views - remove primaryTranslationId if present (it's computed dynamically)
-    const cleanedMultiTranslationViews = multiTranslationViews.map(view => {
+    const cleanedMultiTranslationViews = allData.multiTranslationViews.map(view => {
       const { primaryTranslationId: _pt, ...cleanedView } = view as MultiTranslationView & { primaryTranslationId?: string };
       return cleanedView;
     });
@@ -168,30 +132,38 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
       timestamp: new Date().toISOString(),
       data: {
         preferences: prefs,
-        annotations,
-        sectionHeadings,
-        chapterTitles,
-        notes,
-        markingPresets,
-        studies,
+        annotations: allData.annotations,
+        sectionHeadings: allData.sectionHeadings,
+        chapterTitles: allData.chapterTitles,
+        notes: allData.notes,
+        markingPresets: allData.markingPresets,
+        studies: allData.studies,
         multiTranslationViews: cleanedMultiTranslationViews,
-        observationLists,
-        fiveWAndH,
-        contrasts,
-        timeExpressions,
-        places,
-        conclusions,
-        interpretations,
-        applications,
+        observationLists: allData.observationLists,
+        fiveWAndH: allData.fiveWAndH,
+        contrasts: allData.contrasts,
+        timeExpressions: allData.timeExpressions,
+        places: allData.places,
+        conclusions: allData.conclusions,
+        interpretations: allData.interpretations,
+        applications: allData.applications,
       },
     };
 
-    // Include cached chapters if requested
-    if (includeCache && cachedChapters.length > 0) {
-      backup.data.cachedChapters = cachedChapters.map(ch => ({
-        ...ch,
-        cachedAt: ch.cachedAt instanceof Date ? ch.cachedAt.toISOString() : new Date(ch.cachedAt).toISOString(),
-      }));
+    // Include cached chapters if requested (cache is not part of the main data abstraction)
+    if (includeCache && !isTauri()) {
+      try {
+        const { db: dexieDb } = await import('./db');
+        const cachedChapters = await dexieDb.chapterCache.toArray();
+        if (cachedChapters.length > 0) {
+          backup.data.cachedChapters = cachedChapters.map(ch => ({
+            ...ch,
+            cachedAt: ch.cachedAt instanceof Date ? ch.cachedAt.toISOString() : new Date(ch.cachedAt).toISOString(),
+          }));
+        }
+      } catch {
+        // Cache export is non-critical, skip on error
+      }
     }
 
     // Convert to JSON
@@ -593,182 +565,147 @@ export async function importBackup(): Promise<BackupData> {
 
 /**
  * Restore data from backup to database (replaces all existing data)
+ * Routes to the correct backend (SQLite on native, IndexedDB on web)
  */
 export async function restoreBackup(backup: BackupData): Promise<void> {
   try {
-    // Clear all existing data (full replace)
-    await db.annotations.clear();
-    await db.sectionHeadings.clear();
-    await db.chapterTitles.clear();
-    await db.notes.clear();
-    await db.markingPresets.clear();
-    await db.studies.clear();
-    await db.multiTranslationViews.clear();
-    await db.observationLists.clear();
-    await db.fiveWAndH.clear();
-    await db.contrasts.clear();
-    await db.timeExpressions.clear();
-    await db.places.clear();
-    await db.conclusions.clear();
-    await db.interpretations.clear();
-    await db.applications.clear();
-    await db.chapterCache.clear();
+    // --- Validate all data before clearing database ---
 
-    // Restore preferences
-    if (backup.data.preferences) {
-      await db.preferences.put(backup.data.preferences);
-    }
-
-    // Restore annotations
+    // Validate annotations
+    let validatedAnnotations: Annotation[] = [];
     if (backup.data.annotations.length > 0) {
-      const { valid: validatedAnnotations } = validateArray(backup.data.annotations, validateAnnotation, 'annotation');
-      if (validatedAnnotations.length > 0) {
-        await db.annotations.bulkPut(validatedAnnotations);
-      }
+      const { valid } = validateArray(backup.data.annotations, validateAnnotation, 'annotation');
+      validatedAnnotations = valid;
     }
 
-    // Restore section headings
+    // Validate section headings
+    let validatedHeadings: SectionHeading[] = [];
     const headings = backup.data.sectionHeadings || [];
     if (headings.length > 0) {
       console.log(`Attempting to restore ${headings.length} section heading(s)...`);
-      const { valid: validatedHeadings, errors: headingErrors } = validateArray(headings, validateSectionHeading, 'section heading');
+      const { valid, errors: headingErrors } = validateArray(headings, validateSectionHeading, 'section heading');
       if (headingErrors.length > 0) {
         console.warn(`Failed to validate ${headingErrors.length} section heading(s):`, headingErrors.map(e => e.message));
       }
-      if (validatedHeadings.length > 0) {
-        try {
-          await db.sectionHeadings.bulkPut(validatedHeadings);
-          const savedCount = await db.sectionHeadings.count();
-          console.log(`✓ Successfully restored ${validatedHeadings.length} section heading(s). Total in database: ${savedCount}`);
-        } catch (error) {
-          console.error('Error saving section headings:', error);
-          throw new Error(`Failed to save section headings: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-      } else if (headings.length > 0) {
-        const errorMsg = `No valid section headings found. ${headings.length} heading(s) failed validation.`;
-        console.error(errorMsg);
-        throw new Error(errorMsg);
+      if (valid.length === 0 && headings.length > 0) {
+        throw new Error(`No valid section headings found. ${headings.length} heading(s) failed validation.`);
       }
+      validatedHeadings = valid;
     }
 
-    // Restore chapter titles
+    // Validate chapter titles
+    let validatedTitles: ChapterTitle[] = [];
     const titles = backup.data.chapterTitles || [];
     if (titles.length > 0) {
       console.log(`Attempting to restore ${titles.length} chapter title(s)...`);
-      const { valid: validatedTitles, errors: titleErrors } = validateArray(titles, validateChapterTitle, 'chapter title');
+      const { valid, errors: titleErrors } = validateArray(titles, validateChapterTitle, 'chapter title');
       if (titleErrors.length > 0) {
         console.warn(`Failed to validate ${titleErrors.length} chapter title(s):`, titleErrors.map(e => e.message));
       }
-      if (validatedTitles.length > 0) {
-        try {
-          await db.chapterTitles.bulkPut(validatedTitles);
-          const savedCount = await db.chapterTitles.count();
-          console.log(`✓ Successfully restored ${validatedTitles.length} chapter title(s). Total in database: ${savedCount}`);
-        } catch (error) {
-          console.error('Error saving chapter titles:', error);
-          throw new Error(`Failed to save chapter titles: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-      } else if (titles.length > 0) {
-        const errorMsg = `No valid chapter titles found. ${titles.length} title(s) failed validation.`;
-        console.error(errorMsg);
-        throw new Error(errorMsg);
+      if (valid.length === 0 && titles.length > 0) {
+        throw new Error(`No valid chapter titles found. ${titles.length} title(s) failed validation.`);
       }
+      validatedTitles = valid;
     }
 
-    // Restore notes
+    // Validate notes
+    let validatedNotes: Note[] = [];
     if (backup.data.notes.length > 0) {
-      const { valid: validatedNotes } = validateArray(backup.data.notes, validateNote, 'note');
-      if (validatedNotes.length > 0) {
-        await db.notes.bulkPut(validatedNotes);
-      }
+      const { valid } = validateArray(backup.data.notes, validateNote, 'note');
+      validatedNotes = valid;
     }
 
-    // Restore marking presets
+    // Validate marking presets
+    let validatedPresets: MarkingPreset[] = [];
     if (backup.data.markingPresets.length > 0) {
-      const { valid: validatedPresets } = validateArray(backup.data.markingPresets, validateMarkingPreset, 'marking preset');
-      if (validatedPresets.length > 0) {
-        await db.markingPresets.bulkPut(validatedPresets);
-      }
+      const { valid } = validateArray(backup.data.markingPresets, validateMarkingPreset, 'marking preset');
+      validatedPresets = valid;
     }
 
-    // Restore studies
+    // Validate studies
+    let validatedStudies: Study[] = [];
     if (backup.data.studies.length > 0) {
-      const { valid: validatedStudies } = validateArray(backup.data.studies, validateStudy, 'study');
-      if (validatedStudies.length > 0) {
-        await db.studies.bulkPut(validatedStudies);
-      }
+      const { valid } = validateArray(backup.data.studies, validateStudy, 'study');
+      validatedStudies = valid;
     }
 
-    // Restore multi-translation views
+    // Validate multi-translation views
+    let validatedViews: MultiTranslationView[] = [];
     if (backup.data.multiTranslationViews.length > 0) {
-      const { valid: validatedViews } = validateArray(backup.data.multiTranslationViews, validateMultiTranslationView, 'multi-translation view');
-      if (validatedViews.length > 0) {
-        await db.multiTranslationViews.bulkPut(validatedViews);
-      }
+      const { valid } = validateArray(backup.data.multiTranslationViews, validateMultiTranslationView, 'multi-translation view');
+      validatedViews = valid;
     }
 
-    // Restore observation lists
+    // Validate observation lists
+    let validatedLists: ObservationList[] = [];
     if (backup.data.observationLists.length > 0) {
-      const { valid: validatedLists } = validateArray(backup.data.observationLists, validateObservationList, 'observation list');
-      if (validatedLists.length > 0) {
-        await db.observationLists.bulkPut(validatedLists);
-      }
+      const { valid } = validateArray(backup.data.observationLists, validateObservationList, 'observation list');
+      validatedLists = valid;
     }
 
-    // Restore 5W+H entries
+    // Validate 5W+H entries
+    let validatedFiveW: FiveWAndHEntry[] = [];
     if (backup.data.fiveWAndH && backup.data.fiveWAndH.length > 0) {
-      const { valid: validatedFiveW } = validateArray(backup.data.fiveWAndH, validateFiveWAndH, '5W+H entry');
-      if (validatedFiveW.length > 0) {
-        await db.fiveWAndH.bulkPut(validatedFiveW);
-      }
+      const { valid } = validateArray(backup.data.fiveWAndH, validateFiveWAndH, '5W+H entry');
+      validatedFiveW = valid;
     }
 
-    // Restore contrasts
-    if (backup.data.contrasts && backup.data.contrasts.length > 0) {
-      await db.contrasts.bulkPut(backup.data.contrasts);
-    }
-
-    // Restore time expressions
-    if (backup.data.timeExpressions && backup.data.timeExpressions.length > 0) {
-      await db.timeExpressions.bulkPut(backup.data.timeExpressions);
-    }
-
-    // Restore places
+    // Validate places
+    let validatedPlaces: Place[] = [];
     if (backup.data.places && backup.data.places.length > 0) {
-      const { valid: validatedPlaces } = validateArray(backup.data.places, validatePlace, 'place');
-      if (validatedPlaces.length > 0) {
-        await db.places.bulkPut(validatedPlaces);
-      }
+      const { valid } = validateArray(backup.data.places, validatePlace, 'place');
+      validatedPlaces = valid;
     }
 
-    // Restore conclusions
-    if (backup.data.conclusions && backup.data.conclusions.length > 0) {
-      await db.conclusions.bulkPut(backup.data.conclusions);
-    }
-
-    // Restore interpretations
+    // Validate interpretations
+    let validatedInterpretations: InterpretationEntry[] = [];
     if (backup.data.interpretations && backup.data.interpretations.length > 0) {
-      const { valid: validatedInterpretations } = validateArray(backup.data.interpretations, validateInterpretation, 'interpretation entry');
-      if (validatedInterpretations.length > 0) {
-        await db.interpretations.bulkPut(validatedInterpretations);
-      }
+      const { valid } = validateArray(backup.data.interpretations, validateInterpretation, 'interpretation entry');
+      validatedInterpretations = valid;
     }
 
-    // Restore application entries
+    // Validate application entries
+    let validatedApplications: ApplicationEntry[] = [];
     if (backup.data.applications && backup.data.applications.length > 0) {
-      const { valid: validatedApplications } = validateArray(backup.data.applications, validateApplication, 'application entry');
-      if (validatedApplications.length > 0) {
-        await db.applications.bulkPut(validatedApplications);
-      }
+      const { valid } = validateArray(backup.data.applications, validateApplication, 'application entry');
+      validatedApplications = valid;
     }
 
-    // Restore cached chapters
-    if (backup.data.cachedChapters && backup.data.cachedChapters.length > 0) {
-      const chapters = backup.data.cachedChapters.map(ch => ({
-        ...ch,
-        cachedAt: new Date(ch.cachedAt),
-      }));
-      await db.chapterCache.bulkPut(chapters);
+    // --- Clear and import via database abstraction (routes to correct backend) ---
+
+    await clearAllDatabases();
+
+    await importAllData({
+      annotations: validatedAnnotations,
+      sectionHeadings: validatedHeadings,
+      chapterTitles: validatedTitles,
+      notes: validatedNotes,
+      markingPresets: validatedPresets,
+      studies: validatedStudies,
+      multiTranslationViews: validatedViews,
+      observationLists: validatedLists,
+      fiveWAndH: validatedFiveW,
+      contrasts: backup.data.contrasts || [],
+      timeExpressions: backup.data.timeExpressions || [],
+      places: validatedPlaces,
+      conclusions: backup.data.conclusions || [],
+      interpretations: validatedInterpretations,
+      applications: validatedApplications,
+      preferences: backup.data.preferences || null,
+    });
+
+    // Restore cached chapters if present (cache is not part of the main abstraction)
+    if (backup.data.cachedChapters && backup.data.cachedChapters.length > 0 && !isTauri()) {
+      try {
+        const { db: dexieDb } = await import('./db');
+        const chapters = backup.data.cachedChapters.map(ch => ({
+          ...ch,
+          cachedAt: new Date(ch.cachedAt),
+        }));
+        await dexieDb.chapterCache.bulkPut(chapters);
+      } catch {
+        // Cache restore is non-critical
+      }
     }
   } catch (error) {
     throw new Error(`Failed to restore backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
