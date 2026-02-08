@@ -7,12 +7,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Place } from '@/types/place';
-import { db } from '@/lib/db';
+import { db, getAllPlaces as dbGetAllPlaces, savePlace as dbSavePlace, deletePlace as dbDeletePlace, getMarkingPreset } from '@/lib/db';
 import type { VerseRef } from '@/types/bible';
 import { validatePlace, sanitizeData, ValidationError } from '@/lib/validation';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 import { getSymbolsForTracker } from '@/lib/observationSymbols';
-import { getMarkingPreset } from '@/lib/db';
 
 interface PlaceState {
   // Places (cached)
@@ -37,13 +36,13 @@ export const usePlaceStore = create<PlaceState>()(
       places: [],
       
       loadPlaces: async () => {
-        const allPlaces = await db.places.toArray();
+        const allPlaces = await dbGetAllPlaces();
         set({ places: allPlaces });
       },
       
       createPlace: async (name, verseRef, notes, presetId, annotationId) => {
         // Check for duplicates from DATABASE (not in-memory state) to avoid race conditions
-        const allPlaces = await db.places.toArray();
+        const allPlaces = await dbGetAllPlaces();
         
         // Check for duplicates: same annotationId, or same presetId + verseRef, or same name + verseRef
         const existingPlace = allPlaces.find(p => {
@@ -84,7 +83,7 @@ export const usePlaceStore = create<PlaceState>()(
         
         try {
           const validated = sanitizeData(newPlace, validatePlace);
-          await db.places.put(validated);
+          await dbSavePlace(validated);
           
           set({ 
             places: [...allPlaces, validated],
@@ -110,7 +109,7 @@ export const usePlaceStore = create<PlaceState>()(
           };
           
           const validated = sanitizeData(updated, validatePlace);
-          await db.places.put(validated);
+          await dbSavePlace(validated);
           
           const { places } = get();
           set({ 
@@ -126,7 +125,7 @@ export const usePlaceStore = create<PlaceState>()(
       },
       
       deletePlace: async (placeId) => {
-        await db.places.delete(placeId);
+        await dbDeletePlace(placeId);
         
         const { places } = get();
         set({ 
@@ -219,7 +218,7 @@ export const usePlaceStore = create<PlaceState>()(
           
           try {
             const validated = sanitizeData(newPlace, validatePlace);
-            await db.places.put(validated);
+            await dbSavePlace(validated);
             set({ places: [...places, validated] });
             importedCount++;
           } catch (error) {
@@ -315,7 +314,7 @@ export const usePlaceStore = create<PlaceState>()(
 
       removeDuplicates: async () => {
         // Get all places from database
-        const allPlaces = await db.places.toArray();
+        const allPlaces = await dbGetAllPlaces();
         
         // Track seen items to identify duplicates
         // Key includes annotationId to avoid deleting entries linked to different annotations
@@ -339,10 +338,10 @@ export const usePlaceStore = create<PlaceState>()(
         
         // Delete duplicates from database
         if (duplicateIds.length > 0) {
-          await db.places.bulkDelete(duplicateIds);
+          await Promise.all(duplicateIds.map(id => dbDeletePlace(id)));
           
           // Reload from database to get clean state
-          const cleaned = await db.places.toArray();
+          const cleaned = await dbGetAllPlaces();
           set({ places: cleaned });
         }
         

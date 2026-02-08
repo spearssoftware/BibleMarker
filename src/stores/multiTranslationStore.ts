@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { MultiTranslationView } from '@/types/multiTranslation';
-import { db } from '@/lib/db';
+import { getMultiTranslationView as dbGetView, saveMultiTranslationView as dbSaveView, deleteMultiTranslationView as dbDeleteView } from '@/lib/db';
 
 interface MultiTranslationState {
   // Active multi-translation view
@@ -35,15 +35,15 @@ export const useMultiTranslationStore = create<MultiTranslationState>()(
       
       setActiveView: async (view) => {
         if (view) {
-          await db.multiTranslationViews.put(view);
+          await dbSaveView(view);
         } else {
-          await db.multiTranslationViews.delete('active');
+          await dbDeleteView('active');
         }
         set({ activeView: view });
       },
       
       loadActiveView: async () => {
-        const view = await db.multiTranslationViews.get('active');
+        const view = await dbGetView('active');
         if (view) {
           // Limit to max 3 translations
           const limitedTranslationIds = view.translationIds.slice(0, 3);
@@ -55,10 +55,10 @@ export const useMultiTranslationStore = create<MultiTranslationState>()(
               translationIds: limitedTranslationIds,
             };
             if (limitedTranslationIds.length === 0) {
-              await db.multiTranslationViews.delete('active');
+              await dbDeleteView('active');
               set({ activeView: null });
             } else {
-              await db.multiTranslationViews.put(cleanedView);
+              await dbSaveView(cleanedView);
               set({ activeView: cleanedView });
             }
           } else {
@@ -88,7 +88,7 @@ export const useMultiTranslationStore = create<MultiTranslationState>()(
           translationIds: [...currentView.translationIds, translationId],
         };
         
-        await db.multiTranslationViews.put(updatedView);
+        await dbSaveView(updatedView);
         set({ activeView: updatedView });
       },
       
@@ -103,10 +103,10 @@ export const useMultiTranslationStore = create<MultiTranslationState>()(
         
         // If no translations left, clear the view
         if (updatedView.translationIds.length === 0) {
-          await db.multiTranslationViews.delete('active');
+          await dbDeleteView('active');
           set({ activeView: null });
         } else {
-          await db.multiTranslationViews.put(updatedView);
+          await dbSaveView(updatedView);
           set({ activeView: updatedView });
         }
       },
@@ -120,12 +120,12 @@ export const useMultiTranslationStore = create<MultiTranslationState>()(
           syncScrolling: sync,
         };
         
-        await db.multiTranslationViews.put(updatedView);
+        await dbSaveView(updatedView);
         set({ activeView: updatedView });
       },
       
       clearView: async () => {
-        await db.multiTranslationViews.delete('active');
+        await dbDeleteView('active');
         set({ activeView: null });
       },
     }),

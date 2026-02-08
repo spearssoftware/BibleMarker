@@ -8,7 +8,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ApplicationEntry } from '@/types/application';
 import type { VerseRef } from '@/types/bible';
-import { db } from '@/lib/db';
+import { getAllApplications as dbGetAllApplications, saveApplication as dbSaveApplication, deleteApplication as dbDeleteApplication } from '@/lib/db';
 import { validateApplication, sanitizeData, ValidationError } from '@/lib/validation';
 
 interface ApplicationState {
@@ -30,7 +30,7 @@ export const useApplicationStore = create<ApplicationState>()(
       applicationEntries: [],
       
       loadApplications: async () => {
-        const entries = await db.applications.toArray();
+        const entries = await dbGetAllApplications();
         set({ applicationEntries: entries });
       },
       
@@ -44,7 +44,7 @@ export const useApplicationStore = create<ApplicationState>()(
         
         try {
           const validated = sanitizeData(newEntry, validateApplication);
-          await db.applications.put(validated);
+          await dbSaveApplication(validated);
           
           const { applicationEntries } = get();
           set({ 
@@ -69,7 +69,7 @@ export const useApplicationStore = create<ApplicationState>()(
           };
           
           const validated = sanitizeData(updated, validateApplication);
-          await db.applications.put(validated);
+          await dbSaveApplication(validated);
           
           const { applicationEntries } = get();
           set({ 
@@ -85,7 +85,7 @@ export const useApplicationStore = create<ApplicationState>()(
       },
       
       deleteApplication: async (entryId) => {
-        await db.applications.delete(entryId);
+        await dbDeleteApplication(entryId);
         
         const { applicationEntries } = get();
         set({ 

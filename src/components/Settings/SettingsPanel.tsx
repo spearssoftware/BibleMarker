@@ -29,6 +29,8 @@ import { AboutSection } from './AboutSection';
 import { GettingStartedSection } from './GettingStartedSection';
 import { ConfirmationDialog, Input, DropdownSelect, Checkbox } from '@/components/shared';
 import { resetAllStores } from '@/lib/storeReset';
+import { isICloudAvailable } from '@/lib/platform';
+import { checkICloudStatus, type ICloudStatus } from '@/lib/sync';
 import {
   bibliaClient,
   bibleGatewayClient,
@@ -97,6 +99,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [defaultTranslation, setDefaultTranslation] = useState<string>('');
   const [availableTranslations, setAvailableTranslations] = useState<ApiTranslation[]>([]);
   const [savingDefaultTranslation, setSavingDefaultTranslation] = useState(false);
+
+  // iCloud status state
+  const [icloudStatus, setIcloudStatus] = useState<ICloudStatus | null>(null);
+  const [icloudLoading, setIcloudLoading] = useState(false);
+  const [icloudPlatformAvailable, setIcloudPlatformAvailable] = useState(false);
 
   // Auto-backup state
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(true);
@@ -184,6 +191,18 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         // Load available translations
         const translations = await getAllTranslations();
         setAvailableTranslations(translations);
+
+        // Check iCloud status
+        const platformAvailable = isICloudAvailable();
+        setIcloudPlatformAvailable(platformAvailable);
+        if (platformAvailable) {
+          try {
+            const status = await checkICloudStatus();
+            setIcloudStatus(status);
+          } catch {
+            setIcloudStatus({ available: false, container_path: null, error: 'Failed to query iCloud status' });
+          }
+        }
       } catch (error) {
         console.error('Error loading preferences:', error);
       } finally {
@@ -1051,6 +1070,68 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           {activeTab === 'data' && (
             <div role="tabpanel" id="settings-tabpanel-data" aria-labelledby="settings-tab-data">
             <div className="space-y-0">
+              {/* iCloud Sync Status */}
+              <div className="p-4">
+                <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">iCloud Sync</h3>
+                {!icloudPlatformAvailable ? (
+                  <div className="p-3 bg-scripture-elevated/50 rounded-lg border border-scripture-border/50">
+                    <div className="text-sm text-scripture-muted">
+                      iCloud sync is only available on macOS and iOS native builds.
+                    </div>
+                  </div>
+                ) : icloudLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-scripture-muted">
+                    <div className="w-4 h-4 border-2 border-scripture-border border-t-scripture-accent rounded-full animate-spin" />
+                    Checking iCloud status...
+                  </div>
+                ) : icloudStatus ? (
+                  <div className="space-y-3">
+                    <div className="p-3 bg-scripture-elevated/50 rounded-lg border border-scripture-border/50 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-block w-2.5 h-2.5 rounded-full ${icloudStatus.available ? 'bg-green-500' : 'bg-red-500'}`} />
+                        <span className="text-sm font-medium text-scripture-text">
+                          {icloudStatus.available ? 'Connected' : 'Not Available'}
+                        </span>
+                      </div>
+                      {icloudStatus.container_path && (
+                        <div className="text-xs text-scripture-muted">
+                          <span className="font-medium">Container:</span>{' '}
+                          <span className="font-mono break-all">{icloudStatus.container_path}</span>
+                        </div>
+                      )}
+                      {icloudStatus.error && (
+                        <div className="text-xs text-scripture-errorText">
+                          <span className="font-medium">Error:</span> {icloudStatus.error}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        setIcloudLoading(true);
+                        try {
+                          const status = await checkICloudStatus();
+                          setIcloudStatus(status);
+                        } catch {
+                          setIcloudStatus({ available: false, container_path: null, error: 'Failed to query iCloud status' });
+                        } finally {
+                          setIcloudLoading(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 text-xs font-ui bg-scripture-elevated hover:bg-scripture-border/50 
+                               border border-scripture-border/50 text-scripture-text rounded-lg transition-colors"
+                    >
+                      Refresh Status
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-scripture-elevated/50 rounded-lg border border-scripture-border/50">
+                    <div className="text-sm text-scripture-muted">Unable to determine iCloud status.</div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
+
               {/* Backup & Restore Section */}
               <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Data Backup & Restore</h3>

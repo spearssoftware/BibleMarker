@@ -7,8 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ObservationList, ObservationItem } from '@/types/list';
-import { db } from '@/lib/db';
-import { getMarkingPreset } from '@/lib/db';
+import { db, getAllObservationLists as dbGetAllLists, saveObservationList as dbSaveList, deleteObservationList as dbDeleteList, getMarkingPreset } from '@/lib/db';
 import type { VerseRef } from '@/types/bible';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { validateObservationList, sanitizeData, ValidationError } from '@/lib/validation';
@@ -42,7 +41,7 @@ export const useListStore = create<ListState>()(
       lastUsedListId: null,
       
       loadLists: async () => {
-        const allLists = await db.observationLists.toArray();
+        const allLists = await dbGetAllLists();
         // Filter out any lists without keyWordId (shouldn't happen, but safety check)
         const validLists = allLists.filter(list => list.keyWordId);
         set({ lists: validLists });
@@ -53,7 +52,7 @@ export const useListStore = create<ListState>()(
             .filter(list => !list.keyWordId)
             .map(list => list.id);
           if (invalidIds.length > 0) {
-            await db.observationLists.bulkDelete(invalidIds);
+            await Promise.all(invalidIds.map(id => dbDeleteList(id)));
           }
         }
       },
@@ -72,7 +71,7 @@ export const useListStore = create<ListState>()(
         
         try {
           const validated = sanitizeData(newList, validateObservationList);
-          await db.observationLists.put(validated);
+          await dbSaveList(validated);
         
         const { lists } = get();
         // Set new list as most recently used
@@ -99,7 +98,7 @@ export const useListStore = create<ListState>()(
           };
           
           const validated = sanitizeData(updated, validateObservationList);
-          await db.observationLists.put(validated);
+          await dbSaveList(validated);
         
         const { lists } = get();
         set({ 
@@ -115,7 +114,7 @@ export const useListStore = create<ListState>()(
       },
       
       deleteList: async (listId) => {
-        await db.observationLists.delete(listId);
+        await dbDeleteList(listId);
         
         const { lists, lastUsedListId } = get();
         set({ 
@@ -143,7 +142,7 @@ export const useListStore = create<ListState>()(
           updatedAt: new Date(),
         };
         
-        await db.observationLists.put(updatedList);
+        await dbSaveList(updatedList);
         // Track this as the most recently used list
         set({ 
           lists: lists.map(l => l.id === listId ? updatedList : l),
@@ -168,7 +167,7 @@ export const useListStore = create<ListState>()(
         
         try {
           const validated = sanitizeData(updatedList, validateObservationList);
-          await db.observationLists.put(validated);
+          await dbSaveList(validated);
           set({ lists: lists.map(l => l.id === listId ? validated : l) });
         } catch (error) {
           if (error instanceof ValidationError) {
@@ -192,7 +191,7 @@ export const useListStore = create<ListState>()(
         
         try {
           const validated = sanitizeData(updatedList, validateObservationList);
-          await db.observationLists.put(validated);
+          await dbSaveList(validated);
           set({ lists: lists.map(l => l.id === listId ? validated : l) });
         } catch (error) {
           if (error instanceof ValidationError) {
@@ -326,7 +325,7 @@ export const useListStore = create<ListState>()(
           updatedAt: new Date(),
         };
 
-        await db.observationLists.put(updatedList);
+        await dbSaveList(updatedList);
         // Track this as the most recently used list
         set({ 
           lists: lists.map(l => l.id === listId ? updatedList : l),

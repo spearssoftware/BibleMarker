@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Study } from '@/types/study';
-import { db } from '@/lib/db';
+import { getAllStudies as dbGetAllStudies, saveStudy as dbSaveStudy, deleteStudy as dbDeleteStudy } from '@/lib/db';
 
 interface StudyState {
   // Active study
@@ -40,13 +40,13 @@ export const useStudyStore = create<StudyState>()(
         }));
         
         // Update in database
-        await Promise.all(updatedStudies.map(s => db.studies.put(s)));
+        await Promise.all(updatedStudies.map(s => dbSaveStudy(s)));
         
         set({ activeStudyId: studyId, studies: updatedStudies });
       },
       
       loadStudies: async () => {
-        const studies = await db.studies.toArray();
+        const studies = await dbGetAllStudies();
         const activeStudy = studies.find(s => s.isActive);
         set({ 
           studies,
@@ -64,7 +64,7 @@ export const useStudyStore = create<StudyState>()(
           updatedAt: new Date(),
         };
         
-        await db.studies.put(newStudy);
+        await dbSaveStudy(newStudy);
         
         const { studies } = get();
         set({ studies: [...studies, newStudy] });
@@ -78,7 +78,7 @@ export const useStudyStore = create<StudyState>()(
           updatedAt: new Date(),
         };
         
-        await db.studies.put(updated);
+        await dbSaveStudy(updated);
         
         const { studies } = get();
         set({ 
@@ -88,7 +88,7 @@ export const useStudyStore = create<StudyState>()(
       },
       
       deleteStudy: async (studyId) => {
-        await db.studies.delete(studyId);
+        await dbDeleteStudy(studyId);
         
         const { studies, activeStudyId } = get();
         const filtered = studies.filter(s => s.id !== studyId);

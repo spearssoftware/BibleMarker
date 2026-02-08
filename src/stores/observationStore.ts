@@ -8,7 +8,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { FiveWAndHEntry } from '@/types/observation';
 import type { VerseRef } from '@/types/bible';
-import { db } from '@/lib/db';
+import { getAllFiveWAndH as dbGetAllFiveWAndH, saveFiveWAndH as dbSaveFiveWAndH, deleteFiveWAndH as dbDeleteFiveWAndH } from '@/lib/db';
 import { validateFiveWAndH, sanitizeData, ValidationError } from '@/lib/validation';
 
 interface ObservationState {
@@ -30,7 +30,7 @@ export const useObservationStore = create<ObservationState>()(
       fiveWAndHEntries: [],
       
       loadFiveWAndH: async () => {
-        const entries = await db.fiveWAndH.toArray();
+        const entries = await dbGetAllFiveWAndH();
         set({ fiveWAndHEntries: entries });
       },
       
@@ -44,7 +44,7 @@ export const useObservationStore = create<ObservationState>()(
         
         try {
           const validated = sanitizeData(newEntry, validateFiveWAndH);
-          await db.fiveWAndH.put(validated);
+          await dbSaveFiveWAndH(validated);
           
           const { fiveWAndHEntries } = get();
           set({ 
@@ -69,7 +69,7 @@ export const useObservationStore = create<ObservationState>()(
           };
           
           const validated = sanitizeData(updated, validateFiveWAndH);
-          await db.fiveWAndH.put(validated);
+          await dbSaveFiveWAndH(validated);
           
           const { fiveWAndHEntries } = get();
           set({ 
@@ -85,7 +85,7 @@ export const useObservationStore = create<ObservationState>()(
       },
       
       deleteFiveWAndH: async (entryId) => {
-        await db.fiveWAndH.delete(entryId);
+        await dbDeleteFiveWAndH(entryId);
         
         const { fiveWAndHEntries } = get();
         set({ 

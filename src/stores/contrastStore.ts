@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Contrast } from '@/types/contrast';
-import { db } from '@/lib/db';
+import { getAllContrasts as dbGetAllContrasts, saveContrast as dbSaveContrast, deleteContrast as dbDeleteContrast } from '@/lib/db';
 import type { VerseRef } from '@/types/bible';
 
 interface ContrastState {
@@ -30,7 +30,7 @@ export const useContrastStore = create<ContrastState>()(
       contrasts: [],
       
       loadContrasts: async () => {
-        const allContrasts = await db.contrasts.toArray();
+        const allContrasts = await dbGetAllContrasts();
         set({ contrasts: allContrasts });
       },
       
@@ -47,7 +47,7 @@ export const useContrastStore = create<ContrastState>()(
           updatedAt: new Date(),
         };
         
-        await db.contrasts.put(newContrast);
+        await dbSaveContrast(newContrast);
         
         const { contrasts } = get();
         set({ 
@@ -66,7 +66,7 @@ export const useContrastStore = create<ContrastState>()(
           updatedAt: new Date(),
         };
         
-        await db.contrasts.put(updated);
+        await dbSaveContrast(updated);
         
         const { contrasts } = get();
         set({ 
@@ -75,7 +75,7 @@ export const useContrastStore = create<ContrastState>()(
       },
       
       deleteContrast: async (contrastId) => {
-        await db.contrasts.delete(contrastId);
+        await dbDeleteContrast(contrastId);
         
         const { contrasts } = get();
         set({ 
