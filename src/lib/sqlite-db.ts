@@ -419,8 +419,10 @@ function getDeviceId(): string {
   return crypto.randomUUID();
 }
 
-function toISOString(date: Date | undefined): string {
-  return (date ?? new Date()).toISOString();
+function toISOString(date: Date | string | undefined): string {
+  if (!date) return new Date().toISOString();
+  if (typeof date === 'string') return date;
+  return date.toISOString();
 }
 
 // ============================================================================
