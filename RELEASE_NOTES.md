@@ -1,11 +1,21 @@
-# BibleMarker v0.6.4
+# BibleMarker v0.6.5
 
 ## Bug Fixes
 
-- **Fixed sync indicator click**: Clicking the sync status icon in the navigation bar now properly shows the details panel with error messages
-- **Added iCloud debug logging**: Console now shows detailed iCloud status checks to help diagnose sync issues
+- **Fixed iCloud sync not working**: All data operations were going through IndexedDB instead of the SQLite database in the iCloud container. Database routing now correctly uses SQLite on native macOS/iOS, enabling cross-device sync via iCloud Drive.
+
+## Improvements
+
+- **iCloud status in Settings**: Moved sync status indicator from the navigation bar to Settings > Data tab, showing connection state, container path, and errors for easier diagnostics
+- **Bundle ID migration**: Migrated from `com.biblemarker` to `app.biblemarker`
+- **Precepts terminology**: Added Precept Ministries attribution and terminology
 
 ---
+
+## v0.6.4
+
+- Fixed sync indicator click in navigation bar
+- Added iCloud debug logging
 
 ## v0.6.3
 

@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Conclusion } from '@/types/conclusion';
-import { db } from '@/lib/db';
+import { getAllConclusions as dbGetAllConclusions, saveConclusion as dbSaveConclusion, deleteConclusion as dbDeleteConclusion } from '@/lib/db';
 import type { VerseRef } from '@/types/bible';
 import { getBookById } from '@/types/bible';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
@@ -34,7 +34,7 @@ export const useConclusionStore = create<ConclusionState>()(
       conclusions: [],
       
       loadConclusions: async () => {
-        const allConclusions = await db.conclusions.toArray();
+        const allConclusions = await dbGetAllConclusions();
         set({ conclusions: allConclusions });
       },
       
@@ -51,7 +51,7 @@ export const useConclusionStore = create<ConclusionState>()(
           updatedAt: new Date(),
         };
         
-        await db.conclusions.put(newConclusion);
+        await dbSaveConclusion(newConclusion);
         
         const { conclusions } = get();
         set({ 
@@ -69,7 +69,7 @@ export const useConclusionStore = create<ConclusionState>()(
           updatedAt: new Date(),
         };
         
-        await db.conclusions.put(updated);
+        await dbSaveConclusion(updated);
         
         const { conclusions } = get();
         set({ 
@@ -78,7 +78,7 @@ export const useConclusionStore = create<ConclusionState>()(
       },
       
       deleteConclusion: async (conclusionId) => {
-        await db.conclusions.delete(conclusionId);
+        await dbDeleteConclusion(conclusionId);
         
         const { conclusions } = get();
         set({ 
@@ -113,7 +113,7 @@ export const useConclusionStore = create<ConclusionState>()(
         const annotations = await getAnnotationsBySymbolsWithPreset(conclusionSymbols);
         
         // Get existing conclusions to avoid duplicates
-        const existing = await db.conclusions.toArray();
+        const existing = await dbGetAllConclusions();
         const existingAnnotationIds = new Set(
           existing
             .filter(c => c.annotationId)
@@ -162,7 +162,7 @@ export const useConclusionStore = create<ConclusionState>()(
         
         // Save to database
         if (newConclusions.length > 0) {
-          await db.conclusions.bulkPut(newConclusions);
+          await Promise.all(newConclusions.map(c => dbSaveConclusion(c)));
           
           // Update store
           const { conclusions } = get();

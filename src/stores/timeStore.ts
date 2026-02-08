@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { TimeExpression } from '@/types/timeExpression';
-import { db } from '@/lib/db';
+import { db, getAllTimeExpressions as dbGetAllTimeExpressions, saveTimeExpression as dbSaveTimeExpression, deleteTimeExpression as dbDeleteTimeExpression } from '@/lib/db';
 import type { VerseRef } from '@/types/bible';
 import { getBookById } from '@/types/bible';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
@@ -36,13 +36,13 @@ export const useTimeStore = create<TimeState>()(
       timeExpressions: [],
       
       loadTimeExpressions: async () => {
-        const allTimeExpressions = await db.timeExpressions.toArray();
+        const allTimeExpressions = await dbGetAllTimeExpressions();
         set({ timeExpressions: allTimeExpressions });
       },
       
       createTimeExpression: async (expression, verseRef, notes, presetId, annotationId, timeOrder) => {
         // Check for duplicates from DATABASE (not in-memory state) to avoid race conditions
-        const allTimeExpressions = await db.timeExpressions.toArray();
+        const allTimeExpressions = await dbGetAllTimeExpressions();
         
         // Check for duplicates: same annotationId, or same presetId + verseRef, or same expression + verseRef
         const existingTimeExpression = allTimeExpressions.find(t => {
@@ -82,7 +82,7 @@ export const useTimeStore = create<TimeState>()(
           updatedAt: new Date(),
         };
         
-        await db.timeExpressions.put(newTimeExpression);
+        await dbSaveTimeExpression(newTimeExpression);
         
         set({ 
           timeExpressions: [...allTimeExpressions, newTimeExpression],
@@ -99,7 +99,7 @@ export const useTimeStore = create<TimeState>()(
           updatedAt: new Date(),
         };
         
-        await db.timeExpressions.put(updated);
+        await dbSaveTimeExpression(updated);
         
         const { timeExpressions } = get();
         set({ 
@@ -108,7 +108,7 @@ export const useTimeStore = create<TimeState>()(
       },
       
       deleteTimeExpression: async (timeExpressionId) => {
-        await db.timeExpressions.delete(timeExpressionId);
+        await dbDeleteTimeExpression(timeExpressionId);
         
         const { timeExpressions } = get();
         set({ 
@@ -143,7 +143,7 @@ export const useTimeStore = create<TimeState>()(
         const annotations = await getAnnotationsBySymbolsWithPreset(timeSymbols);
         
         // Get existing time expressions to avoid duplicates
-        const existing = await db.timeExpressions.toArray();
+        const existing = await dbGetAllTimeExpressions();
         const existingAnnotationIds = new Set(
           existing
             .filter(t => t.annotationId)
@@ -192,7 +192,7 @@ export const useTimeStore = create<TimeState>()(
         
         // Save to database
         if (newTimeExpressions.length > 0) {
-          await db.timeExpressions.bulkPut(newTimeExpressions);
+          await Promise.all(newTimeExpressions.map(t => dbSaveTimeExpression(t)));
           
           // Update store
           const { timeExpressions } = get();
@@ -310,7 +310,7 @@ export const useTimeStore = create<TimeState>()(
 
       removeDuplicates: async () => {
         // Get all time expressions from database
-        const allTimeExpressions = await db.timeExpressions.toArray();
+        const allTimeExpressions = await dbGetAllTimeExpressions();
         
         // Track seen items to identify duplicates
         // Key includes annotationId to avoid deleting entries linked to different annotations
@@ -334,10 +334,10 @@ export const useTimeStore = create<TimeState>()(
         
         // Delete duplicates from database
         if (duplicateIds.length > 0) {
-          await db.timeExpressions.bulkDelete(duplicateIds);
+          await Promise.all(duplicateIds.map(id => dbDeleteTimeExpression(id)));
           
           // Reload from database to get clean state
-          const cleaned = await db.timeExpressions.toArray();
+          const cleaned = await dbGetAllTimeExpressions();
           set({ timeExpressions: cleaned });
         }
         

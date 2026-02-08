@@ -8,7 +8,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { InterpretationEntry } from '@/types/interpretation';
 import type { VerseRef } from '@/types/bible';
-import { db } from '@/lib/db';
+import { getAllInterpretations as dbGetAllInterpretations, saveInterpretation as dbSaveInterpretation, deleteInterpretation as dbDeleteInterpretation } from '@/lib/db';
 import { validateInterpretation, sanitizeData, ValidationError } from '@/lib/validation';
 
 interface InterpretationState {
@@ -31,7 +31,7 @@ export const useInterpretationStore = create<InterpretationState>()(
       interpretationEntries: [],
       
       loadInterpretations: async () => {
-        const entries = await db.interpretations.toArray();
+        const entries = await dbGetAllInterpretations();
         set({ interpretationEntries: entries });
       },
       
@@ -45,7 +45,7 @@ export const useInterpretationStore = create<InterpretationState>()(
         
         try {
           const validated = sanitizeData(newEntry, validateInterpretation);
-          await db.interpretations.put(validated);
+          await dbSaveInterpretation(validated);
           
           const { interpretationEntries } = get();
           set({ 
@@ -70,7 +70,7 @@ export const useInterpretationStore = create<InterpretationState>()(
           };
           
           const validated = sanitizeData(updated, validateInterpretation);
-          await db.interpretations.put(validated);
+          await dbSaveInterpretation(validated);
           
           const { interpretationEntries } = get();
           set({ 
@@ -86,7 +86,7 @@ export const useInterpretationStore = create<InterpretationState>()(
       },
       
       deleteInterpretation: async (entryId) => {
-        await db.interpretations.delete(entryId);
+        await dbDeleteInterpretation(entryId);
         
         const { interpretationEntries } = get();
         set({ 

@@ -38,6 +38,21 @@ import {
   sanitizeData,
   ValidationError,
 } from './validation';
+import { isTauri } from './platform';
+
+// ============================================================================
+// SQLite Routing (Tauri/native platforms use SQLite for iCloud sync)
+// ============================================================================
+
+let _sqliteMod: typeof import('./sqlite-db') | null = null;
+
+/** Lazy-load the SQLite module. Only called on Tauri (native) platforms. */
+async function _sqlite() {
+  if (!_sqliteMod) {
+    _sqliteMod = await import('./sqlite-db');
+  }
+  return _sqliteMod;
+}
 
 /** API configuration for Bible APIs */
 export interface ApiConfigRecord {
@@ -482,44 +497,51 @@ if (typeof window !== 'undefined') {
  * Get or create user preferences
  */
 export async function getPreferences(): Promise<UserPreferences> {
-  const prefs = await db.preferences.get('main');
-  
-  if (!prefs) {
-    const newPrefs: UserPreferences = {
-      id: 'main',
-      marking: {
-        recentColors: [],
-        recentSymbols: [],
-        defaultTool: 'highlight',
-        defaultColor: 'yellow',
-        defaultSymbol: 'cross',
-        toolbarPosition: 'bottom',
-        showToolbarByDefault: true,
-      },
-      fontSize: 'base',
-      theme: 'auto',
-      favoriteTranslations: [],
-      recentTranslations: [],
-      onboarding: {
-        hasSeenWelcome: false,
-        hasCompletedTour: false,
-        dismissedTooltips: [],
-      },
-    };
-    await db.preferences.put(newPrefs);
-    return newPrefs;
-  }
-  
-  // Ensure onboarding state exists for existing users
-  if (!prefs.onboarding) {
-    prefs.onboarding = {
+  const defaultPrefs: UserPreferences = {
+    id: 'main',
+    marking: {
+      recentColors: [],
+      recentSymbols: [],
+      defaultTool: 'highlight',
+      defaultColor: 'yellow',
+      defaultSymbol: 'cross',
+      toolbarPosition: 'bottom',
+      showToolbarByDefault: true,
+    },
+    fontSize: 'base',
+    theme: 'auto',
+    favoriteTranslations: [],
+    recentTranslations: [],
+    onboarding: {
       hasSeenWelcome: false,
       hasCompletedTour: false,
       dismissedTooltips: [],
-    };
+    },
+  };
+
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    const prefs = await sqlite.sqliteGetPreferences();
+    if (!prefs) {
+      await sqlite.sqliteSavePreferences(defaultPrefs);
+      return defaultPrefs;
+    }
+    if (!prefs.onboarding) {
+      prefs.onboarding = { hasSeenWelcome: false, hasCompletedTour: false, dismissedTooltips: [] };
+      await sqlite.sqliteSavePreferences(prefs);
+    }
+    return prefs;
+  }
+
+  const prefs = await db.preferences.get('main');
+  if (!prefs) {
+    await db.preferences.put(defaultPrefs);
+    return defaultPrefs;
+  }
+  if (!prefs.onboarding) {
+    prefs.onboarding = { hasSeenWelcome: false, hasCompletedTour: false, dismissedTooltips: [] };
     await db.preferences.put(prefs);
   }
-  
   return prefs;
 }
 
@@ -529,6 +551,14 @@ export async function getPreferences(): Promise<UserPreferences> {
 export async function updatePreferences(
   updates: Partial<Omit<UserPreferences, 'id'>>
 ): Promise<void> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    const current = await sqlite.sqliteGetPreferences();
+    if (current) {
+      await sqlite.sqliteSavePreferences({ ...current, ...updates });
+    }
+    return;
+  }
   await db.preferences.update('main', updates);
 }
 
@@ -540,6 +570,10 @@ export async function getChapterAnnotations(
   book: string,
   chapter: number
 ): Promise<Annotation[]> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteGetChapterAnnotations(moduleId, book, chapter);
+  }
   const allAnnotations = await db.annotations
     .where('moduleId')
     .equals(moduleId)
@@ -562,6 +596,10 @@ export async function getChapterHeadings(
   book: string,
   chapter: number
 ): Promise<SectionHeading[]> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteGetChapterHeadings(book, chapter);
+  }
   // Get all headings for this book/chapter (translation-agnostic)
   const allHeadings = await db.sectionHeadings.toArray();
   const matchingHeadings = allHeadings.filter(h => 
@@ -576,6 +614,10 @@ export async function getChapterHeadings(
  * Save an annotation
  */
 export async function saveAnnotation(annotation: Annotation): Promise<string> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteSaveAnnotation(annotation);
+  }
   try {
     const validated = sanitizeData(annotation, validateAnnotation);
     return await db.annotations.put(validated);
@@ -591,6 +633,10 @@ export async function saveAnnotation(annotation: Annotation): Promise<string> {
  * Delete an annotation
  */
 export async function deleteAnnotation(id: string): Promise<void> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteDeleteAnnotation(id);
+  }
   await db.annotations.delete(id);
 }
 
@@ -598,6 +644,10 @@ export async function deleteAnnotation(id: string): Promise<void> {
  * Save a section heading
  */
 export async function saveSectionHeading(heading: SectionHeading): Promise<string> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteSaveSectionHeading(heading);
+  }
   try {
     const validated = sanitizeData(heading, validateSectionHeading);
     return await db.sectionHeadings.put(validated);
@@ -613,6 +663,10 @@ export async function saveSectionHeading(heading: SectionHeading): Promise<strin
  * Delete a section heading
  */
 export async function deleteSectionHeading(id: string): Promise<void> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteDeleteSectionHeading(id);
+  }
   await db.sectionHeadings.delete(id);
 }
 
@@ -624,21 +678,23 @@ export async function getChapterTitle(
   book: string,
   chapter: number
 ): Promise<ChapterTitle | undefined> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteGetChapterTitle(book, chapter);
+  }
   // Get title for this book/chapter (translation-agnostic)
   const allTitles = await db.chapterTitles.toArray();
-  const found = allTitles.find(t => t.book === book && t.chapter === chapter);
-  
-  if (!found) {
-    console.log(`[getChapterTitle] No title found for book="${book}", chapter=${chapter}`);
-    console.log(`[getChapterTitle] Available titles:`, allTitles.map(t => ({ book: t.book, chapter: t.chapter, title: t.title })));
-  }
-  return found;
+  return allTitles.find(t => t.book === book && t.chapter === chapter);
 }
 
 /**
  * Save a chapter title
  */
 export async function saveChapterTitle(title: ChapterTitle): Promise<string> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteSaveChapterTitle(title);
+  }
   try {
     const validated = sanitizeData(title, validateChapterTitle);
     return await db.chapterTitles.put(validated);
@@ -654,6 +710,10 @@ export async function saveChapterTitle(title: ChapterTitle): Promise<string> {
  * Delete a chapter title
  */
 export async function deleteChapterTitle(id: string): Promise<void> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteDeleteChapterTitle(id);
+  }
   await db.chapterTitles.delete(id);
 }
 
@@ -665,6 +725,10 @@ export async function getChapterNotes(
   book: string,
   chapter: number
 ): Promise<Note[]> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteGetChapterNotes(moduleId, book, chapter);
+  }
   // Normalize moduleId to uppercase for case-insensitive matching
   const normalizedModuleId = moduleId.toUpperCase();
   
@@ -689,6 +753,10 @@ export async function getChapterNotes(
  * Save a note
  */
 export async function saveNote(note: Note): Promise<string> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteSaveNote(note);
+  }
   try {
     const validated = sanitizeData(note, validateNote);
     return await db.notes.put(validated);
@@ -704,6 +772,10 @@ export async function saveNote(note: Note): Promise<string> {
  * Delete a note
  */
 export async function deleteNote(id: string): Promise<void> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteDeleteNote(id);
+  }
   await db.notes.delete(id);
 }
 
@@ -776,6 +848,11 @@ export async function importUserData(data: {
  * Note: This does NOT clear preferences - use clearPreferences() separately if needed
  */
 export async function clearDatabase(): Promise<void> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    await sqlite.sqliteClearDatabase();
+    return;
+  }
   await Promise.all([
     db.annotations.clear(),
     db.sectionHeadings.clear(),
@@ -805,18 +882,34 @@ export async function clearDatabase(): Promise<void> {
 // ============================================================================
 
 export async function getAllMarkingPresets(): Promise<MarkingPreset[]> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteGetAllMarkingPresets();
+  }
   return db.markingPresets.toArray();
 }
 
 export async function getMarkingPresetsByCategory(category: string): Promise<MarkingPreset[]> {
+  if (isTauri()) {
+    const all = await getAllMarkingPresets();
+    return all.filter(p => p.category === category);
+  }
   return db.markingPresets.where('category').equals(category).toArray();
 }
 
 export async function getMarkingPreset(id: string): Promise<MarkingPreset | undefined> {
+  if (isTauri()) {
+    const all = await getAllMarkingPresets();
+    return all.find(p => p.id === id);
+  }
   return db.markingPresets.get(id);
 }
 
 export async function saveMarkingPreset(preset: MarkingPreset): Promise<string> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteSaveMarkingPreset(preset);
+  }
   try {
     const validated = sanitizeData(preset, validateMarkingPreset);
     return await db.markingPresets.put(validated);
@@ -830,10 +923,23 @@ export async function saveMarkingPreset(preset: MarkingPreset): Promise<string> 
 }
 
 export async function deleteMarkingPreset(id: string): Promise<void> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteDeleteMarkingPreset(id);
+  }
   await db.markingPresets.delete(id);
 }
 
 export async function incrementMarkingPresetUsage(id: string): Promise<void> {
+  if (isTauri()) {
+    const preset = await getMarkingPreset(id);
+    if (preset) {
+      preset.usageCount = (preset.usageCount || 0) + 1;
+      preset.updatedAt = new Date();
+      await saveMarkingPreset(preset);
+    }
+    return;
+  }
   const preset = await db.markingPresets.get(id);
   if (preset) {
     await db.markingPresets.update(id, {
@@ -845,7 +951,7 @@ export async function incrementMarkingPresetUsage(id: string): Promise<void> {
 
 /** Search presets by text (matches word or variants; presets without word are excluded) */
 export async function searchMarkingPresets(text: string): Promise<MarkingPreset[]> {
-  const all = await db.markingPresets.toArray();
+  const all = await getAllMarkingPresets();
   const lower = text.toLowerCase().trim();
   return all.filter((p) => {
     if (!p.word) return false;
@@ -862,14 +968,26 @@ export async function searchMarkingPresets(text: string): Promise<MarkingPreset[
 // ============================================================================
 
 export async function getAllStudies(): Promise<Study[]> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteGetAllStudies();
+  }
   return db.studies.toArray();
 }
 
 export async function getStudy(id: string): Promise<Study | undefined> {
+  if (isTauri()) {
+    const all = await getAllStudies();
+    return all.find(s => s.id === id);
+  }
   return db.studies.get(id);
 }
 
 export async function saveStudy(study: Study): Promise<string> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteSaveStudy(study);
+  }
   try {
     const validated = sanitizeData(study, validateStudy);
     return await db.studies.put(validated);
@@ -883,6 +1001,10 @@ export async function saveStudy(study: Study): Promise<string> {
 }
 
 export async function deleteStudy(id: string): Promise<void> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteDeleteStudy(id);
+  }
   await db.studies.delete(id);
 }
 
@@ -891,10 +1013,19 @@ export async function deleteStudy(id: string): Promise<void> {
 // ============================================================================
 
 export async function getMultiTranslationView(id: string = 'active'): Promise<MultiTranslationView | undefined> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    const views = await sqlite.sqliteGetAllFromTable<MultiTranslationView>('multi_translation_views');
+    return views.find(v => v.id === id);
+  }
   return db.multiTranslationViews.get(id);
 }
 
 export async function saveMultiTranslationView(view: MultiTranslationView): Promise<string> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteSaveToTable('multi_translation_views', view);
+  }
   try {
     const validated = sanitizeData(view, validateMultiTranslationView);
     return await db.multiTranslationViews.put(validated);
@@ -908,7 +1039,127 @@ export async function saveMultiTranslationView(view: MultiTranslationView): Prom
 }
 
 export async function deleteMultiTranslationView(id: string = 'active'): Promise<void> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    return sqlite.sqliteDeleteFromTable('multi_translation_views', id);
+  }
   await db.multiTranslationViews.delete(id);
+}
+
+// ============================================================================
+// Observation Data Functions (with SQLite routing for iCloud sync)
+// ============================================================================
+
+// --- Observation Lists ---
+export async function getAllObservationLists(): Promise<ObservationList[]> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteGetAllFromTable<ObservationList>('observation_lists'); }
+  return db.observationLists.toArray();
+}
+export async function saveObservationList(list: ObservationList): Promise<string> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteSaveToTable('observation_lists', list); }
+  return db.observationLists.put(list);
+}
+export async function deleteObservationList(id: string): Promise<void> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteDeleteFromTable('observation_lists', id); }
+  await db.observationLists.delete(id);
+}
+
+// --- 5W+H Entries ---
+export async function getAllFiveWAndH(): Promise<FiveWAndHEntry[]> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteGetAllFromTable<FiveWAndHEntry>('five_w_and_h'); }
+  return db.fiveWAndH.toArray();
+}
+export async function saveFiveWAndH(entry: FiveWAndHEntry): Promise<string> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteSaveToTable('five_w_and_h', entry); }
+  return db.fiveWAndH.put(entry);
+}
+export async function deleteFiveWAndH(id: string): Promise<void> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteDeleteFromTable('five_w_and_h', id); }
+  await db.fiveWAndH.delete(id);
+}
+
+// --- Contrasts ---
+export async function getAllContrasts(): Promise<Contrast[]> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteGetAllFromTable<Contrast>('contrasts'); }
+  return db.contrasts.toArray();
+}
+export async function saveContrast(entry: Contrast): Promise<string> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteSaveToTable('contrasts', entry); }
+  return db.contrasts.put(entry);
+}
+export async function deleteContrast(id: string): Promise<void> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteDeleteFromTable('contrasts', id); }
+  await db.contrasts.delete(id);
+}
+
+// --- Time Expressions ---
+export async function getAllTimeExpressions(): Promise<TimeExpression[]> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteGetAllFromTable<TimeExpression>('time_expressions'); }
+  return db.timeExpressions.toArray();
+}
+export async function saveTimeExpression(entry: TimeExpression): Promise<string> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteSaveToTable('time_expressions', entry); }
+  return db.timeExpressions.put(entry);
+}
+export async function deleteTimeExpression(id: string): Promise<void> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteDeleteFromTable('time_expressions', id); }
+  await db.timeExpressions.delete(id);
+}
+
+// --- Places ---
+export async function getAllPlaces(): Promise<Place[]> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteGetAllFromTable<Place>('places'); }
+  return db.places.toArray();
+}
+export async function savePlace(entry: Place): Promise<string> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteSaveToTable('places', entry); }
+  return db.places.put(entry);
+}
+export async function deletePlace(id: string): Promise<void> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteDeleteFromTable('places', id); }
+  await db.places.delete(id);
+}
+
+// --- Conclusions ---
+export async function getAllConclusions(): Promise<Conclusion[]> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteGetAllFromTable<Conclusion>('conclusions'); }
+  return db.conclusions.toArray();
+}
+export async function saveConclusion(entry: Conclusion): Promise<string> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteSaveToTable('conclusions', entry); }
+  return db.conclusions.put(entry);
+}
+export async function deleteConclusion(id: string): Promise<void> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteDeleteFromTable('conclusions', id); }
+  await db.conclusions.delete(id);
+}
+
+// --- Interpretations ---
+export async function getAllInterpretations(): Promise<InterpretationEntry[]> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteGetAllFromTable<InterpretationEntry>('interpretations'); }
+  return db.interpretations.toArray();
+}
+export async function saveInterpretation(entry: InterpretationEntry): Promise<string> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteSaveToTable('interpretations', entry); }
+  return db.interpretations.put(entry);
+}
+export async function deleteInterpretation(id: string): Promise<void> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteDeleteFromTable('interpretations', id); }
+  await db.interpretations.delete(id);
+}
+
+// --- Applications ---
+export async function getAllApplications(): Promise<ApplicationEntry[]> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteGetAllFromTable<ApplicationEntry>('applications'); }
+  return db.applications.toArray();
+}
+export async function saveApplication(entry: ApplicationEntry): Promise<string> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteSaveToTable('applications', entry); }
+  return db.applications.put(entry);
+}
+export async function deleteApplication(id: string): Promise<void> {
+  if (isTauri()) { const s = await _sqlite(); return s.sqliteDeleteFromTable('applications', id); }
+  await db.applications.delete(id);
 }
 
 // ============================================================================
@@ -920,6 +1171,26 @@ export async function deleteMultiTranslationView(id: string = 'active'): Promise
  * Preserves keyword definitions, notes, section headings, and chapter titles.
  */
 export async function clearBookAnnotations(book: string, moduleId?: string): Promise<number> {
+  if (isTauri()) {
+    const sqlite = await _sqlite();
+    const sqliteDb = await sqlite.getSqliteDb();
+    // Get all annotations, filter by book (and optionally moduleId), delete matching
+    const rows = await sqliteDb.select<{ id: string; data: string; module_id: string }[]>(
+      `SELECT id, data, module_id FROM annotations`
+    );
+    const toDelete = rows.filter(row => {
+      const ann = JSON.parse(row.data) as Annotation;
+      const bookMatch = ann.type === 'symbol' ? ann.ref.book === book : ann.startRef.book === book;
+      if (!bookMatch) return false;
+      if (moduleId) return row.module_id === moduleId;
+      return true;
+    });
+    for (const row of toDelete) {
+      await sqliteDb.execute(`DELETE FROM annotations WHERE id = ?`, [row.id]);
+    }
+    return toDelete.length;
+  }
+
   const query = db.annotations.filter(ann => {
     if (ann.type === 'symbol') {
       return ann.ref.book === book;
