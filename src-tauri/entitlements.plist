@@ -13,16 +13,18 @@
   <!-- iCloud Document Storage for cross-device sync -->
   <key>com.apple.developer.icloud-container-identifiers</key>
   <array>
-    <string>iCloud.com.biblemarker</string>
+    <string>iCloud.app.biblemarker</string>
   </array>
   <key>com.apple.developer.ubiquity-container-identifiers</key>
   <array>
-    <string>iCloud.com.biblemarker</string>
+    <string>iCloud.app.biblemarker</string>
   </array>
   <key>com.apple.developer.icloud-services</key>
   <array>
     <string>CloudDocuments</string>
   </array>
+  <key>com.apple.developer.icloud-container-environment</key>
+  <string>Production</string>
   
   <!-- Network access for Bible API calls -->
   <key>com.apple.security.network.client</key>

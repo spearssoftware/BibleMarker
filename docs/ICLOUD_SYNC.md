@@ -27,7 +27,7 @@ When running on iOS or macOS through Tauri, the app stores its database in the i
 │  └── tauri-plugin-sql        → SQLite database plugin           │
 ├─────────────────────────────────────────────────────────────────┤
 │  Storage                                                        │
-│  ├── iCloud Container: iCloud.com.biblemarker                   │
+│  ├── iCloud Container: iCloud.app.biblemarker                   │
 │  └── Database: Documents/biblemarker.db                         │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -53,7 +53,7 @@ You need an Apple Developer account ($99/year) with iCloud capability enabled.
 In the Apple Developer Portal:
 1. Go to **Identifiers** → Select your App ID
 2. Enable **iCloud** capability
-3. Create an iCloud Container: `iCloud.com.biblemarker`
+3. Create an iCloud Container: `iCloud.app.biblemarker`
 
 ### 3. Provisioning Profile
 
@@ -67,11 +67,11 @@ The following entitlements are configured in `src-tauri/entitlements.plist`:
 <!-- iCloud Document Storage -->
 <key>com.apple.developer.icloud-container-identifiers</key>
 <array>
-    <string>iCloud.com.biblemarker</string>
+    <string>iCloud.app.biblemarker</string>
 </array>
 <key>com.apple.developer.ubiquity-container-identifiers</key>
 <array>
-    <string>iCloud.com.biblemarker</string>
+    <string>iCloud.app.biblemarker</string>
 </array>
 <key>com.apple.developer.icloud-services</key>
 <array>
@@ -84,7 +84,7 @@ The following entitlements are configured in `src-tauri/entitlements.plist`:
 ### Database Storage
 
 - The SQLite database is stored in the iCloud ubiquity container
-- Path: `iCloud.com.biblemarker/Documents/biblemarker.db`
+- Path: `iCloud.app.biblemarker/Documents/biblemarker.db`
 - iCloud automatically syncs this file across devices
 
 ### Sync States

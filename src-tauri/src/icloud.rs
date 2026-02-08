@@ -49,7 +49,11 @@ pub enum SyncState {
 }
 
 /// Get iCloud container URL for the app
-/// Returns the path where we should store the SQLite database for sync
+/// Returns the path where we should store the SQLite database for sync.
+///
+/// First tries the standard NSFileManager API. If it returns nil (which can happen
+/// when the Production iCloud environment hasn't propagated for Developer ID builds),
+/// falls back to checking the known Mobile Documents path on disk.
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 fn get_icloud_container_url() -> Result<String, String> {
     use std::ffi::CStr;
@@ -61,9 +65,13 @@ fn get_icloud_container_url() -> Result<String, String> {
             return Err("Failed to get NSFileManager".to_string());
         }
         
+        // Check if iCloud is signed in
+        let token: *mut objc::runtime::Object = msg_send![file_manager, ubiquityIdentityToken];
+        let has_token = !token.is_null();
+        
         // Create container identifier NSString
         // Note: alloc+init creates an owned object that we must release
-        let container_id = "iCloud.com.biblemarker";
+        let container_id = "iCloud.app.biblemarker";
         let ns_string: *mut objc::runtime::Object = msg_send![class!(NSString), alloc];
         let container_id_cstr = std::ffi::CString::new(container_id).unwrap();
         let ns_container_id: *mut objc::runtime::Object = msg_send![
@@ -82,7 +90,20 @@ fn get_icloud_container_url() -> Result<String, String> {
         let _: () = msg_send![ns_container_id, release];
         
         if url.is_null() {
-            return Err("iCloud container not available. Make sure iCloud is enabled and the user is signed in.".to_string());
+            // Fallback: the API can return nil for Developer ID builds when Apple's
+            // Production iCloud environment hasn't propagated the container yet.
+            // Check if the container directory exists on disk (created by a prior
+            // Xcode development build or iCloud sync from another device).
+            let home = std::env::var("HOME").unwrap_or_default();
+            let fallback_path = format!("{}/Library/Mobile Documents/iCloud~app~biblemarker", home);
+            if std::path::Path::new(&fallback_path).exists() && has_token {
+                eprintln!("[iCloud] API returned nil but container exists on disk, using fallback: {}", fallback_path);
+                return Ok(fallback_path);
+            }
+            
+            return Err(
+                "iCloud container not available. Make sure iCloud Drive is enabled and you are signed in.".to_string()
+            );
         }
         
         // Get the path string from URL
@@ -109,19 +130,30 @@ fn get_icloud_container_url() -> Result<String, String> {
     Err("iCloud is only available on macOS and iOS".to_string())
 }
 
-/// Tauri command to check iCloud availability
+/// Tauri command to check iCloud availability.
+/// Runs the container check on a background thread as Apple recommends.
 #[command]
 pub fn check_icloud_status() -> ICloudStatus {
-    match get_icloud_container_url() {
-        Ok(path) => ICloudStatus {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(get_icloud_container_url());
+    });
+    
+    match rx.recv_timeout(std::time::Duration::from_secs(10)) {
+        Ok(Ok(path)) => ICloudStatus {
             available: true,
             container_path: Some(path),
             error: None,
         },
-        Err(err) => ICloudStatus {
+        Ok(Err(err)) => ICloudStatus {
             available: false,
             container_path: None,
             error: Some(err),
+        },
+        Err(_) => ICloudStatus {
+            available: false,
+            container_path: None,
+            error: Some("iCloud check timed out after 10 seconds".to_string()),
         },
     }
 }
@@ -130,7 +162,11 @@ pub fn check_icloud_status() -> ICloudStatus {
 /// Returns the full path where the SQLite database should be stored
 #[command]
 pub fn get_icloud_database_path() -> Result<String, String> {
-    let container_path = get_icloud_container_url()?;
+    // Use background thread for container access (Apple recommends this)
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || { let _ = tx.send(get_icloud_container_url()); });
+    let container_path = rx.recv_timeout(std::time::Duration::from_secs(10))
+        .map_err(|_| "iCloud path check timed out".to_string())??;
     
     // Store database in Documents subdirectory of iCloud container
     let db_path = format!("{}/Documents/biblemarker.db", container_path);

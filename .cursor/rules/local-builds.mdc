@@ -1,0 +1,25 @@
+---
+description: How to run local Tauri builds correctly
+alwaysApply: true
+---
+
+# Local Tauri Builds
+
+Cursor sets `CI=1` in its shell environment. Tauri CLI interprets this as `--ci 1`, which fails because it only accepts `true`/`false`.
+
+**Always unset `CI` before running Tauri commands:**
+
+```bash
+# Dev
+unset CI && pnpm tauri dev
+
+# Build
+unset CI && pnpm tauri build
+
+# Build for specific target
+unset CI && pnpm tauri build --target aarch64-apple-darwin
+```
+
+`CI=` (empty string) does NOT work -- Tauri still sees the flag. You must fully `unset CI`.
+
+Never run bare `pnpm tauri build` or `pnpm tauri dev` from the Cursor terminal.

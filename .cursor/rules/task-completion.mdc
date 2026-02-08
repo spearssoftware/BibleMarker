@@ -1,0 +1,23 @@
+---
+description: Requirements before completing any coding task
+alwaysApply: true
+---
+
+# Before Completing Tasks
+
+## Run Tests
+
+Run `pnpm test` if you modified files in directories that have existing tests (check for `*.test.ts` or `*.test.tsx` files nearby).
+
+## Check Lints
+
+Run linter checks on modified files and fix any errors you introduced.
+
+## Documentation
+
+Only update documentation if the change affects:
+- User-facing behavior
+- Public API or exported interfaces
+- Setup/installation steps
+
+Don't add documentation just to satisfy this rule — most internal changes don't need doc updates.
