@@ -21,7 +21,7 @@ import { bibleGatewayClient } from './biblegateway';
 import { esvClient, parseVerseText } from './esv';
 import { getBibleClient } from './getbible';
 import type { Chapter } from '@/types/bible';
-import { db } from '@/lib/db';
+import { getPreferences, updatePreferences, getCachedChapter, setCachedChapter, getAllCachedChapters, clearChapterCache, sqlSelect, sqlExecute } from '@/lib/database';
 import { retryWithBackoff, isNetworkError, getNetworkErrorMessage, isOnline } from '../offline';
 
 // Re-export types
@@ -52,14 +52,16 @@ if (typeof window !== 'undefined') {
   };
 
   (window as Window & { clearChapterCache?: () => Promise<number> }).clearChapterCache = async () => {
-    const count = await db.chapterCache.count();
-    await db.chapterCache.clear();
+    const allCached = await getAllCachedChapters();
+    const count = allCached.length;
+    await clearChapterCache();
     return count;
   };
 
   (window as Window & { clearTranslationCache?: () => Promise<number> }).clearTranslationCache = async () => {
-    const count = await db.translationCache.count();
-    await db.translationCache.clear();
+    const rows = await sqlSelect<{ id: string }[]>('SELECT id FROM translation_cache');
+    const count = rows.length;
+    await sqlExecute('DELETE FROM translation_cache');
     return count;
   };
 }
@@ -116,7 +118,7 @@ function applyLanguageFilter(
 
 /** Get all available translations from all configured APIs */
 export async function getAllTranslations(): Promise<ApiTranslation[]> {
-  const prefs = await db.preferences.get('main');
+  const prefs = await getPreferences();
   const apiResourcesEnabled = prefs?.apiResourcesEnabled !== false;
   // Default to English when no preference set; explicit [] means show all languages
   const raw = prefs?.translationLanguageFilter;
@@ -128,13 +130,19 @@ export async function getAllTranslations(): Promise<ApiTranslation[]> {
   // When API resources disabled: return cached list (filtered) or []
   if (!apiResourcesEnabled) {
     try {
-      const cached = await db.translationCache.get(CACHE_KEY);
-      if (cached?.cachedAt) {
-        const now = new Date();
-        const cacheAge = now.getTime() - cached.cachedAt.getTime();
-        if (cacheAge < CACHE_DURATION_MS && cached.translations) {
-          const list = cached.translations as ApiTranslation[];
-          return applyLanguageFilter(list, languageFilter);
+      const rows = await sqlSelect<{ translations: string; cached_at: string }>(
+        `SELECT translations, cached_at FROM translation_cache WHERE id = ?`,
+        [CACHE_KEY]
+      );
+      if (rows.length > 0) {
+        const cachedAt = rows[0].cached_at;
+        if (cachedAt) {
+          const now = new Date();
+          const cacheAge = now.getTime() - new Date(cachedAt).getTime();
+          if (cacheAge < CACHE_DURATION_MS) {
+            const list = JSON.parse(rows[0].translations) as ApiTranslation[];
+            return applyLanguageFilter(list, languageFilter);
+          }
         }
       }
     } catch {
@@ -146,16 +154,22 @@ export async function getAllTranslations(): Promise<ApiTranslation[]> {
     return [];
   }
 
-  // Check IndexedDB cache first (24 hour TTL)
+  // Check SQLite cache first (24 hour TTL)
   try {
-    const cached = await db.translationCache.get(CACHE_KEY);
-    if (cached && cached.cachedAt) {
-      const now = new Date();
-      const cacheAge = now.getTime() - cached.cachedAt.getTime();
-      if (cacheAge < CACHE_DURATION_MS) {
-        const translations = cached.translations as ApiTranslation[];
-        cachedTranslations = translations;
-        return applyLanguageFilter(translations, languageFilter);
+    const rows = await sqlSelect<{ translations: string; cached_at: string }>(
+      `SELECT translations, cached_at FROM translation_cache WHERE id = ?`,
+      [CACHE_KEY]
+    );
+    if (rows.length > 0) {
+      const cachedAt = rows[0].cached_at;
+      if (cachedAt) {
+        const now = new Date();
+        const cacheAge = now.getTime() - new Date(cachedAt).getTime();
+        if (cacheAge < CACHE_DURATION_MS) {
+          const translations = JSON.parse(rows[0].translations) as ApiTranslation[];
+          cachedTranslations = translations;
+          return applyLanguageFilter(translations, languageFilter);
+        }
       }
     }
   } catch (error) {
@@ -239,11 +253,11 @@ export async function getAllTranslations(): Promise<ApiTranslation[]> {
     cachedTranslations = translations;
 
     try {
-      await db.translationCache.put({
-        id: CACHE_KEY,
-        translations: translations,
-        cachedAt: new Date(),
-      });
+      const now = new Date().toISOString();
+      await sqlExecute(
+        `INSERT OR REPLACE INTO translation_cache (id, translations, cached_at) VALUES (?, ?, ?)`,
+        [CACHE_KEY, JSON.stringify(translations), now]
+      );
     } catch (error) {
       console.warn('[getAllTranslations] Failed to cache translations:', error);
     }
@@ -263,7 +277,7 @@ export async function getAllTranslations(): Promise<ApiTranslation[]> {
 export async function clearTranslationsCache(): Promise<void> {
   cachedTranslations = null;
   try {
-    await db.translationCache.delete(CACHE_KEY);
+    await sqlExecute(`DELETE FROM translation_cache WHERE id = ?`, [CACHE_KEY]);
   } catch (error) {
     console.warn('[getAllTranslations] Failed to clear cache:', error);
   }
@@ -282,8 +296,7 @@ export async function fetchChapter(
   chapter: number
 ): Promise<Chapter> {
   // Check cache first
-  const cacheKey = `${translationId}:${book}:${chapter}`;
-  const cached = await db.chapterCache.get(cacheKey);
+  const cached = await getCachedChapter(translationId, book, chapter);
   
   if (cached) {
     // Determine if this is ESV (for special handling)
@@ -295,6 +308,7 @@ export async function fetchChapter(
                   normalizedOriginalId.startsWith('ESV-');
     
     // Handle both old format (objects) and new format (strings)
+    // Note: cached.verses is Record<number, string> from getCachedChapter
     const verses = Object.entries(cached.verses).map(([num, text]) => {
       // Convert to string if it's an object (old cached format)
       let textStr = '';
@@ -330,7 +344,7 @@ export async function fetchChapter(
   }
 
   // API resources disabled: do not fetch from any provider
-  const prefs = await db.preferences.get('main');
+  const prefs = await getPreferences();
   if (prefs?.apiResourcesEnabled === false) {
     throw new BibleApiError(
       'API resources are disabled. Enable them in Settings to fetch new content.',
@@ -545,11 +559,8 @@ export async function fetchChapter(
       } else {
         // Check if caching this chapter would create more than 500 consecutive verses
         // Get all cached chapters for this book/translation
-        const allCached = await db.chapterCache
-          .where('moduleId')
-          .equals(translationId)
-          .toArray();
-        const cachedChapters = allCached.filter(c => c.book === book);
+        const allCached = await getAllCachedChapters();
+        const cachedChapters = allCached.filter(c => c.moduleId === translationId && c.book === book);
         
         // Get all chapter numbers (cached + new one)
         const chapterNumbers = new Set<number>();
@@ -616,30 +627,20 @@ export async function fetchChapter(
           console.warn(`[ESV Storage Limit] Caching chapter ${book} ${chapter} would create ${maxConsecutiveVerses} consecutive verses, exceeding limit of ${maxVerses}. Not caching.`);
         } else {
           // Safe to cache
-          await db.chapterCache.put({
-            id: cacheKey,
-            moduleId: translationId,
-            book,
-            chapter,
-            verses: Object.fromEntries(
-              chapterData.verses.map(v => [v.verse.toString(), v.text])
-            ),
-            cachedAt: new Date(),
-          });
+          const versesMap: Record<number, string> = {};
+          for (const v of chapterData.verses) {
+            versesMap[v.verse] = v.text;
+          }
+          await setCachedChapter(translationId, book, chapter, versesMap);
         }
       }
     } else {
       // For non-ESV translations, cache normally
-      await db.chapterCache.put({
-        id: cacheKey,
-        moduleId: translationId,
-        book,
-        chapter,
-        verses: Object.fromEntries(
-          chapterData.verses.map(v => [v.verse.toString(), v.text])
-        ),
-        cachedAt: new Date(),
-      });
+      const versesMap: Record<number, string> = {};
+      for (const v of chapterData.verses) {
+        versesMap[v.verse] = v.text;
+      }
+      await setCachedChapter(translationId, book, chapter, versesMap);
     }
 
     return {
@@ -718,10 +719,8 @@ export async function searchBible(
  */
 export async function loadApiConfigs(): Promise<void> {
   try {
-    // Ensure database is ready before accessing it
-    await db.open();
-    
-    const prefs = await db.preferences.get('main');
+    let prefs = await getPreferences();
+
     if (prefs?.apiConfigs) {
       for (const configRecord of prefs.apiConfigs) {
         if (configRecord.provider === 'biblegateway' && !BIBLEGATEWAY_ENABLED) continue;
@@ -776,13 +775,7 @@ export async function saveApiConfig(config: ApiConfig): Promise<void> {
     return;
   }
   
-  // Ensure preferences exist
-  let prefs = await db.preferences.get('main');
-  if (!prefs) {
-    // Create default preferences if they don't exist
-    const { getPreferences } = await import('@/lib/db');
-    prefs = await getPreferences();
-  }
+  const prefs = await getPreferences();
 
   const existingConfigs = prefs.apiConfigs || [];
   const updatedConfigs = existingConfigs.filter(c => c.provider !== config.provider);
@@ -797,7 +790,7 @@ export async function saveApiConfig(config: ApiConfig): Promise<void> {
     enabled: config.enabled,
   });
 
-  await db.preferences.update('main', {
+  await updatePreferences({
     apiConfigs: updatedConfigs,
   });
 
@@ -814,7 +807,7 @@ export async function getApiConfig(provider: BibleApiProvider): Promise<ApiConfi
     return { provider: 'getbible', enabled: true };
   }
   
-  const prefs = await db.preferences.get('main');
+  const prefs = await getPreferences();
   if (!prefs?.apiConfigs) return null;
   const config = prefs.apiConfigs.find(c => c.provider === provider);
   if (!config) return null;

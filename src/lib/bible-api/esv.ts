@@ -23,7 +23,7 @@ import type {
 import { BibleApiError } from './types';
 import type { VerseRef } from '@/types/bible';
 import { getBookById, getVerseCount, getBookVerseCount, countVersesInRange } from '@/types/bible';
-import { db } from '@/lib/db';
+import { getEsvRateLimitState, saveEsvRateLimitState } from '@/lib/database';
 
 const ESV_BASE_URL = 'https://api.esv.org/v3/passage';
 
@@ -81,8 +81,8 @@ function validateEsvVerseCount(verseCount: number, book: string, context: string
 
 /** Load, prune, and check ESV rate limits. Throws BibleApiError 429 if over. */
 async function checkEsvRateLimit(): Promise<void> {
-  const row = await db.esvRateLimit.get('esv');
-  let timestamps: number[] = row?.requestTimestamps ?? [];
+  const state = await getEsvRateLimitState();
+  let timestamps: number[] = state.requestTimestamps ?? [];
   const now = Date.now();
   timestamps = timestamps.filter((t) => now - t < MS_PER_DAY);
   const inLastMin = timestamps.filter((t) => now - t < MS_PER_MINUTE).length;
@@ -112,12 +112,12 @@ async function checkEsvRateLimit(): Promise<void> {
 
 /** Append a request timestamp after a successful ESV API call. */
 async function recordEsvRequest(): Promise<void> {
-  const row = await db.esvRateLimit.get('esv');
+  const state = await getEsvRateLimitState();
   const now = Date.now();
-  let timestamps: number[] = row?.requestTimestamps ?? [];
+  let timestamps: number[] = state.requestTimestamps ?? [];
   timestamps = timestamps.filter((t) => now - t < MS_PER_DAY);
   timestamps.push(now);
-  await db.esvRateLimit.put({ id: 'esv', requestTimestamps: timestamps });
+  await saveEsvRateLimitState(timestamps);
 }
 
 export class EsvClient implements BibleApiClient {

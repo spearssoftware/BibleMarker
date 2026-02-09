@@ -13,8 +13,8 @@ import {
   getChapterHeadings, 
   getChapterAnnotations,
   getMarkingPreset,
-} from '@/lib/db';
-import { db } from '@/lib/db';
+  getAllObservationLists,
+} from '@/lib/database';
 import type { ChapterTitle, SectionHeading } from '@/types/annotation';
 import { SYMBOLS } from '@/types/annotation';
 import type { MarkingPreset } from '@/types/keyWord';
@@ -98,7 +98,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
           .sort((a, b) => b.count - a.count); // Sort by count descending
         
         // Load observation lists and filter by chapter
-        const allLists = await db.observationLists.toArray();
+        const allLists = await getAllObservationLists();
         const observations = allLists
           .map(list => {
             const itemsInChapter = list.items.filter(

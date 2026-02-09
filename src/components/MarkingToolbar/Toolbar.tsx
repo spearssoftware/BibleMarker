@@ -20,7 +20,7 @@ import { SettingsPanel } from '@/components/Settings';
 import { ObservationToolsPanel, type ObservationTab } from '@/components/Observation';
 import { ConfirmationDialog } from '@/components/shared';
 import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
-import { clearDatabase } from '@/lib/db';
+import { clearDatabase } from '@/lib/database';
 import { resetAllStores } from '@/lib/storeReset';
 import { useBibleStore } from '@/stores/bibleStore';
 import { findMatchingPresets, type MarkingPreset } from '@/types/keyWord';

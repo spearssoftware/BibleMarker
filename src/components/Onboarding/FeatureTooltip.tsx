@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { getPreferences, updatePreferences } from '@/lib/db';
+import { getPreferences, updatePreferences } from '@/lib/database';
 
 interface FeatureTooltipProps {
   id: string; // Unique ID for this tooltip

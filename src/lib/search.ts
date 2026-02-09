@@ -4,9 +4,10 @@
  * Functions for searching Bible text, notes, and annotations.
  */
 
-import { db } from './db';
+import { getAllCachedChapters, getAllNotes } from './database';
 import { parseVerseRef } from '@/types/bible';
 import type { VerseRef } from '@/types/bible';
+import type { Note } from '@/types/annotation';
 
 export interface SearchResult {
   type: 'verse' | 'note';
@@ -35,7 +36,7 @@ export async function searchBibleText(
   const results: SearchResult[] = [];
 
   // Get all cached chapters (optionally filtered by moduleId)
-  let allChapters = await db.chapterCache.toArray();
+  let allChapters = await getAllCachedChapters();
   if (moduleId) {
     allChapters = allChapters.filter(c => c.moduleId === moduleId);
   }
@@ -86,7 +87,7 @@ export async function searchNotes(
   const results: SearchResult[] = [];
 
   // Get all notes (optionally filtered by moduleId)
-  let allNotes = await db.notes.toArray();
+  let allNotes = await getAllNotes();
   if (moduleId) {
     allNotes = allNotes.filter(n => n.moduleId === moduleId);
   }
@@ -139,10 +140,8 @@ export async function searchAll(
     const results: SearchResult[] = [];
     
     // Try to find the verse in cached chapters (search all modules if no moduleId specified)
-    let allChapters = await db.chapterCache
-      .where('book')
-      .equals(verseRef.book)
-      .toArray();
+    let allChapters = await getAllCachedChapters();
+    allChapters = allChapters.filter(c => c.book === verseRef.book);
     
     // Filter by chapter
     allChapters = allChapters.filter(c => c.chapter === verseRef.chapter);
@@ -169,7 +168,7 @@ export async function searchAll(
 
     // Also search for notes on this verse
     if (scope === 'all' || scope === 'notes') {
-      let notes = await db.notes.toArray();
+      let notes = await getAllNotes();
       if (moduleId) {
         notes = notes.filter(n => n.moduleId === moduleId);
       }
@@ -247,11 +246,8 @@ async function searchBibleTextInChapter(
   const results: SearchResult[] = [];
 
   // Get only the specific chapter(s) from cache
-  let chapters = await db.chapterCache
-    .where('book')
-    .equals(book)
-    .toArray();
-  
+  let chapters = await getAllCachedChapters();
+  chapters = chapters.filter(c => c.book === book);
   chapters = chapters.filter(c => c.chapter === chapter);
   
   if (moduleId) {
@@ -306,7 +302,7 @@ async function searchNotesInChapter(
   const results: SearchResult[] = [];
 
   // Get all notes filtered by book and chapter
-  let allNotes = await db.notes.toArray();
+  let allNotes = await getAllNotes();
   allNotes = allNotes.filter(n => n.ref.book === book && n.ref.chapter === chapter);
   
   if (moduleId) {

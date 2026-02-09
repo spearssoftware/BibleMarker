@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
-import { getPreferences } from '@/lib/db';
+import { getPreferences } from '@/lib/database';
 import { 
   bibliaClient, 
   bibleGatewayClient,

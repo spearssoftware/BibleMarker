@@ -3,7 +3,7 @@
  * Respects preference checkForUpdates (default true).
  */
 
-import { getPreferences, updatePreferences } from '@/lib/db';
+import { getPreferences, updatePreferences } from '@/lib/database';
 
 const GITHUB_RELEASES_URL = 'https://api.github.com/repos/spearssoftware/BibleMarker/releases/latest';
 const RELEASES_PAGE_URL = 'https://github.com/spearssoftware/BibleMarker/releases';

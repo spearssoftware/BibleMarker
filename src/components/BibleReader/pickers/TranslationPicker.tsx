@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import { type ApiTranslation } from '@/lib/bible-api';
-import { getPreferences, db } from '@/lib/db';
+import { getPreferences } from '@/lib/database';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useModal } from '@/hooks/useModal';
 import { ModalBackdrop } from '@/components/shared';
@@ -66,7 +66,8 @@ export function TranslationPicker({
         ? currentFavorites.filter(id => id !== translationId)
         : [...currentFavorites, translationId];
       
-      await db.preferences.update('main', { favoriteTranslations: updatedFavorites });
+      const { updatePreferences } = await import('@/lib/database');
+      await updatePreferences({ favoriteTranslations: updatedFavorites });
       setFavorites(new Set(updatedFavorites));
     } catch (error) {
       console.error('Failed to update favorites:', error);

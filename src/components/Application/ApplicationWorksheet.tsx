@@ -18,7 +18,7 @@ import { formatVerseRef } from '@/types/bible';
 import type { ApplicationEntry } from '@/types/application';
 import type { VerseRef } from '@/types/bible';
 import { Textarea, ConfirmationDialog } from '@/components/shared';
-import { getChapterAnnotations } from '@/lib/db';
+import { getChapterAnnotations } from '@/lib/database';
 
 interface ApplicationWorksheetProps {
   selectedText?: string;

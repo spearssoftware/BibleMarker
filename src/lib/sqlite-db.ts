@@ -27,7 +27,7 @@ import type { Place } from '@/types/place';
 import type { Conclusion } from '@/types/conclusion';
 import type { InterpretationEntry } from '@/types/interpretation';
 import type { ApplicationEntry } from '@/types/application';
-import type { UserPreferences } from './db';
+import type { UserPreferences, ChapterCache, TranslationCache, ReadingHistory, EsvRateLimitState } from '@/types/preferences';
 import { isApplePlatform } from './platform';
 
 // ============================================================================
@@ -84,7 +84,7 @@ export async function closeSqliteDb(): Promise<void> {
 // Schema Initialization
 // ============================================================================
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 async function initializeSchema(db: Database): Promise<void> {
   // Create schema version table
@@ -117,6 +117,28 @@ async function migrateSchema(
   // Version 1: Initial schema
   if (fromVersion < 1) {
     await createInitialSchema(db);
+  }
+
+  // Version 2: Add backup metadata tables
+  if (fromVersion < 2) {
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS backup_files (
+        id TEXT PRIMARY KEY,
+        filename TEXT NOT NULL,
+        filepath TEXT,
+        timestamp TEXT NOT NULL,
+        size INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+    await db.execute(`CREATE INDEX IF NOT EXISTS idx_backup_files_timestamp ON backup_files(timestamp)`);
+
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS backup_data (
+        id TEXT PRIMARY KEY,
+        data TEXT NOT NULL
+      )
+    `);
+    console.log('[SQLite] v2 migration: added backup_files and backup_data tables');
   }
 
   // Update schema version
@@ -396,6 +418,26 @@ async function createInitialSchema(db: Database): Promise<void> {
     CREATE TABLE IF NOT EXISTS esv_rate_limit (
       id TEXT PRIMARY KEY,
       request_timestamps TEXT NOT NULL
+    )
+  `);
+
+  // Backup metadata table
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS backup_files (
+      id TEXT PRIMARY KEY,
+      filename TEXT NOT NULL,
+      filepath TEXT,
+      timestamp TEXT NOT NULL,
+      size INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_backup_files_timestamp ON backup_files(timestamp)`);
+
+  // Backup data table (for storing backup JSON when filesystem is unavailable)
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS backup_data (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL
     )
   `);
 

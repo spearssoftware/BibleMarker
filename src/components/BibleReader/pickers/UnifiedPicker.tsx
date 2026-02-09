@@ -14,7 +14,7 @@ import { getOTBooks, getNTBooks, getBookById, getVerseCount, type BookInfo } fro
 import { useModal } from '@/hooks/useModal';
 import { ModalBackdrop } from '@/components/shared';
 import { Z_INDEX } from '@/lib/modalConstants';
-import { getPreferences, updatePreferences } from '@/lib/db';
+import { getPreferences, updatePreferences } from '@/lib/database';
 
 interface UnifiedPickerProps {
   currentBook: string;

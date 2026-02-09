@@ -8,7 +8,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { FiveWAndHEntry } from '@/types/observation';
 import type { VerseRef } from '@/types/bible';
-import { getAllFiveWAndH as dbGetAllFiveWAndH, saveFiveWAndH as dbSaveFiveWAndH, deleteFiveWAndH as dbDeleteFiveWAndH } from '@/lib/db';
+import { getAllFiveWAndH as dbGetAllFiveWAndH, saveFiveWAndH as dbSaveFiveWAndH, deleteFiveWAndH as dbDeleteFiveWAndH } from '@/lib/database';
 import { validateFiveWAndH, sanitizeData, ValidationError } from '@/lib/validation';
 
 interface ObservationState {

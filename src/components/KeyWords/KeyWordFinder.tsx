@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import type { MarkingPreset } from '@/types/keyWord';
-import { db } from '@/lib/db';
+import { getAllCachedChapters } from '@/lib/database';
 import { getBookById } from '@/types/bible';
 
 interface KeyWordFinderProps {
@@ -38,10 +38,8 @@ export function KeyWordFinder({ preset, onClose }: KeyWordFinderProps) {
     setIsLoading(true);
     try {
       // Get all cached chapters
-      const allChapters = await db.chapterCache
-        .where('moduleId')
-        .equals(currentModuleId)
-        .toArray();
+      const allCached = await getAllCachedChapters();
+      const allChapters = allCached.filter(c => c.moduleId === currentModuleId);
 
       const results: typeof occurrences = [];
 

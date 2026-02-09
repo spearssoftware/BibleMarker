@@ -1,15 +1,10 @@
 /**
- * Database Abstraction Layer
+ * Database Layer
  *
- * Provides a unified interface for database operations that routes to:
- * - SQLite on Tauri (iOS/macOS) for iCloud sync support
- * - IndexedDB (Dexie) on web browsers
- *
- * This abstraction allows the app to use the same API regardless of platform
- * while enabling platform-specific optimizations like iCloud sync.
+ * Unified interface for all database operations.
+ * Uses SQLite via @tauri-apps/plugin-sql (Tauri-only app).
  */
 
-import { isTauri } from './platform';
 import type {
   Annotation,
   SectionHeading,
@@ -27,70 +22,32 @@ import type { Place } from '@/types/place';
 import type { Conclusion } from '@/types/conclusion';
 import type { InterpretationEntry } from '@/types/interpretation';
 import type { ApplicationEntry } from '@/types/application';
+import type { UserPreferences } from '@/types/preferences';
 
-// Re-export types from db.ts
-export type { UserPreferences, ApiConfigRecord, OnboardingState, AutoBackupConfig } from './db';
+export type { UserPreferences, ApiConfigRecord, OnboardingState, AutoBackupConfig } from '@/types/preferences';
 
-// ============================================================================
-// Database Backend Selection
-// ============================================================================
-
-/**
- * Check if SQLite should be used on Tauri (native apps) for iCloud sync support.
- * Returns false for web browsers, which use IndexedDB (Dexie).
- */
-export function shouldUseSqlite(): boolean {
-  return isTauri();
-}
-
-// Alias for backwards compatibility
-export const useSqlite = shouldUseSqlite;
-
-// ============================================================================
-// Lazy imports to avoid loading unused backends
-// ============================================================================
-
+// Lazy-load sqlite-db module
 let sqliteModule: typeof import('./sqlite-db') | null = null;
-let dexieModule: typeof import('./db') | null = null;
 
-async function getSqliteModule() {
+async function sqlite() {
   if (!sqliteModule) {
     sqliteModule = await import('./sqlite-db');
   }
   return sqliteModule;
 }
 
-async function getDexieModule() {
-  if (!dexieModule) {
-    dexieModule = await import('./db');
-  }
-  return dexieModule;
-}
-
 // ============================================================================
-// Unified Database Interface
+// Database Lifecycle
 // ============================================================================
 
-/**
- * Initialize the database connection
- */
 export async function initDatabase(): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    await sqlite.getSqliteDb();
-  }
-  // Dexie auto-initializes on first access
+  const mod = await sqlite();
+  await mod.getSqliteDb();
 }
 
-/**
- * Close the database connection
- */
 export async function closeDatabase(): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    await sqlite.closeSqliteDb();
-  }
-  // Dexie doesn't need explicit closing
+  const mod = await sqlite();
+  await mod.closeSqliteDb();
 }
 
 // ============================================================================
@@ -102,30 +59,37 @@ export async function getChapterAnnotations(
   book: string,
   chapter: number
 ): Promise<Annotation[]> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteGetChapterAnnotations(moduleId, book, chapter);
-  }
-  const dexie = await getDexieModule();
-  return dexie.getChapterAnnotations(moduleId, book, chapter);
+  const mod = await sqlite();
+  return mod.sqliteGetChapterAnnotations(moduleId, book, chapter);
 }
 
 export async function saveAnnotation(annotation: Annotation): Promise<string> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteSaveAnnotation(annotation);
-  }
-  const dexie = await getDexieModule();
-  return dexie.saveAnnotation(annotation);
+  const mod = await sqlite();
+  return mod.sqliteSaveAnnotation(annotation);
 }
 
 export async function deleteAnnotation(id: string): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteDeleteAnnotation(id);
+  const mod = await sqlite();
+  return mod.sqliteDeleteAnnotation(id);
+}
+
+export async function clearBookAnnotations(book: string, moduleId?: string): Promise<number> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const rows = await db.select<{ id: string; data: string; module_id: string }[]>(
+    `SELECT id, data, module_id FROM annotations`
+  );
+  const toDelete = rows.filter(row => {
+    const ann = JSON.parse(row.data) as Annotation;
+    const bookMatch = ann.type === 'symbol' ? ann.ref.book === book : ann.startRef.book === book;
+    if (!bookMatch) return false;
+    if (moduleId) return row.module_id === moduleId;
+    return true;
+  });
+  for (const row of toDelete) {
+    await db.execute(`DELETE FROM annotations WHERE id = ?`, [row.id]);
   }
-  const dexie = await getDexieModule();
-  return dexie.deleteAnnotation(id);
+  return toDelete.length;
 }
 
 // ============================================================================
@@ -133,34 +97,22 @@ export async function deleteAnnotation(id: string): Promise<void> {
 // ============================================================================
 
 export async function getChapterHeadings(
-  moduleId: string | null | undefined,
+  _moduleId: string | null | undefined,
   book: string,
   chapter: number
 ): Promise<SectionHeading[]> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteGetChapterHeadings(book, chapter);
-  }
-  const dexie = await getDexieModule();
-  return dexie.getChapterHeadings(moduleId, book, chapter);
+  const mod = await sqlite();
+  return mod.sqliteGetChapterHeadings(book, chapter);
 }
 
 export async function saveSectionHeading(heading: SectionHeading): Promise<string> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteSaveSectionHeading(heading);
-  }
-  const dexie = await getDexieModule();
-  return dexie.saveSectionHeading(heading);
+  const mod = await sqlite();
+  return mod.sqliteSaveSectionHeading(heading);
 }
 
 export async function deleteSectionHeading(id: string): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteDeleteSectionHeading(id);
-  }
-  const dexie = await getDexieModule();
-  return dexie.deleteSectionHeading(id);
+  const mod = await sqlite();
+  return mod.sqliteDeleteSectionHeading(id);
 }
 
 // ============================================================================
@@ -168,34 +120,22 @@ export async function deleteSectionHeading(id: string): Promise<void> {
 // ============================================================================
 
 export async function getChapterTitle(
-  moduleId: string | null | undefined,
+  _moduleId: string | null | undefined,
   book: string,
   chapter: number
 ): Promise<ChapterTitle | undefined> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteGetChapterTitle(book, chapter);
-  }
-  const dexie = await getDexieModule();
-  return dexie.getChapterTitle(moduleId, book, chapter);
+  const mod = await sqlite();
+  return mod.sqliteGetChapterTitle(book, chapter);
 }
 
 export async function saveChapterTitle(title: ChapterTitle): Promise<string> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteSaveChapterTitle(title);
-  }
-  const dexie = await getDexieModule();
-  return dexie.saveChapterTitle(title);
+  const mod = await sqlite();
+  return mod.sqliteSaveChapterTitle(title);
 }
 
 export async function deleteChapterTitle(id: string): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteDeleteChapterTitle(id);
-  }
-  const dexie = await getDexieModule();
-  return dexie.deleteChapterTitle(id);
+  const mod = await sqlite();
+  return mod.sqliteDeleteChapterTitle(id);
 }
 
 // ============================================================================
@@ -207,30 +147,41 @@ export async function getChapterNotes(
   book: string,
   chapter: number
 ): Promise<Note[]> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteGetChapterNotes(moduleId, book, chapter);
-  }
-  const dexie = await getDexieModule();
-  return dexie.getChapterNotes(moduleId, book, chapter);
+  const mod = await sqlite();
+  return mod.sqliteGetChapterNotes(moduleId, book, chapter);
 }
 
 export async function saveNote(note: Note): Promise<string> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteSaveNote(note);
-  }
-  const dexie = await getDexieModule();
-  return dexie.saveNote(note);
+  const mod = await sqlite();
+  return mod.sqliteSaveNote(note);
 }
 
 export async function deleteNote(id: string): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteDeleteNote(id);
-  }
-  const dexie = await getDexieModule();
-  return dexie.deleteNote(id);
+  const mod = await sqlite();
+  return mod.sqliteDeleteNote(id);
+}
+
+export async function getAllNotes(): Promise<Note[]> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const rows = await db.select<{
+    id: string;
+    module_id: string;
+    ref: string;
+    range: string | null;
+    content: string;
+    created_at: string;
+    updated_at: string;
+  }[]>(`SELECT id, module_id, ref, range, content, created_at, updated_at FROM notes`);
+  return rows.map(row => ({
+    id: row.id,
+    moduleId: row.module_id,
+    ref: JSON.parse(row.ref),
+    range: row.range ? JSON.parse(row.range) : undefined,
+    content: row.content,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+  }));
 }
 
 // ============================================================================
@@ -238,30 +189,50 @@ export async function deleteNote(id: string): Promise<void> {
 // ============================================================================
 
 export async function getAllMarkingPresets(): Promise<MarkingPreset[]> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteGetAllMarkingPresets();
-  }
-  const dexie = await getDexieModule();
-  return dexie.getAllMarkingPresets();
+  const mod = await sqlite();
+  return mod.sqliteGetAllMarkingPresets();
+}
+
+export async function getMarkingPreset(id: string): Promise<MarkingPreset | undefined> {
+  const all = await getAllMarkingPresets();
+  return all.find(p => p.id === id);
+}
+
+export async function getMarkingPresetsByCategory(category: string): Promise<MarkingPreset[]> {
+  const all = await getAllMarkingPresets();
+  return all.filter(p => p.category === category);
 }
 
 export async function saveMarkingPreset(preset: MarkingPreset): Promise<string> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteSaveMarkingPreset(preset);
-  }
-  const dexie = await getDexieModule();
-  return dexie.saveMarkingPreset(preset);
+  const mod = await sqlite();
+  return mod.sqliteSaveMarkingPreset(preset);
 }
 
 export async function deleteMarkingPreset(id: string): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteDeleteMarkingPreset(id);
+  const mod = await sqlite();
+  return mod.sqliteDeleteMarkingPreset(id);
+}
+
+export async function searchMarkingPresets(text: string): Promise<MarkingPreset[]> {
+  const all = await getAllMarkingPresets();
+  const lower = text.toLowerCase().trim();
+  return all.filter((p) => {
+    if (!p.word) return false;
+    if (p.word.toLowerCase() === lower) return true;
+    return (p.variants || []).some((v) => {
+      const variantText = typeof v === 'string' ? v : v.text;
+      return variantText.toLowerCase() === lower;
+    });
+  });
+}
+
+export async function incrementMarkingPresetUsage(id: string): Promise<void> {
+  const preset = await getMarkingPreset(id);
+  if (preset) {
+    preset.usageCount = (preset.usageCount || 0) + 1;
+    preset.updatedAt = new Date();
+    await saveMarkingPreset(preset);
   }
-  const dexie = await getDexieModule();
-  return dexie.deleteMarkingPreset(id);
 }
 
 // ============================================================================
@@ -269,83 +240,62 @@ export async function deleteMarkingPreset(id: string): Promise<void> {
 // ============================================================================
 
 export async function getAllStudies(): Promise<Study[]> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteGetAllStudies();
-  }
-  const dexie = await getDexieModule();
-  return dexie.getAllStudies();
+  const mod = await sqlite();
+  return mod.sqliteGetAllStudies();
 }
 
 export async function saveStudy(study: Study): Promise<string> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteSaveStudy(study);
-  }
-  const dexie = await getDexieModule();
-  return dexie.saveStudy(study);
+  const mod = await sqlite();
+  return mod.sqliteSaveStudy(study);
 }
 
 export async function deleteStudy(id: string): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteDeleteStudy(id);
-  }
-  const dexie = await getDexieModule();
-  return dexie.deleteStudy(id);
+  const mod = await sqlite();
+  return mod.sqliteDeleteStudy(id);
 }
 
 // ============================================================================
 // Preferences Operations
 // ============================================================================
 
-export async function getPreferences(): Promise<import('./db').UserPreferences> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    const prefs = await sqlite.sqliteGetPreferences();
-    if (prefs) return prefs;
-    // Return default preferences if not found
-    const defaultPrefs: import('./db').UserPreferences = {
-      id: 'main',
-      marking: {
-        recentColors: [],
-        recentSymbols: [],
-        defaultTool: 'highlight',
-        defaultColor: 'yellow',
-        defaultSymbol: 'cross',
-        toolbarPosition: 'bottom',
-        showToolbarByDefault: true,
-      },
-      fontSize: 'base',
-      theme: 'auto',
-      favoriteTranslations: [],
-      recentTranslations: [],
-      onboarding: {
-        hasSeenWelcome: false,
-        hasCompletedTour: false,
-        dismissedTooltips: [],
-      },
-    };
-    await sqlite.sqliteSavePreferences(defaultPrefs);
-    return defaultPrefs;
-  }
-  const dexie = await getDexieModule();
-  return dexie.getPreferences();
+const DEFAULT_PREFERENCES: UserPreferences = {
+  id: 'main',
+  marking: {
+    recentColors: [],
+    recentSymbols: [],
+    defaultTool: 'highlight',
+    defaultColor: 'yellow',
+    defaultSymbol: 'cross',
+    toolbarPosition: 'bottom',
+    showToolbarByDefault: true,
+  },
+  fontSize: 'base',
+  theme: 'auto',
+  favoriteTranslations: [],
+  recentTranslations: [],
+  onboarding: {
+    hasSeenWelcome: false,
+    hasCompletedTour: false,
+    dismissedTooltips: [],
+  },
+};
+
+export async function getPreferences(): Promise<UserPreferences> {
+  const mod = await sqlite();
+  const prefs = await mod.sqliteGetPreferences();
+  if (prefs) return prefs;
+  await mod.sqliteSavePreferences(DEFAULT_PREFERENCES);
+  return DEFAULT_PREFERENCES;
 }
 
 export async function updatePreferences(
-  updates: Partial<Omit<import('./db').UserPreferences, 'id'>>
+  updates: Partial<Omit<UserPreferences, 'id'>>
 ): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    const current = await sqlite.sqliteGetPreferences();
-    if (current) {
-      await sqlite.sqliteSavePreferences({ ...current, ...updates });
-    }
-    return;
+  const mod = await sqlite();
+  const current = await mod.sqliteGetPreferences();
+  if (current) {
+    await mod.sqliteSavePreferences({ ...current, ...updates });
   }
-  const dexie = await getDexieModule();
-  return dexie.updatePreferences(updates);
 }
 
 // ============================================================================
@@ -355,31 +305,19 @@ export async function updatePreferences(
 export async function getMultiTranslationView(
   id: string = 'active'
 ): Promise<MultiTranslationView | undefined> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    const views = await sqlite.sqliteGetAllFromTable<MultiTranslationView>('multi_translation_views');
-    return views.find((v) => v.id === id);
-  }
-  const dexie = await getDexieModule();
-  return dexie.getMultiTranslationView(id);
+  const mod = await sqlite();
+  const views = await mod.sqliteGetAllFromTable<MultiTranslationView>('multi_translation_views');
+  return views.find((v) => v.id === id);
 }
 
 export async function saveMultiTranslationView(view: MultiTranslationView): Promise<string> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteSaveToTable('multi_translation_views', view);
-  }
-  const dexie = await getDexieModule();
-  return dexie.saveMultiTranslationView(view);
+  const mod = await sqlite();
+  return mod.sqliteSaveToTable('multi_translation_views', view);
 }
 
 export async function deleteMultiTranslationView(id: string = 'active'): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteDeleteFromTable('multi_translation_views', id);
-  }
-  const dexie = await getDexieModule();
-  return dexie.deleteMultiTranslationView(id);
+  const mod = await sqlite();
+  return mod.sqliteDeleteFromTable('multi_translation_views', id);
 }
 
 // ============================================================================
@@ -387,226 +325,130 @@ export async function deleteMultiTranslationView(id: string = 'active'): Promise
 // ============================================================================
 
 export async function getAllObservationLists(): Promise<ObservationList[]> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteGetAllFromTable<ObservationList>('observation_lists');
-  }
-  const dexie = await getDexieModule();
-  return dexie.db.observationLists.toArray();
+  const mod = await sqlite();
+  return mod.sqliteGetAllFromTable<ObservationList>('observation_lists');
 }
 
 export async function saveObservationList(list: ObservationList): Promise<string> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteSaveToTable('observation_lists', list);
-  }
-  const dexie = await getDexieModule();
-  return dexie.db.observationLists.put(list);
+  const mod = await sqlite();
+  return mod.sqliteSaveToTable('observation_lists', list);
 }
 
 export async function deleteObservationList(id: string): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteDeleteFromTable('observation_lists', id);
-  }
-  const dexie = await getDexieModule();
-  await dexie.db.observationLists.delete(id);
+  const mod = await sqlite();
+  return mod.sqliteDeleteFromTable('observation_lists', id);
 }
 
 // 5W+H Operations
 export async function getAllFiveWAndH(): Promise<FiveWAndHEntry[]> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteGetAllFromTable<FiveWAndHEntry>('five_w_and_h');
-  }
-  const dexie = await getDexieModule();
-  return dexie.db.fiveWAndH.toArray();
+  const mod = await sqlite();
+  return mod.sqliteGetAllFromTable<FiveWAndHEntry>('five_w_and_h');
 }
 
 export async function saveFiveWAndH(entry: FiveWAndHEntry): Promise<string> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteSaveToTable('five_w_and_h', entry);
-  }
-  const dexie = await getDexieModule();
-  return dexie.db.fiveWAndH.put(entry);
+  const mod = await sqlite();
+  return mod.sqliteSaveToTable('five_w_and_h', entry);
 }
 
 export async function deleteFiveWAndH(id: string): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteDeleteFromTable('five_w_and_h', id);
-  }
-  const dexie = await getDexieModule();
-  await dexie.db.fiveWAndH.delete(id);
+  const mod = await sqlite();
+  return mod.sqliteDeleteFromTable('five_w_and_h', id);
 }
 
 // Contrast Operations
 export async function getAllContrasts(): Promise<Contrast[]> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteGetAllFromTable<Contrast>('contrasts');
-  }
-  const dexie = await getDexieModule();
-  return dexie.db.contrasts.toArray();
+  const mod = await sqlite();
+  return mod.sqliteGetAllFromTable<Contrast>('contrasts');
 }
 
 export async function saveContrast(entry: Contrast): Promise<string> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteSaveToTable('contrasts', entry);
-  }
-  const dexie = await getDexieModule();
-  return dexie.db.contrasts.put(entry);
+  const mod = await sqlite();
+  return mod.sqliteSaveToTable('contrasts', entry);
 }
 
 export async function deleteContrast(id: string): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteDeleteFromTable('contrasts', id);
-  }
-  const dexie = await getDexieModule();
-  await dexie.db.contrasts.delete(id);
+  const mod = await sqlite();
+  return mod.sqliteDeleteFromTable('contrasts', id);
 }
 
 // Time Expression Operations
 export async function getAllTimeExpressions(): Promise<TimeExpression[]> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteGetAllFromTable<TimeExpression>('time_expressions');
-  }
-  const dexie = await getDexieModule();
-  return dexie.db.timeExpressions.toArray();
+  const mod = await sqlite();
+  return mod.sqliteGetAllFromTable<TimeExpression>('time_expressions');
 }
 
 export async function saveTimeExpression(entry: TimeExpression): Promise<string> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteSaveToTable('time_expressions', entry);
-  }
-  const dexie = await getDexieModule();
-  return dexie.db.timeExpressions.put(entry);
+  const mod = await sqlite();
+  return mod.sqliteSaveToTable('time_expressions', entry);
 }
 
 export async function deleteTimeExpression(id: string): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteDeleteFromTable('time_expressions', id);
-  }
-  const dexie = await getDexieModule();
-  await dexie.db.timeExpressions.delete(id);
+  const mod = await sqlite();
+  return mod.sqliteDeleteFromTable('time_expressions', id);
 }
 
 // Place Operations
 export async function getAllPlaces(): Promise<Place[]> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteGetAllFromTable<Place>('places');
-  }
-  const dexie = await getDexieModule();
-  return dexie.db.places.toArray();
+  const mod = await sqlite();
+  return mod.sqliteGetAllFromTable<Place>('places');
 }
 
 export async function savePlace(entry: Place): Promise<string> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteSaveToTable('places', entry);
-  }
-  const dexie = await getDexieModule();
-  return dexie.db.places.put(entry);
+  const mod = await sqlite();
+  return mod.sqliteSaveToTable('places', entry);
 }
 
 export async function deletePlace(id: string): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteDeleteFromTable('places', id);
-  }
-  const dexie = await getDexieModule();
-  await dexie.db.places.delete(id);
+  const mod = await sqlite();
+  return mod.sqliteDeleteFromTable('places', id);
 }
 
 // Conclusion Operations
 export async function getAllConclusions(): Promise<Conclusion[]> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteGetAllFromTable<Conclusion>('conclusions');
-  }
-  const dexie = await getDexieModule();
-  return dexie.db.conclusions.toArray();
+  const mod = await sqlite();
+  return mod.sqliteGetAllFromTable<Conclusion>('conclusions');
 }
 
 export async function saveConclusion(entry: Conclusion): Promise<string> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteSaveToTable('conclusions', entry);
-  }
-  const dexie = await getDexieModule();
-  return dexie.db.conclusions.put(entry);
+  const mod = await sqlite();
+  return mod.sqliteSaveToTable('conclusions', entry);
 }
 
 export async function deleteConclusion(id: string): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteDeleteFromTable('conclusions', id);
-  }
-  const dexie = await getDexieModule();
-  await dexie.db.conclusions.delete(id);
+  const mod = await sqlite();
+  return mod.sqliteDeleteFromTable('conclusions', id);
 }
 
 // Interpretation Operations
 export async function getAllInterpretations(): Promise<InterpretationEntry[]> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteGetAllFromTable<InterpretationEntry>('interpretations');
-  }
-  const dexie = await getDexieModule();
-  return dexie.db.interpretations.toArray();
+  const mod = await sqlite();
+  return mod.sqliteGetAllFromTable<InterpretationEntry>('interpretations');
 }
 
 export async function saveInterpretation(entry: InterpretationEntry): Promise<string> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteSaveToTable('interpretations', entry);
-  }
-  const dexie = await getDexieModule();
-  return dexie.db.interpretations.put(entry);
+  const mod = await sqlite();
+  return mod.sqliteSaveToTable('interpretations', entry);
 }
 
 export async function deleteInterpretation(id: string): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteDeleteFromTable('interpretations', id);
-  }
-  const dexie = await getDexieModule();
-  await dexie.db.interpretations.delete(id);
+  const mod = await sqlite();
+  return mod.sqliteDeleteFromTable('interpretations', id);
 }
 
 // Application Operations
 export async function getAllApplications(): Promise<ApplicationEntry[]> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteGetAllFromTable<ApplicationEntry>('applications');
-  }
-  const dexie = await getDexieModule();
-  return dexie.db.applications.toArray();
+  const mod = await sqlite();
+  return mod.sqliteGetAllFromTable<ApplicationEntry>('applications');
 }
 
 export async function saveApplication(entry: ApplicationEntry): Promise<string> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteSaveToTable('applications', entry);
-  }
-  const dexie = await getDexieModule();
-  return dexie.db.applications.put(entry);
+  const mod = await sqlite();
+  return mod.sqliteSaveToTable('applications', entry);
 }
 
 export async function deleteApplication(id: string): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteDeleteFromTable('applications', id);
-  }
-  const dexie = await getDexieModule();
-  await dexie.db.applications.delete(id);
+  const mod = await sqlite();
+  return mod.sqliteDeleteFromTable('applications', id);
 }
 
 // ============================================================================
@@ -614,12 +456,8 @@ export async function deleteApplication(id: string): Promise<void> {
 // ============================================================================
 
 export async function clearDatabase(): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteClearDatabase();
-  }
-  const dexie = await getDexieModule();
-  return dexie.clearDatabase();
+  const mod = await sqlite();
+  return mod.sqliteClearDatabase();
 }
 
 // ============================================================================
@@ -642,60 +480,160 @@ export interface DatabaseExportData {
   conclusions: Conclusion[];
   interpretations: InterpretationEntry[];
   applications: ApplicationEntry[];
-  preferences: import('./db').UserPreferences | null;
+  preferences: UserPreferences | null;
 }
 
 export async function exportAllData(): Promise<DatabaseExportData> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteExportAll();
-  }
-
-  // Export from Dexie
-  const dexie = await getDexieModule();
-  return {
-    annotations: await dexie.db.annotations.toArray(),
-    sectionHeadings: await dexie.db.sectionHeadings.toArray(),
-    chapterTitles: await dexie.db.chapterTitles.toArray(),
-    notes: await dexie.db.notes.toArray(),
-    markingPresets: await dexie.db.markingPresets.toArray(),
-    studies: await dexie.db.studies.toArray(),
-    multiTranslationViews: await dexie.db.multiTranslationViews.toArray(),
-    observationLists: await dexie.db.observationLists.toArray(),
-    fiveWAndH: await dexie.db.fiveWAndH.toArray(),
-    contrasts: await dexie.db.contrasts.toArray(),
-    timeExpressions: await dexie.db.timeExpressions.toArray(),
-    places: await dexie.db.places.toArray(),
-    conclusions: await dexie.db.conclusions.toArray(),
-    interpretations: await dexie.db.interpretations.toArray(),
-    applications: await dexie.db.applications.toArray(),
-    preferences: await dexie.getPreferences(),
-  };
+  const mod = await sqlite();
+  return mod.sqliteExportAll();
 }
 
 export async function importAllData(data: DatabaseExportData): Promise<void> {
-  if (shouldUseSqlite()) {
-    const sqlite = await getSqliteModule();
-    return sqlite.sqliteImportAll(data);
-  }
+  const mod = await sqlite();
+  return mod.sqliteImportAll(data);
+}
 
-  // Import to Dexie
-  const dexie = await getDexieModule();
+// ============================================================================
+// Cache Operations
+// ============================================================================
 
-  if (data.annotations.length) await dexie.db.annotations.bulkPut(data.annotations);
-  if (data.sectionHeadings.length) await dexie.db.sectionHeadings.bulkPut(data.sectionHeadings);
-  if (data.chapterTitles.length) await dexie.db.chapterTitles.bulkPut(data.chapterTitles);
-  if (data.notes.length) await dexie.db.notes.bulkPut(data.notes);
-  if (data.markingPresets.length) await dexie.db.markingPresets.bulkPut(data.markingPresets);
-  if (data.studies.length) await dexie.db.studies.bulkPut(data.studies);
-  if (data.multiTranslationViews.length) await dexie.db.multiTranslationViews.bulkPut(data.multiTranslationViews);
-  if (data.observationLists.length) await dexie.db.observationLists.bulkPut(data.observationLists);
-  if (data.fiveWAndH.length) await dexie.db.fiveWAndH.bulkPut(data.fiveWAndH);
-  if (data.contrasts.length) await dexie.db.contrasts.bulkPut(data.contrasts);
-  if (data.timeExpressions.length) await dexie.db.timeExpressions.bulkPut(data.timeExpressions);
-  if (data.places.length) await dexie.db.places.bulkPut(data.places);
-  if (data.conclusions.length) await dexie.db.conclusions.bulkPut(data.conclusions);
-  if (data.interpretations.length) await dexie.db.interpretations.bulkPut(data.interpretations);
-  if (data.applications.length) await dexie.db.applications.bulkPut(data.applications);
-  if (data.preferences) await dexie.db.preferences.put(data.preferences);
+export async function getCachedChapter(
+  moduleId: string,
+  book: string,
+  chapter: number
+): Promise<{ verses: Record<number, string>; cachedAt: Date } | undefined> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const id = `${moduleId}:${book}:${chapter}`;
+  const rows = await db.select<{ verses: string; cached_at: string }[]>(
+    `SELECT verses, cached_at FROM chapter_cache WHERE id = ?`,
+    [id]
+  );
+  if (rows.length === 0) return undefined;
+  return {
+    verses: JSON.parse(rows[0].verses),
+    cachedAt: new Date(rows[0].cached_at),
+  };
+}
+
+export async function setCachedChapter(
+  moduleId: string,
+  book: string,
+  chapter: number,
+  verses: Record<number, string>
+): Promise<void> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const id = `${moduleId}:${book}:${chapter}`;
+  const now = new Date().toISOString();
+  await db.execute(
+    `INSERT OR REPLACE INTO chapter_cache (id, module_id, book, chapter, verses, cached_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    [id, moduleId, book, chapter, JSON.stringify(verses), now]
+  );
+}
+
+export async function getAllCachedChapters(): Promise<Array<{
+  id: string;
+  moduleId: string;
+  book: string;
+  chapter: number;
+  verses: Record<number, string>;
+  cachedAt: Date;
+}>> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const rows = await db.select<{ id: string; module_id: string; book: string; chapter: number; verses: string; cached_at: string }[]>(
+    `SELECT id, module_id, book, chapter, verses, cached_at FROM chapter_cache`
+  );
+  return rows.map(row => ({
+    id: row.id,
+    moduleId: row.module_id,
+    book: row.book,
+    chapter: row.chapter,
+    verses: JSON.parse(row.verses),
+    cachedAt: new Date(row.cached_at),
+  }));
+}
+
+export async function clearChapterCache(): Promise<void> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  await db.execute(`DELETE FROM chapter_cache`);
+}
+
+export async function getCachedTranslations(): Promise<unknown[] | undefined> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const rows = await db.select<{ translations: string }[]>(
+    `SELECT translations FROM translation_cache WHERE id = 'getbible-translations'`
+  );
+  if (rows.length === 0) return undefined;
+  return JSON.parse(rows[0].translations);
+}
+
+export async function setCachedTranslations(translations: unknown[]): Promise<void> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const now = new Date().toISOString();
+  await db.execute(
+    `INSERT OR REPLACE INTO translation_cache (id, translations, cached_at) VALUES (?, ?, ?)`,
+    ['getbible-translations', JSON.stringify(translations), now]
+  );
+}
+
+// ============================================================================
+// ESV Rate Limit Operations
+// ============================================================================
+
+export async function getEsvRateLimitState(): Promise<{ requestTimestamps: number[] }> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const rows = await db.select<{ request_timestamps: string }[]>(
+    `SELECT request_timestamps FROM esv_rate_limit WHERE id = 'esv'`
+  );
+  if (rows.length === 0) return { requestTimestamps: [] };
+  return { requestTimestamps: JSON.parse(rows[0].request_timestamps) };
+}
+
+export async function saveEsvRateLimitState(timestamps: number[]): Promise<void> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  await db.execute(
+    `INSERT OR REPLACE INTO esv_rate_limit (id, request_timestamps) VALUES ('esv', ?)`,
+    [JSON.stringify(timestamps)]
+  );
+}
+
+// ============================================================================
+// Reading History Operations
+// ============================================================================
+
+export async function addReadingHistory(
+  moduleId: string,
+  book: string,
+  chapter: number
+): Promise<void> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const id = crypto.randomUUID();
+  await db.execute(
+    `INSERT INTO reading_history (id, module_id, book, chapter, timestamp) VALUES (?, ?, ?, ?, ?)`,
+    [id, moduleId, book, chapter, new Date().toISOString()]
+  );
+}
+
+// ============================================================================
+// Raw SQL Access (for advanced queries in search, export, etc.)
+// ============================================================================
+
+export async function sqlSelect<T>(sql: string, params?: unknown[]): Promise<T[]> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  return db.select<T[]>(sql, params);
+}
+
+export async function sqlExecute(sql: string, params?: unknown[]): Promise<void> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  await db.execute(sql, params);
 }

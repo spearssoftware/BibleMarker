@@ -8,7 +8,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
-import { getChapterTitle, saveChapterTitle } from '@/lib/db';
+import { getChapterTitle, saveChapterTitle } from '@/lib/database';
 import { analyzeKeywordFrequencyByChapter } from '@/lib/annotationQueries';
 import type { ChapterTitle } from '@/types/annotation';
 import { SYMBOLS } from '@/types/annotation';

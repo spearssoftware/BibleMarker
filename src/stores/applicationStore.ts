@@ -8,7 +8,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ApplicationEntry } from '@/types/application';
 import type { VerseRef } from '@/types/bible';
-import { getAllApplications as dbGetAllApplications, saveApplication as dbSaveApplication, deleteApplication as dbDeleteApplication } from '@/lib/db';
+import { getAllApplications as dbGetAllApplications, saveApplication as dbSaveApplication, deleteApplication as dbDeleteApplication } from '@/lib/database';
 import { validateApplication, sanitizeData, ValidationError } from '@/lib/validation';
 
 interface ApplicationState {

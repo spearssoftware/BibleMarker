@@ -11,8 +11,8 @@ import {
   getChapterTitle, 
   getChapterHeadings, 
   getChapterAnnotations,
-} from '@/lib/db';
-import { db } from '@/lib/db';
+  getAllObservationLists,
+} from '@/lib/database';
 import type { ChapterTitle } from '@/types/annotation';
 import { getBookById } from '@/types/bible';
 
@@ -72,7 +72,7 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
           }
           
           // Count observations in this chapter
-          const allLists = await db.observationLists.toArray();
+          const allLists = await getAllObservationLists();
           const observationCount = allLists.reduce((count, list) => {
             const itemsInChapter = list.items.filter(
               item => item.verseRef.book === currentBook && item.verseRef.chapter === chapter

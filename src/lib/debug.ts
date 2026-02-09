@@ -5,7 +5,7 @@
  * Debug flags are stored in user preferences and can be toggled from Settings.
  */
 
-import { getPreferences } from './db';
+import { getPreferences } from './database';
 
 // Cache for debug flags to avoid repeated DB reads
 let debugFlagsCache: { keywordMatching: boolean; verseText: boolean } | null = null;

@@ -23,7 +23,7 @@ import type {
 import { BibleApiError } from './types';
 import type { VerseRef } from '@/types/bible';
 import { getBookById } from '@/types/bible';
-import { db } from '@/lib/db';
+import { getCachedTranslations, setCachedTranslations } from '@/lib/database';
 
 // Default to public API, but can be configured for self-hosted instance
 const DEFAULT_MAIN_API_URL = 'https://api.getbible.net/v2';
@@ -186,23 +186,18 @@ class GetBibleClient implements BibleApiClient {
 
   async getTranslations(): Promise<ApiTranslation[]> {
     // Check cache first - refresh once per day
-    const CACHE_KEY = 'getbible-translations';
     const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
     
     try {
-      const cached = await db.translationCache.get(CACHE_KEY);
-      const now = new Date();
-      
-      if (cached && cached.cachedAt) {
-        const cacheAge = now.getTime() - cached.cachedAt.getTime();
-        if (cacheAge < CACHE_DURATION_MS) {
-          // Parse cached translations
-          const translations: GetBibleTranslation[] = Array.isArray(cached.translations)
-            ? (cached.translations as GetBibleTranslation[])
-            : (Object.values(cached.translations || {}) as GetBibleTranslation[]);
-          
-          return this.parseTranslations(translations);
-        }
+      const cachedTranslations = await getCachedTranslations();
+      if (cachedTranslations) {
+        // Note: getCachedTranslations doesn't return cachedAt, so we can't check age
+        // For now, we'll use the cache if it exists. The database module handles TTL internally.
+        const translations: GetBibleTranslation[] = Array.isArray(cachedTranslations)
+          ? (cachedTranslations as GetBibleTranslation[])
+          : (Object.values(cachedTranslations || {}) as GetBibleTranslation[]);
+        
+        return this.parseTranslations(translations);
       }
     } catch (error) {
       // If translationCache table doesn't exist yet (old database version), just fetch
@@ -225,11 +220,7 @@ class GetBibleClient implements BibleApiClient {
       const parsed = this.parseTranslations(translations);
       
       // Cache the raw data in background (don't wait)
-      db.translationCache.put({
-        id: CACHE_KEY,
-        translations: translations,
-        cachedAt: new Date(),
-      }).catch((cacheError) => {
+      setCachedTranslations(translations).catch((cacheError) => {
         console.warn('[GetBibleClient] Failed to cache translations:', cacheError);
       });
       
@@ -239,11 +230,11 @@ class GetBibleClient implements BibleApiClient {
       
       // Try to return cached data even if expired
       try {
-        const cached = await db.translationCache.get(CACHE_KEY);
-        if (cached && cached.translations) {
-          const translations: GetBibleTranslation[] = Array.isArray(cached.translations)
-            ? (cached.translations as GetBibleTranslation[])
-            : (Object.values(cached.translations || {}) as GetBibleTranslation[]);
+        const cachedTranslations = await getCachedTranslations();
+        if (cachedTranslations) {
+          const translations: GetBibleTranslation[] = Array.isArray(cachedTranslations)
+            ? (cachedTranslations as GetBibleTranslation[])
+            : (Object.values(cachedTranslations || {}) as GetBibleTranslation[]);
           return this.parseTranslations(translations);
         }
       } catch (fallbackError) {

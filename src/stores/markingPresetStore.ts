@@ -14,7 +14,7 @@ import {
   deleteMarkingPreset,
   searchMarkingPresets,
   incrementMarkingPresetUsage,
-} from '@/lib/db';
+} from '@/lib/database';
 
 interface MarkingPresetState {
   presets: MarkingPreset[];

@@ -27,7 +27,7 @@ import type {
 import { BibleApiError } from './types';
 import type { VerseRef } from '@/types/bible';
 import { getBookById, BIBLE_BOOKS } from '@/types/bible';
-import { db } from '@/lib/db';
+import { sqlSelect, sqlExecute } from '@/lib/database';
 
 const BIBLEGATEWAY_BASE_URL = import.meta.env.DEV
   ? '/api/biblegateway/2'
@@ -255,12 +255,19 @@ export class BibleGatewayClient implements BibleApiClient {
     const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
 
     try {
-      const cached = await db.translationCache.get(CACHE_KEY);
-      const now = new Date();
-      if (cached?.cachedAt && Array.isArray(cached.translations)) {
-        const age = now.getTime() - cached.cachedAt.getTime();
-        if (age < CACHE_DURATION_MS) {
-          return parseTranslationList(cached.translations as string[]);
+      const rows = await sqlSelect<{ translations: string; cached_at: string }>(
+        `SELECT translations, cached_at FROM translation_cache WHERE id = ?`,
+        [CACHE_KEY]
+      );
+      if (rows.length > 0) {
+        const now = new Date();
+        const cachedAt = rows[0].cached_at;
+        const translations = JSON.parse(rows[0].translations);
+        if (cachedAt && Array.isArray(translations)) {
+          const age = now.getTime() - new Date(cachedAt).getTime();
+          if (age < CACHE_DURATION_MS) {
+            return parseTranslationList(translations as string[]);
+          }
         }
       }
     } catch (e) {
@@ -275,15 +282,23 @@ export class BibleGatewayClient implements BibleApiClient {
           (raw as { translations?: string[] })?.translations ||
           [];
       const parsed = parseTranslationList(list);
-      db.translationCache
-        .put({ id: CACHE_KEY, translations: list, cachedAt: new Date() })
-        .catch((e) => console.warn('[BibleGateway] failed to cache translation list:', e));
+      const now = new Date().toISOString();
+      sqlExecute(
+        `INSERT OR REPLACE INTO translation_cache (id, translations, cached_at) VALUES (?, ?, ?)`,
+        [CACHE_KEY, JSON.stringify(list), now]
+      ).catch((e) => console.warn('[BibleGateway] failed to cache translation list:', e));
       return parsed;
     } catch (e) {
       try {
-        const cached = await db.translationCache.get(CACHE_KEY);
-        if (cached?.translations && Array.isArray(cached.translations)) {
-          return parseTranslationList(cached.translations as string[]);
+        const rows = await sqlSelect<{ translations: string }>(
+          `SELECT translations FROM translation_cache WHERE id = ?`,
+          [CACHE_KEY]
+        );
+        if (rows.length > 0) {
+          const translations = JSON.parse(rows[0].translations);
+          if (Array.isArray(translations)) {
+            return parseTranslationList(translations as string[]);
+          }
         }
       } catch {
         // ignore cache read errors

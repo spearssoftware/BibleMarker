@@ -8,7 +8,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { InterpretationEntry } from '@/types/interpretation';
 import type { VerseRef } from '@/types/bible';
-import { getAllInterpretations as dbGetAllInterpretations, saveInterpretation as dbSaveInterpretation, deleteInterpretation as dbDeleteInterpretation } from '@/lib/db';
+import { getAllInterpretations as dbGetAllInterpretations, saveInterpretation as dbSaveInterpretation, deleteInterpretation as dbDeleteInterpretation } from '@/lib/database';
 import { validateInterpretation, sanitizeData, ValidationError } from '@/lib/validation';
 
 interface InterpretationState {

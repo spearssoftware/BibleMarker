@@ -5,7 +5,7 @@
  * Used by observation trackers to auto-import existing keyword annotations.
  */
 
-import { db } from './db';
+import { sqlSelect, getChapterAnnotations, getMarkingPreset } from './database';
 import type { Annotation, SymbolAnnotation } from '@/types/annotation';
 import type { SymbolKey } from '@/types/annotation';
 import type { VerseRef } from '@/types/bible';
@@ -15,7 +15,8 @@ import type { VerseRef } from '@/types/bible';
  * Returns all symbol annotations with the specified symbol
  */
 export async function getAnnotationsBySymbol(symbol: SymbolKey): Promise<SymbolAnnotation[]> {
-  const allAnnotations = await db.annotations.toArray();
+  const rows = await sqlSelect<{ data: string }>(`SELECT data FROM annotations`);
+  const allAnnotations = rows.map(row => JSON.parse(row.data) as Annotation);
   return allAnnotations.filter((ann): ann is SymbolAnnotation => 
     ann.type === 'symbol' && ann.symbol === symbol
   );
@@ -29,7 +30,8 @@ export async function getAnnotationsBySymbolAndPreset(
   symbol: SymbolKey,
   presetId: string
 ): Promise<SymbolAnnotation[]> {
-  const allAnnotations = await db.annotations.toArray();
+  const rows = await sqlSelect<{ data: string }>(`SELECT data FROM annotations`);
+  const allAnnotations = rows.map(row => JSON.parse(row.data) as Annotation);
   return allAnnotations.filter((ann): ann is SymbolAnnotation => 
     ann.type === 'symbol' && 
     ann.symbol === symbol && 
@@ -42,7 +44,8 @@ export async function getAnnotationsBySymbolAndPreset(
  * Returns all symbol annotations that match any of the provided symbols
  */
 export async function getAnnotationsBySymbols(symbols: SymbolKey[]): Promise<SymbolAnnotation[]> {
-  const allAnnotations = await db.annotations.toArray();
+  const rows = await sqlSelect<{ data: string }>(`SELECT data FROM annotations`);
+  const allAnnotations = rows.map(row => JSON.parse(row.data) as Annotation);
   const symbolSet = new Set(symbols);
   return allAnnotations.filter((ann): ann is SymbolAnnotation => 
     ann.type === 'symbol' && symbolSet.has(ann.symbol)
@@ -57,7 +60,8 @@ export async function getAnnotationsBySymbolsAndPreset(
   symbols: SymbolKey[],
   presetId: string
 ): Promise<SymbolAnnotation[]> {
-  const allAnnotations = await db.annotations.toArray();
+  const rows = await sqlSelect<{ data: string }>(`SELECT data FROM annotations`);
+  const allAnnotations = rows.map(row => JSON.parse(row.data) as Annotation);
   const symbolSet = new Set(symbols);
   return allAnnotations.filter((ann): ann is SymbolAnnotation => 
     ann.type === 'symbol' && 
@@ -71,7 +75,8 @@ export async function getAnnotationsBySymbolsAndPreset(
  * Useful for auto-importing all place/time/contrast annotations regardless of keyword
  */
 export async function getAnnotationsBySymbolsWithPreset(symbols: SymbolKey[]): Promise<SymbolAnnotation[]> {
-  const allAnnotations = await db.annotations.toArray();
+  const rows = await sqlSelect<{ data: string }>(`SELECT data FROM annotations`);
+  const allAnnotations = rows.map(row => JSON.parse(row.data) as Annotation);
   const symbolSet = new Set(symbols);
   return allAnnotations.filter((ann): ann is SymbolAnnotation => 
     ann.type === 'symbol' && 
@@ -108,8 +113,6 @@ export async function analyzeKeywordFrequencyByChapter(
   book: string,
   chapter: number
 ): Promise<Array<{ presetId: string; word: string; count: number }>> {
-  const { getChapterAnnotations, getMarkingPreset } = await import('./db');
-  
   // Get all annotations for this chapter
   const annotations = await getChapterAnnotations(moduleId, book, chapter);
   

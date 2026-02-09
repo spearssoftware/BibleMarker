@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Conclusion } from '@/types/conclusion';
-import { getAllConclusions as dbGetAllConclusions, saveConclusion as dbSaveConclusion, deleteConclusion as dbDeleteConclusion } from '@/lib/db';
+import { getAllConclusions as dbGetAllConclusions, saveConclusion as dbSaveConclusion, deleteConclusion as dbDeleteConclusion } from '@/lib/database';
 import type { VerseRef } from '@/types/bible';
 import { getBookById } from '@/types/bible';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';

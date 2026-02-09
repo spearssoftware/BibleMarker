@@ -212,7 +212,7 @@ export function watchOSTheme(): () => void {
  */
 export async function initTheme(): Promise<void> {
   try {
-    const { getPreferences } = await import('@/lib/db');
+    const { getPreferences } = await import('@/lib/database');
     const prefs = await getPreferences();
     const theme = prefs.theme || 'auto';
     const highContrast = prefs.highContrast || false;

@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Place } from '@/types/place';
-import { db, getAllPlaces as dbGetAllPlaces, savePlace as dbSavePlace, deletePlace as dbDeletePlace, getMarkingPreset } from '@/lib/db';
+import { getAllPlaces as dbGetAllPlaces, savePlace as dbSavePlace, deletePlace as dbDeletePlace, getMarkingPreset } from '@/lib/database';
 import type { VerseRef } from '@/types/bible';
 import { validatePlace, sanitizeData, ValidationError } from '@/lib/validation';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
@@ -233,13 +233,8 @@ export const usePlaceStore = create<PlaceState>()(
         const { places, createPlace } = get();
         
         // Get cached chapter data
-        const cacheKey = moduleId ? `${moduleId}:${book}:${chapter}` : undefined;
-        const chapterCache = cacheKey 
-          ? await db.chapterCache.get(cacheKey)
-          : await db.chapterCache
-              .where('[book+chapter]')
-              .equals([book, chapter])
-              .first();
+        const { getCachedChapter } = await import('@/lib/database');
+        const chapterCache = await getCachedChapter(moduleId || '', book, chapter);
         
         if (!chapterCache || !chapterCache.verses) {
           return 0;
@@ -276,7 +271,7 @@ export const usePlaceStore = create<PlaceState>()(
             if (preset.moduleScope && preset.moduleScope !== moduleId) continue;
             
             // Check if keyword appears in this verse
-            const effectiveModuleId = chapterCache.moduleId || moduleId;
+            const effectiveModuleId = moduleId;
             const { findKeywordMatches } = await import('@/lib/keywordMatching');
             const matches = findKeywordMatches(text, verseRef, [preset], effectiveModuleId);
             if (matches.length === 0) continue;

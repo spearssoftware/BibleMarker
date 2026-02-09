@@ -5,7 +5,7 @@
  * This is public domain WEB (World English Bible) text.
  */
 
-import { db } from './db';
+import { getCachedChapter, setCachedChapter, sqlExecute } from './database';
 
 // World English Bible - John 1 (Public Domain)
 const JOHN_1 = {
@@ -129,42 +129,18 @@ const GENESIS_1 = {
  */
 export async function loadSampleData(): Promise<void> {
   // Check if already loaded
-  const existing = await db.chapterCache.get('WEB:John:1');
+  const existing = await getCachedChapter('WEB', 'John', 1);
   if (existing) {
     return; // Already loaded
   }
 
-  // Register the WEB module (using deprecated ModuleRecord interface)
-  await db.modules.put({
-    id: 'WEB',
-    status: 'installed',
-  });
+  // Note: modules table is not part of the new database abstraction
+  // Module registration is handled elsewhere if needed
 
   // Load sample chapters
-  await db.chapterCache.bulkPut([
-    {
-      id: 'WEB:John:1',
-      moduleId: 'WEB',
-      book: 'John',
-      chapter: 1,
-      verses: JOHN_1,
-      cachedAt: new Date(),
-    },
-    {
-      id: 'WEB:Rom:6',
-      moduleId: 'WEB',
-      book: 'Rom',
-      chapter: 6,
-      verses: ROMANS_6,
-      cachedAt: new Date(),
-    },
-    {
-      id: 'WEB:Gen:1',
-      moduleId: 'WEB',
-      book: 'Gen',
-      chapter: 1,
-      verses: GENESIS_1,
-      cachedAt: new Date(),
-    },
+  await Promise.all([
+    setCachedChapter('WEB', 'John', 1, JOHN_1),
+    setCachedChapter('WEB', 'Rom', 6, ROMANS_6),
+    setCachedChapter('WEB', 'Gen', 1, GENESIS_1),
   ]);
 }

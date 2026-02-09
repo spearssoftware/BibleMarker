@@ -1,6 +1,6 @@
 ---
-description: Database patterns - Dexie/IndexedDB (web) and SQLite (native) with iCloud sync
-globs: "**/lib/db.ts,**/lib/validation.ts,**/lib/sqlite-db.ts,**/lib/database.ts,**/lib/sync.ts"
+description: Database patterns - SQLite via @tauri-apps/plugin-sql with iCloud sync
+globs: "**/lib/validation.ts,**/lib/sqlite-db.ts,**/lib/database.ts,**/lib/sync.ts"
 alwaysApply: false
 ---
 
@@ -8,54 +8,31 @@ alwaysApply: false
 
 ## Architecture
 
-The app uses a dual-database architecture:
-- **Web**: Dexie (IndexedDB) - `src/lib/db.ts`
-- **Native (iOS/macOS)**: SQLite - `src/lib/sqlite-db.ts`
-- **Abstraction**: `src/lib/database.ts` - Unified interface
+The app uses SQLite exclusively (Tauri-only, no web/PWA):
+- **Database**: `src/lib/sqlite-db.ts` - SQLite via `@tauri-apps/plugin-sql`
+- **API layer**: `src/lib/database.ts` - All CRUD functions, cache ops, raw SQL access
 - **Validation**: `src/lib/validation.ts` - Schema validation before writes
 - **Sync**: `src/lib/sync.ts` - iCloud sync for Apple platforms
+- **Types**: `src/types/preferences.ts` - UserPreferences, ApiConfigRecord, etc.
 
-## Platform Detection
+## Using the Database API
 
-```typescript
-import { useSqlite } from '@/lib/database';
-
-// Returns true on Tauri (native), false on web
-if (useSqlite()) {
-  // Using SQLite backend
-} else {
-  // Using IndexedDB (Dexie) backend
-}
-```
-
-## Using the Unified API
-
-Always use `src/lib/database.ts` for new code - it routes to the correct backend:
+Always import from `@/lib/database` — never from `sqlite-db.ts` directly:
 
 ```typescript
 import { 
   getChapterAnnotations, 
   saveAnnotation,
   getAllMarkingPresets,
+  getPreferences,
+  updatePreferences,
 } from '@/lib/database';
 
-// Works on both web and native
 const annotations = await getChapterAnnotations(moduleId, book, chapter);
 await saveAnnotation(annotation);
 ```
 
-## Dexie Schema Versioning (Web)
-
-Add new tables by incrementing the version in `db.ts`:
-
-```typescript
-this.version(15).stores({
-  // ... existing tables ...
-  newTable: 'id, indexedField',
-});
-```
-
-## SQLite Schema Updates (Native)
+## SQLite Schema Updates
 
 Update the schema version and migration in `sqlite-db.ts`:
 
@@ -75,30 +52,31 @@ async function migrateSchema(db, fromVersion, toVersion) {
 }
 ```
 
-## Validation Before Writes
+## Raw SQL Access
 
-Always validate data before saving (works with both backends):
+For queries not covered by the API layer:
 
 ```typescript
-import { sanitizeData, ValidationError } from './validation';
+import { sqlSelect, sqlExecute } from '@/lib/database';
 
-export async function saveItem(item: Item): Promise<string> {
-  try {
-    const validated = sanitizeData(item, validateItem);
-    // Use unified API
-    return await saveToDatabase(validated);
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      throw new Error(`Invalid item: ${error.message}`);
-    }
-    throw error;
-  }
-}
+const rows = await sqlSelect<{ id: string; data: string }>(
+  'SELECT id, data FROM annotations WHERE module_id = ?',
+  [moduleId]
+);
 ```
 
-## iCloud Sync (iOS/macOS)
+## Key Tables
 
-The sync module handles iCloud integration:
+| Table | Purpose | Key Indexes |
+|-------|---------|-------------|
+| `annotations` | Highlights, symbols | `module_id`, `type`, `preset_id` |
+| `marking_presets` | Keyword definitions | `word`, `category` |
+| `studies` | Study sessions | `id` |
+| `chapter_cache` | Cached Bible text | `module_id` |
+| `preferences` | User settings | `id` (singleton: 'main') |
+| `backup_files` | Auto-backup metadata | `timestamp` |
+
+## iCloud Sync (iOS/macOS)
 
 ```typescript
 import { 
@@ -107,37 +85,8 @@ import {
   onSyncStatusChange 
 } from '@/lib/sync';
 
-// Check availability
 const status = await checkICloudStatus();
 if (status.available) {
   // iCloud container available at status.container_path
-}
-
-// Subscribe to status changes
-const unsubscribe = onSyncStatusChange((status) => {
-  console.log('Sync state:', status.state);
-});
-```
-
-## Key Tables
-
-| Table | Purpose | Key Indexes |
-|-------|---------|-------------|
-| `annotations` | Highlights, symbols | `moduleId`, `type`, `presetId` |
-| `markingPresets` | Keyword definitions | `word`, `category` |
-| `studies` | Study sessions | `id` |
-| `chapterCache` | Cached Bible text | `moduleId` |
-| `preferences` | User settings | `id` (singleton: 'main') |
-
-## Data Migration
-
-On first native app launch, existing IndexedDB data is migrated to SQLite:
-
-```typescript
-import { needsMigration, migrateIndexedDbToSqlite } from '@/lib/migration';
-
-if (await needsMigration()) {
-  const result = await migrateIndexedDbToSqlite();
-  console.log(`Migrated ${result.recordCount} records`);
 }
 ```

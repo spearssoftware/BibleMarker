@@ -6,43 +6,77 @@
  * protection against database corruption. Uses existing restoreBackup function for recovery.
  */
 
-import Dexie, { type EntityTable } from 'dexie';
-import { exportAllData, getPreferences as getDbPreferences, updatePreferences as updateDbPreferences, type AutoBackupConfig } from './database';
+import { exportAllData, getPreferences as getDbPreferences, updatePreferences as updateDbPreferences, type AutoBackupConfig, sqlSelect, sqlExecute } from './database';
 import { type BackupData } from './backup';
 import { isTauri, isCapacitor } from './platform';
 import type { MultiTranslationView } from '@/types/multiTranslation';
 
-/** Backup file metadata stored in IndexedDB */
+/** Backup file metadata */
 export interface BackupFileMetadata {
   id: string;                // UUID
   filename: string;          // Backup filename
-  filepath?: string;         // Full file path (Tauri/Capacitor) or undefined (web)
+  filepath?: string;         // Full file path (Tauri/Capacitor) or undefined
   timestamp: Date;           // When backup was created
   size: number;              // Backup size in bytes
 }
 
-/** Backup data stored in IndexedDB (for web fallback) */
-interface BackupDataRecord {
-  id: string;
-  data: BackupData;
+// ============================================================================
+// Backup metadata SQLite helpers
+// ============================================================================
+
+async function getBackupMetadata(id: string): Promise<BackupFileMetadata | undefined> {
+  const rows = await sqlSelect<{ id: string; filename: string; filepath: string | null; timestamp: string; size: number }>(
+    `SELECT * FROM backup_files WHERE id = ?`, [id]
+  );
+  if (rows.length === 0) return undefined;
+  const r = rows[0];
+  return { id: r.id, filename: r.filename, filepath: r.filepath ?? undefined, timestamp: new Date(r.timestamp), size: r.size };
 }
 
-/** Metadata database for tracking backup files */
-class BackupMetadataDB extends Dexie {
-  backupFiles!: EntityTable<BackupFileMetadata, 'id'>;
-  backupData!: EntityTable<BackupDataRecord, 'id'>;
-
-  constructor() {
-    super('BibleMarkerBackupMetadata');
-    
-    this.version(1).stores({
-      backupFiles: 'id, timestamp',
-      backupData: 'id',
-    });
-  }
+async function putBackupMetadata(meta: BackupFileMetadata): Promise<void> {
+  await sqlExecute(
+    `INSERT OR REPLACE INTO backup_files (id, filename, filepath, timestamp, size) VALUES (?, ?, ?, ?, ?)`,
+    [meta.id, meta.filename, meta.filepath ?? null, meta.timestamp.toISOString(), meta.size]
+  );
 }
 
-const metadataDb = new BackupMetadataDB();
+async function deleteBackupMetadata(id: string): Promise<void> {
+  await sqlExecute(`DELETE FROM backup_files WHERE id = ?`, [id]);
+}
+
+async function getAllBackupMetadataSorted(): Promise<BackupFileMetadata[]> {
+  const rows = await sqlSelect<{ id: string; filename: string; filepath: string | null; timestamp: string; size: number }>(
+    `SELECT * FROM backup_files ORDER BY timestamp DESC`
+  );
+  return rows.map(r => ({
+    id: r.id, filename: r.filename, filepath: r.filepath ?? undefined, timestamp: new Date(r.timestamp), size: r.size,
+  }));
+}
+
+async function putBackupData(id: string, data: BackupData): Promise<void> {
+  await sqlExecute(
+    `INSERT OR REPLACE INTO backup_data (id, data) VALUES (?, ?)`,
+    [id, JSON.stringify(data)]
+  );
+}
+
+async function getBackupData(id: string): Promise<BackupData | null> {
+  const rows = await sqlSelect<{ data: string }>(`SELECT data FROM backup_data WHERE id = ?`, [id]);
+  if (rows.length === 0) return null;
+  return JSON.parse(rows[0].data) as BackupData;
+}
+
+async function deleteBackupData(id: string): Promise<void> {
+  await sqlExecute(`DELETE FROM backup_data WHERE id = ?`, [id]);
+}
+
+async function clearAllBackupMetadata(): Promise<void> {
+  await sqlExecute(`DELETE FROM backup_files`);
+}
+
+async function clearAllBackupData(): Promise<void> {
+  await sqlExecute(`DELETE FROM backup_data`);
+}
 
 /** Default auto-backup configuration */
 const DEFAULT_CONFIG: AutoBackupConfig = {
@@ -190,17 +224,13 @@ async function saveBackupToFile(backup: BackupData, filename: string): Promise<s
 }
 
 /**
- * Store backup data in IndexedDB as fallback (for web browsers)
+ * Store backup data in database as fallback
  */
-async function storeBackupInIndexedDB(backup: BackupData, metadataId: string): Promise<void> {
+async function storeBackupInDB(backup: BackupData, metadataId: string): Promise<void> {
   try {
-    // Store the actual backup data
-    await metadataDb.backupData.put({
-      id: metadataId,
-      data: backup,
-    });
+    await putBackupData(metadataId, backup);
   } catch (error) {
-    console.error('[AutoBackup] Failed to store backup data in IndexedDB:', error);
+    console.error('[AutoBackup] Failed to store backup data:', error);
     throw error;
   }
 }
@@ -267,10 +297,7 @@ async function createBackupData(): Promise<BackupData> {
  * Rotate backup files - delete oldest backups beyond maxBackups limit
  */
 async function rotateBackups(maxBackups: number): Promise<void> {
-  const allBackups = await metadataDb.backupFiles
-    .orderBy('timestamp')
-    .reverse()
-    .toArray();
+  const allBackups = await getAllBackupMetadataSorted();
 
   if (allBackups.length > maxBackups) {
     const backupsToDelete = allBackups.slice(maxBackups);
@@ -286,10 +313,10 @@ async function rotateBackups(maxBackups: number): Promise<void> {
         }
       }
       
-      // Delete metadata and IndexedDB backup data
-      await metadataDb.backupFiles.delete(backup.id);
+      // Delete metadata and backup data
+      await deleteBackupMetadata(backup.id);
       try {
-        await metadataDb.backupData.delete(backup.id);
+        await deleteBackupData(backup.id);
       } catch {
         // Ignore if doesn't exist
       }
@@ -332,12 +359,12 @@ export async function performBackup(): Promise<BackupFileMetadata | null> {
       size,
     };
 
-    // If file save failed (web browser), store in IndexedDB
+    // If file save failed, store backup data in database
     if (!filepath) {
-      await storeBackupInIndexedDB(backup, metadata.id);
+      await storeBackupInDB(backup, metadata.id);
     }
 
-    await metadataDb.backupFiles.put(metadata);
+    await putBackupMetadata(metadata);
     console.log(`[AutoBackup] Backup created: ${filename} (${(size / 1024).toFixed(2)} KB)`);
 
     // Rotate backups
@@ -355,10 +382,7 @@ export async function performBackup(): Promise<BackupFileMetadata | null> {
  */
 export async function getStoredBackups(): Promise<BackupFileMetadata[]> {
   try {
-    return await metadataDb.backupFiles
-      .orderBy('timestamp')
-      .reverse()
-      .toArray();
+    return await getAllBackupMetadataSorted();
   } catch (error) {
     console.error('[AutoBackup] Failed to read backup metadata:', error);
     return [];
@@ -370,12 +394,12 @@ export async function getStoredBackups(): Promise<BackupFileMetadata[]> {
  */
 export async function getStoredBackup(id: string): Promise<BackupData | null> {
   try {
-    const metadata = await metadataDb.backupFiles.get(id);
+    const metadata = await getBackupMetadata(id);
     if (!metadata) {
       return null;
     }
 
-    // If filepath exists, read from file (Tauri/Capacitor)
+    // If filepath exists, read from file (Tauri)
     if (metadata.filepath && isTauri()) {
       try {
         const { readTextFile } = await import('@tauri-apps/plugin-fs');
@@ -383,16 +407,15 @@ export async function getStoredBackup(id: string): Promise<BackupData | null> {
         return JSON.parse(json) as BackupData;
       } catch (error) {
         console.error('[AutoBackup] Failed to read backup file:', error);
-        // Fall through to IndexedDB
+        // Fall through to database
       }
     }
 
-    // Read from IndexedDB fallback
+    // Read from database fallback
     try {
-      const stored = await metadataDb.backupData.get(id);
-      return stored?.data || null;
+      return await getBackupData(id);
     } catch (error) {
-      console.error('[AutoBackup] Failed to read backup from IndexedDB:', error);
+      console.error('[AutoBackup] Failed to read backup from database:', error);
       return null;
     }
   } catch (error) {
@@ -405,7 +428,7 @@ export async function getStoredBackup(id: string): Promise<BackupData | null> {
  * Delete a stored backup
  */
 export async function deleteStoredBackup(id: string): Promise<void> {
-  const metadata = await metadataDb.backupFiles.get(id);
+  const metadata = await getBackupMetadata(id);
   if (!metadata) {
     return;
   }
@@ -420,10 +443,10 @@ export async function deleteStoredBackup(id: string): Promise<void> {
     }
   }
 
-  // Delete metadata and IndexedDB data
-  await metadataDb.backupFiles.delete(id);
+  // Delete metadata and backup data
+  await deleteBackupMetadata(id);
   try {
-    await metadataDb.backupData.delete(id);
+    await deleteBackupData(id);
   } catch {
     // Ignore if doesn't exist
   }
@@ -433,7 +456,7 @@ export async function deleteStoredBackup(id: string): Promise<void> {
  * Delete all stored backups
  */
 export async function clearAllBackups(): Promise<void> {
-  const backups = await metadataDb.backupFiles.toArray();
+  const backups = await getAllBackupMetadataSorted();
   
   // Delete all files
   for (const backup of backups) {
@@ -448,9 +471,9 @@ export async function clearAllBackups(): Promise<void> {
   }
   
   // Clear metadata and data
-  await metadataDb.backupFiles.clear();
+  await clearAllBackupMetadata();
   try {
-    await metadataDb.backupData.clear();
+    await clearAllBackupData();
   } catch {
     // Ignore if doesn't exist
   }
@@ -461,8 +484,8 @@ export async function clearAllBackups(): Promise<void> {
  */
 export async function getTotalBackupSize(): Promise<number> {
   try {
-    const backups = await metadataDb.backupFiles.toArray();
-    return backups.reduce((total, backup) => total + backup.size, 0);
+    const backups = await getAllBackupMetadataSorted();
+    return backups.reduce((total: number, backup: BackupFileMetadata) => total + backup.size, 0);
   } catch (error) {
     console.error('[AutoBackup] Failed to calculate backup size:', error);
     return 0;

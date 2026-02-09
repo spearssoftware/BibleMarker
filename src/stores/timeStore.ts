@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { TimeExpression } from '@/types/timeExpression';
-import { db, getAllTimeExpressions as dbGetAllTimeExpressions, saveTimeExpression as dbSaveTimeExpression, deleteTimeExpression as dbDeleteTimeExpression } from '@/lib/db';
+import { getAllTimeExpressions as dbGetAllTimeExpressions, saveTimeExpression as dbSaveTimeExpression, deleteTimeExpression as dbDeleteTimeExpression } from '@/lib/database';
 import type { VerseRef } from '@/types/bible';
 import { getBookById } from '@/types/bible';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
@@ -208,13 +208,8 @@ export const useTimeStore = create<TimeState>()(
         const { timeExpressions, createTimeExpression } = get();
         
         // Get cached chapter data
-        const cacheKey = moduleId ? `${moduleId}:${book}:${chapter}` : undefined;
-        const chapterCache = cacheKey 
-          ? await db.chapterCache.get(cacheKey)
-          : await db.chapterCache
-              .where('[book+chapter]')
-              .equals([book, chapter])
-              .first();
+        const { getCachedChapter } = await import('@/lib/database');
+        const chapterCache = await getCachedChapter(moduleId || '', book, chapter);
         
         if (!chapterCache || !chapterCache.verses) {
           return 0;
@@ -256,7 +251,7 @@ export const useTimeStore = create<TimeState>()(
             if (preset.moduleScope && preset.moduleScope !== moduleId) continue;
             
             // Check if keyword appears in this verse
-            const effectiveModuleId = chapterCache.moduleId || moduleId;
+            const effectiveModuleId = moduleId;
             const matches = findKeywordMatches(text, verseRef, [preset], effectiveModuleId);
             if (matches.length === 0) continue;
             
