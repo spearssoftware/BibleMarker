@@ -7,7 +7,7 @@
  */
 
 import Dexie, { type EntityTable } from 'dexie';
-import { exportAllData, getPreferences as getDbPreferences, updatePreferences as updateDbPreferences, type UserPreferences, type AutoBackupConfig } from './database';
+import { exportAllData, getPreferences as getDbPreferences, updatePreferences as updateDbPreferences, type AutoBackupConfig } from './database';
 import { type BackupData } from './backup';
 import { isTauri, isCapacitor } from './platform';
 import type { MultiTranslationView } from '@/types/multiTranslation';
