@@ -869,6 +869,9 @@ export async function clearDatabase(): Promise<void> {
     db.contrasts.clear(),
     db.timeExpressions.clear(),
     db.places.clear(),
+    db.conclusions.clear(),
+    db.interpretations.clear(),
+    db.applications.clear(),
     // Note: modules and moduleFiles tables are deprecated (Sword support removed)
     // but kept in schema for backwards compatibility
   ]);

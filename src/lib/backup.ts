@@ -671,6 +671,15 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
       validatedApplications = valid;
     }
 
+    // --- Create safety backup before clearing database ---
+    try {
+      const { performBackup } = await import('./autoBackup');
+      await performBackup();
+      console.log('[Restore] Safety backup created before restore');
+    } catch (backupError) {
+      console.warn('[Restore] Failed to create safety backup (proceeding with restore):', backupError);
+    }
+
     // --- Clear and import via database abstraction (routes to correct backend) ---
 
     await clearAllDatabases();

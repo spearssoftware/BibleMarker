@@ -873,6 +873,8 @@ const VALID_TABLE_NAMES = new Set([
   'time_expressions',
   'places',
   'conclusions',
+  'interpretations',
+  'applications',
   'preferences',
   'chapter_cache',
 ]);
