@@ -1,13 +1,13 @@
 //! iCloud Integration Module
 //!
 //! Provides access to iCloud container for database sync on macOS/iOS.
-//! Uses Objective-C runtime to call NSFileManager APIs.
+//! Uses objc2 bindings to call NSFileManager APIs.
 
 use serde::{Deserialize, Serialize};
 use tauri::command;
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
-use objc::{msg_send, sel, sel_impl, class};
+use objc2_foundation::{NSFileManager, NSString};
 
 /// iCloud availability status
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,40 +56,43 @@ pub enum SyncState {
 /// falls back to checking the known Mobile Documents path on disk.
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 fn get_icloud_container_url() -> Result<String, String> {
-    use std::ffi::CStr;
-    
-    unsafe {
-        // Get NSFileManager.defaultManager
-        let file_manager: *mut objc::runtime::Object = msg_send![class!(NSFileManager), defaultManager];
-        if file_manager.is_null() {
-            return Err("Failed to get NSFileManager".to_string());
+    use objc2::rc::Retained;
+    use objc2::runtime::AnyObject;
+
+    let file_manager = NSFileManager::defaultManager();
+
+    // Check if iCloud is signed in
+    // ubiquityIdentityToken doesn't have a typed binding, use msg_send!
+    let has_token = unsafe {
+        let token: *mut AnyObject =
+            objc2::msg_send![&file_manager, ubiquityIdentityToken];
+        !token.is_null()
+    };
+
+    // Create container identifier NSString (objc2 handles retain/release)
+    let ns_container_id = NSString::from_str("iCloud.app.biblemarker");
+
+    // Get URL for ubiquity container
+    // URLForUbiquityContainerIdentifier: doesn't have a typed binding, use msg_send!
+    let url: Option<Retained<AnyObject>> = unsafe {
+        objc2::msg_send![
+            &file_manager,
+            URLForUbiquityContainerIdentifier: &*ns_container_id
+        ]
+    };
+
+    match url {
+        Some(url) => {
+            // Get path string from NSURL via [url path]
+            let path: Option<Retained<NSString>> = unsafe {
+                objc2::msg_send![&url, path]
+            };
+            match path {
+                Some(path) => Ok(path.to_string()),
+                None => Err("Failed to get path from iCloud URL".to_string()),
+            }
         }
-        
-        // Check if iCloud is signed in
-        let token: *mut objc::runtime::Object = msg_send![file_manager, ubiquityIdentityToken];
-        let has_token = !token.is_null();
-        
-        // Create container identifier NSString
-        // Note: alloc+init creates an owned object that we must release
-        let container_id = "iCloud.app.biblemarker";
-        let ns_string: *mut objc::runtime::Object = msg_send![class!(NSString), alloc];
-        let container_id_cstr = std::ffi::CString::new(container_id).unwrap();
-        let ns_container_id: *mut objc::runtime::Object = msg_send![
-            ns_string,
-            initWithUTF8String: container_id_cstr.as_ptr()
-        ];
-        
-        // Get URL for ubiquity container
-        // Note: This returns an autoreleased object, no need to release
-        let url: *mut objc::runtime::Object = msg_send![
-            file_manager,
-            URLForUbiquityContainerIdentifier: ns_container_id
-        ];
-        
-        // Release the container ID string now that we're done with it
-        let _: () = msg_send![ns_container_id, release];
-        
-        if url.is_null() {
+        None => {
             // Fallback: the API can return nil for Developer ID builds when Apple's
             // Production iCloud environment hasn't propagated the container yet.
             // Check if the container directory exists on disk (created by a prior
@@ -104,28 +107,11 @@ fn get_icloud_container_url() -> Result<String, String> {
                 });
                 return Ok(fallback_path);
             }
-            
-            return Err(
+
+            Err(
                 "iCloud container not available. Make sure iCloud Drive is enabled and you are signed in.".to_string()
-            );
+            )
         }
-        
-        // Get the path string from URL
-        // Note: This returns an autoreleased object, no need to release
-        let path: *mut objc::runtime::Object = msg_send![url, path];
-        if path.is_null() {
-            return Err("Failed to get path from iCloud URL".to_string());
-        }
-        
-        // Convert NSString to Rust String
-        let utf8: *const i8 = msg_send![path, UTF8String];
-        if utf8.is_null() {
-            return Err("Failed to convert path to UTF8".to_string());
-        }
-        
-        let path_str = CStr::from_ptr(utf8).to_string_lossy().into_owned();
-        
-        Ok(path_str)
     }
 }
 

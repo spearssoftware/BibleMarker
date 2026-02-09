@@ -1616,6 +1616,40 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             <div role="tabpanel" id="settings-tabpanel-help" aria-labelledby="settings-tab-help">
             <div className="space-y-0">
               <div className="p-4">
+                <AboutSection checkForUpdates={checkForUpdates} />
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
+
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-sm font-medium text-scripture-text">Check for updates automatically</div>
+                    <div className="text-xs text-scripture-muted mt-0.5">
+                      Check GitHub once per day for a new release (when this is on)
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleCheckForUpdatesChange(!checkForUpdates)}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-scripture-accent focus:ring-offset-2 ${
+                      checkForUpdates ? 'bg-scripture-accent' : 'bg-scripture-border'
+                    }`}
+                    role="switch"
+                    aria-checked={checkForUpdates}
+                    aria-label="Toggle check for updates automatically"
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        checkForUpdates ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
+
+              <div className="p-4">
                 <GettingStartedSection />
               </div>
 
@@ -1725,40 +1759,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     Debug logs will appear in the browser console (F12 → Console tab). Refresh the page after toggling for changes to take effect.
                   </p>
                 </div>
-              </div>
-
-              <div className="border-t border-scripture-border/30 my-4"></div>
-
-              <div className="p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <div className="text-sm font-medium text-scripture-text">Check for updates automatically</div>
-                    <div className="text-xs text-scripture-muted mt-0.5">
-                      Check GitHub once per day for a new release (when this is on)
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleCheckForUpdatesChange(!checkForUpdates)}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-scripture-accent focus:ring-offset-2 ${
-                      checkForUpdates ? 'bg-scripture-accent' : 'bg-scripture-border'
-                    }`}
-                    role="switch"
-                    aria-checked={checkForUpdates}
-                    aria-label="Toggle check for updates automatically"
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        checkForUpdates ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              <div className="border-t border-scripture-border/30 my-4"></div>
-
-              <div className="p-4">
-                <AboutSection checkForUpdates={checkForUpdates} />
               </div>
             </div>
             </div>

@@ -1,15 +1,13 @@
-# BibleMarker v0.6.8
+# BibleMarker v0.6.9
 
 ## Bug Fixes
 
-- **Fixed backup/export crashing on native app**: The `interpretations` and `applications` tables were missing from the SQLite table name whitelist, causing all manual backups and auto-backups to fail with "Invalid table name" on macOS and Windows.
-- **Fixed incomplete database clear on web restore**: Restoring a backup on web left stale `conclusions`, `interpretations`, and `applications` records because those tables were not cleared before import.
+- **Fixed update link not opening**: Clicking "A new version is available" in Settings did nothing on the desktop app. Added the Tauri opener plugin so external links open in the system browser.
 
 ## Improvements
 
-- **Safety backup before restore**: A safety auto-backup is now created automatically before restoring from a backup file, protecting against data loss if the restore fails partway through.
-- **iCloud restore warning**: When restoring a backup with iCloud Sync enabled, the UI now warns that the restored data will sync to all connected devices.
-- **Reduced iCloud log noise**: The iCloud container fallback message now logs once instead of on every API call.
+- **About section moved to top of Help tab**: Version info and update check are now the first thing you see when opening Settings → Help, making it easier to check which version you're on.
+- **Migrated iCloud FFI to objc2**: Replaced the deprecated `objc` (0.2) crate with `objc2` for safer, memory-managed Objective-C bindings in iCloud sync code.
 
 ---
 
