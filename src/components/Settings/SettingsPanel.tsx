@@ -1263,6 +1263,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                       <div className="mt-3 p-3 bg-scripture-warningBg border border-scripture-warning/30 rounded-lg text-scripture-warningText text-sm">
                         ⚠️ Warning: This will replace all your existing data. This action cannot be undone.
                       </div>
+                      {isICloudAvailable() && (
+                        <div className="mt-2 p-3 bg-scripture-surface border border-scripture-border/50 rounded-lg text-scripture-muted text-sm">
+                          iCloud Sync is enabled — restoring will sync the restored data to all your connected devices.
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

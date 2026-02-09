@@ -97,7 +97,11 @@ fn get_icloud_container_url() -> Result<String, String> {
             let home = std::env::var("HOME").unwrap_or_default();
             let fallback_path = format!("{}/Library/Mobile Documents/iCloud~app~biblemarker", home);
             if std::path::Path::new(&fallback_path).exists() && has_token {
-                eprintln!("[iCloud] API returned nil but container exists on disk, using fallback: {}", fallback_path);
+                use std::sync::Once;
+                static LOG_ONCE: Once = Once::new();
+                LOG_ONCE.call_once(|| {
+                    eprintln!("[iCloud] API returned nil but container exists on disk, using fallback: {}", fallback_path);
+                });
                 return Ok(fallback_path);
             }
             
