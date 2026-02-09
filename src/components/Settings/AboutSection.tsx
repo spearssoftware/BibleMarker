@@ -8,6 +8,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { checkForUpdateIfDue, checkForUpdateNow, type UpdateCheckResult } from '@/lib/updateCheck';
+import { openUrl } from '@/lib/platform';
 
 interface AboutSectionProps {
   /** When false, no automatic update check is run on mount */
@@ -66,14 +67,12 @@ export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true }:
               {updateResult === 'checking' ? (
                 <span className="text-xs text-scripture-muted">Checking for updates…</span>
               ) : updateResult ? (
-                <a
-                  href={updateResult.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => openUrl(updateResult.url)}
                   className="text-xs text-scripture-accent hover:underline"
                 >
                   A new version ({updateResult.version}) is available →
-                </a>
+                </button>
               ) : (
                 <span className="text-xs text-scripture-muted">You're up to date</span>
               )}

@@ -72,3 +72,16 @@ export function isMacOS(): boolean {
 export function isICloudAvailable(): boolean {
   return isTauri() && isApplePlatform();
 }
+
+/**
+ * Open a URL in the system browser.
+ * Uses tauri-plugin-opener in Tauri, falls back to window.open on web.
+ */
+export async function openUrl(url: string): Promise<void> {
+  if (isTauri()) {
+    const { openUrl: tauriOpenUrl } = await import('@tauri-apps/plugin-opener');
+    await tauriOpenUrl(url);
+  } else {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
