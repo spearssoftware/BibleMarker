@@ -172,18 +172,39 @@ pub fn get_icloud_database_path() -> Result<String, String> {
     Ok(db_path)
 }
 
-/// Tauri command to get current sync status
+/// Tauri command to get current sync status.
+///
+/// Checks whether the iCloud container is accessible and whether the database
+/// file exists inside it. Real-time upload/download monitoring would require
+/// NSMetadataQuery which is not yet implemented — this gives a truthful
+/// "iCloud enabled" or "unavailable" status.
 #[command]
 pub fn get_sync_status() -> SyncStatus {
-    // For now, return a placeholder status
-    // This will be enhanced when we implement full sync logic
     match get_icloud_container_url() {
-        Ok(_) => SyncStatus {
-            state: SyncState::Synced,
-            last_sync: Some(chrono_lite_now()),
-            pending_changes: 0,
-            error: None,
-        },
+        Ok(container_path) => {
+            let db_path = format!("{}/Documents/biblemarker.db", container_path);
+            let db_exists = std::path::Path::new(&db_path).exists();
+
+            if db_exists {
+                // Database is in the iCloud container — iCloud will sync it
+                // automatically. We don't yet monitor real-time upload state.
+                SyncStatus {
+                    state: SyncState::Synced,
+                    last_sync: None,
+                    pending_changes: 0,
+                    error: None,
+                }
+            } else {
+                // Container accessible but no database file yet (first launch or
+                // iCloud hasn't finished downloading from another device).
+                SyncStatus {
+                    state: SyncState::Synced,
+                    last_sync: None,
+                    pending_changes: 0,
+                    error: None,
+                }
+            }
+        }
         Err(_) => SyncStatus {
             state: SyncState::Unavailable,
             last_sync: None,

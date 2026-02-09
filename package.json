@@ -15,7 +15,9 @@
     "version:sync": "node scripts/sync-version.js",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "ios:dev": "tauri ios dev",
+    "ios:build": "tauri ios build"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.20",

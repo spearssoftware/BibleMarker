@@ -405,8 +405,13 @@ export function Toolbar() {
         onCancel={() => setShowClearConfirm(false)}
         destructive={true}
       />
-    <div className="fixed bottom-0 left-0 right-0 z-30 
-                    pb-safe-bottom pl-safe-left pr-safe-right"
+    <div className="fixed left-0 right-0 z-30 bg-scripture-surface/80 backdrop-blur-md shadow-lg"
+         style={{
+           bottom: 'var(--keyboard-height, 0px)',
+           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+           paddingLeft: 'env(safe-area-inset-left, 0px)',
+           paddingRight: 'env(safe-area-inset-right, 0px)',
+         }}
          data-marking-toolbar
         onWheel={(e) => e.stopPropagation()}>
       {/* Selection Menu */}
@@ -700,7 +705,7 @@ export function Toolbar() {
       )}
 
       {/* Main toolbar: Key Words | Study | Settings */}
-      <div className="bg-scripture-surface/80 backdrop-blur-md shadow-lg" data-marking-toolbar>
+      <div data-marking-toolbar>
         <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
           {TOOLS.map((tool) => {
             const isActive =

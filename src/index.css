@@ -93,11 +93,21 @@ select:focus-visible {
   * {
     -webkit-tap-highlight-color: transparent;
   }
+
+  /* Prevent iOS Safari auto-zoom on input focus (triggers at <16px).
+     Uses !important to override Tailwind text-sm/text-xs on individual inputs. */
+  @supports (-webkit-touch-callout: none) {
+    input, textarea, select {
+      font-size: 16px !important;
+    }
+  }
   
   html {
     @apply antialiased;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    --keyboard-height: 0px;
+    background-color: var(--scripture-surface);
   }
   
   body {
@@ -130,6 +140,7 @@ select:focus-visible {
   /* Verse content styling - ensure text color is set explicitly */
   .verse-content {
     color: var(--scripture-text);
+    -webkit-touch-callout: none;
   }
 
   /* Verse wrapper - ensure text color inheritance */

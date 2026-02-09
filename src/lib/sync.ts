@@ -363,7 +363,7 @@ export function getSyncStatusMessage(status: SyncStatus): string {
         
         return `Synced ${Math.floor(diffHours / 24)}d ago`;
       }
-      return 'Synced';
+      return 'iCloud enabled';
     case 'syncing':
       return 'Syncing...';
     case 'offline':
