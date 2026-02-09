@@ -1,0 +1,42 @@
+---
+description: "Slash command: Diagnose and fix GitHub CI failures"
+alwaysApply: false
+---
+
+# Fix GitHub CI Errors
+
+When the user asks to fix CI errors, follow these steps:
+
+## 1. Check recent runs
+
+```bash
+gh run list --limit 5
+```
+
+## 2. Get failure details
+
+```bash
+gh run view <run_id> --log-failed
+```
+
+## 3. Fix the issue
+
+- Read the failing file before editing
+- Make the minimal fix
+- Run the same check locally if possible (e.g. `pnpm run lint`, `pnpm test`)
+
+## 4. Push the fix
+
+```bash
+git add <files> && git commit -m "<description of fix>" && git push origin main
+```
+
+## 5. Verify
+
+Wait ~60s, then confirm the new CI run passes:
+
+```bash
+gh run list --limit 3
+```
+
+If still failing, repeat from step 2.

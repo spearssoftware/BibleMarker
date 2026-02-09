@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ObservationList, ObservationItem } from '@/types/list';
-import { db, getAllObservationLists as dbGetAllLists, saveObservationList as dbSaveList, deleteObservationList as dbDeleteList, getMarkingPreset } from '@/lib/db';
+import { getAllObservationLists as dbGetAllLists, saveObservationList as dbSaveList, deleteObservationList as dbDeleteList, getMarkingPreset } from '@/lib/database';
 import type { VerseRef } from '@/types/bible';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { validateObservationList, sanitizeData, ValidationError } from '@/lib/validation';
@@ -238,7 +238,8 @@ export const useListStore = create<ListState>()(
 
         // Get all cached chapters to search through
         // We'll search all modules, but could filter by currentModuleId if needed
-        const allChapters = await db.chapterCache.toArray();
+        const { getAllCachedChapters } = await import('@/lib/database');
+        const allChapters = await getAllCachedChapters();
 
         // Track verses where keyword appears
         const verseMap = new Map<string, { verseRef: VerseRef; text: string; hasMatch: boolean }>();
@@ -370,13 +371,8 @@ export const useListStore = create<ListState>()(
         const { getOrCreateListForKeyword } = get();
         
         // Get cached chapter data
-        const cacheKey = moduleId ? `${moduleId}:${book}:${chapter}` : undefined;
-        const chapterCache = cacheKey 
-          ? await db.chapterCache.get(cacheKey)
-          : await db.chapterCache
-              .where('[book+chapter]')
-              .equals([book, chapter])
-              .first();
+        const { getCachedChapter } = await import('@/lib/database');
+        const chapterCache = await getCachedChapter(moduleId || '', book, chapter);
         
         if (!chapterCache || !chapterCache.verses) {
           return 0;
@@ -409,8 +405,7 @@ export const useListStore = create<ListState>()(
             if (preset.moduleScope && preset.moduleScope !== moduleId) continue;
             
             // Check if keyword appears in this verse
-            // Use chapterCache.moduleId if available, otherwise use provided moduleId
-            const effectiveModuleId = chapterCache.moduleId || moduleId;
+            const effectiveModuleId = moduleId;
             const matches = findKeywordMatches(text, verseRef, [preset], effectiveModuleId);
             if (matches.length === 0) continue;
             

@@ -9,7 +9,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { db } from '@/lib/db';
+import { getCachedChapter } from '@/lib/database';
 import { getBookById } from '@/types/bible';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { SYMBOLS, HIGHLIGHT_COLORS } from '@/types/annotation';
@@ -90,8 +90,7 @@ export function ThemeTracker() {
         // Load cached text for each chapter and find keyword matches
         // This uses the same logic as the UI to find keywords (both manually marked and auto-detected)
         for (let chapter = 1; chapter <= bookInfo.chapters; chapter++) {
-          const cacheKey = `${primaryTranslationId}:${currentBook}:${chapter}`;
-          const cached = await db.chapterCache.get(cacheKey);
+          const cached = await getCachedChapter(primaryTranslationId, currentBook, chapter);
           
           if (cached && cached.verses) {
             // Track which keywords we've found in this chapter (to avoid double-counting)

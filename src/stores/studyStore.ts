@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Study } from '@/types/study';
-import { getAllStudies as dbGetAllStudies, saveStudy as dbSaveStudy, deleteStudy as dbDeleteStudy } from '@/lib/db';
+import { getAllStudies as dbGetAllStudies, saveStudy as dbSaveStudy, deleteStudy as dbDeleteStudy } from '@/lib/database';
 
 interface StudyState {
   // Active study

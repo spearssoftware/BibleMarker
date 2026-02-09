@@ -16,7 +16,7 @@ import type {
   Note,
 } from '@/types/annotation';
 import { DEFAULT_MARKING_PREFERENCES } from '@/types/annotation';
-import { updatePreferences } from '@/lib/db';
+import { updatePreferences } from '@/lib/database';
 
 export interface TextSelection {
   moduleId: string;

@@ -153,11 +153,15 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
     // Include cached chapters if requested (cache is not part of the main data abstraction)
     if (includeCache && !isTauri()) {
       try {
-        const { db: dexieDb } = await import('./db');
-        const cachedChapters = await dexieDb.chapterCache.toArray();
+        const { getAllCachedChapters } = await import('./database');
+        const cachedChapters = await getAllCachedChapters();
         if (cachedChapters.length > 0) {
           backup.data.cachedChapters = cachedChapters.map(ch => ({
-            ...ch,
+            id: ch.id,
+            moduleId: ch.moduleId,
+            book: ch.book,
+            chapter: ch.chapter,
+            verses: ch.verses,
             cachedAt: ch.cachedAt instanceof Date ? ch.cachedAt.toISOString() : new Date(ch.cachedAt).toISOString(),
           }));
         }
@@ -706,12 +710,12 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
     // Restore cached chapters if present (cache is not part of the main abstraction)
     if (backup.data.cachedChapters && backup.data.cachedChapters.length > 0 && !isTauri()) {
       try {
-        const { db: dexieDb } = await import('./db');
-        const chapters = backup.data.cachedChapters.map(ch => ({
-          ...ch,
-          cachedAt: new Date(ch.cachedAt),
-        }));
-        await dexieDb.chapterCache.bulkPut(chapters);
+        const { setCachedChapter } = await import('./database');
+        await Promise.all(
+          backup.data.cachedChapters.map(ch =>
+            setCachedChapter(ch.moduleId, ch.book, ch.chapter, ch.verses)
+          )
+        );
       } catch {
         // Cache restore is non-critical
       }

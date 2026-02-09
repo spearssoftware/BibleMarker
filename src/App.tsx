@@ -16,7 +16,7 @@ import { Toolbar } from '@/components/MarkingToolbar';
 import { ErrorDisplay } from '@/components/ErrorDisplay';
 import { WelcomeScreen, OnboardingTour } from '@/components/Onboarding';
 import { loadSampleData } from '@/lib/sampleData';
-import { getPreferences } from '@/lib/db';
+import { getPreferences, initDatabase } from '@/lib/database';
 import { loadApiConfigs } from '@/lib/bible-api';
 import { initTheme } from '@/lib/theme';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -57,6 +57,8 @@ export default function App() {
   useEffect(() => {
     async function loadPrefs() {
       try {
+        // Ensure database is initialized (schema migrations) before any queries
+        await initDatabase();
         const prefs = await getPreferences();
         if (prefs.fontSize) {
           setFontSize(prefs.fontSize);
@@ -216,12 +218,11 @@ export default function App() {
 
 // Load chapter from cache or Bible API
 async function loadChapter(moduleId: string, book: string, chapter: number) {
-  const { db } = await import('@/lib/db');
+  const { getCachedChapter } = await import('@/lib/database');
   const { fetchChapter } = await import('@/lib/bible-api');
   
   // Check cache first
-  const cacheKey = `${moduleId}:${book}:${chapter}`;
-  const cached = await db.chapterCache.get(cacheKey);
+  const cached = await getCachedChapter(moduleId, book, chapter);
   
   if (cached) {
     return {

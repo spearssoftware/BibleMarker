@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Contrast } from '@/types/contrast';
-import { getAllContrasts as dbGetAllContrasts, saveContrast as dbSaveContrast, deleteContrast as dbDeleteContrast } from '@/lib/db';
+import { getAllContrasts as dbGetAllContrasts, saveContrast as dbSaveContrast, deleteContrast as dbDeleteContrast } from '@/lib/database';
 import type { VerseRef } from '@/types/bible';
 
 interface ContrastState {

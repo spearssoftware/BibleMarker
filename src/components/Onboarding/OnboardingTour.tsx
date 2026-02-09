@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { updatePreferences, getPreferences } from '@/lib/db';
+import { updatePreferences, getPreferences } from '@/lib/database';
 
 interface TourStep {
   id: string;

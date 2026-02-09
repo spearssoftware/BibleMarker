@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { getBookById } from '@/types/bible';
 import { getAllTranslations, type ApiTranslation } from '@/lib/bible-api';
-import { getPreferences, db } from '@/lib/db';
+import { getPreferences } from '@/lib/database';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { Search } from '@/components/Search';
 import { TranslationPicker, UnifiedPicker } from './pickers';
@@ -390,7 +390,8 @@ export function NavigationBar() {
                   const recent = prefs.recentTranslations || [];
                   // Remove if already exists, then add to front
                   const updatedRecent = [translationId, ...recent.filter(id => id !== translationId)].slice(0, 10);
-                  await db.preferences.update('main', { recentTranslations: updatedRecent });
+                  const { updatePreferences } = await import('@/lib/database');
+                  await updatePreferences({ recentTranslations: updatedRecent });
                 } catch (error) {
                   console.error('Failed to update recent translations:', error);
                 }

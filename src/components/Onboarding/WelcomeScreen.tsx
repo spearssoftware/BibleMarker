@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react';
-import { updatePreferences, getPreferences } from '@/lib/db';
+import { updatePreferences, getPreferences } from '@/lib/database';
 
 interface WelcomeScreenProps {
   onComplete: () => void;

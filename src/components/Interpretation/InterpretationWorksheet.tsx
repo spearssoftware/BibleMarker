@@ -13,7 +13,7 @@ import { formatVerseRef } from '@/types/bible';
 import type { InterpretationEntry } from '@/types/interpretation';
 import type { VerseRef } from '@/types/bible';
 import { Textarea, ConfirmationDialog, DropdownSelect } from '@/components/shared';
-import { getChapterAnnotations } from '@/lib/db';
+import { getChapterAnnotations } from '@/lib/database';
 
 interface InterpretationWorksheetProps {
   selectedText?: string;

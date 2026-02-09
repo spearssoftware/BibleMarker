@@ -5,7 +5,16 @@
  * Organizes data by book and chapter for easy reading.
  */
 
-import { db } from './db';
+import {
+  getAllFiveWAndH,
+  getAllContrasts,
+  getAllTimeExpressions,
+  getAllPlaces,
+  getAllConclusions,
+  getAllObservationLists,
+  getAllInterpretations,
+  getAllApplications,
+} from './database';
 import type { FiveWAndHEntry } from '@/types/observation';
 import type { Contrast } from '@/types/contrast';
 import type { TimeExpression } from '@/types/timeExpression';
@@ -267,14 +276,14 @@ export async function exportStudyDataAsMarkdown(): Promise<string> {
     interpretations,
     applications,
   ] = await Promise.all([
-    db.fiveWAndH.toArray(),
-    db.contrasts.toArray(),
-    db.timeExpressions.toArray(),
-    db.places.toArray(),
-    db.conclusions.toArray(),
-    db.observationLists.toArray(),
-    db.interpretations.toArray(),
-    db.applications.toArray(),
+    getAllFiveWAndH(),
+    getAllContrasts(),
+    getAllTimeExpressions(),
+    getAllPlaces(),
+    getAllConclusions(),
+    getAllObservationLists(),
+    getAllInterpretations(),
+    getAllApplications(),
   ]);
 
   // Group entries by book and chapter

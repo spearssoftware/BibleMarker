@@ -2,3 +2,4 @@
 export * from './annotation';
 export * from './bible';
 export * from './keyWord';
+export * from './preferences';
