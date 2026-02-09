@@ -175,3 +175,79 @@ jobs:
           files: BibleMarker-macos-${{ matrix.tauri_target == 'aarch64-apple-darwin' && 'aarch64' || 'x64' }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-ios:
+    needs: prepare
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        continue-on-error: true
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Import Apple Developer Certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$APPLE_CERTIFICATE" | base64 --decode -o certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
+      - name: Initialize iOS project
+        run: pnpm tauri ios init
+        env:
+          CI: true
+
+      - name: Build iOS app
+        run: pnpm tauri ios build --export-method app-store-connect
+        env:
+          CI: true
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BibleMarker-iOS
+          path: src-tauri/gen/apple/build/**/*.ipa
+          if-no-files-found: warn
+
+      # Optional: Upload to TestFlight (requires APP_STORE_CONNECT_API_KEY secret)
+      # - name: Upload to TestFlight
+      #   if: secrets.APP_STORE_CONNECT_API_KEY != ''
+      #   run: |
+      #     xcrun altool --upload-app \
+      #       --type ios \
+      #       --file $(find src-tauri/gen/apple/build -name "*.ipa" | head -1) \
+      #       --apiKey "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
+      #       --apiIssuer "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"

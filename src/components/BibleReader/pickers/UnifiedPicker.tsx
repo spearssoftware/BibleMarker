@@ -96,10 +96,11 @@ export function UnifiedPicker({
     handleEscape: true,
   });
 
-  // Focus search input on mount
+  // Focus search input on mount (skip on iOS to avoid keyboard/zoom)
   useEffect(() => {
     if (step === 'book' && searchInputRef.current) {
-      // Small delay to ensure the component is rendered
+      const isTouch = 'ontouchstart' in window;
+      if (isTouch) return; // Don't auto-focus on touch devices
       const timer = setTimeout(() => {
         searchInputRef.current?.focus();
       }, 100);
@@ -270,7 +271,7 @@ export function UnifiedPicker({
                     <button
                       key={book.id}
                       onClick={() => handleBookSelect(book.id)}
-                      className={`px-2 py-2 text-xs font-ui rounded-lg transition-all duration-200
+                      className={`px-2 py-2 text-sm font-ui rounded-lg transition-all duration-200
                                 ${book.id === currentBook
                                   ? 'bg-scripture-accent text-scripture-bg shadow-sm'
                                   : 'bg-scripture-elevated hover:bg-scripture-border/50'}`}
@@ -294,7 +295,7 @@ export function UnifiedPicker({
                     <button
                       key={book.id}
                       onClick={() => handleBookSelect(book.id)}
-                      className={`px-2 py-2 text-xs font-ui rounded-lg transition-all duration-200
+                      className={`px-2 py-2 text-sm font-ui rounded-lg transition-all duration-200
                                 ${book.id === currentBook
                                   ? 'bg-scripture-accent text-scripture-bg shadow-sm'
                                   : 'bg-scripture-elevated hover:bg-scripture-border/50'}`}

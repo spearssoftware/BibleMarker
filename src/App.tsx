@@ -20,6 +20,7 @@ import { getPreferences } from '@/lib/db';
 import { loadApiConfigs } from '@/lib/bible-api';
 import { initTheme } from '@/lib/theme';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useVirtualKeyboard } from '@/hooks/useVirtualKeyboard';
 import { autoBackupService } from '@/lib/autoBackup';
 import { getDebugFlags } from '@/lib/debug';
 import { isICloudAvailable } from '@/lib/platform';
@@ -48,6 +49,9 @@ export default function App() {
   useKeyboardShortcuts({
     enabled: true,
   });
+
+  // Handle iOS virtual keyboard avoidance
+  useVirtualKeyboard();
 
   // Load preferences and initialize stores on mount
   useEffect(() => {
