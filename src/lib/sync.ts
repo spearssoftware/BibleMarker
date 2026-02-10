@@ -115,9 +115,12 @@ export async function initializeSync(): Promise<void> {
   // Initialize the sync engine (loads saved config)
   await initSyncEngine();
 
-  // If sync isn't configured yet and we're on Apple, auto-configure with iCloud
+  // If sync isn't configured yet (or folder went missing) and we're on Apple,
+  // (re-)configure with iCloud. On iOS, the iCloud container may not be locally
+  // materialized until URLForUbiquityContainerIdentifier is called, so
+  // initSyncEngine's exists() check can return false on subsequent launches.
   const status = getSyncEngineStatus();
-  if (status.state === 'disabled' && isApplePlatform()) {
+  if ((status.state === 'disabled' || status.state === 'no-folder') && isApplePlatform()) {
     try {
       const icloudSyncPath = await invoke<string>('get_sync_folder_path');
       console.log('[Sync] Auto-configuring iCloud sync folder:', icloudSyncPath);
