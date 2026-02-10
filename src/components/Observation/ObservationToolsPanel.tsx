@@ -356,21 +356,8 @@ export function ObservationToolsPanel({
         destructive={true}
       />
       <div className="flex-1 min-h-0 flex flex-col relative" role="dialog" aria-label="Observation Tools" aria-modal="true">
-      {/* Close button - compact floating in top-right */}
-      <button
-        onClick={onClose}
-        className="absolute top-1 right-1 z-10 w-6 h-6 flex items-center justify-center
-                   bg-scripture-surface rounded-full shadow-sm border border-scripture-border/50
-                   text-scripture-muted hover:text-scripture-text hover:bg-scripture-elevated transition-colors"
-        aria-label="Close observation tools"
-      >
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-
-      {/* Tabs and Filter - pr-12 reserves space for the close X button */}
-      <div className="pl-4 pr-12 py-2 flex-shrink-0" role="tablist" aria-label="Observation tools sections">
+      {/* Tabs and Filter */}
+      <div className="px-4 py-2 flex-shrink-0" role="tablist" aria-label="Observation tools sections">
         <div className="flex items-center justify-between gap-2 sm:gap-4 mb-2">
           <div className="flex gap-1 sm:gap-2 overflow-x-auto flex-1">
             {tabs.map((tab) => (

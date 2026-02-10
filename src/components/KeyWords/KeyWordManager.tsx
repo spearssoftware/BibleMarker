@@ -230,24 +230,9 @@ export function KeyWordManager({ onClose, initialWord, initialSymbol, initialCol
       aria-label="Key Word Manager"
       aria-modal="true"
     >
-      {/* Close button - compact floating in top-right */}
-      {onClose && (
-        <button
-          onClick={onClose}
-          className="absolute top-1 right-1 z-10 w-6 h-6 flex items-center justify-center
-                     bg-scripture-surface rounded-full shadow-sm border border-scripture-border/50
-                     text-scripture-muted hover:text-scripture-text hover:bg-scripture-elevated transition-colors"
-          aria-label="Close key word manager"
-        >
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      )}
-
       {/* Search + New button: always visible when viewing the list */}
       {!(isCreating || editingId) && (
-        <div className="px-4 py-2 pr-10 border-b border-scripture-border/50 flex-shrink-0">
+        <div className="px-4 py-2 border-b border-scripture-border/50 flex-shrink-0">
           <div className="flex items-center gap-2">
             <Button variant="primary" size="sm" onClick={handleCreate}>
               + New
@@ -788,6 +773,7 @@ function KeyWordEditor({
               />
             ))}
             <Button
+              type="button"
               variant="secondary"
               fullWidth
               onClick={() => setVariants([...variants, { text: '' }])}
