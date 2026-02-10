@@ -4,8 +4,7 @@ use tauri::{
 };
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-    Builder::new("mobile")
-        .build()
+    Builder::new("mobile").build()
 }
 
 #[tauri::mobile_entry_point]
