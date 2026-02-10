@@ -37,11 +37,31 @@ git commit -m "Release vX.Y.Z: <brief description>"
 git push origin main && git tag app-vX.Y.Z && git push origin app-vX.Y.Z
 ```
 
+## Retagging an Existing Version
+
+When deleting and recreating a tag (e.g., to fix a CI issue):
+
+1. **Combine release notes** — don't replace the original notes with just the fix. The new RELEASE_NOTES.md must include the original release content PLUS any additional changes.
+2. Check git log between the previous version's tag and HEAD to ensure nothing is missed.
+3. If the only new commits are CI/internal fixes (no user-facing changes), keep the original notes as-is — no update needed.
+4. If there are new user-facing changes, append them to the appropriate section (Features, Bug Fixes, Improvements).
+
+```bash
+# Example: retag after a fix
+gh release delete app-vX.Y.Z --yes
+git push origin :refs/tags/app-vX.Y.Z
+git tag -d app-vX.Y.Z
+# Update RELEASE_NOTES.md if needed (combine, don't replace)
+git tag app-vX.Y.Z
+git push origin app-vX.Y.Z
+```
+
 ## DO NOT
 - Push a tag without updating release notes content
 - Copy the same release notes from previous version
 - Skip describing what changed in this release
 - Include notes from previous versions in RELEASE_NOTES.md (the workflow uses `--notes-file RELEASE_NOTES.md` so the entire file becomes the GitHub release body)
+- When retagging, replace the original release notes with only the fix notes — always combine
 
 ## Tag Format
 - Use `app-v<version>` format (e.g., `app-v0.6.4`)

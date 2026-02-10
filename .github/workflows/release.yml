@@ -178,7 +178,7 @@ jobs:
 
   build-ios:
     needs: prepare
-    runs-on: macos-latest
+    runs-on: macos-26
     permissions:
       contents: write
     steps:
@@ -209,6 +209,9 @@ jobs:
 
       - name: Install frontend dependencies
         run: pnpm install
+
+      - name: Generate icons
+        run: pnpm tauri icon public/icon.svg
 
       - name: Set up App Store Connect API key
         env:
