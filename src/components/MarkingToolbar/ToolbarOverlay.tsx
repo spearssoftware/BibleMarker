@@ -13,6 +13,7 @@ import { Z_INDEX } from '@/lib/modalConstants';
 
 interface ToolbarOverlayProps {
   children: ReactNode;
+  onClose?: () => void;
 }
 
 const MIN_HEIGHT_VH = 20; // Minimum 20% of viewport
@@ -63,7 +64,7 @@ function _resetOverlayHeight() {
   setSharedHeight(DEFAULT_HEIGHT_VH);
 }
 
-export function ToolbarOverlay({ children }: ToolbarOverlayProps) {
+export function ToolbarOverlay({ children, onClose }: ToolbarOverlayProps) {
   // Use shared height state so all overlays respond together
   const heightVh = useSyncExternalStore(subscribeToHeight, getHeightSnapshot, getServerSnapshot);
   
@@ -208,6 +209,21 @@ export function ToolbarOverlay({ children }: ToolbarOverlayProps) {
           style={{ touchAction: 'none' }}
         >
           <div className={`w-12 h-1.5 rounded-full transition-colors ${isDragging ? 'bg-scripture-accent' : 'bg-scripture-muted/50'}`} />
+          {onClose && (
+            <button
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); onClose(); }}
+              className="absolute right-2 w-6 h-6 flex items-center justify-center rounded-full
+                         text-scripture-muted hover:text-scripture-text hover:bg-scripture-elevated/50 transition-colors"
+              aria-label="Close panel"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
         {children}
       </div>

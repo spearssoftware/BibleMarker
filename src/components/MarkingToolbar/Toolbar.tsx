@@ -520,7 +520,7 @@ export function Toolbar() {
 
       {/* Combined Annotate overlay (Color and Symbol) */}
       {showPickerOverlay && (isColorActive || activeTool === 'symbol') && (
-        <ToolbarOverlay>
+        <ToolbarOverlay onClose={() => { setShowPickerOverlay(false); setShowColorPicker(false); setShowSymbolPicker(false); }}>
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             {/* Tab selector - more prominent */}
             <div className="p-4 flex-shrink-0 border-b border-scripture-border/50 bg-scripture-elevated/30">
@@ -619,7 +619,7 @@ export function Toolbar() {
 
       {/* Settings Panel */}
       {showSettingsPanel && (
-        <ToolbarOverlay>
+        <ToolbarOverlay onClose={() => setShowSettingsPanel(false)}>
           <SettingsPanel onClose={() => setShowSettingsPanel(false)} />
         </ToolbarOverlay>
       )}
@@ -627,7 +627,12 @@ export function Toolbar() {
 
       {/* Observation Tools Panel */}
       {showObservationToolsPanel && (
-        <ToolbarOverlay>
+        <ToolbarOverlay onClose={() => {
+          setShowObservationToolsPanel(false);
+          setObservationPanelInitialTab('lists');
+          setObservationPanelInitialListId(undefined);
+          clearSelection();
+        }}>
           <ObservationToolsPanel 
             onClose={() => {
               setShowObservationToolsPanel(false);
@@ -649,7 +654,7 @@ export function Toolbar() {
 
       {/* Study Tools Panel */}
       {showStudyToolsPanel && (
-        <ToolbarOverlay>
+        <ToolbarOverlay onClose={() => { setShowStudyToolsPanel(false); clearSelection(); }}>
           <StudyToolsPanel 
             onClose={() => {
               setShowStudyToolsPanel(false);
@@ -682,7 +687,7 @@ export function Toolbar() {
 
       {/* Key Words - bottom overlay (unified with Color / Symbol) */}
       {showKeyWordManager && (
-        <ToolbarOverlay>
+        <ToolbarOverlay onClose={() => setShowKeyWordManager(false)}>
           <KeyWordManager 
             onClose={() => setShowKeyWordManager(false)} 
             initialWord={selection?.text?.trim() || undefined}
