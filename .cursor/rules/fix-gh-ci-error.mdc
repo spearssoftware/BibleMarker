@@ -3,40 +3,31 @@ description: "Slash command: Diagnose and fix GitHub CI failures"
 alwaysApply: false
 ---
 
-# Fix GitHub CI Errors
+# Fix GitHub CI Errors — BibleMarker
 
-When the user asks to fix CI errors, follow these steps:
+Extends the user-level `fix-gh-ci-error` rule with project-specific details.
 
-## 1. Check recent runs
+## Workflows
 
-```bash
-gh run list --limit 5
-```
+| Workflow | Trigger | Jobs |
+|----------|---------|------|
+| `ci` | push/PR to main | lint (`pnpm run lint`), test (`pnpm test`) |
+| `publish` | tag `app-v*` | Tauri builds (macOS, Linux, Windows, iOS) |
+| `security` | push/PR to main | semgrep static analysis |
 
-## 2. Get failure details
+## Local reproduction
 
-```bash
-gh run view <run_id> --log-failed
-```
+| CI step | Local command |
+|---------|---------------|
+| Lint | `pnpm run lint` |
+| Test | `pnpm test` |
+| Tauri build | `unset CI && pnpm tauri build` |
+| Semgrep | `pip install semgrep && semgrep scan --config auto --severity ERROR` |
 
-## 3. Fix the issue
+**Important**: Always `unset CI` before Tauri commands — see `local-builds` rule.
 
-- Read the failing file before editing
-- Make the minimal fix
-- Run the same check locally if possible (e.g. `pnpm run lint`, `pnpm test`)
+## Release build gotchas
 
-## 4. Push the fix
-
-```bash
-git add <files> && git commit -m "<description of fix>" && git push origin main
-```
-
-## 5. Verify
-
-Wait ~60s, then confirm the new CI run passes:
-
-```bash
-gh run list --limit 3
-```
-
-If still failing, repeat from step 2.
+- macOS builds require Apple signing certs (secrets-only, can't reproduce locally without certs)
+- iOS build uses `CI: true` explicitly in the workflow (this is correct for Tauri iOS)
+- Icon generation runs `pnpm tauri icon public/icon.svg` during release — ensure `public/icon.svg` exists

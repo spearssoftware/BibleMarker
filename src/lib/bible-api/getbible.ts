@@ -186,12 +186,9 @@ class GetBibleClient implements BibleApiClient {
 
   async getTranslations(): Promise<ApiTranslation[]> {
     // Check cache first - refresh once per day
-    const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
-    
     try {
       const cachedTranslations = await getCachedTranslations();
       if (cachedTranslations) {
-        // Note: getCachedTranslations doesn't return cachedAt, so we can't check age
         // For now, we'll use the cache if it exists. The database module handles TTL internally.
         const translations: GetBibleTranslation[] = Array.isArray(cachedTranslations)
           ? (cachedTranslations as GetBibleTranslation[])

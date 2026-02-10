@@ -719,7 +719,7 @@ export async function searchBible(
  */
 export async function loadApiConfigs(): Promise<void> {
   try {
-    let prefs = await getPreferences();
+    const prefs = await getPreferences();
 
     if (prefs?.apiConfigs) {
       for (const configRecord of prefs.apiConfigs) {
