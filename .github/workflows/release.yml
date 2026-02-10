@@ -226,6 +226,9 @@ jobs:
         env:
           CI: true
 
+      - name: Raise iOS deployment target to 16.0
+        run: sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 14.0/IPHONEOS_DEPLOYMENT_TARGET = 17.0/g' src-tauri/gen/apple/biblemarker.xcodeproj/project.pbxproj
+
       - name: Build iOS app
         run: pnpm tauri ios build --export-method app-store-connect
         env:
