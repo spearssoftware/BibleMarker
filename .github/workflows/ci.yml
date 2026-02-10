@@ -22,5 +22,36 @@ jobs:
         run: pnpm install
       - name: Lint
         run: pnpm run lint
+      - name: Type check
+        run: pnpm tsc --noEmit
       - name: Test
         run: pnpm test
+      - name: Build
+        run: pnpm build
+
+  rust-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        continue-on-error: true
+        with:
+          workspaces: "./src-tauri -> target"
+      - name: Check
+        run: cargo check
+        working-directory: src-tauri
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+        working-directory: src-tauri
+      - name: Format
+        run: cargo fmt --check
+        working-directory: src-tauri
