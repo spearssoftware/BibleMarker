@@ -1,14 +1,16 @@
-# BibleMarker v0.7.1
+# BibleMarker v0.7.2
 
 ## Bug Fixes
 
-- **Fixed iCloud sync "folder not found" on iOS**: On app relaunch, the iCloud container may not be locally materialized until the native API is called. The sync engine now re-triggers container materialization when the saved folder path isn't found, instead of giving up.
+- **Fixed iCloud sync not activating on iOS first launch**: The iCloud container may not be materialized when the app first calls the native API. Sync now retries at 3s and 10s delays, giving the OS time to set up the container.
+- **Fixed "Sync folder not found" on iOS relaunch**: When iCloud evicts the local sync folder between launches, the app now re-creates it instead of showing an error.
+- **Fixed translations not loading on first launch (iOS)**: Removed the legacy iCloud database migration check that blocked database initialization with a slow iCloud API call on startup.
 
 ## Improvements
 
-- **iOS CI**: Updated to macOS 26 runner with Xcode 26 / iOS 26 SDK, added icon generation step.
-- **iOS minimum version raised to 17.0**: Resolves Xcode 26 Swift compatibility linker errors. Drops support for iOS 16 and earlier (~88% of active devices are on iOS 17+).
-- **CI hardening**: Added TypeScript type checking, Vite build verification, Rust checks (cargo check, clippy, fmt), and dependency auditing.
+- **Default translation is now KJV**: New installs and the settings dropdown default to KJV instead of "None (no default)".
+- **Overlay close button and toolbar fixes**: Unified close button on drag bar, fixed toolbar overlay background.
+- **Removed single-translation width cap**: Better use of screen space when viewing one translation.
 
 ---
 
