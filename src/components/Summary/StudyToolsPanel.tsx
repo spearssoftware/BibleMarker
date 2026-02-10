@@ -19,7 +19,7 @@ interface StudyToolsPanelProps {
   initialTab?: StudyToolTab;
 }
 
-export function StudyToolsPanel({ onClose, initialTab = 'book' }: StudyToolsPanelProps) {
+export function StudyToolsPanel({ onClose: _onClose, initialTab = 'book' }: StudyToolsPanelProps) {
   const [activeTab, setActiveTab] = useState<StudyToolTab>(initialTab);
   const { studies, activeStudyId, loadStudies, createStudy, updateStudy, deleteStudy, setActiveStudy } = useStudyStore();
   
