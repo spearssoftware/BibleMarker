@@ -178,12 +178,15 @@ jobs:
 
   build-ios:
     needs: prepare
-    runs-on: macos-26
+    runs-on: macos-15
     permissions:
       contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Select Xcode 26.2
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -226,7 +229,7 @@ jobs:
         env:
           CI: true
 
-      - name: Raise iOS deployment target to 16.0
+      - name: Raise iOS deployment target to 17.0
         run: sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 14.0/IPHONEOS_DEPLOYMENT_TARGET = 17.0/g' src-tauri/gen/apple/biblemarker.xcodeproj/project.pbxproj
 
       - name: Build iOS app

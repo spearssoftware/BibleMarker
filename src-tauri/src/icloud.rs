@@ -44,8 +44,7 @@ fn get_icloud_container_url() -> Result<String, String> {
     let file_manager = NSFileManager::defaultManager();
 
     let has_token = unsafe {
-        let token: *mut AnyObject =
-            objc2::msg_send![&file_manager, ubiquityIdentityToken];
+        let token: *mut AnyObject = objc2::msg_send![&file_manager, ubiquityIdentityToken];
         !token.is_null()
     };
 
@@ -60,9 +59,7 @@ fn get_icloud_container_url() -> Result<String, String> {
 
     match url {
         Some(url) => {
-            let path: Option<Retained<NSString>> = unsafe {
-                objc2::msg_send![&url, path]
-            };
+            let path: Option<Retained<NSString>> = unsafe { objc2::msg_send![&url, path] };
             match path {
                 Some(path) => Ok(path.to_string()),
                 None => Err("Failed to get path from iCloud URL".to_string()),
@@ -100,7 +97,7 @@ pub fn check_icloud_status() -> ICloudStatus {
     std::thread::spawn(move || {
         let _ = tx.send(get_icloud_container_url());
     });
-    
+
     match rx.recv_timeout(std::time::Duration::from_secs(10)) {
         Ok(Ok(path)) => ICloudStatus {
             available: true,
@@ -129,14 +126,15 @@ pub fn get_sync_folder_path() -> Result<String, String> {
     std::thread::spawn(move || {
         let _ = tx.send(get_icloud_container_url());
     });
-    let container_path = rx.recv_timeout(std::time::Duration::from_secs(10))
+    let container_path = rx
+        .recv_timeout(std::time::Duration::from_secs(10))
         .map_err(|_| "iCloud path check timed out".to_string())??;
-    
+
     let sync_path = format!("{}/Documents/sync", container_path);
-    
+
     std::fs::create_dir_all(&sync_path)
         .map_err(|e| format!("Failed to create sync folder: {}", e))?;
-    
+
     Ok(sync_path)
 }
 
@@ -149,17 +147,19 @@ pub fn get_sync_folder_path() -> Result<String, String> {
 #[command]
 pub fn migrate_from_icloud(app_handle: tauri::AppHandle) -> MigrationResult {
     use tauri::Manager;
-    
+
     let app_data = match app_handle.path().app_data_dir() {
         Ok(p) => p,
-        Err(e) => return MigrationResult {
-            migrated: false,
-            message: format!("Cannot determine app data dir: {}", e),
-        },
+        Err(e) => {
+            return MigrationResult {
+                migrated: false,
+                message: format!("Cannot determine app data dir: {}", e),
+            }
+        }
     };
-    
+
     let local_db = app_data.join("biblemarker.db");
-    
+
     // If local DB already exists and has content, skip migration
     if local_db.exists() {
         if let Ok(meta) = std::fs::metadata(&local_db) {
@@ -171,25 +171,27 @@ pub fn migrate_from_icloud(app_handle: tauri::AppHandle) -> MigrationResult {
             }
         }
     }
-    
+
     // Try to find the old iCloud database
     let container_path = match get_icloud_container_url() {
         Ok(p) => p,
-        Err(e) => return MigrationResult {
-            migrated: false,
-            message: format!("iCloud unavailable: {}", e),
-        },
+        Err(e) => {
+            return MigrationResult {
+                migrated: false,
+                message: format!("iCloud unavailable: {}", e),
+            }
+        }
     };
-    
+
     let icloud_db = std::path::PathBuf::from(&container_path).join("Documents/biblemarker.db");
-    
+
     if !icloud_db.exists() {
         return MigrationResult {
             migrated: false,
             message: "No iCloud database found to migrate".into(),
         };
     }
-    
+
     // Ensure local directory exists
     if let Err(e) = std::fs::create_dir_all(&app_data) {
         return MigrationResult {
@@ -197,7 +199,7 @@ pub fn migrate_from_icloud(app_handle: tauri::AppHandle) -> MigrationResult {
             message: format!("Failed to create app data dir: {}", e),
         };
     }
-    
+
     // Copy only the main .db file — do NOT copy WAL/SHM files.
     // iCloud syncs WAL/SHM independently from the main DB, which causes corruption.
     if let Err(e) = std::fs::copy(&icloud_db, &local_db) {
@@ -206,11 +208,13 @@ pub fn migrate_from_icloud(app_handle: tauri::AppHandle) -> MigrationResult {
             message: format!("Failed to copy database: {}", e),
         };
     }
-    
+
     // Verify the copied database isn't corrupt
     match rusqlite::Connection::open(&local_db) {
         Ok(conn) => {
-            match conn.query_row("PRAGMA integrity_check(1)", [], |row| row.get::<_, String>(0)) {
+            match conn.query_row("PRAGMA integrity_check(1)", [], |row| {
+                row.get::<_, String>(0)
+            }) {
                 Ok(ref status) if status == "ok" => {
                     eprintln!(
                         "[iCloud] Migrated database from {} to {} (integrity: ok)",
@@ -237,7 +241,10 @@ pub fn migrate_from_icloud(app_handle: tauri::AppHandle) -> MigrationResult {
                     let _ = std::fs::remove_file(&local_db);
                     MigrationResult {
                         migrated: false,
-                        message: format!("iCloud database integrity check failed ({}), starting fresh", e),
+                        message: format!(
+                            "iCloud database integrity check failed ({}), starting fresh",
+                            e
+                        ),
                     }
                 }
             }
@@ -258,28 +265,30 @@ pub fn migrate_from_icloud(app_handle: tauri::AppHandle) -> MigrationResult {
 #[command]
 pub fn delete_local_database(app_handle: tauri::AppHandle) -> Result<String, String> {
     use tauri::Manager;
-    
-    let app_data = app_handle.path().app_data_dir()
+
+    let app_data = app_handle
+        .path()
+        .app_data_dir()
         .map_err(|e| format!("Cannot determine app data dir: {}", e))?;
-    
+
     let db_file = app_data.join("biblemarker.db");
     let wal_file = app_data.join("biblemarker.db-wal");
     let shm_file = app_data.join("biblemarker.db-shm");
-    
+
     for f in [&db_file, &wal_file, &shm_file] {
         if f.exists() {
             std::fs::remove_file(f)
                 .map_err(|e| format!("Failed to delete {}: {}", f.display(), e))?;
         }
     }
-    
+
     Ok("Local database deleted".into())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_icloud_status_serialization() {
         let status = ICloudStatus {
@@ -291,7 +300,7 @@ mod tests {
         assert!(json.contains("available"));
         assert!(json.contains("/path/to/container"));
     }
-    
+
     #[test]
     fn test_migration_result_serialization() {
         let result = MigrationResult {
