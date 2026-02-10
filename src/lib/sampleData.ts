@@ -5,7 +5,7 @@
  * This is public domain WEB (World English Bible) text.
  */
 
-import { getCachedChapter, setCachedChapter, sqlExecute } from './database';
+import { getCachedChapter, setCachedChapter } from './database';
 
 // World English Bible - John 1 (Public Domain)
 const JOHN_1 = {
