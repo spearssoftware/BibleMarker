@@ -411,6 +411,7 @@ export function Toolbar() {
            paddingLeft: 'env(safe-area-inset-left, 0px)',
            paddingRight: 'env(safe-area-inset-right, 0px)',
          }}
+        data-marking-toolbar
         onWheel={(e) => e.stopPropagation()}>
       {/* Selection Menu */}
       {selection && selectionMenuPosition && (
@@ -709,8 +710,7 @@ export function Toolbar() {
 
       {/* Main toolbar: Key Words | Study | Settings */}
       <div className="bg-scripture-surface/80 backdrop-blur-md shadow-lg"
-           style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-           data-marking-toolbar>
+           style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
           {TOOLS.map((tool) => {
             const isActive =
