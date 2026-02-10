@@ -23,8 +23,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useVirtualKeyboard } from '@/hooks/useVirtualKeyboard';
 import { autoBackupService } from '@/lib/autoBackup';
 import { getDebugFlags } from '@/lib/debug';
-import { isICloudAvailable } from '@/lib/platform';
-import { initializeSync } from '@/lib/sync';
+import { initializeSync, shutdownSync } from '@/lib/sync';
 
 export default function App() {
   const { setChapter, currentBook, currentChapter, currentModuleId, setLoading, setError } = useBibleStore();
@@ -53,7 +52,7 @@ export default function App() {
   // Handle iOS virtual keyboard avoidance
   useVirtualKeyboard();
 
-  // Load preferences and initialize stores on mount
+  // Critical path: DB init + preferences + active view (needed for first render)
   useEffect(() => {
     async function loadPrefs() {
       try {
@@ -63,9 +62,6 @@ export default function App() {
         if (prefs.fontSize) {
           setFontSize(prefs.fontSize);
         }
-        
-        // Initialize debug flags cache so getDebugFlagsSync() works
-        await getDebugFlags();
         
         // Check onboarding state
         if (!prefs.onboarding?.hasSeenWelcome) {
@@ -79,26 +75,29 @@ export default function App() {
     }
     loadPrefs();
     
-    // Initialize study, multi-translation, and list stores
-    loadStudies();
+    // Active view is needed for first render
     loadActiveView();
-    loadLists();
+  }, [setFontSize, loadActiveView]);
 
-    // Start auto-backup service
-    autoBackupService.start();
-    
-    // Initialize iCloud sync on Apple platforms
-    if (isICloudAvailable()) {
+  // Deferred initialization: non-critical work after first render
+  useEffect(() => {
+    const id = setTimeout(() => {
+      loadStudies();
+      loadLists();
+      getDebugFlags();
+      autoBackupService.start();
+      
       initializeSync().catch(err => {
-        console.error('[App] Failed to initialize iCloud sync:', err);
+        console.error('[App] Failed to initialize sync:', err);
       });
-    }
+    }, 0);
 
-    // Cleanup: stop auto-backup service on unmount
     return () => {
+      clearTimeout(id);
       autoBackupService.stop();
+      shutdownSync().catch(() => {});
     };
-  }, [setFontSize, loadStudies, loadActiveView, loadLists]);
+  }, [loadStudies, loadLists]);
 
   // Listen for restart onboarding event
   useEffect(() => {
@@ -113,40 +112,47 @@ export default function App() {
     };
   }, []);
 
-  // Load sample data and API configs on mount, initialize module ID if needed
+  // Load API configs + sample data in parallel, initialize module ID if needed
   useEffect(() => {
     async function init() {
       try {
-        // Load Bible API configurations (getBible, Biblia, ESV API, etc.)
-        await loadApiConfigs();
+        // Ensure DB is ready before API config / sample data access
+        await initDatabase();
         
-        // Load sample data for backwards compatibility
-        await loadSampleData();
+        // Load API configs and sample data in parallel (independent operations)
+        await Promise.all([
+          loadApiConfigs(),
+          loadSampleData(),
+        ]);
         
         // Check if current module ID is valid, if not reset to default
         // Don't load chapter here - let the second useEffect handle it
         const { currentModuleId: existingModuleId } = useBibleStore.getState();
         const { activeView } = useMultiTranslationStore.getState();
         
-        // Only set default if no translation is currently selected and no active view exists
-        if ((!existingModuleId || existingModuleId.includes('undefined') || 
-            existingModuleId.trim() === '') &&
-            (!activeView || activeView.translationIds.length === 0)) {
-          // Check for default translation preference
-          const prefs = await getPreferences();
-          const defaultTranslation = prefs.defaultTranslation;
-          
-          if (defaultTranslation) {
-            // Use the default translation from preferences
-            setCurrentModule(defaultTranslation);
-            // Also add it to the multi-translation view
-            const { addTranslation } = useMultiTranslationStore.getState();
-            await addTranslation(defaultTranslation);
+        const needsModule = !existingModuleId || existingModuleId.includes('undefined') || existingModuleId.trim() === '';
+        const hasActiveTranslations = activeView && activeView.translationIds.length > 0;
+        
+        if (needsModule) {
+          if (hasActiveTranslations) {
+            // Active view has translations (e.g. synced from iCloud) but currentModuleId
+            // is not set (fresh localStorage). Use the first translation from the view.
+            setCurrentModule(activeView.translationIds[0]);
           } else {
-            // Fall back to KJV if no default is set
-            setCurrentModule('kjv');
-            const { addTranslation } = useMultiTranslationStore.getState();
-            await addTranslation('kjv');
+            // No translation anywhere — set up a default
+            const prefs = await getPreferences();
+            const defaultTranslation = prefs.defaultTranslation;
+            
+            if (defaultTranslation) {
+              setCurrentModule(defaultTranslation);
+              const { addTranslation } = useMultiTranslationStore.getState();
+              await addTranslation(defaultTranslation);
+            } else {
+              // Fall back to KJV if no default is set
+              setCurrentModule('kjv');
+              const { addTranslation } = useMultiTranslationStore.getState();
+              await addTranslation('kjv');
+            }
           }
         }
       } catch (err) {

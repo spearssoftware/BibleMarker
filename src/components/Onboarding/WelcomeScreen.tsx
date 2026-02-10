@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import { updatePreferences, getPreferences } from '@/lib/database';
+import { isIOS } from '@/lib/platform';
 
 interface WelcomeScreenProps {
   onComplete: () => void;
@@ -14,6 +15,7 @@ interface WelcomeScreenProps {
 
 export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
   const [isDismissing, setIsDismissing] = useState(false);
+  const isTouchDevice = isIOS() || ('ontouchstart' in window);
 
   async function handleGetStarted() {
     setIsDismissing(true);
@@ -77,79 +79,68 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                 </h2>
                 <div className="space-y-4 text-sm text-scripture-text">
                   <div className="flex gap-4">
-                    <div className="text-2xl flex-shrink-0">📖</div>
+                    <div className="text-2xl flex-shrink-0">{'\u{1F4D6}'}</div>
                     <div>
                       <div className="font-medium text-scripture-text mb-1">Read Multiple Translations</div>
                       <p className="text-scripture-muted">
-                        View up to 3 translations side-by-side with synchronized scrolling. Choose from getBible (free), Biblia, ESV API, and more.
+                        View up to 3 translations side-by-side with synchronized scrolling.
                       </p>
                     </div>
                   </div>
 
                   <div className="flex gap-4">
-                    <div className="text-2xl flex-shrink-0">🖍️</div>
+                    <div className="text-2xl flex-shrink-0">{'\u{1F58D}\uFE0F'}</div>
                     <div>
                       <div className="font-medium text-scripture-text mb-1">Mark & Highlight</div>
                       <p className="text-scripture-muted">
-                        Select text to open the selection menu: apply key words, add as a variant, create keywords, or add to observation lists. All marking uses keywords for consistency across translations.
+                        Select text to apply key words, add variants, or add to observation lists.
                       </p>
                     </div>
                   </div>
 
                   <div className="flex gap-4">
-                    <div className="text-2xl flex-shrink-0">🔑</div>
+                    <div className="text-2xl flex-shrink-0">{'\u{1F511}'}</div>
                     <div>
                       <div className="font-medium text-scripture-text mb-1">Key Words</div>
                       <p className="text-scripture-muted">
-                        Define key words (e.g., "God", "Jesus", "love") with colors and symbols. They automatically highlight across all visible translations.
+                        Define key words with colors and symbols. They automatically highlight across all visible translations.
                       </p>
                     </div>
                   </div>
 
                   <div className="flex gap-4">
-                    <div className="text-2xl flex-shrink-0">📝</div>
+                    <div className="text-2xl flex-shrink-0">{'\u{1F4DD}'}</div>
                     <div>
                       <div className="font-medium text-scripture-text mb-1">Notes & Observations</div>
                       <p className="text-scripture-muted">
-                        Add notes to verses (supports Markdown). Use “Add to List” from the selection menu to capture observations, or open Observe (🔍) for lists, time, places, contrasts, and conclusions.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4">
-                    <div className="text-2xl flex-shrink-0">🔍</div>
-                    <div>
-                      <div className="font-medium text-scripture-text mb-1">Search & Study Tools</div>
-                      <p className="text-scripture-muted">
-                        Search Bible text, notes, and annotations. View chapter summaries, book overviews, and theme tracking.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4">
-                    <div className="text-2xl flex-shrink-0">💾</div>
-                    <div>
-                      <div className="font-medium text-scripture-text mb-1">Backup & Sync</div>
-                      <p className="text-scripture-muted">
-                        Export your data to cloud folders (iCloud Drive, Google Drive) for automatic syncing across devices.
+                        Add notes to verses and capture observations for time, places, contrasts, and conclusions.
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Quick Tips */}
+              {/* Quick Tips - platform-aware */}
               <div className="bg-scripture-overlay/30 rounded-lg p-4">
                 <h3 className="text-sm font-ui font-semibold text-scripture-text mb-2">
                   Quick Tips
                 </h3>
-                <ul className="space-y-1.5 text-xs text-scripture-muted ml-4 list-disc">
-                  <li>Select text to open the selection menu (mark, add to list, observe)</li>
-                  <li>Use arrow keys or J/K to navigate between chapters</li>
-                  <li>Press 1–4 for Key Words, Observe, Study, Settings</li>
-                  <li>Press Cmd/Ctrl+F to search</li>
-                  <li>Click verse numbers to add notes</li>
-                </ul>
+                {isTouchDevice ? (
+                  <ul className="space-y-1.5 text-xs text-scripture-muted ml-4 list-disc">
+                    <li>Tap and hold text to select, then use the selection menu to mark or observe</li>
+                    <li>Tap verse numbers to add notes</li>
+                    <li>Use the toolbar at the bottom to switch between tools</li>
+                    <li>Swipe left/right on the navigation bar to change chapters</li>
+                  </ul>
+                ) : (
+                  <ul className="space-y-1.5 text-xs text-scripture-muted ml-4 list-disc">
+                    <li>Select text to open the selection menu (mark, add to list, observe)</li>
+                    <li>Use arrow keys or J/K to navigate between chapters</li>
+                    <li>Press 1{'\u{2013}'}4 for Key Words, Observe, Study, Settings</li>
+                    <li>Press Cmd/Ctrl+F to search</li>
+                    <li>Click verse numbers to add notes</li>
+                  </ul>
+                )}
               </div>
             </div>
           </div>

@@ -36,6 +36,25 @@ async function sqlite() {
   return sqliteModule;
 }
 
+/**
+ * Record a change for sync after a write operation.
+ * Captures the full row data so the sync journal can replay it on other devices.
+ */
+async function logChange(
+  tableName: string,
+  op: 'upsert' | 'delete',
+  rowId: string,
+  data?: unknown
+): Promise<void> {
+  try {
+    const mod = await sqlite();
+    await mod.recordChange(tableName, op, rowId, data ? JSON.stringify(data) : null);
+  } catch (error) {
+    // Don't fail the main operation if change logging fails
+    console.error('[DB] Failed to log change:', error);
+  }
+}
+
 // ============================================================================
 // Database Lifecycle
 // ============================================================================
@@ -65,12 +84,15 @@ export async function getChapterAnnotations(
 
 export async function saveAnnotation(annotation: Annotation): Promise<string> {
   const mod = await sqlite();
-  return mod.sqliteSaveAnnotation(annotation);
+  const result = await mod.sqliteSaveAnnotation(annotation);
+  await logChange('annotations', 'upsert', annotation.id, annotation);
+  return result;
 }
 
 export async function deleteAnnotation(id: string): Promise<void> {
   const mod = await sqlite();
-  return mod.sqliteDeleteAnnotation(id);
+  await mod.sqliteDeleteAnnotation(id);
+  await logChange('annotations', 'delete', id);
 }
 
 export async function clearBookAnnotations(book: string, moduleId?: string): Promise<number> {
@@ -88,6 +110,7 @@ export async function clearBookAnnotations(book: string, moduleId?: string): Pro
   });
   for (const row of toDelete) {
     await db.execute(`DELETE FROM annotations WHERE id = ?`, [row.id]);
+    await logChange('annotations', 'delete', row.id);
   }
   return toDelete.length;
 }
@@ -107,12 +130,15 @@ export async function getChapterHeadings(
 
 export async function saveSectionHeading(heading: SectionHeading): Promise<string> {
   const mod = await sqlite();
-  return mod.sqliteSaveSectionHeading(heading);
+  const result = await mod.sqliteSaveSectionHeading(heading);
+  await logChange('section_headings', 'upsert', heading.id, heading);
+  return result;
 }
 
 export async function deleteSectionHeading(id: string): Promise<void> {
   const mod = await sqlite();
-  return mod.sqliteDeleteSectionHeading(id);
+  await mod.sqliteDeleteSectionHeading(id);
+  await logChange('section_headings', 'delete', id);
 }
 
 // ============================================================================
@@ -130,12 +156,15 @@ export async function getChapterTitle(
 
 export async function saveChapterTitle(title: ChapterTitle): Promise<string> {
   const mod = await sqlite();
-  return mod.sqliteSaveChapterTitle(title);
+  const result = await mod.sqliteSaveChapterTitle(title);
+  await logChange('chapter_titles', 'upsert', title.id, title);
+  return result;
 }
 
 export async function deleteChapterTitle(id: string): Promise<void> {
   const mod = await sqlite();
-  return mod.sqliteDeleteChapterTitle(id);
+  await mod.sqliteDeleteChapterTitle(id);
+  await logChange('chapter_titles', 'delete', id);
 }
 
 // ============================================================================
@@ -153,12 +182,15 @@ export async function getChapterNotes(
 
 export async function saveNote(note: Note): Promise<string> {
   const mod = await sqlite();
-  return mod.sqliteSaveNote(note);
+  const result = await mod.sqliteSaveNote(note);
+  await logChange('notes', 'upsert', note.id, note);
+  return result;
 }
 
 export async function deleteNote(id: string): Promise<void> {
   const mod = await sqlite();
-  return mod.sqliteDeleteNote(id);
+  await mod.sqliteDeleteNote(id);
+  await logChange('notes', 'delete', id);
 }
 
 export async function getAllNotes(): Promise<Note[]> {
@@ -205,12 +237,15 @@ export async function getMarkingPresetsByCategory(category: string): Promise<Mar
 
 export async function saveMarkingPreset(preset: MarkingPreset): Promise<string> {
   const mod = await sqlite();
-  return mod.sqliteSaveMarkingPreset(preset);
+  const result = await mod.sqliteSaveMarkingPreset(preset);
+  await logChange('marking_presets', 'upsert', preset.id, preset);
+  return result;
 }
 
 export async function deleteMarkingPreset(id: string): Promise<void> {
   const mod = await sqlite();
-  return mod.sqliteDeleteMarkingPreset(id);
+  await mod.sqliteDeleteMarkingPreset(id);
+  await logChange('marking_presets', 'delete', id);
 }
 
 export async function searchMarkingPresets(text: string): Promise<MarkingPreset[]> {
@@ -246,12 +281,15 @@ export async function getAllStudies(): Promise<Study[]> {
 
 export async function saveStudy(study: Study): Promise<string> {
   const mod = await sqlite();
-  return mod.sqliteSaveStudy(study);
+  const result = await mod.sqliteSaveStudy(study);
+  await logChange('studies', 'upsert', study.id, study);
+  return result;
 }
 
 export async function deleteStudy(id: string): Promise<void> {
   const mod = await sqlite();
-  return mod.sqliteDeleteStudy(id);
+  await mod.sqliteDeleteStudy(id);
+  await logChange('studies', 'delete', id);
 }
 
 // ============================================================================
@@ -294,7 +332,9 @@ export async function updatePreferences(
   const mod = await sqlite();
   const current = await mod.sqliteGetPreferences();
   if (current) {
-    await mod.sqliteSavePreferences({ ...current, ...updates });
+    const merged = { ...current, ...updates };
+    await mod.sqliteSavePreferences(merged);
+    await logChange('preferences', 'upsert', 'main', merged);
   }
 }
 
@@ -312,12 +352,15 @@ export async function getMultiTranslationView(
 
 export async function saveMultiTranslationView(view: MultiTranslationView): Promise<string> {
   const mod = await sqlite();
-  return mod.sqliteSaveToTable('multi_translation_views', view);
+  const result = await mod.sqliteSaveToTable('multi_translation_views', view);
+  await logChange('multi_translation_views', 'upsert', view.id, view);
+  return result;
 }
 
 export async function deleteMultiTranslationView(id: string = 'active'): Promise<void> {
   const mod = await sqlite();
-  return mod.sqliteDeleteFromTable('multi_translation_views', id);
+  await mod.sqliteDeleteFromTable('multi_translation_views', id);
+  await logChange('multi_translation_views', 'delete', id);
 }
 
 // ============================================================================
@@ -331,12 +374,15 @@ export async function getAllObservationLists(): Promise<ObservationList[]> {
 
 export async function saveObservationList(list: ObservationList): Promise<string> {
   const mod = await sqlite();
-  return mod.sqliteSaveToTable('observation_lists', list);
+  const result = await mod.sqliteSaveToTable('observation_lists', list);
+  await logChange('observation_lists', 'upsert', list.id, list);
+  return result;
 }
 
 export async function deleteObservationList(id: string): Promise<void> {
   const mod = await sqlite();
-  return mod.sqliteDeleteFromTable('observation_lists', id);
+  await mod.sqliteDeleteFromTable('observation_lists', id);
+  await logChange('observation_lists', 'delete', id);
 }
 
 // 5W+H Operations
@@ -347,12 +393,15 @@ export async function getAllFiveWAndH(): Promise<FiveWAndHEntry[]> {
 
 export async function saveFiveWAndH(entry: FiveWAndHEntry): Promise<string> {
   const mod = await sqlite();
-  return mod.sqliteSaveToTable('five_w_and_h', entry);
+  const result = await mod.sqliteSaveToTable('five_w_and_h', entry);
+  await logChange('five_w_and_h', 'upsert', entry.id, entry);
+  return result;
 }
 
 export async function deleteFiveWAndH(id: string): Promise<void> {
   const mod = await sqlite();
-  return mod.sqliteDeleteFromTable('five_w_and_h', id);
+  await mod.sqliteDeleteFromTable('five_w_and_h', id);
+  await logChange('five_w_and_h', 'delete', id);
 }
 
 // Contrast Operations
@@ -363,12 +412,15 @@ export async function getAllContrasts(): Promise<Contrast[]> {
 
 export async function saveContrast(entry: Contrast): Promise<string> {
   const mod = await sqlite();
-  return mod.sqliteSaveToTable('contrasts', entry);
+  const result = await mod.sqliteSaveToTable('contrasts', entry);
+  await logChange('contrasts', 'upsert', entry.id, entry);
+  return result;
 }
 
 export async function deleteContrast(id: string): Promise<void> {
   const mod = await sqlite();
-  return mod.sqliteDeleteFromTable('contrasts', id);
+  await mod.sqliteDeleteFromTable('contrasts', id);
+  await logChange('contrasts', 'delete', id);
 }
 
 // Time Expression Operations
@@ -379,12 +431,15 @@ export async function getAllTimeExpressions(): Promise<TimeExpression[]> {
 
 export async function saveTimeExpression(entry: TimeExpression): Promise<string> {
   const mod = await sqlite();
-  return mod.sqliteSaveToTable('time_expressions', entry);
+  const result = await mod.sqliteSaveToTable('time_expressions', entry);
+  await logChange('time_expressions', 'upsert', entry.id, entry);
+  return result;
 }
 
 export async function deleteTimeExpression(id: string): Promise<void> {
   const mod = await sqlite();
-  return mod.sqliteDeleteFromTable('time_expressions', id);
+  await mod.sqliteDeleteFromTable('time_expressions', id);
+  await logChange('time_expressions', 'delete', id);
 }
 
 // Place Operations
@@ -395,12 +450,15 @@ export async function getAllPlaces(): Promise<Place[]> {
 
 export async function savePlace(entry: Place): Promise<string> {
   const mod = await sqlite();
-  return mod.sqliteSaveToTable('places', entry);
+  const result = await mod.sqliteSaveToTable('places', entry);
+  await logChange('places', 'upsert', entry.id, entry);
+  return result;
 }
 
 export async function deletePlace(id: string): Promise<void> {
   const mod = await sqlite();
-  return mod.sqliteDeleteFromTable('places', id);
+  await mod.sqliteDeleteFromTable('places', id);
+  await logChange('places', 'delete', id);
 }
 
 // Conclusion Operations
@@ -411,12 +469,15 @@ export async function getAllConclusions(): Promise<Conclusion[]> {
 
 export async function saveConclusion(entry: Conclusion): Promise<string> {
   const mod = await sqlite();
-  return mod.sqliteSaveToTable('conclusions', entry);
+  const result = await mod.sqliteSaveToTable('conclusions', entry);
+  await logChange('conclusions', 'upsert', entry.id, entry);
+  return result;
 }
 
 export async function deleteConclusion(id: string): Promise<void> {
   const mod = await sqlite();
-  return mod.sqliteDeleteFromTable('conclusions', id);
+  await mod.sqliteDeleteFromTable('conclusions', id);
+  await logChange('conclusions', 'delete', id);
 }
 
 // Interpretation Operations
@@ -427,12 +488,15 @@ export async function getAllInterpretations(): Promise<InterpretationEntry[]> {
 
 export async function saveInterpretation(entry: InterpretationEntry): Promise<string> {
   const mod = await sqlite();
-  return mod.sqliteSaveToTable('interpretations', entry);
+  const result = await mod.sqliteSaveToTable('interpretations', entry);
+  await logChange('interpretations', 'upsert', entry.id, entry);
+  return result;
 }
 
 export async function deleteInterpretation(id: string): Promise<void> {
   const mod = await sqlite();
-  return mod.sqliteDeleteFromTable('interpretations', id);
+  await mod.sqliteDeleteFromTable('interpretations', id);
+  await logChange('interpretations', 'delete', id);
 }
 
 // Application Operations
@@ -443,12 +507,15 @@ export async function getAllApplications(): Promise<ApplicationEntry[]> {
 
 export async function saveApplication(entry: ApplicationEntry): Promise<string> {
   const mod = await sqlite();
-  return mod.sqliteSaveToTable('applications', entry);
+  const result = await mod.sqliteSaveToTable('applications', entry);
+  await logChange('applications', 'upsert', entry.id, entry);
+  return result;
 }
 
 export async function deleteApplication(id: string): Promise<void> {
   const mod = await sqlite();
-  return mod.sqliteDeleteFromTable('applications', id);
+  await mod.sqliteDeleteFromTable('applications', id);
+  await logChange('applications', 'delete', id);
 }
 
 // ============================================================================

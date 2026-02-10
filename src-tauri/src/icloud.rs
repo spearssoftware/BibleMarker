@@ -1,7 +1,9 @@
-//! iCloud Integration Module
+//! iCloud and Sync Integration Module
 //!
-//! Provides access to iCloud container for database sync on macOS/iOS.
-//! Uses objc2 bindings to call NSFileManager APIs.
+//! Provides:
+//! - iCloud container detection for sync folder on macOS/iOS
+//! - Migration from old iCloud-database approach to local storage
+//! - Sync folder path resolution
 
 use serde::{Deserialize, Serialize};
 use tauri::command;
@@ -20,36 +22,16 @@ pub struct ICloudStatus {
     pub error: Option<String>,
 }
 
-/// Sync status for UI display
+/// Result of database migration from iCloud to local storage
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SyncStatus {
-    /// Current sync state
-    pub state: SyncState,
-    /// Last sync timestamp (ISO string)
-    pub last_sync: Option<String>,
-    /// Number of pending changes
-    pub pending_changes: u32,
-    /// Error message if sync failed
-    pub error: Option<String>,
+pub struct MigrationResult {
+    /// Whether migration was performed
+    pub migrated: bool,
+    /// Human-readable description of what happened
+    pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum SyncState {
-    /// Sync is idle, all changes synced
-    Synced,
-    /// Currently syncing
-    Syncing,
-    /// Offline, changes pending
-    Offline,
-    /// Sync error occurred
-    Error,
-    /// iCloud not available
-    Unavailable,
-}
-
-/// Get iCloud container URL for the app
-/// Returns the path where we should store the SQLite database for sync.
+/// Get iCloud container URL for the app.
 ///
 /// First tries the standard NSFileManager API. If it returns nil (which can happen
 /// when the Production iCloud environment hasn't propagated for Developer ID builds),
@@ -61,19 +43,14 @@ fn get_icloud_container_url() -> Result<String, String> {
 
     let file_manager = NSFileManager::defaultManager();
 
-    // Check if iCloud is signed in
-    // ubiquityIdentityToken doesn't have a typed binding, use msg_send!
     let has_token = unsafe {
         let token: *mut AnyObject =
             objc2::msg_send![&file_manager, ubiquityIdentityToken];
         !token.is_null()
     };
 
-    // Create container identifier NSString (objc2 handles retain/release)
     let ns_container_id = NSString::from_str("iCloud.app.biblemarker");
 
-    // Get URL for ubiquity container
-    // URLForUbiquityContainerIdentifier: doesn't have a typed binding, use msg_send!
     let url: Option<Retained<AnyObject>> = unsafe {
         objc2::msg_send![
             &file_manager,
@@ -83,7 +60,6 @@ fn get_icloud_container_url() -> Result<String, String> {
 
     match url {
         Some(url) => {
-            // Get path string from NSURL via [url path]
             let path: Option<Retained<NSString>> = unsafe {
                 objc2::msg_send![&url, path]
             };
@@ -93,10 +69,6 @@ fn get_icloud_container_url() -> Result<String, String> {
             }
         }
         None => {
-            // Fallback: the API can return nil for Developer ID builds when Apple's
-            // Production iCloud environment hasn't propagated the container yet.
-            // Check if the container directory exists on disk (created by a prior
-            // Xcode development build or iCloud sync from another device).
             let home = std::env::var("HOME").unwrap_or_default();
             let fallback_path = format!("{}/Library/Mobile Documents/iCloud~app~biblemarker", home);
             if std::path::Path::new(&fallback_path).exists() && has_token {
@@ -148,144 +120,160 @@ pub fn check_icloud_status() -> ICloudStatus {
     }
 }
 
-/// Tauri command to get the iCloud database path
-/// Returns the full path where the SQLite database should be stored
+/// Get the path to the sync folder inside the iCloud container.
+/// Returns `iCloud_container/Documents/sync/` and ensures it exists.
+/// Used for storing journal files that iCloud syncs across devices.
 #[command]
-pub fn get_icloud_database_path() -> Result<String, String> {
-    // Use background thread for container access (Apple recommends this)
+pub fn get_sync_folder_path() -> Result<String, String> {
     let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || { let _ = tx.send(get_icloud_container_url()); });
+    std::thread::spawn(move || {
+        let _ = tx.send(get_icloud_container_url());
+    });
     let container_path = rx.recv_timeout(std::time::Duration::from_secs(10))
         .map_err(|_| "iCloud path check timed out".to_string())??;
     
-    // Store database in Documents subdirectory of iCloud container
-    let db_path = format!("{}/Documents/biblemarker.db", container_path);
+    let sync_path = format!("{}/Documents/sync", container_path);
     
-    // Ensure the Documents directory exists
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
-    {
-        let docs_dir = format!("{}/Documents", container_path);
-        std::fs::create_dir_all(&docs_dir)
-            .map_err(|e| format!("Failed to create iCloud Documents directory: {}", e))?;
-    }
+    std::fs::create_dir_all(&sync_path)
+        .map_err(|e| format!("Failed to create sync folder: {}", e))?;
     
-    Ok(db_path)
+    Ok(sync_path)
 }
 
-/// Tauri command to get current sync status.
+/// Migrate the database from the old iCloud container location to local app storage.
 ///
-/// Checks whether the iCloud container is accessible and whether the database
-/// file exists inside it. Real-time upload/download monitoring would require
-/// NSMetadataQuery which is not yet implemented — this gives a truthful
-/// "iCloud enabled" or "unavailable" status.
+/// The old approach stored `biblemarker.db` directly in the iCloud Documents container,
+/// which causes corruption because iCloud syncs the DB/WAL/SHM files independently.
+/// This command copies that database to the local app data directory (if it hasn't
+/// been migrated already).
 #[command]
-pub fn get_sync_status() -> SyncStatus {
-    match get_icloud_container_url() {
-        Ok(container_path) => {
-            let db_path = format!("{}/Documents/biblemarker.db", container_path);
-            let db_exists = std::path::Path::new(&db_path).exists();
-
-            if db_exists {
-                // Database is in the iCloud container — iCloud will sync it
-                // automatically. We don't yet monitor real-time upload state.
-                SyncStatus {
-                    state: SyncState::Synced,
-                    last_sync: None,
-                    pending_changes: 0,
-                    error: None,
+pub fn migrate_from_icloud(app_handle: tauri::AppHandle) -> MigrationResult {
+    use tauri::Manager;
+    
+    let app_data = match app_handle.path().app_data_dir() {
+        Ok(p) => p,
+        Err(e) => return MigrationResult {
+            migrated: false,
+            message: format!("Cannot determine app data dir: {}", e),
+        },
+    };
+    
+    let local_db = app_data.join("biblemarker.db");
+    
+    // If local DB already exists and has content, skip migration
+    if local_db.exists() {
+        if let Ok(meta) = std::fs::metadata(&local_db) {
+            if meta.len() > 0 {
+                return MigrationResult {
+                    migrated: false,
+                    message: "Local database already exists".into(),
+                };
+            }
+        }
+    }
+    
+    // Try to find the old iCloud database
+    let container_path = match get_icloud_container_url() {
+        Ok(p) => p,
+        Err(e) => return MigrationResult {
+            migrated: false,
+            message: format!("iCloud unavailable: {}", e),
+        },
+    };
+    
+    let icloud_db = std::path::PathBuf::from(&container_path).join("Documents/biblemarker.db");
+    
+    if !icloud_db.exists() {
+        return MigrationResult {
+            migrated: false,
+            message: "No iCloud database found to migrate".into(),
+        };
+    }
+    
+    // Ensure local directory exists
+    if let Err(e) = std::fs::create_dir_all(&app_data) {
+        return MigrationResult {
+            migrated: false,
+            message: format!("Failed to create app data dir: {}", e),
+        };
+    }
+    
+    // Copy only the main .db file — do NOT copy WAL/SHM files.
+    // iCloud syncs WAL/SHM independently from the main DB, which causes corruption.
+    if let Err(e) = std::fs::copy(&icloud_db, &local_db) {
+        return MigrationResult {
+            migrated: false,
+            message: format!("Failed to copy database: {}", e),
+        };
+    }
+    
+    // Verify the copied database isn't corrupt
+    match rusqlite::Connection::open(&local_db) {
+        Ok(conn) => {
+            match conn.query_row("PRAGMA integrity_check(1)", [], |row| row.get::<_, String>(0)) {
+                Ok(ref status) if status == "ok" => {
+                    eprintln!(
+                        "[iCloud] Migrated database from {} to {} (integrity: ok)",
+                        icloud_db.display(),
+                        local_db.display()
+                    );
+                    MigrationResult {
+                        migrated: true,
+                        message: "Database migrated from iCloud to local storage".into(),
+                    }
                 }
-            } else {
-                // Container accessible but no database file yet (first launch or
-                // iCloud hasn't finished downloading from another device).
-                SyncStatus {
-                    state: SyncState::Synced,
-                    last_sync: None,
-                    pending_changes: 0,
-                    error: None,
+                Ok(status) => {
+                    eprintln!("[iCloud] Migrated database is corrupt: {}", status);
+                    drop(conn);
+                    let _ = std::fs::remove_file(&local_db);
+                    MigrationResult {
+                        migrated: false,
+                        message: format!("iCloud database is corrupt ({}), starting fresh", status),
+                    }
+                }
+                Err(e) => {
+                    eprintln!("[iCloud] Integrity check failed: {}", e);
+                    drop(conn);
+                    let _ = std::fs::remove_file(&local_db);
+                    MigrationResult {
+                        migrated: false,
+                        message: format!("iCloud database integrity check failed ({}), starting fresh", e),
+                    }
                 }
             }
         }
-        Err(_) => SyncStatus {
-            state: SyncState::Unavailable,
-            last_sync: None,
-            pending_changes: 0,
-            error: Some("iCloud not available".to_string()),
-        },
-    }
-}
-
-/// Simple timestamp function without full chrono dependency
-/// Returns an ISO 8601 formatted string (e.g., "2024-01-01T12:00:00Z")
-fn chrono_lite_now() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    
-    let duration = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
-    
-    chrono_lite_from_secs(duration.as_secs())
-}
-
-/// Converts Unix timestamp (seconds since epoch) to ISO 8601 formatted string
-fn chrono_lite_from_secs(secs: u64) -> String {
-    // Convert Unix timestamp to ISO 8601 format
-    // This is a simplified implementation that handles dates from 1970 onwards
-    const SECS_PER_MIN: u64 = 60;
-    const SECS_PER_HOUR: u64 = 3600;
-    const SECS_PER_DAY: u64 = 86400;
-    
-    // Days in each month (non-leap year)
-    const DAYS_IN_MONTH: [u64; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    
-    fn is_leap_year(year: u64) -> bool {
-        (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
-    }
-    
-    fn days_in_year(year: u64) -> u64 {
-        if is_leap_year(year) { 366 } else { 365 }
-    }
-    
-    // Calculate time components
-    let time_of_day = secs % SECS_PER_DAY;
-    let hours = time_of_day / SECS_PER_HOUR;
-    let minutes = (time_of_day % SECS_PER_HOUR) / SECS_PER_MIN;
-    let seconds = time_of_day % SECS_PER_MIN;
-    
-    // Calculate date from days since epoch
-    let mut days = secs / SECS_PER_DAY;
-    let mut year = 1970u64;
-    
-    while days >= days_in_year(year) {
-        days -= days_in_year(year);
-        year += 1;
-    }
-    
-    // Find month and day
-    let mut month = 0usize;
-    while month < 12 {
-        let days_this_month = if month == 1 && is_leap_year(year) {
-            29
-        } else {
-            DAYS_IN_MONTH[month]
-        };
-        
-        if days < days_this_month {
-            break;
+        Err(e) => {
+            eprintln!("[iCloud] Cannot open migrated database: {}", e);
+            let _ = std::fs::remove_file(&local_db);
+            MigrationResult {
+                migrated: false,
+                message: format!("Migrated database unreadable ({}), starting fresh", e),
+            }
         }
-        days -= days_this_month;
-        month += 1;
+    }
+}
+
+/// Delete the local database files so a fresh DB can be created.
+/// Called from JS when corruption is detected at runtime.
+#[command]
+pub fn delete_local_database(app_handle: tauri::AppHandle) -> Result<String, String> {
+    use tauri::Manager;
+    
+    let app_data = app_handle.path().app_data_dir()
+        .map_err(|e| format!("Cannot determine app data dir: {}", e))?;
+    
+    let db_file = app_data.join("biblemarker.db");
+    let wal_file = app_data.join("biblemarker.db-wal");
+    let shm_file = app_data.join("biblemarker.db-shm");
+    
+    for f in [&db_file, &wal_file, &shm_file] {
+        if f.exists() {
+            std::fs::remove_file(f)
+                .map_err(|e| format!("Failed to delete {}: {}", f.display(), e))?;
+        }
     }
     
-    // Clamp month to valid range (0-11) in case of any edge cases
-    let month = month.min(11);
-    
-    let day = days + 1; // Days are 1-indexed
-    let month = month + 1; // Months are 1-indexed (1-12)
-    
-    format!(
-        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-        year, month, day, hours, minutes, seconds
-    )
+    Ok("Local database deleted".into())
 }
 
 #[cfg(test)]
@@ -293,123 +281,24 @@ mod tests {
     use super::*;
     
     #[test]
-    fn test_sync_status_serialization() {
-        let status = SyncStatus {
-            state: SyncState::Synced,
-            last_sync: Some("2024-01-01T00:00:00Z".to_string()),
-            pending_changes: 0,
+    fn test_icloud_status_serialization() {
+        let status = ICloudStatus {
+            available: true,
+            container_path: Some("/path/to/container".into()),
             error: None,
         };
-        
         let json = serde_json::to_string(&status).unwrap();
-        assert!(json.contains("synced"));
+        assert!(json.contains("available"));
+        assert!(json.contains("/path/to/container"));
     }
     
     #[test]
-    fn test_chrono_lite_now_format() {
-        let timestamp = chrono_lite_now();
-        
-        // Should match ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
-        assert_eq!(timestamp.len(), 20, "Timestamp should be 20 characters");
-        assert!(timestamp.ends_with('Z'), "Timestamp should end with Z");
-        assert_eq!(&timestamp[4..5], "-", "Should have dash after year");
-        assert_eq!(&timestamp[7..8], "-", "Should have dash after month");
-        assert_eq!(&timestamp[10..11], "T", "Should have T separator");
-        assert_eq!(&timestamp[13..14], ":", "Should have colon after hours");
-        assert_eq!(&timestamp[16..17], ":", "Should have colon after minutes");
-        
-        // Year should be reasonable (2020-2100)
-        let year: u32 = timestamp[0..4].parse().unwrap();
-        assert!(year >= 2020 && year <= 2100, "Year should be reasonable");
-        
-        // Month should be 01-12
-        let month: u32 = timestamp[5..7].parse().unwrap();
-        assert!(month >= 1 && month <= 12, "Month should be 1-12, got {}", month);
-        
-        // Day should be 01-31
-        let day: u32 = timestamp[8..10].parse().unwrap();
-        assert!(day >= 1 && day <= 31, "Day should be 1-31, got {}", day);
-    }
-    
-    #[test]
-    fn test_chrono_lite_known_timestamps() {
-        // Unix epoch: January 1, 1970 00:00:00 UTC
-        assert_eq!(
-            chrono_lite_from_secs(0),
-            "1970-01-01T00:00:00Z",
-            "Unix epoch should be January 1, 1970"
-        );
-        
-        // January 31, 1970 23:59:59 UTC (last second of January)
-        // 30 days * 86400 + 23*3600 + 59*60 + 59 = 2592000 + 82800 + 3540 + 59 = 2678399
-        assert_eq!(
-            chrono_lite_from_secs(2678399),
-            "1970-01-31T23:59:59Z",
-            "Should be last second of January 31, 1970"
-        );
-        
-        // February 1, 1970 00:00:00 UTC (first second of February)
-        // 31 days * 86400 = 2678400
-        assert_eq!(
-            chrono_lite_from_secs(2678400),
-            "1970-02-01T00:00:00Z",
-            "Should be first second of February 1, 1970"
-        );
-        
-        // December 31, 1970 00:00:00 UTC
-        // 364 days * 86400 = 31449600
-        assert_eq!(
-            chrono_lite_from_secs(31449600),
-            "1970-12-31T00:00:00Z",
-            "Should be December 31, 1970"
-        );
-        
-        // January 1, 1971 00:00:00 UTC
-        // 365 days * 86400 = 31536000
-        assert_eq!(
-            chrono_lite_from_secs(31536000),
-            "1971-01-01T00:00:00Z",
-            "Should be January 1, 1971"
-        );
-        
-        // February 29, 2000 00:00:00 UTC (leap year)
-        // This is a known timestamp: 951782400
-        assert_eq!(
-            chrono_lite_from_secs(951782400),
-            "2000-02-29T00:00:00Z",
-            "Should be February 29, 2000 (leap year)"
-        );
-        
-        // March 1, 2000 00:00:00 UTC (day after leap day)
-        // 951782400 + 86400 = 951868800
-        assert_eq!(
-            chrono_lite_from_secs(951868800),
-            "2000-03-01T00:00:00Z",
-            "Should be March 1, 2000 (day after leap day)"
-        );
-        
-        // A known recent date: January 1, 2024 00:00:00 UTC = 1704067200
-        assert_eq!(
-            chrono_lite_from_secs(1704067200),
-            "2024-01-01T00:00:00Z",
-            "Should be January 1, 2024"
-        );
-        
-        // End of month boundaries
-        // February 28, 2023 (non-leap year) 23:59:59
-        // February 28, 2023 = 1677542400 (midnight)
-        // + 23*3600 + 59*60 + 59 = 86399
-        assert_eq!(
-            chrono_lite_from_secs(1677628799),
-            "2023-02-28T23:59:59Z",
-            "Should be last second of February 28, 2023"
-        );
-        
-        // March 1, 2023 00:00:00 (first second after February in non-leap year)
-        assert_eq!(
-            chrono_lite_from_secs(1677628800),
-            "2023-03-01T00:00:00Z",
-            "Should be first second of March 1, 2023"
-        );
+    fn test_migration_result_serialization() {
+        let result = MigrationResult {
+            migrated: true,
+            message: "Done".into(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("migrated"));
     }
 }
