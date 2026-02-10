@@ -838,7 +838,7 @@ export function MultiTranslationView() {
 
       {/* Verse rows - scrollable container */}
       <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchEnd={() => { setTimeout(handleMouseUp, 50); }}>
-          <div className={`px-4 py-4 space-y-1.5 border-b border-scripture-border/50 ${translationList.length === 1 ? 'max-w-3xl mx-auto' : ''}`}>
+          <div className={`px-4 py-4 space-y-1.5 border-b border-scripture-border/50 `}>
             {sortedVerseNumbers.map(verseNum => (
               <div key={verseNum}>
                 {/* Section heading if exists - show once per verse row, not per translation */}
