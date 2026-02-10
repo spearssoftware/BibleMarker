@@ -210,19 +210,22 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install
 
-      - name: Import Apple Developer Certificate
+      - name: Import Apple Distribution Certificate
         env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          CERTIFICATE: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          echo "$APPLE_CERTIFICATE" | base64 --decode -o certificate.p12
+          echo "$CERTIFICATE" | base64 --decode -o certificate.p12
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security set-keychain-settings -t 3600 -u build.keychain
-          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security import certificate.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
 
       - name: Initialize iOS project
         run: pnpm tauri ios init
@@ -242,12 +245,21 @@ jobs:
           path: src-tauri/gen/apple/build/**/*.ipa
           if-no-files-found: warn
 
-      # Optional: Upload to TestFlight (requires APP_STORE_CONNECT_API_KEY secret)
-      # - name: Upload to TestFlight
-      #   if: secrets.APP_STORE_CONNECT_API_KEY != ''
-      #   run: |
-      #     xcrun altool --upload-app \
-      #       --type ios \
-      #       --file $(find src-tauri/gen/apple/build -name "*.ipa" | head -1) \
-      #       --apiKey "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
-      #       --apiIssuer "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
+      - name: Upload to TestFlight
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          mkdir -p private_keys
+          echo "$APP_STORE_CONNECT_API_KEY" | base64 --decode > private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+          IPA_PATH=$(find src-tauri/gen/apple/build -name "*.ipa" | head -1)
+          if [ -z "$IPA_PATH" ]; then
+            echo "No IPA found, skipping upload"
+            exit 1
+          fi
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA_PATH" \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
