@@ -229,8 +229,27 @@ jobs:
         env:
           CI: true
 
-      - name: Raise iOS deployment target to 17.0
-        run: sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 14.0/IPHONEOS_DEPLOYMENT_TARGET = 17.0/g' src-tauri/gen/apple/biblemarker.xcodeproj/project.pbxproj
+      # WORKAROUND: Xcode 26 removed Swift backward-compat libraries (swiftCompatibility56,
+      # swiftCompatibilityConcurrency, swiftCompatibilityPacks) but swift-rs still compiles
+      # Swift code with FORCE_LOAD references to them regardless of deployment target.
+      # The -Wl,-U flags make these symbols dynamically looked up instead of required.
+      # TODO: Remove once swift-rs/Tauri updates to support Xcode 26 natively.
+      # Tracking: https://github.com/actions/runner-images/issues/13135
+      - name: Patch Xcode project for Xcode 26 compatibility
+        run: |
+          PBXPROJ=src-tauri/gen/apple/biblemarker.xcodeproj/project.pbxproj
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 14.0/IPHONEOS_DEPLOYMENT_TARGET = 17.0/g' "$PBXPROJ"
+          python3 -c '
+          path = "src-tauri/gen/apple/biblemarker.xcodeproj/project.pbxproj"
+          with open(path) as f:
+              content = f.read()
+          content = content.replace(
+              "ENABLE_BITCODE = NO;",
+              "ENABLE_BITCODE = NO;\n\t\t\t\tOTHER_LDFLAGS = \"$(inherited) -Wl,-U,__swift_FORCE_LOAD_$_swiftCompatibility56 -Wl,-U,__swift_FORCE_LOAD_$_swiftCompatibilityConcurrency -Wl,-U,__swift_FORCE_LOAD_$_swiftCompatibilityPacks\";"
+          )
+          with open(path, "w") as f:
+              f.write(content)
+          '
 
       - name: Build iOS app
         run: pnpm tauri ios build --export-method app-store-connect
