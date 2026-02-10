@@ -24,3 +24,26 @@ jobs:
           pip install semgrep
           semgrep scan --config auto --severity ERROR
         continue-on-error: true
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+      - name: Install dependencies
+        run: pnpm install
+      - name: pnpm audit
+        run: pnpm audit --prod
+        continue-on-error: true
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: cargo audit
+        run: cargo audit
+        working-directory: src-tauri
+        continue-on-error: true
