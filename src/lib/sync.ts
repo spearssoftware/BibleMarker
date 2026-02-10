@@ -12,7 +12,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import { isApplePlatform } from './platform';
+import { isApplePlatform, isIOS } from './platform';
 import {
   initSyncEngine,
   stopSyncEngine,
@@ -119,18 +119,67 @@ export async function initializeSync(): Promise<void> {
   // (re-)configure with iCloud. On iOS, the iCloud container may not be locally
   // materialized until URLForUbiquityContainerIdentifier is called, so
   // initSyncEngine's exists() check can return false on subsequent launches.
+  const configured = await tryConfigureICloud();
+
+  // On iOS first launch, the iCloud container may not be materialized yet.
+  // The first URLForUbiquityContainerIdentifier call triggers materialization
+  // but can return nil before it's ready. Retry after a delay.
+  if (!configured && isIOS()) {
+    console.log('[Sync] iCloud not ready on iOS, will retry in background...');
+    retryICloudConfiguration();
+  }
+
+  console.log('[Sync] Sync system initialized, state:', getSyncEngineStatus().state);
+}
+
+/**
+ * Attempt to configure iCloud sync folder if on an Apple platform
+ * and sync is not yet configured. Returns true if configured successfully.
+ */
+async function tryConfigureICloud(): Promise<boolean> {
   const status = getSyncEngineStatus();
   if ((status.state === 'disabled' || status.state === 'no-folder') && isApplePlatform()) {
     try {
       const icloudSyncPath = await invoke<string>('get_sync_folder_path');
       console.log('[Sync] Auto-configuring iCloud sync folder:', icloudSyncPath);
       await configureSyncFolder(icloudSyncPath);
+      return true;
     } catch (error) {
       console.log('[Sync] iCloud not available, sync disabled:', error);
+      return false;
     }
   }
+  return status.state !== 'disabled' && status.state !== 'no-folder';
+}
 
-  console.log('[Sync] Sync system initialized, state:', getSyncEngineStatus().state);
+/**
+ * Retry iCloud configuration with increasing delays.
+ * On iOS, the first URLForUbiquityContainerIdentifier call triggers container
+ * materialization. Subsequent calls may succeed once the OS finishes.
+ */
+function retryICloudConfiguration(): void {
+  const delays = [3_000, 10_000]; // 3s, then 10s
+  let attempt = 0;
+
+  function scheduleRetry() {
+    if (attempt >= delays.length) {
+      console.log('[Sync] iCloud retry attempts exhausted, sync remains disabled');
+      return;
+    }
+    const delay = delays[attempt];
+    attempt++;
+    setTimeout(async () => {
+      console.log(`[Sync] iCloud retry attempt ${attempt}/${delays.length}...`);
+      const configured = await tryConfigureICloud();
+      if (configured) {
+        console.log('[Sync] iCloud configured on retry');
+      } else {
+        scheduleRetry();
+      }
+    }, delay);
+  }
+
+  scheduleRetry();
 }
 
 /**

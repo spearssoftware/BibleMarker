@@ -25,8 +25,6 @@ import type { Conclusion } from '@/types/conclusion';
 import type { InterpretationEntry } from '@/types/interpretation';
 import type { ApplicationEntry } from '@/types/application';
 import type { UserPreferences } from '@/types/preferences';
-import { isApplePlatform } from './platform';
-
 // ============================================================================
 // Database Connection
 // ============================================================================
@@ -41,18 +39,6 @@ let sqliteDb: Database | null = null;
 export async function getSqliteDb(): Promise<Database> {
   if (sqliteDb) {
     return sqliteDb;
-  }
-
-  // On Apple platforms, migrate old iCloud database to local storage if needed
-  if (isApplePlatform()) {
-    try {
-      const result = await invoke<{ migrated: boolean; message: string }>('migrate_from_icloud');
-      if (result.migrated) {
-        console.log('[SQLite] Migration:', result.message);
-      }
-    } catch (error) {
-      console.warn('[SQLite] Migration check failed (non-fatal):', error);
-    }
   }
 
   // Always use local storage — sync is handled by journal files
