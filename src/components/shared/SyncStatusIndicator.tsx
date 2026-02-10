@@ -1,20 +1,17 @@
 /**
  * Sync Status Indicator Component
  *
- * Displays iCloud sync status for iOS/macOS users.
- * Shows current sync state, allows manual sync trigger, and
- * provides access to conflict resolution when needed.
+ * Displays sync status for journal-based cross-device sync.
+ * Shows current sync state, connected devices, and allows manual sync.
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { isICloudAvailable } from '@/lib/platform';
 import {
   type SyncStatus,
   onSyncStatusChange,
   getSyncStatusMessage,
   getSyncStatusIcon,
   triggerSync,
-  getPendingConflicts,
 } from '@/lib/sync';
 
 interface SyncStatusIndicatorProps {
@@ -25,7 +22,8 @@ interface SyncStatusIndicatorProps {
 }
 
 /**
- * Sync status indicator for the UI
+ * Sync status indicator for the UI.
+ * Renders nothing if sync is disabled.
  */
 export function SyncStatusIndicator({
   compact = false,
@@ -37,8 +35,6 @@ export function SyncStatusIndicator({
 
   // Subscribe to sync status changes
   useEffect(() => {
-    if (!isICloudAvailable()) return;
-
     const unsubscribe = onSyncStatusChange(setStatus);
     return unsubscribe;
   }, []);
@@ -46,7 +42,6 @@ export function SyncStatusIndicator({
   // Handle manual sync
   const handleSync = useCallback(async () => {
     if (isSyncing) return;
-
     setIsSyncing(true);
     try {
       await triggerSync();
@@ -55,33 +50,22 @@ export function SyncStatusIndicator({
     }
   }, [isSyncing]);
 
-  // Don't render if iCloud not available
-  if (!isICloudAvailable() || !status) {
+  // Don't render if sync is disabled or no status
+  if (!status || status.state === 'disabled') {
     return null;
   }
 
-  const conflicts = getPendingConflicts();
-  const hasConflicts = conflicts.length > 0;
-
-  // Get status color
   const getStatusColor = () => {
     switch (status.state) {
-      case 'synced':
-        return 'text-green-500';
-      case 'syncing':
-        return 'text-blue-500';
-      case 'offline':
-        return 'text-yellow-500';
-      case 'error':
-        return 'text-red-500';
-      case 'unavailable':
-        return 'text-gray-400';
-      default:
-        return 'text-gray-400';
+      case 'synced': return 'text-green-500';
+      case 'syncing': return 'text-blue-500';
+      case 'offline': return 'text-yellow-500';
+      case 'error': return 'text-red-500';
+      case 'unavailable': return 'text-gray-400';
+      default: return 'text-gray-400';
     }
   };
 
-  // Compact mode - just show icon
   if (compact) {
     return (
       <>
@@ -98,15 +82,10 @@ export function SyncStatusIndicator({
           <span className={`text-lg ${status.state === 'syncing' ? 'animate-spin' : ''}`}>
             {getSyncStatusIcon(status)}
           </span>
-          {hasConflicts && (
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
-          )}
         </button>
-        {/* Details panel for compact mode */}
         {showDetails && (
           <SyncDetailsPanel
             status={status}
-            conflicts={conflicts}
             onClose={() => setShowDetails(false)}
             onSync={handleSync}
             isSyncing={isSyncing}
@@ -116,10 +95,8 @@ export function SyncStatusIndicator({
     );
   }
 
-  // Full mode - show status and controls
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      {/* Status indicator */}
       <div className="flex items-center gap-1.5">
         <span
           className={`
@@ -135,7 +112,6 @@ export function SyncStatusIndicator({
         </span>
       </div>
 
-      {/* Sync button */}
       {status.state !== 'syncing' && status.state !== 'unavailable' && (
         <button
           onClick={handleSync}
@@ -153,26 +129,9 @@ export function SyncStatusIndicator({
         </button>
       )}
 
-      {/* Conflict indicator */}
-      {hasConflicts && (
-        <button
-          onClick={() => setShowDetails(true)}
-          className="
-            px-2 py-1 text-xs rounded
-            bg-red-500/20 hover:bg-red-500/30
-            text-red-400 hover:text-red-300
-            transition-colors
-          "
-        >
-          {conflicts.length} conflict{conflicts.length !== 1 ? 's' : ''}
-        </button>
-      )}
-
-      {/* Details panel */}
       {showDetails && (
         <SyncDetailsPanel
           status={status}
-          conflicts={conflicts}
           onClose={() => setShowDetails(false)}
           onSync={handleSync}
           isSyncing={isSyncing}
@@ -182,12 +141,8 @@ export function SyncStatusIndicator({
   );
 }
 
-/**
- * Sync details panel component
- */
 interface SyncDetailsPanelProps {
   status: SyncStatus;
-  conflicts: ReturnType<typeof getPendingConflicts>;
   onClose: () => void;
   onSync: () => void;
   isSyncing: boolean;
@@ -195,7 +150,6 @@ interface SyncDetailsPanelProps {
 
 function SyncDetailsPanel({
   status,
-  conflicts,
   onClose,
   onSync,
   isSyncing,
@@ -209,13 +163,13 @@ function SyncDetailsPanel({
       ">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-medium text-white">iCloud Sync</h2>
+          <h2 className="text-lg font-medium text-white">Sync</h2>
           <button
             onClick={onClose}
             className="p-1 hover:bg-white/10 rounded transition-colors"
             aria-label="Close"
           >
-            <span className="text-gray-400 hover:text-white">×</span>
+            <span className="text-gray-400 hover:text-white">&times;</span>
           </button>
         </div>
 
@@ -226,16 +180,33 @@ function SyncDetailsPanel({
               {getSyncStatusIcon(status)}
             </span>
             <span className="text-white font-medium">
-              {status.state.charAt(0).toUpperCase() + status.state.slice(1)}
+              {getSyncStatusMessage(status)}
             </span>
           </div>
-          <p className="text-sm text-gray-400">
-            {getSyncStatusMessage(status)}
-          </p>
+          {status.sync_folder && (
+            <p className="text-xs text-gray-500 truncate" title={status.sync_folder}>
+              Folder: {status.sync_folder}
+            </p>
+          )}
           {status.error && (
             <p className="mt-2 text-sm text-red-400">{status.error}</p>
           )}
         </div>
+
+        {/* Connected devices */}
+        {status.connected_devices.length > 0 && (
+          <div className="mb-4">
+            <h3 className="text-sm font-medium text-white mb-2">Connected Devices</h3>
+            <div className="space-y-1">
+              {status.connected_devices.map((device, i) => (
+                <div key={i} className="text-sm text-gray-400 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-500" />
+                  {device}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Pending changes */}
         {status.pending_changes > 0 && (
@@ -243,30 +214,6 @@ function SyncDetailsPanel({
             <p className="text-sm text-yellow-400">
               {status.pending_changes} change{status.pending_changes !== 1 ? 's' : ''} pending sync
             </p>
-          </div>
-        )}
-
-        {/* Conflicts */}
-        {conflicts.length > 0 && (
-          <div className="mb-4">
-            <h3 className="text-sm font-medium text-white mb-2">Conflicts</h3>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {conflicts.map((conflict) => (
-                <div
-                  key={conflict.id}
-                  className="p-2 rounded bg-red-500/10 border border-red-500/20"
-                >
-                  <p className="text-sm text-red-400">
-                    Conflict in {conflict.tableName}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Local: {conflict.localUpdatedAt.toLocaleString()}
-                    {' • '}
-                    Remote: {conflict.remoteUpdatedAt.toLocaleString()}
-                  </p>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 
@@ -283,7 +230,7 @@ function SyncDetailsPanel({
           >
             Close
           </button>
-          {status.state !== 'unavailable' && (
+          {status.state !== 'unavailable' && status.state !== 'disabled' && (
             <button
               onClick={onSync}
               disabled={isSyncing}
@@ -304,21 +251,15 @@ function SyncDetailsPanel({
   );
 }
 
-// Helper to get status color class
 function getStatusColorClass(state: SyncStatus['state']): string {
   switch (state) {
-    case 'synced':
-      return 'text-green-500';
-    case 'syncing':
-      return 'text-blue-500';
-    case 'offline':
-      return 'text-yellow-500';
-    case 'error':
-      return 'text-red-500';
-    case 'unavailable':
-      return 'text-gray-400';
-    default:
-      return 'text-gray-400';
+    case 'synced': return 'text-green-500';
+    case 'syncing': return 'text-blue-500';
+    case 'offline': return 'text-yellow-500';
+    case 'error': return 'text-red-500';
+    case 'unavailable': return 'text-gray-400';
+    case 'disabled': return 'text-gray-400';
+    default: return 'text-gray-400';
   }
 }
 

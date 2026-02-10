@@ -1,19 +1,17 @@
----
-description: Database patterns - SQLite via @tauri-apps/plugin-sql with iCloud sync
-globs: "**/lib/validation.ts,**/lib/sqlite-db.ts,**/lib/database.ts,**/lib/sync.ts"
-alwaysApply: false
----
-
 # Database Patterns
 
 ## Architecture
 
 The app uses SQLite exclusively (Tauri-only, no web/PWA):
-- **Database**: `src/lib/sqlite-db.ts` - SQLite via `@tauri-apps/plugin-sql`
+- **Database**: `src/lib/sqlite-db.ts` - SQLite via `@tauri-apps/plugin-sql`, always stored locally
 - **API layer**: `src/lib/database.ts` - All CRUD functions, cache ops, raw SQL access
-- **Validation**: `src/lib/validation.ts` - Schema validation before writes
-- **Sync**: `src/lib/sync.ts` - iCloud sync for Apple platforms
+- **Sync engine**: `src/lib/sync-engine.ts` - Journal-based file sync (reads/writes JSON files to cloud-synced folder)
+- **Sync API**: `src/lib/sync.ts` - Public sync API, status management, platform detection
 - **Types**: `src/types/preferences.ts` - UserPreferences, ApiConfigRecord, etc.
+
+## Critical: Database Location
+
+The database is ALWAYS stored locally in the app data directory (`sqlite:biblemarker.db`). It is NEVER placed in a cloud-synced folder (e.g., iCloud Documents). Cloud sync is handled by the journal-based sync engine which writes small JSON files to a sync folder.
 
 ## Using the Database API
 
@@ -27,66 +25,51 @@ import {
   getPreferences,
   updatePreferences,
 } from '@/lib/database';
-
-const annotations = await getChapterAnnotations(moduleId, book, chapter);
-await saveAnnotation(annotation);
 ```
 
-## SQLite Schema Updates
+All write operations automatically record changes in the `change_log` table for sync.
 
-Update the schema version and migration in `sqlite-db.ts`:
+## Sync System
 
-```typescript
-const SCHEMA_VERSION = 2;
+The sync system uses a file-based change journal:
+1. Every write is logged to the `change_log` table
+2. Periodically, changes are flushed to JSON files in the sync folder
+3. Each device reads other devices' journal files and applies changes
+4. Conflict resolution: newest-wins based on `updated_at`
 
-async function migrateSchema(db, fromVersion, toVersion) {
-  if (fromVersion < 2) {
-    await db.execute(`
-      CREATE TABLE IF NOT EXISTS new_table (
-        id TEXT PRIMARY KEY,
-        data TEXT NOT NULL,
-        ...
-      )
-    `);
-  }
-}
+Sync folder structure:
 ```
-
-## Raw SQL Access
-
-For queries not covered by the API layer:
-
-```typescript
-import { sqlSelect, sqlExecute } from '@/lib/database';
-
-const rows = await sqlSelect<{ id: string; data: string }>(
-  'SELECT id, data FROM annotations WHERE module_id = ?',
-  [moduleId]
-);
+sync_folder/
+  {device_id}/
+    meta.json
+    {seq}.json    # journal batch files
+  snapshots/
+    {device_id}_{seq}.json  # full DB snapshots
 ```
 
 ## Key Tables
 
-| Table | Purpose | Key Indexes |
-|-------|---------|-------------|
-| `annotations` | Highlights, symbols | `module_id`, `type`, `preset_id` |
-| `marking_presets` | Keyword definitions | `word`, `category` |
-| `studies` | Study sessions | `id` |
-| `chapter_cache` | Cached Bible text | `module_id` |
-| `preferences` | User settings | `id` (singleton: 'main') |
-| `backup_files` | Auto-backup metadata | `timestamp` |
+| Table | Purpose | Synced |
+|----|---|---|
+| `annotations` | Highlights, symbols | Yes |
+| `marking_presets` | Keyword definitions | Yes |
+| `studies` | Study sessions | Yes |
+| `preferences` | User settings | Yes |
+| `change_log` | Pending sync changes | Local only |
+| `sync_watermarks` | Per-device progress | Local only |
+| `sync_config` | Sync settings | Local only |
+| `chapter_cache` | Cached Bible text | Local only |
 
-## iCloud Sync (iOS/macOS)
+## Schema Migrations
+
+Update the schema version and migration in `sqlite-db.ts`:
 
 ```typescript
-import { 
-  checkICloudStatus, 
-  getSyncStatus, 
-  onSyncStatusChange 
-} from '@/lib/sync';
+const SCHEMA_VERSION = 3;  // Current version
 
-const status = await checkICloudStatus();
-if (status.available) {
-  // iCloud container available at status.container_path
+async function migrateSchema(db, fromVersion, toVersion) {
+  if (fromVersion < 3) {
+    // Add new tables for v3...
+  }
 }
 ```

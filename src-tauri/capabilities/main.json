@@ -14,7 +14,9 @@
       "allow": [
         { "path": "$APPDATA/**" },
         { "path": "$DOCUMENT/**" },
-        { "path": "$HOME/**" }
+        { "path": "$HOME/**" },
+        { "path": "$HOME/Library/Mobile Documents/iCloud~app~biblemarker/**" },
+        { "path": "/private/var/mobile/Library/Mobile Documents/iCloud~app~biblemarker/**" }
       ]
     },
     "fs:allow-read-file",

@@ -38,8 +38,9 @@ impl AppBuilder {
             .plugin(tauri_plugin_opener::init())
             .invoke_handler(tauri::generate_handler![
                 icloud::check_icloud_status,
-                icloud::get_icloud_database_path,
-                icloud::get_sync_status,
+                icloud::get_sync_folder_path,
+                icloud::migrate_from_icloud,
+                icloud::delete_local_database,
             ])
             .setup(move |app| {
                 if let Some(setup) = setup {

@@ -1,11 +1,8 @@
 /**
- * SQLite Database Layer for Tauri (iOS/macOS)
+ * SQLite Database Layer for Tauri
  *
- * This module provides SQLite-based storage for native platforms,
- * enabling iCloud sync via the iCloud Documents container.
- *
- * The schema mirrors the Dexie/IndexedDB structure but uses SQLite
- * for better cross-platform sync support.
+ * Database is always stored locally in the app data directory.
+ * Sync is handled separately via journal files in a cloud-synced folder.
  */
 
 import Database from '@tauri-apps/plugin-sql';
@@ -27,7 +24,7 @@ import type { Place } from '@/types/place';
 import type { Conclusion } from '@/types/conclusion';
 import type { InterpretationEntry } from '@/types/interpretation';
 import type { ApplicationEntry } from '@/types/application';
-import type { UserPreferences, ChapterCache, TranslationCache, ReadingHistory, EsvRateLimitState } from '@/types/preferences';
+import type { UserPreferences } from '@/types/preferences';
 import { isApplePlatform } from './platform';
 
 // ============================================================================
@@ -38,36 +35,75 @@ let sqliteDb: Database | null = null;
 
 /**
  * Get or initialize the SQLite database connection.
- * On Apple platforms (iOS/macOS), the database is stored in the iCloud
- * container for cross-device sync. On other platforms, uses local storage.
+ * Database is always stored locally in the app data directory.
+ * On first launch after migration, copies existing iCloud database to local.
  */
 export async function getSqliteDb(): Promise<Database> {
   if (sqliteDb) {
     return sqliteDb;
   }
 
-  // Determine database path
-  let dbPath = 'sqlite:biblemarker.db'; // Fallback for non-Apple platforms
-
-  // Try to get iCloud path on Apple platforms
+  // On Apple platforms, migrate old iCloud database to local storage if needed
   if (isApplePlatform()) {
     try {
-      const icloudPath = await invoke<string>('get_icloud_database_path');
-      dbPath = `sqlite:${icloudPath}`;
-      console.log('[SQLite] Using iCloud database path:', icloudPath);
+      const result = await invoke<{ migrated: boolean; message: string }>('migrate_from_icloud');
+      if (result.migrated) {
+        console.log('[SQLite] Migration:', result.message);
+      }
     } catch (error) {
-      console.warn('[SQLite] iCloud unavailable, using local storage:', error);
-      // Fall back to local storage if iCloud is not available
+      console.warn('[SQLite] Migration check failed (non-fatal):', error);
     }
   }
 
+  // Always use local storage — sync is handled by journal files
+  const dbPath = 'sqlite:biblemarker.db';
+  console.log('[SQLite] Using local database');
+
   // Connect to SQLite database
   sqliteDb = await Database.load(dbPath);
+
+  // Run integrity check — if corrupt (e.g. from bad iCloud migration), wipe and start fresh
+  const isHealthy = await checkDatabaseIntegrity(sqliteDb);
+  if (!isHealthy) {
+    console.warn('[SQLite] Corrupt database detected, deleting and starting fresh');
+    await sqliteDb.close();
+    sqliteDb = null;
+    // Delete the corrupt database files via Rust command
+    try {
+      await invoke('delete_local_database');
+      console.log('[SQLite] Corrupt database files deleted');
+    } catch (e) {
+      console.error('[SQLite] Failed to delete corrupt database:', e);
+    }
+    // Re-open — the SQL plugin will create a fresh empty database
+    sqliteDb = await Database.load(dbPath);
+  }
 
   // Initialize schema
   await initializeSchema(sqliteDb);
 
   return sqliteDb;
+}
+
+/**
+ * Run a quick integrity check on the database.
+ * Returns true if healthy, false if corrupt.
+ */
+async function checkDatabaseIntegrity(db: Database): Promise<boolean> {
+  try {
+    const result = await db.select<{ integrity_check: string }[]>(
+      'PRAGMA integrity_check(1)'
+    );
+    const status = result[0]?.integrity_check ?? 'unknown';
+    if (status !== 'ok') {
+      console.error('[SQLite] DATABASE INTEGRITY CHECK FAILED:', status);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('[SQLite] Integrity check error:', error);
+    return false;
+  }
 }
 
 /**
@@ -84,7 +120,7 @@ export async function closeSqliteDb(): Promise<void> {
 // Schema Initialization
 // ============================================================================
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 async function initializeSchema(db: Database): Promise<void> {
   // Create schema version table
@@ -139,6 +175,45 @@ async function migrateSchema(
       )
     `);
     console.log('[SQLite] v2 migration: added backup_files and backup_data tables');
+  }
+
+  // Version 3: Add sync journal tables (change tracking, watermarks, config)
+  if (fromVersion < 3) {
+    // Change log: records every write for journal-based sync
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS change_log (
+        seq INTEGER PRIMARY KEY AUTOINCREMENT,
+        table_name TEXT NOT NULL,
+        op TEXT NOT NULL,
+        row_id TEXT NOT NULL,
+        data TEXT,
+        updated_at TEXT NOT NULL,
+        device_id TEXT NOT NULL,
+        flushed INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+    await db.execute(`CREATE INDEX IF NOT EXISTS idx_change_log_flushed ON change_log(flushed)`);
+    await db.execute(`CREATE INDEX IF NOT EXISTS idx_change_log_seq ON change_log(seq)`);
+
+    // Sync watermarks: tracks last-processed seq per remote device
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS sync_watermarks (
+        device_id TEXT PRIMARY KEY,
+        last_seq INTEGER NOT NULL DEFAULT 0,
+        last_file TEXT,
+        updated_at TEXT NOT NULL
+      )
+    `);
+
+    // Sync config: key-value pairs for sync settings
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS sync_config (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    `);
+
+    console.log('[SQLite] v3 migration: added change_log, sync_watermarks, sync_config tables');
   }
 
   // Update schema version
@@ -1181,6 +1256,308 @@ export async function sqliteImportAll(data: SqliteExportData): Promise<void> {
   // Import preferences
   if (data.preferences) {
     await sqliteSavePreferences(data.preferences);
+  }
+}
+
+// ============================================================================
+// Change Tracking for Sync
+// ============================================================================
+
+/** Tables that are synced between devices via the journal */
+export const SYNCED_TABLES = new Set([
+  'annotations',
+  'section_headings',
+  'chapter_titles',
+  'notes',
+  'marking_presets',
+  'studies',
+  'multi_translation_views',
+  'observation_lists',
+  'five_w_and_h',
+  'contrasts',
+  'time_expressions',
+  'places',
+  'conclusions',
+  'interpretations',
+  'applications',
+  'preferences',
+]);
+
+/**
+ * Record a change in the change_log for sync.
+ * Called after every write to a synced table.
+ */
+export async function recordChange(
+  tableName: string,
+  op: 'upsert' | 'delete',
+  rowId: string,
+  data?: string | null
+): Promise<void> {
+  if (!SYNCED_TABLES.has(tableName)) return;
+
+  const db = await getSqliteDb();
+  const now = new Date().toISOString();
+  const deviceId = getDeviceId();
+
+  await db.execute(
+    `INSERT INTO change_log (table_name, op, row_id, data, updated_at, device_id, flushed)
+     VALUES (?, ?, ?, ?, ?, ?, 0)`,
+    [tableName, op, rowId, data ?? null, now, deviceId]
+  );
+}
+
+/**
+ * Get unflushed changes from the change_log.
+ */
+export async function getUnflushedChanges(): Promise<{
+  seq: number;
+  table_name: string;
+  op: string;
+  row_id: string;
+  data: string | null;
+  updated_at: string;
+  device_id: string;
+}[]> {
+  const db = await getSqliteDb();
+  return db.select(
+    `SELECT seq, table_name, op, row_id, data, updated_at, device_id
+     FROM change_log WHERE flushed = 0 ORDER BY seq ASC`
+  );
+}
+
+/**
+ * Mark changes as flushed (written to journal file).
+ */
+export async function markChangesFlushed(upToSeq: number): Promise<void> {
+  const db = await getSqliteDb();
+  await db.execute(
+    `UPDATE change_log SET flushed = 1 WHERE seq <= ? AND flushed = 0`,
+    [upToSeq]
+  );
+}
+
+/**
+ * Delete flushed changes older than a given seq (for compaction).
+ */
+export async function pruneChangeLog(olderThanSeq: number): Promise<void> {
+  const db = await getSqliteDb();
+  await db.execute(
+    `DELETE FROM change_log WHERE seq <= ? AND flushed = 1`,
+    [olderThanSeq]
+  );
+}
+
+// ============================================================================
+// Sync Watermarks
+// ============================================================================
+
+/**
+ * Get the sync watermark for a remote device.
+ */
+export async function getSyncWatermark(remoteDeviceId: string): Promise<number> {
+  const db = await getSqliteDb();
+  const rows = await db.select<{ last_seq: number }[]>(
+    `SELECT last_seq FROM sync_watermarks WHERE device_id = ?`,
+    [remoteDeviceId]
+  );
+  return rows[0]?.last_seq ?? 0;
+}
+
+/**
+ * Update the sync watermark for a remote device.
+ */
+export async function setSyncWatermark(remoteDeviceId: string, lastSeq: number): Promise<void> {
+  const db = await getSqliteDb();
+  await db.execute(
+    `INSERT OR REPLACE INTO sync_watermarks (device_id, last_seq, updated_at)
+     VALUES (?, ?, ?)`,
+    [remoteDeviceId, lastSeq, new Date().toISOString()]
+  );
+}
+
+// ============================================================================
+// Sync Config
+// ============================================================================
+
+/**
+ * Get a sync config value.
+ */
+export async function getSyncConfig(key: string): Promise<string | null> {
+  const db = await getSqliteDb();
+  const rows = await db.select<{ value: string }[]>(
+    `SELECT value FROM sync_config WHERE key = ?`,
+    [key]
+  );
+  return rows[0]?.value ?? null;
+}
+
+/**
+ * Set a sync config value.
+ */
+export async function setSyncConfig(key: string, value: string): Promise<void> {
+  const db = await getSqliteDb();
+  await db.execute(
+    `INSERT OR REPLACE INTO sync_config (key, value) VALUES (?, ?)`,
+    [key, value]
+  );
+}
+
+// ============================================================================
+// Apply Remote Changes (for sync engine)
+// ============================================================================
+
+/**
+ * Apply a remote change from another device's journal.
+ * Uses newest-wins conflict resolution based on updated_at.
+ */
+export async function applyRemoteChange(
+  tableName: string,
+  op: 'upsert' | 'delete',
+  rowId: string,
+  data: string | null,
+  remoteUpdatedAt: string,
+  remoteDeviceId: string
+): Promise<boolean> {
+  validateTableName(tableName);
+  const db = await getSqliteDb();
+
+  if (op === 'delete') {
+    // For deletes, check if local record is newer
+    const existing = await db.select<{ updated_at: string }[]>(
+      `SELECT updated_at FROM ${tableName} WHERE id = ?`,
+      [rowId]
+    );
+    if (existing.length > 0 && existing[0].updated_at > remoteUpdatedAt) {
+      return false; // Local is newer, skip
+    }
+    await db.execute(`DELETE FROM ${tableName} WHERE id = ?`, [rowId]);
+    return true;
+  }
+
+  // For upserts, check if local record is newer
+  const existing = await db.select<{ updated_at: string }[]>(
+    `SELECT updated_at FROM ${tableName} WHERE id = ?`,
+    [rowId]
+  );
+  if (existing.length > 0 && existing[0].updated_at > remoteUpdatedAt) {
+    return false; // Local is newer, skip
+  }
+
+  if (!data) return false;
+
+  // Apply based on table type
+  if (tableName === 'preferences') {
+    await db.execute(
+      `INSERT OR REPLACE INTO preferences (id, data, updated_at, sync_status, device_id)
+       VALUES (?, ?, ?, 'synced', ?)`,
+      [rowId, data, remoteUpdatedAt, remoteDeviceId]
+    );
+  } else if (['annotations', 'section_headings', 'chapter_titles', 'notes', 'marking_presets', 'studies'].includes(tableName)) {
+    // Tables with structured columns — parse data and upsert
+    await applyStructuredUpsert(db, tableName, data, remoteUpdatedAt, remoteDeviceId);
+  } else {
+    // Generic data tables (observation types) — use the data column approach
+    const parsed = JSON.parse(data);
+    const createdAt = parsed.createdAt ? new Date(parsed.createdAt).toISOString() : remoteUpdatedAt;
+    await db.execute(
+      `INSERT OR REPLACE INTO ${tableName} (id, data, created_at, updated_at, sync_status, device_id)
+       VALUES (?, ?, ?, ?, 'synced', ?)`,
+      [rowId, data, createdAt, remoteUpdatedAt, remoteDeviceId]
+    );
+  }
+
+  return true;
+}
+
+/**
+ * Apply an upsert to a table with structured columns.
+ */
+async function applyStructuredUpsert(
+  db: Database,
+  tableName: string,
+  data: string,
+  updatedAt: string,
+  deviceId: string
+): Promise<void> {
+  const parsed = JSON.parse(data);
+
+  switch (tableName) {
+    case 'annotations':
+      await db.execute(
+        `INSERT OR REPLACE INTO annotations
+         (id, module_id, type, data, preset_id, created_at, updated_at, sync_status, device_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'synced', ?)`,
+        [
+          parsed.id, parsed.moduleId, parsed.type, data,
+          parsed.presetId ?? null, toISOString(parsed.createdAt), updatedAt, deviceId,
+        ]
+      );
+      break;
+    case 'section_headings':
+      await db.execute(
+        `INSERT OR REPLACE INTO section_headings
+         (id, before_ref, title, covers_until, created_at, updated_at, sync_status, device_id)
+         VALUES (?, ?, ?, ?, ?, ?, 'synced', ?)`,
+        [
+          parsed.id, JSON.stringify(parsed.beforeRef), parsed.title,
+          parsed.coversUntil ? JSON.stringify(parsed.coversUntil) : null,
+          toISOString(parsed.createdAt), updatedAt, deviceId,
+        ]
+      );
+      break;
+    case 'chapter_titles':
+      await db.execute(
+        `INSERT OR REPLACE INTO chapter_titles
+         (id, book, chapter, title, theme, supporting_preset_ids, created_at, updated_at, sync_status, device_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?)`,
+        [
+          parsed.id, parsed.book, parsed.chapter, parsed.title,
+          parsed.theme ?? null,
+          parsed.supportingPresetIds ? JSON.stringify(parsed.supportingPresetIds) : null,
+          toISOString(parsed.createdAt), updatedAt, deviceId,
+        ]
+      );
+      break;
+    case 'notes':
+      await db.execute(
+        `INSERT OR REPLACE INTO notes
+         (id, module_id, ref, range, content, created_at, updated_at, sync_status, device_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'synced', ?)`,
+        [
+          parsed.id, parsed.moduleId, JSON.stringify(parsed.ref),
+          parsed.range ? JSON.stringify(parsed.range) : null,
+          parsed.content, toISOString(parsed.createdAt), updatedAt, deviceId,
+        ]
+      );
+      break;
+    case 'marking_presets':
+      await db.execute(
+        `INSERT OR REPLACE INTO marking_presets
+         (id, word, variants, symbol, highlight, category, description, auto_suggest, usage_count,
+          book_scope, chapter_scope, module_scope, study_id, created_at, updated_at, sync_status, device_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?)`,
+        [
+          parsed.id, parsed.word ?? null, JSON.stringify(parsed.variants),
+          parsed.symbol ?? null, parsed.highlight ? JSON.stringify(parsed.highlight) : null,
+          parsed.category ?? null, parsed.description ?? null,
+          parsed.autoSuggest ? 1 : 0, parsed.usageCount ?? 0,
+          parsed.bookScope ?? null, parsed.chapterScope ?? null,
+          parsed.moduleScope ?? null, parsed.studyId ?? null,
+          toISOString(parsed.createdAt), updatedAt, deviceId,
+        ]
+      );
+      break;
+    case 'studies':
+      await db.execute(
+        `INSERT OR REPLACE INTO studies
+         (id, name, book, is_active, created_at, updated_at, sync_status, device_id)
+         VALUES (?, ?, ?, ?, ?, ?, 'synced', ?)`,
+        [
+          parsed.id, parsed.name, parsed.book ?? null,
+          parsed.isActive ? 1 : 0, toISOString(parsed.createdAt), updatedAt, deviceId,
+        ]
+      );
+      break;
   }
 }
 
