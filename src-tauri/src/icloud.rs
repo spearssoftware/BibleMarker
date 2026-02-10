@@ -21,7 +21,6 @@ pub struct ICloudStatus {
     pub error: Option<String>,
 }
 
-
 /// Get iCloud container URL for the app.
 ///
 /// First tries the standard NSFileManager API. If it returns nil (which can happen
@@ -169,5 +168,4 @@ mod tests {
         assert!(json.contains("available"));
         assert!(json.contains("/path/to/container"));
     }
-
 }

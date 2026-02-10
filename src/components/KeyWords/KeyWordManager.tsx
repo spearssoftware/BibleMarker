@@ -23,7 +23,7 @@ interface KeyWordManagerProps {
   onPresetCreated?: (preset: MarkingPreset) => void | Promise<void>;
 }
 
-export function KeyWordManager({ onClose, initialWord, initialSymbol, initialColor, onPresetCreated }: KeyWordManagerProps) {
+export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, initialColor, onPresetCreated }: KeyWordManagerProps) {
   const {
     presets,
     filterCategory,

@@ -99,7 +99,7 @@ const sortListsByVerse = (lists: ObservationList[]): ObservationList[] => {
 };
 
 export function ObservationToolsPanel({ 
-  onClose, 
+  onClose: _onClose, 
   initialTab = 'lists',
   selectedText,
   verseRef,
