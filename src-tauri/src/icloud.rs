@@ -2,7 +2,6 @@
 //!
 //! Provides:
 //! - iCloud container detection for sync folder on macOS/iOS
-//! - Migration from old iCloud-database approach to local storage
 //! - Sync folder path resolution
 
 use serde::{Deserialize, Serialize};
@@ -22,14 +21,6 @@ pub struct ICloudStatus {
     pub error: Option<String>,
 }
 
-/// Result of database migration from iCloud to local storage
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MigrationResult {
-    /// Whether migration was performed
-    pub migrated: bool,
-    /// Human-readable description of what happened
-    pub message: String,
-}
 
 /// Get iCloud container URL for the app.
 ///
@@ -138,128 +129,6 @@ pub fn get_sync_folder_path() -> Result<String, String> {
     Ok(sync_path)
 }
 
-/// Migrate the database from the old iCloud container location to local app storage.
-///
-/// The old approach stored `biblemarker.db` directly in the iCloud Documents container,
-/// which causes corruption because iCloud syncs the DB/WAL/SHM files independently.
-/// This command copies that database to the local app data directory (if it hasn't
-/// been migrated already).
-#[command]
-pub fn migrate_from_icloud(app_handle: tauri::AppHandle) -> MigrationResult {
-    use tauri::Manager;
-
-    let app_data = match app_handle.path().app_data_dir() {
-        Ok(p) => p,
-        Err(e) => {
-            return MigrationResult {
-                migrated: false,
-                message: format!("Cannot determine app data dir: {}", e),
-            }
-        }
-    };
-
-    let local_db = app_data.join("biblemarker.db");
-
-    // If local DB already exists and has content, skip migration
-    if local_db.exists() {
-        if let Ok(meta) = std::fs::metadata(&local_db) {
-            if meta.len() > 0 {
-                return MigrationResult {
-                    migrated: false,
-                    message: "Local database already exists".into(),
-                };
-            }
-        }
-    }
-
-    // Try to find the old iCloud database
-    let container_path = match get_icloud_container_url() {
-        Ok(p) => p,
-        Err(e) => {
-            return MigrationResult {
-                migrated: false,
-                message: format!("iCloud unavailable: {}", e),
-            }
-        }
-    };
-
-    let icloud_db = std::path::PathBuf::from(&container_path).join("Documents/biblemarker.db");
-
-    if !icloud_db.exists() {
-        return MigrationResult {
-            migrated: false,
-            message: "No iCloud database found to migrate".into(),
-        };
-    }
-
-    // Ensure local directory exists
-    if let Err(e) = std::fs::create_dir_all(&app_data) {
-        return MigrationResult {
-            migrated: false,
-            message: format!("Failed to create app data dir: {}", e),
-        };
-    }
-
-    // Copy only the main .db file — do NOT copy WAL/SHM files.
-    // iCloud syncs WAL/SHM independently from the main DB, which causes corruption.
-    if let Err(e) = std::fs::copy(&icloud_db, &local_db) {
-        return MigrationResult {
-            migrated: false,
-            message: format!("Failed to copy database: {}", e),
-        };
-    }
-
-    // Verify the copied database isn't corrupt
-    match rusqlite::Connection::open(&local_db) {
-        Ok(conn) => {
-            match conn.query_row("PRAGMA integrity_check(1)", [], |row| {
-                row.get::<_, String>(0)
-            }) {
-                Ok(ref status) if status == "ok" => {
-                    eprintln!(
-                        "[iCloud] Migrated database from {} to {} (integrity: ok)",
-                        icloud_db.display(),
-                        local_db.display()
-                    );
-                    MigrationResult {
-                        migrated: true,
-                        message: "Database migrated from iCloud to local storage".into(),
-                    }
-                }
-                Ok(status) => {
-                    eprintln!("[iCloud] Migrated database is corrupt: {}", status);
-                    drop(conn);
-                    let _ = std::fs::remove_file(&local_db);
-                    MigrationResult {
-                        migrated: false,
-                        message: format!("iCloud database is corrupt ({}), starting fresh", status),
-                    }
-                }
-                Err(e) => {
-                    eprintln!("[iCloud] Integrity check failed: {}", e);
-                    drop(conn);
-                    let _ = std::fs::remove_file(&local_db);
-                    MigrationResult {
-                        migrated: false,
-                        message: format!(
-                            "iCloud database integrity check failed ({}), starting fresh",
-                            e
-                        ),
-                    }
-                }
-            }
-        }
-        Err(e) => {
-            eprintln!("[iCloud] Cannot open migrated database: {}", e);
-            let _ = std::fs::remove_file(&local_db);
-            MigrationResult {
-                migrated: false,
-                message: format!("Migrated database unreadable ({}), starting fresh", e),
-            }
-        }
-    }
-}
-
 /// Delete the local database files so a fresh DB can be created.
 /// Called from JS when corruption is detected at runtime.
 #[command]
@@ -301,13 +170,4 @@ mod tests {
         assert!(json.contains("/path/to/container"));
     }
 
-    #[test]
-    fn test_migration_result_serialization() {
-        let result = MigrationResult {
-            migrated: true,
-            message: "Done".into(),
-        };
-        let json = serde_json::to_string(&result).unwrap();
-        assert!(json.contains("migrated"));
-    }
 }

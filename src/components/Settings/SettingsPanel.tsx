@@ -95,7 +95,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [selectedLanguageCodes, setSelectedLanguageCodes] = useState<string[]>([]);
 
   // Default translation state
-  const [defaultTranslation, setDefaultTranslation] = useState<string>('');
+  const [defaultTranslation, setDefaultTranslation] = useState<string>('kjv');
   const [availableTranslations, setAvailableTranslations] = useState<ApiTranslation[]>([]);
   const [savingDefaultTranslation, setSavingDefaultTranslation] = useState(false);
 
@@ -181,10 +181,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             : ['en']
         );
 
-        // Load default translation
-        if (prefs.defaultTranslation) {
-          setDefaultTranslation(prefs.defaultTranslation);
-        }
+        // Load default translation (fallback to KJV)
+        setDefaultTranslation(prefs.defaultTranslation || 'kjv');
         
         // Load available translations
         const translations = await getAllTranslations();
@@ -775,7 +773,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     // Save immediately when changed
                     setSavingDefaultTranslation(true);
                     try {
-                      await updatePreferences({ defaultTranslation: newValue || undefined });
+                      await updatePreferences({ defaultTranslation: newValue });
                       // Reload translations to ensure the list is up to date
                       const translations = await getAllTranslations();
                       setAvailableTranslations(translations);
@@ -787,7 +785,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   }}
                   disabled={savingDefaultTranslation}
                   options={[
-                    { value: '', label: 'None (no default)' },
                     ...availableTranslations.map((translation) => ({
                       value: translation.id,
                       label: `${translation.name}${translation.abbreviation ? ` (${translation.abbreviation})` : ''}`
