@@ -213,9 +213,6 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install
 
-      - name: Generate icons
-        run: pnpm tauri icon public/icon.svg
-
       - name: Set up App Store Connect API key
         env:
           API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
@@ -228,6 +225,37 @@ jobs:
         run: pnpm tauri ios init
         env:
           CI: true
+
+      # Generate icons AFTER ios init so they're copied into gen/apple/Assets.xcassets
+      - name: Generate icons
+        run: pnpm tauri icon public/icon.svg
+
+      # tauri ios init generates a default entitlements file without iCloud capabilities.
+      # Overwrite it with our iCloud-enabled version for cross-device sync.
+      - name: Configure iCloud entitlements
+        run: |
+          cat > src-tauri/gen/apple/biblemarker_iOS/biblemarker_iOS.entitlements << 'ENTITLEMENTS'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>com.apple.developer.icloud-container-identifiers</key>
+            <array>
+              <string>iCloud.app.biblemarker</string>
+            </array>
+            <key>com.apple.developer.ubiquity-container-identifiers</key>
+            <array>
+              <string>iCloud.app.biblemarker</string>
+            </array>
+            <key>com.apple.developer.icloud-services</key>
+            <array>
+              <string>CloudDocuments</string>
+            </array>
+            <key>com.apple.developer.icloud-container-environment</key>
+            <string>Production</string>
+          </dict>
+          </plist>
+          ENTITLEMENTS
 
       # WORKAROUND: Xcode 26 removed Swift backward-compat libraries (swiftCompatibility56,
       # swiftCompatibilityConcurrency, swiftCompatibilityPacks) but swift-rs still compiles
