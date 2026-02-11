@@ -230,6 +230,22 @@ jobs:
       - name: Generate icons
         run: pnpm tauri icon public/icon.svg
 
+      # iOS requires app icons without alpha/transparency — strip it from all generated PNGs
+      - name: Strip alpha from iOS icons
+        run: |
+          node -e "
+          const sharp = require('sharp');
+          const fs = require('fs');
+          const path = require('path');
+          const dir = 'src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset';
+          const files = fs.readdirSync(dir).filter(f => f.endsWith('.png'));
+          Promise.all(files.map(async f => {
+            const p = path.join(dir, f);
+            const buf = await sharp(p).flatten({ background: { r: 26, g: 26, b: 46 } }).png().toBuffer();
+            fs.writeFileSync(p, buf);
+          })).then(() => console.log('Stripped alpha from', files.length, 'icons'));
+          "
+
       # tauri ios init generates a default entitlements file without iCloud capabilities.
       # Overwrite it with our iCloud-enabled version for cross-device sync.
       - name: Configure iCloud entitlements
