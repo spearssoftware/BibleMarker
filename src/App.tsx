@@ -24,6 +24,8 @@ import { useVirtualKeyboard } from '@/hooks/useVirtualKeyboard';
 import { autoBackupService } from '@/lib/autoBackup';
 import { getDebugFlags } from '@/lib/debug';
 import { initializeSync, shutdownSync } from '@/lib/sync';
+import { checkForUpdateIfDue } from '@/lib/updateCheck';
+import { UpdateBanner } from '@/components/shared';
 
 export default function App() {
   const { setChapter, currentBook, currentChapter, currentModuleId, setLoading, setError } = useBibleStore();
@@ -38,6 +40,10 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
+
+  // Update check: show banner when new version available (respects checkForUpdates pref, 24h throttle)
+  const [updateAvailable, setUpdateAvailable] = useState<{ version: string; url: string } | null>(null);
+  const [updateBannerDismissed, setUpdateBannerDismissed] = useState(false);
 
   // Initialize theme on mount (before other initialization)
   useEffect(() => {
@@ -86,9 +92,15 @@ export default function App() {
       loadLists();
       getDebugFlags();
       autoBackupService.start();
-      
+
       initializeSync().catch(err => {
         console.error('[App] Failed to initialize sync:', err);
+      });
+
+      checkForUpdateIfDue().then(result => {
+        if (result) {
+          setUpdateAvailable({ version: result.version, url: result.url });
+        }
       });
     }, 0);
 
@@ -189,6 +201,15 @@ export default function App() {
     <div className="min-h-screen bg-scripture-bg text-scripture-text flex flex-col">
       {/* Global error display */}
       <ErrorDisplay />
+
+      {/* Update available banner */}
+      {updateAvailable && !updateBannerDismissed && (
+        <UpdateBanner
+          version={updateAvailable.version}
+          url={updateAvailable.url}
+          onDismiss={() => setUpdateBannerDismissed(true)}
+        />
+      )}
 
       {/* Top navigation */}
       <NavigationBar />

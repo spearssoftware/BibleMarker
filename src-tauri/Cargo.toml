@@ -31,6 +31,11 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", features = ["NSFileManager", "NSString", "NSURL", "NSObject"] }
 
+# Desktop-only: updater and process (excludes iOS)
+[target.'cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))'.dependencies]
+tauri-plugin-updater = { version = "2", features = [] }
+tauri-plugin-process = { version = "2", features = [] }
+
 [features]
 # This feature is used for production builds or when `devPath` points to the filesystem
 # DO NOT REMOVE!!

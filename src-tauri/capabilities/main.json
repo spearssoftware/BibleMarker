@@ -34,6 +34,9 @@
     "sql:allow-execute",
     "sql:allow-select",
     "sql:allow-close",
-    "opener:default"
+    "opener:default",
+    "updater:default",
+    "process:allow-restart",
+    "process:allow-exit"
   ]
 }
