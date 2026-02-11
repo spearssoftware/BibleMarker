@@ -5,54 +5,64 @@
 
 import type { VerseRef, VerseRange } from './bible';
 
-/** Available highlight colors - arranged in rainbow order, then neutrals */
+/** Available highlight colors - vibrant tones that work well on dark backgrounds */
 export const HIGHLIGHT_COLORS = {
   // Reds & Pinks
   red: '#ef4444',
   rose: '#f43f5e',
-  coral: '#ff7875',
-  salmon: '#ff9c9c',
+  coral: '#fb7185',
+  crimson: '#dc2626',
   pink: '#ec4899',
+  hotPink: '#db2777',
   fuchsia: '#d946ef',
-  
+  magenta: '#e879f9',
+
   // Oranges & Yellows
   orange: '#f97316',
   amber: '#f59e0b',
   yellow: '#eab308',
-  
+  gold: '#fbbf24',
+  peach: '#fb923c',
+
   // Greens
   lime: '#84cc16',
   green: '#22c55e',
   emerald: '#10b981',
-  mint: '#36cfc9',
-  
+  teal: '#14b8a6',
+  mint: '#2dd4bf',
+
   // Blues & Cyans
   cyan: '#06b6d4',
   sky: '#0ea5e9',
   blue: '#3b82f6',
   indigo: '#6366f1',
-  teal: '#14b8a6',
-  
+  azure: '#38bdf8',
+
   // Purples & Violets
   violet: '#8b5cf6',
   purple: '#a855f7',
-  lavender: '#b37feb',
-  
-  // Browns & Tans
-  brown: '#a16207',
-  tan: '#d4a574',
-  beige: '#e5d5c5',
-  
-  // Grays & Neutrals (lighter gray for better visibility)
-  gray: '#9ca3af',      // Lighter gray that works in both themes
+  lavender: '#a78bfa',
+  plum: '#c084fc',
+
+  // Browns & Neutrals
+  brown: '#d97706',
+  gray: '#94a3b8',
   slate: '#64748b',
-  stone: '#78716c',
-  neutral: '#737373',
-  black: '#1f2937',
-  white: '#f9fafb',
+  silver: '#cbd5e1',
+  bronze: '#b45309',
+  tomato: '#f87171',
+  jade: '#34d399',
+  aqua: '#22d3ee',
+  orchid: '#e879f9',
 } as const;
 
 export type HighlightColor = keyof typeof HIGHLIGHT_COLORS;
+
+/** Get hex for a color; falls back to gray for legacy annotations that used removed colors */
+export function getHighlightColorHex(color: string): string {
+  const hex = HIGHLIGHT_COLORS[color as HighlightColor];
+  return hex ?? HIGHLIGHT_COLORS.gray;
+}
 
 /** Pick a random highlight color (e.g. when assigning a symbol in a preset) */
 export function getRandomHighlightColor(): HighlightColor {
@@ -74,8 +84,16 @@ export const SYMBOLS = {
 
   // People & Characters
   person: '👤',      // Person / Character
+  peopleGroup: '👥', // People group / Nation (as people)
   crown: '👑',       // King / Authority / Title
   prayer: '🙏',      // Prayer / Worship
+
+  // Obedience & Freedom
+  obey: '🙇',        // Obey / Submit / Bow
+  liberty: '🔓',     // Liberty / Freedom / Unshackled
+
+  // Nation & Land
+  nationLand: '🗺',  // Nation / Land / Territory / Map
 
   // Concepts & Themes
   star: '★',         // Promise / Covenant

@@ -20,7 +20,11 @@ const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   },
   {
     name: 'People & Characters',
-    symbols: ['person', 'crown', 'prayer'],
+    symbols: ['person', 'peopleGroup', 'crown', 'prayer'],
+  },
+  {
+    name: 'Obedience & Freedom',
+    symbols: ['obey', 'liberty'],
   },
   {
     name: 'Concepts & Themes',
@@ -36,7 +40,7 @@ const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   },
   {
     name: 'Geography & Place',
-    symbols: ['mapPin', 'mountain', 'globe', 'tree', 'river', 'house', 'temple', 'city'],
+    symbols: ['mapPin', 'nationLand', 'mountain', 'globe', 'tree', 'river', 'house', 'temple', 'city'],
   },
   {
     name: 'Actions & States',

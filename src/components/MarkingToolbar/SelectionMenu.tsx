@@ -5,13 +5,13 @@
  * Provides all marking and observation options in a compact menu.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import type { TextSelection } from '@/stores/annotationStore';
 import type { MarkingPreset } from '@/types/keyWord';
 import type { SymbolKey } from '@/types/annotation';
 import type { ObservationTab } from '@/components/Observation';
 import type { ObservationTrackerType } from '@/lib/observationSymbols';
-import { SYMBOLS, HIGHLIGHT_COLORS } from '@/types/annotation';
+import { SYMBOLS, getHighlightColorHex } from '@/types/annotation';
 import { isCommonPronoun } from '@/types/keyWord';
 import { getTrackerForSymbol } from '@/lib/observationSymbols';
 
@@ -82,58 +82,44 @@ export function SelectionMenu({
 
   // Calculate menu position to avoid going off-screen and respect safe areas (desktop only)
   const [menuPosition, setMenuPosition] = useState(position);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!menuRef.current || isMobile) return;
     
-    const rect = menuRef.current.getBoundingClientRect();
+    const el = menuRef.current;
+    if (!el) return;
+    
+    const rect = el.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     
-    // Get safe area insets from computed styles (these are set by viewport-fit=cover)
+    // Get safe area insets from computed styles
     const computedStyle = getComputedStyle(document.documentElement);
     const safeTop = parseInt(computedStyle.getPropertyValue('env(safe-area-inset-top)') || '0', 10) || 
-                    (/iPhone/.test(navigator.userAgent) ? 59 : 0); // Fallback: ~59px for Dynamic Island
+                    (/iPhone/.test(navigator.userAgent) ? 59 : 0);
     const safeBottom = parseInt(computedStyle.getPropertyValue('env(safe-area-inset-bottom)') || '0', 10) || 
-                       (/iPhone/.test(navigator.userAgent) ? 34 : 0); // Fallback: ~34px for home indicator
+                       (/iPhone/.test(navigator.userAgent) ? 34 : 0);
     const safeLeft = parseInt(computedStyle.getPropertyValue('env(safe-area-inset-left)') || '0', 10) || 0;
     const safeRight = parseInt(computedStyle.getPropertyValue('env(safe-area-inset-right)') || '0', 10) || 0;
     
-    let x = position.x;
-    let y = position.y;
-    
-    // Define safe boundaries
+    // Account for app header (nav bar ~56px) on desktop so menu isn't hidden behind it
+    const headerOffset = /iPhone|iPad|Android/.test(navigator.userAgent) ? 0 : 56;
+    const minY = Math.max(safeTop + 10, headerOffset);
     const minX = safeLeft + 10;
     const maxX = viewportWidth - safeRight - 10;
-    const minY = safeTop + 10;
     const maxY = viewportHeight - safeBottom - 10;
     
-    // Adjust horizontal position if menu would go off-screen or into safe areas
-    if (x + rect.width > maxX) {
-      x = maxX - rect.width;
-    }
-    if (x < minX) {
-      x = minX;
-    }
+    // Center menu horizontally on selection (position.x is selection center)
+    let x = position.x - rect.width / 2;
+    if (x + rect.width > maxX) x = maxX - rect.width;
+    if (x < minX) x = minX;
     
-    // Adjust vertical position - prefer above selection, fallback to below
-    if (y - rect.height < minY) {
-      // Not enough space above, show below
-      y = position.y + 20;
-    } else {
-      // Show above selection
-      y = position.y - rect.height - 5;
-    }
+    // Prefer above selection; if not enough room, show below
+    const wouldShowAbove = position.y - rect.height - 5;
+    let y = wouldShowAbove < minY ? position.y + 20 : wouldShowAbove;
+    if (y + rect.height > maxY) y = maxY - rect.height;
+    if (y < minY) y = minY;
     
-    // Ensure menu doesn't go below viewport or into bottom safe area
-    if (y + rect.height > maxY) {
-      y = maxY - rect.height;
-    }
-    // Ensure menu doesn't go above top safe area
-    if (y < minY) {
-      y = minY;
-    }
-    
-    queueMicrotask(() => setMenuPosition({ x, y }));
+    setMenuPosition({ x, y });
   }, [position, isMobile]);
 
   const keywordPresets = presets.filter((p) => p.word);
@@ -231,7 +217,7 @@ export function SelectionMenu({
                         <span
                           className="text-base"
                           style={{
-                            color: p.highlight?.color ? HIGHLIGHT_COLORS[p.highlight.color] : undefined,
+                            color: p.highlight?.color ? getHighlightColorHex(p.highlight.color) : undefined,
                           }}
                         >
                           {SYMBOLS[p.symbol]}
@@ -240,7 +226,7 @@ export function SelectionMenu({
                       {p.highlight && (
                         <span
                           className="w-4 h-4 rounded border border-scripture-border/30 flex-shrink-0"
-                          style={{ backgroundColor: HIGHLIGHT_COLORS[p.highlight.color] + '60' }}
+                          style={{ backgroundColor: getHighlightColorHex(p.highlight.color) + '60' }}
                         />
                       )}
                       <span className="truncate">{p.word}</span>
@@ -297,7 +283,7 @@ export function SelectionMenu({
                         <span
                           className="text-base"
                           style={{
-                            color: p.highlight?.color ? HIGHLIGHT_COLORS[p.highlight.color] : undefined,
+                            color: p.highlight?.color ? getHighlightColorHex(p.highlight.color) : undefined,
                           }}
                         >
                           {SYMBOLS[p.symbol]}
@@ -306,7 +292,7 @@ export function SelectionMenu({
                       {p.highlight && (
                         <span
                           className="w-4 h-4 rounded border border-scripture-border/30 flex-shrink-0"
-                          style={{ backgroundColor: HIGHLIGHT_COLORS[p.highlight.color] + '60' }}
+                          style={{ backgroundColor: getHighlightColorHex(p.highlight.color) + '60' }}
                         />
                       )}
                       <span className="truncate">{p.word}</span>
