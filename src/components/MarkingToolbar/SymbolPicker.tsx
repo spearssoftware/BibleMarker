@@ -28,7 +28,7 @@ const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   },
   {
     name: 'Concepts & Themes',
-    symbols: ['star', 'starOutline', 'heart', 'heartRed', 'heartSparkle', 'lightning', 'skull', 'shield', 'scales', 'key', 'sun', 'moon', 'cup', 'sword'],
+    symbols: ['star', 'starOutline', 'heart', 'heartRed', 'heartSparkle', 'lightning', 'skull', 'sin', 'shield', 'scales', 'key', 'sun', 'moon', 'cup', 'sword'],
   },
   {
     name: 'Scripture & Teaching',
@@ -49,10 +49,6 @@ const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   {
     name: 'General Markers',
     symbols: ['circle', 'square', 'diamond', 'hexagon', 'plus', 'minus'],
-  },
-  {
-    name: 'Numbered & Letters',
-    symbols: ['num1', 'num2', 'num3', 'num4', 'num5', 'letterA', 'letterB', 'letterC', 'letterD', 'letterE', 'letterF', 'letterG', 'letterH', 'letterI'],
   },
   {
     name: 'Punctuation',

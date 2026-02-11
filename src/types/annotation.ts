@@ -102,7 +102,8 @@ export const SYMBOLS = {
   heartRed: '❤️',    // Love / Compassion (filled)
   heartSparkle: '💖', // Love / Devotion (sparkling)
   lightning: '⚡',   // Judgment / Power / Conflict
-  skull: '💀',       // Death / Sin
+  skull: '💀',       // Death
+  sin: '↓',         // Sin / Falling short / Missing the mark
   shield: '🛡',      // Protection / Faith
   scales: '⚖',      // Justice / Judgment
   key: '🔑',         // Authority / Kingdom / Access
@@ -152,22 +153,6 @@ export const SYMBOLS = {
   hexagon: '⬡',     // General marker
   plus: '➕',        // Add / Include / Also
   minus: '➖',       // Remove / Exclude
-
-  // Numbered & Lettered markers
-  num1: '①',
-  num2: '②',
-  num3: '③',
-  num4: '④',
-  num5: '⑤',
-  letterA: 'Ⓐ',
-  letterB: 'Ⓑ',
-  letterC: 'Ⓒ',
-  letterD: 'Ⓓ',
-  letterE: 'Ⓔ',
-  letterF: 'Ⓕ',
-  letterG: 'Ⓖ',
-  letterH: 'Ⓗ',
-  letterI: 'Ⓘ',
 
   // Punctuation markers
   question: '?',

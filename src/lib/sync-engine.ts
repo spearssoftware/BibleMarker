@@ -264,7 +264,7 @@ export async function sync(): Promise<void> {
     await flushChanges();
 
     // 2. Pull and apply changes from other devices
-    const applied = await pullChanges();
+    const { applied, tables } = await pullChanges();
 
     // 3. Check if compaction is needed
     await maybeCompact();
@@ -283,7 +283,9 @@ export async function sync(): Promise<void> {
       console.log(`[SyncEngine] Applied ${applied} remote changes`);
       // Notify the app that data has changed
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('syncDataChanged', { detail: { applied } }));
+        window.dispatchEvent(new CustomEvent('syncDataChanged', {
+          detail: { applied, tables: Array.from(tables) },
+        }));
       }
     }
   } catch (error) {
@@ -346,35 +348,43 @@ async function flushChanges(): Promise<void> {
 // Journal Reader
 // ============================================================================
 
+/** Result of pulling changes from remote devices */
+interface PullResult {
+  applied: number;
+  tables: Set<string>;
+}
+
 /**
  * Pull and apply changes from all other devices' journal files.
- * Returns the number of changes applied.
+ * Returns the number of changes applied and which tables were updated.
  */
-async function pullChanges(): Promise<number> {
-  if (!syncFolderPath) return 0;
+async function pullChanges(): Promise<PullResult> {
+  if (!syncFolderPath) return { applied: 0, tables: new Set() };
 
   let totalApplied = 0;
+  const allTables = new Set<string>();
   const deviceFolders = await listDeviceFolders();
 
   for (const remoteDevice of deviceFolders) {
     if (remoteDevice === deviceId) continue;
 
     try {
-      const applied = await pullFromDevice(remoteDevice);
-      totalApplied += applied;
+      const result = await pullFromDevice(remoteDevice);
+      totalApplied += result.applied;
+      result.tables.forEach((t) => allTables.add(t));
     } catch (error) {
       console.error(`[SyncEngine] Failed to pull from device ${remoteDevice}:`, error);
     }
   }
 
-  return totalApplied;
+  return { applied: totalApplied, tables: allTables };
 }
 
 /**
  * Pull and apply changes from a single remote device.
  */
-async function pullFromDevice(remoteDevice: string): Promise<number> {
-  if (!syncFolderPath) return 0;
+async function pullFromDevice(remoteDevice: string): Promise<PullResult> {
+  if (!syncFolderPath) return { applied: 0, tables: new Set() };
 
   // First check if there's a snapshot we should bootstrap from
   const watermark = await getSyncWatermark(remoteDevice);
@@ -382,14 +392,14 @@ async function pullFromDevice(remoteDevice: string): Promise<number> {
   if (watermark === 0) {
     // New device — try to load from snapshot first
     const bootstrapped = await bootstrapFromSnapshot(remoteDevice);
-    if (bootstrapped > 0) {
+    if (bootstrapped.applied > 0) {
       return bootstrapped;
     }
   }
 
   const deviceFolder = `${syncFolderPath}/${remoteDevice}`;
   const folderExists = await exists(deviceFolder);
-  if (!folderExists) return 0;
+  if (!folderExists) return { applied: 0, tables: new Set() };
 
   // List journal files and sort by name (seq order)
   const entries = await readDir(deviceFolder);
@@ -399,6 +409,7 @@ async function pullFromDevice(remoteDevice: string): Promise<number> {
     .sort();
 
   let applied = 0;
+  const tables = new Set<string>();
 
   for (const fileName of journalFiles) {
     // Parse the seq from filename (e.g., "0000000050.json" → 50)
@@ -427,7 +438,10 @@ async function pullFromDevice(remoteDevice: string): Promise<number> {
           entry.device
         );
 
-        if (wasApplied) applied++;
+        if (wasApplied) {
+          applied++;
+          tables.add(entry.table);
+        }
       }
 
       // Update watermark after processing each file
@@ -438,7 +452,7 @@ async function pullFromDevice(remoteDevice: string): Promise<number> {
     }
   }
 
-  return applied;
+  return { applied, tables };
 }
 
 // ============================================================================
@@ -498,13 +512,13 @@ async function writeSnapshot(): Promise<void> {
 
 /**
  * Bootstrap local database from a remote device's snapshot.
- * Returns the number of records applied.
+ * Returns the number of records applied and which tables were updated.
  */
-async function bootstrapFromSnapshot(remoteDevice: string): Promise<number> {
-  if (!syncFolderPath) return 0;
+async function bootstrapFromSnapshot(remoteDevice: string): Promise<PullResult> {
+  if (!syncFolderPath) return { applied: 0, tables: new Set() };
 
   const snapshotsDir = `${syncFolderPath}/snapshots`;
-  if (!(await exists(snapshotsDir))) return 0;
+  if (!(await exists(snapshotsDir))) return { applied: 0, tables: new Set() };
 
   // Find the latest snapshot from this device
   const entries = await readDir(snapshotsDir);
@@ -514,7 +528,7 @@ async function bootstrapFromSnapshot(remoteDevice: string): Promise<number> {
     .sort()
     .reverse();
 
-  if (deviceSnapshots.length === 0) return 0;
+  if (deviceSnapshots.length === 0) return { applied: 0, tables: new Set() };
 
   const latestSnapshot = deviceSnapshots[0];
 
@@ -522,9 +536,10 @@ async function bootstrapFromSnapshot(remoteDevice: string): Promise<number> {
     const content = await readTextFile(`${snapshotsDir}/${latestSnapshot}`);
     const snapshot = JSON.parse(content) as SnapshotFile;
 
-    if (snapshot.version !== 1) return 0;
+    if (snapshot.version !== 1) return { applied: 0, tables: new Set() };
 
     let applied = 0;
+    const tables = new Set<string>();
 
     // Apply each table's data
     for (const [tableName, records] of Object.entries(snapshot.tables)) {
@@ -545,7 +560,10 @@ async function bootstrapFromSnapshot(remoteDevice: string): Promise<number> {
           snapshot.device
         );
 
-        if (wasApplied) applied++;
+        if (wasApplied) {
+          applied++;
+          tables.add(dbTableName);
+        }
       }
     }
 
@@ -553,10 +571,10 @@ async function bootstrapFromSnapshot(remoteDevice: string): Promise<number> {
     await setSyncWatermark(remoteDevice, snapshot.atSeq);
 
     console.log(`[SyncEngine] Bootstrapped ${applied} records from ${remoteDevice} snapshot`);
-    return applied;
+    return { applied, tables };
   } catch (error) {
     console.error(`[SyncEngine] Failed to load snapshot ${latestSnapshot}:`, error);
-    return 0;
+    return { applied: 0, tables: new Set() };
   }
 }
 
