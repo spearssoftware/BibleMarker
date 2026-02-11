@@ -12,7 +12,8 @@ import { useStudyStore } from '@/stores/studyStore';
 import { getCachedChapter } from '@/lib/database';
 import { getBookById } from '@/types/bible';
 import { findKeywordMatches } from '@/lib/keywordMatching';
-import { SYMBOLS, HIGHLIGHT_COLORS } from '@/types/annotation';
+import { filterPresetsByStudy } from '@/lib/studyFilter';
+import { SYMBOLS, getHighlightColorHex } from '@/types/annotation';
 // Helper to extract plain text from HTML (removes tags but keeps text)
 function extractPlainText(html: string): string {
   // Create a temporary element to parse HTML and extract text
@@ -45,19 +46,11 @@ export function ThemeTracker() {
   const bookInfo = useMemo(() => getBookById(currentBook), [currentBook]);
   const chapterCount = bookInfo?.chapters || 0;
   
-  // Filter presets by active study and book scope
+  // Filter presets by active study (null = global only; study = global + study) and book scope
   const relevantPresets = useMemo(() => {
-    return presets.filter(preset => {
-      // Must have a word (is a keyword)
+    return filterPresetsByStudy(presets, activeStudyId).filter((preset) => {
       if (!preset.word) return false;
-      
-      // If bookScope is set, must match current book
       if (preset.bookScope && preset.bookScope !== currentBook) return false;
-      
-      // If studyId is set, must match active study (or be global)
-      if (preset.studyId && preset.studyId !== activeStudyId) return false;
-      if (activeStudyId && preset.studyId && preset.studyId !== activeStudyId) return false;
-      
       return true;
     });
   }, [presets, currentBook, activeStudyId]);
@@ -215,7 +208,7 @@ export function ThemeTracker() {
                       <span
                         className="w-5 h-5 rounded"
                         style={{
-                          backgroundColor: HIGHLIGHT_COLORS[keyword.highlight.color],
+                          backgroundColor: getHighlightColorHex(keyword.highlight.color),
                         }}
                       />
                     )}

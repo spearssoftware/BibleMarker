@@ -9,7 +9,8 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, type KeyWordCategory, type MarkingPreset, type Variant } from '@/types/keyWord';
-import { SYMBOLS, HIGHLIGHT_COLORS, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types/annotation';
+import { filterPresetsByStudy } from '@/lib/studyFilter';
+import { SYMBOLS, getHighlightColorHex, HIGHLIGHT_COLORS, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types/annotation';
 import { Input, Textarea, Label, DropdownSelect, Checkbox, Button } from '@/components/shared';
 import { getBookById, BIBLE_BOOKS } from '@/types/bible';
 
@@ -60,19 +61,9 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
     }
   }, [initialWord]);
 
-  // Filter presets by active study and scope, then sort by scope and alphabetical
+  // Filter presets by active study (null = global only; study = global + study) and scope, then sort
   const filteredPresets = useMemo(() => {
-    let filtered = getFilteredPresets();
-    
-    // Filter by active study
-    if (activeStudyId) {
-      filtered = filtered.filter(preset => {
-        // Global keywords (no studyId) are always visible
-        if (!preset.studyId) return true;
-        // Show keywords that belong to the active study
-        return preset.studyId === activeStudyId;
-      });
-    }
+    let filtered = filterPresetsByStudy(getFilteredPresets(), activeStudyId);
     
     // Filter by scope
     if (filterScope !== 'all') {
@@ -561,7 +552,7 @@ function KeyWordCard({
   const { studies } = useStudyStore();
   const categoryInfo = KEY_WORD_CATEGORIES[preset.category || 'custom'];
   const symbol = preset.symbol ? SYMBOLS[preset.symbol] : undefined;
-  const color = preset.highlight?.color ? HIGHLIGHT_COLORS[preset.highlight.color] : undefined;
+  const color = preset.highlight?.color ? getHighlightColorHex(preset.highlight.color) : undefined;
   const study = preset.studyId ? studies.find(s => s.id === preset.studyId) : null;
 
   return (
@@ -783,34 +774,65 @@ function KeyWordEditor({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <DropdownSelect
-            label="Symbol"
-            value={symbol || ''}
-            onChange={(val) => {
-              const newSymbol = (val as SymbolKey) || undefined;
-              setSymbol(newSymbol);
-              if (newSymbol) {
-                setCategory(getCategoryForSymbol(newSymbol));
-                setColor(getRandomHighlightColor());
-              }
-            }}
-            options={[
-              { value: '', label: 'None' },
-              ...Object.entries(SYMBOLS).map(([key, sym]) => ({
-                value: key,
-                label: `${sym} ${key}`
-              }))
-            ]}
-            placeholder="Select a symbol..."
-          />
+        <div className="space-y-4">
+          <div>
+            <Label>Symbol</Label>
+            <div className="flex flex-wrap gap-2 mt-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setSymbol(undefined);
+                }}
+                className={`w-9 h-9 rounded-lg text-sm flex items-center justify-center font-medium transition-all
+                  ${!symbol ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-muted hover:bg-scripture-border'}`}
+                title="None"
+              >
+                —
+              </button>
+              {(Object.entries(SYMBOLS) as [SymbolKey, string][]).map(([key, sym]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    setSymbol(key);
+                    setCategory(getCategoryForSymbol(key));
+                    if (!color) setColor(getRandomHighlightColor());
+                  }}
+                  className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition-all
+                    ${symbol === key ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border'}`}
+                  title={key}
+                >
+                  {sym}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div>
             <Label>Color</Label>
-            <ColorSelect
-              value={color}
-              onChange={setColor}
-            />
+            <div className="flex flex-wrap gap-2 mt-1.5">
+              <button
+                type="button"
+                onClick={() => setColor(undefined)}
+                className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-medium transition-all border border-scripture-border/50
+                  ${!color ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-muted hover:bg-scripture-border'}`}
+                title="Default"
+              >
+                —
+              </button>
+              {(Object.entries(HIGHLIGHT_COLORS) as [HighlightColor, string][]).map(([key, hex]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setColor(key)}
+                  className={`w-9 h-9 rounded-lg border-2 transition-all flex-shrink-0
+                    ${color === key ? 'ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface scale-110' : 'border-transparent hover:scale-105'}`}
+                  style={{ backgroundColor: hex }}
+                  title={key}
+                  aria-label={key}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
@@ -963,7 +985,7 @@ function KeyWordEditor({
               { value: '', label: 'Global (visible in all studies)' },
               ...studies.map(study => ({
                 value: study.id,
-                label: `${study.name}${study.book ? ` (${study.book})` : ''}`
+                label: study.name
               }))
             ]}
             placeholder="Select a study..."
@@ -1150,142 +1172,3 @@ function VariantEditor({
   );
 }
 
-/** Color Select Component - Custom dropdown with color swatches */
-function ColorSelect({
-  value,
-  onChange,
-}: {
-  value: HighlightColor | undefined;
-  onChange: (color: HighlightColor | undefined) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [openAbove, setOpenAbove] = useState(false); // Default to opening below
-  const buttonRef = React.useRef<HTMLButtonElement>(null);
-  const dropdownRef = React.useRef<HTMLDivElement>(null);
-  const allColors = Object.entries(HIGHLIGHT_COLORS) as [HighlightColor, string][];
-
-  // Determine if dropdown should open above or below based on available space
-  const handleToggle = () => {
-    if (!isOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      
-      // Find the scrollable container (closest ancestor with overflow-y-auto)
-      let container: HTMLElement | null = buttonRef.current.parentElement;
-      let scrollableContainer: HTMLElement | null = null;
-      
-      while (container && container !== document.body) {
-        const style = window.getComputedStyle(container);
-        if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
-          scrollableContainer = container;
-          break;
-        }
-        container = container.parentElement;
-      }
-      
-      if (scrollableContainer) {
-        const containerRect = scrollableContainer.getBoundingClientRect();
-        const spaceAbove = rect.top - containerRect.top;
-        const spaceBelow = containerRect.bottom - rect.bottom;
-        // Estimate dropdown height (max-h-60 = ~240px)
-        const estimatedDropdownHeight = 240;
-        // Only open above if there's clearly enough space (with buffer)
-        // Be conservative - prefer opening below to avoid overflow
-        setOpenAbove(spaceAbove >= estimatedDropdownHeight + 50 && spaceAbove > spaceBelow + 150);
-      } else {
-        // No scrollable container found - check window bounds
-        const spaceAbove = rect.top;
-        const spaceBelow = window.innerHeight - rect.bottom;
-        const estimatedDropdownHeight = 240;
-        // Be conservative - prefer opening below
-        setOpenAbove(spaceAbove >= estimatedDropdownHeight + 50 && spaceAbove > spaceBelow + 150);
-      }
-    }
-    setIsOpen(!isOpen);
-  };
-
-  // Close dropdown when clicking outside
-  React.useEffect(() => {
-    if (!isOpen) return;
-    
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        buttonRef.current &&
-        dropdownRef.current &&
-        !buttonRef.current.contains(e.target as Node) &&
-        !dropdownRef.current.contains(e.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
-
-  return (
-    <div className="relative">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={handleToggle}
-        className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 
-                 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text
-                 flex items-center gap-2 justify-between hover:bg-scripture-elevated transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          {value ? (
-            <>
-              <span
-                className="w-4 h-4 rounded border border-scripture-border/30"
-                style={{ backgroundColor: HIGHLIGHT_COLORS[value] }}
-              />
-              <span>{value}</span>
-            </>
-          ) : (
-            <span className="text-scripture-muted">Default</span>
-          )}
-        </div>
-        <span className="text-scripture-muted">{isOpen ? '▲' : '▼'}</span>
-      </button>
-      
-      {isOpen && (
-        <div
-          ref={dropdownRef}
-          className={`absolute z-50 w-full bg-scripture-elevated border border-scripture-border/50 
-                      rounded-lg shadow-lg max-h-60 overflow-y-auto custom-scrollbar
-                      ${openAbove ? 'bottom-full mb-1' : 'top-full mt-1'}`}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              onChange(undefined);
-              setIsOpen(false);
-            }}
-            className={`w-full px-3 py-2 text-sm text-left hover:bg-scripture-border/30 transition-colors
-                       ${!value ? 'bg-scripture-border/20' : ''}`}
-          >
-            Default
-          </button>
-          {allColors.map(([key, hex]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => {
-                onChange(key);
-                setIsOpen(false);
-              }}
-              className={`w-full px-3 py-2 text-sm text-left hover:bg-scripture-border/30 transition-colors
-                         flex items-center gap-2 ${value === key ? 'bg-scripture-border/20' : ''}`}
-            >
-              <span
-                className="w-4 h-4 rounded border border-scripture-border/30 flex-shrink-0"
-                style={{ backgroundColor: hex }}
-              />
-              <span>{key}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}

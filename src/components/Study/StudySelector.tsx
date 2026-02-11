@@ -37,7 +37,7 @@ export function StudySelector() {
         value={activeStudyId || 'none'}
         onChange={(value) => handleChange(value)}
         options={[
-          { value: 'none', label: 'None (show all keywords)' },
+          { value: 'none', label: 'Standard reading (global only)' },
           ...studies.map(study => ({
             value: study.id,
             label: `${study.name}${study.book ? ` (${getBookById(study.book)?.name || study.book})` : ''}`

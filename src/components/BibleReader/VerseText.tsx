@@ -7,12 +7,13 @@
 import { useState, useRef, useMemo } from 'react';
 import type { Verse, VerseRef } from '@/types/bible';
 import type { Annotation, TextAnnotation, SymbolAnnotation, SymbolKey } from '@/types/annotation';
-import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
+import { getHighlightColorHex, SYMBOLS } from '@/types/annotation';
 import { CrossReferencePopup } from './CrossReferencePopup';
 import { VerseOverlay } from './VerseOverlay';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { findKeywordMatches } from '@/lib/keywordMatching';
+import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { getDebugFlagsSync } from '@/lib/debug';
 
 interface VerseTextProps {
@@ -36,23 +37,11 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
   const { presets } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
   
-  // Filter presets by active study
-  const filteredPresets = useMemo(() => {
-    // If no study is active, show all keywords (global + study-scoped)
-    if (!activeStudyId) {
-      return presets;
-    }
-    
-    // If a study is active, show:
-    // - Global keywords (no studyId)
-    // - Keywords belonging to the active study
-    return presets.filter(preset => {
-      // Global keywords (no studyId) are always visible
-      if (!preset.studyId) return true;
-      // Show keywords that belong to the active study
-      return preset.studyId === activeStudyId;
-    });
-  }, [presets, activeStudyId]);
+  // Filter presets by active study (null = global only; study = global + study)
+  const filteredPresets = useMemo(
+    () => filterPresetsByStudy(presets, activeStudyId),
+    [presets, activeStudyId]
+  );
   
   // Get debug flags once for this component
   const debugFlags = getDebugFlagsSync();
@@ -682,14 +671,14 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         for (const ann of segment.annotations) {
           annotationIds.push(ann.id);
           if (ann.type === 'highlight') {
-            combinedStyles.push(`background-color: ${HIGHLIGHT_COLORS[ann.color]}40`);
+            combinedStyles.push(`background-color: ${getHighlightColorHex(ann.color)}40`);
           }
           if (ann.type === 'textColor') {
-            combinedStyles.push(`color: ${HIGHLIGHT_COLORS[ann.color]}`);
+            combinedStyles.push(`color: ${getHighlightColorHex(ann.color)}`);
           }
           if (ann.type === 'underline') {
             combinedStyles.push(`text-decoration: underline`);
-            combinedStyles.push(`text-decoration-color: ${HIGHLIGHT_COLORS[ann.color]}`);
+            combinedStyles.push(`text-decoration-color: ${getHighlightColorHex(ann.color)}`);
             combinedStyles.push(`text-decoration-style: ${ann.underlineStyle || 'solid'}`);
           }
         }
@@ -698,7 +687,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         if (segment.symbols.length > 0) {
           const symAnn = segment.symbols[0];
           const symbolText = SYMBOLS[symAnn.symbol];
-          const symbolColor = symAnn.color ? HIGHLIGHT_COLORS[symAnn.color] : undefined;
+          const symbolColor = symAnn.color ? getHighlightColorHex(symAnn.color) : undefined;
           annotationIds.push(symAnn.id);
           const textStyles = combinedStyles.length ? ` style="${combinedStyles.join('; ')}"` : '';
           const allStyles = ['position: relative', 'display: inline-flex', 'align-items: baseline'];
@@ -816,7 +805,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         <span 
           key={`before-${i}`}
           className="symbol mr-1"
-          style={{ color: sym.color ? HIGHLIGHT_COLORS[sym.color] : undefined }}
+          style={{ color: sym.color ? getHighlightColorHex(sym.color) : undefined }}
         >
           {SYMBOLS[sym.symbol]}
         </span>
@@ -854,7 +843,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         <span 
           key={`after-${i}`}
           className="symbol ml-1"
-          style={{ color: sym.color ? HIGHLIGHT_COLORS[sym.color] : undefined }}
+          style={{ color: sym.color ? getHighlightColorHex(sym.color) : undefined }}
         >
           {SYMBOLS[sym.symbol]}
         </span>

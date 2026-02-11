@@ -19,11 +19,13 @@ import { StudyToolsPanel } from '@/components/Summary';
 import { SettingsPanel } from '@/components/Settings';
 import { ObservationToolsPanel, type ObservationTab } from '@/components/Observation';
 import { ConfirmationDialog } from '@/components/shared';
-import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
+import { getHighlightColorHex, HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
 import { clearDatabase } from '@/lib/database';
 import { resetAllStores } from '@/lib/storeReset';
 import { useBibleStore } from '@/stores/bibleStore';
+import { useStudyStore } from '@/stores/studyStore';
 import { findMatchingPresets, type MarkingPreset } from '@/types/keyWord';
+import { filterPresetsByStudy, filterAnnotationsByStudy } from '@/lib/studyFilter';
 import type { TextAnnotation, SymbolAnnotation } from '@/types/annotation';
 
 const COLOR_STYLES = ['highlight', 'textColor', 'underline'] as const;
@@ -58,6 +60,7 @@ export function Toolbar() {
   useBibleStore();
   const { createTextAnnotation, createSymbolAnnotation } = useAnnotations();
   const { presets, loadPresets, markPresetUsed, updatePreset } = useMarkingPresetStore();
+  const { activeStudyId } = useStudyStore();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showSymbolPicker, setShowSymbolPicker] = useState(false);
   const [showPickerOverlay, setShowPickerOverlay] = useState(false);
@@ -194,8 +197,12 @@ export function Toolbar() {
       presetId?: string;
     }> = [];
 
+    const filteredPresets = filterPresetsByStudy(presets, activeStudyId);
+    const presetMap = new Map(presets.map((p) => [p.id, p]));
+    const filteredAnnotations = filterAnnotationsByStudy(annotations, presetMap, activeStudyId);
+
     // Check for matching presets (key words) with autoSuggest
-    const matching = findMatchingPresets(selection.text.trim(), presets);
+    const matching = findMatchingPresets(selection.text.trim(), filteredPresets);
     for (const p of matching) {
       if (p.autoSuggest && p.word) {
         const sym = p.symbol ? SYMBOLS[p.symbol] : '🔑';
@@ -211,7 +218,7 @@ export function Toolbar() {
       }
     }
 
-    for (const ann of annotations) {
+    for (const ann of filteredAnnotations) {
       if (ann.type === 'symbol') {
         const symAnn = ann as SymbolAnnotation;
         if (symAnn.selectedText && symAnn.position === 'center') {
@@ -257,7 +264,7 @@ export function Toolbar() {
     }
 
     return suggestions;
-  }, [selection, annotations, presets]);
+  }, [selection, annotations, presets, activeStudyId]);
 
   // Apply a key word (preset) to the current selection — e.g. mark "He" as Jesus when context shows it
   const applyPresetToSelection = async (preset: MarkingPreset) => {
@@ -418,7 +425,7 @@ export function Toolbar() {
         <SelectionMenu
           selection={selection}
           position={selectionMenuPosition}
-          presets={presets}
+          presets={filterPresetsByStudy(presets, activeStudyId)}
           activeSymbol={activeSymbol}
           onApplyPreset={applyPresetToSelection}
           onAddAsVariant={addToVariantsAndApply}
@@ -480,8 +487,8 @@ export function Toolbar() {
                         }`}
                         style={{
                           backgroundColor: suggestion.type === 'highlight'
-                            ? HIGHLIGHT_COLORS[suggestion.color as keyof typeof HIGHLIGHT_COLORS] + '40'
-                            : HIGHLIGHT_COLORS[suggestion.color as keyof typeof HIGHLIGHT_COLORS]
+                            ? getHighlightColorHex(suggestion.color) + '40'
+                            : getHighlightColorHex(suggestion.color)
                         }}
                         title={suggestion.color}
                       />
@@ -490,7 +497,7 @@ export function Toolbar() {
                       <span
                         className="text-base"
                         style={{
-                          color: suggestion.color ? HIGHLIGHT_COLORS[suggestion.color as keyof typeof HIGHLIGHT_COLORS] : undefined,
+                          color: suggestion.color ? getHighlightColorHex(suggestion.color) : undefined,
                           opacity: 0.8,
                         }}
                       >
@@ -502,7 +509,7 @@ export function Toolbar() {
                     <span 
                       className={suggestion.type === 'textColor' ? '' : 'text-scripture-text'}
                       style={suggestion.type === 'textColor' && suggestion.color 
-                        ? { color: HIGHLIGHT_COLORS[suggestion.color as keyof typeof HIGHLIGHT_COLORS] }
+                        ? { color: getHighlightColorHex(suggestion.color) }
                         : undefined}
                     >
                       {suggestion.type === 'preset' ? suggestion.label : suggestion.type === 'highlight' ? 'Highlight' :
