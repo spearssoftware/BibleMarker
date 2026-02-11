@@ -1,16 +1,17 @@
-# BibleMarker v0.7.2
+# BibleMarker v0.7.3
 
-## Bug Fixes
+## Features
 
-- **Fixed iCloud sync not activating on iOS first launch**: The iCloud container may not be materialized when the app first calls the native API. Sync now retries at 3s and 10s delays, giving the OS time to set up the container.
-- **Fixed "Sync folder not found" on iOS relaunch**: When iCloud evicts the local sync folder between launches, the app now re-creates it instead of showing an error.
-- **Fixed translations not loading on first launch (iOS)**: Removed the legacy iCloud database migration check that blocked database initialization with a slow iCloud API call on startup.
+- **Study keyword and annotation filtering**: Choose "Standard reading" to see only global keywords and default annotations, or select a study to see study-specific keywords and annotations.
+- **Selection menu keyword list improvements**: Keyword list now pops out to the right on desktop for easier browsing. Search filter helps find keywords quickly. Keywords are grouped by scope: Global, Book, Chapter.
+- **Update prompt and auto-update**: App checks for new versions and shows a banner when available. Tauri auto-update support for seamless updates on desktop.
 
 ## Improvements
 
-- **Default translation is now KJV**: New installs and the settings dropdown default to KJV instead of "None (no default)".
-- **Overlay close button and toolbar fixes**: Unified close button on drag bar, fixed toolbar overlay background.
-- **Removed single-translation width cap**: Better use of screen space when viewing one translation.
+- **Sync UX**: UI refreshes when sync completes; synced API keys are activated automatically; sync status shown in navigation.
+- **New symbols**: Added obey, liberty, nationLand, and peopleGroup symbols to the marking palette.
+- **Dark mode colors**: Improved symbol and highlight colors for dark mode readability.
+- **Selection menu**: Fixed top clipping on desktop; reduced right padding and improved spacing around arrows.
 
 ---
 
