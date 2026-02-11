@@ -5,12 +5,15 @@
  */
 
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
+import { useStudyStore } from '@/stores/studyStore';
 import { KEY_WORD_CATEGORIES, type MarkingPreset } from '@/types/keyWord';
-import { SYMBOLS, HIGHLIGHT_COLORS } from '@/types/annotation';
+import { SYMBOLS, getHighlightColorHex } from '@/types/annotation';
+import { filterPresetsByStudy } from '@/lib/studyFilter';
 
 export function KeyWordLegend() {
   const { getFilteredPresets } = useMarkingPresetStore();
-  const filtered = getFilteredPresets().filter((p) => p.word);
+  const { activeStudyId } = useStudyStore();
+  const filtered = filterPresetsByStudy(getFilteredPresets(), activeStudyId).filter((p) => p.word);
 
   if (filtered.length === 0) {
     return (
@@ -40,7 +43,7 @@ export function KeyWordLegend() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {words.map((p) => {
                 const symbol = p.symbol ? SYMBOLS[p.symbol] : undefined;
-                const color = p.highlight?.color ? HIGHLIGHT_COLORS[p.highlight.color] : undefined;
+                const color = p.highlight?.color ? getHighlightColorHex(p.highlight.color) : undefined;
                 return (
                   <div
                     key={p.id}

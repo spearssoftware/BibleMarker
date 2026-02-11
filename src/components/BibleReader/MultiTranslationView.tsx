@@ -12,6 +12,7 @@ import { useAnnotationStore } from '@/stores/annotationStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
 import { getAllTranslations, type ApiTranslation, fetchChapter } from '@/lib/bible-api';
 import { getChapterAnnotations, getChapterHeadings, getChapterTitle, getChapterNotes, saveSectionHeading, deleteSectionHeading, saveChapterTitle, deleteChapterTitle, saveNote, deleteNote } from '@/lib/database';
+import { filterAnnotationsByStudy } from '@/lib/studyFilter';
 import { VerseText } from './VerseText';
 import { SectionHeadingEditor } from './SectionHeadingEditor';
 import { SectionHeadingCreator } from './SectionHeadingCreator';
@@ -23,6 +24,8 @@ import { VerseNumberMenu } from './VerseNumberMenu';
 import { useListStore } from '@/stores/listStore';
 import { usePlaceStore } from '@/stores/placeStore';
 import { useTimeStore } from '@/stores/timeStore';
+import { useMarkingPresetStore } from '@/stores/markingPresetStore';
+import { useStudyStore } from '@/stores/studyStore';
 import { getBookById } from '@/types/bible';
 import type { Chapter } from '@/types/bible';
 import type { Annotation, SectionHeading, Note, ChapterTitle } from '@/types/annotation';
@@ -56,7 +59,27 @@ export function MultiTranslationView() {
   }, [translationIdsJoin, currentModuleId]);
   
   const { removeAnnotation } = useAnnotations();
+  const { presets } = useMarkingPresetStore();
+  const { activeStudyId } = useStudyStore();
   const { autoPopulateFromChapter: autoPopulateListsFromChapter } = useListStore();
+
+  // Build preset map for annotation filtering
+  const presetMap = useMemo(
+    () => new Map(presets.map((p) => [p.id, p])),
+    [presets]
+  );
+
+  // Filter annotations by active study (passed to VerseText)
+  const filteredAnnotationsByTranslation = useMemo(() => {
+    const result = new Map<string, Annotation[]>();
+    annotationsByTranslation.forEach((anns, translationId) => {
+      result.set(
+        translationId,
+        filterAnnotationsByStudy(anns, presetMap, activeStudyId)
+      );
+    });
+    return result;
+  }, [annotationsByTranslation, presetMap, activeStudyId]);
   const { autoPopulateFromChapter: autoPopulatePlacesFromChapter } = usePlaceStore();
   const { autoPopulateFromChapter: autoPopulateTimeFromChapter } = useTimeStore();
   
@@ -900,7 +923,7 @@ export function MultiTranslationView() {
                           <div className={`scripture-text ${fontSize === 'sm' ? 'text-scripture-sm' : fontSize === 'lg' ? 'text-scripture-lg' : fontSize === 'xl' ? 'text-scripture-xl' : 'text-scripture-base'}`}>
                             <VerseText
                               verse={verse}
-                              annotations={annotationsByTranslation.get(translation.id) || []}
+                              annotations={filteredAnnotationsByTranslation.get(translation.id) || []}
                               moduleId={translation.id}
                               onVerseNumberClick={
                                 primaryTranslationId
