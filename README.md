@@ -57,11 +57,7 @@ A cross-platform Bible study application for deep text study using the precepts 
 
 Pre-built desktop apps (macOS, Windows, Linux) are on [GitHub Releases](https://github.com/spearssoftware/BibleMarker/releases). BibleMarker is built with [Tauri](https://tauri.app) for native desktop.
 
-**macOS:** If you see "BibleMarker is damaged and can't be opened", the app is not damaged—Gatekeeper blocks unsigned downloads. Right-click the app → **Open** → then click **Open** in the dialog. Or in Terminal: `xattr -cr /Applications/BibleMarker.app` (adjust path if needed).
-
 **Windows:** SmartScreen may warn for unsigned downloads. Click **More info** → **Run anyway**. For signed builds (no warning), see [Windows code signing](./docs/WINDOWS_CODE_SIGNING.md).
-
-**Web app:** Run in the browser without installing: `pnpm install` then `pnpm dev`, and open the URL shown in the terminal.
 
 ## Building from source
 
