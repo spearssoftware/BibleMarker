@@ -7,21 +7,23 @@ import type { MarkingPreset } from '@/types/keyWord';
 import type { Annotation, TextAnnotation } from '@/types/annotation';
 
 function createPreset(overrides: Partial<MarkingPreset> & { id: string }): MarkingPreset {
+  const { id, ...rest } = overrides;
   return {
-    id: overrides.id,
+    id,
     variants: [],
     autoSuggest: true,
     usageCount: 0,
     createdAt: new Date(),
     updatedAt: new Date(),
     symbol: 'cross',
-    ...overrides,
+    ...rest,
   };
 }
 
 function createAnnotation(overrides: Partial<TextAnnotation> & { id: string }): TextAnnotation {
+  const { id, ...rest } = overrides;
   return {
-    id: overrides.id,
+    id,
     type: 'highlight',
     moduleId: 'test',
     startRef: { book: 'Gen', chapter: 1, verse: 1 },
@@ -29,7 +31,7 @@ function createAnnotation(overrides: Partial<TextAnnotation> & { id: string }): 
     color: 'yellow',
     createdAt: new Date(),
     updatedAt: new Date(),
-    ...overrides,
+    ...rest,
   };
 }
 
