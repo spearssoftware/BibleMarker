@@ -123,6 +123,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         with:
           releaseId: ${{ needs.prepare.outputs.release_id }}
           releaseDraft: true
@@ -135,6 +136,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
@@ -166,7 +168,22 @@ jobs:
           ARCH=$([[ "${{ matrix.tauri_target }}" == *aarch64* ]] && echo "aarch64" || echo "x64")
           ditto -c -k --keepParent BibleMarker.app "$GITHUB_WORKSPACE/BibleMarker-macos-$ARCH.zip"
 
-      # macOS only: upload stapled app to release (same tag updates existing release)
+      # macOS only: create updater artifacts from notarized app and sign
+      # Requires TAURI_SIGNING_PRIVATE_KEY secret. Run: pnpm tauri signer generate -w ~/.tauri/biblemarker.key
+      - name: Create and sign updater artifacts (macOS)
+        id: create-updater
+        if: matrix.platform == 'macos-latest'
+        continue-on-error: true
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          cd src-tauri/target/${{ matrix.tauri_target }}/release/bundle/macos
+          ARCH=$([[ "${{ matrix.tauri_target }}" == *aarch64* ]] && echo "aarch64" || echo "x86_64")
+          tar -czf BibleMarker-darwin-${ARCH}.app.tar.gz BibleMarker.app
+          pnpm tauri signer sign BibleMarker-darwin-${ARCH}.app.tar.gz
+          mv BibleMarker-darwin-${ARCH}.app.tar.gz BibleMarker-darwin-${ARCH}.app.tar.gz.sig "$GITHUB_WORKSPACE/"
+
+      # macOS only: upload stapled app to release
       - name: Upload macOS artifact to release
         if: matrix.platform == 'macos-latest'
         uses: softprops/action-gh-release@v2
@@ -175,6 +192,32 @@ jobs:
           files: BibleMarker-macos-${{ matrix.tauri_target == 'aarch64-apple-darwin' && 'aarch64' || 'x64' }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # macOS only: upload updater artifacts (only when create-updater succeeded)
+      - name: Upload macOS updater artifacts to release
+        if: matrix.platform == 'macos-latest' && steps.create-updater.outcome == 'success'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: app-v${{ needs.prepare.outputs.version }}
+          files: |
+            BibleMarker-darwin-${{ matrix.tauri_target == 'aarch64-apple-darwin' && 'aarch64' || 'x86_64' }}.app.tar.gz
+            BibleMarker-darwin-${{ matrix.tauri_target == 'aarch64-apple-darwin' && 'aarch64' || 'x86_64' }}.app.tar.gz.sig
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  create-latest-json:
+    needs: [prepare, publish-tauri]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create and upload latest.json
+        run: node scripts/create-latest-json.js app-v${{ needs.prepare.outputs.version }} ${{ needs.prepare.outputs.version }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-ios:
     needs: prepare

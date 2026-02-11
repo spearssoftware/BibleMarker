@@ -579,14 +579,23 @@ end
 
 ---
 
+## Auto-Updates (Tauri Updater)
+
+The app uses `tauri-plugin-updater` for in-app updates. To enable signed updates:
+
+1. Generate signing keys: `pnpm tauri signer generate -w ~/.tauri/biblemarker.key`
+2. Add the public key content to `tauri.conf.json` under `plugins.updater.pubkey`
+3. Add `TAURI_SIGNING_PRIVATE_KEY` (path or content) to GitHub Actions secrets for release builds
+4. CI creates `latest.json` and platform-specific `.tar.gz`/`.sig` artifacts on release
+
+---
+
 ## Next Steps
 
 1. **Test thoroughly** on different macOS versions
 2. **Optimize performance** (Tauri is fast, but profile if needed)
-3. **Add auto-updates** (Tauri Updater plugin)
-4. **Create update server** (for auto-updates outside App Store)
-5. **Set up CI/CD** (GitHub Actions for automated builds)
-6. **Documentation** (user guide, changelog)
+3. **Set up CI/CD** (GitHub Actions for automated builds)
+4. **Documentation** (user guide, changelog)
 
 ---
 
