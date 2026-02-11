@@ -124,6 +124,22 @@ export default function App() {
     };
   }, []);
 
+  // When sync applies remote changes, refresh UI and re-load API configs
+  // (API keys may have synced from another device but loadApiConfigs ran before sync completed)
+  useEffect(() => {
+    const handleSyncDataChanged = async () => {
+      const { loadApiConfigs } = await import('@/lib/bible-api');
+      await loadApiConfigs();
+      window.dispatchEvent(new Event('translationsUpdated'));
+      window.dispatchEvent(new CustomEvent('annotationsUpdated'));
+      loadStudies();
+      loadLists();
+      loadActiveView();
+    };
+    window.addEventListener('syncDataChanged', handleSyncDataChanged);
+    return () => window.removeEventListener('syncDataChanged', handleSyncDataChanged);
+  }, [loadStudies, loadLists, loadActiveView]);
+
   // Load API configs + sample data in parallel, initialize module ID if needed
   useEffect(() => {
     async function init() {
