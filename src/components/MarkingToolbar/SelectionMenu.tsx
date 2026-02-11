@@ -125,7 +125,7 @@ export function SelectionMenu({
     if (y + rect.height > maxY) y = maxY - rect.height;
     if (y < minY) y = minY;
     
-    setMenuPosition({ x, y });
+    requestAnimationFrame(() => setMenuPosition({ x, y }));
   }, [position, isMobile, submenuOpen]);
 
   const keywordPresets = presets.filter((p) => p.word);

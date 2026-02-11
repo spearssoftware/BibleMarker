@@ -19,7 +19,7 @@ import { StudyToolsPanel } from '@/components/Summary';
 import { SettingsPanel } from '@/components/Settings';
 import { ObservationToolsPanel, type ObservationTab } from '@/components/Observation';
 import { ConfirmationDialog } from '@/components/shared';
-import { getHighlightColorHex, HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
+import { getHighlightColorHex, SYMBOLS } from '@/types/annotation';
 import { clearDatabase } from '@/lib/database';
 import { resetAllStores } from '@/lib/storeReset';
 import { useBibleStore } from '@/stores/bibleStore';
