@@ -8,7 +8,7 @@
 
 import { useMemo } from 'react';
 import type { Annotation, TextAnnotation, SymbolAnnotation } from '@/types/annotation';
-import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
+import { getHighlightColorHex, SYMBOLS } from '@/types/annotation';
 
 interface AnnotationLegendProps {
   annotations: Annotation[];
@@ -123,7 +123,7 @@ export function AnnotationLegend({ annotations }: AnnotationLegendProps) {
                     <span
                       key={i}
                       className="inline-block w-4 h-4 rounded border border-scripture-border/30"
-                      style={{ backgroundColor: HIGHLIGHT_COLORS[hl.color as keyof typeof HIGHLIGHT_COLORS] + '40' }}
+                      style={{ backgroundColor: getHighlightColorHex(hl.color) + '40' }}
                       title={hl.color}
                     />
                   ))}
@@ -138,7 +138,7 @@ export function AnnotationLegend({ annotations }: AnnotationLegendProps) {
                     <span
                       key={i}
                       className="inline-block w-4 h-4 rounded border border-scripture-border/30"
-                      style={{ backgroundColor: HIGHLIGHT_COLORS[tc.color as keyof typeof HIGHLIGHT_COLORS] }}
+                      style={{ backgroundColor: getHighlightColorHex(tc.color) }}
                       title={tc.color}
                     />
                   ))}
@@ -154,7 +154,7 @@ export function AnnotationLegend({ annotations }: AnnotationLegendProps) {
                       key={i}
                       className="inline-block border-b-2"
                       style={{
-                        borderBottomColor: HIGHLIGHT_COLORS[ul.color as keyof typeof HIGHLIGHT_COLORS],
+                        borderBottomColor: getHighlightColorHex(ul.color),
                         borderBottomStyle: (ul.style || 'solid') as React.CSSProperties['borderBottomStyle'],
                       }}
                       title={ul.color}
@@ -174,7 +174,7 @@ export function AnnotationLegend({ annotations }: AnnotationLegendProps) {
                       key={i}
                       className="text-base"
                       style={{
-                        color: sym.color ? HIGHLIGHT_COLORS[sym.color as keyof typeof HIGHLIGHT_COLORS] : undefined,
+                        color: sym.color ? getHighlightColorHex(sym.color) : undefined,
                         opacity: 0.6,
                       }}
                       title={sym.color || 'No color'}
