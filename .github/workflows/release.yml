@@ -204,8 +204,6 @@ jobs:
             BibleMarker-darwin-${{ matrix.tauri_target == 'aarch64-apple-darwin' && 'aarch64' || 'x86_64' }}.app.tar.gz.sig
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   create-latest-json:
     needs: [prepare, publish-tauri]
