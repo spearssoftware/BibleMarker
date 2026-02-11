@@ -127,9 +127,16 @@ export default function App() {
   // When sync applies remote changes, refresh UI and re-load API configs
   // (API keys may have synced from another device but loadApiConfigs ran before sync completed)
   useEffect(() => {
-    const handleSyncDataChanged = async () => {
-      const { loadApiConfigs } = await import('@/lib/bible-api');
+    const handleSyncDataChanged = async (e: Event) => {
+      const detail = (e as CustomEvent<{ applied: number; tables?: string[] }>).detail;
+      const tables = detail?.tables ?? [];
+      const prefsSynced = tables.includes('preferences');
+
+      const { loadApiConfigs, clearTranslationsCache } = await import('@/lib/bible-api');
       await loadApiConfigs();
+      if (prefsSynced) {
+        await clearTranslationsCache();
+      }
       window.dispatchEvent(new Event('translationsUpdated'));
       window.dispatchEvent(new CustomEvent('annotationsUpdated'));
       loadStudies();

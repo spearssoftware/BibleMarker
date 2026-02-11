@@ -83,8 +83,7 @@ export const SYMBOL_CATEGORY_MAP: Record<SymbolKey, KeyWordCategory> = {
   mapPin: 'places', mountain: 'places', globe: 'places', tree: 'places', river: 'places', house: 'places', temple: 'places', city: 'places',
   water: 'actions', fire: 'actions', check: 'actions', x: 'actions', hand: 'actions', eye: 'actions', mouth: 'actions', foot: 'actions',
   circle: 'custom', square: 'custom', diamond: 'custom', hexagon: 'custom', plus: 'custom', minus: 'custom',
-  num1: 'custom', num2: 'custom', num3: 'custom', num4: 'custom', num5: 'custom',
-  letterA: 'custom', letterB: 'custom', letterC: 'custom', letterD: 'custom', letterE: 'custom', letterF: 'custom', letterG: 'custom', letterH: 'custom', letterI: 'custom',
+  sin: 'themes',
   question: 'custom', exclamation: 'custom', asterisk: 'custom',
 };
 
