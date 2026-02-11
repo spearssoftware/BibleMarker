@@ -13,6 +13,10 @@
 - **Dark mode colors**: Improved symbol and highlight colors for dark mode readability.
 - **Selection menu**: Fixed top clipping on desktop; reduced right padding and improved spacing around arrows.
 
+## Bug Fixes
+
+- **CI/lint fixes**: Resolved setState-in-effect and type errors that blocked the build.
+
 ---
 
 **Windows:** SmartScreen may warn for unsigned builds. Click **More info** → **Run anyway**.
