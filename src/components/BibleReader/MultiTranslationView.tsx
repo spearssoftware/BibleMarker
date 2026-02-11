@@ -302,6 +302,9 @@ export function MultiTranslationView() {
     
     const handleAnnotationsUpdated = () => {
       loadAnnotations();
+      loadSectionHeadings();
+      loadChapterTitle();
+      loadNotes();
     };
     
     // Listen for annotation updates
@@ -310,7 +313,7 @@ export function MultiTranslationView() {
     return () => {
       window.removeEventListener('annotationsUpdated', handleAnnotationsUpdated);
     };
-  }, [activeView, currentBook, currentChapter, loadAnnotations]);
+  }, [activeView, currentBook, currentChapter, loadAnnotations, loadSectionHeadings, loadChapterTitle, loadNotes]);
 
   // Helper function to expand selection to word boundaries
   const expandToWordBoundaries = (range: Range): { expandedRange: Range; text: string } => {

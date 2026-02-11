@@ -11,6 +11,7 @@ import { getAllTranslations, type ApiTranslation } from '@/lib/bible-api';
 import { getPreferences } from '@/lib/database';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { Search } from '@/components/Search';
+import { SyncStatusIndicator } from '@/components/shared';
 import { TranslationPicker, UnifiedPicker } from './pickers';
 export function NavigationBar() {
   const {
@@ -287,6 +288,7 @@ export function NavigationBar() {
 
         {/* Right side: Sync status, Search and Next button */}
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <SyncStatusIndicator compact className="flex-shrink-0" />
           {/* Search button */}
           <button
             data-nav-search
