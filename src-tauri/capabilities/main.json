@@ -1,7 +1,9 @@
 {
   "identifier": "main-capability",
   "description": "Main capability for BibleMarker app",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:path:default",
     "dialog:allow-open",
@@ -12,11 +14,21 @@
     {
       "identifier": "fs:scope",
       "allow": [
-        { "path": "$APPDATA/**" },
-        { "path": "$DOCUMENT/**" },
-        { "path": "$HOME/**" },
-        { "path": "$HOME/Library/Mobile Documents/iCloud~app~biblemarker/**" },
-        { "path": "/private/var/mobile/Library/Mobile Documents/iCloud~app~biblemarker/**" }
+        {
+          "path": "$APPDATA/**"
+        },
+        {
+          "path": "$DOCUMENT/**"
+        },
+        {
+          "path": "$HOME/**"
+        },
+        {
+          "path": "$HOME/Library/Mobile Documents/iCloud~app~biblemarker/**"
+        },
+        {
+          "path": "/private/var/mobile/Library/Mobile Documents/iCloud~app~biblemarker/**"
+        }
       ]
     },
     "fs:allow-read-file",
@@ -34,9 +46,6 @@
     "sql:allow-execute",
     "sql:allow-select",
     "sql:allow-close",
-    "opener:default",
-    "updater:default",
-    "process:allow-restart",
-    "process:allow-exit"
+    "opener:default"
   ]
 }

@@ -1,0 +1,7 @@
+{
+  "identifier": "desktop-capability",
+  "description": "Desktop-only: updater and process (excludes iOS)",
+  "windows": ["main"],
+  "platforms": ["macos", "windows", "linux"],
+  "permissions": ["updater:default", "process:allow-restart", "process:allow-exit"]
+}
