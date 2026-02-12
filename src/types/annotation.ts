@@ -76,7 +76,7 @@ export const SYMBOLS = {
   triangle: '▲',      // God / LORD / Jehovah
   cross: '✝',        // Jesus / Christ / Messiah
   dove: '🕊',        // Holy Spirit / Spirit
-  flame: '🔥',       // Holy Spirit (alternative)
+  flame: '🕯',       // Holy Spirit (alternative)
   angel: '👼',       // Angels / Heavenly beings
   lamb: '🐑',        // Lamb of God / Sacrifice
   anchor: '⚓',       // Hope / Steadfast
