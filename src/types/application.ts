@@ -25,6 +25,7 @@ export interface ApplicationEntry {
   training?: string;       // How this trains me in righteousness
   notes?: string;          // Additional notes
   linkedPresetIds?: string[]; // Optional: link to marked keywords (MarkingPresets) in this verse
+  studyId?: string;        // Optional: link to a specific study
   createdAt: Date;
   updatedAt: Date;
 }

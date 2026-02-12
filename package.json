@@ -1,7 +1,7 @@
 {
   "name": "biblemarker",
   "private": true,
-  "version": "0.7.3",
+  "version": "0.7.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,8 +14,8 @@
     "generate-icons": "node scripts/generate-icons.js",
     "version:sync": "node scripts/sync-version.js",
     "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "tauri:dev": "bash scripts/tauri-dev.sh",
+    "tauri:build": "bash scripts/tauri-build.sh",
     "ios:dev": "tauri ios dev",
     "ios:build": "tauri ios build"
   },

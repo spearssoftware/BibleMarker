@@ -122,10 +122,11 @@ export async function clearBookAnnotations(book: string, moduleId?: string): Pro
 export async function getChapterHeadings(
   _moduleId: string | null | undefined,
   book: string,
-  chapter: number
+  chapter: number,
+  studyId?: string | null
 ): Promise<SectionHeading[]> {
   const mod = await sqlite();
-  return mod.sqliteGetChapterHeadings(book, chapter);
+  return mod.sqliteGetChapterHeadings(book, chapter, studyId);
 }
 
 export async function saveSectionHeading(heading: SectionHeading): Promise<string> {
@@ -148,10 +149,11 @@ export async function deleteSectionHeading(id: string): Promise<void> {
 export async function getChapterTitle(
   _moduleId: string | null | undefined,
   book: string,
-  chapter: number
+  chapter: number,
+  studyId?: string | null
 ): Promise<ChapterTitle | undefined> {
   const mod = await sqlite();
-  return mod.sqliteGetChapterTitle(book, chapter);
+  return mod.sqliteGetChapterTitle(book, chapter, studyId);
 }
 
 export async function saveChapterTitle(title: ChapterTitle): Promise<string> {

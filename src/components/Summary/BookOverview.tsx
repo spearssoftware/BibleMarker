@@ -7,6 +7,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
+import { useStudyStore } from '@/stores/studyStore';
 import { 
   getChapterTitle, 
   getChapterHeadings, 
@@ -32,6 +33,7 @@ interface BookOverviewProps {
 export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
   const { currentBook, currentModuleId, setLocation } = useBibleStore();
   const { activeView } = useMultiTranslationStore();
+  const { activeStudyId } = useStudyStore();
   
   // Get the primary translation ID
   const primaryTranslationId = activeView?.translationIds[0] || currentModuleId || null;
@@ -53,16 +55,15 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
       
       try {
         const chapterSummaries: ChapterSummaryData[] = [];
-        
-        // Load summary for each chapter
+        const allLists = await getAllObservationLists();
+        const filteredLists = allLists.filter(
+          list => !list.studyId || list.studyId === activeStudyId
+        );
+
         for (let chapter = 1; chapter <= bookInfo.chapters; chapter++) {
-          // Load chapter title (translation-agnostic)
-          const title = await getChapterTitle(null, currentBook, chapter);
-          
-          // Load section headings (translation-agnostic)
-          const headings = await getChapterHeadings(null, currentBook, chapter);
-          
-          // Load annotations to count keywords
+          const title = await getChapterTitle(null, currentBook, chapter, activeStudyId);
+          const headings = await getChapterHeadings(null, currentBook, chapter, activeStudyId);
+
           const annotations = await getChapterAnnotations(primaryTranslationId, currentBook, chapter);
           const uniqueKeywords = new Set<string>();
           for (const ann of annotations) {
@@ -70,10 +71,8 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
               uniqueKeywords.add(ann.presetId);
             }
           }
-          
-          // Count observations in this chapter
-          const allLists = await getAllObservationLists();
-          const observationCount = allLists.reduce((count, list) => {
+
+          const observationCount = filteredLists.reduce((count, list) => {
             const itemsInChapter = list.items.filter(
               item => item.verseRef.book === currentBook && item.verseRef.chapter === chapter
             );
@@ -99,7 +98,7 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
     }
     
     loadBookSummary();
-  }, [primaryTranslationId, currentBook, bookInfo]);
+  }, [primaryTranslationId, currentBook, bookInfo, activeStudyId]);
   
   if (isLoading) {
     return (

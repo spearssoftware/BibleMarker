@@ -100,10 +100,9 @@ export function MultiTranslationView() {
 
   // Load section headings, chapter title, and notes for primary translation
   const loadSectionHeadings = useCallback(async () => {
-    // Section headings are now translation-agnostic - just query by book/chapter
-    const headings = await getChapterHeadings(null, currentBook, currentChapter);
+    const headings = await getChapterHeadings(null, currentBook, currentChapter, activeStudyId);
     setSectionHeadings(headings);
-  }, [currentBook, currentChapter]);
+  }, [currentBook, currentChapter, activeStudyId]);
   
   const loadChapterTitle = useCallback(async () => {
     // Prevent duplicate calls for the same book/chapter
@@ -120,9 +119,7 @@ export function MultiTranslationView() {
     lastLoadedRef.current = { book: currentBook, chapter: currentChapter };
     
     try {
-      // Chapter titles are now translation-agnostic - just query by book/chapter
-      const title = await getChapterTitle(null, currentBook, currentChapter);
-      console.log(`[MultiTranslationView] loadChapterTitle: Found title:`, title);
+      const title = await getChapterTitle(null, currentBook, currentChapter, activeStudyId);
       setChapterTitle(title || null);
     } finally {
       isLoadingRef.current = false;
@@ -133,7 +130,7 @@ export function MultiTranslationView() {
         }
       }, 50);
     }
-  }, [currentBook, currentChapter]);
+  }, [currentBook, currentChapter, activeStudyId]);
   
   const loadNotes = useCallback(async () => {
     if (!primaryTranslationId) return;
@@ -162,13 +159,13 @@ export function MultiTranslationView() {
     
     const heading: SectionHeading = {
       id: globalThis.crypto.randomUUID(),
-      // moduleId no longer required - section headings are translation-agnostic
       beforeRef: {
         book: currentBook,
         chapter: currentChapter,
         verse: verseNum,
       },
       title: title.trim(),
+      studyId: activeStudyId ?? undefined,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -176,7 +173,7 @@ export function MultiTranslationView() {
     await saveSectionHeading(heading);
     await loadSectionHeadings();
     return heading;
-  }, [currentBook, currentChapter, loadSectionHeadings]);
+  }, [currentBook, currentChapter, activeStudyId, loadSectionHeadings]);
   
   const updateSectionHeading = useCallback(async (heading: SectionHeading) => {
     const updated = {
@@ -197,10 +194,10 @@ export function MultiTranslationView() {
     
     const chapterTitleData = {
       id: globalThis.crypto.randomUUID(),
-      // moduleId no longer required - chapter titles are translation-agnostic
       book: currentBook,
       chapter: currentChapter,
       title: title.trim(),
+      studyId: activeStudyId ?? undefined,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -208,7 +205,7 @@ export function MultiTranslationView() {
     await saveChapterTitle(chapterTitleData);
     await loadChapterTitle();
     return chapterTitleData;
-  }, [currentBook, currentChapter, loadChapterTitle]);
+  }, [currentBook, currentChapter, activeStudyId, loadChapterTitle]);
   
   const updateChapterTitle = useCallback(async (title: ChapterTitle) => {
     // Ensure we use the current book and chapter, not the title's (which might be stale)
@@ -317,7 +314,7 @@ export function MultiTranslationView() {
     // Only depend on actual values, not the callback functions
     // The callbacks are stable and will be recreated when their dependencies change anyway
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeView?.id, activeView?.translationIds?.join(','), currentBook, currentChapter, translations.length, primaryTranslationId]);
+  }, [activeView?.id, activeView?.translationIds?.join(','), currentBook, currentChapter, translations.length, primaryTranslationId, activeStudyId]);
 
   // Reload annotations when they are updated (e.g., when a new annotation is created)
   useEffect(() => {
@@ -336,7 +333,7 @@ export function MultiTranslationView() {
     return () => {
       window.removeEventListener('annotationsUpdated', handleAnnotationsUpdated);
     };
-  }, [activeView, currentBook, currentChapter, loadAnnotations, loadSectionHeadings, loadChapterTitle, loadNotes]);
+  }, [activeView, currentBook, currentChapter, activeStudyId, loadAnnotations, loadSectionHeadings, loadChapterTitle, loadNotes]);
 
   // Helper function to expand selection to word boundaries
   const expandToWordBoundaries = (range: Range): { expandedRange: Range; text: string } => {

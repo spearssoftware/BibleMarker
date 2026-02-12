@@ -8,6 +8,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
+import { useStudyStore } from '@/stores/studyStore';
 import { 
   getChapterTitle, 
   getChapterHeadings, 
@@ -46,6 +47,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { activeView } = useMultiTranslationStore();
   const { presets } = useMarkingPresetStore();
+  const { activeStudyId } = useStudyStore();
   
   // Get the primary translation ID (first valid one) for section headings, chapter titles
   const primaryTranslationId = activeView?.translationIds[0] || currentModuleId || null;
@@ -65,11 +67,8 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
       setIsLoading(true);
       
       try {
-        // Load chapter title (translation-agnostic)
-        const title = await getChapterTitle(null, currentBook, currentChapter);
-        
-        // Load section headings (translation-agnostic)
-        const headings = await getChapterHeadings(null, currentBook, currentChapter);
+        const title = await getChapterTitle(null, currentBook, currentChapter, activeStudyId);
+        const headings = await getChapterHeadings(null, currentBook, currentChapter, activeStudyId);
         
         // Load annotations to find keywords used
         const annotations = await getChapterAnnotations(primaryTranslationId, currentBook, currentChapter);
@@ -97,9 +96,11 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
           .map(item => ({ preset: item.preset!, count: item.count }))
           .sort((a, b) => b.count - a.count); // Sort by count descending
         
-        // Load observation lists and filter by chapter
         const allLists = await getAllObservationLists();
-        const observations = allLists
+        const filteredLists = allLists.filter(
+          list => !list.studyId || list.studyId === activeStudyId
+        );
+        const observations = filteredLists
           .map(list => {
             const itemsInChapter = list.items.filter(
               item => item.verseRef.book === currentBook && item.verseRef.chapter === currentChapter
@@ -126,7 +127,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
     }
     
     loadSummary();
-  }, [primaryTranslationId, currentBook, currentChapter]);
+  }, [primaryTranslationId, currentBook, currentChapter, activeStudyId]);
   
   if (isLoading) {
     return (

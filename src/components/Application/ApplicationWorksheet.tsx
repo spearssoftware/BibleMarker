@@ -10,10 +10,11 @@
  * Based on 2 Timothy 3:16-17
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useApplicationStore } from '@/stores/applicationStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
+import { useStudyStore } from '@/stores/studyStore';
 import { formatVerseRef } from '@/types/bible';
 import type { ApplicationEntry } from '@/types/application';
 import type { VerseRef } from '@/types/bible';
@@ -57,14 +58,15 @@ const sortVerseGroups = (groups: Map<string, ApplicationEntry[]>): Array<[string
 
 export function ApplicationWorksheet({ verseRef: initialVerseRef }: ApplicationWorksheetProps) {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
-  const { 
-    applicationEntries, 
-    loadApplications, 
-    createApplication, 
-    updateApplication, 
-    deleteApplication 
+  const {
+    applicationEntries,
+    loadApplications,
+    createApplication,
+    updateApplication,
+    deleteApplication,
   } = useApplicationStore();
   const { presets } = useMarkingPresetStore();
+  const { activeStudyId } = useStudyStore();
   
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -145,9 +147,17 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef }: ApplicationW
     loadKeywordsForVerse();
   }, [formVerseRef, currentModuleId, presets]);
 
+  const filteredEntries = useMemo(
+    () =>
+      applicationEntries.filter((e) =>
+        !activeStudyId ? !e.studyId : (!e.studyId || e.studyId === activeStudyId)
+      ),
+    [applicationEntries, activeStudyId]
+  );
+
   // If initialVerseRef is provided, expand that verse and scroll to it
   useEffect(() => {
-    if (initialVerseRef && applicationEntries.length > 0) {
+    if (initialVerseRef && filteredEntries.length > 0) {
       const key = getVerseKey(initialVerseRef);
       queueMicrotask(() => setExpandedVerses(new Set([key])));
       // Small delay to ensure the expansion completes before scrolling
@@ -158,7 +168,7 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef }: ApplicationW
         }
       }, 100);
     }
-  }, [initialVerseRef, applicationEntries]);
+  }, [initialVerseRef, filteredEntries]);
 
   const toggleVerse = (verseKey: string) => {
     const newExpanded = new Set(expandedVerses);
@@ -247,6 +257,7 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef }: ApplicationW
           training: formTraining.trim() || undefined,
           notes: formNotes.trim() || undefined,
           linkedPresetIds: formLinkedPresetIds.length > 0 ? formLinkedPresetIds : undefined,
+          studyId: activeStudyId ?? undefined,
         });
       }
       
@@ -281,7 +292,7 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef }: ApplicationW
     setConfirmDeleteId(null);
   };
 
-  const verseGroups = groupByVerse(applicationEntries);
+  const verseGroups = groupByVerse(filteredEntries);
   const sortedGroups = sortVerseGroups(verseGroups);
 
   return (

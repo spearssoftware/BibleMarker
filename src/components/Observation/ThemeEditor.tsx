@@ -8,6 +8,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
+import { useStudyStore } from '@/stores/studyStore';
 import { getChapterTitle, saveChapterTitle } from '@/lib/database';
 import { analyzeKeywordFrequencyByChapter } from '@/lib/annotationQueries';
 import type { ChapterTitle } from '@/types/annotation';
@@ -25,6 +26,7 @@ export function ThemeEditor({ verseRef }: ThemeEditorProps) {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { activeView } = useMultiTranslationStore();
   const { presets } = useMarkingPresetStore();
+  const { activeStudyId } = useStudyStore();
   
   // Get the primary translation ID
   const primaryTranslationId = activeView?.translationIds[0] || currentModuleId || null;
@@ -54,7 +56,7 @@ export function ThemeEditor({ verseRef }: ThemeEditorProps) {
       
       setIsLoading(true);
       try {
-        const title = await getChapterTitle(null, book, chapter);
+        const title = await getChapterTitle(null, book, chapter, activeStudyId);
         if (title) {
           setChapterTitle(title);
           // If theme is empty but title exists, check if they should be synced
@@ -77,7 +79,7 @@ export function ThemeEditor({ verseRef }: ThemeEditorProps) {
     }
     
     loadTheme();
-  }, [book, chapter]);
+  }, [book, chapter, activeStudyId]);
   
   // Load keyword suggestions for theme
   useEffect(() => {
@@ -117,6 +119,7 @@ export function ThemeEditor({ verseRef }: ThemeEditorProps) {
         book,
         chapter,
         title: `${bookInfo?.name || book} ${chapter}`,
+        studyId: activeStudyId ?? undefined,
         createdAt: now,
         updatedAt: now,
       };
@@ -126,6 +129,7 @@ export function ThemeEditor({ verseRef }: ThemeEditorProps) {
       
       const updatedTitle: ChapterTitle = {
         ...titleData,
+        studyId: activeStudyId ?? undefined,
         theme: themeValue || undefined,
         supportingPresetIds: supportingPresetIds.length > 0 ? supportingPresetIds : undefined,
         updatedAt: new Date(),
