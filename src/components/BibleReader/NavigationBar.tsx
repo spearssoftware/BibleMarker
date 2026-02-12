@@ -18,6 +18,7 @@ export function NavigationBar() {
     currentBook,
     currentChapter,
     setLocation,
+    setNavSelectedVerse,
     setCurrentModule,
     nextChapter,
     previousChapter,
@@ -351,8 +352,10 @@ export function NavigationBar() {
           onNavigate={(book, chapter, verse) => {
             setLocation(book, chapter);
             setShowSearch(false);
-            // Scroll to verse if specified
+            // Highlight verse and scroll (like UnifiedPicker) - set after setLocation since it clears navSelectedVerse
             if (verse) {
+              setNavSelectedVerse(verse);
+              setTimeout(() => setNavSelectedVerse(null), 3000);
               setTimeout(() => {
                 const verseElement = document.querySelector(`[data-verse="${verse}"]`);
                 if (verseElement) {
