@@ -7,6 +7,7 @@
 import { useCallback } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
+import { useStudyStore } from '@/stores/studyStore';
 import { saveAnnotation, deleteAnnotation, getChapterAnnotations, getChapterHeadings, saveSectionHeading, deleteSectionHeading, getChapterTitle, saveChapterTitle, deleteChapterTitle, getChapterNotes, saveNote, deleteNote, getMarkingPreset } from '@/lib/database';
 import type { Annotation, TextAnnotation, SymbolAnnotation, HighlightColor, SymbolKey, SectionHeading, ChapterTitle, Note } from '@/types/annotation';
 import { autoAddToObservationTracker } from '@/lib/observationAutoAdd';
@@ -14,6 +15,7 @@ import { getAnnotationVerseRef } from '@/lib/annotationQueries';
 
 export function useAnnotations() {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
+  const { activeStudyId } = useStudyStore();
   const { 
     selection, 
     setAnnotations,
@@ -43,27 +45,17 @@ export function useAnnotations() {
    * Load section headings for the current chapter
    */
   const loadSectionHeadings = useCallback(async () => {
-    // Section headings are now translation-agnostic
-    const headings = await getChapterHeadings(
-      null,
-      currentBook,
-      currentChapter
-    );
+    const headings = await getChapterHeadings(null, currentBook, currentChapter, activeStudyId);
     setSectionHeadings(headings);
-  }, [currentBook, currentChapter, setSectionHeadings]);
+  }, [currentBook, currentChapter, activeStudyId, setSectionHeadings]);
 
   /**
    * Load chapter title for the current chapter
    */
   const loadChapterTitle = useCallback(async () => {
-    // Chapter titles are now translation-agnostic
-    const title = await getChapterTitle(
-      null,
-      currentBook,
-      currentChapter
-    );
+    const title = await getChapterTitle(null, currentBook, currentChapter, activeStudyId);
     setChapterTitle(title || null);
-  }, [currentBook, currentChapter, setChapterTitle]);
+  }, [currentBook, currentChapter, activeStudyId, setChapterTitle]);
 
   /**
    * Load notes for the current chapter
@@ -247,13 +239,13 @@ export function useAnnotations() {
 
     const heading: SectionHeading = {
       id: crypto.randomUUID(),
-      // moduleId no longer required - section headings are translation-agnostic
       beforeRef: {
         book: currentBook,
         chapter: currentChapter,
         verse: verseNum,
       },
       title: title.trim(),
+      studyId: activeStudyId ?? undefined,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -261,7 +253,7 @@ export function useAnnotations() {
     await saveSectionHeading(heading);
     await loadSectionHeadings();
     return heading;
-  }, [currentBook, currentChapter, loadSectionHeadings]);
+  }, [currentBook, currentChapter, activeStudyId, loadSectionHeadings]);
 
   /**
    * Update a section heading
@@ -291,10 +283,10 @@ export function useAnnotations() {
 
     const chapterTitle: ChapterTitle = {
       id: crypto.randomUUID(),
-      // moduleId no longer required - chapter titles are translation-agnostic
       book: currentBook,
       chapter: currentChapter,
       title: title.trim(),
+      studyId: activeStudyId ?? undefined,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -302,7 +294,7 @@ export function useAnnotations() {
     await saveChapterTitle(chapterTitle);
     await loadChapterTitle();
     return chapterTitle;
-  }, [currentBook, currentChapter, loadChapterTitle]);
+  }, [currentBook, currentChapter, activeStudyId, loadChapterTitle]);
 
   /**
    * Update a chapter title

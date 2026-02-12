@@ -249,6 +249,8 @@ export interface SectionHeading {
   // Optional range this heading covers
   coversUntil?: VerseRef;
   
+  studyId?: string;
+  
   createdAt: Date;
   updatedAt: Date;
 }
@@ -271,6 +273,8 @@ export interface ChapterTitle {
   
   // Supporting keyword preset IDs that support this theme
   supportingPresetIds?: string[];
+  
+  studyId?: string;
   
   createdAt: Date;
   updatedAt: Date;

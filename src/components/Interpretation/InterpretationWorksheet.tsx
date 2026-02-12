@@ -4,7 +4,7 @@
  * Worksheet for recording interpretation insights with guided questions.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useInterpretationStore } from '@/stores/interpretationStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
@@ -149,12 +149,19 @@ export function InterpretationWorksheet({ verseRef: initialVerseRef }: Interpret
     loadKeywordsForVerse();
   }, [formVerseRef, formEndVerseRef, currentModuleId, presets]);
 
+  const filteredEntries = useMemo(
+    () =>
+      interpretationEntries.filter((e) =>
+        !activeStudyId ? !e.studyId : (!e.studyId || e.studyId === activeStudyId)
+      ),
+    [interpretationEntries, activeStudyId]
+  );
+
   // If initialVerseRef is provided, expand that verse and scroll to it
   useEffect(() => {
-    if (initialVerseRef && interpretationEntries.length > 0) {
+    if (initialVerseRef && filteredEntries.length > 0) {
       const key = getVerseKey(initialVerseRef);
       queueMicrotask(() => setExpandedVerses(new Set([key])));
-      // Small delay to ensure the expansion completes before scrolling
       setTimeout(() => {
         const verseElement = document.querySelector(`[data-verse-key="${key}"]`);
         if (verseElement) {
@@ -162,7 +169,7 @@ export function InterpretationWorksheet({ verseRef: initialVerseRef }: Interpret
         }
       }, 100);
     }
-  }, [initialVerseRef, interpretationEntries]);
+  }, [initialVerseRef, filteredEntries]);
 
   const toggleVerse = (verseKey: string) => {
     const newExpanded = new Set(expandedVerses);
@@ -308,7 +315,7 @@ export function InterpretationWorksheet({ verseRef: initialVerseRef }: Interpret
     setConfirmDeleteId(null);
   };
 
-  const verseGroups = groupByVerse(interpretationEntries);
+  const verseGroups = groupByVerse(filteredEntries);
   const sortedGroups = sortVerseGroups(verseGroups);
 
   return (

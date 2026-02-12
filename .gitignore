@@ -52,6 +52,7 @@ Thumbs.db
 *.tsbuildinfo
 
 # Tauri
+.cargo-home/
 src-tauri/target/
 src-tauri/gen/
 .pnpm-store/

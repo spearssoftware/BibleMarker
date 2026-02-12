@@ -7,18 +7,20 @@ alwaysApply: true
 
 Cursor sets `CI=1` in its shell environment. Tauri CLI interprets this as `--ci 1`, which fails because it only accepts `true`/`false`.
 
-**Always unset `CI` before running Tauri commands:**
+**Always unset `CI` and set `CARGO_HOME` before running Tauri commands:**
 
 ```bash
-# Dev
-unset CI && pnpm tauri dev
+# Dev (uses scripts/tauri-dev.sh which sets CARGO_HOME)
+pnpm run tauri:dev
 
-# Build
-unset CI && pnpm tauri build
+# Build (uses scripts/tauri-build.sh)
+pnpm run tauri:build
 
 # Build for specific target
-unset CI && pnpm tauri build --target aarch64-apple-darwin
+CARGO_HOME="$(pwd)/.cargo-home" unset CI && pnpm tauri build --target aarch64-apple-darwin
 ```
+
+`CARGO_HOME` makes Cargo use the workspace (writable in Cursor) instead of sandbox-blocked system paths.
 
 `CI=` (empty string) does NOT work -- Tauri still sees the flag. You must fully `unset CI`.
 

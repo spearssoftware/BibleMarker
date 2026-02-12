@@ -106,7 +106,7 @@ export async function closeSqliteDb(): Promise<void> {
 // Schema Initialization
 // ============================================================================
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 async function initializeSchema(db: Database): Promise<void> {
   // Create schema version table
@@ -127,6 +127,43 @@ async function initializeSchema(db: Database): Promise<void> {
   if (currentVersion < SCHEMA_VERSION) {
     await migrateSchema(db, currentVersion, SCHEMA_VERSION);
   }
+}
+
+async function addStudyIdColumnIfMissing(db: Database, tableName: string): Promise<void> {
+  const tableInfo = await db.select<{ name: string }[]>(
+    `PRAGMA table_info(${tableName})`
+  );
+  const hasStudyId = tableInfo.some((col) => col.name === 'study_id');
+  if (!hasStudyId) {
+    await db.execute(`ALTER TABLE ${tableName} ADD COLUMN study_id TEXT`);
+    const indexMap: Record<string, string> = {
+      section_headings: 'idx_section_headings_study',
+      chapter_titles: 'idx_chapter_titles_study',
+      applications: 'idx_applications_study',
+    };
+    const indexName = indexMap[tableName];
+    if (indexName) {
+      await db.execute(`CREATE INDEX IF NOT EXISTS ${indexName} ON ${tableName}(study_id)`);
+    }
+  }
+}
+
+async function migrateTitlesAndHeadingsToStudy(db: Database): Promise<void> {
+  const studies = await db.select<{ id: string; is_active: number }[]>(
+    `SELECT id, is_active FROM studies ORDER BY is_active DESC, created_at ASC LIMIT 1`
+  );
+  const targetStudyId = studies[0]?.id;
+  if (!targetStudyId) return;
+
+  await db.execute(
+    `UPDATE chapter_titles SET study_id = ? WHERE study_id IS NULL`,
+    [targetStudyId]
+  );
+  await db.execute(
+    `UPDATE section_headings SET study_id = ? WHERE study_id IS NULL`,
+    [targetStudyId]
+  );
+  console.log('[SQLite] Migrated existing chapter titles and section headings to study', targetStudyId);
 }
 
 async function migrateSchema(
@@ -202,6 +239,15 @@ async function migrateSchema(
     console.log('[SQLite] v3 migration: added change_log, sync_watermarks, sync_config tables');
   }
 
+  // Version 4: Add study_id to chapter_titles, section_headings, applications; migrate existing data
+  if (fromVersion < 4) {
+    await addStudyIdColumnIfMissing(db, 'section_headings');
+    await addStudyIdColumnIfMissing(db, 'chapter_titles');
+    await addStudyIdColumnIfMissing(db, 'applications');
+    await migrateTitlesAndHeadingsToStudy(db);
+    console.log('[SQLite] v4 migration: added study_id to chapter_titles, section_headings, applications');
+  }
+
   // Update schema version
   await db.execute(
     `INSERT OR REPLACE INTO schema_version (id, version, updated_at) VALUES (1, ?, ?)`,
@@ -235,12 +281,14 @@ async function createInitialSchema(db: Database): Promise<void> {
       before_ref TEXT NOT NULL,
       title TEXT NOT NULL,
       covers_until TEXT,
+      study_id TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       sync_status TEXT DEFAULT 'pending',
       device_id TEXT
     )
   `);
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_section_headings_study ON section_headings(study_id)`);
 
   // Chapter titles table
   await db.execute(`
@@ -251,6 +299,7 @@ async function createInitialSchema(db: Database): Promise<void> {
       title TEXT NOT NULL,
       theme TEXT,
       supporting_preset_ids TEXT,
+      study_id TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       sync_status TEXT DEFAULT 'pending',
@@ -420,6 +469,7 @@ async function createInitialSchema(db: Database): Promise<void> {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS applications (
       id TEXT PRIMARY KEY,
+      study_id TEXT,
       data TEXT NOT NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -427,6 +477,7 @@ async function createInitialSchema(db: Database): Promise<void> {
       device_id TEXT
     )
   `);
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_applications_study ON applications(study_id)`);
 
   // Preferences table (singleton)
   await db.execute(`
@@ -593,21 +644,26 @@ export async function sqliteDeleteAnnotation(id: string): Promise<void> {
 
 export async function sqliteGetChapterHeadings(
   book: string,
-  chapter: number
+  chapter: number,
+  studyId?: string | null
 ): Promise<SectionHeading[]> {
   const db = await getSqliteDb();
+  const likePattern = `%"book":"${book}","chapter":${chapter}%`;
   const rows = await db.select<
     {
       id: string;
       before_ref: string;
       title: string;
       covers_until: string | null;
+      study_id: string | null;
       created_at: string;
       updated_at: string;
     }[]
   >(
-    `SELECT * FROM section_headings WHERE before_ref LIKE ?`,
-    [`%"book":"${book}","chapter":${chapter}%`]
+    studyId
+      ? `SELECT * FROM section_headings WHERE before_ref LIKE ? AND (study_id IS NULL OR study_id = ?)`
+      : `SELECT * FROM section_headings WHERE before_ref LIKE ? AND study_id IS NULL`,
+    studyId ? [likePattern, studyId] : [likePattern]
   );
 
   return rows.map((row) => ({
@@ -615,6 +671,7 @@ export async function sqliteGetChapterHeadings(
     beforeRef: JSON.parse(row.before_ref),
     title: row.title,
     coversUntil: row.covers_until ? JSON.parse(row.covers_until) : undefined,
+    studyId: row.study_id ?? undefined,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   }));
@@ -627,13 +684,14 @@ export async function sqliteSaveSectionHeading(heading: SectionHeading): Promise
 
   await db.execute(
     `INSERT OR REPLACE INTO section_headings 
-     (id, before_ref, title, covers_until, created_at, updated_at, sync_status, device_id)
-     VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`,
+     (id, before_ref, title, covers_until, study_id, created_at, updated_at, sync_status, device_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
     [
       heading.id,
       JSON.stringify(heading.beforeRef),
       heading.title,
       heading.coversUntil ? JSON.stringify(heading.coversUntil) : null,
+      heading.studyId ?? null,
       toISOString(heading.createdAt),
       now,
       deviceId,
@@ -654,7 +712,8 @@ export async function sqliteDeleteSectionHeading(id: string): Promise<void> {
 
 export async function sqliteGetChapterTitle(
   book: string,
-  chapter: number
+  chapter: number,
+  studyId?: string | null
 ): Promise<ChapterTitle | undefined> {
   const db = await getSqliteDb();
   const rows = await db.select<
@@ -665,12 +724,15 @@ export async function sqliteGetChapterTitle(
       title: string;
       theme: string | null;
       supporting_preset_ids: string | null;
+      study_id: string | null;
       created_at: string;
       updated_at: string;
     }[]
   >(
-    `SELECT * FROM chapter_titles WHERE book = ? AND chapter = ?`,
-    [book, chapter]
+    studyId
+      ? `SELECT * FROM chapter_titles WHERE book = ? AND chapter = ? AND (study_id IS NULL OR study_id = ?) ORDER BY CASE WHEN study_id = ? THEN 0 ELSE 1 END`
+      : `SELECT * FROM chapter_titles WHERE book = ? AND chapter = ? AND study_id IS NULL`,
+    studyId ? [book, chapter, studyId, studyId] : [book, chapter]
   );
 
   if (rows.length === 0) return undefined;
@@ -685,6 +747,7 @@ export async function sqliteGetChapterTitle(
     supportingPresetIds: row.supporting_preset_ids
       ? JSON.parse(row.supporting_preset_ids)
       : undefined,
+    studyId: row.study_id ?? undefined,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   };
@@ -697,8 +760,8 @@ export async function sqliteSaveChapterTitle(title: ChapterTitle): Promise<strin
 
   await db.execute(
     `INSERT OR REPLACE INTO chapter_titles 
-     (id, book, chapter, title, theme, supporting_preset_ids, created_at, updated_at, sync_status, device_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+     (id, book, chapter, title, theme, supporting_preset_ids, study_id, created_at, updated_at, sync_status, device_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
     [
       title.id,
       title.book,
@@ -706,6 +769,7 @@ export async function sqliteSaveChapterTitle(title: ChapterTitle): Promise<strin
       title.title,
       title.theme ?? null,
       title.supportingPresetIds ? JSON.stringify(title.supportingPresetIds) : null,
+      title.studyId ?? null,
       toISOString(title.createdAt),
       now,
       deviceId,
@@ -1093,6 +1157,7 @@ export async function sqliteExportAll(): Promise<SqliteExportData> {
       before_ref: string;
       title: string;
       covers_until: string | null;
+      study_id: string | null;
       created_at: string;
       updated_at: string;
     }[]
@@ -1102,6 +1167,7 @@ export async function sqliteExportAll(): Promise<SqliteExportData> {
     beforeRef: JSON.parse(row.before_ref),
     title: row.title,
     coversUntil: row.covers_until ? JSON.parse(row.covers_until) : undefined,
+    studyId: row.study_id ?? undefined,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   }));
@@ -1114,6 +1180,7 @@ export async function sqliteExportAll(): Promise<SqliteExportData> {
       title: string;
       theme: string | null;
       supporting_preset_ids: string | null;
+      study_id: string | null;
       created_at: string;
       updated_at: string;
     }[]
@@ -1127,6 +1194,7 @@ export async function sqliteExportAll(): Promise<SqliteExportData> {
     supportingPresetIds: row.supporting_preset_ids
       ? JSON.parse(row.supporting_preset_ids)
       : undefined,
+    studyId: row.study_id ?? undefined,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   }));
@@ -1482,11 +1550,12 @@ async function applyStructuredUpsert(
     case 'section_headings':
       await db.execute(
         `INSERT OR REPLACE INTO section_headings
-         (id, before_ref, title, covers_until, created_at, updated_at, sync_status, device_id)
-         VALUES (?, ?, ?, ?, ?, ?, 'synced', ?)`,
+         (id, before_ref, title, covers_until, study_id, created_at, updated_at, sync_status, device_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'synced', ?)`,
         [
           parsed.id, JSON.stringify(parsed.beforeRef), parsed.title,
           parsed.coversUntil ? JSON.stringify(parsed.coversUntil) : null,
+          parsed.studyId ?? null,
           toISOString(parsed.createdAt), updatedAt, deviceId,
         ]
       );
@@ -1494,12 +1563,13 @@ async function applyStructuredUpsert(
     case 'chapter_titles':
       await db.execute(
         `INSERT OR REPLACE INTO chapter_titles
-         (id, book, chapter, title, theme, supporting_preset_ids, created_at, updated_at, sync_status, device_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?)`,
+         (id, book, chapter, title, theme, supporting_preset_ids, study_id, created_at, updated_at, sync_status, device_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?)`,
         [
           parsed.id, parsed.book, parsed.chapter, parsed.title,
           parsed.theme ?? null,
           parsed.supportingPresetIds ? JSON.stringify(parsed.supportingPresetIds) : null,
+          parsed.studyId ?? null,
           toISOString(parsed.createdAt), updatedAt, deviceId,
         ]
       );

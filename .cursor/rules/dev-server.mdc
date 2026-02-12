@@ -1,34 +1,33 @@
 ---
-description: How to run the dev server when the user asks to test or run the app
+description: How to run the dev server / dev build when the user asks to test, run, or build the app — always use full permissions
 alwaysApply: false
 ---
 
 # Dev Server
 
-When the user asks to run the dev server, start a test, or run the app locally:
+When the user asks to run the dev server, do a dev build, start a test, or run the app locally:
 
 ## Command
 
 ```bash
-unset CI && pnpm tauri dev
+pnpm run tauri:dev
 ```
 
-Never run bare `pnpm tauri dev` — Cursor sets `CI=1`, which Tauri rejects. See `.cursor/rules/local-builds.mdc`.
+The `tauri:dev` script runs `scripts/tauri-dev.sh`, which sets `CARGO_HOME` to `.cargo-home/` (workspace) and unsets `CI`. This avoids Cursor sandbox blocking Cargo crate downloads.
 
-## Permissions
+Never run bare `pnpm tauri dev` — use `pnpm run tauri:dev`.
 
-The Tauri dev command runs `cargo` and downloads crates. Cursor's sandbox can block Cargo from accessing the registry.
+## Agent invocation
 
-**When running the dev server from Cursor's terminal, request `all` permissions** so Cargo can fetch crates:
+When running via run_terminal_cmd:
+- **required_permissions: ["all"]** — always use full permissions so Cargo can download crates
+- **is_background: true** — dev server is long-running; app window opens when build finishes
 
 ```bash
-unset CI && pnpm tauri dev
-# run with required_permissions: ["all"]
+pnpm run tauri:dev
 ```
 
-Use `is_background: true` since the dev server is long-running. The app window will open when the build finishes.
+## Fallbacks
 
-## Alternatives
-
-- **Web-only (Vite)**: `pnpm dev` — runs the frontend without Tauri; some features (e.g. SQLite, native APIs) won't work.
-- **User runs manually**: If the agent's run fails with Cargo/network errors, tell the user to run the command in their own terminal outside Cursor.
+- **Web-only**: `pnpm dev` — Vite only; SQLite/native APIs won't work.
+- **If agent run fails**: Tell user to run `pnpm run tauri:dev` in their own terminal.
