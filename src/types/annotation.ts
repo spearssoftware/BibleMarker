@@ -92,8 +92,7 @@ export const SYMBOLS = {
   obey: '🙇',        // Obey / Submit / Bow
   liberty: '🔓',     // Liberty / Freedom / Unshackled
 
-  // Nation & Land
-  nationLand: '🗺',  // Nation / Land / Territory / Map
+
 
   // Concepts & Themes
   star: '★',         // Promise / Covenant
@@ -129,6 +128,7 @@ export const SYMBOLS = {
   // Geography & Place
   mapPin: '📍',      // Place / Location / Geography
   mountain: '⛰',     // Mountain / Place (alternative)
+  nationLand: '🗺',  // Nation / Land / Territory / Map
   globe: '🌍',       // World / Earth
   tree: '🌳',        // Tree / Growth / Life
   river: '〰',       // River / Stream / Water source
