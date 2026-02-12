@@ -92,8 +92,6 @@ export const SYMBOLS = {
   obey: '🙇',        // Obey / Submit / Bow
   liberty: '🔓',     // Liberty / Freedom / Unshackled
 
-
-
   // Concepts & Themes
   star: '★',         // Promise / Covenant
   starOutline: '☆',  // Promise (lighter)
