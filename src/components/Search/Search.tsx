@@ -107,14 +107,6 @@ export function Search({ onClose, onNavigate }: SearchProps) {
   };
 
   const handleSelectResult = (result: SearchResult) => {
-    // Set the nav-selected verse for highlighting (like verse picker does)
-    const { setNavSelectedVerse } = useBibleStore.getState();
-    setNavSelectedVerse(result.verse);
-    // Clear highlight after 3 seconds
-    setTimeout(() => {
-      setNavSelectedVerse(null);
-    }, 3000);
-    
     onNavigate(result.book, result.chapter, result.verse);
     onClose();
   };
