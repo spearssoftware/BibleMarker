@@ -82,4 +82,11 @@ describe('findKeywordMatches', () => {
     expect(result.length).toBeGreaterThanOrEqual(1)
     expect(result[0].presetId).toBe('p1')
   })
+
+  it('matches phrase with commas when verse has same words with punctuation', () => {
+    const presets = [preset({ id: 'p1', word: 'faith, hope, love' })]
+    const result = findKeywordMatches('Now faith, hope, love remain', verseRef, presets)
+    expect(result.length).toBeGreaterThanOrEqual(1)
+    expect(result[0].presetId).toBe('p1')
+  })
 })

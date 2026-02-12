@@ -113,6 +113,10 @@ function findPhraseMatches(text: string, phrase: string): Array<{ startIndex: nu
   
   if (phraseWords.length === 0) return matches;
   
+  // Normalize each phrase word separately (strips punctuation like commas from each token)
+  // so "word1, word2, word3" matches verse text "word1, word2, word3" where each word has punctuation
+  const normalizedPhraseForMatch = phraseWords.map(w => normalizeForMatching(w)).join(' ');
+  
   // Split text into words with positions
   const words = splitIntoWords(text);
   
@@ -124,7 +128,7 @@ function findPhraseMatches(text: string, phrase: string): Array<{ startIndex: nu
     const candidateWords = words.slice(i, i + phraseWords.length);
     const candidateText = candidateWords.map(w => normalizeForMatching(w.word)).join(' ');
     
-    if (candidateText === normalizedPhrase) {
+    if (candidateText === normalizedPhraseForMatch) {
       // Found a match! Get the actual start and end positions from original text
       const startWord = candidateWords[0];
       const endWord = candidateWords[candidateWords.length - 1];
