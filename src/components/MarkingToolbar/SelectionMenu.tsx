@@ -367,7 +367,7 @@ export function SelectionMenu({
             <span>Key Word</span>
           </button>
 
-          {/* Add to List */}
+          {/* Observe */}
           <button
             onClick={(e) => {
               e.preventDefault();
@@ -379,25 +379,7 @@ export function SelectionMenu({
                      transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
                      hover:shadow-sm text-scripture-text"
             role="menuitem"
-            aria-label="Add to observation list"
-          >
-            <span className="text-lg" aria-hidden="true">📝</span>
-            <span>Add to List</span>
-          </button>
-
-          {/* Observe */}
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onOpenObservationTools('lists');
-              onClose();
-            }}
-            className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                     transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                     hover:shadow-sm text-scripture-text"
-            role="menuitem"
-            aria-label="Open observation tools"
+            aria-label="Add observation"
           >
             <span className="text-lg" aria-hidden="true">🔍</span>
             <span>Observe</span>

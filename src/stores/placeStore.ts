@@ -19,7 +19,7 @@ interface PlaceState {
   
   // Actions
   loadPlaces: () => Promise<void>;
-  createPlace: (name: string, verseRef: VerseRef, notes?: string, presetId?: string, annotationId?: string) => Promise<Place>;
+  createPlace: (name: string, verseRef: VerseRef, notes?: string, presetId?: string, annotationId?: string, studyId?: string) => Promise<Place>;
   updatePlace: (place: Place) => Promise<void>;
   deletePlace: (placeId: string) => Promise<void>;
   getPlace: (placeId: string) => Place | null;
@@ -40,7 +40,7 @@ export const usePlaceStore = create<PlaceState>()(
         set({ places: allPlaces });
       },
       
-      createPlace: async (name, verseRef, notes, presetId, annotationId) => {
+      createPlace: async (name, verseRef, notes, presetId, annotationId, studyId) => {
         // Check for duplicates from DATABASE (not in-memory state) to avoid race conditions
         const allPlaces = await dbGetAllPlaces();
         
@@ -77,6 +77,7 @@ export const usePlaceStore = create<PlaceState>()(
           notes: notes?.trim() || undefined,
           presetId,
           annotationId,
+          studyId,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -232,6 +233,10 @@ export const usePlaceStore = create<PlaceState>()(
       autoPopulateFromChapter: async (book, chapter, moduleId) => {
         const { places, createPlace } = get();
         
+        // Get active study for scoping
+        const { useStudyStore } = await import('@/stores/studyStore');
+        const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
+        
         // Get cached chapter data
         const { getCachedChapter } = await import('@/lib/database');
         const chapterCache = await getCachedChapter(moduleId || '', book, chapter);
@@ -294,7 +299,8 @@ export const usePlaceStore = create<PlaceState>()(
                   verseRef,
                   undefined, // notes - user can add later
                   preset.id,
-                  undefined // annotationId - no specific annotation, just keyword match
+                  undefined, // annotationId - no specific annotation, just keyword match
+                  activeStudyId
                 );
                 totalAdded++;
               } catch (error) {

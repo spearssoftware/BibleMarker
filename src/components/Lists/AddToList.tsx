@@ -2,13 +2,16 @@
  * Add to List Component
  * 
  * Dialog to add selected text as an observation to a list.
+ * Auto-selects the keyword's list when the selected text matches a keyword preset.
  */
 
 import { useState, useEffect, useRef } from 'react';
 import { useListStore } from '@/stores/listStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
+import { useStudyStore } from '@/stores/studyStore';
 import type { VerseRef } from '@/types/bible';
 import { formatVerseRef } from '@/types/bible';
+import { SYMBOLS } from '@/types/annotation';
 import { stripSymbols } from '@/lib/textUtils';
 import { useModal } from '@/hooks/useModal';
 import { Modal, Button, Textarea, DropdownSelect, ReadOnlyField, Input } from '@/components/shared';
@@ -22,16 +25,23 @@ interface AddToListProps {
 }
 
 export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdded }: AddToListProps) {
-  const { lists, loadLists, addItemToList, createList, getMostRecentlyUsedList } = useListStore();
+  const { lists, loadLists, addItemToList, createList, getOrCreateListForKeyword, getMostRecentlyUsedList } = useListStore();
   const { presets } = useMarkingPresetStore();
-  // Strip symbols from selected text before initializing
+  const { activeStudyId } = useStudyStore();
   const [observationText, setObservationText] = useState(stripSymbols(selectedText));
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-matched keyword list (set when selectedText matches a keyword)
+  const [autoListId, setAutoListId] = useState<string | null>(null);
+  const [autoListTitle, setAutoListTitle] = useState<string | null>(null);
+  const [isAutoResolving, setIsAutoResolving] = useState(false);
+
+  // Create new list flow
   const [showCreateNew, setShowCreateNew] = useState(false);
   const [newListTitle, setNewListTitle] = useState('');
   const [newListKeywordId, setNewListKeywordId] = useState<string>('');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Initialize with most recently used list if available
+  // Fallback: manual list selection (when no keyword match)
   const [selectedListId, setSelectedListId] = useState<string>('');
 
   useModal({
@@ -46,21 +56,56 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
     loadLists();
   }, [loadLists]);
 
-  // Set default to most recently used list when lists are loaded, or first list if no recent
+  // Match selected text to a keyword preset and auto-resolve the list
   useEffect(() => {
-    if (lists.length > 0 && !selectedListId) {
-      const recentList = getMostRecentlyUsedList();
-      if (recentList && lists.some(l => l.id === recentList.id)) {
-        queueMicrotask(() => setSelectedListId(recentList.id));
-      } else {
-        // Default to first list if no recent list
-        queueMicrotask(() => setSelectedListId(lists[0].id));
-      }
+    const strippedText = stripSymbols(selectedText).toLowerCase().trim();
+    if (!strippedText) return;
+
+    const matchingPreset = presets.find(p => {
+      if (p.word?.toLowerCase().trim() === strippedText) return true;
+      if (p.variants?.some(v => {
+        const variantText = typeof v === 'string' ? v : v.text;
+        return variantText.toLowerCase().trim() === strippedText;
+      })) return true;
+      return false;
+    });
+
+    if (matchingPreset) {
+      setIsAutoResolving(true);
+      getOrCreateListForKeyword(matchingPreset.id, activeStudyId ?? undefined, verseRef.book)
+        .then(list => {
+          setAutoListId(list.id);
+          setAutoListTitle(list.title);
+        })
+        .catch(err => {
+          console.error('[AddToList] Failed to auto-resolve list:', err);
+        })
+        .finally(() => setIsAutoResolving(false));
     }
-  }, [lists, getMostRecentlyUsedList, selectedListId]);
+  // Run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Filter lists to current study
+  const studyLists = lists.filter(l =>
+    activeStudyId ? l.studyId === activeStudyId : !l.studyId
+  );
+
+  // Set default manual selection to most recently used list when no auto match
+  useEffect(() => {
+    if (autoListId || studyLists.length === 0 || selectedListId) return;
+    const recentList = getMostRecentlyUsedList();
+    if (recentList && studyLists.some(l => l.id === recentList.id)) {
+      queueMicrotask(() => setSelectedListId(recentList.id));
+    } else {
+      queueMicrotask(() => setSelectedListId(studyLists[0].id));
+    }
+  }, [studyLists, getMostRecentlyUsedList, selectedListId, autoListId]);
+
+  const effectiveListId = autoListId || selectedListId;
 
   const handleAdd = async () => {
-    if (!selectedListId) {
+    if (!effectiveListId) {
       alert('Please select a list');
       return;
     }
@@ -70,7 +115,7 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
       return;
     }
 
-    await addItemToList(selectedListId, {
+    await addItemToList(effectiveListId, {
       content: observationText.trim(),
       verseRef,
       annotationId,
@@ -87,18 +132,16 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
       alert('Please enter a list title');
       return;
     }
-
     if (!newListKeywordId) {
       alert('Please select a keyword. Observation lists are about specific keywords.');
       return;
     }
-
     if (!observationText.trim()) {
       alert('Please enter an observation');
       return;
     }
 
-    const newList = await createList(newListTitle.trim(), newListKeywordId);
+    const newList = await createList(newListTitle.trim(), newListKeywordId, undefined, activeStudyId ?? undefined);
     await addItemToList(newList.id, {
       content: observationText.trim(),
       verseRef,
@@ -111,7 +154,7 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
     onClose();
   };
 
-  // Get keyword presets (only those with words)
+  // Get keyword presets for dropdown labels
   const keywordPresets = presets.filter(p => p.word);
 
   return (
@@ -136,9 +179,9 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
           ) : (
             <Button
               onClick={handleAdd}
-              disabled={!selectedListId || !observationText.trim()}
+              disabled={!effectiveListId || !observationText.trim() || isAutoResolving}
             >
-              Add to List
+              {isAutoResolving ? 'Loading...' : 'Add to List'}
             </Button>
           )}
         </div>
@@ -172,22 +215,29 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
               />
 
               {/* List selection */}
-              {!showCreateNew ? (
+              {autoListId && !showCreateNew ? (
+                // Auto-matched: show the list as read-only
+                <ReadOnlyField
+                  label="Observation List"
+                  value={autoListTitle || 'Loading...'}
+                />
+              ) : !showCreateNew ? (
+                // No keyword match: show dropdown of existing lists
                 <>
-                  {lists.length === 0 ? (
+                  {studyLists.length === 0 ? (
                     <div className="text-sm text-scripture-muted mb-2" role="status" aria-live="polite">
-                      No lists yet. Create one below.
+                      No lists yet for this study. Create one below.
                     </div>
                   ) : (
                     <DropdownSelect
                       label="Add to Observation List"
                       value={selectedListId}
                       onChange={(value) => setSelectedListId(value)}
-                      helpText="Select a list about a keyword. You can add multiple observations for the same verse."
+                      helpText="Select a list about a keyword."
                       options={[
                         { value: '', label: 'Select a list...' },
-                        ...lists.map(list => {
-                          const keywordName = presets.find(p => p.id === list.keyWordId)?.word || 'Unknown';
+                        ...studyLists.map(list => {
+                          const keywordName = keywordPresets.find(p => p.id === list.keyWordId)?.word || 'Unknown';
                           const verseCount = new Set(
                             list.items.map(item => `${item.verseRef.book}:${item.verseRef.chapter}:${item.verseRef.verse}`)
                           ).size;
@@ -199,15 +249,9 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
                       ]}
                     />
                   )}
-                  <Button
-                    variant="secondary"
-                    fullWidth
-                    onClick={() => setShowCreateNew(true)}
-                  >
-                    + Create New List
-                  </Button>
                 </>
               ) : (
+                // Create new list form
                 <>
                   <Input
                     label="New List Title"
@@ -225,7 +269,7 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
                       { value: '', label: 'Select a keyword...' },
                       ...keywordPresets.map(preset => ({
                         value: preset.id,
-                        label: `${preset.word}${preset.symbol ? ` (${preset.symbol})` : ''}`
+                        label: `${preset.word}${preset.symbol ? ` (${SYMBOLS[preset.symbol]})` : ''}`
                       }))
                     ]}
                   />
@@ -234,13 +278,25 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
                       No keywords yet. Create a keyword first from the toolbar.
                     </p>
                   )}
-                  <button
-                    onClick={() => setShowCreateNew(false)}
-                    className="text-sm text-scripture-muted hover:text-scripture-text transition-colors"
-                  >
-                    ← Back to existing lists
-                  </button>
                 </>
+              )}
+
+              {/* Toggle between create new and existing */}
+              {showCreateNew ? (
+                <button
+                  onClick={() => setShowCreateNew(false)}
+                  className="text-sm text-scripture-muted hover:text-scripture-text transition-colors"
+                >
+                  ← Back to existing lists
+                </button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  onClick={() => setShowCreateNew(true)}
+                >
+                  + Create New List
+                </Button>
               )}
             </div>
     </Modal>

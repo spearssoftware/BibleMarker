@@ -19,7 +19,7 @@ interface TimeState {
   
   // Actions
   loadTimeExpressions: () => Promise<void>;
-  createTimeExpression: (expression: string, verseRef: VerseRef, notes?: string, presetId?: string, annotationId?: string, timeOrder?: number) => Promise<TimeExpression>;
+  createTimeExpression: (expression: string, verseRef: VerseRef, notes?: string, presetId?: string, annotationId?: string, timeOrder?: number, studyId?: string) => Promise<TimeExpression>;
   updateTimeExpression: (timeExpression: TimeExpression) => Promise<void>;
   deleteTimeExpression: (timeExpressionId: string) => Promise<void>;
   getTimeExpression: (timeExpressionId: string) => TimeExpression | null;
@@ -40,7 +40,7 @@ export const useTimeStore = create<TimeState>()(
         set({ timeExpressions: allTimeExpressions });
       },
       
-      createTimeExpression: async (expression, verseRef, notes, presetId, annotationId, timeOrder) => {
+      createTimeExpression: async (expression, verseRef, notes, presetId, annotationId, timeOrder, studyId) => {
         // Check for duplicates from DATABASE (not in-memory state) to avoid race conditions
         const allTimeExpressions = await dbGetAllTimeExpressions();
         
@@ -77,6 +77,7 @@ export const useTimeStore = create<TimeState>()(
           notes: notes?.trim() || undefined,
           presetId,
           annotationId,
+          studyId,
           timeOrder,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -207,6 +208,10 @@ export const useTimeStore = create<TimeState>()(
       autoPopulateFromChapter: async (book, chapter, moduleId) => {
         const { timeExpressions, createTimeExpression } = get();
         
+        // Get active study for scoping
+        const { useStudyStore } = await import('@/stores/studyStore');
+        const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
+        
         // Get cached chapter data
         const { getCachedChapter } = await import('@/lib/database');
         const chapterCache = await getCachedChapter(moduleId || '', book, chapter);
@@ -292,7 +297,8 @@ export const useTimeStore = create<TimeState>()(
               undefined, // notes - user can add later
               preset.id,
               undefined, // annotationId - no specific annotation, just keyword match
-              i + 1 // timeOrder based on sorted order
+              i + 1, // timeOrder based on sorted order
+              activeStudyId
             );
             totalAdded++;
           } catch (error) {

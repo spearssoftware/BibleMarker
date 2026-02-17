@@ -9,6 +9,7 @@ import { persist } from 'zustand/middleware';
 import type { ObservationList, ObservationItem } from '@/types/list';
 import { getAllObservationLists as dbGetAllLists, saveObservationList as dbSaveList, deleteObservationList as dbDeleteList, getMarkingPreset } from '@/lib/database';
 import type { VerseRef } from '@/types/bible';
+import { getBookById } from '@/types/bible';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { validateObservationList, sanitizeData, ValidationError } from '@/lib/validation';
 
@@ -28,11 +29,14 @@ interface ListState {
   getList: (listId: string) => ObservationList | null;
   getListsByKeyword: (keyWordId: string) => ObservationList[];
   getListsByStudy: (studyId: string) => ObservationList[];
+  getOrCreateListForKeyword: (keyWordId: string, studyId?: string, book?: string) => Promise<ObservationList>;
   autoPopulateFromKeyword: (listId: string, keyWordId: string) => Promise<number>;
   getMostRecentlyUsedList: () => ObservationList | null;
-  autoPopulateFromChapter: (book: string, chapter: number, moduleId?: string) => Promise<number>; // Auto-populate lists for keywords found in chapter
-  getOrCreateListForKeyword: (keyWordId: string, book?: string, studyId?: string | null) => Promise<ObservationList>; // Get existing list or create default one (scoped to book, not chapter)
 }
+
+// Dedup in-flight getOrCreateListForKeyword calls to prevent race conditions
+// (e.g. React StrictMode double-firing effects)
+const _pendingGetOrCreate = new Map<string, Promise<ObservationList>>();
 
 export const useListStore = create<ListState>()(
   persist(
@@ -58,6 +62,15 @@ export const useListStore = create<ListState>()(
       },
       
       createList: async (title, keyWordId, scope, studyId) => {
+        // Ensure fresh data from DB before dedup check
+        await get().loadLists();
+        const { lists: existingLists } = get();
+        const duplicate = existingLists.find(l =>
+          l.keyWordId === keyWordId &&
+          l.studyId === studyId
+        );
+        if (duplicate) return duplicate;
+
         const newList: ObservationList = {
           id: crypto.randomUUID(),
           title,
@@ -224,6 +237,38 @@ export const useListStore = create<ListState>()(
         return list || null;
       },
       
+      getOrCreateListForKeyword: (keyWordId, studyId?, book?) => {
+        const cacheKey = `${keyWordId}:${studyId ?? ''}`;
+        const pending = _pendingGetOrCreate.get(cacheKey);
+        if (pending) return pending;
+
+        const promise = (async () => {
+          try {
+            await get().loadLists();
+            const { lists, createList } = get();
+            const existing = lists.find(l =>
+              l.keyWordId === keyWordId &&
+              l.studyId === studyId
+            );
+            if (existing) return existing;
+
+            const preset = await getMarkingPreset(keyWordId);
+            const keywordName = preset?.word || 'Unknown';
+            const bookInfo = book ? getBookById(book) : null;
+            const title = bookInfo
+              ? `Observations about '${keywordName}' in ${bookInfo.name}`
+              : `Observations about '${keywordName}'`;
+            const scope = book ? { book } : undefined;
+            return createList(title, keyWordId, scope, studyId);
+          } finally {
+            _pendingGetOrCreate.delete(cacheKey);
+          }
+        })();
+
+        _pendingGetOrCreate.set(cacheKey, promise);
+        return promise;
+      },
+
       autoPopulateFromKeyword: async (listId, keyWordId) => {
         const { lists } = get();
         const list = lists.find(l => l.id === listId);
@@ -336,119 +381,6 @@ export const useListStore = create<ListState>()(
         return uniqueItems.length;
       },
 
-      getOrCreateListForKeyword: async (keyWordId, book, studyIdParam) => {
-        const { lists } = get();
-        // Use active study from store when not provided (e.g. from autoPopulateFromChapter)
-        const studyId = studyIdParam ?? (await import('@/stores/studyStore')).useStudyStore.getState().activeStudyId ?? undefined;
-
-        // Find existing list: same keyword, same study, same book scope (book-scoped only, no chapter)
-        const existingList = lists.find(l => 
-          l.keyWordId === keyWordId &&
-          (l.studyId ?? null) === (studyId ?? null) &&
-          (l.scope?.book ?? null) === (book ?? null) &&
-          !(l.scope?.chapters && l.scope.chapters.length > 0) // prefer book-scoped, not chapter-scoped
-        );
-        if (existingList) {
-          return existingList;
-        }
-
-        // Create a new default list (scoped to book only, no chapter)
-        const preset = await getMarkingPreset(keyWordId);
-        if (!preset || !preset.word) {
-          throw new Error(`Preset not found: ${keyWordId}`);
-        }
-
-        const { getBookById } = await import('@/types/bible');
-        const title = book
-          ? `Observations about "${preset.word}" in ${getBookById(book)?.name || book}`
-          : `Observations about "${preset.word}"`;
-        const scope = book ? { book } : undefined; // book only, no chapters
-        const newList = await get().createList(title, keyWordId, scope, studyId ?? undefined);
-        return newList;
-      },
-
-      autoPopulateFromChapter: async (book, chapter, moduleId) => {
-        const { getOrCreateListForKeyword } = get();
-        
-        // Get cached chapter data
-        const { getCachedChapter } = await import('@/lib/database');
-        const chapterCache = await getCachedChapter(moduleId || '', book, chapter);
-        
-        if (!chapterCache || !chapterCache.verses) {
-          return 0;
-        }
-        
-        // Get all keyword presets
-        const { useMarkingPresetStore } = await import('@/stores/markingPresetStore');
-        const { presets } = useMarkingPresetStore.getState();
-        const keywordPresets = presets.filter(p => p.word && (p.highlight || p.symbol));
-        
-        let totalAdded = 0;
-        
-        // For each verse in the chapter, find which keywords appear
-        for (const [verseNum, verseText] of Object.entries(chapterCache.verses)) {
-          const text = verseText as string;
-          const verseNumInt = parseInt(verseNum, 10);
-          if (isNaN(verseNumInt) || verseNumInt <= 0) continue;
-          
-          const verseRef: VerseRef = {
-            book,
-            chapter,
-            verse: verseNumInt,
-          };
-          
-          // Find which keywords appear in this verse
-          for (const preset of keywordPresets) {
-            // Check if preset applies to this verse (scope check)
-            if (preset.bookScope && preset.bookScope !== book) continue;
-            if (preset.chapterScope !== undefined && preset.chapterScope !== chapter) continue;
-            if (preset.moduleScope && preset.moduleScope !== moduleId) continue;
-            
-            // Check if keyword appears in this verse
-            const effectiveModuleId = moduleId;
-            const matches = findKeywordMatches(text, verseRef, [preset], effectiveModuleId);
-            if (matches.length === 0) continue;
-            
-            // Get or create list for this keyword (scoped to book, not chapter)
-            try {
-              const list = await getOrCreateListForKeyword(preset.id, book);
-              
-              // Check if this verse already exists in the list
-              const verseKey = `${verseRef.book}:${verseRef.chapter}:${verseRef.verse}`;
-              const existingItem = list.items.find(item => 
-                `${item.verseRef.book}:${item.verseRef.chapter}:${item.verseRef.verse}` === verseKey
-              );
-              
-              if (!existingItem) {
-                // Extract context snippet
-                const lowerText = text.toLowerCase();
-                const lowerWord = (preset.word || '').toLowerCase();
-                let snippet = text;
-                
-                const wordIndex = lowerText.indexOf(lowerWord);
-                if (wordIndex !== -1) {
-                  const start = Math.max(0, wordIndex - 30);
-                  const end = Math.min(text.length, wordIndex + lowerWord.length + 30);
-                  snippet = text.substring(start, end);
-                  if (start > 0) snippet = '...' + snippet;
-                  if (end < text.length) snippet = snippet + '...';
-                }
-                
-                // Add item to list
-                await get().addItemToList(list.id, {
-                  content: snippet.trim() || 'Keyword appears in this verse',
-                  verseRef,
-                });
-                totalAdded++;
-              }
-            } catch (error) {
-              console.error(`[autoPopulateFromChapter] Failed to add keyword "${preset.word}" to list:`, error);
-            }
-          }
-        }
-        
-        return totalAdded;
-      },
     }),
     {
       name: 'list-store',

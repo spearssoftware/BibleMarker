@@ -14,6 +14,7 @@ export interface Place {
   notes?: string;          // Optional notes about the place
   presetId?: string;      // Optional link to a MarkingPreset (if place came from a keyword marking)
   annotationId?: string;   // Optional link to an annotation (if place came from a marked instance)
+  studyId?: string;        // Optional link to a study (for scoping)
   createdAt: Date;
   updatedAt: Date;
 }

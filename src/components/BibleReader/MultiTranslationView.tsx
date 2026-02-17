@@ -21,7 +21,6 @@ import { ChapterTitleCreator } from './ChapterTitleCreator';
 import { NoteEditor } from './NoteEditor';
 import { NoteCreator } from './NoteCreator';
 import { VerseNumberMenu } from './VerseNumberMenu';
-import { useListStore } from '@/stores/listStore';
 import { usePlaceStore } from '@/stores/placeStore';
 import { useTimeStore } from '@/stores/timeStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
@@ -61,7 +60,6 @@ export function MultiTranslationView() {
   const { removeAnnotation } = useAnnotations();
   const { presets } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
-  const { autoPopulateFromChapter: autoPopulateListsFromChapter } = useListStore();
 
   // Build preset map for annotation filtering
   const presetMap = useMemo(
@@ -706,7 +704,7 @@ export function MultiTranslationView() {
         });
         setTranslationChapters(new Map(newChapters));
         
-        // Auto-populate observation lists, places, and time expressions for keywords found in this chapter
+        // Auto-populate places and time expressions for keywords found in this chapter
         // Only do this once per chapter (use primary translation)
         if (translationId === primaryTranslationId) {
           const autoPopulateKey = `${currentBook}:${currentChapter}:${translationId}`;
@@ -714,7 +712,6 @@ export function MultiTranslationView() {
             autoPopulatedRef.current.add(autoPopulateKey);
             // Run in background - don't block UI
             Promise.all([
-              autoPopulateListsFromChapter(currentBook, currentChapter, translationId),
               autoPopulatePlacesFromChapter(currentBook, currentChapter, translationId),
               autoPopulateTimeFromChapter(currentBook, currentChapter, translationId),
             ]).catch(error => {
@@ -1024,6 +1021,7 @@ export function MultiTranslationView() {
           )}
         </div>
       </div>
+
     </div>
   );
 }
