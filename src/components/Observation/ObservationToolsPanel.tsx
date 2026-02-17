@@ -118,8 +118,6 @@ export function ObservationToolsPanel({
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemText, setEditingItemText] = useState('');
   const [editingItemNotes, setEditingItemNotes] = useState('');
-  const [addingNotesToItemId, setAddingNotesToItemId] = useState<string | null>(null);
-  const [newItemNotes, setNewItemNotes] = useState('');
   const [confirmDeleteListId, setConfirmDeleteListId] = useState<string | null>(null);
   const [confirmDeleteObservation, setConfirmDeleteObservation] = useState<{ listId: string; itemId: string } | null>(null);
 
@@ -537,9 +535,13 @@ export function ObservationToolsPanel({
                                   >
                                     {/* Verse header */}
                                     <div className="flex items-center justify-between mb-2">
-                                      <div className="text-sm font-medium text-scripture-accent">
+                                      <button
+                                        onClick={() => handleNavigateToVerse(verseRef)}
+                                        className="text-sm font-medium text-scripture-accent hover:text-scripture-accent/80 underline cursor-pointer transition-colors"
+                                        title="Click to navigate to verse"
+                                      >
                                         {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
-                                      </div>
+                                      </button>
                                       {!isAddingToThisVerse && (
                                         <button
                                           onClick={() => setAddingToVerse({ listId: list.id, verseRef })}
@@ -551,14 +553,17 @@ export function ObservationToolsPanel({
                                     </div>
                                     
                                     {/* Observations for this verse */}
-                                    <ul className="space-y-1.5 ml-4">
+                                    <div className="space-y-2">
                                       {verseItems.map(item => {
                                         const isEditing = editingItemId === item.id;
+                                        // Verse snippets are auto-added from the verse menu — they have no notes and no annotationId
+                                        // They typically contain "..." from truncation
+                                        const isVerseSnippet = item.content.includes('...');
                                         
                                         return (
-                                          <li key={item.id} className="text-sm text-scripture-text list-disc group/item">
+                                          <div key={item.id} className="group/item">
                                             {isEditing ? (
-                                              <div className="flex flex-col gap-2 -ml-4">
+                                              <div className="flex flex-col gap-2">
                                                 <Textarea
                                                   value={editingItemText}
                                                   onChange={(e) => setEditingItemText(e.target.value)}
@@ -589,11 +594,35 @@ export function ObservationToolsPanel({
                                                   </button>
                                                 </div>
                                               </div>
+                                            ) : isVerseSnippet ? (
+                                              /* Verse snippet — muted quote style */
+                                              <div className="flex items-start gap-2">
+                                                <div className="flex-1 text-xs text-scripture-text italic pl-3 border-l-2 border-scripture-border/30">
+                                                  {item.content}
+                                                </div>
+                                                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                                                  <button
+                                                    onClick={() => handleStartEdit(item)}
+                                                    className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated"
+                                                    title="Edit"
+                                                  >
+                                                    ✏️
+                                                  </button>
+                                                  <button
+                                                    onClick={() => handleDeleteObservationClick(list.id, item.id)}
+                                                    className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors rounded hover:bg-scripture-elevated"
+                                                    title="Delete"
+                                                  >
+                                                    🗑️
+                                                  </button>
+                                                </div>
+                                              </div>
                                             ) : (
-                                              <div className="flex flex-col gap-1.5 -ml-4">
+                                              /* User observation — prominent style with accent border */
+                                              <div className="flex flex-col gap-1">
                                                 <div className="flex items-start gap-2">
-                                                  <span className="flex-1">{item.content}</span>
-                                                  <div className="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                                                  <span className="flex-1 text-sm text-scripture-text">{item.content}</span>
+                                                  <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity">
                                                     <button
                                                       onClick={() => handleStartEdit(item)}
                                                       className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated"
@@ -611,62 +640,16 @@ export function ObservationToolsPanel({
                                                   </div>
                                                 </div>
                                                 {item.notes && (
-                                                  <div className="text-xs text-scripture-muted italic pl-2 border-l-2 border-scripture-border/30">
+                                                  <div className="text-xs text-scripture-muted italic pl-3 border-l-2 border-scripture-border/30">
                                                     {item.notes}
-                                                  </div>
-                                                )}
-                                                {!item.notes && (
-                                                  <button
-                                                    onClick={() => {
-                                                      setAddingNotesToItemId(item.id);
-                                                      setNewItemNotes('');
-                                                    }}
-                                                    className="text-xs text-scripture-muted hover:text-scripture-accent transition-colors text-left pl-2 opacity-0 group-hover/item:opacity-100"
-                                                  >
-                                                    + Add notes
-                                                  </button>
-                                                )}
-                                                {addingNotesToItemId === item.id && (
-                                                  <div className="pl-2 border-l-2 border-scripture-border/30 mt-1">
-                                                    <Textarea
-                                                      value={newItemNotes}
-                                                      onChange={(e) => setNewItemNotes(e.target.value)}
-                                                      placeholder="Add notes..."
-                                                      rows={2}
-                                                      autoFocus
-                                                    />
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                      <button
-                                                        onClick={async () => {
-                                                          await updateItem(list.id, item.id, {
-                                                            notes: newItemNotes.trim() || undefined,
-                                                          });
-                                                          setAddingNotesToItemId(null);
-                                                          setNewItemNotes('');
-                                                          loadLists();
-                                                        }}
-                                                        className="px-2 py-1 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-                                                      >
-                                                        Save
-                                                      </button>
-                                                      <button
-                                                        onClick={() => {
-                                                          setAddingNotesToItemId(null);
-                                                          setNewItemNotes('');
-                                                        }}
-                                                        className="px-2 py-1 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-                                                      >
-                                                        Cancel
-                                                      </button>
-                                                    </div>
                                                   </div>
                                                 )}
                                               </div>
                                             )}
-                                          </li>
+                                          </div>
                                         );
                                       })}
-                                    </ul>
+                                    </div>
                                     
                                     {/* Add observation form for this verse */}
                                     {isAddingToThisVerse && (

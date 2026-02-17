@@ -4,9 +4,12 @@
  * Component for recording and displaying places and geographic locations.
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { usePlaceStore } from '@/stores/placeStore';
 import { useBibleStore } from '@/stores/bibleStore';
+import { useStudyStore } from '@/stores/studyStore';
+import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
+import { getCachedChapter } from '@/lib/database';
 import type { Place } from '@/types/place';
 import type { VerseRef } from '@/types/bible';
 import { formatVerseRef, getBookById } from '@/types/bible';
@@ -71,17 +74,22 @@ const sortVerseGroups = (groups: Map<string, Place[]>): Array<[string, Place[]]>
   });
 };
 
-export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = false, onFilterByChapterChange, onNavigate }: PlaceTrackerProps) {
+export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = true, onFilterByChapterChange, onNavigate }: PlaceTrackerProps) {
   const { places, loadPlaces, createPlace, updatePlace, deletePlace, autoImportFromAnnotations, removeDuplicates } = usePlaceStore();
   const { currentBook, currentChapter } = useBibleStore();
+  const { activeStudyId } = useStudyStore();
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [editingName, setEditingName] = useState('');
   const [editingNotes, setEditingNotes] = useState('');
-  const [expandedVerses, setExpandedVerses] = useState<Set<string>>(new Set());
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [addingObservationToId, setAddingObservationToId] = useState<string | null>(null);
+  const [newObservation, setNewObservation] = useState('');
+  const [verseTexts, setVerseTexts] = useState<Map<string, string>>(new Map());
+  const { activeView } = useMultiTranslationStore();
+  const primaryModuleId = activeView?.translationIds[0] || '';
   
   // Track if we've already run initialization to prevent duplicates
   const hasInitialized = useRef(false);
@@ -225,31 +233,59 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
     setConfirmDeleteId(null);
   };
 
-  const toggleVerse = (verseKey: string) => {
-    const newExpanded = new Set(expandedVerses);
-    if (newExpanded.has(verseKey)) {
-      newExpanded.delete(verseKey);
-    } else {
-      newExpanded.add(verseKey);
+  // Load verse texts for displayed places
+  const loadVerseTexts = useCallback(async (placesToLoad: Place[]) => {
+    if (!primaryModuleId) return;
+    const chapterCache = new Map<string, Record<number, string>>();
+    const newTexts = new Map<string, string>();
+    
+    for (const place of placesToLoad) {
+      const cacheKey = `${place.verseRef.book}:${place.verseRef.chapter}`;
+      if (!chapterCache.has(cacheKey)) {
+        const cached = await getCachedChapter(primaryModuleId, place.verseRef.book, place.verseRef.chapter);
+        if (cached?.verses) chapterCache.set(cacheKey, cached.verses);
+      }
+      const verses = chapterCache.get(cacheKey);
+      if (verses) {
+        const text = verses[place.verseRef.verse] || '';
+        const snippet = text.length > 80 ? text.substring(0, 80) + '...' : text;
+        newTexts.set(getVerseKey(place.verseRef), snippet);
+      }
     }
-    setExpandedVerses(newExpanded);
+    setVerseTexts(newTexts);
+  }, [primaryModuleId]);
+
+  const handleAddObservation = async (placeId: string) => {
+    if (!newObservation.trim()) return;
+    const place = places.find(p => p.id === placeId);
+    if (!place) return;
+    const existingNotes = place.notes ? place.notes + '\n' : '';
+    await updatePlace({ ...place, notes: existingNotes + newObservation.trim() });
+    setAddingObservationToId(null);
+    setNewObservation('');
+    loadPlaces();
   };
 
-  // Expand all verses by default
-  useEffect(() => {
-    if (places.length > 0 && expandedVerses.size === 0) {
-      const verseGroups = groupByVerse(places);
-      queueMicrotask(() => setExpandedVerses(new Set(verseGroups.keys())));
-    }
-  }, [places, expandedVerses.size]);
-
-  // Filter places by chapter if filterByChapter is enabled
+  // Filter places by chapter and study
   const filteredPlaces = useMemo(() => {
-    if (!filterByChapter) return places;
-    return places.filter(place => 
-      place.verseRef.book === currentBook && place.verseRef.chapter === currentChapter
-    );
-  }, [places, filterByChapter, currentBook, currentChapter]);
+    let filtered = places;
+    // Filter by active study
+    if (activeStudyId) {
+      filtered = filtered.filter(place => !place.studyId || place.studyId === activeStudyId);
+    }
+    // Filter by chapter
+    if (filterByChapter) {
+      filtered = filtered.filter(place => 
+        place.verseRef.book === currentBook && place.verseRef.chapter === currentChapter
+      );
+    }
+    return filtered;
+  }, [places, filterByChapter, currentBook, currentChapter, activeStudyId]);
+
+  // Load verse texts when filtered places change
+  useEffect(() => {
+    loadVerseTexts(filteredPlaces);
+  }, [filteredPlaces, loadVerseTexts]);
 
   const verseGroups = groupByVerse(filteredPlaces);
   const sortedGroups = sortVerseGroups(verseGroups);
@@ -347,128 +383,149 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
       )}
 
       {/* Places list */}
-      {places.length > 0 && (
-        <div className="space-y-3">
+      {filteredPlaces.length > 0 && (
+        <div className="space-y-4">
           {sortedGroups.map(([verseKey, versePlaces]) => {
-            const isExpanded = expandedVerses.has(verseKey);
             const verseRef = versePlaces[0].verseRef;
+            const verseSnippet = verseTexts.get(verseKey);
+
             return (
-              <div
-                key={verseKey}
-                className="bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm overflow-hidden"
-              >
+              <div key={verseKey} className="bg-scripture-surface rounded-lg border border-scripture-border/30 p-3">
                 {/* Verse header */}
-                <div className="p-4">
-                  <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between mb-2">
+                  {onNavigate ? (
                     <button
-                      onClick={() => toggleVerse(verseKey)}
-                      className="flex-1 text-left"
+                      onClick={() => onNavigate(verseRef)}
+                      className="text-sm font-medium text-scripture-accent hover:text-scripture-accent/80 underline cursor-pointer transition-colors"
+                      title="Click to navigate to verse"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-scripture-muted shrink-0">{isExpanded ? '▼' : '▶'}</span>
-                        {onNavigate ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onNavigate(verseRef);
-                            }}
-                            className="text-sm font-medium text-scripture-accent hover:text-scripture-accent/80 cursor-pointer underline transition-colors"
-                            title="Click to navigate to verse"
-                          >
-                            {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
-                          </button>
-                        ) : (
-                          <span className="text-sm font-medium text-scripture-accent">
-                            {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
-                          </span>
-                        )}
-                        <span className="text-xs text-scripture-muted">
-                          ({versePlaces.length} {versePlaces.length === 1 ? 'place' : 'places'})
-                        </span>
-                      </div>
+                      {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
                     </button>
-                  </div>
+                  ) : (
+                    <span className="text-sm font-medium text-scripture-accent">
+                      {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
+                    </span>
+                  )}
                 </div>
 
-                {/* Places for this verse */}
-                {isExpanded && (
-                  <div className="border-t border-scripture-muted/20 p-4 bg-scripture-bg/50 space-y-3">
-                    {versePlaces.map(place => {
-                      const isEditing = editingId === place.id;
-
-                      return (
-                        <div
-                          key={place.id}
-                          className="bg-scripture-surface rounded-lg border border-scripture-border/30 p-3"
-                        >
-                          {isEditing ? (
-                            <div className="space-y-3">
-                              <Input
-                                label="Place Name"
-                                type="text"
-                                value={editingName}
-                                onChange={(e) => setEditingName(e.target.value)}
-                                autoFocus
-                              />
-                              <Textarea
-                                label="Notes (optional)"
-                                value={editingNotes}
-                                onChange={(e) => setEditingNotes(e.target.value)}
-                                rows={2}
-                              />
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => handleSaveEdit(place.id)}
-                                  disabled={!editingName.trim()}
-                                  className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={handleCancelEdit}
-                                  className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="group/place">
-                              <div className="flex items-start gap-2 mb-2">
-                                <div className="flex-1">
-                                  <div className="text-sm text-scripture-text">
-                                    <span className="font-medium">📍 {place.name}</span>
-                                  </div>
-                                  {place.notes && (
-                                    <div className="mt-2 text-xs text-scripture-muted italic">
-                                      {place.notes}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-1 opacity-0 group-hover/place:opacity-100 transition-opacity">
-                                  <button
-                                    onClick={() => handleStartEdit(place)}
-                                    className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated"
-                                    title="Edit place"
-                                  >
-                                    ✏️
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteClick(place.id)}
-                                    className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors rounded hover:bg-scripture-elevated"
-                                    title="Delete place"
-                                  >
-                                    🗑️
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                {/* Verse snippet */}
+                {verseSnippet && (
+                  <div className="text-xs text-scripture-text italic pl-3 border-l-2 border-scripture-border/30 mb-2">
+                    {verseSnippet}
                   </div>
                 )}
+
+                {/* Places for this verse */}
+                <div className="space-y-2">
+                  {versePlaces.map(place => {
+                    const isEditing = editingId === place.id;
+                    const isAddingObs = addingObservationToId === place.id;
+
+                    return (
+                      <div key={place.id} className="group/place">
+                        {isEditing ? (
+                          <div className="space-y-3">
+                            <Input
+                              label="Place Name"
+                              type="text"
+                              value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                              autoFocus
+                            />
+                            <Textarea
+                              label="Notes (optional)"
+                              value={editingNotes}
+                              onChange={(e) => setEditingNotes(e.target.value)}
+                              rows={2}
+                            />
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleSaveEdit(place.id)}
+                                disabled={!editingName.trim()}
+                                className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={handleCancelEdit}
+                                className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-start gap-2">
+                              <div className="flex-1">
+                                <span className="text-sm font-medium text-scripture-text">📍 {place.name}</span>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover/place:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => handleStartEdit(place)}
+                                  className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated"
+                                  title="Edit place"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteClick(place.id)}
+                                  className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors rounded hover:bg-scripture-elevated"
+                                  title="Delete place"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Observations (notes) */}
+                            {place.notes && (
+                              <div className="mt-1 text-sm text-scripture-text">
+                                {place.notes}
+                              </div>
+                            )}
+
+                            {/* Add observation */}
+                            {!isAddingObs && (
+                              <button
+                                onClick={() => { setAddingObservationToId(place.id); setNewObservation(''); }}
+                                className="mt-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors"
+                              >
+                                + Add observation
+                              </button>
+                            )}
+                            {isAddingObs && (
+                              <div className="mt-2">
+                                <Textarea
+                                  value={newObservation}
+                                  onChange={(e) => setNewObservation(e.target.value)}
+                                  placeholder="What do you observe about this place?"
+                                  rows={2}
+                                  autoFocus
+                                />
+                                <div className="flex items-center gap-2 mt-1">
+                                  <button
+                                    onClick={() => handleAddObservation(place.id)}
+                                    disabled={!newObservation.trim()}
+                                    className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                  >
+                                    Add
+                                  </button>
+                                  <button
+                                    onClick={() => { setAddingObservationToId(null); setNewObservation(''); }}
+                                    className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}

@@ -7,9 +7,9 @@
 import type { MarkingPreset } from '@/types/keyWord';
 import type { Annotation } from '@/types/annotation';
 import type { VerseRef } from '@/types/bible';
-// No longer need getSymbolsForTracker - using category instead
 import { usePlaceStore } from '@/stores/placeStore';
 import { useTimeStore } from '@/stores/timeStore';
+import { useStudyStore } from '@/stores/studyStore';
 import { getAnnotationText } from './annotationQueries';
 
 /**
@@ -25,6 +25,7 @@ export async function autoAddToPlaceTracker(
   if (preset.category !== 'places') return;
 
   const placeStore = usePlaceStore.getState();
+  const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
   
   // Check for existing place with same presetId and verseRef to avoid duplicates
   const existingPlaces = placeStore.places.filter(
@@ -48,7 +49,8 @@ export async function autoAddToPlaceTracker(
       verseRef,
       notes,
       preset.id,
-      annotation.id
+      annotation.id,
+      activeStudyId
     );
   } catch (error) {
     // Don't block annotation creation if auto-add fails
@@ -69,6 +71,7 @@ export async function autoAddToTimeTracker(
   if (preset.category !== 'time') return;
 
   const timeStore = useTimeStore.getState();
+  const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
   
   // Check for existing time expression with same presetId and verseRef to avoid duplicates
   const existingTimeExpressions = timeStore.timeExpressions.filter(
@@ -93,7 +96,8 @@ export async function autoAddToTimeTracker(
       notes,
       preset.id,
       annotation.id,
-      undefined // timeOrder - will be assigned if needed
+      undefined, // timeOrder - will be assigned if needed
+      activeStudyId
     );
   } catch (error) {
     // Don't block annotation creation if auto-add fails

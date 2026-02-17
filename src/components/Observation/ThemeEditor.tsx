@@ -59,12 +59,11 @@ export function ThemeEditor({ verseRef }: ThemeEditorProps) {
         const title = await getChapterTitle(null, book, chapter, activeStudyId);
         if (title) {
           setChapterTitle(title);
-          // If theme is empty but title exists, check if they should be synced
-          const themeValue = title.theme || '';
+          // If no explicit theme was saved but title exists, default to syncing with title
+          const themeValue = title.theme || title.title || '';
           setTheme(themeValue);
           setSupportingPresetIds(title.supportingPresetIds || []);
-          // Auto-enable sync if theme matches title
-          setSyncWithTitle(themeValue === title.title);
+          setSyncWithTitle(!title.theme && !!title.title);
         } else {
           setChapterTitle(null);
           setTheme('');
