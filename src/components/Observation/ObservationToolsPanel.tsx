@@ -144,7 +144,8 @@ export function ObservationToolsPanel({
   const [confirmDeleteListId, setConfirmDeleteListId] = useState<string | null>(null);
   const [confirmDeleteObservation, setConfirmDeleteObservation] = useState<{ listId: string; itemId: string } | null>(null);
   const [verseTexts, setVerseTexts] = useState<Map<string, string>>(new Map());
-  const { primaryModuleId } = useMultiTranslationStore();
+  const { activeView } = useMultiTranslationStore();
+  const primaryModuleId = activeView?.translationIds[0] || '';
 
   // Show lists scoped to current study and book (no chapter filter)
   const displayLists = lists.filter(l => {

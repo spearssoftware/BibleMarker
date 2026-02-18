@@ -312,7 +312,7 @@ export function PeopleTracker({
             >
               + New Person
             </button>
-            {onPopulateFromChapter && currentBook && currentChapter && (
+            {currentBook && currentChapter && (
               <button
                 onClick={handlePopulateFromChapter}
                 disabled={isPopulating || !primaryModuleId}
