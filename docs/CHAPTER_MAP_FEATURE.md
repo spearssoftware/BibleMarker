@@ -1,5 +1,7 @@
 # Chapter Map Feature Plan
 
+> **Status: Not yet implemented.** This is a design/plan document for a future feature.
+
 Display biblical locations mentioned in the current chapter on an interactive map with synchronized verse navigation.
 
 ## Overview
