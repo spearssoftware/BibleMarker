@@ -1,5 +1,5 @@
 /**
- * Update check: fetches GitHub releases/latest at most once per 24 hours.
+ * Update check: fetches GitHub releases/latest on every app startup.
  * Respects preference checkForUpdates (default true).
  */
 
@@ -7,11 +7,10 @@ import { getPreferences, updatePreferences } from '@/lib/database';
 
 const GITHUB_RELEASES_URL = 'https://api.github.com/repos/spearssoftware/BibleMarker/releases/latest';
 const RELEASES_PAGE_URL = 'https://github.com/spearssoftware/BibleMarker/releases';
-const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-/** Parse "1.2.3" or "v1.2.3" into [major, minor, patch] for comparison. Exported for testing. */
+/** Parse version string into [major, minor, patch]. Handles "app-v1.2.3", "v1.2.3", "1.2.3". Exported for testing. */
 export function parseVersion(version: string): [number, number, number] {
-  const cleaned = version.replace(/^v/i, '').trim();
+  const cleaned = version.replace(/^app-v?/i, '').replace(/^v/i, '').trim();
   const parts = cleaned.split('.').map((p) => parseInt(p, 10) || 0);
   return [parts[0] ?? 0, parts[1] ?? 0, parts[2] ?? 0];
 }
@@ -45,7 +44,7 @@ async function fetchAndCompareVersion(): Promise<UpdateCheckResult | null> {
   const tag = data.tag_name;
   if (!tag || typeof tag !== 'string') return null;
 
-  const latestVersion = tag.replace(/^v/i, '').trim();
+  const latestVersion = tag.replace(/^app-v?/i, '').replace(/^v/i, '').trim();
   const currentVersion = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
 
   await updatePreferences({ lastUpdateCheck: new Date().toISOString() });
@@ -57,26 +56,18 @@ async function fetchAndCompareVersion(): Promise<UpdateCheckResult | null> {
 }
 
 /**
- * Check for a new release on GitHub if:
- * - checkForUpdates preference is not false
- * - last check was more than 24 hours ago (or never)
- * Returns the newer version and releases URL if one exists, otherwise null.
+ * Check for a new release on GitHub on every startup.
+ * Respects the checkForUpdates preference (default true).
  */
 export async function checkForUpdateIfDue(): Promise<UpdateCheckResult | null> {
   const prefs = await getPreferences();
   if (prefs.checkForUpdates === false) {
     return null;
   }
-  const now = Date.now();
-  const last = prefs.lastUpdateCheck ? new Date(prefs.lastUpdateCheck).getTime() : 0;
-  if (last > 0 && now - last < CHECK_INTERVAL_MS) {
-    return null;
-  }
 
   try {
     return await fetchAndCompareVersion();
   } catch {
-    // Network or parse error: still record that we tried
     await updatePreferences({ lastUpdateCheck: new Date().toISOString() });
   }
   return null;

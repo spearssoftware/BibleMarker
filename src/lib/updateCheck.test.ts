@@ -25,6 +25,14 @@ describe('parseVersion', () => {
   it('trims whitespace', () => {
     expect(parseVersion('  1.2.3  ')).toEqual([1, 2, 3])
   })
+
+  it('parses "app-v0.7.6" tag format', () => {
+    expect(parseVersion('app-v0.7.6')).toEqual([0, 7, 6])
+  })
+
+  it('parses "app-v1.2.3" tag format', () => {
+    expect(parseVersion('app-v1.2.3')).toEqual([1, 2, 3])
+  })
 })
 
 describe('isNewer', () => {
