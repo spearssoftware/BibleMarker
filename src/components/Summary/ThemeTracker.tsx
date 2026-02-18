@@ -16,10 +16,8 @@ import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { SYMBOLS, getHighlightColorHex } from '@/types/annotation';
 // Helper to extract plain text from HTML (removes tags but keeps text)
 function extractPlainText(html: string): string {
-  // Create a temporary element to parse HTML and extract text
-  const temp = document.createElement('div');
-  temp.innerHTML = html;
-  return temp.textContent || temp.innerText || '';
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return doc.body.textContent || doc.body.innerText || '';
 }
 import type { MarkingPreset } from '@/types/keyWord';
 
