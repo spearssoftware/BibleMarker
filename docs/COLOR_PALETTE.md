@@ -18,7 +18,7 @@ This document defines the consistent color palette used throughout the applicati
 - **Background**: `#000000` - Main app background (true black)
 - **Surface**: `#1c1c1e` - Card/panel backgrounds
 - **Elevated**: `#2c2c2e` - Elevated surfaces
-- **Border**: `#3a3a3a` (RGB: 58 58 58) - Borders and dividers (works well with opacity variants like /30 and /50)
+- **Border**: `#646464` (RGB: 100 100 100) - Borders and dividers (lighter grey for better visibility, works well with opacity variants like /30 and /50)
 - **Text**: `#ffffff` - Primary text
 - **Muted**: `#98989d` - Secondary/muted text
 
@@ -127,16 +127,11 @@ Highlight colors are user-selected and remain constant across themes:
 - Used for text highlighting and annotations
 - Not theme-aware (intentional - preserves user's color choice)
 
-## Migration Checklist
+## Migration Status
 
-- [x] Define color palette
-- [ ] Replace all `text-red-*` with `text-scripture-error`
-- [ ] Replace all `bg-red-*` with `bg-scripture-error` or `bg-scripture-errorBg`
-- [ ] Replace all `text-green-*` with `text-scripture-success`
-- [ ] Replace all `bg-green-*` with `bg-scripture-success` or `bg-scripture-successBg`
-- [ ] Replace all `text-yellow-*` with `text-scripture-warning`
-- [ ] Replace all `bg-yellow-*` with `bg-scripture-warning` or `bg-scripture-warningBg`
-- [ ] Replace all `text-blue-*` with `text-scripture-info` or `text-scripture-accent`
-- [ ] Update Button component destructive variant
-- [ ] Update Form component error states
-- [ ] Update all components using hardcoded colors
+Mostly complete. Remaining hardcoded Tailwind colors (as of v0.7.8):
+
+- `SyncStatusIndicator.tsx` — uses `text-green-*`, `text-red-*`, `text-yellow-*`, `bg-green-*`, etc. for sync state colors
+- `SettingsPanel.tsx` — minor hardcoded color usage
+
+These are low-priority since the sync indicator uses colors for quick status recognition that map closely to the semantic palette.
