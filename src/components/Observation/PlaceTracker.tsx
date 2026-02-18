@@ -4,7 +4,7 @@
  * Component for recording and displaying places and geographic locations.
  */
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { usePlaceStore } from '@/stores/placeStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
@@ -234,26 +234,6 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
   };
 
   // Load verse texts for displayed places
-  const loadVerseTexts = useCallback(async (placesToLoad: Place[]) => {
-    if (!primaryModuleId) return;
-    const chapterCache = new Map<string, Record<number, string>>();
-    const newTexts = new Map<string, string>();
-    
-    for (const place of placesToLoad) {
-      const cacheKey = `${place.verseRef.book}:${place.verseRef.chapter}`;
-      if (!chapterCache.has(cacheKey)) {
-        const cached = await getCachedChapter(primaryModuleId, place.verseRef.book, place.verseRef.chapter);
-        if (cached?.verses) chapterCache.set(cacheKey, cached.verses);
-      }
-      const verses = chapterCache.get(cacheKey);
-      if (verses) {
-        const text = verses[place.verseRef.verse] || '';
-        const snippet = text.length > 80 ? text.substring(0, 80) + '...' : text;
-        newTexts.set(getVerseKey(place.verseRef), snippet);
-      }
-    }
-    setVerseTexts(newTexts);
-  }, [primaryModuleId]);
 
   const handleAddObservation = async (placeId: string) => {
     if (!newObservation.trim()) return;
@@ -284,8 +264,28 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
 
   // Load verse texts when filtered places change
   useEffect(() => {
-    loadVerseTexts(filteredPlaces);
-  }, [filteredPlaces, loadVerseTexts]);
+    let cancelled = false;
+    (async () => {
+      if (!primaryModuleId) return;
+      const chapterCache = new Map<string, Record<number, string>>();
+      const newTexts = new Map<string, string>();
+      for (const place of filteredPlaces) {
+        const cacheKey = `${place.verseRef.book}:${place.verseRef.chapter}`;
+        if (!chapterCache.has(cacheKey)) {
+          const cached = await getCachedChapter(primaryModuleId, place.verseRef.book, place.verseRef.chapter);
+          if (cached?.verses) chapterCache.set(cacheKey, cached.verses);
+        }
+        const verses = chapterCache.get(cacheKey);
+        if (verses) {
+          const text = verses[place.verseRef.verse] || '';
+          const snippet = text.length > 80 ? text.substring(0, 80) + '...' : text;
+          newTexts.set(getVerseKey(place.verseRef), snippet);
+        }
+      }
+      if (!cancelled) setVerseTexts(newTexts);
+    })();
+    return () => { cancelled = true; };
+  }, [filteredPlaces, primaryModuleId]);
 
   const verseGroups = groupByVerse(filteredPlaces);
   const sortedGroups = sortVerseGroups(verseGroups);
