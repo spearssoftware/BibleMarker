@@ -266,6 +266,8 @@ export default function App() {
   );
 }
 
+const FALLBACK_TRANSLATION = 'kjv';
+
 // Load chapter from cache or Bible API
 async function loadChapter(moduleId: string, book: string, chapter: number) {
   const { getCachedChapter } = await import('@/lib/database');
@@ -292,7 +294,18 @@ async function loadChapter(moduleId: string, book: string, chapter: number) {
     return chapterData;
   } catch (error) {
     console.error(`Failed to load ${moduleId} ${book} ${chapter}:`, error);
-    // Return empty chapter - UI will show verse numbers but no text
+
+    // Try KJV as fallback (free, no API key required)
+    if (moduleId.toLowerCase() !== FALLBACK_TRANSLATION) {
+      try {
+        const fallback = await fetchChapter(FALLBACK_TRANSLATION, book, chapter);
+        console.warn(`[App] Using KJV fallback for ${moduleId} ${book} ${chapter}`);
+        return fallback;
+      } catch {
+        // Fallback also failed
+      }
+    }
+
     return { book, chapter, verses: [] };
   }
 }
