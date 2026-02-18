@@ -406,3 +406,15 @@ jobs:
             --file "$IPA_PATH" \
             --apiKey "$API_KEY_ID" \
             --apiIssuer "$API_ISSUER_ID"
+
+  publish-release:
+    needs: [prepare, create-latest-json, build-ios]
+    if: always() && needs.create-latest-json.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish draft release
+        run: gh release edit "app-v${{ needs.prepare.outputs.version }}" --draft=false --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
