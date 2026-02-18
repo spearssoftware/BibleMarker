@@ -4,7 +4,7 @@
  * Component for recording and displaying chronological sequences and time references.
  */
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTimeStore } from '@/stores/timeStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
@@ -232,28 +232,6 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
     setConfirmDeleteId(null);
   };
 
-  // Load verse texts for displayed time expressions
-  const loadVerseTexts = useCallback(async (items: TimeExpression[]) => {
-    if (!primaryModuleId) return;
-    const chapterCache = new Map<string, Record<number, string>>();
-    const newTexts = new Map<string, string>();
-    
-    for (const item of items) {
-      const cacheKey = `${item.verseRef.book}:${item.verseRef.chapter}`;
-      if (!chapterCache.has(cacheKey)) {
-        const cached = await getCachedChapter(primaryModuleId, item.verseRef.book, item.verseRef.chapter);
-        if (cached?.verses) chapterCache.set(cacheKey, cached.verses);
-      }
-      const verses = chapterCache.get(cacheKey);
-      if (verses) {
-        const text = verses[item.verseRef.verse] || '';
-        const snippet = text.length > 80 ? text.substring(0, 80) + '...' : text;
-        newTexts.set(getVerseKey(item.verseRef), snippet);
-      }
-    }
-    setVerseTexts(newTexts);
-  }, [primaryModuleId]);
-
   const handleAddObservation = async (timeExpressionId: string) => {
     if (!newObservation.trim()) return;
     const te = timeExpressions.find(t => t.id === timeExpressionId);
@@ -283,8 +261,28 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
 
   // Load verse texts when filtered items change
   useEffect(() => {
-    loadVerseTexts(filteredTimeExpressions);
-  }, [filteredTimeExpressions, loadVerseTexts]);
+    let cancelled = false;
+    (async () => {
+      if (!primaryModuleId) return;
+      const chapterCache = new Map<string, Record<number, string>>();
+      const newTexts = new Map<string, string>();
+      for (const item of filteredTimeExpressions) {
+        const cacheKey = `${item.verseRef.book}:${item.verseRef.chapter}`;
+        if (!chapterCache.has(cacheKey)) {
+          const cached = await getCachedChapter(primaryModuleId, item.verseRef.book, item.verseRef.chapter);
+          if (cached?.verses) chapterCache.set(cacheKey, cached.verses);
+        }
+        const verses = chapterCache.get(cacheKey);
+        if (verses) {
+          const text = verses[item.verseRef.verse] || '';
+          const snippet = text.length > 80 ? text.substring(0, 80) + '...' : text;
+          newTexts.set(getVerseKey(item.verseRef), snippet);
+        }
+      }
+      if (!cancelled) setVerseTexts(newTexts);
+    })();
+    return () => { cancelled = true; };
+  }, [filteredTimeExpressions, primaryModuleId]);
 
   const verseGroups = groupByVerse(filteredTimeExpressions);
   const sortedGroups = sortVerseGroups(verseGroups);
