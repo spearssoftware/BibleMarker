@@ -90,6 +90,8 @@ export function MultiTranslationView() {
   const [creatingChapterTitle, setCreatingChapterTitle] = useState(false);
   const [creatingNoteAt, setCreatingNoteAt] = useState<number | null>(null);
   const [verseMenuAt, setVerseMenuAt] = useState<{ verseNum: number; translationId: string } | null>(null);
+  // Bumped when API configs change (e.g. after sync) to retry failed chapters
+  const [configGeneration, setConfigGeneration] = useState(0);
   
   // Track the last book/chapter we loaded to prevent duplicate calls
   const lastLoadedRef = useRef<{ book: string; chapter: number } | null>(null);
@@ -314,7 +316,7 @@ export function MultiTranslationView() {
     // Only depend on actual values, not the callback functions
     // The callbacks are stable and will be recreated when their dependencies change anyway
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeView?.id, activeView?.translationIds?.join(','), currentBook, currentChapter, translations.length, primaryTranslationId, activeStudyId]);
+  }, [activeView?.id, activeView?.translationIds?.join(','), currentBook, currentChapter, translations.length, primaryTranslationId, activeStudyId, configGeneration]);
 
   // Reload annotations when they are updated (e.g., when a new annotation is created)
   useEffect(() => {
@@ -334,6 +336,18 @@ export function MultiTranslationView() {
       window.removeEventListener('annotationsUpdated', handleAnnotationsUpdated);
     };
   }, [activeView, currentBook, currentChapter, activeStudyId, loadAnnotations, loadSectionHeadings, loadChapterTitle, loadNotes]);
+
+  // When API configs change (e.g. keys synced from iCloud), retry any failed chapters
+  useEffect(() => {
+    const handleTranslationsUpdated = () => {
+      const hasErrors = Array.from(translationChapters.values()).some(tc => tc.error);
+      if (hasErrors) {
+        setConfigGeneration(g => g + 1);
+      }
+    };
+    window.addEventListener('translationsUpdated', handleTranslationsUpdated);
+    return () => window.removeEventListener('translationsUpdated', handleTranslationsUpdated);
+  }, [translationChapters]);
 
   // Helper function to expand selection to word boundaries
   const expandToWordBoundaries = (range: Range): { expandedRange: Range; text: string } => {
@@ -667,11 +681,11 @@ export function MultiTranslationView() {
       if (!translation) continue;
 
       // Check if we already have this chapter loaded for this book/chapter
+      // Re-fetch if there was an error (e.g., fallback was used, API keys weren't ready)
       const existing = translationChapters.get(translationId);
-      if (existing?.chapter && 
+      if (existing?.chapter && !existing.error &&
           existing.chapter.book === currentBook && 
           existing.chapter.chapter === currentChapter) {
-        // Keep existing chapter
         newChapters.set(translationId, existing);
         continue;
       }
@@ -723,13 +737,37 @@ export function MultiTranslationView() {
           }
         }
       } catch (error) {
-        newChapters.set(translationId, {
-          translation,
-          chapter: null,
-          isLoading: false,
-          error: error instanceof Error ? error.message : 'Failed to load chapter',
-        });
-        setTranslationChapters(new Map(newChapters));
+        // Try KJV as fallback (free, no API key required)
+        const FALLBACK_TRANSLATION = 'kjv';
+        if (translationId.toLowerCase() !== FALLBACK_TRANSLATION) {
+          try {
+            const fallbackChapter = await fetchChapter(FALLBACK_TRANSLATION, currentBook, currentChapter);
+            console.warn(`[MultiTranslationView] Using KJV fallback for ${translationId}`);
+            newChapters.set(translationId, {
+              translation,
+              chapter: fallbackChapter,
+              isLoading: false,
+              error: `Showing KJV — ${translation.name || translationId} failed to load`,
+            });
+            setTranslationChapters(new Map(newChapters));
+          } catch {
+            newChapters.set(translationId, {
+              translation,
+              chapter: null,
+              isLoading: false,
+              error: error instanceof Error ? error.message : 'Failed to load chapter',
+            });
+            setTranslationChapters(new Map(newChapters));
+          }
+        } else {
+          newChapters.set(translationId, {
+            translation,
+            chapter: null,
+            isLoading: false,
+            error: error instanceof Error ? error.message : 'Failed to load chapter',
+          });
+          setTranslationChapters(new Map(newChapters));
+        }
       }
 
       // Add a small delay between requests to prevent overwhelming browser resources
@@ -847,7 +885,7 @@ export function MultiTranslationView() {
       <div 
         className={`grid gap-4 px-4 py-2 bg-scripture-elevated flex-shrink-0 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}
       >
-        {translationList.map(({ translation, isLoading }) => (
+        {translationList.map(({ translation, isLoading, error }) => (
           <div key={translation.id} className="flex flex-col">
             <div className="font-medium text-scripture-text flex items-center gap-2">
               {translation.name}
@@ -855,6 +893,9 @@ export function MultiTranslationView() {
                 <div className="w-4 h-4 border-2 border-scripture-border border-t-scripture-accent rounded-full animate-spin"></div>
               )}
             </div>
+            {error?.startsWith('Showing KJV') && (
+              <div className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">{error}</div>
+            )}
           </div>
         ))}
       </div>
