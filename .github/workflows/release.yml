@@ -320,6 +320,14 @@ jobs:
           </plist>
           ENTITLEMENTS
 
+      # tauri ios init also regenerates Info.plist without our custom keys.
+      # Patch in the encryption compliance flag so App Store Connect stops asking.
+      - name: Declare no non-exempt encryption
+        run: |
+          PLIST=src-tauri/gen/apple/biblemarker_iOS/Info.plist
+          plutil -replace ITSAppUsesNonExemptEncryption -bool false "$PLIST" 2>/dev/null || \
+          plutil -insert ITSAppUsesNonExemptEncryption -bool false "$PLIST"
+
       # WORKAROUND: Xcode 26 removed Swift backward-compat libraries (swiftCompatibility56,
       # swiftCompatibilityConcurrency, swiftCompatibilityPacks) but swift-rs still compiles
       # Swift code with FORCE_LOAD references to them regardless of deployment target.
