@@ -9,6 +9,10 @@ alwaysApply: true
 
 Run `pnpm test` if you modified files in directories that have existing tests (check for `*.test.ts` or `*.test.tsx` files nearby).
 
+## Type Check
+
+Run `pnpm tsc --noEmit` before committing if you changed TypeScript files — especially after store/interface refactors that may affect multiple consumers.
+
 ## Check Lints
 
 Run linter checks on modified files and fix any errors you introduced.
