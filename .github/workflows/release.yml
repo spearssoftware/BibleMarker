@@ -215,6 +215,8 @@ jobs:
         uses: softprops/action-gh-release@v2.4.2
         with:
           tag_name: app-v${{ needs.prepare.outputs.version }}
+          name: BibleMarker v${{ needs.prepare.outputs.version }}
+          draft: true
           files: BibleMarker-macos-${{ matrix.tauri_target == 'aarch64-apple-darwin' && 'aarch64' || 'x64' }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -226,6 +228,8 @@ jobs:
         uses: softprops/action-gh-release@v2.4.2
         with:
           tag_name: app-v${{ needs.prepare.outputs.version }}
+          name: BibleMarker v${{ needs.prepare.outputs.version }}
+          draft: true
           files: |
             BibleMarker-darwin-${{ matrix.tauri_target == 'aarch64-apple-darwin' && 'aarch64' || 'x86_64' }}.app.tar.gz
             BibleMarker-darwin-${{ matrix.tauri_target == 'aarch64-apple-darwin' && 'aarch64' || 'x86_64' }}.app.tar.gz.sig
