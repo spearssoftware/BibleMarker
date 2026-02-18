@@ -112,7 +112,6 @@ const sortVerseGroups = (groups: Map<string, TimeExpression[]>): Array<[string, 
     const [bookA, chapterA, verseA] = keyA.split(':');
     const [bookB, chapterB, verseB] = keyB.split(':');
     
-    // Compare books using canonical order
     const bookInfoA = getBookById(bookA);
     const bookInfoB = getBookById(bookB);
     
@@ -120,24 +119,69 @@ const sortVerseGroups = (groups: Map<string, TimeExpression[]>): Array<[string, 
       return bookInfoA.order - bookInfoB.order;
     }
     
-    // If one book not found, put found book first (shouldn't happen normally)
     if (!bookInfoA && !bookInfoB) return 0;
     if (!bookInfoA) return 1;
     if (!bookInfoB) return -1;
     
-    // Same book: compare chapters
     const chapterANum = parseInt(chapterA, 10);
     const chapterBNum = parseInt(chapterB, 10);
     if (chapterANum !== chapterBNum) {
       return chapterANum - chapterBNum;
     }
     
-    // Same chapter: compare verses
     const verseANum = parseInt(verseA, 10);
     const verseBNum = parseInt(verseB, 10);
     return verseANum - verseBNum;
   });
 };
+
+const getChapterKey = (ref: VerseRef): string => `${ref.book}:${ref.chapter}`;
+
+interface ChapterGroup {
+  key: string;
+  book: string;
+  chapter: number;
+  items: TimeExpression[];
+  years: Array<{ year: number; era: 'BC' | 'AD' }>;
+}
+
+function groupByChapter(items: TimeExpression[]): ChapterGroup[] {
+  const byKey = new Map<string, TimeExpression[]>();
+  for (const item of items) {
+    const key = getChapterKey(item.verseRef);
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key)!.push(item);
+  }
+  const groups: ChapterGroup[] = [];
+  for (const [key, chapterItems] of byKey) {
+    const [book, chStr] = key.split(':');
+    const yearSet = new Map<string, { year: number; era: 'BC' | 'AD' }>();
+    for (const item of chapterItems) {
+      if (item.year != null && item.yearEra) {
+        const yk = `${item.year}-${item.yearEra}`;
+        if (!yearSet.has(yk)) yearSet.set(yk, { year: item.year, era: item.yearEra });
+      }
+    }
+    const years = Array.from(yearSet.values()).sort((a, b) => {
+      const numA = (a.era === 'BC' ? -1 : 1) * a.year;
+      const numB = (b.era === 'BC' ? -1 : 1) * b.year;
+      return numA - numB;
+    });
+    groups.push({ key, book, chapter: parseInt(chStr, 10), items: chapterItems, years });
+  }
+  return groups.sort((a, b) => {
+    const ordA = getBookById(a.book)?.order ?? 999;
+    const ordB = getBookById(b.book)?.order ?? 999;
+    if (ordA !== ordB) return ordA - ordB;
+    return a.chapter - b.chapter;
+  });
+}
+
+function formatChapterYears(years: Array<{ year: number; era: 'BC' | 'AD' }>): string {
+  if (years.length === 0) return '';
+  if (years.length === 1) return `${years[0].year} ${years[0].era}`;
+  return years.map(y => `${y.year} ${y.era}`).join(', ');
+}
 
 export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = true, onFilterByChapterChange, onNavigate }: TimeTrackerProps) {
   const { timeExpressions, loadTimeExpressions, createTimeExpression, updateTimeExpression, deleteTimeExpression, autoImportFromAnnotations, removeDuplicates, autoPopulateFromChapter } = useTimeStore();
@@ -147,6 +191,7 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
   const { presets } = useMarkingPresetStore();
   const presetMap = useMemo(() => new Map(presets.map(p => [p.id, { word: p.word }])), [presets]);
   const [expandedKeywords, setExpandedKeywords] = useState<Set<string>>(new Set());
+  const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newExpression, setNewExpression] = useState('');
@@ -290,7 +335,7 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
     setEditingExpression(timeExpression.expression);
     setEditingNotes(timeExpression.notes || '');
     setEditingYear(timeExpression.year ?? '');
-    setEditingYearEra(timeExpression.yearEra ?? 'AD');
+    setEditingYearEra(timeExpression.yearEra ?? defaultYearEra);
   };
 
   const handleCancelEdit = () => {
@@ -415,6 +460,16 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleChapter = (keywordKey: string, chapterKey: string) => {
+    const compositeKey = `${keywordKey}::${chapterKey}`;
+    setExpandedChapters(prev => {
+      const next = new Set(prev);
+      if (next.has(compositeKey)) next.delete(compositeKey);
+      else next.add(compositeKey);
       return next;
     });
   };
@@ -583,13 +638,12 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
         </div>
       )}
 
-      {/* Time expressions list - grouped by keyword */}
+      {/* Time expressions list - grouped by keyword then chapter */}
       {filteredTimeExpressions.length > 0 && (
         <div className="space-y-4">
           {keywordGroups.map(({ key, label, items: keywordItems }) => {
-            const isExpanded = !expandedKeywords.has(key);
-            const verseGroups = groupByVerse(keywordItems);
-            const sortedVerseGroups = sortVerseGroups(verseGroups);
+            const isExpanded = expandedKeywords.has(key);
+            const chapterGroups = groupByChapter(keywordItems);
 
             return (
               <div key={key} className="bg-scripture-surface rounded-xl border border-scripture-border/50 overflow-hidden">
@@ -602,186 +656,218 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
                   </span>
                   <h3 className="font-medium text-scripture-text">{label}</h3>
                   <span className="text-xs text-scripture-muted bg-scripture-elevated px-2 py-0.5 rounded">
-                    {verseGroups.size} {verseGroups.size === 1 ? 'verse' : 'verses'}
+                    {keywordItems.length} {keywordItems.length === 1 ? 'entry' : 'entries'}
                   </span>
                 </button>
                 {isExpanded && (
-                  <div className="border-t border-scripture-border/30 p-3 space-y-3">
-                    {sortedVerseGroups.map(([verseKey, verseTimeExpressions]) => {
-                      const verseRef = verseTimeExpressions[0].verseRef;
-                      const verseSnippet = verseTexts.get(verseKey);
+                  <div className="border-t border-scripture-border/30 p-3 space-y-2">
+                    {chapterGroups.map((chGroup) => {
+                      const chapterExpanded = expandedChapters.has(`${key}::${chGroup.key}`);
+                      const bookInfo = getBookById(chGroup.book);
+                      const chapterLabel = bookInfo ? `${bookInfo.name} ${chGroup.chapter}` : `${chGroup.book} ${chGroup.chapter}`;
+                      const yearLabel = formatChapterYears(chGroup.years);
+                      const verseGroups = groupByVerse(chGroup.items);
+                      const sortedVerseGroups = sortVerseGroups(verseGroups);
 
                       return (
-                        <div key={verseKey} className="bg-scripture-bg/50 rounded-lg border border-scripture-border/30 p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            {onNavigate ? (
-                              <button
-                                onClick={() => onNavigate(verseRef)}
-                                className="text-sm font-medium text-scripture-accent hover:text-scripture-accent/80 underline cursor-pointer transition-colors"
-                                title="Click to navigate to verse"
-                              >
-                                {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
-                              </button>
-                            ) : (
-                              <span className="text-sm font-medium text-scripture-accent">
-                                {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
+                        <div key={chGroup.key} className="bg-scripture-bg/30 rounded-lg border border-scripture-border/20 overflow-hidden">
+                          <button
+                            onClick={() => toggleChapter(key, chGroup.key)}
+                            className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-scripture-elevated/30 transition-colors"
+                          >
+                            <span className="text-xs text-scripture-muted shrink-0" aria-hidden="true">
+                              {chapterExpanded ? '▼' : '▶'}
+                            </span>
+                            <span className="text-sm font-medium text-scripture-text">{chapterLabel}</span>
+                            {yearLabel && (
+                              <span className="text-xs text-scripture-accent bg-scripture-accent/10 px-1.5 py-0.5 rounded">
+                                {yearLabel}
                               </span>
                             )}
-                          </div>
-                          {verseSnippet && (
-                            <div className="text-xs text-scripture-text italic pl-3 border-l-2 border-scripture-border/30 mb-2">
-                              {highlightWords(verseSnippet, verseTimeExpressions.map(t => t.expression))}
+                            <span className="text-xs text-scripture-muted">
+                              {chGroup.items.length} {chGroup.items.length === 1 ? 'expression' : 'expressions'}
+                            </span>
+                          </button>
+                          {chapterExpanded && (
+                            <div className="border-t border-scripture-border/20 p-2 space-y-2">
+                              {sortedVerseGroups.map(([verseKey, verseTimeExpressions]) => {
+                                const verseRef = verseTimeExpressions[0].verseRef;
+                                const verseSnippet = verseTexts.get(verseKey);
+
+                                return (
+                                  <div key={verseKey} className="bg-scripture-bg/50 rounded-lg border border-scripture-border/30 p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                      {onNavigate ? (
+                                        <button
+                                          onClick={() => onNavigate(verseRef)}
+                                          className="text-sm font-medium text-scripture-accent hover:text-scripture-accent/80 underline cursor-pointer transition-colors"
+                                          title="Click to navigate to verse"
+                                        >
+                                          {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
+                                        </button>
+                                      ) : (
+                                        <span className="text-sm font-medium text-scripture-accent">
+                                          {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {verseSnippet && (
+                                      <div className="text-xs text-scripture-text italic pl-3 border-l-2 border-scripture-border/30 mb-2">
+                                        {highlightWords(verseSnippet, verseTimeExpressions.map(t => t.expression))}
+                                      </div>
+                                    )}
+                                    <div className="space-y-2">
+                                      {verseTimeExpressions.map(timeExpression => {
+                                        const isEditing = editingId === timeExpression.id;
+                                        const isAddingObs = addingObservationToId === timeExpression.id;
+
+                                        return (
+                                          <div key={timeExpression.id} className="group/time">
+                                            {isEditing ? (
+                                              <div className="space-y-3">
+                                                <Input
+                                                  label="Time Expression"
+                                                  type="text"
+                                                  value={editingExpression}
+                                                  onChange={(e) => setEditingExpression(e.target.value)}
+                                                  autoFocus
+                                                />
+                                                <Textarea
+                                                  label="Notes (optional)"
+                                                  value={editingNotes}
+                                                  onChange={(e) => setEditingNotes(e.target.value)}
+                                                  rows={2}
+                                                />
+                                                <div className="space-y-2">
+                                                  <label className="text-xs font-medium text-scripture-muted">Year (optional)</label>
+                                                  <div className="flex items-center gap-2">
+                                                    <input
+                                                      type="number"
+                                                      value={editingYear}
+                                                      onChange={(e) => setEditingYear(e.target.value === '' ? '' : parseInt(e.target.value, 10) || '')}
+                                                      placeholder="e.g., 233, 586, 33"
+                                                      className="w-24 px-2 py-1.5 text-sm bg-scripture-surface border border-scripture-border/50 rounded text-scripture-text focus:outline-none focus:ring-2 focus:ring-scripture-accent"
+                                                    />
+                                                    <label className="flex items-center gap-1.5 text-sm text-scripture-text cursor-pointer">
+                                                      <input
+                                                        type="radio"
+                                                        name={`editYearEra-${timeExpression.id}`}
+                                                        checked={editingYearEra === 'BC'}
+                                                        onChange={() => setEditingYearEra('BC')}
+                                                        className="accent-scripture-accent"
+                                                      />
+                                                      BC
+                                                    </label>
+                                                    <label className="flex items-center gap-1.5 text-sm text-scripture-text cursor-pointer">
+                                                      <input
+                                                        type="radio"
+                                                        name={`editYearEra-${timeExpression.id}`}
+                                                        checked={editingYearEra === 'AD'}
+                                                        onChange={() => setEditingYearEra('AD')}
+                                                        className="accent-scripture-accent"
+                                                      />
+                                                      AD
+                                                    </label>
+                                                  </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                  <button
+                                                    onClick={() => handleSaveEdit(timeExpression.id)}
+                                                    disabled={!editingExpression.trim()}
+                                                    className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                  >
+                                                    Save
+                                                  </button>
+                                                  <button
+                                                    onClick={handleCancelEdit}
+                                                    className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
+                                                  >
+                                                    Cancel
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <>
+                                                <div className="flex items-start gap-2">
+                                                  <div className="flex-1">
+                                                    <span className="text-sm font-medium text-scripture-text">
+                                                      🕐 {timeExpression.expression}
+                                                      {timeExpression.year != null && (
+                                                        <span className="ml-2 text-scripture-muted text-xs">
+                                                          ({timeExpression.year} {timeExpression.yearEra || 'AD'})
+                                                        </span>
+                                                      )}
+                                                    </span>
+                                                  </div>
+                                                  <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover/time:opacity-100 transition-opacity">
+                                                    <button
+                                                      onClick={() => handleStartEdit(timeExpression)}
+                                                      className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated"
+                                                      title="Edit time expression"
+                                                    >
+                                                      ✏️
+                                                    </button>
+                                                    <button
+                                                      onClick={() => handleDeleteClick(timeExpression.id)}
+                                                      className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors rounded hover:bg-scripture-elevated"
+                                                      title="Delete time expression"
+                                                    >
+                                                      🗑️
+                                                    </button>
+                                                  </div>
+                                                </div>
+
+                                                {timeExpression.notes && (
+                                                  <div className="mt-1 text-sm text-scripture-text">
+                                                    {timeExpression.notes}
+                                                  </div>
+                                                )}
+
+                                                {!isAddingObs && (
+                                                  <button
+                                                    onClick={() => { setAddingObservationToId(timeExpression.id); setNewObservation(''); }}
+                                                    className="mt-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors"
+                                                  >
+                                                    + Add observation
+                                                  </button>
+                                                )}
+                                                {isAddingObs && (
+                                                  <div className="mt-2">
+                                                    <Textarea
+                                                      value={newObservation}
+                                                      onChange={(e) => setNewObservation(e.target.value)}
+                                                      placeholder="What do you observe about this time reference?"
+                                                      rows={2}
+                                                      autoFocus
+                                                    />
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                      <button
+                                                        onClick={() => handleAddObservation(timeExpression.id)}
+                                                        disabled={!newObservation.trim()}
+                                                        className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                      >
+                                                        Add
+                                                      </button>
+                                                      <button
+                                                        onClick={() => { setAddingObservationToId(null); setNewObservation(''); }}
+                                                        className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
+                                                      >
+                                                        Cancel
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
-                          <div className="space-y-2">
-                            {verseTimeExpressions.map(timeExpression => {
-                    const isEditing = editingId === timeExpression.id;
-                    const isAddingObs = addingObservationToId === timeExpression.id;
-
-                    return (
-                      <div key={timeExpression.id} className="group/time">
-                        {isEditing ? (
-                          <div className="space-y-3">
-                            <Input
-                              label="Time Expression"
-                              type="text"
-                              value={editingExpression}
-                              onChange={(e) => setEditingExpression(e.target.value)}
-                              autoFocus
-                            />
-                            <Textarea
-                              label="Notes (optional)"
-                              value={editingNotes}
-                              onChange={(e) => setEditingNotes(e.target.value)}
-                              rows={2}
-                            />
-                            <div className="space-y-2">
-                              <label className="text-xs font-medium text-scripture-muted">Year (optional)</label>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="number"
-                                  value={editingYear}
-                                  onChange={(e) => setEditingYear(e.target.value === '' ? '' : parseInt(e.target.value, 10) || '')}
-                                  placeholder="e.g., 233, 586, 33"
-                                  className="w-24 px-2 py-1.5 text-sm bg-scripture-surface border border-scripture-border/50 rounded text-scripture-text focus:outline-none focus:ring-2 focus:ring-scripture-accent"
-                                />
-                                <label className="flex items-center gap-1.5 text-sm text-scripture-text cursor-pointer">
-                                  <input
-                                    type="radio"
-                                    name={`editYearEra-${timeExpression.id}`}
-                                    checked={editingYearEra === 'BC'}
-                                    onChange={() => setEditingYearEra('BC')}
-                                    className="accent-scripture-accent"
-                                  />
-                                  BC
-                                </label>
-                                <label className="flex items-center gap-1.5 text-sm text-scripture-text cursor-pointer">
-                                  <input
-                                    type="radio"
-                                    name={`editYearEra-${timeExpression.id}`}
-                                    checked={editingYearEra === 'AD'}
-                                    onChange={() => setEditingYearEra('AD')}
-                                    className="accent-scripture-accent"
-                                  />
-                                  AD
-                                </label>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleSaveEdit(timeExpression.id)}
-                                disabled={!editingExpression.trim()}
-                                className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={handleCancelEdit}
-                                className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="flex items-start gap-2">
-                              <div className="flex-1">
-                                <span className="text-sm font-medium text-scripture-text">
-                                  🕐 {timeExpression.expression}
-                                  {timeExpression.year != null && (
-                                    <span className="ml-2 text-scripture-muted text-xs">
-                                      ({timeExpression.year} {timeExpression.yearEra || 'AD'})
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover/time:opacity-100 transition-opacity">
-                                <button
-                                  onClick={() => handleStartEdit(timeExpression)}
-                                  className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated"
-                                  title="Edit time expression"
-                                >
-                                  ✏️
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteClick(timeExpression.id)}
-                                  className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors rounded hover:bg-scripture-elevated"
-                                  title="Delete time expression"
-                                >
-                                  🗑️
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Observations (notes) */}
-                            {timeExpression.notes && (
-                              <div className="mt-1 text-sm text-scripture-text">
-                                {timeExpression.notes}
-                              </div>
-                            )}
-
-                            {/* Add observation */}
-                            {!isAddingObs && (
-                              <button
-                                onClick={() => { setAddingObservationToId(timeExpression.id); setNewObservation(''); }}
-                                className="mt-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors"
-                              >
-                                + Add observation
-                              </button>
-                            )}
-                            {isAddingObs && (
-                              <div className="mt-2">
-                                <Textarea
-                                  value={newObservation}
-                                  onChange={(e) => setNewObservation(e.target.value)}
-                                  placeholder="What do you observe about this time reference?"
-                                  rows={2}
-                                  autoFocus
-                                />
-                                <div className="flex items-center gap-2 mt-1">
-                                  <button
-                                    onClick={() => handleAddObservation(timeExpression.id)}
-                                    disabled={!newObservation.trim()}
-                                    className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                  >
-                                    Add
-                                  </button>
-                                  <button
-                                    onClick={() => { setAddingObservationToId(null); setNewObservation(''); }}
-                                    className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                          </div>
                         </div>
                       );
                     })}

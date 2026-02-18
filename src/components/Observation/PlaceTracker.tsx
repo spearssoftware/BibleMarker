@@ -488,7 +488,7 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
       {filteredPlaces.length > 0 && (
         <div className="space-y-4">
           {keywordGroups.map(({ key, label, items: keywordItems }) => {
-            const isExpanded = !expandedKeywords.has(key);
+            const isExpanded = expandedKeywords.has(key);
             const verseGroups = groupByVerse(keywordItems);
             const sortedVerseGroups = sortVerseGroups(verseGroups);
 
