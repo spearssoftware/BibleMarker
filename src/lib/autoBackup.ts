@@ -284,6 +284,7 @@ async function createBackupData(): Promise<BackupData> {
       contrasts: allData.contrasts,
       timeExpressions: allData.timeExpressions,
       places: allData.places,
+      people: allData.people,
       conclusions: allData.conclusions,
       interpretations: allData.interpretations,
       applications: allData.applications,

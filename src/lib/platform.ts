@@ -13,6 +13,33 @@ export function isTauri(): boolean {
 }
 
 /**
+ * Check if Tauri internals (needed for invoke, plugin-sql) are available.
+ * These are injected after the page loads and can lag behind React's first effects.
+ */
+function hasTauriInternals(): boolean {
+  return typeof window !== 'undefined' && !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+}
+
+/**
+ * Wait for Tauri internals to be available before calling invoke/plugin APIs.
+ * Polls up to maxMs to avoid blocking forever if Tauri never loads (e.g. web-only).
+ */
+export function waitForTauriInternals(maxMs = 3000): Promise<void> {
+  if (hasTauriInternals()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const start = Date.now();
+    const check = () => {
+      if (hasTauriInternals() || Date.now() - start >= maxMs) {
+        resolve();
+        return;
+      }
+      setTimeout(check, 50);
+    };
+    setTimeout(check, 50);
+  });
+}
+
+/**
  * Check if running in Capacitor
  */
 export function isCapacitor(): boolean {

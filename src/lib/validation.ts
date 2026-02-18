@@ -12,6 +12,7 @@ import type { MultiTranslationView } from '@/types/multiTranslation';
 import type { ObservationList } from '@/types/list';
 import type { FiveWAndHEntry } from '@/types/observation';
 import type { Place } from '@/types/place';
+import type { Person } from '@/types/person';
 import type { InterpretationEntry } from '@/types/interpretation';
 import type { ApplicationEntry } from '@/types/application';
 import type { VerseRef } from '@/types/bible';
@@ -513,6 +514,35 @@ export function validatePlace(place: unknown): Place {
   }
   if (p.annotationId !== undefined && typeof p.annotationId !== 'string') {
     throw new ValidationError('Place annotationId must be a string if provided', 'annotationId', p.annotationId);
+  }
+  validateDate(p.createdAt, 'createdAt');
+  validateDate(p.updatedAt, 'updatedAt');
+  return p;
+}
+
+/**
+ * Validate a person entry
+ */
+export function validatePerson(person: unknown): Person {
+  if (!person || typeof person !== 'object') {
+    throw new ValidationError('Person must be an object', 'person', person);
+  }
+  const p = person as Person;
+  if (typeof p.id !== 'string' || p.id.trim() === '') {
+    throw new ValidationError('Person must have a valid id', 'id', p.id);
+  }
+  if (typeof p.name !== 'string' || p.name.trim() === '') {
+    throw new ValidationError('Person must have a valid name', 'name', p.name);
+  }
+  validateVerseRef(p.verseRef);
+  if (p.notes !== undefined && typeof p.notes !== 'string') {
+    throw new ValidationError('Person notes must be a string if provided', 'notes', p.notes);
+  }
+  if (p.presetId !== undefined && typeof p.presetId !== 'string') {
+    throw new ValidationError('Person presetId must be a string if provided', 'presetId', p.presetId);
+  }
+  if (p.annotationId !== undefined && typeof p.annotationId !== 'string') {
+    throw new ValidationError('Person annotationId must be a string if provided', 'annotationId', p.annotationId);
   }
   validateDate(p.createdAt, 'createdAt');
   validateDate(p.updatedAt, 'updatedAt');

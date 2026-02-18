@@ -63,6 +63,7 @@ describe('getBackupPreview', () => {
         contrasts: [],
         timeExpressions: [],
         places: [],
+        people: [],
         conclusions: [],
         interpretations: [],
         applications: [],

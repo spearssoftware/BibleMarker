@@ -18,6 +18,7 @@ import type { FiveWAndHEntry } from '@/types/observation';
 import type { Contrast } from '@/types/contrast';
 import type { TimeExpression } from '@/types/timeExpression';
 import type { Place } from '@/types/place';
+import type { Person } from '@/types/person';
 import type { Conclusion } from '@/types/conclusion';
 import type { InterpretationEntry } from '@/types/interpretation';
 import type { ApplicationEntry } from '@/types/application';
@@ -34,6 +35,7 @@ import {
   validateApplication,
   validateInterpretation,
   validatePlace,
+  validatePerson,
   validateArray,
   ValidationError,
 } from './validation';
@@ -56,6 +58,7 @@ export interface BackupData {
     contrasts: Contrast[];
     timeExpressions: TimeExpression[];
     places: Place[];
+    people: Person[];
     conclusions: Conclusion[];
     interpretations: InterpretationEntry[];
     applications: ApplicationEntry[];
@@ -144,6 +147,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
         contrasts: allData.contrasts,
         timeExpressions: allData.timeExpressions,
         places: allData.places,
+        people: allData.people,
         conclusions: allData.conclusions,
         interpretations: allData.interpretations,
         applications: allData.applications,
@@ -405,6 +409,14 @@ export function validateBackup(data: unknown): { valid: boolean; errors: string[
     }
   }
 
+  if (Array.isArray(d.data.people)) {
+    const { errors: peopleErrors } = validateArray(d.data.people, validatePerson, 'person');
+    if (peopleErrors.length > 0) {
+      errors.push(`People validation errors: ${peopleErrors.length} invalid records`);
+      errors.push(...peopleErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }
+  }
+
   if (Array.isArray(d.data.conclusions)) {
     const { errors: conclusionErrors } = validateArray(d.data.conclusions, (entry: unknown) => {
       if (!entry || typeof entry !== 'object') throw new ValidationError('Conclusion must be an object');
@@ -455,6 +467,7 @@ export function getBackupPreview(backup: BackupData): Record<string, number> {
     contrasts: backup.data.contrasts?.length || 0,
     timeExpressions: backup.data.timeExpressions?.length || 0,
     places: backup.data.places?.length || 0,
+    people: backup.data.people?.length || 0,
     conclusions: backup.data.conclusions?.length || 0,
     interpretations: backup.data.interpretations?.length || 0,
     applications: backup.data.applications.length,
@@ -661,6 +674,13 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
       validatedPlaces = valid;
     }
 
+    // Validate people
+    let validatedPeople: Person[] = [];
+    if (backup.data.people && backup.data.people.length > 0) {
+      const { valid } = validateArray(backup.data.people, validatePerson, 'person');
+      validatedPeople = valid;
+    }
+
     // Validate interpretations
     let validatedInterpretations: InterpretationEntry[] = [];
     if (backup.data.interpretations && backup.data.interpretations.length > 0) {
@@ -701,6 +721,7 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
       contrasts: backup.data.contrasts || [],
       timeExpressions: backup.data.timeExpressions || [],
       places: validatedPlaces,
+      people: validatedPeople,
       conclusions: backup.data.conclusions || [],
       interpretations: validatedInterpretations,
       applications: validatedApplications,

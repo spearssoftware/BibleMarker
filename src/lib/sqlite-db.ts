@@ -21,6 +21,7 @@ import type { FiveWAndHEntry } from '@/types/observation';
 import type { Contrast } from '@/types/contrast';
 import type { TimeExpression } from '@/types/timeExpression';
 import type { Place } from '@/types/place';
+import type { Person } from '@/types/person';
 import type { Conclusion } from '@/types/conclusion';
 import type { InterpretationEntry } from '@/types/interpretation';
 import type { ApplicationEntry } from '@/types/application';
@@ -106,7 +107,7 @@ export async function closeSqliteDb(): Promise<void> {
 // Schema Initialization
 // ============================================================================
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 async function initializeSchema(db: Database): Promise<void> {
   // Create schema version table
@@ -246,6 +247,21 @@ async function migrateSchema(
     await addStudyIdColumnIfMissing(db, 'applications');
     await migrateTitlesAndHeadingsToStudy(db);
     console.log('[SQLite] v4 migration: added study_id to chapter_titles, section_headings, applications');
+  }
+
+  // Version 5: Add people table
+  if (fromVersion < 5) {
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS people (
+        id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        sync_status TEXT DEFAULT 'pending',
+        device_id TEXT
+      )
+    `);
+    console.log('[SQLite] v5 migration: added people table');
   }
 
   // Update schema version
@@ -430,6 +446,18 @@ async function createInitialSchema(db: Database): Promise<void> {
   // Places table
   await db.execute(`
     CREATE TABLE IF NOT EXISTS places (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      sync_status TEXT DEFAULT 'pending',
+      device_id TEXT
+    )
+  `);
+
+  // People table
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS people (
       id TEXT PRIMARY KEY,
       data TEXT NOT NULL,
       created_at TEXT NOT NULL,
@@ -1039,6 +1067,7 @@ const VALID_TABLE_NAMES = new Set([
   'contrasts',
   'time_expressions',
   'places',
+  'people',
   'conclusions',
   'interpretations',
   'applications',
@@ -1116,6 +1145,7 @@ export interface SqliteExportData {
   contrasts: Contrast[];
   timeExpressions: TimeExpression[];
   places: Place[];
+  people: Person[];
   conclusions: Conclusion[];
   interpretations: InterpretationEntry[];
   applications: ApplicationEntry[];
@@ -1144,6 +1174,7 @@ export async function sqliteExportAll(): Promise<SqliteExportData> {
   const contrasts = await sqliteGetAllFromTable<Contrast>('contrasts');
   const timeExpressions = await sqliteGetAllFromTable<TimeExpression>('time_expressions');
   const places = await sqliteGetAllFromTable<Place>('places');
+  const people = await sqliteGetAllFromTable<Person>('people');
   const conclusions = await sqliteGetAllFromTable<Conclusion>('conclusions');
   const interpretations = await sqliteGetAllFromTable<InterpretationEntry>('interpretations');
   const applications = await sqliteGetAllFromTable<ApplicationEntry>('applications');
@@ -1233,6 +1264,7 @@ export async function sqliteExportAll(): Promise<SqliteExportData> {
     contrasts,
     timeExpressions,
     places,
+    people,
     conclusions,
     interpretations,
     applications,
@@ -1291,6 +1323,9 @@ export async function sqliteImportAll(data: SqliteExportData): Promise<void> {
   for (const item of data.places) {
     await sqliteSaveToTable('places', item);
   }
+  for (const item of data.people) {
+    await sqliteSaveToTable('people', item);
+  }
   for (const item of data.conclusions) {
     await sqliteSaveToTable('conclusions', item);
   }
@@ -1331,6 +1366,7 @@ export const SYNCED_TABLES = new Set([
   'contrasts',
   'time_expressions',
   'places',
+  'people',
   'conclusions',
   'interpretations',
   'applications',
@@ -1637,6 +1673,7 @@ export async function sqliteClearDatabase(): Promise<void> {
     'contrasts',
     'time_expressions',
     'places',
+    'people',
     'conclusions',
     'interpretations',
     'applications',

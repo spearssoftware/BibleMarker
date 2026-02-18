@@ -8,12 +8,33 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { usePlaceStore } from '@/stores/placeStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
+import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { getCachedChapter } from '@/lib/database';
 import type { Place } from '@/types/place';
 import type { VerseRef } from '@/types/bible';
 import { formatVerseRef, getBookById } from '@/types/bible';
 import { ConfirmationDialog, Input, Textarea, Checkbox } from '@/components/shared';
+
+function highlightWords(text: string, words: string[]): React.ReactNode {
+  const filtered = words.filter(w => w.trim());
+  if (!filtered.length || !text) return text;
+  const escaped = filtered.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  escaped.sort((a, b) => b.length - a.length);
+  const pattern = new RegExp(escaped.join('|'), 'gi');
+  const result: React.ReactNode[] = [];
+  let lastIndex = 0;
+  for (const match of text.matchAll(pattern)) {
+    const idx = match.index!;
+    if (idx > lastIndex) result.push(text.slice(lastIndex, idx));
+    result.push(
+      <mark key={idx} className="bg-scripture-accent/25 text-scripture-text rounded-sm px-0.5 not-italic font-medium">{match[0]}</mark>
+    );
+    lastIndex = idx + match[0].length;
+  }
+  if (lastIndex < text.length) result.push(text.slice(lastIndex));
+  return result.length > 0 ? <>{result}</> : text;
+}
 
 interface PlaceTrackerProps {
   selectedText?: string;
@@ -40,6 +61,50 @@ const groupByVerse = (places: Place[]): Map<string, Place[]> => {
   });
   return map;
 };
+
+// Group places by keyword (presetId), with "Manual" for items without presetId
+function groupByKeyword(
+  items: Place[],
+  presetMap: Map<string, { word?: string }>
+): Array<{ key: string; label: string; items: Place[] }> {
+  const byKey = new Map<string, Place[]>();
+  for (const item of items) {
+    const key = item.presetId || 'manual';
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key)!.push(item);
+  }
+  return Array.from(byKey.entries()).map(([key, keywordItems]) => {
+    const label = key === 'manual' ? 'Manual' : (presetMap.get(key)?.word ?? 'Unknown');
+    return { key, label, items: keywordItems };
+  });
+}
+
+// Sort keyword groups by label (Manual last), then by earliest verse
+function sortKeywordGroups(
+  groups: Array<{ key: string; label: string; items: Place[] }>
+): Array<{ key: string; label: string; items: Place[] }> {
+  return [...groups].sort((a, b) => {
+    if (a.key === 'manual' && b.key !== 'manual') return 1;
+    if (b.key === 'manual' && a.key !== 'manual') return -1;
+    const nameCmp = a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
+    if (nameCmp !== 0) return nameCmp;
+    const minVerse = (items: Place[]) => {
+      if (items.length === 0) return '';
+      const keys = items.map(p => getVerseKey(p.verseRef));
+      keys.sort((ka, kb) => {
+        const [bookA, chA, vA] = ka.split(':');
+        const [bookB, chB, vB] = kb.split(':');
+        const ordA = getBookById(bookA)?.order ?? 999;
+        const ordB = getBookById(bookB)?.order ?? 999;
+        if (ordA !== ordB) return ordA - ordB;
+        if (parseInt(chA, 10) !== parseInt(chB, 10)) return parseInt(chA, 10) - parseInt(chB, 10);
+        return parseInt(vA, 10) - parseInt(vB, 10);
+      });
+      return keys[0];
+    };
+    return minVerse(a.items).localeCompare(minVerse(b.items));
+  });
+}
 
 // Sort verse groups by canonical order
 const sortVerseGroups = (groups: Map<string, Place[]>): Array<[string, Place[]]> => {
@@ -75,9 +140,13 @@ const sortVerseGroups = (groups: Map<string, Place[]>): Array<[string, Place[]]>
 };
 
 export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = true, onFilterByChapterChange, onNavigate }: PlaceTrackerProps) {
-  const { places, loadPlaces, createPlace, updatePlace, deletePlace, autoImportFromAnnotations, removeDuplicates } = usePlaceStore();
+  const { places, loadPlaces, createPlace, updatePlace, deletePlace, autoImportFromAnnotations, removeDuplicates, autoPopulateFromChapter } = usePlaceStore();
   const { currentBook, currentChapter } = useBibleStore();
+  const [isPopulating, setIsPopulating] = useState(false);
   const { activeStudyId } = useStudyStore();
+  const { presets } = useMarkingPresetStore();
+  const presetMap = useMemo(() => new Map(presets.map(p => [p.id, { word: p.word }])), [presets]);
+  const [expandedKeywords, setExpandedKeywords] = useState<Set<string>>(new Set());
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
@@ -90,6 +159,20 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
   const [verseTexts, setVerseTexts] = useState<Map<string, string>>(new Map());
   const { activeView } = useMultiTranslationStore();
   const primaryModuleId = activeView?.translationIds[0] || '';
+
+  const handlePopulateFromChapter = async () => {
+    if (!currentBook || !currentChapter || !primaryModuleId || isPopulating) return;
+    setIsPopulating(true);
+    try {
+      const count = await autoPopulateFromChapter(currentBook, currentChapter, primaryModuleId);
+      await loadPlaces();
+      if (count > 0) alert(`Added ${count} place(s) from chapter.`);
+    } catch (e) {
+      console.error('[PlaceTracker] Populate failed:', e);
+    } finally {
+      setIsPopulating(false);
+    }
+  };
   
   // Track if we've already run initialization to prevent duplicates
   const hasInitialized = useRef(false);
@@ -278,8 +361,7 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
         const verses = chapterCache.get(cacheKey);
         if (verses) {
           const text = verses[place.verseRef.verse] || '';
-          const snippet = text.length > 80 ? text.substring(0, 80) + '...' : text;
-          newTexts.set(getVerseKey(place.verseRef), snippet);
+          newTexts.set(getVerseKey(place.verseRef), text);
         }
       }
       if (!cancelled) setVerseTexts(newTexts);
@@ -287,8 +369,19 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
     return () => { cancelled = true; };
   }, [filteredPlaces, primaryModuleId]);
 
-  const verseGroups = groupByVerse(filteredPlaces);
-  const sortedGroups = sortVerseGroups(verseGroups);
+  const keywordGroups = useMemo(() => {
+    const grouped = groupByKeyword(filteredPlaces, presetMap);
+    return sortKeywordGroups(grouped);
+  }, [filteredPlaces, presetMap]);
+
+  const toggleKeyword = (key: string) => {
+    setExpandedKeywords(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   return (
     <>
@@ -312,6 +405,15 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
           >
             + New Place
           </button>
+          {currentBook && currentChapter && (
+            <button
+              onClick={handlePopulateFromChapter}
+              disabled={isPopulating || !primaryModuleId}
+              className="px-3 py-1.5 text-sm bg-scripture-elevated text-scripture-text rounded hover:bg-scripture-border/50 transition-colors disabled:opacity-50"
+            >
+              {isPopulating ? '...' : 'Populate from Chapter'}
+            </button>
+          )}
           {onFilterByChapterChange && (
             <Checkbox
               label="Current Chapter Only"
@@ -382,42 +484,58 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
         </div>
       )}
 
-      {/* Places list */}
+      {/* Places list - grouped by keyword */}
       {filteredPlaces.length > 0 && (
         <div className="space-y-4">
-          {sortedGroups.map(([verseKey, versePlaces]) => {
-            const verseRef = versePlaces[0].verseRef;
-            const verseSnippet = verseTexts.get(verseKey);
+          {keywordGroups.map(({ key, label, items: keywordItems }) => {
+            const isExpanded = !expandedKeywords.has(key);
+            const verseGroups = groupByVerse(keywordItems);
+            const sortedVerseGroups = sortVerseGroups(verseGroups);
 
             return (
-              <div key={verseKey} className="bg-scripture-surface rounded-lg border border-scripture-border/30 p-3">
-                {/* Verse header */}
-                <div className="flex items-center justify-between mb-2">
-                  {onNavigate ? (
-                    <button
-                      onClick={() => onNavigate(verseRef)}
-                      className="text-sm font-medium text-scripture-accent hover:text-scripture-accent/80 underline cursor-pointer transition-colors"
-                      title="Click to navigate to verse"
-                    >
-                      {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
-                    </button>
-                  ) : (
-                    <span className="text-sm font-medium text-scripture-accent">
-                      {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
-                    </span>
-                  )}
-                </div>
+              <div key={key} className="bg-scripture-surface rounded-xl border border-scripture-border/50 overflow-hidden">
+                <button
+                  onClick={() => toggleKeyword(key)}
+                  className="w-full p-4 text-left flex items-center gap-2 hover:bg-scripture-elevated/50 transition-colors"
+                >
+                  <span className="text-xs text-scripture-muted shrink-0" aria-hidden="true">
+                    {isExpanded ? '▼' : '▶'}
+                  </span>
+                  <h3 className="font-medium text-scripture-text">{label}</h3>
+                  <span className="text-xs text-scripture-muted bg-scripture-elevated px-2 py-0.5 rounded">
+                    {verseGroups.size} {verseGroups.size === 1 ? 'verse' : 'verses'}
+                  </span>
+                </button>
+                {isExpanded && (
+                  <div className="border-t border-scripture-border/30 p-3 space-y-3">
+                    {sortedVerseGroups.map(([verseKey, versePlaces]) => {
+                      const verseRef = versePlaces[0].verseRef;
+                      const verseSnippet = verseTexts.get(verseKey);
 
-                {/* Verse snippet */}
-                {verseSnippet && (
-                  <div className="text-xs text-scripture-text italic pl-3 border-l-2 border-scripture-border/30 mb-2">
-                    {verseSnippet}
-                  </div>
-                )}
-
-                {/* Places for this verse */}
-                <div className="space-y-2">
-                  {versePlaces.map(place => {
+                      return (
+                        <div key={verseKey} className="bg-scripture-bg/50 rounded-lg border border-scripture-border/30 p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            {onNavigate ? (
+                              <button
+                                onClick={() => onNavigate(verseRef)}
+                                className="text-sm font-medium text-scripture-accent hover:text-scripture-accent/80 underline cursor-pointer transition-colors"
+                                title="Click to navigate to verse"
+                              >
+                                {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
+                              </button>
+                            ) : (
+                              <span className="text-sm font-medium text-scripture-accent">
+                                {formatVerseRef(verseRef.book, verseRef.chapter, verseRef.verse)}
+                              </span>
+                            )}
+                          </div>
+                          {verseSnippet && (
+                            <div className="text-xs text-scripture-text italic pl-3 border-l-2 border-scripture-border/30 mb-2">
+                              {highlightWords(verseSnippet, versePlaces.map(p => p.name))}
+                            </div>
+                          )}
+                          <div className="space-y-2">
+                            {versePlaces.map(place => {
                     const isEditing = editingId === place.id;
                     const isAddingObs = addingObservationToId === place.id;
 
@@ -525,7 +643,12 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
                       </div>
                     );
                   })}
-                </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
