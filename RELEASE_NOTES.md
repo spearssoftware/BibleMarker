@@ -1,14 +1,10 @@
-# BibleMarker v0.7.7
-
-## Features
-
-- **In-app auto-update (macOS/Windows)**: When an update is available, a dialog prompts you immediately on launch. Click "Update now" to download and install with a progress bar — the app restarts automatically. Falls back to manual download if something goes wrong.
+# BibleMarker v0.7.8
 
 ## Improvements
 
-- Update check runs on every app startup (previously throttled to once per day)
-- Update banner on iOS now correctly directs to the App Store instead of showing a download button
-- Fixed update banner overlapping the iOS status bar
+- **Observation lists start collapsed**: Time, People, and Places keyword groups now start contracted instead of expanded, reducing visual clutter
+- **Time expressions grouped by chapter**: Time tab now organizes expressions by chapter within each keyword group, with aggregated year/era shown on the chapter header
+- **Year era defaults to BC for OT books**: When editing a time expression in an Old Testament book, the year era now correctly defaults to BC instead of AD
 
 ---
 
