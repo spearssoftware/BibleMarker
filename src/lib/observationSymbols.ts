@@ -11,6 +11,7 @@ export type ObservationTrackerType =
   | 'contrast'      // Contrasts and Comparisons
   | 'time'          // Time Expressions
   | 'place'         // Geographic Locations
+  | 'people'        // People and Characters
   | 'conclusion'    // Conclusion Terms
   | 'lists';        // Observation Lists (general)
 
@@ -66,6 +67,18 @@ export const SYMBOL_TRACKER_MAPPING: SymbolTrackerMapping[] = [
     tracker: 'place',
     label: 'Geographic Locations',
     description: 'Record and track places mentioned in the text',
+  },
+  {
+    symbol: 'person',
+    tracker: 'people',
+    label: 'People & Characters',
+    description: 'Record and track people mentioned in the text',
+  },
+  {
+    symbol: 'peopleGroup',
+    tracker: 'people',
+    label: 'People & Characters',
+    description: 'Record and track people groups mentioned in the text',
   },
   {
     symbol: 'arrowRight',

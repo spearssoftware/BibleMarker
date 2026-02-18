@@ -19,12 +19,15 @@ import type { FiveWAndHEntry } from '@/types/observation';
 import type { Contrast } from '@/types/contrast';
 import type { TimeExpression } from '@/types/timeExpression';
 import type { Place } from '@/types/place';
+import type { Person } from '@/types/person';
 import type { Conclusion } from '@/types/conclusion';
 import type { InterpretationEntry } from '@/types/interpretation';
 import type { ApplicationEntry } from '@/types/application';
 import type { UserPreferences } from '@/types/preferences';
 
 export type { UserPreferences, ApiConfigRecord, OnboardingState, AutoBackupConfig } from '@/types/preferences';
+
+import { waitForTauriInternals } from './platform';
 
 // Lazy-load sqlite-db module
 let sqliteModule: typeof import('./sqlite-db') | null = null;
@@ -60,6 +63,7 @@ async function logChange(
 // ============================================================================
 
 export async function initDatabase(): Promise<void> {
+  await waitForTauriInternals();
   const mod = await sqlite();
   await mod.getSqliteDb();
 }
@@ -463,6 +467,25 @@ export async function deletePlace(id: string): Promise<void> {
   await logChange('places', 'delete', id);
 }
 
+// Person Operations
+export async function getAllPeople(): Promise<Person[]> {
+  const mod = await sqlite();
+  return mod.sqliteGetAllFromTable<Person>('people');
+}
+
+export async function savePerson(entry: Person): Promise<string> {
+  const mod = await sqlite();
+  const result = await mod.sqliteSaveToTable('people', entry);
+  await logChange('people', 'upsert', entry.id, entry);
+  return result;
+}
+
+export async function deletePerson(id: string): Promise<void> {
+  const mod = await sqlite();
+  await mod.sqliteDeleteFromTable('people', id);
+  await logChange('people', 'delete', id);
+}
+
 // Conclusion Operations
 export async function getAllConclusions(): Promise<Conclusion[]> {
   const mod = await sqlite();
@@ -546,6 +569,7 @@ export interface DatabaseExportData {
   contrasts: Contrast[];
   timeExpressions: TimeExpression[];
   places: Place[];
+  people: Person[];
   conclusions: Conclusion[];
   interpretations: InterpretationEntry[];
   applications: ApplicationEntry[];

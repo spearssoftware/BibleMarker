@@ -240,6 +240,7 @@ export function SelectionMenu({
       case 'contrast': return 'contrasts';
       case 'time': return 'time';
       case 'place': return 'places';
+      case 'people': return 'people';
       case 'conclusion': return 'conclusions';
       default: return 'lists';
     }

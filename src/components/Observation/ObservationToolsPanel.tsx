@@ -10,6 +10,8 @@ import { useListStore } from '@/stores/listStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
+import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
+import { getCachedChapter } from '@/lib/database';
 import { getBookById, formatVerseRef } from '@/types/bible';
 import type { ObservationList, ObservationItem } from '@/types/list';
 import type { VerseRef } from '@/types/bible';
@@ -18,11 +20,12 @@ import { FiveWAndH } from './FiveWAndH';
 import { ContrastTracker } from './ContrastTracker';
 import { TimeTracker } from './TimeTracker';
 import { PlaceTracker } from './PlaceTracker';
+import { PeopleTracker } from './PeopleTracker';
 import { ConclusionTracker } from './ConclusionTracker';
 import { ThemeEditor } from './ThemeEditor';
 import { ConfirmationDialog, Textarea } from '@/components/shared';
 
-export type ObservationTab = 'lists' | 'fiveWAndH' | 'contrasts' | 'time' | 'places' | 'conclusions' | 'theme';
+export type ObservationTab = 'lists' | 'fiveWAndH' | 'contrasts' | 'time' | 'places' | 'people' | 'conclusions' | 'theme';
 
 interface ObservationToolsPanelProps {
   onClose: () => void;
@@ -98,6 +101,26 @@ const sortListsByVerse = (lists: ObservationList[]): ObservationList[] => {
   });
 };
 
+function highlightWords(text: string, words: string[]): React.ReactNode {
+  const filtered = words.filter(w => w.trim());
+  if (!filtered.length || !text) return text;
+  const escaped = filtered.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  escaped.sort((a, b) => b.length - a.length);
+  const pattern = new RegExp(escaped.join('|'), 'gi');
+  const result: React.ReactNode[] = [];
+  let lastIndex = 0;
+  for (const match of text.matchAll(pattern)) {
+    const idx = match.index!;
+    if (idx > lastIndex) result.push(text.slice(lastIndex, idx));
+    result.push(
+      <mark key={idx} className="bg-scripture-accent/25 text-scripture-text rounded-sm px-0.5 not-italic font-medium">{match[0]}</mark>
+    );
+    lastIndex = idx + match[0].length;
+  }
+  if (lastIndex < text.length) result.push(text.slice(lastIndex));
+  return result.length > 0 ? <>{result}</> : text;
+}
+
 export function ObservationToolsPanel({ 
   onClose: _onClose, 
   initialTab = 'lists',
@@ -120,6 +143,8 @@ export function ObservationToolsPanel({
   const [editingItemNotes, setEditingItemNotes] = useState('');
   const [confirmDeleteListId, setConfirmDeleteListId] = useState<string | null>(null);
   const [confirmDeleteObservation, setConfirmDeleteObservation] = useState<{ listId: string; itemId: string } | null>(null);
+  const [verseTexts, setVerseTexts] = useState<Map<string, string>>(new Map());
+  const { primaryModuleId } = useMultiTranslationStore();
 
   // Show lists scoped to current study and book (no chapter filter)
   const displayLists = lists.filter(l => {
@@ -153,6 +178,33 @@ export function ObservationToolsPanel({
     }
   }, [initialListId, lists]);
 
+  // Load full verse texts for list items
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!primaryModuleId || displayLists.length === 0) return;
+      const chapterCache = new Map<string, Record<number, string>>();
+      const newTexts = new Map<string, string>();
+      for (const list of displayLists) {
+        for (const item of list.items) {
+          const verseKey = getVerseKey(item.verseRef);
+          if (newTexts.has(verseKey)) continue;
+          const cacheKey = `${item.verseRef.book}:${item.verseRef.chapter}`;
+          if (!chapterCache.has(cacheKey)) {
+            const cached = await getCachedChapter(primaryModuleId, item.verseRef.book, item.verseRef.chapter);
+            if (cached?.verses) chapterCache.set(cacheKey, cached.verses);
+          }
+          const verses = chapterCache.get(cacheKey);
+          if (verses) {
+            newTexts.set(verseKey, verses[item.verseRef.verse] || '');
+          }
+        }
+      }
+      if (!cancelled) setVerseTexts(newTexts);
+    })();
+    return () => { cancelled = true; };
+  }, [displayLists, primaryModuleId]);
+
   // Tab definitions - Phase 1 agents will add their tabs here
   const tabs: { id: ObservationTab; label: string; icon: string }[] = [
     { id: 'lists', label: 'Lists', icon: '📝' },
@@ -160,6 +212,7 @@ export function ObservationToolsPanel({
     { id: 'contrasts', label: 'Contrasts', icon: '⇔' },
     { id: 'time', label: 'Time', icon: '🕐' },
     { id: 'places', label: 'Places', icon: '📍' },
+    { id: 'people', label: 'People', icon: '👤' },
     { id: 'conclusions', label: 'Conclusions', icon: '→' },
     { id: 'theme', label: 'Theme', icon: '🎯' },
   ];
@@ -551,13 +604,18 @@ export function ObservationToolsPanel({
                                         </button>
                                       )}
                                     </div>
+
+                                    {/* Full verse context with keyword highlighted */}
+                                    {verseTexts.get(verseKey) && (
+                                      <div className="text-xs text-scripture-text italic pl-3 border-l-2 border-scripture-border/30 mb-2">
+                                        {highlightWords(verseTexts.get(verseKey)!, [keywordName || ''])}
+                                      </div>
+                                    )}
                                     
                                     {/* Observations for this verse */}
                                     <div className="space-y-2">
                                       {verseItems.map(item => {
                                         const isEditing = editingItemId === item.id;
-                                        // Verse snippets are auto-added from the verse menu — they have no notes and no annotationId
-                                        // They typically contain "..." from truncation
                                         const isVerseSnippet = item.content.includes('...');
                                         
                                         return (
@@ -595,10 +653,10 @@ export function ObservationToolsPanel({
                                                 </div>
                                               </div>
                                             ) : isVerseSnippet ? (
-                                              /* Verse snippet — muted quote style */
+                                              /* Verse snippet — muted quote style with keyword highlighted */
                                               <div className="flex items-start gap-2">
                                                 <div className="flex-1 text-xs text-scripture-text italic pl-3 border-l-2 border-scripture-border/30">
-                                                  {item.content}
+                                                  {highlightWords(item.content, [keywordName || ''])}
                                                 </div>
                                                 <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity">
                                                   <button
@@ -719,6 +777,14 @@ export function ObservationToolsPanel({
         ) : activeTab === 'places' ? (
           <div role="tabpanel" id="observation-tabpanel-places" aria-labelledby="observation-tab-places">
             <PlaceTracker 
+              selectedText={selectedText} 
+              verseRef={verseRef}
+              onNavigate={handleNavigateToVerse}
+            />
+          </div>
+        ) : activeTab === 'people' ? (
+          <div role="tabpanel" id="observation-tabpanel-people" aria-labelledby="observation-tab-people">
+            <PeopleTracker 
               selectedText={selectedText} 
               verseRef={verseRef}
               onNavigate={handleNavigateToVerse}

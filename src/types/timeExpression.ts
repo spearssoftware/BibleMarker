@@ -16,6 +16,8 @@ export interface TimeExpression {
   annotationId?: string;     // Optional link to an annotation (if time expression came from a marked instance)
   studyId?: string;          // Optional link to a study (for scoping)
   timeOrder?: number;        // Optional chronological ordering (for sequencing time expressions)
+  year?: number;             // Optional year (numeric, e.g., 233, 586, 33)
+  yearEra?: 'BC' | 'AD';     // Era for the optional year
   createdAt: Date;
   updatedAt: Date;
 }

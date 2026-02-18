@@ -19,7 +19,7 @@ interface TimeState {
   
   // Actions
   loadTimeExpressions: () => Promise<void>;
-  createTimeExpression: (expression: string, verseRef: VerseRef, notes?: string, presetId?: string, annotationId?: string, timeOrder?: number, studyId?: string) => Promise<TimeExpression>;
+  createTimeExpression: (expression: string, verseRef: VerseRef, notes?: string, presetId?: string, annotationId?: string, timeOrder?: number, studyId?: string, year?: number, yearEra?: 'BC' | 'AD') => Promise<TimeExpression>;
   updateTimeExpression: (timeExpression: TimeExpression) => Promise<void>;
   deleteTimeExpression: (timeExpressionId: string) => Promise<void>;
   getTimeExpression: (timeExpressionId: string) => TimeExpression | null;
@@ -40,7 +40,7 @@ export const useTimeStore = create<TimeState>()(
         set({ timeExpressions: allTimeExpressions });
       },
       
-      createTimeExpression: async (expression, verseRef, notes, presetId, annotationId, timeOrder, studyId) => {
+      createTimeExpression: async (expression, verseRef, notes, presetId, annotationId, timeOrder, studyId, year, yearEra) => {
         // Check for duplicates from DATABASE (not in-memory state) to avoid race conditions
         const allTimeExpressions = await dbGetAllTimeExpressions();
         
@@ -79,6 +79,8 @@ export const useTimeStore = create<TimeState>()(
           annotationId,
           studyId,
           timeOrder,
+          year,
+          yearEra,
           createdAt: new Date(),
           updatedAt: new Date(),
         };

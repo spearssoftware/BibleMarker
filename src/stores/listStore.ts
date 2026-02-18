@@ -329,24 +329,9 @@ export const useListStore = create<ListState>()(
 
         // Create observation items for each verse where keyword appears
         const newItems: ObservationItem[] = Array.from(verseMap.values()).map(({ verseRef, text }) => {
-          // Extract a snippet of text around the keyword for context
-          const lowerText = text.toLowerCase();
-          const lowerWord = (preset.word || '').toLowerCase();
-          let snippet = text;
-
-          // Try to find the keyword in the text and get context
-          const wordIndex = lowerText.indexOf(lowerWord);
-          if (wordIndex !== -1) {
-            const start = Math.max(0, wordIndex - 30);
-            const end = Math.min(text.length, wordIndex + lowerWord.length + 30);
-            snippet = text.substring(start, end);
-            if (start > 0) snippet = '...' + snippet;
-            if (end < text.length) snippet = snippet + '...';
-          }
-
           return {
             id: crypto.randomUUID(),
-            content: snippet.trim() || 'Keyword appears in this verse',
+            content: text.trim() || 'Keyword appears in this verse',
             verseRef,
             createdAt: new Date(),
             updatedAt: new Date(),

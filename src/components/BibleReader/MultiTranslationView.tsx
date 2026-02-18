@@ -23,6 +23,7 @@ import { NoteCreator } from './NoteCreator';
 import { VerseNumberMenu } from './VerseNumberMenu';
 import { usePlaceStore } from '@/stores/placeStore';
 import { useTimeStore } from '@/stores/timeStore';
+import { usePeopleStore } from '@/stores/peopleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { getBookById } from '@/types/bible';
@@ -80,6 +81,7 @@ export function MultiTranslationView() {
   }, [annotationsByTranslation, presetMap, activeStudyId]);
   const { autoPopulateFromChapter: autoPopulatePlacesFromChapter } = usePlaceStore();
   const { autoPopulateFromChapter: autoPopulateTimeFromChapter } = useTimeStore();
+  const { autoPopulateFromChapter: autoPopulatePeopleFromChapter } = usePeopleStore();
   
   const [sectionHeadings, setSectionHeadings] = useState<SectionHeading[]>([]);
   const [chapterTitle, setChapterTitle] = useState<ChapterTitle | null>(null);
@@ -714,6 +716,7 @@ export function MultiTranslationView() {
             Promise.all([
               autoPopulatePlacesFromChapter(currentBook, currentChapter, translationId),
               autoPopulateTimeFromChapter(currentBook, currentChapter, translationId),
+              autoPopulatePeopleFromChapter(currentBook, currentChapter, translationId),
             ]).catch(error => {
               console.error('[MultiTranslationView] Auto-populate failed:', error);
             });

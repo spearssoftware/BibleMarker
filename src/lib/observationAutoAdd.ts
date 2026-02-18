@@ -9,6 +9,7 @@ import type { Annotation } from '@/types/annotation';
 import type { VerseRef } from '@/types/bible';
 import { usePlaceStore } from '@/stores/placeStore';
 import { useTimeStore } from '@/stores/timeStore';
+import { usePeopleStore } from '@/stores/peopleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { getAnnotationText } from './annotationQueries';
 
@@ -106,6 +107,36 @@ export async function autoAddToTimeTracker(
 }
 
 /**
+ * Automatically add a keyword to the People tracker if it has 'people' category
+ */
+export async function autoAddToPeopleTracker(
+  preset: MarkingPreset,
+  annotation: Annotation,
+  verseRef: VerseRef,
+  notes?: string
+): Promise<void> {
+  if (preset.category !== 'people') return;
+
+  const peopleStore = usePeopleStore.getState();
+  const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
+
+  const existing = peopleStore.people.filter(
+    p => p.presetId === preset.id &&
+         p.verseRef.book === verseRef.book &&
+         p.verseRef.chapter === verseRef.chapter &&
+         p.verseRef.verse === verseRef.verse
+  );
+  if (existing.length > 0) return;
+
+  const name = preset.word || getAnnotationText(annotation) || 'Person';
+  try {
+    await peopleStore.createPerson(name, verseRef, notes, preset.id, annotation.id, activeStudyId);
+  } catch (error) {
+    console.error('[autoAddToPeopleTracker] Failed to add person:', error);
+  }
+}
+
+/**
  * Auto-add keyword to appropriate observation tracker based on category
  */
 export async function autoAddToObservationTracker(
@@ -114,9 +145,9 @@ export async function autoAddToObservationTracker(
   verseRef: VerseRef,
   notes?: string
 ): Promise<void> {
-  // Try both place and time trackers (a keyword could theoretically have both, though unlikely)
   await Promise.all([
     autoAddToPlaceTracker(preset, annotation, verseRef, notes),
     autoAddToTimeTracker(preset, annotation, verseRef, notes),
+    autoAddToPeopleTracker(preset, annotation, verseRef, notes),
   ]);
 }
