@@ -16,8 +16,12 @@ export interface InstallUpdateResult {
  * Attempt to download and install the latest update via Tauri updater plugin.
  * On success, the app will relaunch. On failure or when not in Tauri, returns
  * without relaunching (caller should fall back to openUrl).
+ *
+ * @param onProgress Called with download percentage (0–100).
  */
-export async function installUpdate(): Promise<InstallUpdateResult> {
+export async function installUpdate(
+  onProgress?: (percent: number) => void,
+): Promise<InstallUpdateResult> {
   if (!isTauri()) {
     return { installed: false };
   }
@@ -31,7 +35,22 @@ export async function installUpdate(): Promise<InstallUpdateResult> {
       return { installed: false };
     }
 
-    await update.downloadAndInstall();
+    let totalBytes = 0;
+    let downloadedBytes = 0;
+
+    await update.downloadAndInstall((event) => {
+      if (event.event === 'Started' && event.data.contentLength) {
+        totalBytes = event.data.contentLength;
+      } else if (event.event === 'Progress') {
+        downloadedBytes += event.data.chunkLength;
+        if (totalBytes > 0) {
+          onProgress?.(Math.min((downloadedBytes / totalBytes) * 100, 99));
+        }
+      } else if (event.event === 'Finished') {
+        onProgress?.(100);
+      }
+    });
+
     await relaunch();
     return { installed: true };
   } catch (err) {
