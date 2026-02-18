@@ -225,7 +225,10 @@ export default function App() {
       {/* Global error display */}
       <ErrorDisplay />
 
-      {/* Update available banner */}
+      {/* Top navigation */}
+      <NavigationBar />
+
+      {/* Update available banner (below nav to avoid iOS status bar overlap) */}
       {updateAvailable && !updateBannerDismissed && (
         <UpdateBanner
           version={updateAvailable.version}
@@ -233,9 +236,6 @@ export default function App() {
           onDismiss={() => setUpdateBannerDismissed(true)}
         />
       )}
-
-      {/* Top navigation */}
-      <NavigationBar />
 
       {/* Main reading area - always use MultiTranslationView */}
       <main className="flex-1 pb-32 pl-safe-left pr-safe-right" role="main" aria-label="Bible reading area">
