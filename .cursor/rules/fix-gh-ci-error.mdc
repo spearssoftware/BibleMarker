@@ -5,7 +5,7 @@ alwaysApply: false
 
 # Fix GitHub CI Errors — BibleMarker
 
-Extends the user-level `fix-gh-ci-error` rule with project-specific details.
+See `fix-gh-ci` skill for general CI workflow. This rule adds BibleMarker-specific details.
 
 ## Workflows
 

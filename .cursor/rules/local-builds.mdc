@@ -5,23 +5,19 @@ alwaysApply: true
 
 # Local Tauri Builds
 
-Cursor sets `CI=1` in its shell environment. Tauri CLI interprets this as `--ci 1`, which fails because it only accepts `true`/`false`.
+See `tauri-builds` skill for CI/CARGO_HOME rationale.
 
-**Always unset `CI` and set `CARGO_HOME` before running Tauri commands:**
+**BibleMarker commands** (use project scripts; they set CARGO_HOME):
 
 ```bash
-# Dev (uses scripts/tauri-dev.sh which sets CARGO_HOME)
 pnpm run tauri:dev
-
-# Build (uses scripts/tauri-build.sh)
 pnpm run tauri:build
-
-# Build for specific target
-CARGO_HOME="$(pwd)/.cargo-home" unset CI && pnpm tauri build --target aarch64-apple-darwin
 ```
 
-`CARGO_HOME` makes Cargo use the workspace (writable in Cursor) instead of sandbox-blocked system paths.
+Scripts: `scripts/tauri-dev.sh`, `scripts/tauri-build.sh`
 
-`CI=` (empty string) does NOT work -- Tauri still sees the flag. You must fully `unset CI`.
+**Build for specific target:**
 
-Never run bare `pnpm tauri build` or `pnpm tauri dev` from the Cursor terminal.
+```bash
+CARGO_HOME="$(pwd)/.cargo-home" unset CI && pnpm tauri build --target aarch64-apple-darwin
+```
