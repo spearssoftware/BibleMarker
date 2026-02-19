@@ -16,6 +16,8 @@ A cross-platform Bible study application for deep text study using the precepts 
   - getBible (free, no API key required)
   - Biblia API (NASB, ESV, NIV, NKJV, and more)
   - ESV API (Crossway)
+  - BibleGateway (web scraper, no API key required)
+  - SWORD modules (local Z-Text format)
 - **Offline Support**: Previously fetched chapters are cached locally for offline reading
 - **Multi-Translation View**: Compare up to 3 translations side-by-side with synchronized scrolling
 
