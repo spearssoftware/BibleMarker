@@ -207,6 +207,8 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newExpression, setNewExpression] = useState('');
   const [newNotes, setNewNotes] = useState('');
+  const [newYear, setNewYear] = useState('');
+  const [newYearEra, setNewYearEra] = useState<'BC' | 'AD'>('BC');
   const [editingExpression, setEditingExpression] = useState('');
   const [editingNotes, setEditingNotes] = useState('');
   const [editingGroupYear, setEditingGroupYear] = useState<string | null>(null);
@@ -309,7 +311,10 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
   }, [currentBook]);
 
   useEffect(() => {
-    if (isCreating) setGroupYearEra(defaultYearEra);
+    if (isCreating) {
+      setGroupYearEra(defaultYearEra);
+      setNewYearEra(defaultYearEra);
+    }
   }, [isCreating, defaultYearEra]);
 
   const handleCreate = async () => {
@@ -319,15 +324,23 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
       return;
     }
 
+    const yearVal = newYear ? parseInt(newYear, 10) : undefined;
     await createTimeExpression(
       newExpression.trim(),
       verseRef,
       newNotes.trim() || undefined,
+      undefined,
+      undefined,
+      undefined,
+      activeStudyId ?? undefined,
+      yearVal !== undefined && !isNaN(yearVal) ? yearVal : undefined,
+      yearVal !== undefined && !isNaN(yearVal) ? newYearEra : undefined,
     );
 
     setIsCreating(false);
     setNewExpression('');
     setNewNotes('');
+    setNewYear('');
     loadTimeExpressions();
   };
 
@@ -335,6 +348,7 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
     setIsCreating(false);
     setNewExpression('');
     setNewNotes('');
+    setNewYear('');
   };
 
   const handleStartEdit = (timeExpression: TimeExpression) => {
@@ -546,6 +560,24 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
               placeholder="e.g., 'in the morning', 'three days later', 'on the third day'"
               autoFocus
             />
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-scripture-muted whitespace-nowrap">Year (optional)</label>
+              <input
+                type="number"
+                value={newYear}
+                onChange={(e) => setNewYear(e.target.value)}
+                placeholder="e.g. 588"
+                className="w-20 px-2 py-1 text-xs bg-scripture-bg border border-scripture-border rounded text-scripture-text"
+              />
+              <select
+                value={newYearEra}
+                onChange={(e) => setNewYearEra(e.target.value as 'BC' | 'AD')}
+                className="px-1.5 py-1 text-xs bg-scripture-bg border border-scripture-border rounded text-scripture-text"
+              >
+                <option value="BC">BC</option>
+                <option value="AD">AD</option>
+              </select>
+            </div>
             <Textarea
               label="Notes (optional)"
               value={newNotes}
