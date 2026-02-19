@@ -62,16 +62,26 @@ export function Timeline() {
   const [filterByBook, setFilterByBook] = useState(true);
 
   const handleNavigateToVerse = (verseRef: VerseRef) => {
+    const highlight = (verse: number) => {
+      window.dispatchEvent(new CustomEvent('toolbar-overlay-minimize'));
+      setNavSelectedVerse(verse);
+      setTimeout(() => setNavSelectedVerse(null), 3000);
+      setTimeout(() => {
+        const el = document.querySelector(`[data-verse="${verse}"]`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    };
+
     if (verseRef.book !== currentBook || verseRef.chapter !== currentChapter) {
       setLocation(verseRef.book, verseRef.chapter);
-      setTimeout(() => setNavSelectedVerse(verseRef.verse), 300);
+      setTimeout(() => highlight(verseRef.verse), 300);
     } else {
-      setNavSelectedVerse(verseRef.verse);
+      highlight(verseRef.verse);
     }
   };
 
-  const { lanedEntries, ticks, chartHeight, minNum, pxPerYear, numLanes } = useMemo(() => {
-    const empty = { lanedEntries: [] as SwimLaneEntry[], ticks: [] as { num: number; label: string }[], chartHeight: 0, minNum: 0, pxPerYear: 0, numLanes: 0 };
+  const { lanedEntries, ticks, chartHeight, minNum, pxPerYear, numLanes, timeLaneCount } = useMemo(() => {
+    const empty = { lanedEntries: [] as SwimLaneEntry[], ticks: [] as { num: number; label: string }[], chartHeight: 0, minNum: 0, pxPerYear: 0, numLanes: 0, timeLaneCount: 0 };
 
     const matchesStudy = (studyId: string | undefined) =>
       !activeStudyId || !studyId || studyId === activeStudyId;
@@ -81,7 +91,7 @@ export function Timeline() {
       .filter(t => t.year != null && t.yearEra && matchesStudy(t.studyId) && matchesBook(t.verseRef.book))
       .map(t => {
         const num = toNum(t.year!, t.yearEra!);
-        return { type: 'time' as const, id: t.id, label: t.expression, startNum: num, endNum: num, verseRef: t.verseRef };
+        return { type: 'time' as const, id: t.id, label: `${t.verseRef.book} ${t.verseRef.chapter} (${t.expression})`, startNum: num, endNum: num, verseRef: t.verseRef };
       });
 
     const seenPeople = new Set<string>();
@@ -102,10 +112,9 @@ export function Timeline() {
         return { type: 'person' as const, id: p.id, label: p.name, startNum: Math.min(s, e), endNum: Math.max(s, e), verseRef: p.verseRef };
       });
 
-    const allEntries = [...rawTimeEntries, ...rawPersonEntries];
-    if (allEntries.length === 0) return empty;
+    if (rawTimeEntries.length === 0 && rawPersonEntries.length === 0) return empty;
 
-    const allNums = allEntries.flatMap(e => [e.startNum, e.endNum]);
+    const allNums = [...rawTimeEntries, ...rawPersonEntries].flatMap(e => [e.startNum, e.endNum]);
     const rawMin = Math.min(...allNums);
     const rawMax = Math.max(...allNums);
     const range = Math.max(rawMax - rawMin, 1);
@@ -117,8 +126,14 @@ export function Timeline() {
     const pxPY = Math.max(3, MIN_CHART_HEIGHT / totalRange);
     const height = totalRange * pxPY;
 
-    const laned = assignLanes(allEntries);
-    const nLanes = Math.max(1, ...laned.map(e => e.lane + 1));
+    const lanedTime = assignLanes(rawTimeEntries);
+    const numTimeLanes = lanedTime.length > 0 ? Math.max(...lanedTime.map(e => e.lane + 1)) : 0;
+
+    const rawLanedPeople = assignLanes(rawPersonEntries);
+    const numPeopleLanes = rawLanedPeople.length > 0 ? Math.max(...rawLanedPeople.map(e => e.lane + 1)) : 0;
+    const lanedPeople = rawLanedPeople.map(e => ({ ...e, lane: e.lane + numTimeLanes }));
+    const laned = [...lanedTime, ...lanedPeople];
+    const nLanes = Math.max(1, numTimeLanes + numPeopleLanes);
 
     const interval = getNiceInterval(range);
     const firstTick = Math.ceil(rawMin / interval) * interval;
@@ -128,7 +143,7 @@ export function Timeline() {
       tickList.push({ num: n, label: formatYearNum(n) });
     }
 
-    return { lanedEntries: laned, ticks: tickList, chartHeight: height, minNum: minN, pxPerYear: pxPY, numLanes: nLanes };
+    return { lanedEntries: laned, ticks: tickList, chartHeight: height, minNum: minN, pxPerYear: pxPY, numLanes: nLanes, timeLaneCount: numTimeLanes };
   }, [timeExpressions, people, activeStudyId, currentBook, filterByBook]);
 
   const getTop = (num: number) => (num - minNum) * pxPerYear;
@@ -189,6 +204,14 @@ export function Timeline() {
                 />
               ))}
 
+              {/* Lane separator between time and person lanes */}
+              {timeLaneCount > 0 && numLanes > timeLaneCount && (
+                <div
+                  className="absolute top-0 bottom-0 w-px bg-scripture-border/30"
+                  style={{ left: `${(timeLaneCount / numLanes) * 100}%` }}
+                />
+              )}
+
               {/* Entries */}
               {lanedEntries.map((entry) => {
                 const top = getTop(entry.startNum);
@@ -230,17 +253,17 @@ export function Timeline() {
                   <button
                     key={`time-${entry.id}`}
                     onClick={() => handleNavigateToVerse(entry.verseRef)}
-                    className="absolute flex items-center gap-1 cursor-pointer group/event"
+                    className="absolute flex items-center gap-1.5 cursor-pointer rounded-sm bg-scripture-elevated/90 hover:bg-scripture-elevated border border-scripture-border/40 px-1.5 overflow-hidden transition-colors"
                     style={{
-                      top: top - 5,
+                      top: top - 10,
                       left: `calc(${leftPct}% + 2px)`,
                       width: `calc(${widthPct}% - 4px)`,
-                      height: 10,
+                      height: 20,
                     }}
                     title={tooltip}
                   >
-                    <div className="w-2 h-2 rounded-full bg-scripture-muted group-hover/event:bg-scripture-text transition-colors shrink-0" />
-                    <span className="text-[10px] text-scripture-text truncate leading-none">
+                    <span className="text-[10px] text-scripture-muted shrink-0">🕐</span>
+                    <span className="text-[10px] text-scripture-text font-medium truncate leading-none">
                       {entry.label}
                     </span>
                   </button>

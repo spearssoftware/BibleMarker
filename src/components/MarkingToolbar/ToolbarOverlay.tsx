@@ -79,6 +79,16 @@ export function ToolbarOverlay({ children, onClose }: ToolbarOverlayProps) {
       }
     }
   }, []);
+
+  // Listen for minimize requests (e.g. from Timeline verse navigation)
+  useEffect(() => {
+    const handleMinimize = () => {
+      localStorage.setItem(PREV_HEIGHT_KEY, heightVh.toString());
+      setSharedHeight(MIN_HEIGHT_VH);
+    };
+    window.addEventListener('toolbar-overlay-minimize', handleMinimize);
+    return () => window.removeEventListener('toolbar-overlay-minimize', handleMinimize);
+  }, [heightVh]);
   
   const [isDragging, setIsDragging] = useState(false);
   const dragStartY = useRef<number>(0);
