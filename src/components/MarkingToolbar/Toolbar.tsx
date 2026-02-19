@@ -24,6 +24,7 @@ import { resetAllStores } from '@/lib/storeReset';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import type { MarkingPreset } from '@/types/keyWord';
+import type { VerseRef } from '@/types/bible';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 
 const COLOR_STYLES = ['highlight', 'textColor', 'underline'] as const;
@@ -69,6 +70,8 @@ export function Toolbar() {
   const [showObservationToolsPanel, setShowObservationToolsPanel] = useState(false);
   const [observationPanelInitialTab, setObservationPanelInitialTab] = useState<ObservationTab>('lists');
   const [observationPanelInitialListId, setObservationPanelInitialListId] = useState<string | undefined>(undefined);
+  const [observationPanelVerseRef, setObservationPanelVerseRef] = useState<VerseRef | undefined>(undefined);
+  const [observationPanelAutoCreate, setObservationPanelAutoCreate] = useState(false);
   const [showAddToList, setShowAddToList] = useState(false);
   const [, setShowKeyWordApplyPicker] = useState(false);
   const [, setShowAddAsVariantPicker] = useState(false);
@@ -106,10 +109,12 @@ export function Toolbar() {
 
   // Listen for custom events to open ObservationToolsPanel
   useEffect(() => {
-    const handleOpenObservationTools = (e: CustomEvent<{ tab?: ObservationTab; listId?: string }>) => {
-      const { tab = 'lists', listId } = e.detail || {};
+    const handleOpenObservationTools = (e: CustomEvent<{ tab?: ObservationTab; listId?: string; verseRef?: VerseRef; autoCreate?: boolean }>) => {
+      const { tab = 'lists', listId, verseRef: eventVerseRef, autoCreate } = e.detail || {};
       setObservationPanelInitialTab(tab);
       setObservationPanelInitialListId(listId);
+      setObservationPanelVerseRef(eventVerseRef);
+      setObservationPanelAutoCreate(!!autoCreate);
       setShowObservationToolsPanel(true);
       setShowStudyToolsPanel(false);
       setShowKeyWordManager(false);
@@ -474,13 +479,17 @@ export function Toolbar() {
           setShowObservationToolsPanel(false);
           setObservationPanelInitialTab('lists');
           setObservationPanelInitialListId(undefined);
+          setObservationPanelVerseRef(undefined);
+          setObservationPanelAutoCreate(false);
           clearSelection();
         }}>
           <ObservationToolsPanel 
             onClose={() => {
               setShowObservationToolsPanel(false);
-              setObservationPanelInitialTab('lists'); // Reset to default
-              setObservationPanelInitialListId(undefined); // Reset
+              setObservationPanelInitialTab('lists');
+              setObservationPanelInitialListId(undefined);
+              setObservationPanelVerseRef(undefined);
+              setObservationPanelAutoCreate(false);
               clearSelection();
             }}
             initialTab={observationPanelInitialTab}
@@ -489,8 +498,9 @@ export function Toolbar() {
               book: selection.book,
               chapter: selection.chapter,
               verse: selection.startVerse,
-            } : undefined}
+            } : observationPanelVerseRef}
             initialListId={observationPanelInitialListId}
+            autoCreate={observationPanelAutoCreate}
           />
         </ToolbarOverlay>
       )}

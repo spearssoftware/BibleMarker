@@ -998,28 +998,31 @@ export function MultiTranslationView() {
                               onVerseNumberClick={
                                 primaryTranslationId
                                   ? (verseNum) => {
-                                      // Show menu with options: section heading or note
-                                      // Only show menu if no heading exists already
-                                      if (!getHeadingBefore(verseNum)) {
-                                        setVerseMenuAt({ verseNum, translationId: translation.id });
-                                      } else {
-                                        // If heading exists, just allow adding note
-                                        setCreatingNoteAt(verseNum);
-                                      }
+                                      setVerseMenuAt({ verseNum, translationId: translation.id });
                                     }
                                   : undefined
                               }
                               verseMenu={
-                                verseMenuAt?.verseNum === verseNum && verseMenuAt?.translationId === translation.id && !getHeadingBefore(verseNum) ? (
+                                verseMenuAt?.verseNum === verseNum && verseMenuAt?.translationId === translation.id ? (
                                   <VerseNumberMenu
                                     verseNum={verseNum}
-                                    onAddHeading={() => {
+                                    onAddHeading={!getHeadingBefore(verseNum) ? () => {
                                       setCreatingHeadingAt(verseNum);
                                       setVerseMenuAt(null);
-                                    }}
+                                    } : undefined}
                                     onAddNote={() => {
                                       setCreatingNoteAt(verseNum);
                                       setVerseMenuAt(null);
+                                    }}
+                                    onAddTimeExpression={() => {
+                                      setVerseMenuAt(null);
+                                      window.dispatchEvent(new CustomEvent('openObservationTools', {
+                                        detail: {
+                                          tab: 'time',
+                                          verseRef: { book: currentBook, chapter: currentChapter, verse: verseNum },
+                                          autoCreate: true,
+                                        },
+                                      }));
                                     }}
                                     onClose={() => setVerseMenuAt(null)}
                                   />

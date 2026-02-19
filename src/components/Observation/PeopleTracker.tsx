@@ -221,8 +221,12 @@ export function PeopleTracker({
     loadPeople();
   };
 
-  const handleStartEditGroupYears = (groupKey: string, items: Person[]) => {
-    const withYears = items.find(p => p.yearStart != null || p.yearEnd != null);
+  const handleStartEditGroupYears = (groupKey: string) => {
+    const allMatching = people.filter(p => {
+      const key = p.presetId || `manual:${p.name.toLowerCase().trim()}`;
+      return key === groupKey;
+    });
+    const withYears = allMatching.find(p => p.yearStart != null || p.yearEnd != null);
     setEditingGroupYears(groupKey);
     setGroupYearStart(withYears?.yearStart?.toString() || '');
     setGroupYearStartEra(withYears?.yearStartEra || 'BC');
@@ -230,10 +234,14 @@ export function PeopleTracker({
     setGroupYearEndEra(withYears?.yearEndEra || 'BC');
   };
 
-  const handleSaveGroupYears = async (items: Person[]) => {
+  const handleSaveGroupYears = async (groupKey: string) => {
     const yearStart = groupYearStart ? parseInt(groupYearStart, 10) : undefined;
     const yearEnd = groupYearEnd ? parseInt(groupYearEnd, 10) : undefined;
-    for (const person of items) {
+    const allMatching = people.filter(p => {
+      const key = p.presetId || `manual:${p.name.toLowerCase().trim()}`;
+      return key === groupKey;
+    });
+    for (const person of allMatching) {
       await updatePerson({
         ...person,
         yearStart: yearStart !== undefined && !isNaN(yearStart) ? yearStart : undefined,
@@ -423,7 +431,10 @@ export function PeopleTracker({
               const isExpanded = expandedKeywords.has(key);
               const verseGroups = groupByVerse(keywordItems);
               const sortedVerseGroups = sortVerseGroups(verseGroups);
-              const withYears = keywordItems.find(p => p.yearStart != null || p.yearEnd != null);
+              const withYears = people.find(p => {
+                const k = p.presetId || `manual:${p.name.toLowerCase().trim()}`;
+                return k === key && (p.yearStart != null || p.yearEnd != null);
+              });
               const isEditingYears = editingGroupYears === key;
               return (
                 <div key={key} className="bg-scripture-surface rounded-xl border border-scripture-border/50 overflow-hidden">
@@ -446,7 +457,7 @@ export function PeopleTracker({
                       </span>
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleStartEditGroupYears(key, keywordItems); }}
+                      onClick={(e) => { e.stopPropagation(); handleStartEditGroupYears(key); }}
                       className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated shrink-0"
                       title="Edit years"
                     >
@@ -495,7 +506,7 @@ export function PeopleTracker({
                         </div>
                         <div className="flex items-center gap-1.5">
                           <button
-                            onClick={() => handleSaveGroupYears(keywordItems)}
+                            onClick={() => handleSaveGroupYears(key)}
                             className="px-3 py-1 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
                           >
                             Save
