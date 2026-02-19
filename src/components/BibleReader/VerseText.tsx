@@ -690,8 +690,6 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const symbolColor = symAnn.color ? getHighlightColorHex(symAnn.color) : undefined;
           annotationIds.push(symAnn.id);
           const textStyles = combinedStyles.length ? ` style="${combinedStyles.join('; ')}"` : '';
-          const allStyles = ['position: relative', 'display: inline-flex', 'align-items: baseline'];
-          const styleAttr = ` style="${allStyles.join('; ')}"`;
           const classNames = `symbol-inline annotation-group ${annotationIds.map(id => `annotation-${id}`).join(' ')}`;
           // Only show remove button for real annotations (non-virtual)
           const isVirtual = !symAnn.moduleId || symAnn.moduleId === '';
@@ -709,14 +707,13 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const trailingPunct = trailingPunctMatch ? trailingPunctMatch[1] : '';
           const wordContent = trailingPunct ? segmentText.slice(0, -trailingPunct.length) : segmentText;
           
-          htmlSegments.push(`<span${styleAttr} class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">
-              <span class="symbol-before" style="margin-right: 0.2em; font-size: 1.1em; line-height: 1; ${symbolColor ? `color: ${symbolColor};` : 'color: currentColor;'}">${symbolText}</span>
+          htmlSegments.push(`<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">
+              <span class="symbol-before" style="margin-right: 0.2em; font-size: 1.1em; ${symbolColor ? `color: ${symbolColor};` : 'color: currentColor;'}">${symbolText}</span>
               <span class="annotation-text"${textStyles}>${escapeHtml(wordContent)}</span>${escapeHtml(trailingPunct)}${removeButton}
             </span>`);
         } else {
           // Only text annotations
-          const allStyles = ['position: relative', 'display: inline-block', ...combinedStyles];
-          const styleAttr = ` style="${allStyles.join('; ')}"`;
+          const styleAttr = combinedStyles.length ? ` style="${combinedStyles.join('; ')}"` : '';
           const classNames = `annotation-group ${annotationIds.map(id => `annotation-${id}`).join(' ')}`;
           // Only show remove button for real annotations (non-virtual)
           const firstAnn = segment.annotations[0];
