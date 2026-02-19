@@ -7,12 +7,12 @@
 import { useState, useEffect } from 'react';
 import { useStudyStore } from '@/stores/studyStore';
 import { getBookById, BIBLE_BOOKS } from '@/types/bible';
-import { ChapterAtAGlance, BookOverview, ThemeTracker } from './';
+import { ChapterAtAGlance, BookOverview, ThemeTracker, Timeline } from './';
 import { ConfirmationDialog, DropdownSelect, Input } from '@/components/shared';
 import { InterpretationWorksheet } from '@/components/Interpretation';
 import { ApplicationWorksheet } from '@/components/Application';
 
-type StudyToolTab = 'chapter' | 'book' | 'theme' | 'studies' | 'interpretation' | 'application';
+type StudyToolTab = 'chapter' | 'book' | 'theme' | 'studies' | 'interpretation' | 'application' | 'timeline';
 
 interface StudyToolsPanelProps {
   onClose: () => void;
@@ -37,6 +37,7 @@ export function StudyToolsPanel({ onClose: _onClose, initialTab = 'book' }: Stud
     { id: 'book', label: 'Overview', icon: '📚' },
     { id: 'chapter', label: 'Chapter', icon: '📄' },
     { id: 'theme', label: 'Theme', icon: '🔍' },
+    { id: 'timeline', label: 'Timeline', icon: '📅' },
     { id: 'interpretation', label: 'Interpretation', icon: '💭' },
     { id: 'application', label: 'Application', icon: '✍️' },
     { id: 'studies', label: 'Studies', icon: '📖' },
@@ -145,6 +146,11 @@ export function StudyToolsPanel({ onClose: _onClose, initialTab = 'book' }: Stud
             {activeTab === 'theme' && (
               <div role="tabpanel" id="study-tabpanel-theme" aria-labelledby="study-tab-theme">
                 <ThemeTracker />
+              </div>
+            )}
+            {activeTab === 'timeline' && (
+              <div role="tabpanel" id="study-tabpanel-timeline" aria-labelledby="study-tab-timeline">
+                <Timeline />
               </div>
             )}
             {activeTab === 'interpretation' && (

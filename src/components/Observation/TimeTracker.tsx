@@ -196,12 +196,11 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newExpression, setNewExpression] = useState('');
   const [newNotes, setNewNotes] = useState('');
-  const [newYear, setNewYear] = useState<number | ''>('');
-  const [newYearEra, setNewYearEra] = useState<'BC' | 'AD'>('AD');
   const [editingExpression, setEditingExpression] = useState('');
   const [editingNotes, setEditingNotes] = useState('');
-  const [editingYear, setEditingYear] = useState<number | ''>('');
-  const [editingYearEra, setEditingYearEra] = useState<'BC' | 'AD'>('AD');
+  const [editingGroupYear, setEditingGroupYear] = useState<string | null>(null);
+  const [groupYear, setGroupYear] = useState('');
+  const [groupYearEra, setGroupYearEra] = useState<'BC' | 'AD'>('BC');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [addingObservationToId, setAddingObservationToId] = useState<string | null>(null);
   const [newObservation, setNewObservation] = useState('');
@@ -293,7 +292,7 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
   }, [currentBook]);
 
   useEffect(() => {
-    if (isCreating) setNewYearEra(defaultYearEra);
+    if (isCreating) setGroupYearEra(defaultYearEra);
   }, [isCreating, defaultYearEra]);
 
   const handleCreate = async () => {
@@ -303,23 +302,15 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
       return;
     }
 
-    const yearVal = newYear === '' ? undefined : newYear;
     await createTimeExpression(
       newExpression.trim(),
       verseRef,
       newNotes.trim() || undefined,
-      undefined, // presetId - manual entry, no preset
-      undefined, // annotationId - manual entry, no annotation
-      undefined, // timeOrder - will be assigned if needed
-      undefined, // studyId
-      yearVal,
-      yearVal !== undefined ? newYearEra : undefined
     );
 
     setIsCreating(false);
     setNewExpression('');
     setNewNotes('');
-    setNewYear('');
     loadTimeExpressions();
   };
 
@@ -327,22 +318,18 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
     setIsCreating(false);
     setNewExpression('');
     setNewNotes('');
-    setNewYear('');
   };
 
   const handleStartEdit = (timeExpression: TimeExpression) => {
     setEditingId(timeExpression.id);
     setEditingExpression(timeExpression.expression);
     setEditingNotes(timeExpression.notes || '');
-    setEditingYear(timeExpression.year ?? '');
-    setEditingYearEra(timeExpression.yearEra ?? defaultYearEra);
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditingExpression('');
     setEditingNotes('');
-    setEditingYear('');
   };
 
   const handleSaveEdit = async (timeExpressionId: string) => {
@@ -354,19 +341,35 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
     const timeExpression = timeExpressions.find(t => t.id === timeExpressionId);
     if (!timeExpression) return;
 
-    const yearVal = editingYear === '' ? undefined : editingYear;
     await updateTimeExpression({
       ...timeExpression,
       expression: editingExpression.trim(),
       notes: editingNotes.trim() || undefined,
-      year: yearVal,
-      yearEra: yearVal !== undefined ? editingYearEra : undefined,
     });
 
     setEditingId(null);
     setEditingExpression('');
     setEditingNotes('');
-    setEditingYear('');
+    loadTimeExpressions();
+  };
+
+  const handleStartEditGroupYear = (groupKey: string, items: TimeExpression[]) => {
+    const withYear = items.find(t => t.year != null);
+    setEditingGroupYear(groupKey);
+    setGroupYear(withYear?.year?.toString() || '');
+    setGroupYearEra(withYear?.yearEra || defaultYearEra);
+  };
+
+  const handleSaveGroupYear = async (items: TimeExpression[]) => {
+    const yearVal = groupYear ? parseInt(groupYear, 10) : undefined;
+    for (const te of items) {
+      await updateTimeExpression({
+        ...te,
+        year: yearVal !== undefined && !isNaN(yearVal) ? yearVal : undefined,
+        yearEra: yearVal !== undefined && !isNaN(yearVal) ? groupYearEra : undefined,
+      });
+    }
+    setEditingGroupYear(null);
     loadTimeExpressions();
   };
 
@@ -444,17 +447,6 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
     return sortKeywordGroups(grouped);
   }, [filteredTimeExpressions, presetMap]);
 
-  // Timeline: entries with year/yearEra, sorted chronologically (BC before AD)
-  const timelineEntries = useMemo(() => {
-    const withYear = filteredTimeExpressions.filter(t => t.year != null && t.yearEra);
-    if (withYear.length === 0) return [];
-    return [...withYear].sort((a, b) => {
-      const numA = (a.yearEra === 'BC' ? -1 : 1) * (a.year ?? 0);
-      const numB = (b.yearEra === 'BC' ? -1 : 1) * (b.year ?? 0);
-      return numA - numB;
-    });
-  }, [filteredTimeExpressions]);
-
   const toggleKeyword = (key: string) => {
     setExpandedKeywords(prev => {
       const next = new Set(prev);
@@ -487,37 +479,6 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
         destructive={true}
       />
       <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-      {/* Timeline at top - when any time expressions have year set */}
-      {timelineEntries.length > 0 && (
-        <div className="mb-4 overflow-x-auto custom-scrollbar">
-          <div className="flex gap-4 min-w-max py-2 px-2 bg-scripture-surface rounded-lg border border-scripture-border/30">
-            {timelineEntries.map((te) => (
-              <div
-                key={te.id}
-                className="flex flex-col items-center shrink-0 min-w-[4rem]"
-              >
-                <span className="text-xs font-medium text-scripture-text">
-                  {te.year} {te.yearEra}
-                </span>
-                <span className="text-[10px] text-scripture-muted mt-0.5">—</span>
-                {onNavigate ? (
-                  <button
-                    onClick={() => onNavigate(te.verseRef)}
-                    className="text-xs text-scripture-accent hover:text-scripture-accent/80 underline cursor-pointer mt-0.5"
-                    title="Navigate to verse"
-                  >
-                    {formatVerseRef(te.verseRef.book, te.verseRef.chapter, te.verseRef.verse)}
-                  </button>
-                ) : (
-                  <span className="text-xs text-scripture-accent mt-0.5">
-                    {formatVerseRef(te.verseRef.book, te.verseRef.chapter, te.verseRef.verse)}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
       {/* Create new time expression button and Current Chapter Only */}
       {!isCreating && (
         <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -566,38 +527,6 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
               placeholder="Additional notes about this time expression"
               rows={2}
             />
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-scripture-muted">Year (optional)</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={newYear}
-                  onChange={(e) => setNewYear(e.target.value === '' ? '' : parseInt(e.target.value, 10) || '')}
-                  placeholder="e.g., 233, 586, 33"
-                  className="w-24 px-2 py-1.5 text-sm bg-scripture-surface border border-scripture-border/50 rounded text-scripture-text focus:outline-none focus:ring-2 focus:ring-scripture-accent"
-                />
-                <label className="flex items-center gap-1.5 text-sm text-scripture-text cursor-pointer">
-                  <input
-                    type="radio"
-                    name="newYearEra"
-                    checked={newYearEra === 'BC'}
-                    onChange={() => setNewYearEra('BC')}
-                    className="accent-scripture-accent"
-                  />
-                  BC
-                </label>
-                <label className="flex items-center gap-1.5 text-sm text-scripture-text cursor-pointer">
-                  <input
-                    type="radio"
-                    name="newYearEra"
-                    checked={newYearEra === 'AD'}
-                    onChange={() => setNewYearEra('AD')}
-                    className="accent-scripture-accent"
-                  />
-                  AD
-                </label>
-              </div>
-            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleCreate}
@@ -644,21 +573,76 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
           {keywordGroups.map(({ key, label, items: keywordItems }) => {
             const isExpanded = expandedKeywords.has(key);
             const chapterGroups = groupByChapter(keywordItems);
+            const withYear = keywordItems.find(t => t.year != null);
+            const isEditingYear = editingGroupYear === key;
 
             return (
               <div key={key} className="bg-scripture-surface rounded-xl border border-scripture-border/50 overflow-hidden">
-                <button
-                  onClick={() => toggleKeyword(key)}
-                  className="w-full p-4 text-left flex items-center gap-2 hover:bg-scripture-elevated/50 transition-colors"
-                >
-                  <span className="text-xs text-scripture-muted shrink-0" aria-hidden="true">
-                    {isExpanded ? '▼' : '▶'}
-                  </span>
-                  <h3 className="font-medium text-scripture-text">{label}</h3>
-                  <span className="text-xs text-scripture-muted bg-scripture-elevated px-2 py-0.5 rounded">
-                    {keywordItems.length} {keywordItems.length === 1 ? 'entry' : 'entries'}
-                  </span>
-                </button>
+                <div className="flex items-center gap-2 p-4 hover:bg-scripture-elevated/50 transition-colors">
+                  <button
+                    onClick={() => toggleKeyword(key)}
+                    className="flex-1 text-left flex items-center gap-2"
+                  >
+                    <span className="text-xs text-scripture-muted shrink-0" aria-hidden="true">
+                      {isExpanded ? '▼' : '▶'}
+                    </span>
+                    <h3 className="font-medium text-scripture-text">{label}</h3>
+                    {withYear && !isEditingYear && (
+                      <span className="text-xs text-scripture-muted">
+                        {withYear.year} {withYear.yearEra ?? 'AD'}
+                      </span>
+                    )}
+                    <span className="text-xs text-scripture-muted bg-scripture-elevated px-2 py-0.5 rounded">
+                      {keywordItems.length} {keywordItems.length === 1 ? 'entry' : 'entries'}
+                    </span>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleStartEditGroupYear(key, keywordItems); }}
+                    className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated shrink-0"
+                    title="Edit year"
+                  >
+                    📅
+                  </button>
+                </div>
+                {isEditingYear && (
+                  <div className="border-t border-scripture-border/30 px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs text-scripture-muted whitespace-nowrap">Year</label>
+                        <input
+                          type="number"
+                          value={groupYear}
+                          onChange={(e) => setGroupYear(e.target.value)}
+                          placeholder="e.g. 586"
+                          className="w-20 px-2 py-1 text-xs bg-scripture-bg border border-scripture-border rounded text-scripture-text"
+                          autoFocus
+                        />
+                        <select
+                          value={groupYearEra}
+                          onChange={(e) => setGroupYearEra(e.target.value as 'BC' | 'AD')}
+                          className="px-1.5 py-1 text-xs bg-scripture-bg border border-scripture-border rounded text-scripture-text"
+                        >
+                          <option value="BC">BC</option>
+                          <option value="AD">AD</option>
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleSaveGroupYear(keywordItems)}
+                          className="px-3 py-1 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditingGroupYear(null)}
+                          className="px-3 py-1 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {isExpanded && (
                   <div className="border-t border-scripture-border/30 p-3 space-y-2">
                     {chapterGroups.map((chGroup) => {
@@ -738,38 +722,6 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
                                                   onChange={(e) => setEditingNotes(e.target.value)}
                                                   rows={2}
                                                 />
-                                                <div className="space-y-2">
-                                                  <label className="text-xs font-medium text-scripture-muted">Year (optional)</label>
-                                                  <div className="flex items-center gap-2">
-                                                    <input
-                                                      type="number"
-                                                      value={editingYear}
-                                                      onChange={(e) => setEditingYear(e.target.value === '' ? '' : parseInt(e.target.value, 10) || '')}
-                                                      placeholder="e.g., 233, 586, 33"
-                                                      className="w-24 px-2 py-1.5 text-sm bg-scripture-surface border border-scripture-border/50 rounded text-scripture-text focus:outline-none focus:ring-2 focus:ring-scripture-accent"
-                                                    />
-                                                    <label className="flex items-center gap-1.5 text-sm text-scripture-text cursor-pointer">
-                                                      <input
-                                                        type="radio"
-                                                        name={`editYearEra-${timeExpression.id}`}
-                                                        checked={editingYearEra === 'BC'}
-                                                        onChange={() => setEditingYearEra('BC')}
-                                                        className="accent-scripture-accent"
-                                                      />
-                                                      BC
-                                                    </label>
-                                                    <label className="flex items-center gap-1.5 text-sm text-scripture-text cursor-pointer">
-                                                      <input
-                                                        type="radio"
-                                                        name={`editYearEra-${timeExpression.id}`}
-                                                        checked={editingYearEra === 'AD'}
-                                                        onChange={() => setEditingYearEra('AD')}
-                                                        className="accent-scripture-accent"
-                                                      />
-                                                      AD
-                                                    </label>
-                                                  </div>
-                                                </div>
                                                 <div className="flex items-center gap-2">
                                                   <button
                                                     onClick={() => handleSaveEdit(timeExpression.id)}
@@ -792,11 +744,6 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
                                                   <div className="flex-1">
                                                     <span className="text-sm font-medium text-scripture-text">
                                                       🕐 {timeExpression.expression}
-                                                      {timeExpression.year != null && (
-                                                        <span className="ml-2 text-scripture-muted text-xs">
-                                                          ({timeExpression.year} {timeExpression.yearEra || 'AD'})
-                                                        </span>
-                                                      )}
                                                     </span>
                                                   </div>
                                                   <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover/time:opacity-100 transition-opacity">
