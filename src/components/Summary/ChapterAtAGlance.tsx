@@ -12,8 +12,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { 
   getChapterTitle, 
   getChapterHeadings, 
-  getChapterAnnotations,
-  getMarkingPreset,
+  getCachedChapter,
   getAllObservationLists,
 } from '@/lib/database';
 import type { ChapterTitle, SectionHeading } from '@/types/annotation';
@@ -21,6 +20,8 @@ import { SYMBOLS } from '@/types/annotation';
 import type { MarkingPreset } from '@/types/keyWord';
 import type { ObservationList } from '@/types/list';
 import { getBookById } from '@/types/bible';
+import { findKeywordMatches } from '@/lib/keywordMatching';
+import { filterPresetsByStudy } from '@/lib/studyFilter';
 
 interface ChapterSummary {
   title: ChapterTitle | null;
@@ -43,6 +44,11 @@ interface ChapterAtAGlanceProps {
   onEditTheme?: () => void; // For opening theme editor in ObservationToolsPanel
 }
 
+function extractPlainText(html: string): string {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return doc.body.textContent || doc.body.innerText || '';
+}
+
 export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, onEditTheme }: ChapterAtAGlanceProps = {}) {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { activeView } = useMultiTranslationStore();
@@ -57,6 +63,14 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
   
   const bookInfo = useMemo(() => getBookById(currentBook), [currentBook]);
   
+  const relevantPresets = useMemo(() => {
+    return filterPresetsByStudy(presets, activeStudyId).filter((preset) => {
+      if (!preset.word) return false;
+      if (preset.bookScope && preset.bookScope !== currentBook) return false;
+      return true;
+    });
+  }, [presets, currentBook, activeStudyId]);
+  
   useEffect(() => {
     async function loadSummary() {
       if (!primaryTranslationId || !currentBook || !currentChapter) {
@@ -70,31 +84,37 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
         const title = await getChapterTitle(null, currentBook, currentChapter, activeStudyId);
         const headings = await getChapterHeadings(null, currentBook, currentChapter, activeStudyId);
         
-        // Load annotations to find keywords used
-        const annotations = await getChapterAnnotations(primaryTranslationId, currentBook, currentChapter);
+        // Find keywords via text matching (includes auto-highlighted words)
+        const keywordMap = new Map<string, { preset: MarkingPreset; count: number }>();
+        const cached = await getCachedChapter(primaryTranslationId, currentBook, currentChapter);
         
-        // Group annotations by presetId to count keyword usage
-        const keywordMap = new Map<string, { preset: MarkingPreset | null; count: number }>();
-        
-        for (const ann of annotations) {
-          if (ann.presetId) {
-            const existing = keywordMap.get(ann.presetId);
-            if (existing) {
-              existing.count++;
-            } else {
-              const preset = await getMarkingPreset(ann.presetId);
-              if (preset && preset.word) {
-                keywordMap.set(ann.presetId, { preset, count: 1 });
+        if (cached && cached.verses) {
+          for (const [verseNumStr, verseText] of Object.entries(cached.verses)) {
+            const verseNum = parseInt(verseNumStr, 10);
+            if (isNaN(verseNum) || !verseText) continue;
+            
+            const plainText = extractPlainText(String(verseText));
+            const verseRef = { book: currentBook, chapter: currentChapter, verse: verseNum };
+            const matches = findKeywordMatches(plainText, verseRef, relevantPresets, primaryTranslationId);
+            
+            for (const ann of matches) {
+              if (ann.presetId) {
+                const existing = keywordMap.get(ann.presetId);
+                if (existing) {
+                  existing.count++;
+                } else {
+                  const preset = relevantPresets.find(p => p.id === ann.presetId);
+                  if (preset) {
+                    keywordMap.set(ann.presetId, { preset, count: 1 });
+                  }
+                }
               }
             }
           }
         }
         
-        // Convert to array and filter out null presets
         const keywords = Array.from(keywordMap.values())
-          .filter(item => item.preset !== null)
-          .map(item => ({ preset: item.preset!, count: item.count }))
-          .sort((a, b) => b.count - a.count); // Sort by count descending
+          .sort((a, b) => b.count - a.count);
         
         const allLists = await getAllObservationLists();
         const filteredLists = allLists.filter(
@@ -127,7 +147,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
     }
     
     loadSummary();
-  }, [primaryTranslationId, currentBook, currentChapter, activeStudyId]);
+  }, [primaryTranslationId, currentBook, currentChapter, activeStudyId, relevantPresets]);
   
   if (isLoading) {
     return (
@@ -312,7 +332,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
                 className="inline-flex items-center gap-1.5 px-2 py-1 bg-scripture-elevated rounded text-sm"
               >
                 {preset.symbol && (
-                  <span className="text-base">{preset.symbol}</span>
+                  <span className="text-base">{SYMBOLS[preset.symbol]}</span>
                 )}
                 {preset.highlight && (
                   <span
