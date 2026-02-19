@@ -129,9 +129,4 @@ Highlight colors are user-selected and remain constant across themes:
 
 ## Migration Status
 
-Mostly complete. Remaining hardcoded Tailwind colors (as of v0.7.8):
-
-- `SyncStatusIndicator.tsx` — uses `text-green-*`, `text-red-*`, `text-yellow-*`, `bg-green-*`, etc. for sync state colors
-- `SettingsPanel.tsx` — minor hardcoded color usage
-
-These are low-priority since the sync indicator uses colors for quick status recognition that map closely to the semantic palette.
+Complete. All components use semantic color tokens.

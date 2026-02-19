@@ -1056,10 +1056,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     <div className="p-3 bg-scripture-elevated/50 rounded-lg border border-scripture-border/50 space-y-2">
                       <div className="flex items-center gap-2">
                         <span className={`inline-block w-2.5 h-2.5 rounded-full ${
-                          syncStatus.state === 'synced' ? 'bg-green-500' :
-                          syncStatus.state === 'syncing' ? 'bg-blue-500' :
-                          syncStatus.state === 'error' ? 'bg-red-500' :
-                          'bg-gray-400'
+                          syncStatus.state === 'synced' ? 'bg-scripture-success' :
+                          syncStatus.state === 'syncing' ? 'bg-scripture-info' :
+                          syncStatus.state === 'error' ? 'bg-scripture-error' :
+                          'bg-scripture-muted'
                         }`} />
                         <span className="text-sm font-medium text-scripture-text">
                           {getSyncStatusMessage(syncStatus)}

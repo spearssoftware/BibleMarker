@@ -12,7 +12,6 @@ BibleMarker uses **Tauri 2** for all native platforms — desktop and mobile —
 | **Windows** | Tauri 2 (desktop) | Shipping |
 | **Linux** | Tauri 2 (desktop) | Shipping |
 | **iOS** | Tauri 2 (mobile) | In development |
-| **Web** | Vite (PWA) | Shipping |
 
 Tauri 2 added first-class iOS (and Android) support, so a single framework covers all platforms.
 
@@ -72,7 +71,6 @@ Tauri 2 added first-class iOS (and Android) support, so a single framework cover
 | iOS (Tauri) | SQLite (local) | iCloud Drive (journal-based) |
 | Windows (Tauri) | SQLite (local) | Manual backup (future: OneDrive) |
 | Linux (Tauri) | SQLite (local) | Manual backup |
-| Web | IndexedDB (Dexie) | Manual backup |
 
 See [ICLOUD_SYNC.md](./ICLOUD_SYNC.md) for details on the journal-based sync system.
 
@@ -82,12 +80,10 @@ See [ICLOUD_SYNC.md](./ICLOUD_SYNC.md) for details on the journal-based sync sys
 
 ```bash
 # Development
-pnpm dev                  # Web only
 pnpm run tauri:dev        # macOS desktop (uses scripts/tauri-dev.sh)
 pnpm run ios:dev          # iOS simulator
 
 # Production builds
-pnpm build                # Web
 pnpm run tauri:build      # macOS/Windows/Linux (uses scripts/tauri-build.sh)
 pnpm run ios:build        # iOS
 

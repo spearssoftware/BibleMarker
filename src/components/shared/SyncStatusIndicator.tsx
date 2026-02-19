@@ -57,12 +57,12 @@ export function SyncStatusIndicator({
 
   const getStatusColor = () => {
     switch (status.state) {
-      case 'synced': return 'text-green-500';
-      case 'syncing': return 'text-blue-500';
-      case 'offline': return 'text-yellow-500';
-      case 'error': return 'text-red-500';
-      case 'unavailable': return 'text-gray-400';
-      default: return 'text-gray-400';
+      case 'synced': return 'text-scripture-success';
+      case 'syncing': return 'text-scripture-info';
+      case 'offline': return 'text-scripture-warning';
+      case 'error': return 'text-scripture-error';
+      case 'unavailable': return 'text-scripture-muted';
+      default: return 'text-scripture-muted';
     }
   };
 
@@ -200,7 +200,7 @@ function SyncDetailsPanel({
             <div className="space-y-1">
               {status.connected_devices.map((device, i) => (
                 <div key={i} className="text-sm text-gray-400 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-green-500" />
+                  <span className="w-2 h-2 rounded-full bg-scripture-success" />
                   {device}
                 </div>
               ))}
@@ -253,13 +253,13 @@ function SyncDetailsPanel({
 
 function getStatusColorClass(state: SyncStatus['state']): string {
   switch (state) {
-    case 'synced': return 'text-green-500';
-    case 'syncing': return 'text-blue-500';
-    case 'offline': return 'text-yellow-500';
-    case 'error': return 'text-red-500';
-    case 'unavailable': return 'text-gray-400';
-    case 'disabled': return 'text-gray-400';
-    default: return 'text-gray-400';
+    case 'synced': return 'text-scripture-success';
+    case 'syncing': return 'text-scripture-info';
+    case 'offline': return 'text-scripture-warning';
+    case 'error': return 'text-scripture-error';
+    case 'unavailable': return 'text-scripture-muted';
+    case 'disabled': return 'text-scripture-muted';
+    default: return 'text-scripture-muted';
   }
 }
 
