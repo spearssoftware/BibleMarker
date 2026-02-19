@@ -62,12 +62,12 @@ function groupByKeyword(
 ): Array<{ key: string; label: string; items: Person[] }> {
   const byKey = new Map<string, Person[]>();
   for (const item of items) {
-    const key = item.presetId || 'manual';
+    const key = item.presetId || `manual:${item.name.toLowerCase().trim()}`;
     if (!byKey.has(key)) byKey.set(key, []);
     byKey.get(key)!.push(item);
   }
   return Array.from(byKey.entries()).map(([key, keywordItems]) => {
-    const label = key === 'manual' ? 'Manual' : (presetMap.get(key)?.word ?? 'Unknown');
+    const label = key.startsWith('manual:') ? keywordItems[0].name : (presetMap.get(key)?.word ?? 'Unknown');
     return { key, label, items: keywordItems };
   });
 }
@@ -76,8 +76,8 @@ function sortKeywordGroups(
   groups: Array<{ key: string; label: string; items: Person[] }>
 ): Array<{ key: string; label: string; items: Person[] }> {
   return [...groups].sort((a, b) => {
-    if (a.key === 'manual' && b.key !== 'manual') return 1;
-    if (b.key === 'manual' && a.key !== 'manual') return -1;
+    if (a.key.startsWith('manual:') && !b.key.startsWith('manual:')) return 1;
+    if (b.key.startsWith('manual:') && !a.key.startsWith('manual:')) return -1;
     const nameCmp = a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
     if (nameCmp !== 0) return nameCmp;
     const minVerse = (items: Person[]) => {
@@ -134,6 +134,11 @@ export function PeopleTracker({
   const [newNotes, setNewNotes] = useState('');
   const [editingName, setEditingName] = useState('');
   const [editingNotes, setEditingNotes] = useState('');
+  const [editingGroupYears, setEditingGroupYears] = useState<string | null>(null);
+  const [groupYearStart, setGroupYearStart] = useState('');
+  const [groupYearStartEra, setGroupYearStartEra] = useState<'BC' | 'AD'>('BC');
+  const [groupYearEnd, setGroupYearEnd] = useState('');
+  const [groupYearEndEra, setGroupYearEndEra] = useState<'BC' | 'AD'>('BC');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [addingObservationToId, setAddingObservationToId] = useState<string | null>(null);
   const [newObservation, setNewObservation] = useState('');
@@ -213,6 +218,31 @@ export function PeopleTracker({
     setEditingId(null);
     setEditingName('');
     setEditingNotes('');
+    loadPeople();
+  };
+
+  const handleStartEditGroupYears = (groupKey: string, items: Person[]) => {
+    const withYears = items.find(p => p.yearStart != null || p.yearEnd != null);
+    setEditingGroupYears(groupKey);
+    setGroupYearStart(withYears?.yearStart?.toString() || '');
+    setGroupYearStartEra(withYears?.yearStartEra || 'BC');
+    setGroupYearEnd(withYears?.yearEnd?.toString() || '');
+    setGroupYearEndEra(withYears?.yearEndEra || 'BC');
+  };
+
+  const handleSaveGroupYears = async (items: Person[]) => {
+    const yearStart = groupYearStart ? parseInt(groupYearStart, 10) : undefined;
+    const yearEnd = groupYearEnd ? parseInt(groupYearEnd, 10) : undefined;
+    for (const person of items) {
+      await updatePerson({
+        ...person,
+        yearStart: yearStart !== undefined && !isNaN(yearStart) ? yearStart : undefined,
+        yearStartEra: yearStart !== undefined && !isNaN(yearStart) ? groupYearStartEra : undefined,
+        yearEnd: yearEnd !== undefined && !isNaN(yearEnd) ? yearEnd : undefined,
+        yearEndEra: yearEnd !== undefined && !isNaN(yearEnd) ? groupYearEndEra : undefined,
+      });
+    }
+    setEditingGroupYears(null);
     loadPeople();
   };
 
@@ -393,18 +423,93 @@ export function PeopleTracker({
               const isExpanded = expandedKeywords.has(key);
               const verseGroups = groupByVerse(keywordItems);
               const sortedVerseGroups = sortVerseGroups(verseGroups);
+              const withYears = keywordItems.find(p => p.yearStart != null || p.yearEnd != null);
+              const isEditingYears = editingGroupYears === key;
               return (
                 <div key={key} className="bg-scripture-surface rounded-xl border border-scripture-border/50 overflow-hidden">
-                  <button
-                    onClick={() => toggleKeyword(key)}
-                    className="w-full p-4 text-left flex items-center gap-2 hover:bg-scripture-elevated/50 transition-colors"
-                  >
-                    <span className="text-xs text-scripture-muted shrink-0">{isExpanded ? '▼' : '▶'}</span>
-                    <h3 className="font-medium text-scripture-text">{label}</h3>
-                    <span className="text-xs text-scripture-muted bg-scripture-elevated px-2 py-0.5 rounded">
-                      {verseGroups.size} {verseGroups.size === 1 ? 'verse' : 'verses'}
-                    </span>
-                  </button>
+                  <div className="flex items-center gap-2 p-4 hover:bg-scripture-elevated/50 transition-colors">
+                    <button
+                      onClick={() => toggleKeyword(key)}
+                      className="flex-1 text-left flex items-center gap-2"
+                    >
+                      <span className="text-xs text-scripture-muted shrink-0">{isExpanded ? '▼' : '▶'}</span>
+                      <h3 className="font-medium text-scripture-text">{label}</h3>
+                      {withYears && !isEditingYears && (
+                        <span className="text-xs text-scripture-muted">
+                          {withYears.yearStart != null ? `${withYears.yearStart} ${withYears.yearStartEra ?? 'BC'}` : '?'}
+                          {' — '}
+                          {withYears.yearEnd != null ? `${withYears.yearEnd} ${withYears.yearEndEra ?? 'BC'}` : '?'}
+                        </span>
+                      )}
+                      <span className="text-xs text-scripture-muted bg-scripture-elevated px-2 py-0.5 rounded">
+                        {verseGroups.size} {verseGroups.size === 1 ? 'verse' : 'verses'}
+                      </span>
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleStartEditGroupYears(key, keywordItems); }}
+                      className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated shrink-0"
+                      title="Edit years"
+                    >
+                      📅
+                    </button>
+                  </div>
+                  {isEditingYears && (
+                    <div className="border-t border-scripture-border/30 px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs text-scripture-muted whitespace-nowrap">Year Start</label>
+                          <input
+                            type="number"
+                            value={groupYearStart}
+                            onChange={(e) => setGroupYearStart(e.target.value)}
+                            placeholder="e.g. 970"
+                            className="w-20 px-2 py-1 text-xs bg-scripture-bg border border-scripture-border rounded text-scripture-text"
+                            autoFocus
+                          />
+                          <select
+                            value={groupYearStartEra}
+                            onChange={(e) => setGroupYearStartEra(e.target.value as 'BC' | 'AD')}
+                            className="px-1.5 py-1 text-xs bg-scripture-bg border border-scripture-border rounded text-scripture-text"
+                          >
+                            <option value="BC">BC</option>
+                            <option value="AD">AD</option>
+                          </select>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs text-scripture-muted whitespace-nowrap">Year End</label>
+                          <input
+                            type="number"
+                            value={groupYearEnd}
+                            onChange={(e) => setGroupYearEnd(e.target.value)}
+                            placeholder="e.g. 930"
+                            className="w-20 px-2 py-1 text-xs bg-scripture-bg border border-scripture-border rounded text-scripture-text"
+                          />
+                          <select
+                            value={groupYearEndEra}
+                            onChange={(e) => setGroupYearEndEra(e.target.value as 'BC' | 'AD')}
+                            className="px-1.5 py-1 text-xs bg-scripture-bg border border-scripture-border rounded text-scripture-text"
+                          >
+                            <option value="BC">BC</option>
+                            <option value="AD">AD</option>
+                          </select>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleSaveGroupYears(keywordItems)}
+                            className="px-3 py-1 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingGroupYears(null)}
+                            className="px-3 py-1 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {isExpanded && (
                     <div className="border-t border-scripture-border/30 p-3 space-y-3">
                       {sortedVerseGroups.map(([verseKey, versePeople]) => {
@@ -450,7 +555,9 @@ export function PeopleTracker({
                                     ) : (
                                       <>
                                         <div className="flex items-start gap-2">
-                                          <div className="flex-1"><span className="text-sm font-medium text-scripture-text">👤 {person.name}</span></div>
+                                          <div className="flex-1">
+                                            <span className="text-sm font-medium text-scripture-text">👤 {person.name}</span>
+                                          </div>
                                           <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover/person:opacity-100 transition-opacity">
                                             <button onClick={() => handleStartEdit(person)} className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated" title="Edit person">✏️</button>
                                             <button onClick={() => handleDeleteClick(person.id)} className="px-2 py-1 text-xs text-highlight-red hover:text-highlight-red/80 transition-colors rounded hover:bg-scripture-elevated" title="Delete person">🗑️</button>

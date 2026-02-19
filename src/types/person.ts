@@ -15,6 +15,10 @@ export interface Person {
   presetId?: string;
   annotationId?: string;
   studyId?: string;
+  yearStart?: number;
+  yearStartEra?: 'BC' | 'AD';
+  yearEnd?: number;
+  yearEndEra?: 'BC' | 'AD';
   createdAt: Date;
   updatedAt: Date;
 }

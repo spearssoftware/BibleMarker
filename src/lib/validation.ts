@@ -544,6 +544,18 @@ export function validatePerson(person: unknown): Person {
   if (p.annotationId !== undefined && typeof p.annotationId !== 'string') {
     throw new ValidationError('Person annotationId must be a string if provided', 'annotationId', p.annotationId);
   }
+  if (p.yearStart !== undefined && typeof p.yearStart !== 'number') {
+    throw new ValidationError('Person yearStart must be a number if provided', 'yearStart', p.yearStart);
+  }
+  if (p.yearStartEra !== undefined && p.yearStartEra !== 'BC' && p.yearStartEra !== 'AD') {
+    throw new ValidationError('Person yearStartEra must be BC or AD if provided', 'yearStartEra', p.yearStartEra);
+  }
+  if (p.yearEnd !== undefined && typeof p.yearEnd !== 'number') {
+    throw new ValidationError('Person yearEnd must be a number if provided', 'yearEnd', p.yearEnd);
+  }
+  if (p.yearEndEra !== undefined && p.yearEndEra !== 'BC' && p.yearEndEra !== 'AD') {
+    throw new ValidationError('Person yearEndEra must be BC or AD if provided', 'yearEndEra', p.yearEndEra);
+  }
   validateDate(p.createdAt, 'createdAt');
   validateDate(p.updatedAt, 'updatedAt');
   return p;
