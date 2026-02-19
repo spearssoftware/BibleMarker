@@ -4,7 +4,7 @@
  * Bottom toolbar for Precept-style marking with colors, highlights, and symbols.
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
@@ -19,14 +19,12 @@ import { StudyToolsPanel } from '@/components/Summary';
 import { SettingsPanel } from '@/components/Settings';
 import { ObservationToolsPanel, type ObservationTab } from '@/components/Observation';
 import { ConfirmationDialog } from '@/components/shared';
-import { getHighlightColorHex, SYMBOLS } from '@/types/annotation';
 import { clearDatabase } from '@/lib/database';
 import { resetAllStores } from '@/lib/storeReset';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { findMatchingPresets, type MarkingPreset } from '@/types/keyWord';
-import { filterPresetsByStudy, filterAnnotationsByStudy } from '@/lib/studyFilter';
-import type { TextAnnotation, SymbolAnnotation } from '@/types/annotation';
+import type { MarkingPreset } from '@/types/keyWord';
+import { filterPresetsByStudy } from '@/lib/studyFilter';
 
 const COLOR_STYLES = ['highlight', 'textColor', 'underline'] as const;
 const COLOR_STYLE_LABELS: Record<(typeof COLOR_STYLES)[number], string> = {
@@ -54,7 +52,6 @@ export function Toolbar() {
     clearSelection,
     toolbarVisible,
     preferences,
-    annotations,
   } = useAnnotationStore();
 
   useBibleStore();
@@ -183,88 +180,6 @@ export function Toolbar() {
   };
 
 
-  // Find previous annotations and matching presets (key words) for the selected word/phrase
-  const previousAnnotations = useMemo(() => {
-    if (!selection?.text) return [];
-
-    const normalizedSelection = selection.text.trim().toLowerCase();
-    const suggestions: Array<{
-      type: 'highlight' | 'textColor' | 'underline' | 'symbol' | 'preset';
-      color?: string;
-      symbol?: string;
-      label: string;
-      icon: string;
-      presetId?: string;
-    }> = [];
-
-    const filteredPresets = filterPresetsByStudy(presets, activeStudyId);
-    const presetMap = new Map(presets.map((p) => [p.id, p]));
-    const filteredAnnotations = filterAnnotationsByStudy(annotations, presetMap, activeStudyId);
-
-    // Check for matching presets (key words) with autoSuggest
-    const matching = findMatchingPresets(selection.text.trim(), filteredPresets);
-    for (const p of matching) {
-      if (p.autoSuggest && p.word) {
-        const sym = p.symbol ? SYMBOLS[p.symbol] : '🔑';
-        const color = p.highlight?.color;
-        suggestions.push({
-          type: 'preset',
-          symbol: p.symbol,
-          color,
-          label: `Key Word: ${p.word}`,
-          icon: sym,
-          presetId: p.id,
-        });
-      }
-    }
-
-    for (const ann of filteredAnnotations) {
-      if (ann.type === 'symbol') {
-        const symAnn = ann as SymbolAnnotation;
-        if (symAnn.selectedText && symAnn.position === 'center') {
-          const normalizedText = symAnn.selectedText.trim().toLowerCase();
-          if (normalizedText === normalizedSelection) {
-            // Avoid duplicates
-            const exists = suggestions.some(s => s.type === 'symbol' && s.symbol === symAnn.symbol);
-            if (!exists) {
-              suggestions.push({
-                type: 'symbol',
-                symbol: symAnn.symbol,
-                color: symAnn.color,
-                label: `Symbol: ${SYMBOLS[symAnn.symbol]}`,
-                icon: SYMBOLS[symAnn.symbol],
-              });
-            }
-          }
-        }
-      } else {
-        const textAnn = ann as TextAnnotation;
-        if (textAnn.selectedText) {
-          const normalizedText = textAnn.selectedText.trim().toLowerCase();
-          if (normalizedText === normalizedSelection) {
-            // Avoid duplicates - check if same type and color already exists
-            const exists = suggestions.some(
-              s => s.type === textAnn.type && s.color === textAnn.color
-            );
-            if (!exists) {
-              const icon = textAnn.type === 'highlight' ? '🖍' : textAnn.type === 'textColor' ? 'A' : 'U̲';
-              const label = textAnn.type === 'highlight' ? 'Highlight' : 
-                          textAnn.type === 'textColor' ? 'Text Color' : 'Underline';
-              
-              suggestions.push({
-                type: textAnn.type,
-                color: textAnn.color,
-                label: `${label}: ${textAnn.color}`,
-                icon,
-              });
-            }
-          }
-        }
-      }
-    }
-
-    return suggestions;
-  }, [selection, annotations, presets, activeStudyId]);
 
   // Apply a key word (preset) to the current selection — e.g. mark "He" as Jesus when context shows it
   const applyPresetToSelection = async (preset: MarkingPreset) => {
@@ -323,20 +238,6 @@ export function Toolbar() {
     const newVariants = [...(preset.variants || []), { text: trimmed }];
     await updatePreset({ ...preset, variants: newVariants });
     await applyPresetToSelection(preset);
-  };
-
-  // Apply suggestion with one click - only presets are supported (no manual annotations)
-  const handleApplySuggestion = async (suggestion: typeof previousAnnotations[0]) => {
-    if (!selection) return;
-    
-    if (suggestion.type === 'preset' && suggestion.presetId) {
-      const preset = presets.find((p) => p.id === suggestion.presetId);
-      if (preset) await applyPresetToSelection(preset);
-      return;
-    }
-    
-    // Manual annotations are no longer supported - all annotations must use keywords/presets
-    // If suggestion doesn't have a presetId, ignore it
   };
 
   const isColorActive = activeTool === 'highlight' || activeTool === 'textColor' || activeTool === 'underline';
@@ -459,72 +360,6 @@ export function Toolbar() {
         />
       )}
 
-      {/* Selection indicator (minimal) */}
-      {selection && (
-        <>
-
-          {/* Smart suggestions - keep this below selection menu */}
-          {previousAnnotations.length > 0 && (
-            <div className="bg-scripture-surface border-t border-scripture-border/50 animate-slide-up">
-              <div className="bg-scripture-surface px-3 py-2 mx-2 my-2 rounded-xl">
-                <div className="p-3">
-                <div className="text-sm text-scripture-text mb-3 font-ui font-semibold">
-                  Previously used for "{selection.text.trim()}":
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {previousAnnotations.map((suggestion, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleApplySuggestion(suggestion)}
-                      className="px-2.5 py-1.5 rounded-lg bg-scripture-elevated border border-scripture-border/50 transition-all duration-200 flex items-center gap-1.5
-                               text-xs font-ui text-scripture-text hover:bg-scripture-border hover:shadow-sm"
-                    title={`Apply ${suggestion.label}`}
-                  >
-                    {suggestion.type !== 'symbol' && suggestion.color && (
-                      <span
-                        className={`rounded border border-scripture-border/30 ${
-                          suggestion.type === 'highlight' ? 'w-4 h-4' : 'w-3 h-3'
-                        }`}
-                        style={{
-                          backgroundColor: suggestion.type === 'highlight'
-                            ? getHighlightColorHex(suggestion.color) + '40'
-                            : getHighlightColorHex(suggestion.color)
-                        }}
-                        title={suggestion.color}
-                      />
-                    )}
-                    {(suggestion.type === 'symbol' || suggestion.type === 'preset') && suggestion.icon ? (
-                      <span
-                        className="text-base"
-                        style={{
-                          color: suggestion.color ? getHighlightColorHex(suggestion.color) : undefined,
-                          opacity: 0.8,
-                        }}
-                      >
-                        {suggestion.icon}
-                      </span>
-                    ) : (
-                      <span className="text-base">{suggestion.icon}</span>
-                    )}
-                    <span 
-                      className={suggestion.type === 'textColor' ? '' : 'text-scripture-text'}
-                      style={suggestion.type === 'textColor' && suggestion.color 
-                        ? { color: getHighlightColorHex(suggestion.color) }
-                        : undefined}
-                    >
-                      {suggestion.type === 'preset' ? suggestion.label : suggestion.type === 'highlight' ? 'Highlight' :
-                       suggestion.type === 'textColor' ? 'Color' :
-                       suggestion.type === 'underline' ? 'Underline' : 'Symbol'}
-                    </span>
-                    </button>
-                  ))}
-                </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
 
       {/* Combined Annotate overlay (Color and Symbol) */}
       {showPickerOverlay && (isColorActive || activeTool === 'symbol') && (
