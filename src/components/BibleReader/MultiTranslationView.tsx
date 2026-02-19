@@ -539,12 +539,22 @@ export function MultiTranslationView() {
           const lowerOriginal = originalText.toLowerCase();
           const lowerSelected = selectedText.toLowerCase();
           
-          // Find all occurrences
+          // Find all whole-word occurrences first (prevents matching "he" inside "the"/"When")
+          const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const occurrences: number[] = [];
-          let searchIdx = 0;
-          while ((searchIdx = lowerOriginal.indexOf(lowerSelected, searchIdx)) !== -1) {
-            occurrences.push(searchIdx);
-            searchIdx++;
+          const wordBoundaryRegex = new RegExp(`\\b${escapeRegex(lowerSelected)}\\b`, 'g');
+          let regexMatch;
+          while ((regexMatch = wordBoundaryRegex.exec(lowerOriginal)) !== null) {
+            occurrences.push(regexMatch.index);
+          }
+          
+          // Fall back to substring search if no word-boundary matches
+          if (occurrences.length === 0) {
+            let searchIdx = 0;
+            while ((searchIdx = lowerOriginal.indexOf(lowerSelected, searchIdx)) !== -1) {
+              occurrences.push(searchIdx);
+              searchIdx++;
+            }
           }
           
           if (occurrences.length === 0) {
