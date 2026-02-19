@@ -32,7 +32,8 @@ interface ObservationToolsPanelProps {
   initialTab?: ObservationTab;
   selectedText?: string;
   verseRef?: VerseRef;
-  initialListId?: string; // For opening to a specific list
+  initialListId?: string;
+  autoCreate?: boolean;
 }
 
 // Helper to create a unique key for a verse reference
@@ -126,7 +127,8 @@ export function ObservationToolsPanel({
   initialTab = 'lists',
   selectedText,
   verseRef,
-  initialListId
+  initialListId,
+  autoCreate
 }: ObservationToolsPanelProps) {
   const [activeTab, setActiveTab] = useState<ObservationTab>(initialTab);
   const { lists, loadLists, deleteList, addItemToList, updateItem, deleteItem } = useListStore();
@@ -772,6 +774,7 @@ export function ObservationToolsPanel({
             <TimeTracker 
               selectedText={selectedText} 
               verseRef={verseRef}
+              autoCreate={autoCreate && initialTab === 'time'}
               onNavigate={handleNavigateToVerse}
             />
           </div>

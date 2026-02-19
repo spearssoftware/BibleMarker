@@ -39,6 +39,7 @@ function highlightWords(text: string, words: string[]): React.ReactNode {
 interface TimeTrackerProps {
   selectedText?: string;
   verseRef?: VerseRef;
+  autoCreate?: boolean;
   filterByChapter?: boolean;
   onFilterByChapterChange?: (value: boolean) => void;
   onNavigate?: (verseRef: VerseRef) => void;
@@ -62,19 +63,27 @@ const groupByVerse = (timeExpressions: TimeExpression[]): Map<string, TimeExpres
   return map;
 };
 
-// Group time expressions by keyword (presetId), with "Manual" for items without presetId
+function getTimeGroupKey(item: TimeExpression): string {
+  if (item.presetId) return item.presetId;
+  return `manual:${item.verseRef.book}:${item.verseRef.chapter}`;
+}
+
 function groupByKeyword(
   items: TimeExpression[],
   presetMap: Map<string, { word?: string }>
 ): Array<{ key: string; label: string; items: TimeExpression[] }> {
   const byKey = new Map<string, TimeExpression[]>();
   for (const item of items) {
-    const key = item.presetId || 'manual';
+    const key = getTimeGroupKey(item);
     if (!byKey.has(key)) byKey.set(key, []);
     byKey.get(key)!.push(item);
   }
   return Array.from(byKey.entries()).map(([key, keywordItems]) => {
-    const label = key === 'manual' ? 'Manual' : (presetMap.get(key)?.word ?? 'Unknown');
+    if (key.startsWith('manual:')) {
+      const ref = keywordItems[0].verseRef;
+      return { key, label: `${ref.book} ${ref.chapter}`, items: keywordItems };
+    }
+    const label = presetMap.get(key)?.word ?? 'Unknown';
     return { key, label, items: keywordItems };
   });
 }
@@ -84,8 +93,10 @@ function sortKeywordGroups(
   groups: Array<{ key: string; label: string; items: TimeExpression[] }>
 ): Array<{ key: string; label: string; items: TimeExpression[] }> {
   return [...groups].sort((a, b) => {
-    if (a.key === 'manual' && b.key !== 'manual') return 1;
-    if (b.key === 'manual' && a.key !== 'manual') return -1;
+    const aManual = a.key.startsWith('manual:');
+    const bManual = b.key.startsWith('manual:');
+    if (aManual && !bManual) return 1;
+    if (bManual && !aManual) return -1;
     const nameCmp = a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
     if (nameCmp !== 0) return nameCmp;
     const minVerse = (items: TimeExpression[]) => {
@@ -183,7 +194,7 @@ function formatChapterYears(years: Array<{ year: number; era: 'BC' | 'AD' }>): s
   return years.map(y => `${y.year} ${y.era}`).join(', ');
 }
 
-export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = true, onFilterByChapterChange, onNavigate }: TimeTrackerProps) {
+export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreate, filterByChapter = true, onFilterByChapterChange, onNavigate }: TimeTrackerProps) {
   const { timeExpressions, loadTimeExpressions, createTimeExpression, updateTimeExpression, deleteTimeExpression, autoImportFromAnnotations, removeDuplicates, autoPopulateFromChapter } = useTimeStore();
   const { currentBook, currentChapter } = useBibleStore();
   const [isPopulating, setIsPopulating] = useState(false);
@@ -276,10 +287,16 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
     };
   }, [loadTimeExpressions, autoImportFromAnnotations, removeDuplicates]);
 
+  // Auto-open creation form when triggered from verse menu
+  useEffect(() => {
+    if (autoCreate) {
+      setIsCreating(true);
+    }
+  }, [autoCreate]);
+
   // Pre-fill form if selectedText is provided
   useEffect(() => {
     if (selectedText && isCreating && !newExpression) {
-      // Pre-fill with selected text
       queueMicrotask(() => setNewExpression(selectedText.trim()));
     }
   }, [selectedText, isCreating, newExpression]);
@@ -353,16 +370,18 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
     loadTimeExpressions();
   };
 
-  const handleStartEditGroupYear = (groupKey: string, items: TimeExpression[]) => {
-    const withYear = items.find(t => t.year != null);
+  const handleStartEditGroupYear = (groupKey: string) => {
+    const allMatching = timeExpressions.filter(t => getTimeGroupKey(t) === groupKey);
+    const withYear = allMatching.find(t => t.year != null);
     setEditingGroupYear(groupKey);
     setGroupYear(withYear?.year?.toString() || '');
     setGroupYearEra(withYear?.yearEra || defaultYearEra);
   };
 
-  const handleSaveGroupYear = async (items: TimeExpression[]) => {
+  const handleSaveGroupYear = async (groupKey: string) => {
     const yearVal = groupYear ? parseInt(groupYear, 10) : undefined;
-    for (const te of items) {
+    const allMatching = timeExpressions.filter(t => getTimeGroupKey(t) === groupKey);
+    for (const te of allMatching) {
       await updateTimeExpression({
         ...te,
         year: yearVal !== undefined && !isNaN(yearVal) ? yearVal : undefined,
@@ -510,7 +529,14 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
       {/* Create form */}
       {isCreating && (
         <div className="mb-4 p-4 bg-scripture-surface rounded-xl border border-scripture-border/50">
-          <h3 className="text-sm font-medium text-scripture-text mb-3">New Time Expression</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-scripture-text">New Time Expression</h3>
+            {getCurrentVerseRef() && (
+              <span className="text-xs text-scripture-accent font-medium bg-scripture-accent/10 px-2 py-0.5 rounded">
+                📍 {formatVerseRef(getCurrentVerseRef()!.book, getCurrentVerseRef()!.chapter, getCurrentVerseRef()!.verse)}
+              </span>
+            )}
+          </div>
           <div className="space-y-3">
             <Input
               label="Time Expression"
@@ -543,8 +569,8 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
               </button>
             </div>
             {!getCurrentVerseRef() && (
-              <p className="text-xs text-scripture-muted">
-                Note: Verse reference will use current location or selected verse.
+              <p className="text-xs text-red-500">
+                No verse reference available. Navigate to a chapter first.
               </p>
             )}
           </div>
@@ -573,7 +599,7 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
           {keywordGroups.map(({ key, label, items: keywordItems }) => {
             const isExpanded = expandedKeywords.has(key);
             const chapterGroups = groupByChapter(keywordItems);
-            const withYear = keywordItems.find(t => t.year != null);
+            const withYear = timeExpressions.find(t => getTimeGroupKey(t) === key && t.year != null);
             const isEditingYear = editingGroupYear === key;
 
             return (
@@ -597,7 +623,7 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
                     </span>
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleStartEditGroupYear(key, keywordItems); }}
+                    onClick={(e) => { e.stopPropagation(); handleStartEditGroupYear(key); }}
                     className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated shrink-0"
                     title="Edit year"
                   >
@@ -628,7 +654,7 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, filterByC
                       </div>
                       <div className="flex items-center gap-1.5">
                         <button
-                          onClick={() => handleSaveGroupYear(keywordItems)}
+                          onClick={() => handleSaveGroupYear(key)}
                           className="px-3 py-1 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
                         >
                           Save
