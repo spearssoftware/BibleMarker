@@ -93,6 +93,28 @@ export function MultiTranslationView() {
   // Bumped when API configs change (e.g. after sync) to retry failed chapters
   const [configGeneration, setConfigGeneration] = useState(0);
   
+  const verseContainerRef = useRef<HTMLDivElement>(null);
+
+  // Force WebKit to recalculate layout on resize (works around emoji line-box bug)
+  useEffect(() => {
+    const el = verseContainerRef.current;
+    if (!el) return;
+    let rafId: number;
+    const handleResize = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        el.style.display = 'none';
+        void el.offsetHeight;
+        el.style.display = '';
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(rafId);
+    };
+  }, []);
+
   // Track the last book/chapter we loaded to prevent duplicate calls
   const lastLoadedRef = useRef<{ book: string; chapter: number } | null>(null);
   const isLoadingRef = useRef<boolean>(false);
@@ -911,7 +933,7 @@ export function MultiTranslationView() {
       </div>
 
       {/* Verse rows - scrollable container */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchEnd={() => { setTimeout(handleMouseUp, 50); }}>
+      <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchEnd={() => { setTimeout(handleMouseUp, 50); }}>
           <div className={`px-4 py-4 space-y-1.5 border-b border-scripture-border/50 `}>
             {sortedVerseNumbers.map(verseNum => (
               <div key={verseNum}>

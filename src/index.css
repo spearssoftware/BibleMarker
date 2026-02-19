@@ -318,31 +318,29 @@ select:focus-visible {
 
   /* Annotation remove button - appears on hover */
   .annotation-group {
-    position: relative;
-    display: inline-block;
+    display: inline;
   }
 
   .annotation-group:hover .annotation-remove {
-    display: flex !important;
+    display: inline-flex !important;
   }
 
   .annotation-remove {
-    position: absolute;
-    top: -6px;
-    right: -6px;
-    width: 18px;
-    height: 18px;
+    display: none;
+    vertical-align: super;
+    margin-left: 1px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     background-color: var(--scripture-error);
     color: white;
-    font-size: 12px;
-    line-height: 1;
-    display: none;
+    font-size: 10px;
+    line-height: 14px;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     z-index: 20;
-    border: 1px solid var(--scripture-surface);
+    border: none;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     padding: 0;
     margin: 0;
