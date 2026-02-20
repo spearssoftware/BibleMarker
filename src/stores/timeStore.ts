@@ -349,7 +349,7 @@ export const useTimeStore = create<TimeState>()(
     }),
     {
       name: 'time-store',
-      partialize: (state) => ({ timeExpressions: state.timeExpressions }),
+      partialize: (_state) => ({}),
     }
   )
 );
