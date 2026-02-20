@@ -113,7 +113,7 @@ export const useObservationStore = create<ObservationState>()(
     {
       name: 'observation-store',
       // Only persist the entries array, not the functions
-      partialize: (state) => ({ fiveWAndHEntries: state.fiveWAndHEntries }),
+      partialize: (_state) => ({}),
     }
   )
 );

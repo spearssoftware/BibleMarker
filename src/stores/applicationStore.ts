@@ -113,7 +113,7 @@ export const useApplicationStore = create<ApplicationState>()(
     {
       name: 'application-store',
       // Only persist the entries array, not the functions
-      partialize: (state) => ({ applicationEntries: state.applicationEntries }),
+      partialize: (_state) => ({}),
     }
   )
 );
