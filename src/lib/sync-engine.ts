@@ -428,6 +428,7 @@ async function pullFromDevice(remoteDevice: string): Promise<PullResult> {
       for (const entry of journal.entries) {
         if (entry.seq <= watermark) continue;
         if (!SYNCED_TABLES.has(entry.table)) continue;
+        if (entry.op !== 'upsert' && entry.op !== 'delete') continue;
 
         const wasApplied = await applyRemoteChange(
           entry.table,
@@ -736,6 +737,8 @@ async function writeDeviceMeta(lastSeq: number): Promise<void> {
   }
 }
 
+const DEVICE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function listDeviceFolders(): Promise<string[]> {
   if (!syncFolderPath) return [];
   try {
@@ -743,7 +746,7 @@ async function listDeviceFolders(): Promise<string[]> {
     return entries
       .filter(e => e.isDirectory && e.name !== 'snapshots')
       .map(e => e.name!)
-      .filter(Boolean);
+      .filter(name => DEVICE_ID_RE.test(name));
   } catch {
     return [];
   }

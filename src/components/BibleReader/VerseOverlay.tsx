@@ -40,8 +40,7 @@ export function VerseOverlay({ verseRef, onClose, onNavigate }: VerseOverlayProp
         const chapter = await fetchChapter(currentModuleId, verseRef.book, verseRef.chapter);
         const verse = chapter.verses.find(v => v.ref.verse === verseRef.verse);
         if (verse) {
-          // Use HTML if available, otherwise use plain text
-          setVerseText(verse.html || verse.text);
+          setVerseText(verse.text);
         } else {
           setError('Verse not found');
         }
@@ -103,10 +102,11 @@ export function VerseOverlay({ verseRef, onClose, onNavigate }: VerseOverlayProp
           )}
           
           {!isLoading && !error && verseText && (
-            <div 
+            <div
               className={`scripture-text ${fontSize === 'sm' ? 'text-scripture-sm' : fontSize === 'lg' ? 'text-scripture-lg' : fontSize === 'xl' ? 'text-scripture-xl' : 'text-scripture-base'} leading-relaxed`}
-              dangerouslySetInnerHTML={{ __html: verseText }}
-            />
+            >
+              {verseText}
+            </div>
           )}
     </Modal>
   );
