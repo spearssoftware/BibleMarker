@@ -73,6 +73,13 @@ export async function closeDatabase(): Promise<void> {
   await mod.closeSqliteDb();
 }
 
+export type { SyncDiagnostics } from './sqlite-db';
+
+export async function getSyncDiagnostics() {
+  const mod = await sqlite();
+  return mod.getSyncDiagnostics();
+}
+
 // ============================================================================
 // Annotation Operations
 // ============================================================================
