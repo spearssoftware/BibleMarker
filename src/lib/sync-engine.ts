@@ -168,6 +168,14 @@ export async function initSyncEngine(): Promise<void> {
           syncFolderPath: savedPath,
         });
         await ensureDeviceFolder();
+        // Refresh meta.json on every startup so the device folder is non-empty
+        // (iCloud won't sync empty folders) and other devices can see this device.
+        try {
+          const currentSeq = await getCurrentMaxSeq();
+          await writeDeviceMeta(currentSeq);
+        } catch (err) {
+          console.error('[SyncEngine] Failed to write meta on init (non-fatal):', err);
+        }
         startFlushTimer();
         // Do an initial sync
         await sync();
@@ -204,6 +212,8 @@ export async function configureSyncFolder(folderPath: string): Promise<void> {
   await setSyncConfig('sync_enabled', 'true');
 
   await ensureDeviceFolder();
+  // Write initial meta.json so the device folder is non-empty (iCloud won't sync empty folders)
+  await writeDeviceMeta(0);
   startFlushTimer();
 
   notifyStatusChange({
@@ -212,8 +222,13 @@ export async function configureSyncFolder(folderPath: string): Promise<void> {
     error: null,
   });
 
-  // Initial sync: write snapshot so other devices can bootstrap
-  await writeSnapshot();
+  // Initial sync: write snapshot so other devices can bootstrap.
+  // Wrapped in try/catch — snapshot failure shouldn't block sync from running.
+  try {
+    await writeSnapshot();
+  } catch (err) {
+    console.error('[SyncEngine] Failed to write initial snapshot (non-fatal):', err);
+  }
   await sync();
 }
 
@@ -829,4 +844,15 @@ async function sqlSelect<T>(sql: string, params?: unknown[]): Promise<T[]> {
   const { getSqliteDb } = await import('./sqlite-db');
   const db = await getSqliteDb();
   return db.select<T[]>(sql, params);
+}
+
+async function getCurrentMaxSeq(): Promise<number> {
+  try {
+    const rows = await sqlSelect<{ max_seq: number }>(
+      'SELECT MAX(seq) as max_seq FROM change_log'
+    );
+    return rows[0]?.max_seq ?? 0;
+  } catch {
+    return 0;
+  }
 }
