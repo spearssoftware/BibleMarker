@@ -107,7 +107,7 @@ export function SyncStatusIndicator({
         >
           {getSyncStatusIcon(status)}
         </span>
-        <span className="text-sm text-gray-400">
+        <span className="text-sm text-scripture-muted">
           {getSyncStatusMessage(status)}
         </span>
       </div>
@@ -119,7 +119,7 @@ export function SyncStatusIndicator({
           className="
             px-2 py-1 text-xs rounded
             bg-white/5 hover:bg-white/10
-            text-gray-300 hover:text-white
+            text-scripture-muted hover:text-scripture-text
             disabled:opacity-50 disabled:cursor-not-allowed
             transition-colors
           "
@@ -158,48 +158,48 @@ function SyncDetailsPanel({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="
         w-full max-w-md m-4 p-4 rounded-lg
-        bg-gray-800 border border-gray-700
+        bg-scripture-surface border border-scripture-border
         shadow-xl
       ">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-medium text-white">Sync</h2>
+          <h2 className="text-lg font-medium text-scripture-text">Sync</h2>
           <button
             onClick={onClose}
             className="p-1 hover:bg-white/10 rounded transition-colors"
             aria-label="Close"
           >
-            <span className="text-gray-400 hover:text-white">&times;</span>
+            <span className="text-scripture-muted hover:text-scripture-text">&times;</span>
           </button>
         </div>
 
         {/* Status */}
-        <div className="mb-4 p-3 rounded bg-gray-900/50">
+        <div className="mb-4 p-3 rounded bg-scripture-bg/50">
           <div className="flex items-center gap-2 mb-2">
             <span className={`text-lg ${getStatusColorClass(status.state)}`}>
               {getSyncStatusIcon(status)}
             </span>
-            <span className="text-white font-medium">
+            <span className="text-scripture-text font-medium">
               {getSyncStatusMessage(status)}
             </span>
           </div>
           {status.sync_folder && (
-            <p className="text-xs text-gray-500 truncate" title={status.sync_folder}>
+            <p className="text-xs text-scripture-muted truncate" title={status.sync_folder}>
               Folder: {status.sync_folder}
             </p>
           )}
           {status.error && (
-            <p className="mt-2 text-sm text-red-400">{status.error}</p>
+            <p className="mt-2 text-sm text-scripture-error">{status.error}</p>
           )}
         </div>
 
         {/* Connected devices */}
         {status.connected_devices.length > 0 && (
           <div className="mb-4">
-            <h3 className="text-sm font-medium text-white mb-2">Connected Devices</h3>
+            <h3 className="text-sm font-medium text-scripture-text mb-2">Connected Devices</h3>
             <div className="space-y-1">
               {status.connected_devices.map((device, i) => (
-                <div key={i} className="text-sm text-gray-400 flex items-center gap-2">
+                <div key={i} className="text-sm text-scripture-muted flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-scripture-success" />
                   {device}
                 </div>
@@ -210,8 +210,8 @@ function SyncDetailsPanel({
 
         {/* Pending changes */}
         {status.pending_changes > 0 && (
-          <div className="mb-4 p-3 rounded bg-yellow-500/10 border border-yellow-500/20">
-            <p className="text-sm text-yellow-400">
+          <div className="mb-4 p-3 rounded bg-scripture-warning/10 border border-scripture-warning/20">
+            <p className="text-sm text-scripture-warning">
               {status.pending_changes} change{status.pending_changes !== 1 ? 's' : ''} pending sync
             </p>
           </div>
@@ -223,8 +223,8 @@ function SyncDetailsPanel({
             onClick={onClose}
             className="
               px-4 py-2 text-sm rounded
-              bg-gray-700 hover:bg-gray-600
-              text-gray-300 hover:text-white
+              bg-scripture-elevated hover:bg-scripture-border
+              text-scripture-muted hover:text-scripture-text
               transition-colors
             "
           >
@@ -236,7 +236,7 @@ function SyncDetailsPanel({
               disabled={isSyncing}
               className="
                 px-4 py-2 text-sm rounded
-                bg-blue-600 hover:bg-blue-500
+                bg-scripture-accent hover:bg-scripture-accent/80
                 text-white
                 disabled:opacity-50 disabled:cursor-not-allowed
                 transition-colors

@@ -926,7 +926,7 @@ export function MultiTranslationView() {
               )}
             </div>
             {error?.startsWith('Showing KJV') && (
-              <div className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">{error}</div>
+              <div className="text-xs text-scripture-warning mt-0.5">{error}</div>
             )}
           </div>
         ))}

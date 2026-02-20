@@ -188,7 +188,7 @@ export function AnnotationLegend({ annotations }: AnnotationLegendProps) {
             
             {/* Show warning if same word has inconsistent annotations */}
             {(entry.highlights.length > 1 || entry.textColors.length > 1 || entry.underlines.length > 1 || entry.symbols.length > 1) && (
-              <div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+              <div className="mt-1 text-xs text-scripture-warning">
                 ⚠️ Multiple annotations - check consistency
               </div>
             )}

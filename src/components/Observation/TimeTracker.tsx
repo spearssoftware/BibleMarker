@@ -601,7 +601,7 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
               </button>
             </div>
             {!getCurrentVerseRef() && (
-              <p className="text-xs text-red-500">
+              <p className="text-xs text-scripture-error">
                 No verse reference available. Navigate to a chapter first.
               </p>
             )}
