@@ -247,6 +247,6 @@ export const usePeopleStore = create<PeopleState>()(
         return duplicateIds.length;
       },
     }),
-    { name: 'people-store', partialize: (state) => ({ people: state.people }) }
+    { name: 'people-store', partialize: (_state) => ({}) }
   )
 );
