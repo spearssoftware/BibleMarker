@@ -5,7 +5,7 @@
  */
 
 import { useRef, useEffect } from 'react';
-import { getOTBooks, getNTBooks } from '@/types/bible';
+import { getOTBooks, getNTBooks } from '@/types';
 import { useDropdownPosition } from '@/hooks/useDropdownPosition';
 import { useModal } from '@/hooks/useModal';
 import { ModalBackdrop } from '@/components/shared';

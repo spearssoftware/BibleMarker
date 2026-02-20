@@ -8,9 +8,9 @@ import { useState, useEffect } from 'react';
 import { useListStore } from '@/stores/listStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { getBookById, formatVerseRef } from '@/types/bible';
-import type { ObservationList, ObservationItem } from '@/types/list';
-import type { VerseRef } from '@/types/bible';
+import { getBookById, formatVerseRef } from '@/types';
+import type { ObservationList, ObservationItem } from '@/types';
+import type { VerseRef } from '@/types';
 import { ListEditor } from './ListEditor';
 import { Modal, ConfirmationDialog } from '@/components/shared';
 

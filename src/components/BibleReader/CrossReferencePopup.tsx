@@ -5,9 +5,9 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { parseVerseRef } from '@/types/bible';
-import { getBookById, formatVerseRef } from '@/types/bible';
-import type { VerseRef } from '@/types/bible';
+import { parseVerseRef } from '@/types';
+import { getBookById, formatVerseRef } from '@/types';
+import type { VerseRef } from '@/types';
 
 interface CrossReferencePopupProps {
   refs: string[]; // OSIS references (e.g., ["Gen.1.1", "Matt.5.3"])

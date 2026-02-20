@@ -20,7 +20,7 @@ import { bibliaClient } from './biblia';
 import { bibleGatewayClient } from './biblegateway';
 import { esvClient, parseVerseText } from './esv';
 import { getBibleClient } from './getbible';
-import type { Chapter } from '@/types/bible';
+import type { Chapter } from '@/types';
 import { getPreferences, updatePreferences, getCachedChapter, setCachedChapter, getAllCachedChapters, clearChapterCache, sqlSelect, sqlExecute } from '@/lib/database';
 import { retryWithBackoff, isNetworkError, getNetworkErrorMessage, isOnline } from '../offline';
 

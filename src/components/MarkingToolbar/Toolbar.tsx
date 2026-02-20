@@ -23,8 +23,8 @@ import { clearDatabase } from '@/lib/database';
 import { resetAllStores } from '@/lib/storeReset';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
-import type { MarkingPreset } from '@/types/keyWord';
-import type { VerseRef } from '@/types/bible';
+import type { MarkingPreset } from '@/types';
+import type { VerseRef } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 
 const COLOR_STYLES = ['highlight', 'textColor', 'underline'] as const;

@@ -6,7 +6,7 @@
  */
 
 import { useAnnotationStore } from '@/stores/annotationStore';
-import { DEFAULT_MARKING_PREFERENCES } from '@/types/annotation';
+import { DEFAULT_MARKING_PREFERENCES } from '@/types';
 
 /**
  * Reset all stores to their initial state after clearing the database

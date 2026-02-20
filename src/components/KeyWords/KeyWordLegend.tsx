@@ -6,8 +6,8 @@
 
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { KEY_WORD_CATEGORIES, type MarkingPreset } from '@/types/keyWord';
-import { SYMBOLS, getHighlightColorHex } from '@/types/annotation';
+import { KEY_WORD_CATEGORIES, type MarkingPreset } from '@/types';
+import { SYMBOLS, getHighlightColorHex } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 
 export function KeyWordLegend() {

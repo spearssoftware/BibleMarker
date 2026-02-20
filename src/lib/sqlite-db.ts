@@ -12,20 +12,20 @@ import type {
   SectionHeading,
   ChapterTitle,
   Note,
-} from '@/types/annotation';
-import type { MarkingPreset } from '@/types/keyWord';
-import type { Study } from '@/types/study';
-import type { MultiTranslationView } from '@/types/multiTranslation';
-import type { ObservationList } from '@/types/list';
-import type { FiveWAndHEntry } from '@/types/observation';
-import type { Contrast } from '@/types/contrast';
-import type { TimeExpression } from '@/types/timeExpression';
-import type { Place } from '@/types/place';
-import type { Person } from '@/types/person';
-import type { Conclusion } from '@/types/conclusion';
-import type { InterpretationEntry } from '@/types/interpretation';
-import type { ApplicationEntry } from '@/types/application';
-import type { UserPreferences } from '@/types/preferences';
+} from '@/types';
+import type { MarkingPreset } from '@/types';
+import type { Study } from '@/types';
+import type { MultiTranslationView } from '@/types';
+import type { ObservationList } from '@/types';
+import type { FiveWAndHEntry } from '@/types';
+import type { Contrast } from '@/types';
+import type { TimeExpression } from '@/types';
+import type { Place } from '@/types';
+import type { Person } from '@/types';
+import type { Conclusion } from '@/types';
+import type { InterpretationEntry } from '@/types';
+import type { ApplicationEntry } from '@/types';
+import type { UserPreferences } from '@/types';
 // ============================================================================
 // Database Connection
 // ============================================================================

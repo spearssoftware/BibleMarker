@@ -9,7 +9,7 @@
 import { exportAllData, getPreferences as getDbPreferences, updatePreferences as updateDbPreferences, type AutoBackupConfig, sqlSelect, sqlExecute } from './database';
 import { type BackupData } from './backup';
 import { isTauri, isCapacitor } from './platform';
-import type { MultiTranslationView } from '@/types/multiTranslation';
+import type { MultiTranslationView } from '@/types';
 
 /** Backup file metadata */
 export interface BackupFileMetadata {

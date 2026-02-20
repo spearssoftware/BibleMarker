@@ -21,8 +21,8 @@ import type {
   BibleApiProvider,
 } from './types';
 import { BibleApiError } from './types';
-import type { VerseRef } from '@/types/bible';
-import { getBookById } from '@/types/bible';
+import type { VerseRef } from '@/types';
+import { getBookById } from '@/types';
 import { getCachedTranslations, setCachedTranslations } from '@/lib/database';
 
 // Default to public API, but can be configured for self-hosted instance

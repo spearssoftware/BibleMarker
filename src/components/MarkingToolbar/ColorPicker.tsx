@@ -4,7 +4,7 @@
  * Shows favorites, recents, and full color palette.
  */
 
-import { HIGHLIGHT_COLORS, type HighlightColor } from '@/types/annotation';
+import { HIGHLIGHT_COLORS, type HighlightColor } from '@/types';
 
 interface ColorPickerProps {
   selectedColor: HighlightColor;

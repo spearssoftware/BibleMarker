@@ -6,9 +6,9 @@
 
 import { useState, useEffect } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
-import type { MarkingPreset } from '@/types/keyWord';
+import type { MarkingPreset } from '@/types';
 import { getAllCachedChapters } from '@/lib/database';
-import { getBookById } from '@/types/bible';
+import { getBookById } from '@/types';
 
 interface KeyWordFinderProps {
   preset: MarkingPreset;

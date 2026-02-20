@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import type { SectionHeading } from '@/types/annotation';
+import type { SectionHeading } from '@/types';
 
 interface SectionHeadingEditorProps {
   heading: SectionHeading;

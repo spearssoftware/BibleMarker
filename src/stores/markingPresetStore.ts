@@ -6,8 +6,8 @@
  */
 
 import { create } from 'zustand';
-import type { MarkingPreset, KeyWordCategory } from '@/types/keyWord';
-import { normalizeVariants } from '@/types/keyWord';
+import type { MarkingPreset, KeyWordCategory } from '@/types';
+import { normalizeVariants } from '@/types';
 import {
   getAllMarkingPresets,
   saveMarkingPreset,

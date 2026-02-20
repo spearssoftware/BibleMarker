@@ -9,7 +9,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { saveAnnotation, deleteAnnotation, getChapterAnnotations, getChapterHeadings, saveSectionHeading, deleteSectionHeading, getChapterTitle, saveChapterTitle, deleteChapterTitle, getChapterNotes, saveNote, deleteNote, getMarkingPreset } from '@/lib/database';
-import type { Annotation, TextAnnotation, SymbolAnnotation, HighlightColor, SymbolKey, SectionHeading, ChapterTitle, Note } from '@/types/annotation';
+import type { Annotation, TextAnnotation, SymbolAnnotation, HighlightColor, SymbolKey, SectionHeading, ChapterTitle, Note } from '@/types';
 import { autoAddToObservationTracker } from '@/lib/observationAutoAdd';
 import { getAnnotationVerseRef } from '@/lib/annotationQueries';
 

@@ -5,8 +5,8 @@
  * Annotations: when null show default bucket; when study show global+study (hide manual/freeform)
  */
 
-import type { MarkingPreset } from '@/types/keyWord';
-import type { Annotation } from '@/types/annotation';
+import type { MarkingPreset } from '@/types';
+import type { Annotation } from '@/types';
 
 /**
  * Filter presets by active study.

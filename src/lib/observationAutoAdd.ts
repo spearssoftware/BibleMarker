@@ -4,9 +4,9 @@
  * Automatically add keywords to observation lists (Places, Time) when marked with appropriate symbols.
  */
 
-import type { MarkingPreset } from '@/types/keyWord';
-import type { Annotation } from '@/types/annotation';
-import type { VerseRef } from '@/types/bible';
+import type { MarkingPreset } from '@/types';
+import type { Annotation } from '@/types';
+import type { VerseRef } from '@/types';
 import { usePlaceStore } from '@/stores/placeStore';
 import { useTimeStore } from '@/stores/timeStore';
 import { usePeopleStore } from '@/stores/peopleStore';

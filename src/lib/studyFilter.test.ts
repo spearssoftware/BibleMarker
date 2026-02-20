@@ -3,8 +3,8 @@ import {
   filterPresetsByStudy,
   filterAnnotationsByStudy,
 } from './studyFilter';
-import type { MarkingPreset } from '@/types/keyWord';
-import type { Annotation, TextAnnotation } from '@/types/annotation';
+import type { MarkingPreset } from '@/types';
+import type { Annotation, TextAnnotation } from '@/types';
 
 function createPreset(overrides: Partial<MarkingPreset> & { id: string }): MarkingPreset {
   const { id, ...rest } = overrides;

@@ -7,9 +7,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useConclusionStore } from '@/stores/conclusionStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import type { Conclusion } from '@/types/conclusion';
-import type { VerseRef } from '@/types/bible';
-import { formatVerseRef, getBookById } from '@/types/bible';
+import type { Conclusion } from '@/types';
+import type { VerseRef } from '@/types';
+import { formatVerseRef, getBookById } from '@/types';
 import { ConfirmationDialog, Input, Textarea, Checkbox } from '@/components/shared';
 
 interface ConclusionTrackerProps {

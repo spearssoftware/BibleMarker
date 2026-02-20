@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import type { ChapterTitle } from '@/types/annotation';
+import type { ChapterTitle } from '@/types';
 
 interface ChapterTitleEditorProps {
   title: ChapterTitle;

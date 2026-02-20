@@ -5,18 +5,18 @@
  * Prevents corrupted data and provides graceful error handling.
  */
 
-import type { Annotation, TextAnnotation, SymbolAnnotation, SectionHeading, ChapterTitle, Note } from '@/types/annotation';
-import type { MarkingPreset } from '@/types/keyWord';
-import type { Study } from '@/types/study';
-import type { MultiTranslationView } from '@/types/multiTranslation';
-import type { ObservationList } from '@/types/list';
-import type { FiveWAndHEntry } from '@/types/observation';
-import type { Place } from '@/types/place';
-import type { Person } from '@/types/person';
-import type { InterpretationEntry } from '@/types/interpretation';
-import type { ApplicationEntry } from '@/types/application';
-import type { VerseRef } from '@/types/bible';
-import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types/annotation';
+import type { Annotation, TextAnnotation, SymbolAnnotation, SectionHeading, ChapterTitle, Note } from '@/types';
+import type { MarkingPreset } from '@/types';
+import type { Study } from '@/types';
+import type { MultiTranslationView } from '@/types';
+import type { ObservationList } from '@/types';
+import type { FiveWAndHEntry } from '@/types';
+import type { Place } from '@/types';
+import type { Person } from '@/types';
+import type { InterpretationEntry } from '@/types';
+import type { ApplicationEntry } from '@/types';
+import type { VerseRef } from '@/types';
+import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types';
 
 /** Validation error with details */
 export class ValidationError extends Error {

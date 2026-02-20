@@ -4,7 +4,7 @@
  * Shows favorites, recents, and categorized symbols for Precept-style marking.
  */
 
-import { SYMBOLS, type SymbolKey } from '@/types/annotation';
+import { SYMBOLS, type SymbolKey } from '@/types';
 
 interface SymbolPickerProps {
   selectedSymbol: SymbolKey;

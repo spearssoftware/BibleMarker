@@ -5,8 +5,8 @@
  */
 
 import { getAllCachedChapters, getAllNotes } from './database';
-import { parseVerseRef } from '@/types/bible';
-import type { VerseRef } from '@/types/bible';
+import { parseVerseRef } from '@/types';
+import type { VerseRef } from '@/types';
 export interface SearchResult {
   type: 'verse' | 'note';
   book: string;

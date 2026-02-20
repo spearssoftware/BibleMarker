@@ -5,7 +5,7 @@
  * When a symbol is applied, users can be prompted to add an observation to the relevant tracker.
  */
 
-import type { SymbolKey } from '@/types/annotation';
+import type { SymbolKey } from '@/types';
 
 export type ObservationTrackerType = 
   | 'contrast'      // Contrasts and Comparisons

@@ -10,7 +10,7 @@
  */
 
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { getOTBooks, getNTBooks, getBookById, getVerseCount, type BookInfo } from '@/types/bible';
+import { getOTBooks, getNTBooks, getBookById, getVerseCount, type BookInfo } from '@/types';
 import { useModal } from '@/hooks/useModal';
 import { ModalBackdrop } from '@/components/shared';
 import { Z_INDEX } from '@/lib/modalConstants';

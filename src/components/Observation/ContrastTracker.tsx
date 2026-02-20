@@ -8,9 +8,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { useContrastStore } from '@/stores/contrastStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
-import type { Contrast } from '@/types/contrast';
-import type { VerseRef } from '@/types/bible';
-import { formatVerseRef, getBookById } from '@/types/bible';
+import type { Contrast } from '@/types';
+import type { VerseRef } from '@/types';
+import { formatVerseRef, getBookById } from '@/types';
 import { ConfirmationDialog, Input, Textarea, Checkbox } from '@/components/shared';
 import { getAnnotationsBySymbol, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 

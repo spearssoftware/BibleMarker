@@ -3,8 +3,8 @@ import { useTimeStore } from '@/stores/timeStore';
 import { usePeopleStore } from '@/stores/peopleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import { formatVerseRef } from '@/types/bible';
-import type { VerseRef } from '@/types/bible';
+import { formatVerseRef } from '@/types';
+import type { VerseRef } from '@/types';
 
 interface SwimLaneEntry {
   type: 'time' | 'person';

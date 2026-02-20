@@ -5,9 +5,9 @@
  */
 
 import { useState, useRef, useMemo } from 'react';
-import type { Verse, VerseRef } from '@/types/bible';
-import type { Annotation, TextAnnotation, SymbolAnnotation, SymbolKey } from '@/types/annotation';
-import { getHighlightColorHex, SYMBOLS } from '@/types/annotation';
+import type { Verse, VerseRef } from '@/types';
+import type { Annotation, TextAnnotation, SymbolAnnotation, SymbolKey } from '@/types';
+import { getHighlightColorHex, SYMBOLS } from '@/types';
 import { CrossReferencePopup } from './CrossReferencePopup';
 import { VerseOverlay } from './VerseOverlay';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';

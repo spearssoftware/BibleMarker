@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
-import { getBookById } from '@/types/bible';
+import { getBookById } from '@/types';
 import { getAllTranslations, type ApiTranslation } from '@/lib/bible-api';
 import { getPreferences } from '@/lib/database';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';

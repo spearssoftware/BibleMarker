@@ -4,7 +4,7 @@
  * Helper functions for cleaning and processing text.
  */
 
-import { SYMBOLS } from '@/types/annotation';
+import { SYMBOLS } from '@/types';
 
 /**
  * Remove symbol characters from text
