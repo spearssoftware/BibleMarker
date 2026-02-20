@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { getBookById } from '@/types';
-import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences } from '@/lib/database';
+import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences, getSyncDiagnostics, type SyncDiagnostics } from '@/lib/database';
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
 import { exportStudyData } from '@/lib/export';
 import { applyTheme } from '@/lib/theme';
@@ -102,6 +102,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   // Sync status state
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [syncLoading, setSyncLoading] = useState(false);
+  const [syncDiagnostics, setSyncDiagnostics] = useState<SyncDiagnostics | null>(null);
+  const [showSyncDiagnostics, setShowSyncDiagnostics] = useState(false);
 
   // Auto-backup state
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(true);
@@ -223,6 +225,16 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     const unsubscribe = onSyncStatusChange(setSyncStatus);
     return unsubscribe;
   }, []);
+
+  async function loadSyncDiagnostics() {
+    try {
+      const diag = await getSyncDiagnostics();
+      setSyncDiagnostics(diag);
+      setShowSyncDiagnostics(true);
+    } catch (e) {
+      console.error('[Settings] Failed to load sync diagnostics:', e);
+    }
+  }
 
   async function saveApiConfig(
     provider: 'biblia' | 'esv' | 'biblegateway',
@@ -1083,23 +1095,49 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                         </div>
                       )}
                     </div>
-                    {syncStatus.state !== 'disabled' && (
+                    <div className="flex items-center gap-2">
+                      {syncStatus.state !== 'disabled' && (
+                        <button
+                          onClick={async () => {
+                            setSyncLoading(true);
+                            try {
+                              await triggerSync();
+                            } finally {
+                              setSyncLoading(false);
+                            }
+                          }}
+                          disabled={syncLoading}
+                          className="px-3 py-1.5 text-xs font-ui bg-scripture-elevated hover:bg-scripture-border/50
+                                   border border-scripture-border/50 text-scripture-text rounded-lg transition-colors
+                                   disabled:opacity-50"
+                        >
+                          {syncLoading ? 'Syncing...' : 'Sync Now'}
+                        </button>
+                      )}
                       <button
-                        onClick={async () => {
-                          setSyncLoading(true);
-                          try {
-                            await triggerSync();
-                          } finally {
-                            setSyncLoading(false);
-                          }
-                        }}
-                        disabled={syncLoading}
-                        className="px-3 py-1.5 text-xs font-ui bg-scripture-elevated hover:bg-scripture-border/50 
-                                 border border-scripture-border/50 text-scripture-text rounded-lg transition-colors
-                                 disabled:opacity-50"
+                        onClick={loadSyncDiagnostics}
+                        className="px-3 py-1.5 text-xs font-ui bg-scripture-elevated hover:bg-scripture-border/50
+                                 border border-scripture-border/50 text-scripture-muted rounded-lg transition-colors"
                       >
-                        {syncLoading ? 'Syncing...' : 'Sync Now'}
+                        Diagnostics
                       </button>
+                    </div>
+                    {showSyncDiagnostics && syncDiagnostics && (
+                      <div className="p-3 bg-scripture-elevated/50 rounded-lg border border-scripture-border/50 space-y-1">
+                        <div className="text-xs font-medium text-scripture-muted mb-1">Sync Diagnostics</div>
+                        <div className="text-xs text-scripture-muted font-mono">
+                          Schema version: {syncDiagnostics.schemaVersion}
+                        </div>
+                        <div className="text-xs text-scripture-muted font-mono">
+                          Change log total: {syncDiagnostics.changeLogTotal}
+                        </div>
+                        <div className="text-xs text-scripture-muted font-mono">
+                          Change log unflushed: {syncDiagnostics.changeLogUnflushed}
+                        </div>
+                        <div className="text-xs text-scripture-muted font-mono break-all">
+                          Device ID: {syncDiagnostics.deviceId}
+                        </div>
+                      </div>
                     )}
                   </div>
                 ) : (

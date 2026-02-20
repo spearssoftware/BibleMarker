@@ -1691,3 +1691,50 @@ export async function sqliteClearDatabase(): Promise<void> {
     window.dispatchEvent(new CustomEvent('databaseCleared'));
   }
 }
+
+// ============================================================================
+// Diagnostics
+// ============================================================================
+
+export interface SyncDiagnostics {
+  schemaVersion: number;
+  changeLogTotal: number;
+  changeLogUnflushed: number;
+  deviceId: string;
+}
+
+/**
+ * Get sync diagnostics for debugging purposes.
+ * Returns schema version and change_log statistics.
+ */
+export async function getSyncDiagnostics(): Promise<SyncDiagnostics> {
+  const db = await getSqliteDb();
+
+  const versionRows = await db.select<{ version: number }[]>(
+    `SELECT version FROM schema_version WHERE id = 1`
+  );
+  const schemaVersion = versionRows[0]?.version ?? 0;
+
+  let changeLogTotal = 0;
+  let changeLogUnflushed = 0;
+  try {
+    const totalRows = await db.select<{ count: number }[]>(
+      `SELECT COUNT(*) as count FROM change_log`
+    );
+    changeLogTotal = totalRows[0]?.count ?? 0;
+
+    const unflushedRows = await db.select<{ count: number }[]>(
+      `SELECT COUNT(*) as count FROM change_log WHERE flushed = 0`
+    );
+    changeLogUnflushed = unflushedRows[0]?.count ?? 0;
+  } catch {
+    // change_log table may not exist if schema migration failed
+  }
+
+  return {
+    schemaVersion,
+    changeLogTotal,
+    changeLogUnflushed,
+    deviceId: getDeviceId(),
+  };
+}
