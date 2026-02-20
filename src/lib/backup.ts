@@ -202,7 +202,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
         if (error instanceof Error && error.message === 'Export cancelled') {
           throw error;
         }
-        throw new Error(`Failed to save backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw new Error(`Failed to save backup: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
       }
     }
 
