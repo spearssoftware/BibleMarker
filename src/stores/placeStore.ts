@@ -351,7 +351,7 @@ export const usePlaceStore = create<PlaceState>()(
     }),
     {
       name: 'place-store',
-      partialize: (state) => ({ places: state.places }),
+      partialize: (_state) => ({}),
     }
   )
 );

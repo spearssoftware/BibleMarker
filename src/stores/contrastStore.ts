@@ -104,7 +104,7 @@ export const useContrastStore = create<ContrastState>()(
     }),
     {
       name: 'contrast-store',
-      partialize: (state) => ({ contrasts: state.contrasts }),
+      partialize: (_state) => ({}),
     }
   )
 );

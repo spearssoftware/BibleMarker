@@ -126,7 +126,7 @@ export const useInterpretationStore = create<InterpretationState>()(
     {
       name: 'interpretation-store',
       // Only persist the entries array, not the functions
-      partialize: (state) => ({ interpretationEntries: state.interpretationEntries }),
+      partialize: (_state) => ({}),
     }
   )
 );

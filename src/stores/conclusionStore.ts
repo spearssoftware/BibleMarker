@@ -176,7 +176,7 @@ export const useConclusionStore = create<ConclusionState>()(
     }),
     {
       name: 'conclusion-store',
-      partialize: (state) => ({ conclusions: state.conclusions }),
+      partialize: (_state) => ({}),
     }
   )
 );
