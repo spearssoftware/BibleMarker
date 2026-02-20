@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useTimeStore } from '@/stores/timeStore';
 import { usePeopleStore } from '@/stores/peopleStore';
 import { useStudyStore } from '@/stores/studyStore';
@@ -59,7 +59,14 @@ export function Timeline() {
   const { people } = usePeopleStore();
   const { activeStudyId } = useStudyStore();
   const { currentBook, currentChapter, setLocation, setNavSelectedVerse } = useBibleStore();
+  const { loadTimeExpressions } = useTimeStore();
+  const { loadPeople } = usePeopleStore();
   const [filterByBook, setFilterByBook] = useState(true);
+
+  useEffect(() => {
+    loadTimeExpressions();
+    loadPeople();
+  }, [loadTimeExpressions, loadPeople]);
 
   const handleNavigateToVerse = (verseRef: VerseRef) => {
     const highlight = (verse: number) => {
