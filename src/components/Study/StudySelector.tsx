@@ -6,7 +6,7 @@
 
 import { useEffect } from 'react';
 import { useStudyStore } from '@/stores/studyStore';
-import { getBookById } from '@/types/bible';
+import { getBookById } from '@/types';
 import { DropdownSelect } from '@/components/shared';
 
 export function StudySelector() {

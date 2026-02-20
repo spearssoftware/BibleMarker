@@ -9,8 +9,8 @@ import { useListStore } from '@/stores/listStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import type { ObservationList } from '@/types/list';
-import { BIBLE_BOOKS } from '@/types/bible';
+import type { ObservationList } from '@/types';
+import { BIBLE_BOOKS } from '@/types';
 import { Modal, Input, DropdownSelect, Label } from '@/components/shared';
 
 interface ListEditorProps {

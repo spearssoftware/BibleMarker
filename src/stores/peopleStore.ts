@@ -6,9 +6,9 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Person } from '@/types/person';
+import type { Person } from '@/types';
 import { getAllPeople as dbGetAllPeople, savePerson as dbSavePerson, deletePerson as dbDeletePerson, getMarkingPreset } from '@/lib/database';
-import type { VerseRef } from '@/types/bible';
+import type { VerseRef } from '@/types';
 import { validatePerson, sanitizeData, ValidationError } from '@/lib/validation';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 import { getSymbolsForTracker } from '@/lib/observationSymbols';

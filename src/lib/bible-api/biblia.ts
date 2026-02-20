@@ -23,7 +23,7 @@ import type {
   BibleApiProvider,
 } from './types';
 import { BibleApiError } from './types';
-import type { VerseRef } from '@/types/bible';
+import type { VerseRef } from '@/types';
 // Use proxy in development, direct API in production
 // In development, Vite proxy forwards /api/biblia/* to https://api.biblia.com/v1/bible/*
 const BIBLIA_BASE_URL = import.meta.env.DEV 

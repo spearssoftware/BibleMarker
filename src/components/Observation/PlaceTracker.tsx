@@ -11,9 +11,9 @@ import { useStudyStore } from '@/stores/studyStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { getCachedChapter } from '@/lib/database';
-import type { Place } from '@/types/place';
-import type { VerseRef } from '@/types/bible';
-import { formatVerseRef, getBookById } from '@/types/bible';
+import type { Place } from '@/types';
+import type { VerseRef } from '@/types';
+import { formatVerseRef, getBookById } from '@/types';
 import { ConfirmationDialog, Input, Textarea, Checkbox } from '@/components/shared';
 
 function highlightWords(text: string, words: string[]): React.ReactNode {

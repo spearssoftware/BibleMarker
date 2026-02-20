@@ -6,8 +6,8 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Chapter } from '@/types/bible';
-import { BIBLE_BOOKS, getBookById } from '@/types/bible';
+import type { Chapter } from '@/types';
+import { BIBLE_BOOKS, getBookById } from '@/types';
 
 interface BibleState {
   // Current location

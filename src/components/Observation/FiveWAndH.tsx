@@ -8,9 +8,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { useObservationStore } from '@/stores/observationStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
-import { formatVerseRef, getBookById } from '@/types/bible';
-import type { FiveWAndHEntry } from '@/types/observation';
-import type { VerseRef } from '@/types/bible';
+import { formatVerseRef, getBookById } from '@/types';
+import type { FiveWAndHEntry } from '@/types';
+import type { VerseRef } from '@/types';
 import { Textarea, ConfirmationDialog, Checkbox } from '@/components/shared';
 import { getChapterAnnotations } from '@/lib/database';
 

@@ -15,9 +15,9 @@ import { useApplicationStore } from '@/stores/applicationStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { formatVerseRef } from '@/types/bible';
-import type { ApplicationEntry } from '@/types/application';
-import type { VerseRef } from '@/types/bible';
+import { formatVerseRef } from '@/types';
+import type { ApplicationEntry } from '@/types';
+import type { VerseRef } from '@/types';
 import { Textarea, ConfirmationDialog } from '@/components/shared';
 import { getChapterAnnotations } from '@/lib/database';
 

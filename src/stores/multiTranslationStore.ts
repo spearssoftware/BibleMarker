@@ -6,7 +6,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { MultiTranslationView } from '@/types/multiTranslation';
+import type { MultiTranslationView } from '@/types';
 import { getMultiTranslationView as dbGetView, saveMultiTranslationView as dbSaveView, deleteMultiTranslationView as dbDeleteView } from '@/lib/database';
 
 interface MultiTranslationState {

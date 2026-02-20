@@ -6,9 +6,9 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Place } from '@/types/place';
+import type { Place } from '@/types';
 import { getAllPlaces as dbGetAllPlaces, savePlace as dbSavePlace, deletePlace as dbDeletePlace, getMarkingPreset } from '@/lib/database';
-import type { VerseRef } from '@/types/bible';
+import type { VerseRef } from '@/types';
 import { validatePlace, sanitizeData, ValidationError } from '@/lib/validation';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 import { getSymbolsForTracker } from '@/lib/observationSymbols';

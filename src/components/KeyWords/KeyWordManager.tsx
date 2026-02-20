@@ -8,11 +8,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, type KeyWordCategory, type MarkingPreset, type Variant } from '@/types/keyWord';
+import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, type KeyWordCategory, type MarkingPreset, type Variant } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
-import { SYMBOLS, getHighlightColorHex, HIGHLIGHT_COLORS, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types/annotation';
+import { SYMBOLS, getHighlightColorHex, HIGHLIGHT_COLORS, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
 import { Input, Textarea, Label, DropdownSelect, Checkbox, Button } from '@/components/shared';
-import { getBookById, BIBLE_BOOKS } from '@/types/bible';
+import { getBookById, BIBLE_BOOKS } from '@/types';
 
 interface KeyWordManagerProps {
   onClose?: () => void;

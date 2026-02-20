@@ -14,8 +14,8 @@ import {
   getChapterAnnotations,
   getAllObservationLists,
 } from '@/lib/database';
-import type { ChapterTitle } from '@/types/annotation';
-import { getBookById } from '@/types/bible';
+import type { ChapterTitle } from '@/types';
+import { getBookById } from '@/types';
 
 interface ChapterSummaryData {
   chapter: number;

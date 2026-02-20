@@ -11,10 +11,10 @@ import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { getChapterTitle, saveChapterTitle } from '@/lib/database';
 import { analyzeKeywordFrequencyByChapter } from '@/lib/annotationQueries';
-import type { ChapterTitle } from '@/types/annotation';
-import { SYMBOLS } from '@/types/annotation';
-import type { MarkingPreset } from '@/types/keyWord';
-import { getBookById } from '@/types/bible';
+import type { ChapterTitle } from '@/types';
+import { SYMBOLS } from '@/types';
+import type { MarkingPreset } from '@/types';
+import { getBookById } from '@/types';
 import { Textarea, Checkbox } from '@/components/shared';
 
 interface ThemeEditorProps {

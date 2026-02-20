@@ -10,16 +10,16 @@ import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { getCachedChapter } from '@/lib/database';
-import { getBookById } from '@/types/bible';
+import { getBookById } from '@/types';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
-import { SYMBOLS, getHighlightColorHex } from '@/types/annotation';
+import { SYMBOLS, getHighlightColorHex } from '@/types';
 // Helper to extract plain text from HTML (removes tags but keeps text)
 function extractPlainText(html: string): string {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   return doc.body.textContent || doc.body.innerText || '';
 }
-import type { MarkingPreset } from '@/types/keyWord';
+import type { MarkingPreset } from '@/types';
 
 interface KeywordChapterData {
   keywordId: string;

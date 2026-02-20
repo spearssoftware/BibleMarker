@@ -15,11 +15,11 @@ import {
   getCachedChapter,
   getAllObservationLists,
 } from '@/lib/database';
-import type { ChapterTitle, SectionHeading } from '@/types/annotation';
-import { SYMBOLS } from '@/types/annotation';
-import type { MarkingPreset } from '@/types/keyWord';
-import type { ObservationList } from '@/types/list';
-import { getBookById } from '@/types/bible';
+import type { ChapterTitle, SectionHeading } from '@/types';
+import { SYMBOLS } from '@/types';
+import type { MarkingPreset } from '@/types';
+import type { ObservationList } from '@/types';
+import { getBookById } from '@/types';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 

@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import { getBookById } from '@/types/bible';
+import { getBookById } from '@/types';
 import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences } from '@/lib/database';
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
 import { exportStudyData } from '@/lib/export';

@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import type { Note } from '@/types/annotation';
+import type { Note } from '@/types';
 import { Textarea } from '@/components/shared';
 
 interface NoteEditorProps {

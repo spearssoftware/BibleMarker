@@ -6,10 +6,10 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ObservationList, ObservationItem } from '@/types/list';
+import type { ObservationList, ObservationItem } from '@/types';
 import { getAllObservationLists as dbGetAllLists, saveObservationList as dbSaveList, deleteObservationList as dbDeleteList, getMarkingPreset } from '@/lib/database';
-import type { VerseRef } from '@/types/bible';
-import { getBookById } from '@/types/bible';
+import type { VerseRef } from '@/types';
+import { getBookById } from '@/types';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { validateObservationList, sanitizeData, ValidationError } from '@/lib/validation';
 

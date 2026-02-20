@@ -14,8 +14,8 @@ import type {
   SectionHeading,
   ChapterTitle,
   Note,
-} from '@/types/annotation';
-import { DEFAULT_MARKING_PREFERENCES } from '@/types/annotation';
+} from '@/types';
+import { DEFAULT_MARKING_PREFERENCES } from '@/types';
 import { updatePreferences } from '@/lib/database';
 
 export interface TextSelection {

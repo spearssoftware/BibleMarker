@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import { useStudyStore } from '@/stores/studyStore';
-import { getBookById, BIBLE_BOOKS } from '@/types/bible';
+import { getBookById, BIBLE_BOOKS } from '@/types';
 import { Modal, Button, Input, Select, ConfirmationDialog } from '@/components/shared';
 
 interface StudyManagerProps {

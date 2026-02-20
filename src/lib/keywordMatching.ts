@@ -4,9 +4,9 @@
  * Functions to find keyword matches in verse text for cross-translation highlighting.
  */
 
-import type { MarkingPreset } from '@/types/keyWord';
-import type { TextAnnotation, SymbolAnnotation } from '@/types/annotation';
-import type { VerseRef } from '@/types/bible';
+import type { MarkingPreset } from '@/types';
+import type { TextAnnotation, SymbolAnnotation } from '@/types';
+import type { VerseRef } from '@/types';
 import { getDebugFlagsSync } from '@/lib/debug';
 
 /**

@@ -5,11 +5,11 @@
  */
 
 import { useEffect, useState } from 'react';
-import { formatVerseRef } from '@/types/bible';
+import { formatVerseRef } from '@/types';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { fetchChapter } from '@/lib/bible-api';
-import type { VerseRef } from '@/types/bible';
+import type { VerseRef } from '@/types';
 import { Modal } from '@/components/shared';
 
 interface VerseOverlayProps {

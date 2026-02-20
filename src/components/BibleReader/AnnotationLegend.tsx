@@ -7,8 +7,8 @@
  */
 
 import { useMemo } from 'react';
-import type { Annotation, TextAnnotation, SymbolAnnotation } from '@/types/annotation';
-import { getHighlightColorHex, SYMBOLS } from '@/types/annotation';
+import type { Annotation, TextAnnotation, SymbolAnnotation } from '@/types';
+import { getHighlightColorHex, SYMBOLS } from '@/types';
 
 interface AnnotationLegendProps {
   annotations: Annotation[];

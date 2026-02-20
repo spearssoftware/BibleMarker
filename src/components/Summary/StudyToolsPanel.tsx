@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import { useStudyStore } from '@/stores/studyStore';
-import { getBookById, BIBLE_BOOKS } from '@/types/bible';
+import { getBookById, BIBLE_BOOKS } from '@/types';
 import { ChapterAtAGlance, BookOverview, ThemeTracker, Timeline } from './';
 import { ConfirmationDialog, DropdownSelect, Input } from '@/components/shared';
 import { InterpretationWorksheet } from '@/components/Interpretation';

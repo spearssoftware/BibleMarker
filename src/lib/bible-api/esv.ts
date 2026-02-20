@@ -21,8 +21,8 @@ import type {
   BibleApiProvider,
 } from './types';
 import { BibleApiError } from './types';
-import type { VerseRef } from '@/types/bible';
-import { getBookById, getVerseCount, getBookVerseCount, countVersesInRange } from '@/types/bible';
+import type { VerseRef } from '@/types';
+import { getBookById, getVerseCount, getBookVerseCount, countVersesInRange } from '@/types';
 import { getEsvRateLimitState, saveEsvRateLimitState } from '@/lib/database';
 
 const ESV_BASE_URL = 'https://api.esv.org/v3/passage';

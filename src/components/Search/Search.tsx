@@ -7,7 +7,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { searchAll, type SearchResult, type SearchScope } from '@/lib/search';
-import { getBookById } from '@/types/bible';
+import { getBookById } from '@/types';
 import { useModal } from '@/hooks/useModal';
 import { ModalBackdrop } from '@/components/shared';
 import { Z_INDEX } from '@/lib/modalConstants';

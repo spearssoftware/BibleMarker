@@ -26,9 +26,9 @@ import { useTimeStore } from '@/stores/timeStore';
 import { usePeopleStore } from '@/stores/peopleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { getBookById } from '@/types/bible';
-import type { Chapter } from '@/types/bible';
-import type { Annotation, SectionHeading, Note, ChapterTitle } from '@/types/annotation';
+import { getBookById } from '@/types';
+import type { Chapter } from '@/types';
+import type { Annotation, SectionHeading, Note, ChapterTitle } from '@/types';
 
 interface TranslationChapter {
   translation: ApiTranslation;

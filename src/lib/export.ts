@@ -15,16 +15,16 @@ import {
   getAllInterpretations,
   getAllApplications,
 } from './database';
-import type { FiveWAndHEntry } from '@/types/observation';
-import type { Contrast } from '@/types/contrast';
-import type { TimeExpression } from '@/types/timeExpression';
-import type { Place } from '@/types/place';
-import type { Conclusion } from '@/types/conclusion';
-import type { ObservationList } from '@/types/list';
-import type { InterpretationEntry } from '@/types/interpretation';
-import type { ApplicationEntry } from '@/types/application';
-import type { VerseRef } from '@/types/bible';
-import { formatVerseRef, getBookById } from '@/types/bible';
+import type { FiveWAndHEntry } from '@/types';
+import type { Contrast } from '@/types';
+import type { TimeExpression } from '@/types';
+import type { Place } from '@/types';
+import type { Conclusion } from '@/types';
+import type { ObservationList } from '@/types';
+import type { InterpretationEntry } from '@/types';
+import type { ApplicationEntry } from '@/types';
+import type { VerseRef } from '@/types';
+import { formatVerseRef, getBookById } from '@/types';
 import { isTauri } from './platform';
 
 /**

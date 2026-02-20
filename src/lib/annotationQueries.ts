@@ -6,9 +6,9 @@
  */
 
 import { sqlSelect, getChapterAnnotations, getMarkingPreset } from './database';
-import type { Annotation, SymbolAnnotation } from '@/types/annotation';
-import type { SymbolKey } from '@/types/annotation';
-import type { VerseRef } from '@/types/bible';
+import type { Annotation, SymbolAnnotation } from '@/types';
+import type { SymbolKey } from '@/types';
+import type { VerseRef } from '@/types';
 
 /**
  * Query annotations by symbol type

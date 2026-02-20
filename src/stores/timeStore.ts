@@ -6,10 +6,10 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { TimeExpression } from '@/types/timeExpression';
+import type { TimeExpression } from '@/types';
 import { getAllTimeExpressions as dbGetAllTimeExpressions, saveTimeExpression as dbSaveTimeExpression, deleteTimeExpression as dbDeleteTimeExpression } from '@/lib/database';
-import type { VerseRef } from '@/types/bible';
-import { getBookById } from '@/types/bible';
+import type { VerseRef } from '@/types';
+import { getBookById } from '@/types';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 import { getSymbolsForTracker } from '@/lib/observationSymbols';
 

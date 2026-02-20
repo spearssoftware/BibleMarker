@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { splitIntoWords, findKeywordMatches } from './keywordMatching'
-import type { MarkingPreset } from '@/types/keyWord'
-import type { VerseRef } from '@/types/bible'
+import type { MarkingPreset } from '@/types'
+import type { VerseRef } from '@/types'
 
 describe('splitIntoWords', () => {
   it('returns empty array for empty string', () => {

@@ -7,13 +7,13 @@
 
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import type { TextSelection } from '@/stores/annotationStore';
-import type { MarkingPreset } from '@/types/keyWord';
-import type { SymbolKey } from '@/types/annotation';
+import type { MarkingPreset } from '@/types';
+import type { SymbolKey } from '@/types';
 import type { ObservationTab } from '@/components/Observation';
 import type { ObservationTrackerType } from '@/lib/observationSymbols';
-import { SYMBOLS, getHighlightColorHex } from '@/types/annotation';
-import { isCommonPronoun } from '@/types/keyWord';
-import { getBookById } from '@/types/bible';
+import { SYMBOLS, getHighlightColorHex } from '@/types';
+import { isCommonPronoun } from '@/types';
+import { getBookById } from '@/types';
 import { getTrackerForSymbol } from '@/lib/observationSymbols';
 
 interface SelectionMenuProps {

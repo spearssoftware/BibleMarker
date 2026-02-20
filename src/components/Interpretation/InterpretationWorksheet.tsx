@@ -9,9 +9,9 @@ import { useInterpretationStore } from '@/stores/interpretationStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { formatVerseRef } from '@/types/bible';
-import type { InterpretationEntry } from '@/types/interpretation';
-import type { VerseRef } from '@/types/bible';
+import { formatVerseRef } from '@/types';
+import type { InterpretationEntry } from '@/types';
+import type { VerseRef } from '@/types';
 import { Textarea, ConfirmationDialog, DropdownSelect } from '@/components/shared';
 import { getChapterAnnotations } from '@/lib/database';
 

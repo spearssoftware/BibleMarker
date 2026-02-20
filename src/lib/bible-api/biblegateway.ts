@@ -25,8 +25,8 @@ import type {
   BibleApiProvider,
 } from './types';
 import { BibleApiError } from './types';
-import type { VerseRef } from '@/types/bible';
-import { getBookById, BIBLE_BOOKS } from '@/types/bible';
+import type { VerseRef } from '@/types';
+import { getBookById, BIBLE_BOOKS } from '@/types';
 import { sqlSelect, sqlExecute } from '@/lib/database';
 
 const BIBLEGATEWAY_BASE_URL = import.meta.env.DEV

@@ -6,9 +6,9 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Contrast } from '@/types/contrast';
+import type { Contrast } from '@/types';
 import { getAllContrasts as dbGetAllContrasts, saveContrast as dbSaveContrast, deleteContrast as dbDeleteContrast } from '@/lib/database';
-import type { VerseRef } from '@/types/bible';
+import type { VerseRef } from '@/types';
 
 interface ContrastState {
   // Contrasts (cached)
