@@ -151,8 +151,8 @@ export function getSyncEngineStatus(): SyncEngineStatus {
  * Loads config, sets up the device identity, and starts the flush timer.
  */
 export async function initSyncEngine(): Promise<void> {
-  // Load device ID
-  deviceId = getLocalDeviceId();
+  // Load device ID from SQLite (not localStorage, which iCloud syncs across devices)
+  deviceId = await getLocalDeviceId();
 
   // Load configured sync folder
   const savedPath = await getSyncConfig('sync_folder_path');
@@ -690,14 +690,9 @@ async function cleanOldSnapshots(): Promise<void> {
 // Helpers
 // ============================================================================
 
-function getLocalDeviceId(): string {
-  if (typeof window === 'undefined') return crypto.randomUUID();
-  let id = localStorage.getItem('biblemarker_device_id');
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem('biblemarker_device_id', id);
-  }
-  return id;
+async function getLocalDeviceId(): Promise<string> {
+  const { getDeviceId } = await import('./sqlite-db');
+  return getDeviceId();
 }
 
 function getDeviceName(): string {

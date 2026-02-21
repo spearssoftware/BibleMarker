@@ -31,6 +31,7 @@ import type { UserPreferences } from '@/types';
 // ============================================================================
 
 let sqliteDb: Database | null = null;
+let cachedDeviceId: string | null = null;
 
 /**
  * Get or initialize the SQLite database connection.
@@ -127,6 +128,40 @@ async function initializeSchema(db: Database): Promise<void> {
 
   if (currentVersion < SCHEMA_VERSION) {
     await migrateSchema(db, currentVersion, SCHEMA_VERSION);
+  }
+
+  // Load or generate device ID from sync_config (local SQLite, not iCloud-synced localStorage)
+  await initDeviceId(db);
+}
+
+/**
+ * Load or generate a device-unique ID stored in sync_config.
+ * localStorage is NOT safe for this because iCloud syncs WebKit localStorage across devices.
+ */
+async function initDeviceId(db: Database): Promise<void> {
+  try {
+    const rows = await db.select<{ value: string }[]>(
+      `SELECT value FROM sync_config WHERE key = 'device_id'`
+    );
+    if (rows.length > 0 && rows[0].value) {
+      cachedDeviceId = rows[0].value;
+      console.log('[SQLite] Device ID loaded from DB:', cachedDeviceId.substring(0, 8));
+      return;
+    }
+  } catch {
+    // sync_config table may not exist yet on very old schemas
+  }
+
+  // Generate a new unique device ID
+  cachedDeviceId = crypto.randomUUID();
+  console.log('[SQLite] Generated new device ID:', cachedDeviceId.substring(0, 8));
+  try {
+    await db.execute(
+      `INSERT OR REPLACE INTO sync_config (key, value) VALUES ('device_id', ?)`,
+      [cachedDeviceId]
+    );
+  } catch (e) {
+    console.error('[SQLite] Failed to persist device ID:', e);
   }
 }
 
@@ -588,16 +623,10 @@ async function createInitialSchema(db: Database): Promise<void> {
 // Helper Functions
 // ============================================================================
 
-function getDeviceId(): string {
-  // Generate or retrieve a unique device ID
-  if (typeof window !== 'undefined') {
-    let deviceId = localStorage.getItem('biblemarker_device_id');
-    if (!deviceId) {
-      deviceId = crypto.randomUUID();
-      localStorage.setItem('biblemarker_device_id', deviceId);
-    }
-    return deviceId;
-  }
+export function getDeviceId(): string {
+  if (cachedDeviceId) return cachedDeviceId;
+  // Fallback: should not happen since initDeviceId runs during schema init
+  console.warn('[SQLite] getDeviceId called before DB init — generating ephemeral ID');
   return crypto.randomUUID();
 }
 
