@@ -254,6 +254,75 @@ pub fn list_sync_dir(path: String) -> Result<String, String> {
     ))
 }
 
+/// Diagnostic: write a test file to the iCloud container and verify it lands on disk.
+/// Returns a JSON object with detailed results for each step.
+#[command]
+pub fn test_icloud_write() -> String {
+    let mut results: Vec<String> = vec![];
+
+    // Step 1: get the container path
+    let container_path = match get_icloud_container_url() {
+        Ok(p) => p,
+        Err(e) => {
+            return format!("{{\"error\":\"get_icloud_container_url failed: {}\"}}", e);
+        }
+    };
+    results.push(format!("\"container\":\"{}\"", container_path));
+
+    let test_path = format!("{}/Documents/sync/bm_test_write.txt", container_path);
+    let test_content = b"biblemarker_write_test";
+
+    // Step 2: write via std::fs
+    let posix_write = std::fs::write(&test_path, test_content);
+    results.push(format!(
+        "\"posix_write\":\"{}\"",
+        match &posix_write {
+            Ok(_) => "ok".to_string(),
+            Err(e) => format!("err: {}", e),
+        }
+    ));
+
+    // Step 3: check existence via Path::exists (POSIX)
+    let posix_exists = std::path::Path::new(&test_path).exists();
+    results.push(format!("\"posix_exists\":{}", posix_exists));
+
+    // Step 4: read back via std::fs
+    let posix_read = match std::fs::read(&test_path) {
+        Ok(bytes) => format!("ok:{}", bytes.len()),
+        Err(e) => format!("err:{}", e),
+    };
+    results.push(format!("\"posix_read\":\"{}\"", posix_read));
+
+    // Step 5: check existence via NSFileManager (ObjC)
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    {
+        let file_manager = NSFileManager::defaultManager();
+        let ns_path = NSString::from_str(&test_path);
+        let objc_exists: bool =
+            unsafe { objc2::msg_send![&file_manager, fileExistsAtPath: &*ns_path] };
+        results.push(format!("\"objc_exists\":{}", objc_exists));
+    }
+
+    // Step 6: list the sync dir to see if test file appears
+    let sync_path = format!("{}/Documents/sync", container_path);
+    let dir_listing = match std::fs::read_dir(&sync_path) {
+        Ok(dir) => {
+            let names: Vec<String> = dir
+                .flatten()
+                .map(|e| format!("\"{}\"", e.file_name().to_string_lossy()))
+                .collect();
+            format!("[{}]", names.join(","))
+        }
+        Err(e) => format!("\"err:{}\"", e),
+    };
+    results.push(format!("\"dir_listing\":{}", dir_listing));
+
+    // Step 7: clean up
+    let _ = std::fs::remove_file(&test_path);
+
+    format!("{{{}}}", results.join(","))
+}
+
 /// Delete the local database files so a fresh DB can be created.
 /// Called from JS when corruption is detected at runtime.
 #[command]
