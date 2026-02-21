@@ -269,56 +269,47 @@ pub fn test_icloud_write() -> String {
     };
     results.push(format!("\"container\":\"{}\"", container_path));
 
-    let test_path = format!("{}/Documents/sync/bm_test_write.txt", container_path);
+    let sync_path = format!("{}/Documents/sync", container_path);
     let test_content = b"biblemarker_write_test";
 
-    // Step 2: write via std::fs
-    let posix_write = std::fs::write(&test_path, test_content);
+    // Test A: write file directly in sync root (known to work)
+    let root_file = format!("{}/bm_test_root.txt", sync_path);
+    let root_write = std::fs::write(&root_file, test_content)
+        .map(|_| "ok")
+        .unwrap_or("err");
+    let root_visible = std::fs::read_dir(&sync_path)
+        .ok()
+        .map(|d| d.flatten().any(|e| e.file_name() == "bm_test_root.txt"))
+        .unwrap_or(false);
     results.push(format!(
-        "\"posix_write\":\"{}\"",
-        match &posix_write {
-            Ok(_) => "ok".to_string(),
-            Err(e) => format!("err: {}", e),
-        }
+        "\"root_write\":\"{}\",\"root_visible\":{}",
+        root_write, root_visible
     ));
+    let _ = std::fs::remove_file(&root_file);
 
-    // Step 3: check existence via Path::exists (POSIX)
-    let posix_exists = std::path::Path::new(&test_path).exists();
-    results.push(format!("\"posix_exists\":{}", posix_exists));
-
-    // Step 4: read back via std::fs
-    let posix_read = match std::fs::read(&test_path) {
-        Ok(bytes) => format!("ok:{}", bytes.len()),
-        Err(e) => format!("err:{}", e),
-    };
-    results.push(format!("\"posix_read\":\"{}\"", posix_read));
-
-    // Step 5: check existence via NSFileManager (ObjC)
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
-    {
-        let file_manager = NSFileManager::defaultManager();
-        let ns_path = NSString::from_str(&test_path);
-        let objc_exists: bool =
-            unsafe { objc2::msg_send![&file_manager, fileExistsAtPath: &*ns_path] };
-        results.push(format!("\"objc_exists\":{}", objc_exists));
-    }
-
-    // Step 6: list the sync dir to see if test file appears
-    let sync_path = format!("{}/Documents/sync", container_path);
-    let dir_listing = match std::fs::read_dir(&sync_path) {
-        Ok(dir) => {
-            let names: Vec<String> = dir
-                .flatten()
-                .map(|e| format!("\"{}\"", e.file_name().to_string_lossy()))
-                .collect();
-            format!("[{}]", names.join(","))
-        }
-        Err(e) => format!("\"err:{}\"", e),
-    };
-    results.push(format!("\"dir_listing\":{}", dir_listing));
-
-    // Step 7: clean up
-    let _ = std::fs::remove_file(&test_path);
+    // Test B: create subdirectory with create_dir_all, then write into it
+    let sub_dir = format!("{}/bm_test_subdir", sync_path);
+    let sub_file = format!("{}/bm_test_subdir/test.txt", sync_path);
+    let mkdir_result = std::fs::create_dir_all(&sub_dir)
+        .map(|_| "ok")
+        .unwrap_or("err");
+    let dir_visible = std::fs::read_dir(&sync_path)
+        .ok()
+        .map(|d| d.flatten().any(|e| e.file_name() == "bm_test_subdir"))
+        .unwrap_or(false);
+    let sub_write = std::fs::write(&sub_file, test_content)
+        .map(|_| "ok")
+        .unwrap_or("err");
+    let sub_file_visible = std::fs::read_dir(&sub_dir)
+        .ok()
+        .map(|d| d.flatten().any(|e| e.file_name() == "test.txt"))
+        .unwrap_or(false);
+    results.push(format!(
+        "\"mkdir\":\"{}\",\"dir_visible\":{},\"sub_write\":\"{}\",\"sub_file_visible\":{}",
+        mkdir_result, dir_visible, sub_write, sub_file_visible
+    ));
+    let _ = std::fs::remove_file(&sub_file);
+    let _ = std::fs::remove_dir(&sub_dir);
 
     format!("{{{}}}", results.join(","))
 }
