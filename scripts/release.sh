@@ -1,12 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-if [ $# -ne 1 ]; then
+# pnpm passes '--' before args; skip it
+if [ "${1:-}" = "--" ]; then shift; fi
+BUMP_TYPE="${1:-}"
+
+if [ -z "$BUMP_TYPE" ]; then
   echo "Usage: pnpm run release -- <major|minor|patch>"
   exit 1
 fi
-
-BUMP_TYPE="$1"
 
 if [[ "$BUMP_TYPE" != "major" && "$BUMP_TYPE" != "minor" && "$BUMP_TYPE" != "patch" ]]; then
   echo "Error: argument must be major, minor, or patch"
@@ -36,8 +38,6 @@ fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 pnpm run version:sync
 
 git add package.json src-tauri/Cargo.toml
-[ -f src-tauri/gen/apple/biblemarker_iOS/Info.plist ] && git add src-tauri/gen/apple/biblemarker_iOS/Info.plist || true
-[ -f src-tauri/gen/apple/project.yml ] && git add src-tauri/gen/apple/project.yml || true
 git commit -m "release: v${NEW_VERSION}"
 git tag "app-v${NEW_VERSION}"
 
