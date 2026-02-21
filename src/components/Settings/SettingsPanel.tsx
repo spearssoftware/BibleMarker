@@ -244,6 +244,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         setSyncDirListing(`Error: ${e}`);
       }
     }
+    try {
+      const writeTest = await invoke<string>('test_icloud_write');
+      setSyncDirListing(prev => (prev ?? '') + '\nWrite test: ' + writeTest);
+    } catch (e) {
+      setSyncDirListing(prev => (prev ?? '') + '\nWrite test error: ' + e);
+    }
   }
 
   async function saveApiConfig(

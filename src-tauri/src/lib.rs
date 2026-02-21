@@ -50,6 +50,7 @@ impl AppBuilder {
                 icloud::get_sync_folder_path,
                 icloud::write_sync_file,
                 icloud::list_sync_dir,
+                icloud::test_icloud_write,
                 icloud::delete_local_database,
             ])
             .setup(move |app| {
