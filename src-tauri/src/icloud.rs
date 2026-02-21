@@ -130,9 +130,8 @@ pub fn get_sync_folder_path() -> Result<String, String> {
 
 /// Write a file to the sync folder.
 ///
-/// On macOS: uses std::fs::write directly (iCloud daemon detects changes via FSEvents).
-/// On iOS: writes to a temp file first, then uses NSFileManager.setUbiquitous to move
-/// it into the iCloud container, which properly notifies the iCloud daemon.
+/// Uses std::fs::write directly on all platforms — the iCloud daemon detects changes
+/// via FSEvents. create_dir_all ensures the parent directory exists first.
 #[command]
 pub fn write_sync_file(path: String, content: String) -> Result<(), String> {
     // Basic path validation — must be within the iCloud app container
@@ -151,78 +150,8 @@ pub fn write_sync_file(path: String, content: String) -> Result<(), String> {
             .map_err(|e| format!("Failed to create directory {}: {}", parent.display(), e))?;
     }
 
-    #[cfg(target_os = "ios")]
-    {
-        return write_via_set_ubiquitous(&path, content.as_bytes());
-    }
-
-    #[cfg(not(target_os = "ios"))]
-    {
-        std::fs::write(&path, content.as_bytes())
-            .map_err(|e| format!("Failed to write file {}: {}", path, e))
-    }
-}
-
-/// iOS: write via temp file + NSFileManager.setUbiquitous to properly notify iCloud.
-#[cfg(target_os = "ios")]
-fn write_via_set_ubiquitous(dest_path: &str, content: &[u8]) -> Result<(), String> {
-    use objc2::rc::Retained;
-    use objc2::runtime::AnyObject;
-
-    // 1. Write to temp file
-    let temp_dir = std::env::temp_dir();
-    let filename = std::path::Path::new(dest_path)
-        .file_name()
-        .ok_or("No filename in path")?
-        .to_string_lossy()
-        .to_string();
-    // Use a unique temp name to avoid collisions
-    let temp_filename = format!("bm_sync_{}", filename);
-    let temp_path = temp_dir.join(&temp_filename);
-
-    std::fs::write(&temp_path, content).map_err(|e| format!("Failed to write temp file: {}", e))?;
-
-    // 2. Remove existing file at destination (setUbiquitous fails if dest exists)
-    let _ = std::fs::remove_file(dest_path);
-
-    // 3. Create NSURLs
-    let temp_ns = NSString::from_str(&temp_path.to_string_lossy());
-    let dest_ns = NSString::from_str(dest_path);
-
-    let temp_url: Retained<AnyObject> =
-        unsafe { objc2::msg_send_id![objc2::class!(NSURL), fileURLWithPath: &*temp_ns] };
-    let dest_url: Retained<AnyObject> =
-        unsafe { objc2::msg_send_id![objc2::class!(NSURL), fileURLWithPath: &*dest_ns] };
-
-    // 4. Move into iCloud container via setUbiquitous
-    let file_manager = NSFileManager::defaultManager();
-    let mut error: *mut AnyObject = std::ptr::null_mut();
-
-    let success: bool = unsafe {
-        objc2::msg_send![
-            &file_manager,
-            setUbiquitous: true,
-            itemAtURL: &*temp_url,
-            destinationURL: &*dest_url,
-            error: &mut error
-        ]
-    };
-
-    if !success {
-        let error_desc = if !error.is_null() {
-            let desc: Option<Retained<NSString>> =
-                unsafe { objc2::msg_send_id![error, localizedDescription] };
-            desc.map(|s| s.to_string())
-                .unwrap_or_else(|| "Unknown".to_string())
-        } else {
-            "Unknown error".to_string()
-        };
-        // Clean up temp file
-        let _ = std::fs::remove_file(&temp_path);
-        return Err(format!("setUbiquitous failed: {}", error_desc));
-    }
-
-    Ok(())
+    std::fs::write(&path, content.as_bytes())
+        .map_err(|e| format!("Failed to write file {}: {}", path, e))
 }
 
 /// List the contents of the sync folder using Rust stdlib I/O.
