@@ -1,8 +1,8 @@
-# BibleMarker v0.8.4
+# BibleMarker v0.8.5
 
 ## Bug Fixes
 
-- **Fix iPad sync**: Device IDs were stored in `localStorage`, which iCloud silently syncs across devices via WebKit data. This caused Mac and iPad to share the same device ID, so the iPad wrote journal files into the Mac's sync folder instead of its own. Device IDs are now stored in the local SQLite database, which is not synced by iCloud.
+- **Fix iOS sync writes**: On iOS, `std::fs::write` to the iCloud ubiquity container returns success but files never appear or sync. Now uses Apple's `NSFileManager.setUbiquitous` API: writes to a temp file first, then moves it into the iCloud container, which properly notifies the iCloud daemon. macOS continues using direct writes (FSEvents handles change detection there).
 
 ---
 
