@@ -1,8 +1,8 @@
-# BibleMarker v0.8.6
+# BibleMarker v0.8.7
 
 ## Diagnostics
 
-- **Write verification**: The Diagnostics button now runs a test write to the iCloud container and reports whether `std::fs::write` and `NSFileManager.fileExistsAtPath` agree on whether the file landed on disk. This will reveal whether writes are silently failing or succeeding but not appearing in directory listings.
+- **Subdirectory write test**: The Diagnostics write test now checks both writing to the sync folder root AND creating a subdirectory + writing into it. This will reveal whether `create_dir_all` produces a visible directory in the iCloud container.
 
 ---
 
