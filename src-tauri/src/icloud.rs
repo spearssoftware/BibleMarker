@@ -139,7 +139,10 @@ pub fn write_sync_file(path: String, content: String) -> Result<(), String> {
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     {
         if !path.contains("iCloud~app~biblemarker") && !path.contains("iCloud.app.biblemarker") {
-            return Err(format!("Path not within BibleMarker iCloud container: {}", path));
+            return Err(format!(
+                "Path not within BibleMarker iCloud container: {}",
+                path
+            ));
         }
     }
 
