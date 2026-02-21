@@ -48,6 +48,7 @@ impl AppBuilder {
             .invoke_handler(tauri::generate_handler![
                 icloud::check_icloud_status,
                 icloud::get_sync_folder_path,
+                icloud::write_sync_file,
                 icloud::delete_local_database,
             ])
             .setup(move |app| {
