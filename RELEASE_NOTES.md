@@ -1,8 +1,8 @@
-# BibleMarker v0.8.2
+# BibleMarker v0.8.3
 
-## Bug Fixes
+## Diagnostics
 
-- **iPad sync (critical)**: Fixed iPad annotations and data never syncing to other devices. On iOS, the Tauri JS filesystem plugin writes files to the app sandbox rather than the actual iCloud container path. Reads worked (pulling from iCloud's download cache) but writes never reached iCloud. Sync file writes now go through a Rust command that uses direct file I/O, matching how the sync folder path is created.
+- **Sync directory listing**: The Diagnostics panel now shows what files Rust sees at the sync folder path on disk. This helps diagnose whether sync writes are reaching the iCloud container or going somewhere else.
 
 ---
 

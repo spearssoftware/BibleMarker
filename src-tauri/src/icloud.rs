@@ -152,6 +152,35 @@ pub fn write_sync_file(path: String, content: String) -> Result<(), String> {
         .map_err(|e| format!("Failed to write file {}: {}", path, e))
 }
 
+/// List the contents of the sync folder using Rust stdlib I/O.
+/// Returns a JSON string with the directory listing for diagnostics.
+/// This bypasses the Tauri JS FS plugin to show what Rust actually sees on disk.
+#[command]
+pub fn list_sync_dir(path: String) -> Result<String, String> {
+    let p = std::path::Path::new(&path);
+    if !p.exists() {
+        return Ok(format!("{{\"exists\":false,\"path\":\"{}\"}}", path));
+    }
+
+    let mut entries = vec![];
+    match std::fs::read_dir(&path) {
+        Ok(dir) => {
+            for entry in dir.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+                entries.push(format!("{{\"name\":\"{}\",\"dir\":{}}}", name, is_dir));
+            }
+        }
+        Err(e) => return Err(format!("Failed to read dir {}: {}", path, e)),
+    }
+
+    Ok(format!(
+        "{{\"exists\":true,\"path\":\"{}\",\"entries\":[{}]}}",
+        path,
+        entries.join(",")
+    ))
+}
+
 /// Delete the local database files so a fresh DB can be created.
 /// Called from JS when corruption is detected at runtime.
 #[command]

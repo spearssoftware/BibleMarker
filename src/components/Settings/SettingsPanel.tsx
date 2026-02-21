@@ -24,6 +24,7 @@ import {
   getBackupLocation,
   type StoredBackup 
 } from '@/lib/autoBackup';
+import { invoke } from '@tauri-apps/api/core';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { AboutSection } from './AboutSection';
 import { GettingStartedSection } from './GettingStartedSection';
@@ -104,6 +105,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncDiagnostics, setSyncDiagnostics] = useState<SyncDiagnostics | null>(null);
   const [showSyncDiagnostics, setShowSyncDiagnostics] = useState(false);
+  const [syncDirListing, setSyncDirListing] = useState<string | null>(null);
 
   // Auto-backup state
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(true);
@@ -233,6 +235,14 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       setShowSyncDiagnostics(true);
     } catch (e) {
       console.error('[Settings] Failed to load sync diagnostics:', e);
+    }
+    if (syncStatus?.sync_folder) {
+      try {
+        const listing = await invoke<string>('list_sync_dir', { path: syncStatus.sync_folder });
+        setSyncDirListing(listing);
+      } catch (e) {
+        setSyncDirListing(`Error: ${e}`);
+      }
     }
   }
 
@@ -1137,6 +1147,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                         <div className="text-xs text-scripture-muted font-mono break-all">
                           Device ID: {syncDiagnostics.deviceId}
                         </div>
+                        {syncDirListing && (
+                          <div className="text-xs text-scripture-muted font-mono break-all mt-1 pt-1 border-t border-scripture-border/30">
+                            Sync dir: {syncDirListing}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
