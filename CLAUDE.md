@@ -189,23 +189,19 @@ macOS release builds require Apple signing certs (CI secrets only). `public/icon
 ## Release Workflow
 
 - **Tag format**: `app-vX.Y.Z` (semver)
-- **Release notes**: entire `RELEASE_NOTES.md` becomes the GitHub release body (`--notes-file`)
-- Keep the Windows install tip at the bottom of `RELEASE_NOTES.md`
-- Never copy release notes from a previous version — write fresh notes for what changed
+- **Release notes**: auto-generated from commits since the last tag (`--generate-notes`)
 
 ```bash
-git log --oneline <last-tag>..HEAD
-# update RELEASE_NOTES.md and version fields
-git add RELEASE_NOTES.md package.json
-git commit -m "Release vX.Y.Z: <brief description>"
-git push origin main && git tag app-vX.Y.Z && git push origin app-vX.Y.Z
+pnpm run release -- patch   # or major / minor
+git push && git push origin app-vX.Y.Z
 ```
+
+The script bumps the version in `package.json`, syncs it to `Cargo.toml` and iOS files, commits `release: vX.Y.Z`, and creates the tag `app-vX.Y.Z`. Pushing the tag triggers the CI build and creates a draft GitHub Release with auto-generated notes.
 
 Retagging (e.g. to add a hotfix):
 ```bash
 gh release delete app-vX.Y.Z --yes
 git push origin :refs/tags/app-vX.Y.Z && git tag -d app-vX.Y.Z
-# update RELEASE_NOTES.md — combine old + new notes, don't replace
 git tag app-vX.Y.Z && git push origin app-vX.Y.Z
 ```
 

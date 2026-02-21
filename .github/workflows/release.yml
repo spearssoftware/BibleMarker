@@ -51,7 +51,7 @@ jobs:
         run: |
           gh release create "app-v${{ steps.version.outputs.version }}" \
             --title "BibleMarker v${{ steps.version.outputs.version }}" \
-            --notes-file RELEASE_NOTES.md \
+            --generate-notes \
             --draft
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -13,6 +13,7 @@
     "download-modules": "node scripts/download-modules.js",
     "generate-icons": "node scripts/generate-icons.js",
     "version:sync": "node scripts/sync-version.js",
+    "release": "bash scripts/release.sh",
     "tauri": "tauri",
     "tauri:dev": "bash scripts/tauri-dev.sh",
     "tauri:build": "bash scripts/tauri-build.sh",
