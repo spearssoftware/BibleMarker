@@ -23,11 +23,11 @@
 import {
   readDir,
   readTextFile,
-  writeTextFile,
   mkdir,
   exists,
   remove,
 } from '@tauri-apps/plugin-fs';
+import { invoke } from '@tauri-apps/api/core';
 import {
   getUnflushedChanges,
   markChangesFlushed,
@@ -347,7 +347,7 @@ async function flushChanges(): Promise<void> {
   const deviceFolder = `${syncFolderPath}/${deviceId}`;
   const filePath = `${deviceFolder}/${String(maxSeq).padStart(10, '0')}.json`;
 
-  await writeTextFile(filePath, JSON.stringify(journal));
+  await invoke('write_sync_file', { path: filePath, content: JSON.stringify(journal) });
 
   // Mark changes as flushed in local DB
   await markChangesFlushed(maxSeq);
@@ -521,7 +521,7 @@ async function writeSnapshot(): Promise<void> {
   }
 
   const snapshotPath = `${snapshotsDir}/${deviceId}_${maxSeq}.json`;
-  await writeTextFile(snapshotPath, JSON.stringify(snapshot));
+  await invoke('write_sync_file', { path: snapshotPath, content: JSON.stringify(snapshot) });
 
   await setSyncConfig('last_snapshot_seq', String(maxSeq));
   console.log(`[SyncEngine] Wrote snapshot at seq ${maxSeq}`);
@@ -742,10 +742,10 @@ async function writeDeviceMeta(lastSeq: number): Promise<void> {
     updatedAt: new Date().toISOString(),
   };
 
-  await writeTextFile(
-    `${syncFolderPath}/${deviceId}/meta.json`,
-    JSON.stringify(meta, null, 2)
-  );
+  await invoke('write_sync_file', {
+    path: `${syncFolderPath}/${deviceId}/meta.json`,
+    content: JSON.stringify(meta, null, 2),
+  });
 
   if (!meta.createdAt) {
     await setSyncConfig('device_created_at', meta.createdAt);

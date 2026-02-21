@@ -128,6 +128,30 @@ pub fn get_sync_folder_path() -> Result<String, String> {
     Ok(sync_path)
 }
 
+/// Write a file to the sync folder using Rust stdlib I/O.
+///
+/// On iOS, the Tauri JS FS plugin may write to the app sandbox rather than
+/// the actual iCloud container path. Using a Rust command with std::fs::write
+/// bypasses this and writes directly to the path returned by get_sync_folder_path.
+#[command]
+pub fn write_sync_file(path: String, content: String) -> Result<(), String> {
+    // Basic path validation — must be within the iCloud app container
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    {
+        if !path.contains("iCloud~app~biblemarker") && !path.contains("iCloud.app.biblemarker") {
+            return Err(format!("Path not within BibleMarker iCloud container: {}", path));
+        }
+    }
+
+    if let Some(parent) = std::path::Path::new(&path).parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create directory {}: {}", parent.display(), e))?;
+    }
+
+    std::fs::write(&path, content.as_bytes())
+        .map_err(|e| format!("Failed to write file {}: {}", path, e))
+}
+
 /// Delete the local database files so a fresh DB can be created.
 /// Called from JS when corruption is detected at runtime.
 #[command]
