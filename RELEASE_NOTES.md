@@ -1,8 +1,8 @@
-# BibleMarker v0.8.5
+# BibleMarker v0.8.6
 
-## Bug Fixes
+## Diagnostics
 
-- **Fix iOS sync writes**: On iOS, `std::fs::write` to the iCloud ubiquity container returns success but files never appear or sync. Now uses Apple's `NSFileManager.setUbiquitous` API: writes to a temp file first, then moves it into the iCloud container, which properly notifies the iCloud daemon. macOS continues using direct writes (FSEvents handles change detection there).
+- **Write verification**: The Diagnostics button now runs a test write to the iCloud container and reports whether `std::fs::write` and `NSFileManager.fileExistsAtPath` agree on whether the file landed on disk. This will reveal whether writes are silently failing or succeeding but not appearing in directory listings.
 
 ---
 
