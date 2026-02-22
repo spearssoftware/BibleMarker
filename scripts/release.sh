@@ -15,6 +15,13 @@ if [[ "$BUMP_TYPE" != "major" && "$BUMP_TYPE" != "minor" && "$BUMP_TYPE" != "pat
   exit 1
 fi
 
+# Abort if there are uncommitted changes (they won't be included in the release)
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "Error: uncommitted changes detected. Commit or stash them before releasing."
+  git status --short
+  exit 1
+fi
+
 CURRENT_VERSION=$(node -p "require('./package.json').version")
 IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
 
