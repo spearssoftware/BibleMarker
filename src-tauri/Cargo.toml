@@ -29,7 +29,7 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 # macOS/iOS iCloud support
 [target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
 objc2 = "0.6"
-objc2-foundation = { version = "0.3", features = ["NSFileManager", "NSString", "NSObject"] }
+objc2-foundation = { version = "0.3", features = ["NSFileManager", "NSString"] }
 
 # Desktop-only: updater and process (excludes iOS)
 [target.'cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))'.dependencies]
