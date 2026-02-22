@@ -14,7 +14,8 @@ import { getDebugFlagsSync } from '@/lib/debug';
  */
 export function splitIntoWords(text: string): Array<{ word: string; startIndex: number; endIndex: number }> {
   const words: Array<{ word: string; startIndex: number; endIndex: number }> = [];
-  const wordRegex = /\S+/g;
+  // Match word-like sequences, splitting on whitespace AND em/en dashes
+  const wordRegex = /[^\s\u2014\u2013]+/g;
   let match;
   
   while ((match = wordRegex.exec(text)) !== null) {
