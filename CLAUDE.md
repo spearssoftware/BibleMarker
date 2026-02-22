@@ -193,10 +193,9 @@ macOS release builds require Apple signing certs (CI secrets only). `public/icon
 
 ```bash
 pnpm run release -- patch   # or major / minor
-git push && git push origin app-vX.Y.Z
 ```
 
-The script bumps the version in `package.json`, syncs it to `Cargo.toml` and iOS files, commits `release: vX.Y.Z`, and creates the tag `app-vX.Y.Z`. Pushing the tag triggers the CI build and creates a draft GitHub Release with auto-generated notes.
+The script bumps the version in `package.json`, syncs it to `Cargo.toml` and iOS files, commits `release: vX.Y.Z`, creates the tag `app-vX.Y.Z`, and pushes both. Pushing the tag triggers the CI build and creates a draft GitHub Release with auto-generated notes.
 
 Retagging (e.g. to add a hotfix):
 ```bash
@@ -208,9 +207,3 @@ git tag app-vX.Y.Z && git push origin app-vX.Y.Z
 After tagging, monitor at:
 - https://github.com/spearssoftware/BibleMarker/actions
 - https://github.com/spearssoftware/BibleMarker/releases
-
-## Before Completing Any Task
-
-1. If you modified files that have nearby `*.test.ts` / `*.test.tsx` files, run `pnpm test`
-2. After TypeScript changes, run `pnpm tsc --noEmit` to catch type errors across consumers
-3. Run `pnpm run lint` and fix any errors you introduced
