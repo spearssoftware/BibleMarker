@@ -27,6 +27,20 @@ describe('splitIntoWords', () => {
     expect(result[0].word).toBe('hello,')
     expect(result[1].word).toBe('world.')
   })
+
+  it('splits on em dashes', () => {
+    const result = splitIntoWords('remnant\u2014because')
+    expect(result).toHaveLength(2)
+    expect(result[0].word).toBe('remnant')
+    expect(result[1].word).toBe('because')
+  })
+
+  it('splits on en dashes', () => {
+    const result = splitIntoWords('faith\u2013hope')
+    expect(result).toHaveLength(2)
+    expect(result[0].word).toBe('faith')
+    expect(result[1].word).toBe('hope')
+  })
 })
 
 describe('findKeywordMatches', () => {
@@ -86,6 +100,13 @@ describe('findKeywordMatches', () => {
   it('matches phrase with commas when verse has same words with punctuation', () => {
     const presets = [preset({ id: 'p1', word: 'faith, hope, love' })]
     const result = findKeywordMatches('Now faith, hope, love remain', verseRef, presets)
+    expect(result.length).toBeGreaterThanOrEqual(1)
+    expect(result[0].presetId).toBe('p1')
+  })
+
+  it('matches keyword adjacent to em dash', () => {
+    const presets = [preset({ id: 'p1', word: 'remnant' })]
+    const result = findKeywordMatches('this remnant\u2014because we are left', verseRef, presets)
     expect(result.length).toBeGreaterThanOrEqual(1)
     expect(result[0].presetId).toBe('p1')
   })
