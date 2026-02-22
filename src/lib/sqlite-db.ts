@@ -707,7 +707,7 @@ export async function sqliteGetChapterHeadings(
   studyId?: string | null
 ): Promise<SectionHeading[]> {
   const db = await getSqliteDb();
-  const likePattern = `%"book":"${book}","chapter":${chapter}%`;
+  const likePattern = `%"book":"${book}","chapter":${chapter},%`;
   const rows = await db.select<
     {
       id: string;
