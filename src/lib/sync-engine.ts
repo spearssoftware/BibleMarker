@@ -691,7 +691,8 @@ async function cleanOldSnapshots(): Promise<void> {
 // ============================================================================
 
 async function getLocalDeviceId(): Promise<string> {
-  const { getDeviceId } = await import('./sqlite-db');
+  const { getSqliteDb, getDeviceId } = await import('./sqlite-db');
+  await getSqliteDb(); // ensure DB is initialized and cachedDeviceId is set
   return getDeviceId();
 }
 
