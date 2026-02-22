@@ -31,18 +31,22 @@ import type { UserPreferences } from '@/types';
 // ============================================================================
 
 let sqliteDb: Database | null = null;
+let dbInitPromise: Promise<Database> | null = null;
 let cachedDeviceId: string | null = null;
 
 /**
  * Get or initialize the SQLite database connection.
- * Database is always stored locally in the app data directory.
- * On first launch after migration, copies existing iCloud database to local.
+ * Uses a promise singleton so concurrent callers all wait for the same init,
+ * guaranteeing initializeSchema (and cachedDeviceId) is set before returning.
  */
 export async function getSqliteDb(): Promise<Database> {
-  if (sqliteDb) {
-    return sqliteDb;
+  if (!dbInitPromise) {
+    dbInitPromise = initSqliteDb();
   }
+  return dbInitPromise;
+}
 
+async function initSqliteDb(): Promise<Database> {
   // Always use local storage — sync is handled by journal files
   const dbPath = 'sqlite:biblemarker.db';
   console.log('[SQLite] Using local database');
@@ -67,7 +71,7 @@ export async function getSqliteDb(): Promise<Database> {
     sqliteDb = await Database.load(dbPath);
   }
 
-  // Initialize schema
+  // Initialize schema (sets cachedDeviceId via initDeviceId)
   await initializeSchema(sqliteDb);
 
   return sqliteDb;
@@ -625,9 +629,7 @@ async function createInitialSchema(db: Database): Promise<void> {
 
 export function getDeviceId(): string {
   if (cachedDeviceId) return cachedDeviceId;
-  // Fallback: should not happen since initDeviceId runs during schema init
-  console.warn('[SQLite] getDeviceId called before DB init — generating ephemeral ID');
-  return crypto.randomUUID();
+  throw new Error('[SQLite] getDeviceId called before DB init — await getSqliteDb() first');
 }
 
 function toISOString(date: Date | string | undefined): string {
