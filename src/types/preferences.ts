@@ -8,11 +8,9 @@ import type { MarkingPreferences } from './annotation';
 
 /** API configuration for Bible APIs */
 export interface ApiConfigRecord {
-  provider: 'biblia' | 'esv' | 'getbible' | 'biblegateway';
+  provider: 'biblia' | 'esv' | 'getbible';
   apiKey?: string;
-  /** BibleGateway: account username */
   username?: string;
-  /** BibleGateway: account password */
   password?: string;
   baseUrl?: string;
   enabled: boolean;

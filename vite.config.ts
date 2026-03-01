@@ -24,12 +24,6 @@ export default defineConfig({
     port: 5173, // Change this to your preferred port
     strictPort: false, // If true, will fail if port is in use; if false, will try next available port
     proxy: {
-      // Proxy BibleGateway API requests to avoid CORS (https://api.biblegateway.com/2/)
-      '/api/biblegateway': {
-        target: 'https://api.biblegateway.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/biblegateway/, ''),
-      },
       // Proxy Biblia API requests to avoid CORS issues
       // Requests to /api/biblia/* will be forwarded to https://api.biblia.com/v1/bible/*
       '/api/biblia': {

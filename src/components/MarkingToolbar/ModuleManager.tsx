@@ -7,15 +7,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { getPreferences } from '@/lib/database';
-import { 
-  bibliaClient, 
-  bibleGatewayClient,
-  esvClient, 
+import {
+  bibliaClient,
+  esvClient,
   getBibleClient,
   getAllTranslations,
   clearTranslationsCache,
   saveApiConfig as saveApiConfigToDb,
-  BIBLEGATEWAY_ENABLED,
   type ApiTranslation,
   type BibleApiProvider,
 } from '@/lib/bible-api';
@@ -36,8 +34,6 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
   // API Configuration state
   const [bibliaApiKey, setBibliaApiKey] = useState('');
   const [esvApiKey, setEsvApiKey] = useState('');
-  const [bibleGatewayUsername, setBibleGatewayUsername] = useState('');
-  const [bibleGatewayPassword, setBibleGatewayPassword] = useState('');
   const [savingApi, setSavingApi] = useState(false);
 
   useEffect(() => {
@@ -63,7 +59,6 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
     const grouped: Record<BibleApiProvider, ApiTranslation[]> = {
       getbible: [],
       biblia: [],
-      biblegateway: [],
       esv: [],
     };
 
@@ -74,8 +69,6 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
         grouped.getbible.push(translation);
       } else if (provider === 'biblia' && bibliaClient.isConfigured()) {
         grouped.biblia.push(translation);
-      } else if (provider === 'biblegateway' && BIBLEGATEWAY_ENABLED && bibleGatewayClient.isConfigured()) {
-        grouped.biblegateway.push(translation);
       } else if (provider === 'esv' && esvClient.isConfigured()) {
         grouped.esv.push(translation);
       }
@@ -90,13 +83,8 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
       if (prefs.apiConfigs) {
         const bibliaConfig = prefs.apiConfigs.find(c => c.provider === 'biblia');
         const esvConfig = prefs.apiConfigs.find(c => c.provider === 'esv');
-        const bibleGatewayConfig = prefs.apiConfigs.find(c => c.provider === 'biblegateway');
         if (bibliaConfig?.apiKey) setBibliaApiKey(bibliaConfig.apiKey);
         if (esvConfig?.apiKey) setEsvApiKey(esvConfig.apiKey);
-        if (BIBLEGATEWAY_ENABLED && bibleGatewayConfig) {
-          setBibleGatewayUsername(bibleGatewayConfig.username || '');
-          setBibleGatewayPassword(bibleGatewayConfig.password || '');
-        }
       }
     } catch (err) {
       console.error('Failed to load API configs:', err);
@@ -104,42 +92,21 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
   }
 
   async function saveApiConfig(
-    provider: 'biblia' | 'esv' | 'biblegateway',
-    apiKeyOrCreds: string | { username: string; password: string }
+    provider: 'biblia' | 'esv',
+    apiKey: string
   ) {
     setSavingApi(true);
     try {
-      // Use the centralized saveApiConfig function from bible-api
-      // This ensures consistency and proper persistence
-      let configToSave: { provider: 'biblia' | 'esv' | 'biblegateway'; apiKey?: string; username?: string; password?: string; enabled: boolean };
-      if (provider === 'biblegateway') {
-        const { username, password } = apiKeyOrCreds as { username: string; password: string };
-        configToSave = {
-          provider: 'biblegateway' as const,
-          username,
-          password,
-          enabled: !!(username && password),
-        };
-      } else {
-        const apiKey = apiKeyOrCreds as string;
-        configToSave = {
-          provider: provider as 'biblia' | 'esv',
-          apiKey,
-          enabled: apiKey.length > 0,
-        };
-      }
+      await saveApiConfigToDb({
+        provider,
+        apiKey,
+        enabled: apiKey.length > 0,
+      });
 
-      // Save using the centralized function (which handles persistence and configuration)
-      await saveApiConfigToDb(configToSave);
-
-      // Update local state
       if (provider === 'biblia') {
-        setBibliaApiKey(apiKeyOrCreds as string);
+        setBibliaApiKey(apiKey);
       } else if (provider === 'esv') {
-        setEsvApiKey(apiKeyOrCreds as string);
-      } else if (provider === 'biblegateway') {
-        setBibleGatewayUsername((apiKeyOrCreds as { username: string; password: string }).username);
-        setBibleGatewayPassword((apiKeyOrCreds as { username: string; password: string }).password);
+        setEsvApiKey(apiKey);
       }
 
       // Clear cache and reload translations to reflect changes
@@ -370,114 +337,6 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                 )}
               </div>
 
-              {/* BibleGateway API Section - hidden when BIBLEGATEWAY_ENABLED is false */}
-              {BIBLEGATEWAY_ENABLED && (
-              <div className="p-4 bg-scripture-elevated rounded-lg border border-scripture-border/30">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium text-scripture-text">
-                    BibleGateway API
-                  </h4>
-                  {bibleGatewayClient.isConfigured() ? (
-                    <span className="text-xs px-2 py-1 bg-scripture-successBg text-scripture-successText border border-scripture-success/30 rounded">
-                      ✓ Configured
-                    </span>
-                  ) : (
-                    <span className="text-xs px-2 py-1 bg-scripture-warningBg text-scripture-warningText border border-scripture-warning/30 rounded">
-                      Account Required
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-scripture-muted mb-3">
-                  Use the same <strong>username</strong> (or email) and <strong>password</strong> you use to sign in at BibleGateway.com. There is no separate API signup or &quot;enable&quot; step—the API uses your regular account. Supports <strong>NASB</strong>, <strong>NIV</strong>, ESV, and many other translations.
-                </p>
-                <a
-                  href="https://www.biblegateway.com/api/documentation"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block mb-3 text-xs text-scripture-accent hover:underline"
-                >
-                  BibleGateway API Documentation
-                </a>
-                <div className="mb-3 flex flex-col gap-2">
-                  <Input
-                    type="text"
-                    value={bibleGatewayUsername}
-                    onChange={(e) => setBibleGatewayUsername(e.target.value)}
-                    placeholder="BibleGateway username"
-                  />
-                  <Input
-                    type="password"
-                    value={bibleGatewayPassword}
-                    onChange={(e) => setBibleGatewayPassword(e.target.value)}
-                    placeholder="BibleGateway password"
-                  />
-                </div>
-                <div className="flex gap-2 mb-3">
-                  <Button
-                    variant="primary"
-                    onClick={() => saveApiConfig('biblegateway', { username: bibleGatewayUsername, password: bibleGatewayPassword })}
-                    disabled={savingApi}
-                  >
-                    {savingApi ? 'Saving...' : bibleGatewayClient.isConfigured() ? 'Update' : 'Save'}
-                  </Button>
-                </div>
-                {bibleGatewayClient.isConfigured() && (
-                  <button
-                    onClick={() => {
-                      if (confirm('Remove BibleGateway credentials?')) {
-                        saveApiConfig('biblegateway', { username: '', password: '' });
-                        setBibleGatewayUsername('');
-                        setBibleGatewayPassword('');
-                      }
-                    }}
-                    className="text-xs text-scripture-errorText hover:text-scripture-error underline"
-                  >
-                    Remove credentials
-                  </button>
-                )}
-                {bibleGatewayClient.isConfigured() && translationsByProvider.biblegateway.length > 0 && (
-                  <div className="space-y-2 mt-4">
-                    {translationsByProvider.biblegateway.map((translation) => (
-                      <div
-                        key={translation.id}
-                        className={`p-3 rounded-lg border transition-all duration-200 ${
-                          currentModuleId === translation.id
-                            ? 'bg-scripture-accent/10 border-scripture-accent/50'
-                            : 'bg-scripture-surface border-scripture-border/30 hover:border-scripture-border/50'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-scripture-text">{translation.abbreviation}</span>
-                              {currentModuleId === translation.id && (
-                                <span className="text-xs px-2 py-0.5 bg-scripture-accent text-scripture-bg rounded">Active</span>
-                              )}
-                            </div>
-                            <p className="text-xs text-scripture-muted mt-1">{translation.name}</p>
-                          </div>
-                          {currentModuleId !== translation.id && (
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => handleSelectApiTranslation(translation)}
-                            >
-                              Use
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {bibleGatewayClient.isConfigured() && translationsByProvider.biblegateway.length === 0 && (
-                  <p className="text-xs text-scripture-muted mt-2">
-                    No translations available. Check credentials or try refreshing.
-                  </p>
-                )}
-              </div>
-              )}
-
               {/* ESV API Section */}
               <div className="p-4 bg-scripture-elevated rounded-lg border border-scripture-border/30">
                 <div className="flex items-center justify-between mb-3">
@@ -609,7 +468,7 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
               </div>
 
               {/* Show message if no APIs are configured */}
-              {!bibliaClient.isConfigured() && !esvClient.isConfigured() && (!BIBLEGATEWAY_ENABLED || !bibleGatewayClient.isConfigured()) && translationsByProvider.getbible.length === 0 && (
+              {!bibliaClient.isConfigured() && !esvClient.isConfigured() && translationsByProvider.getbible.length === 0 && (
                 <div className="p-4 bg-scripture-elevated rounded-lg border border-scripture-border/30 text-center">
                   <p className="text-sm text-scripture-text mb-2">
                     No API translations available

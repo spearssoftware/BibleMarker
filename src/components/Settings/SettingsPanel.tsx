@@ -33,11 +33,9 @@ import { resetAllStores } from '@/lib/storeReset';
 import { onSyncStatusChange, getSyncStatusMessage, triggerSync, type SyncStatus } from '@/lib/sync';
 import {
   bibliaClient,
-  bibleGatewayClient,
   esvClient,
   clearTranslationsCache,
   saveApiConfig as saveApiConfigToDb,
-  BIBLEGATEWAY_ENABLED,
   getAllTranslations,
   type ApiTranslation,
 } from '@/lib/bible-api';
@@ -86,8 +84,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   // API Configuration state
   const [bibliaApiKey, setBibliaApiKey] = useState('');
   const [esvApiKey, setEsvApiKey] = useState('');
-  const [bibleGatewayUsername, setBibleGatewayUsername] = useState('');
-  const [bibleGatewayPassword, setBibleGatewayPassword] = useState('');
   const [savingApi, setSavingApi] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   
@@ -168,13 +164,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         if (prefs.apiConfigs) {
           const bibliaConfig = prefs.apiConfigs.find(c => c.provider === 'biblia');
           const esvConfig = prefs.apiConfigs.find(c => c.provider === 'esv');
-          const bibleGatewayConfig = prefs.apiConfigs.find(c => c.provider === 'biblegateway');
           if (bibliaConfig?.apiKey) setBibliaApiKey(bibliaConfig.apiKey);
           if (esvConfig?.apiKey) setEsvApiKey(esvConfig.apiKey);
-          if (BIBLEGATEWAY_ENABLED && bibleGatewayConfig) {
-            setBibleGatewayUsername(bibleGatewayConfig.username || '');
-            setBibleGatewayPassword(bibleGatewayConfig.password || '');
-          }
         }
         
         // Load API resources and language filter (default to English when unset)
@@ -253,46 +244,28 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   }
 
   async function saveApiConfig(
-    provider: 'biblia' | 'esv' | 'biblegateway',
-    apiKeyOrCreds: string | { username: string; password: string }
+    provider: 'biblia' | 'esv',
+    apiKey: string
   ) {
     setSavingApi(true);
     setApiError(null);
     try {
-      let configToSave: { provider: 'biblia' | 'esv' | 'biblegateway'; apiKey?: string; username?: string; password?: string; enabled: boolean };
-      if (provider === 'biblegateway') {
-        const { username, password } = apiKeyOrCreds as { username: string; password: string };
-        configToSave = {
-          provider: 'biblegateway' as const,
-          username,
-          password,
-          enabled: !!(username && password),
-        };
-      } else {
-        const apiKey = apiKeyOrCreds as string;
-        configToSave = {
-          provider: provider as 'biblia' | 'esv',
-          apiKey,
-          enabled: apiKey.length > 0,
-        };
-      }
+      await saveApiConfigToDb({
+        provider,
+        apiKey,
+        enabled: apiKey.length > 0,
+      });
 
-      await saveApiConfigToDb(configToSave);
-
-      // Update local state
       if (provider === 'biblia') {
-        setBibliaApiKey(apiKeyOrCreds as string);
+        setBibliaApiKey(apiKey);
       } else if (provider === 'esv') {
-        setEsvApiKey(apiKeyOrCreds as string);
-      } else if (provider === 'biblegateway') {
-        setBibleGatewayUsername((apiKeyOrCreds as { username: string; password: string }).username);
-        setBibleGatewayPassword((apiKeyOrCreds as { username: string; password: string }).password);
+        setEsvApiKey(apiKey);
       }
 
       // Clear cache to reflect changes
       await clearTranslationsCache();
       window.dispatchEvent(new Event('translationsUpdated'));
-      
+
       // Reload available translations for the default translation selector
       const translations = await getAllTranslations();
       setAvailableTranslations(translations);
@@ -923,75 +896,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   </button>
                 )}
               </div>
-
-              <div className="border-t border-scripture-border/30 my-4"></div>
-
-              {/* BibleGateway API Section */}
-              {BIBLEGATEWAY_ENABLED && (
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-ui font-semibold text-scripture-text mb-3">BibleGateway API</h3>
-                    {bibleGatewayClient.isConfigured() ? (
-                      <span className="text-xs px-2 py-1 bg-scripture-successBg text-scripture-successText border border-scripture-success/30 rounded">
-                        ✓ Configured
-                      </span>
-                    ) : (
-                      <span className="text-xs px-2 py-1 bg-scripture-warningBg text-scripture-warningText border border-scripture-warning/30 rounded">
-                        Account Required
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-scripture-muted mb-4">
-                    Use the same <strong>username</strong> (or email) and <strong>password</strong> you use to sign in at BibleGateway.com. There is no separate API signup or "enable" step—the API uses your regular account. Supports <strong>NASB</strong>, <strong>NIV</strong>, ESV, and many other translations.
-                  </p>
-                  <a
-                    href="https://www.biblegateway.com/api/documentation"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block mb-4 text-xs text-scripture-accent hover:underline"
-                  >
-                    BibleGateway API Documentation
-                  </a>
-                  <div className="mb-4 flex flex-col gap-2">
-                    <Input
-                      type="text"
-                      value={bibleGatewayUsername}
-                      onChange={(e) => setBibleGatewayUsername(e.target.value)}
-                      placeholder="BibleGateway username"
-                    />
-                    <Input
-                      type="password"
-                      value={bibleGatewayPassword}
-                      onChange={(e) => setBibleGatewayPassword(e.target.value)}
-                      placeholder="BibleGateway password"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => saveApiConfig('biblegateway', { username: bibleGatewayUsername, password: bibleGatewayPassword })}
-                      disabled={savingApi}
-                      className="px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                               hover:bg-scripture-accent/90 transition-all duration-200 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {savingApi ? 'Saving...' : bibleGatewayClient.isConfigured() ? 'Update' : 'Save'}
-                    </button>
-                  </div>
-                  {bibleGatewayClient.isConfigured() && (
-                    <button
-                      onClick={() => {
-                        if (confirm('Remove BibleGateway credentials?')) {
-                          saveApiConfig('biblegateway', { username: '', password: '' });
-                          setBibleGatewayUsername('');
-                          setBibleGatewayPassword('');
-                        }
-                      }}
-                      className="text-xs text-scripture-errorText hover:text-scripture-error underline"
-                    >
-                      Remove credentials
-                    </button>
-                  )}
-                </div>
-              )}
 
               <div className="border-t border-scripture-border/30 my-4"></div>
 
