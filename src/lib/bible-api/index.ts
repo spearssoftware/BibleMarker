@@ -17,7 +17,6 @@ import type {
 } from './types';
 import { BibleApiError } from './types';
 import { bibliaClient } from './biblia';
-import { bibleGatewayClient } from './biblegateway';
 import { esvClient, parseVerseText } from './esv';
 import { getBibleClient } from './getbible';
 import type { Chapter } from '@/types';
@@ -27,12 +26,8 @@ import { retryWithBackoff, isNetworkError, getNetworkErrorMessage, isOnline } fr
 // Re-export types
 export * from './types';
 export { bibliaClient } from './biblia';
-export { bibleGatewayClient } from './biblegateway';
 export { esvClient, ESV_COPYRIGHT } from './esv';
 export { getBibleClient } from './getbible';
-
-/** Set to true to enable BibleGateway API (NASB, NIV, etc.). Disabled for now. */
-export const BIBLEGATEWAY_ENABLED = false;
 
 /**
  * Check if a Bible translation is available with the current Biblia API key
@@ -69,7 +64,6 @@ if (typeof window !== 'undefined') {
 /** All available API clients */
 const clients: Record<BibleApiProvider, BibleApiClient | null> = {
   biblia: bibliaClient,
-  biblegateway: bibleGatewayClient,
   esv: esvClient,
   getbible: getBibleClient,
 };
@@ -205,8 +199,6 @@ export async function getAllTranslations(): Promise<ApiTranslation[]> {
 
     for (const [provider, client] of Object.entries(clients)) {
       if (!client) continue;
-      if (provider === 'biblegateway' && !BIBLEGATEWAY_ENABLED) continue;
-
       const isConfigured = client.isConfigured();
 
       if (isConfigured) {
@@ -360,7 +352,7 @@ export async function fetchChapter(
   
   if (translationId.includes('-')) {
     const [prefix, ...rest] = translationId.split('-');
-    if (['getbible', 'biblia', 'esv', 'biblegateway'].includes(prefix)) {
+    if (['getbible', 'biblia', 'esv'].includes(prefix)) {
       provider = prefix as BibleApiProvider;
       actualTranslationId = rest.join('-');
     }
@@ -421,28 +413,6 @@ export async function fetchChapter(
     ['LEB', 'DARBY', 'YLT', 'EMPHBBL'].includes(actualTranslationId.toUpperCase())
   );
   
-  // Check BibleGateway (NASB, NIV, ESV, etc.) - disabled when BIBLEGATEWAY_ENABLED is false
-  if (BIBLEGATEWAY_ENABLED && !chapterData && (provider === 'biblegateway' || (!provider && bibleGatewayClient.isConfigured()))) {
-    if (bibleGatewayClient.isConfigured()) {
-      try {
-        chapterData = await retryWithBackoff(
-          () => bibleGatewayClient.getChapter(actualTranslationId, book, chapter),
-          { maxRetries: 2, initialDelay: 1000 }
-        );
-      } catch (error) {
-        // Check if it's a network/offline error
-        if (isNetworkError(error) || !isOnline()) {
-          throw new BibleApiError(
-            getNetworkErrorMessage(error),
-            'biblegateway',
-            error instanceof BibleApiError ? error.statusCode : undefined
-          );
-        }
-        console.warn('BibleGateway API failed:', error);
-      }
-    }
-  }
-
   let bibliaError: Error | null = null;
   if (!chapterData && isBibliaTranslation) {
     if (bibliaClient.isConfigured()) {
@@ -675,7 +645,7 @@ export async function fetchChapter(
   
   // Generic error - translation not found in any API
   throw new BibleApiError(
-    `Translation "${translationId}" not found. Available APIs: getBible (free), Biblia, ESV${BIBLEGATEWAY_ENABLED ? ', BibleGateway' : ''}. The translation may not be available or the ID may be incorrect.`,
+    `Translation "${translationId}" not found. Available APIs: getBible (free), Biblia, ESV. The translation may not be available or the ID may be incorrect.`,
     'getbible',
     404
   );
@@ -702,14 +672,6 @@ export async function searchBible(
     }
   }
 
-  if (BIBLEGATEWAY_ENABLED && bibleGatewayClient.isConfigured() && bibleGatewayClient.search) {
-    try {
-      return await bibleGatewayClient.search(translationId, query, limit);
-    } catch {
-      // fall through
-    }
-  }
-
   // No search available
   return [];
 }
@@ -723,8 +685,6 @@ export async function loadApiConfigs(): Promise<void> {
 
     if (prefs?.apiConfigs) {
       for (const configRecord of prefs.apiConfigs) {
-        if (configRecord.provider === 'biblegateway' && !BIBLEGATEWAY_ENABLED) continue;
-        
         // Convert ApiConfigRecord to ApiConfig
         const config: ApiConfig = {
           provider: configRecord.provider as BibleApiProvider,
@@ -782,7 +742,7 @@ export async function saveApiConfig(config: ApiConfig): Promise<void> {
   
   // Convert ApiConfig to ApiConfigRecord (exclude getbible)
   updatedConfigs.push({
-    provider: config.provider as 'biblia' | 'esv' | 'getbible' | 'biblegateway',
+    provider: config.provider as 'biblia' | 'esv' | 'getbible',
     apiKey: config.apiKey,
     username: config.username,
     password: config.password,

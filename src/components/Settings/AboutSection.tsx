@@ -143,20 +143,6 @@ export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true }:
             </p>
           </div>
 
-          <div>
-            <div className="font-medium text-scripture-text mb-1">BibleGateway API</div>
-            <p>Provides access to NASB, NIV, ESV, and many other translations. Requires BibleGateway account credentials.</p>
-            <p className="mt-1">
-              <a 
-                href="https://www.biblegateway.com/api/documentation" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-scripture-accent hover:underline"
-              >
-                Documentation →
-              </a>
-            </p>
-          </div>
         </div>
       </div>
 

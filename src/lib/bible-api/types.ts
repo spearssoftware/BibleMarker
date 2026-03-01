@@ -7,15 +7,13 @@
 import type { VerseRef } from '@/types';
 
 /** Supported Bible API providers */
-export type BibleApiProvider = 'biblia' | 'esv' | 'getbible' | 'biblegateway';
+export type BibleApiProvider = 'biblia' | 'esv' | 'getbible';
 
 /** API configuration for a provider */
 export interface ApiConfig {
   provider: BibleApiProvider;
   apiKey?: string;
-  /** BibleGateway: account username */
   username?: string;
-  /** BibleGateway: account password */
   password?: string;
   baseUrl?: string;
   enabled: boolean;
