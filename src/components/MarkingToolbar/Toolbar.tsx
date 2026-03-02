@@ -18,6 +18,7 @@ import { AddToList } from '@/components/Lists';
 import { StudyToolsPanel } from '@/components/Summary';
 import { SettingsPanel } from '@/components/Settings';
 import { ObservationToolsPanel, type ObservationTab } from '@/components/Observation';
+import { AnalyzeToolsPanel, type AnalyzeTab } from '@/components/Analyze';
 import { ConfirmationDialog } from '@/components/shared';
 import { clearDatabase } from '@/lib/database';
 import { resetAllStores } from '@/lib/storeReset';
@@ -34,11 +35,11 @@ const COLOR_STYLE_LABELS: Record<(typeof COLOR_STYLES)[number], string> = {
   underline: 'Underline',
 };
 
-const TOOLS: { type: 'keyWords' | 'observe' | 'studyTools' | 'more'; icon: string; label: string }[] = [
-  { type: 'keyWords', icon: '🔑', label: 'Key Words' },
+const TOOLS: { type: 'keyWords' | 'observe' | 'analyze' | 'studyTools'; icon: string; label: string }[] = [
+  { type: 'keyWords', icon: '✏️', label: 'Mark' },
   { type: 'observe', icon: '🔍', label: 'Observe' },
-  { type: 'studyTools', icon: '📚', label: 'Study' },
-  { type: 'more', icon: '⚙️', label: 'Settings' },
+  { type: 'analyze', icon: '📊', label: 'Analyze' },
+  { type: 'studyTools', icon: '💭', label: 'Study' },
 ];
 
 export function Toolbar() {
@@ -67,6 +68,8 @@ export function Toolbar() {
   const [, _setShowModuleManager] = useState(false);
   const [showKeyWordManager, setShowKeyWordManager] = useState(false);
   const [showStudyToolsPanel, setShowStudyToolsPanel] = useState(false);
+  const [showAnalyzeToolsPanel, setShowAnalyzeToolsPanel] = useState(false);
+  const [analyzePanelInitialTab, setAnalyzePanelInitialTab] = useState<AnalyzeTab>('chapter');
   const [showObservationToolsPanel, setShowObservationToolsPanel] = useState(false);
   const [observationPanelInitialTab, setObservationPanelInitialTab] = useState<ObservationTab>('lists');
   const [observationPanelInitialListId, setObservationPanelInitialListId] = useState<string | undefined>(undefined);
@@ -117,14 +120,39 @@ export function Toolbar() {
       setObservationPanelAutoCreate(!!autoCreate);
       setShowObservationToolsPanel(true);
       setShowStudyToolsPanel(false);
+      setShowAnalyzeToolsPanel(false);
       setShowKeyWordManager(false);
       setShowSettingsPanel(false);
       setActiveTool(null);
     };
 
+    const handleOpenAnalyzeTools = (e: CustomEvent<{ tab?: AnalyzeTab }>) => {
+      const { tab = 'chapter' } = e.detail || {};
+      setAnalyzePanelInitialTab(tab);
+      setShowAnalyzeToolsPanel(true);
+      setShowObservationToolsPanel(false);
+      setShowStudyToolsPanel(false);
+      setShowKeyWordManager(false);
+      setShowSettingsPanel(false);
+      setActiveTool(null);
+    };
+
+    const handleOpenSettings = () => {
+      setShowSettingsPanel(true);
+      setShowAnalyzeToolsPanel(false);
+      setShowObservationToolsPanel(false);
+      setShowStudyToolsPanel(false);
+      setShowKeyWordManager(false);
+      setActiveTool(null);
+    };
+
     window.addEventListener('openObservationTools', handleOpenObservationTools as EventListener);
+    window.addEventListener('openAnalyzeTools', handleOpenAnalyzeTools as EventListener);
+    window.addEventListener('openSettings', handleOpenSettings as EventListener);
     return () => {
       window.removeEventListener('openObservationTools', handleOpenObservationTools as EventListener);
+      window.removeEventListener('openAnalyzeTools', handleOpenAnalyzeTools as EventListener);
+      window.removeEventListener('openSettings', handleOpenSettings as EventListener);
     };
   }, [setActiveTool]);
 
@@ -156,11 +184,12 @@ export function Toolbar() {
         setShowKeyWordApplyPicker(false);
         setShowAddAsVariantPicker(false);
         setShowStudyToolsPanel(false);
+        setShowAnalyzeToolsPanel(false);
         setShowObservationToolsPanel(false);
         setActiveTool(null);
       }
     };
-    
+
     document.addEventListener('mousedown', handleMouseDown);
     return () => document.removeEventListener('mousedown', handleMouseDown);
   }, [clearSelection, setActiveTool]);
@@ -256,6 +285,7 @@ export function Toolbar() {
       setShowSymbolPicker(false);
       setShowSettingsPanel(false);
       setShowStudyToolsPanel(false);
+      setShowAnalyzeToolsPanel(false);
       setShowObservationToolsPanel(false);
       if (willOpen) setActiveTool(null);
       if (willOpen && selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
@@ -268,8 +298,20 @@ export function Toolbar() {
       setShowKeyWordManager(false);
       setShowSettingsPanel(false);
       setShowStudyToolsPanel(false);
+      setShowAnalyzeToolsPanel(false);
       if (willOpen) setActiveTool(null);
       if (willOpen && selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
+    } else if (toolType === 'analyze') {
+      const willOpen = !showAnalyzeToolsPanel;
+      setShowAnalyzeToolsPanel((v) => !v);
+      setShowPickerOverlay(false);
+      setShowColorPicker(false);
+      setShowSymbolPicker(false);
+      setShowKeyWordManager(false);
+      setShowSettingsPanel(false);
+      setShowStudyToolsPanel(false);
+      setShowObservationToolsPanel(false);
+      if (willOpen) setActiveTool(null);
     } else if (toolType === 'studyTools') {
       const willOpen = !showStudyToolsPanel;
       setShowStudyToolsPanel((v) => !v);
@@ -278,16 +320,7 @@ export function Toolbar() {
       setShowSymbolPicker(false);
       setShowKeyWordManager(false);
       setShowSettingsPanel(false);
-      setShowObservationToolsPanel(false);
-      if (willOpen) setActiveTool(null);
-    } else if (toolType === 'more') {
-      const willOpen = !showSettingsPanel;
-      setShowSettingsPanel(!showSettingsPanel);
-      setShowPickerOverlay(false);
-      setShowColorPicker(false);
-      setShowSymbolPicker(false);
-      setShowKeyWordManager(false);
-      setShowStudyToolsPanel(false);
+      setShowAnalyzeToolsPanel(false);
       setShowObservationToolsPanel(false);
       if (willOpen) setActiveTool(null);
     }
@@ -505,15 +538,34 @@ export function Toolbar() {
         </ToolbarOverlay>
       )}
 
+      {/* Analyze Tools Panel */}
+      {showAnalyzeToolsPanel && (
+        <ToolbarOverlay onClose={() => { setShowAnalyzeToolsPanel(false); clearSelection(); }}>
+          <AnalyzeToolsPanel
+            onClose={() => {
+              setShowAnalyzeToolsPanel(false);
+              clearSelection();
+            }}
+            initialTab={analyzePanelInitialTab}
+            selectedText={selection?.text}
+            verseRef={selection ? {
+              book: selection.book,
+              chapter: selection.chapter,
+              verse: selection.startVerse,
+            } : undefined}
+          />
+        </ToolbarOverlay>
+      )}
+
       {/* Study Tools Panel */}
       {showStudyToolsPanel && (
         <ToolbarOverlay onClose={() => { setShowStudyToolsPanel(false); clearSelection(); }}>
-          <StudyToolsPanel 
+          <StudyToolsPanel
             onClose={() => {
               setShowStudyToolsPanel(false);
               clearSelection();
             }}
-            initialTab="book"
+            initialTab="interpretation"
           />
         </ToolbarOverlay>
       )}
@@ -560,7 +612,7 @@ export function Toolbar() {
         </ToolbarOverlay>
       )}
 
-      {/* Main toolbar: Key Words | Study | Settings */}
+      {/* Main toolbar: Mark | Observe | Analyze | Study */}
       <div className="bg-scripture-surface/80 backdrop-blur-md shadow-lg"
            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
@@ -568,13 +620,13 @@ export function Toolbar() {
             const isActive =
               tool.type === 'keyWords' ? showKeyWordManager
               : tool.type === 'observe' ? showObservationToolsPanel
+              : tool.type === 'analyze' ? showAnalyzeToolsPanel
               : tool.type === 'studyTools' ? showStudyToolsPanel
-              : tool.type === 'more' ? showSettingsPanel
               : false;
-            const dataAttr = tool.type === 'keyWords' ? 'data-toolbar-keywords' 
+            const dataAttr = tool.type === 'keyWords' ? 'data-toolbar-keywords'
               : tool.type === 'observe' ? 'data-toolbar-observe'
+              : tool.type === 'analyze' ? 'data-toolbar-analyze'
               : tool.type === 'studyTools' ? 'data-toolbar-study'
-              : tool.type === 'more' ? 'data-toolbar-settings'
               : undefined;
             return (
               <button

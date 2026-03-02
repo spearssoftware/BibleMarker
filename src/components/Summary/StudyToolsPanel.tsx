@@ -7,22 +7,26 @@
 import { useState, useEffect } from 'react';
 import { useStudyStore } from '@/stores/studyStore';
 import { getBookById, BIBLE_BOOKS } from '@/types';
-import { ChapterAtAGlance, BookOverview, ThemeTracker, Timeline } from './';
 import { ConfirmationDialog, DropdownSelect, Input } from '@/components/shared';
 import { InterpretationWorksheet } from '@/components/Interpretation';
 import { ApplicationWorksheet } from '@/components/Application';
+import { getPreferences } from '@/lib/database';
 
-type StudyToolTab = 'chapter' | 'book' | 'theme' | 'studies' | 'interpretation' | 'application' | 'timeline';
+type StudyToolTab = 'interpretation' | 'application' | 'studies';
 
 interface StudyToolsPanelProps {
   onClose: () => void;
   initialTab?: StudyToolTab;
 }
 
-export function StudyToolsPanel({ onClose: _onClose, initialTab = 'book' }: StudyToolsPanelProps) {
-  const [activeTab, setActiveTab] = useState<StudyToolTab>(initialTab);
+const VALID_TABS: StudyToolTab[] = ['interpretation', 'application', 'studies'];
+
+export function StudyToolsPanel({ onClose: _onClose, initialTab = 'interpretation' }: StudyToolsPanelProps) {
+  const resolvedInitial = VALID_TABS.includes(initialTab) ? initialTab : 'interpretation';
+  const [activeTab, setActiveTab] = useState<StudyToolTab>(resolvedInitial);
   const { studies, activeStudyId, loadStudies, createStudy, updateStudy, deleteStudy, setActiveStudy } = useStudyStore();
-  
+  const [disabledTools, setDisabledTools] = useState<string[]>([]);
+
   // Study management state
   const [editingStudy, setEditingStudy] = useState<{ id: string; name: string; book?: string } | null>(null);
   const [newStudyName, setNewStudyName] = useState('');
@@ -33,15 +37,19 @@ export function StudyToolsPanel({ onClose: _onClose, initialTab = 'book' }: Stud
     loadStudies();
   }, [loadStudies]);
 
-  const tabs: { id: StudyToolTab; label: string; icon: string }[] = [
-    { id: 'book', label: 'Overview', icon: '📚' },
-    { id: 'chapter', label: 'Chapter', icon: '📄' },
-    { id: 'theme', label: 'Theme', icon: '🔍' },
-    { id: 'timeline', label: 'Timeline', icon: '📅' },
+  useEffect(() => {
+    getPreferences().then(prefs => {
+      setDisabledTools(prefs.disabledTools || []);
+    });
+  }, []);
+
+  const allTabs: { id: StudyToolTab; label: string; icon: string }[] = [
     { id: 'interpretation', label: 'Interpretation', icon: '💭' },
     { id: 'application', label: 'Application', icon: '✍️' },
     { id: 'studies', label: 'Studies', icon: '📖' },
   ];
+
+  const tabs = allTabs.filter(tab => !disabledTools.includes(tab.id));
 
   // Study management handlers
   const handleCreateStudy = async () => {
@@ -133,26 +141,6 @@ export function StudyToolsPanel({ onClose: _onClose, initialTab = 'book' }: Stud
 
       {/* Content */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-        {activeTab === 'chapter' && (
-          <div role="tabpanel" id="study-tabpanel-chapter" aria-labelledby="study-tab-chapter">
-            <ChapterAtAGlance />
-          </div>
-        )}
-            {activeTab === 'book' && (
-              <div role="tabpanel" id="study-tabpanel-book" aria-labelledby="study-tab-book">
-                <BookOverview onChapterClick={() => setActiveTab('chapter')} />
-              </div>
-            )}
-            {activeTab === 'theme' && (
-              <div role="tabpanel" id="study-tabpanel-theme" aria-labelledby="study-tab-theme">
-                <ThemeTracker />
-              </div>
-            )}
-            {activeTab === 'timeline' && (
-              <div role="tabpanel" id="study-tabpanel-timeline" aria-labelledby="study-tab-timeline">
-                <Timeline />
-              </div>
-            )}
             {activeTab === 'interpretation' && (
               <div role="tabpanel" id="study-tabpanel-interpretation" aria-labelledby="study-tab-interpretation">
                 <InterpretationWorksheet />
