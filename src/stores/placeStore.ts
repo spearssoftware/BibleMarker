@@ -12,6 +12,7 @@ import type { VerseRef } from '@/types';
 import { validatePlace, sanitizeData, ValidationError } from '@/lib/validation';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 import { getSymbolsForTracker } from '@/lib/observationSymbols';
+import { resolveCoordinates } from '@/lib/bible-geocoding';
 
 interface PlaceState {
   // Places (cached)
@@ -38,6 +39,24 @@ export const usePlaceStore = create<PlaceState>()(
       loadPlaces: async () => {
         const allPlaces = await dbGetAllPlaces();
         set({ places: allPlaces });
+
+        // Backfill coordinates for existing places that don't have them
+        const toBackfill = allPlaces.filter(p => p.latitude == null && p.longitude == null);
+        if (toBackfill.length > 0) {
+          const updated: Place[] = [];
+          for (const place of toBackfill) {
+            const coords = resolveCoordinates(place.name);
+            if (coords) {
+              const patched = { ...place, ...coords, updatedAt: new Date() };
+              await dbSavePlace(patched);
+              updated.push(patched);
+            }
+          }
+          if (updated.length > 0) {
+            const refreshed = await dbGetAllPlaces();
+            set({ places: refreshed });
+          }
+        }
       },
       
       createPlace: async (name, verseRef, notes, presetId, annotationId, studyId) => {
@@ -70,6 +89,7 @@ export const usePlaceStore = create<PlaceState>()(
           return existingPlace;
         }
         
+        const coords = resolveCoordinates(name.trim());
         const newPlace: Place = {
           id: crypto.randomUUID(),
           name: name.trim(),
@@ -78,6 +98,7 @@ export const usePlaceStore = create<PlaceState>()(
           presetId,
           annotationId,
           studyId,
+          ...coords && { latitude: coords.latitude, longitude: coords.longitude },
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -207,12 +228,14 @@ export const usePlaceStore = create<PlaceState>()(
           }
           
           // Create new place from annotation
+          const coords = resolveCoordinates(placeName.trim());
           const newPlace: Place = {
             id: crypto.randomUUID(),
             name: placeName.trim(),
             verseRef,
             presetId: annotation.presetId,
             annotationId: annotation.id,
+            ...coords && { latitude: coords.latitude, longitude: coords.longitude },
             createdAt: new Date(),
             updatedAt: new Date(),
           };
