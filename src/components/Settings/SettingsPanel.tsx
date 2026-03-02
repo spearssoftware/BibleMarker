@@ -705,6 +705,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                         { id: 'chapter', label: 'Chapter' },
                         { id: 'conclusions', label: 'Conclusions' },
                         { id: 'overview', label: 'Overview' },
+                        { id: 'themes', label: 'Themes' },
                         { id: 'timeline', label: 'Timeline' },
                       ].map(tool => (
                         <Checkbox
