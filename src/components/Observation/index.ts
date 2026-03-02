@@ -11,3 +11,4 @@ export { TimeTracker } from './TimeTracker';
 export { PlaceTracker } from './PlaceTracker';
 export { PeopleTracker } from './PeopleTracker';
 export { ConclusionTracker } from './ConclusionTracker';
+export { PlaceMap } from './PlaceMap';

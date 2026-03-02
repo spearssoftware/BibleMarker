@@ -4,7 +4,7 @@
  * Panel for analysis phase tools: Theme, Conclusions, Overview, Chapter, Timeline.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getPreferences } from '@/lib/database';
 import { useBibleStore } from '@/stores/bibleStore';
 import { ConclusionTracker } from '@/components/Observation/ConclusionTracker';
@@ -12,9 +12,13 @@ import { BookOverview } from '@/components/Summary/BookOverview';
 import { ChapterAtAGlance } from '@/components/Summary/ChapterAtAGlance';
 import { ThemeTracker } from '@/components/Summary/ThemeTracker';
 import { Timeline } from '@/components/Summary/Timeline';
-import type { VerseRef } from '@/types';
+import { PlaceMap } from '@/components/Observation/PlaceMap';
+import { usePlaceStore } from '@/stores/placeStore';
+import { useStudyStore } from '@/stores/studyStore';
+import { Checkbox } from '@/components/shared';
+import type { Place, VerseRef } from '@/types';
 
-export type AnalyzeTab = 'conclusions' | 'overview' | 'chapter' | 'themes' | 'timeline';
+export type AnalyzeTab = 'conclusions' | 'overview' | 'chapter' | 'themes' | 'timeline' | 'places-map';
 
 interface AnalyzeToolsPanelProps {
   onClose: () => void;
@@ -37,7 +41,7 @@ export function AnalyzeToolsPanel({
   }, [initialTab]);
 
   useEffect(() => {
-    getPreferences().then(prefs => {
+    getPreferences().then((prefs) => {
       setDisabledTools(prefs.disabledTools || []);
     });
   }, []);
@@ -48,6 +52,7 @@ export function AnalyzeToolsPanel({
     { id: 'overview', label: 'Overview', icon: '📚' },
     { id: 'themes', label: 'Themes', icon: '🔍' },
     { id: 'timeline', label: 'Timeline', icon: '📅' },
+    { id: 'places-map', label: 'Places', icon: '🗺️' },
   ];
 
   const tabs = allTabs.filter(tab => !disabledTools.includes(tab.id));
@@ -60,6 +65,9 @@ export function AnalyzeToolsPanel({
   }, [tabs, activeTab]);
 
   const { currentBook, currentChapter, setLocation, setNavSelectedVerse } = useBibleStore();
+  const { places, loadPlaces } = usePlaceStore();
+  const { activeStudyId } = useStudyStore();
+  const [filterPlacesByChapter, setFilterPlacesByChapter] = useState(true);
 
   const handleNavigateToVerse = (ref: VerseRef) => {
     if (ref.book !== currentBook || ref.chapter !== currentChapter) {
@@ -141,7 +149,68 @@ export function AnalyzeToolsPanel({
             <Timeline />
           </div>
         )}
+        {activeTab === 'places-map' && (
+          <PlacesMapPanel
+            places={places}
+            loadPlaces={loadPlaces}
+            filterByChapter={filterPlacesByChapter}
+            onFilterByChapterChange={setFilterPlacesByChapter}
+            currentBook={currentBook}
+            currentChapter={currentChapter}
+            activeStudyId={activeStudyId}
+          />
+        )}
       </div>
+    </div>
+  );
+}
+
+/** Wrapper that filters places and provides a chapter toggle for the map */
+
+interface PlacesMapPanelProps {
+  places: Place[];
+  loadPlaces: () => Promise<void>;
+  filterByChapter: boolean;
+  onFilterByChapterChange: (v: boolean) => void;
+  currentBook: string | null;
+  currentChapter: number | null;
+  activeStudyId: string | null;
+}
+
+function PlacesMapPanel({
+  places,
+  loadPlaces,
+  filterByChapter,
+  onFilterByChapterChange,
+  currentBook,
+  currentChapter,
+  activeStudyId,
+}: PlacesMapPanelProps) {
+  useEffect(() => {
+    void loadPlaces();
+  }, [loadPlaces]);
+
+  const filtered = useMemo(() => {
+    let result = places;
+    if (activeStudyId) {
+      result = result.filter(p => !p.studyId || p.studyId === activeStudyId);
+    }
+    if (filterByChapter && currentBook && currentChapter) {
+      result = result.filter(p => p.verseRef.book === currentBook && p.verseRef.chapter === currentChapter);
+    }
+    return result;
+  }, [places, filterByChapter, currentBook, currentChapter, activeStudyId]);
+
+  return (
+    <div role="tabpanel" id="analyze-tabpanel-places-map" aria-labelledby="analyze-tab-places-map">
+      <div className="mb-3">
+        <Checkbox
+          label="Current Chapter Only"
+          checked={filterByChapter}
+          onChange={(e) => onFilterByChapterChange(e.target.checked)}
+        />
+      </div>
+      <PlaceMap places={filtered} />
     </div>
   );
 }
