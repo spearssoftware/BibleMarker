@@ -123,10 +123,13 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
                   placeholder="Select a keyword..."
                   options={[
                     { value: '', label: 'Select a keyword...' },
-                    ...keywordPresets.map(preset => ({
-                      value: preset.id,
-                      label: `${preset.word}${preset.symbol ? ` (${preset.symbol})` : ''}`
-                    }))
+                    ...keywordPresets
+                      .slice()
+                      .sort((a, b) => (a.word ?? '').localeCompare(b.word ?? ''))
+                      .map(preset => ({
+                        value: preset.id,
+                        label: `${preset.word}${preset.symbol ? ` (${preset.symbol})` : ''}`
+                      }))
                   ]}
                 />
                 {keywordPresets.length === 0 && (
