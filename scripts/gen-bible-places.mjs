@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* global process */
 /**
  * One-time script to generate src/data/bible-places.json from OpenBible.info data.
  * Not shipped in the app.
