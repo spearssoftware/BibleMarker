@@ -12,6 +12,7 @@ import type { VerseRef } from '@/types';
 import { validatePlace, sanitizeData, ValidationError } from '@/lib/validation';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 import { getSymbolsForTracker } from '@/lib/observationSymbols';
+import { resolveCoordinates } from '@/lib/bible-geocoding';
 
 interface PlaceState {
   // Places (cached)
@@ -70,6 +71,7 @@ export const usePlaceStore = create<PlaceState>()(
           return existingPlace;
         }
         
+        const coords = resolveCoordinates(name.trim());
         const newPlace: Place = {
           id: crypto.randomUUID(),
           name: name.trim(),
@@ -78,6 +80,7 @@ export const usePlaceStore = create<PlaceState>()(
           presetId,
           annotationId,
           studyId,
+          ...coords && { latitude: coords.latitude, longitude: coords.longitude },
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -207,12 +210,14 @@ export const usePlaceStore = create<PlaceState>()(
           }
           
           // Create new place from annotation
+          const coords = resolveCoordinates(placeName.trim());
           const newPlace: Place = {
             id: crypto.randomUUID(),
             name: placeName.trim(),
             verseRef,
             presetId: annotation.presetId,
             annotationId: annotation.id,
+            ...coords && { latitude: coords.latitude, longitude: coords.longitude },
             createdAt: new Date(),
             updatedAt: new Date(),
           };

@@ -15,6 +15,7 @@ import type { Place } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
 import { ConfirmationDialog, Input, Textarea, Checkbox } from '@/components/shared';
+import { PlaceMap } from './PlaceMap';
 
 function highlightWords(text: string, words: string[]): React.ReactNode {
   const filtered = words.filter(w => w.trim());
@@ -147,6 +148,7 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
   const { presets } = useMarkingPresetStore();
   const presetMap = useMemo(() => new Map(presets.map(p => [p.id, { word: p.word }])), [presets]);
   const [expandedKeywords, setExpandedKeywords] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
@@ -396,23 +398,27 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
         destructive={true}
       />
       <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-      {/* Create new place button and Current Chapter Only */}
+      {/* Toolbar: create, populate, filter, and view toggle */}
       {!isCreating && (
         <div className="mb-4 flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setIsCreating(true)}
-            className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-          >
-            + New Place
-          </button>
-          {currentBook && currentChapter && (
-            <button
-              onClick={handlePopulateFromChapter}
-              disabled={isPopulating || !primaryModuleId}
-              className="px-3 py-1.5 text-sm bg-scripture-elevated text-scripture-text rounded hover:bg-scripture-border/50 transition-colors disabled:opacity-50"
-            >
-              {isPopulating ? '...' : 'Populate from Chapter'}
-            </button>
+          {viewMode === 'list' && (
+            <>
+              <button
+                onClick={() => setIsCreating(true)}
+                className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
+              >
+                + New Place
+              </button>
+              {currentBook && currentChapter && (
+                <button
+                  onClick={handlePopulateFromChapter}
+                  disabled={isPopulating || !primaryModuleId}
+                  className="px-3 py-1.5 text-sm bg-scripture-elevated text-scripture-text rounded hover:bg-scripture-border/50 transition-colors disabled:opacity-50"
+                >
+                  {isPopulating ? '...' : 'Populate from Chapter'}
+                </button>
+              )}
+            </>
           )}
           {onFilterByChapterChange && (
             <Checkbox
@@ -421,11 +427,39 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
               onChange={(e) => onFilterByChapterChange(e.target.checked)}
             />
           )}
+          <div className="ml-auto flex items-center gap-1">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded text-sm transition-colors ${viewMode === 'list' ? 'bg-scripture-accent text-white' : 'text-scripture-muted hover:text-scripture-text hover:bg-scripture-elevated'}`}
+              aria-label="List view"
+              title="List view"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <line x1="3" y1="4" x2="13" y2="4"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="12" x2="13" y2="12"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => { setViewMode('map'); setIsCreating(false); }}
+              className={`p-1.5 rounded text-sm transition-colors ${viewMode === 'map' ? 'bg-scripture-accent text-white' : 'text-scripture-muted hover:text-scripture-text hover:bg-scripture-elevated'}`}
+              aria-label="Map view"
+              title="Map view"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 3.5l4.5-2 5 2 4.5-2v11l-4.5 2-5-2-4.5 2z"/>
+                <line x1="5.5" y1="1.5" x2="5.5" y2="12.5"/><line x1="10.5" y1="3.5" x2="10.5" y2="14.5"/>
+              </svg>
+            </button>
+          </div>
         </div>
       )}
 
+      {/* Map view */}
+      {viewMode === 'map' && (
+        <PlaceMap places={filteredPlaces} />
+      )}
+
       {/* Create form */}
-      {isCreating && (
+      {viewMode === 'list' && isCreating && (
         <div className="mb-4 p-4 bg-scripture-surface rounded-xl border border-scripture-border/50">
           <h3 className="text-sm font-medium text-scripture-text mb-3">New Place</h3>
           <div className="space-y-3">
@@ -469,7 +503,7 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
       )}
 
       {/* Empty state */}
-      {places.length === 0 && !isCreating && (
+      {viewMode === 'list' && places.length === 0 && !isCreating && (
         <div className="text-center py-12">
           <p className="text-scripture-muted text-sm mb-4">No places recorded yet.</p>
           <p className="text-scripture-muted text-xs mb-4">
@@ -485,7 +519,7 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
       )}
 
       {/* Places list - grouped by keyword */}
-      {filteredPlaces.length > 0 && (
+      {viewMode === 'list' && filteredPlaces.length > 0 && (
         <div className="space-y-4">
           {keywordGroups.map(({ key, label, items: keywordItems }) => {
             const isExpanded = expandedKeywords.has(key);

@@ -515,6 +515,12 @@ export function validatePlace(place: unknown): Place {
   if (p.annotationId !== undefined && typeof p.annotationId !== 'string') {
     throw new ValidationError('Place annotationId must be a string if provided', 'annotationId', p.annotationId);
   }
+  if (p.latitude !== undefined && typeof p.latitude !== 'number') {
+    throw new ValidationError('Place latitude must be a number if provided', 'latitude', p.latitude);
+  }
+  if (p.longitude !== undefined && typeof p.longitude !== 'number') {
+    throw new ValidationError('Place longitude must be a number if provided', 'longitude', p.longitude);
+  }
   validateDate(p.createdAt, 'createdAt');
   validateDate(p.updatedAt, 'updatedAt');
   return p;
