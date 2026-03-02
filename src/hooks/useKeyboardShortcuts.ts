@@ -7,7 +7,6 @@
 
 import { useEffect } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
-import { useAnnotationStore } from '@/stores/annotationStore';
 
 interface KeyboardShortcutsOptions {
   onToolbarTool?: (toolIndex: number) => void;
@@ -15,11 +14,10 @@ interface KeyboardShortcutsOptions {
 }
 
 const TOOLBAR_TOOLS = [
-  'color',      // 1
-  'legend',     // 2
-  'keyWords',   // 3
-  'studyTools', // 4
-  'more',       // 5
+  'keyWords',   // 1 - Mark
+  'observe',    // 2 - Observe
+  'analyze',    // 3 - Analyze
+  'studyTools', // 4 - Study
 ] as const;
 
 export function useKeyboardShortcuts({
@@ -27,7 +25,6 @@ export function useKeyboardShortcuts({
   enabled = true,
 }: KeyboardShortcutsOptions = {}) {
   const { nextChapter, previousChapter, canGoNext, canGoPrevious } = useBibleStore();
-  const { setActiveTool } = useAnnotationStore();
 
   useEffect(() => {
     if (!enabled) return;
@@ -87,7 +84,7 @@ export function useKeyboardShortcuts({
         return;
       }
 
-      // Toolbar shortcuts (number keys 1-3)
+      // Toolbar shortcuts (number keys 1-4)
       // Only trigger when not in an input and not holding modifier keys
       if (
         !e.metaKey &&
@@ -95,17 +92,11 @@ export function useKeyboardShortcuts({
         !e.altKey &&
         !e.shiftKey &&
         e.key >= '1' &&
-        e.key <= '5'
+        e.key <= '4'
       ) {
         const toolIndex = parseInt(e.key, 10) - 1;
         if (toolIndex >= 0 && toolIndex < TOOLBAR_TOOLS.length) {
           e.preventDefault();
-          const toolType = TOOLBAR_TOOLS[toolIndex];
-          // Map toolbar tools to annotation tool types
-          const annotationTool = toolType === 'color' ? 'highlight' : null;
-          if (annotationTool) {
-            setActiveTool(annotationTool);
-          }
           if (onToolbarTool) {
             onToolbarTool(toolIndex);
           }
@@ -125,7 +116,6 @@ export function useKeyboardShortcuts({
     canGoNext,
     canGoPrevious,
     onToolbarTool,
-    setActiveTool,
   ]);
 }
 
@@ -137,11 +127,10 @@ export function getKeyboardShortcutsHelp(): Array<{ keys: string[]; description:
     { keys: ['←', '→'], description: 'Previous/Next chapter' },
     { keys: ['J', 'K'], description: 'Next/Previous chapter (vim-style)' },
     { keys: ['Cmd/Ctrl', 'F'], description: 'Search (handled by NavigationBar)' },
-    { keys: ['1'], description: 'Annotate' },
-    { keys: ['2'], description: 'Legend' },
-    { keys: ['3'], description: 'Key Words' },
-    { keys: ['4'], description: 'Study Tools' },
-    { keys: ['5'], description: 'Settings' },
+    { keys: ['1'], description: 'Mark (Key Words)' },
+    { keys: ['2'], description: 'Observe' },
+    { keys: ['3'], description: 'Analyze' },
+    { keys: ['4'], description: 'Study' },
     { keys: ['Esc'], description: 'Close modals/overlays' },
   ];
 }

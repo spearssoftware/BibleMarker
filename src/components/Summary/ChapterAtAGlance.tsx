@@ -185,8 +185,8 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
                   onEditTheme();
                 } else {
                   // Dispatch custom event to open ObservationToolsPanel with theme tab
-                  window.dispatchEvent(new CustomEvent('openObservationTools', { 
-                    detail: { tab: 'theme' } 
+                  window.dispatchEvent(new CustomEvent('openAnalyzeTools', {
+                    detail: { tab: 'theme' }
                   }));
                 }
               }}
@@ -211,8 +211,8 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
                   onEditTheme();
                 } else {
                   // Dispatch custom event to open ObservationToolsPanel with theme tab
-                  window.dispatchEvent(new CustomEvent('openObservationTools', { 
-                    detail: { tab: 'theme' } 
+                  window.dispatchEvent(new CustomEvent('openAnalyzeTools', {
+                    detail: { tab: 'theme' }
                   }));
                 }
               }}
@@ -270,8 +270,8 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
                   onEditTheme();
                 } else {
                   // Dispatch custom event to open ObservationToolsPanel with theme tab
-                  window.dispatchEvent(new CustomEvent('openObservationTools', { 
-                    detail: { tab: 'theme' } 
+                  window.dispatchEvent(new CustomEvent('openAnalyzeTools', {
+                    detail: { tab: 'theme' }
                   }));
                 }
               }}

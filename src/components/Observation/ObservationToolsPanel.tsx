@@ -11,7 +11,7 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
-import { getCachedChapter } from '@/lib/database';
+import { getCachedChapter, getPreferences } from '@/lib/database';
 import { getBookById, formatVerseRef } from '@/types';
 import type { ObservationList, ObservationItem } from '@/types';
 import type { VerseRef } from '@/types';
@@ -21,11 +21,9 @@ import { ContrastTracker } from './ContrastTracker';
 import { TimeTracker } from './TimeTracker';
 import { PlaceTracker } from './PlaceTracker';
 import { PeopleTracker } from './PeopleTracker';
-import { ConclusionTracker } from './ConclusionTracker';
-import { ThemeEditor } from './ThemeEditor';
 import { ConfirmationDialog, Textarea } from '@/components/shared';
 
-export type ObservationTab = 'lists' | 'fiveWAndH' | 'contrasts' | 'time' | 'places' | 'people' | 'conclusions' | 'theme';
+export type ObservationTab = 'lists' | 'fiveWAndH' | 'contrasts' | 'time' | 'places' | 'people';
 
 interface ObservationToolsPanelProps {
   onClose: () => void;
@@ -148,6 +146,13 @@ export function ObservationToolsPanel({
   const [verseTexts, setVerseTexts] = useState<Map<string, string>>(new Map());
   const { activeView } = useMultiTranslationStore();
   const primaryModuleId = activeView?.translationIds[0] || '';
+  const [disabledTools, setDisabledTools] = useState<string[]>([]);
+
+  useEffect(() => {
+    getPreferences().then(prefs => {
+      setDisabledTools(prefs.disabledTools || []);
+    });
+  }, []);
 
   // Show lists scoped to current study and book (no chapter filter)
   const displayLists = lists.filter(l => {
@@ -208,17 +213,16 @@ export function ObservationToolsPanel({
     return () => { cancelled = true; };
   }, [displayLists, primaryModuleId]);
 
-  // Tab definitions - Phase 1 agents will add their tabs here
-  const tabs: { id: ObservationTab; label: string; icon: string }[] = [
+  const allTabs: { id: ObservationTab; label: string; icon: string }[] = [
     { id: 'lists', label: 'Lists', icon: '📝' },
     { id: 'fiveWAndH', label: '5 W\'s & H', icon: '❓' },
     { id: 'contrasts', label: 'Contrasts', icon: '⇔' },
     { id: 'time', label: 'Time', icon: '🕐' },
     { id: 'places', label: 'Places', icon: '📍' },
     { id: 'people', label: 'People', icon: '👤' },
-    { id: 'conclusions', label: 'Conclusions', icon: '→' },
-    { id: 'theme', label: 'Theme', icon: '🎯' },
   ];
+
+  const tabs = allTabs.filter(tab => !disabledTools.includes(tab.id));
 
   const toggleList = (listId: string) => {
     const newExpanded = new Set(expandedLists);
@@ -409,11 +413,11 @@ export function ObservationToolsPanel({
         onCancel={handleCancelDeleteObservation}
         destructive={true}
       />
-      <div className="flex-1 min-h-0 flex flex-col relative" role="dialog" aria-label="Observation Tools" aria-modal="true">
-      {/* Tabs and Filter */}
-      <div className="px-4 py-2 flex-shrink-0" role="tablist" aria-label="Observation tools sections">
-        <div className="flex items-center justify-between gap-2 sm:gap-4 mb-2">
-          <div className="flex gap-1 sm:gap-2 overflow-x-auto flex-1">
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative" role="dialog" aria-label="Observation Tools" aria-modal="true">
+      {/* Header with tabs */}
+      <div className="flex items-center justify-between px-4 py-2 flex-shrink-0 border-b border-scripture-border/30">
+        <div role="tablist" aria-label="Observation tools sections">
+          <div className="flex gap-1 sm:gap-2">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -793,18 +797,6 @@ export function ObservationToolsPanel({
               verseRef={verseRef}
               onNavigate={handleNavigateToVerse}
             />
-          </div>
-        ) : activeTab === 'conclusions' ? (
-          <div role="tabpanel" id="observation-tabpanel-conclusions" aria-labelledby="observation-tab-conclusions">
-            <ConclusionTracker 
-              selectedText={selectedText} 
-              verseRef={verseRef}
-              onNavigate={handleNavigateToVerse}
-            />
-          </div>
-        ) : activeTab === 'theme' ? (
-          <div role="tabpanel" id="observation-tabpanel-theme" aria-labelledby="observation-tab-theme">
-            <ThemeEditor selectedText={selectedText} verseRef={verseRef} />
           </div>
         ) : null}
       </div>
