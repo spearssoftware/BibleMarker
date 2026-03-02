@@ -185,9 +185,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
                   onEditTheme();
                 } else {
                   // Dispatch custom event to open ObservationToolsPanel with theme tab
-                  window.dispatchEvent(new CustomEvent('openAnalyzeTools', {
-                    detail: { tab: 'theme' }
-                  }));
+                  document.querySelector('[data-theme-editor]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
               }}
               className="text-xs text-scripture-accent hover:text-scripture-accent/80 transition-colors"
@@ -211,9 +209,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
                   onEditTheme();
                 } else {
                   // Dispatch custom event to open ObservationToolsPanel with theme tab
-                  window.dispatchEvent(new CustomEvent('openAnalyzeTools', {
-                    detail: { tab: 'theme' }
-                  }));
+                  document.querySelector('[data-theme-editor]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
               }}
               className="text-xs text-scripture-accent hover:text-scripture-accent/80 transition-colors"
@@ -270,9 +266,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
                   onEditTheme();
                 } else {
                   // Dispatch custom event to open ObservationToolsPanel with theme tab
-                  window.dispatchEvent(new CustomEvent('openAnalyzeTools', {
-                    detail: { tab: 'theme' }
-                  }));
+                  document.querySelector('[data-theme-editor]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
               }}
               className="text-xs text-scripture-accent hover:text-scripture-accent/80 transition-colors"

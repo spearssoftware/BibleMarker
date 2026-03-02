@@ -702,10 +702,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     <div className="text-sm font-ui font-medium text-scripture-text mb-2">Analyze</div>
                     <div className="space-y-2">
                       {[
-                        { id: 'theme', label: 'Theme' },
+                        { id: 'chapter', label: 'Chapter' },
                         { id: 'conclusions', label: 'Conclusions' },
                         { id: 'overview', label: 'Overview' },
-                        { id: 'chapter', label: 'Chapter' },
                         { id: 'timeline', label: 'Timeline' },
                       ].map(tool => (
                         <Checkbox
