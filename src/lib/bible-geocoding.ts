@@ -12,6 +12,9 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import biblePlacesData from '@/data/bible-places.json';
 
 // Fix Leaflet default marker icons for Vite (assets get hashed URLs)
+// Must delete _getIconUrl first or Leaflet ignores the overrides
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconUrl: markerIcon,
   iconRetinaUrl: markerIcon2x,
