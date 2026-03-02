@@ -41,7 +41,6 @@ interface ChapterSummary {
 interface ChapterAtAGlanceProps {
   onObservationClick?: (listId: string) => void;
   onOpenObservationTools?: (listId?: string) => void; // For opening ObservationToolsPanel
-  onEditTheme?: () => void; // For opening theme editor in ObservationToolsPanel
 }
 
 function extractPlainText(html: string): string {
@@ -49,7 +48,7 @@ function extractPlainText(html: string): string {
   return doc.body.textContent || doc.body.innerText || '';
 }
 
-export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, onEditTheme }: ChapterAtAGlanceProps = {}) {
+export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }: ChapterAtAGlanceProps = {}) {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { activeView } = useMultiTranslationStore();
   const { presets } = useMarkingPresetStore();
@@ -177,23 +176,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
       {/* Chapter Title */}
       {title && (
         <div className="pb-3 border-b border-scripture-border/50">
-          <div className="flex items-center justify-between mb-1">
-            <div className="text-sm text-scripture-muted">Chapter Title</div>
-            <button
-              onClick={() => {
-                if (onEditTheme) {
-                  onEditTheme();
-                } else {
-                  // Dispatch custom event to open ObservationToolsPanel with theme tab
-                  document.querySelector('[data-theme-editor]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-              }}
-              className="text-xs text-scripture-accent hover:text-scripture-accent/80 transition-colors"
-              title="Edit theme in Observation Tools"
-            >
-              Edit Theme →
-            </button>
-          </div>
+          <div className="text-sm text-scripture-muted mb-1">Chapter Title</div>
           <div className="text-scripture-text font-medium">{title.title}</div>
         </div>
       )}
@@ -201,23 +184,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
       {/* Chapter Theme */}
       {theme && (
         <div className="pb-3 border-b border-scripture-border/50">
-          <div className="flex items-center justify-between mb-1">
-            <div className="text-sm text-scripture-muted">Chapter Theme</div>
-            <button
-              onClick={() => {
-                if (onEditTheme) {
-                  onEditTheme();
-                } else {
-                  // Dispatch custom event to open ObservationToolsPanel with theme tab
-                  document.querySelector('[data-theme-editor]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-              }}
-              className="text-xs text-scripture-accent hover:text-scripture-accent/80 transition-colors"
-              title="Edit theme in Observation Tools"
-            >
-              Edit →
-            </button>
-          </div>
+          <div className="text-sm text-scripture-muted mb-1">Chapter Theme</div>
           <div className="text-scripture-text italic">{theme}</div>
           {supportingPresetIds.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
@@ -258,23 +225,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools, o
       {/* Theme prompt if no theme exists */}
       {!theme && title && (
         <div className="pb-3 border-b border-scripture-border/50">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-scripture-muted">Chapter Theme</div>
-            <button
-              onClick={() => {
-                if (onEditTheme) {
-                  onEditTheme();
-                } else {
-                  // Dispatch custom event to open ObservationToolsPanel with theme tab
-                  document.querySelector('[data-theme-editor]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-              }}
-              className="text-xs text-scripture-accent hover:text-scripture-accent/80 transition-colors"
-              title="Add theme in Observation Tools"
-            >
-              Add Theme →
-            </button>
-          </div>
+          <div className="text-sm text-scripture-muted">Chapter Theme</div>
           <div className="text-xs text-scripture-muted italic mt-1">No theme recorded yet</div>
         </div>
       )}

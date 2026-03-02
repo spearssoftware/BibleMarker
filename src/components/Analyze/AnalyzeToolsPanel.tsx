@@ -7,8 +7,6 @@
 import { useState, useEffect } from 'react';
 import { getPreferences } from '@/lib/database';
 import { useBibleStore } from '@/stores/bibleStore';
-import { ThemeEditor } from '@/components/Observation/ThemeEditor';
-import { ThemeTracker } from '@/components/Summary/ThemeTracker';
 import { ConclusionTracker } from '@/components/Observation/ConclusionTracker';
 import { BookOverview } from '@/components/Summary/BookOverview';
 import { ChapterAtAGlance } from '@/components/Summary/ChapterAtAGlance';
@@ -127,14 +125,8 @@ export function AnalyzeToolsPanel({
           </div>
         )}
         {activeTab === 'chapter' && (
-          <div role="tabpanel" id="analyze-tabpanel-chapter" aria-labelledby="analyze-tab-chapter" className="space-y-6">
+          <div role="tabpanel" id="analyze-tabpanel-chapter" aria-labelledby="analyze-tab-chapter">
             <ChapterAtAGlance />
-            <div className="border-t border-scripture-border/30 pt-4" data-theme-editor>
-              <ThemeEditor selectedText={selectedText} verseRef={verseRef} />
-            </div>
-            <div className="border-t border-scripture-border/30 pt-4">
-              <ThemeTracker />
-            </div>
           </div>
         )}
         {activeTab === 'timeline' && (
