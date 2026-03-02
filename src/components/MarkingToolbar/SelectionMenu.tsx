@@ -235,13 +235,13 @@ export function SelectionMenu({
     </div>
   );
 
-  const getTabForTracker = (tracker: ObservationTrackerType): ObservationTab => {
+  const getTabForTracker = (tracker: ObservationTrackerType): ObservationTab | null => {
     switch (tracker) {
       case 'contrast': return 'contrasts';
       case 'time': return 'time';
       case 'place': return 'places';
       case 'people': return 'people';
-      case 'conclusion': return 'conclusions';
+      case 'conclusion': return null; // Conclusions moved to Analyze panel
       default: return 'lists';
     }
   };
@@ -393,7 +393,12 @@ export function SelectionMenu({
                 e.preventDefault();
                 e.stopPropagation();
                 const tab = getTabForTracker(trackerMapping.tracker);
-                onOpenObservationTools(tab);
+                if (tab === null) {
+                  // Conclusions moved to Analyze panel
+                  window.dispatchEvent(new CustomEvent('openAnalyzeTools', { detail: { tab: 'conclusions' } }));
+                } else {
+                  onOpenObservationTools(tab);
+                }
                 onClose();
               }}
               className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
