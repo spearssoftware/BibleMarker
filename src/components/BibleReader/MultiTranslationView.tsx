@@ -11,7 +11,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
 import { getAllTranslations, type ApiTranslation, fetchChapter } from '@/lib/bible-api';
-import { getChapterAnnotations, getChapterHeadings, getChapterTitle, getChapterNotes, saveSectionHeading, deleteSectionHeading, saveChapterTitle, deleteChapterTitle, saveNote, deleteNote } from '@/lib/database';
+import { getCachedChapter, getChapterAnnotations, getChapterHeadings, getChapterTitle, getChapterNotes, saveSectionHeading, deleteSectionHeading, saveChapterTitle, deleteChapterTitle, saveNote, deleteNote } from '@/lib/database';
 import { filterAnnotationsByStudy } from '@/lib/studyFilter';
 import { VerseText } from './VerseText';
 import { SectionHeadingEditor } from './SectionHeadingEditor';
@@ -313,6 +313,55 @@ export function MultiTranslationView() {
       addTranslation(currentModuleId);
     }
   }, [activeView, currentModuleId, addTranslation]);
+
+  // Eagerly load cached chapters before the full translations list is available.
+  // This lets cached text appear instantly on startup instead of waiting for getAllTranslations().
+  useEffect(() => {
+    if (!activeView || activeView.translationIds.length === 0) return;
+    // Skip if translations already loaded — loadChapters will handle it
+    if (translations.length > 0) return;
+    // Skip if we already have chapter data (e.g. from a previous eager load)
+    if (translationChapters.size > 0) return;
+
+    let cancelled = false;
+
+    async function loadCachedChapters() {
+      const newChapters = new Map<string, TranslationChapter>();
+
+      for (const translationId of activeView!.translationIds) {
+        const cached = await getCachedChapter(translationId, currentBook, currentChapter);
+        if (cancelled) return;
+
+        if (cached) {
+          const verses = Object.entries(cached.verses).map(([num, text]) => ({
+            ref: { book: currentBook, chapter: currentChapter, verse: parseInt(num, 10) },
+            text: text as string,
+            html: text as string,
+          }));
+
+          newChapters.set(translationId, {
+            translation: {
+              id: translationId,
+              name: translationId.toUpperCase(),
+              abbreviation: translationId.toUpperCase(),
+              language: 'en',
+              provider: 'getbible',
+            },
+            chapter: { book: currentBook, chapter: currentChapter, verses },
+            isLoading: false,
+            error: null,
+          });
+        }
+      }
+
+      if (!cancelled && newChapters.size > 0) {
+        setTranslationChapters(newChapters);
+      }
+    }
+
+    loadCachedChapters();
+    return () => { cancelled = true; };
+  }, [activeView, currentBook, currentChapter, translations.length, translationChapters.size]);
 
   useEffect(() => {
     // Reset loading refs when book/chapter changes
