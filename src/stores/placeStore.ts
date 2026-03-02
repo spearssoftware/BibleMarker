@@ -39,6 +39,24 @@ export const usePlaceStore = create<PlaceState>()(
       loadPlaces: async () => {
         const allPlaces = await dbGetAllPlaces();
         set({ places: allPlaces });
+
+        // Backfill coordinates for existing places that don't have them
+        const toBackfill = allPlaces.filter(p => p.latitude == null && p.longitude == null);
+        if (toBackfill.length > 0) {
+          const updated: Place[] = [];
+          for (const place of toBackfill) {
+            const coords = resolveCoordinates(place.name);
+            if (coords) {
+              const patched = { ...place, ...coords, updatedAt: new Date() };
+              await dbSavePlace(patched);
+              updated.push(patched);
+            }
+          }
+          if (updated.length > 0) {
+            const refreshed = await dbGetAllPlaces();
+            set({ places: refreshed });
+          }
+        }
       },
       
       createPlace: async (name, verseRef, notes, presetId, annotationId, studyId) => {
