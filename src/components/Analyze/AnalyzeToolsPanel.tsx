@@ -10,10 +10,11 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { ConclusionTracker } from '@/components/Observation/ConclusionTracker';
 import { BookOverview } from '@/components/Summary/BookOverview';
 import { ChapterAtAGlance } from '@/components/Summary/ChapterAtAGlance';
+import { ThemeTracker } from '@/components/Summary/ThemeTracker';
 import { Timeline } from '@/components/Summary/Timeline';
 import type { VerseRef } from '@/types';
 
-export type AnalyzeTab = 'conclusions' | 'overview' | 'chapter' | 'timeline';
+export type AnalyzeTab = 'conclusions' | 'overview' | 'chapter' | 'themes' | 'timeline';
 
 interface AnalyzeToolsPanelProps {
   onClose: () => void;
@@ -45,6 +46,7 @@ export function AnalyzeToolsPanel({
     { id: 'chapter', label: 'Chapter', icon: '📄' },
     { id: 'conclusions', label: 'Conclusions', icon: '→' },
     { id: 'overview', label: 'Overview', icon: '📚' },
+    { id: 'themes', label: 'Themes', icon: '🔍' },
     { id: 'timeline', label: 'Timeline', icon: '📅' },
   ];
 
@@ -127,6 +129,11 @@ export function AnalyzeToolsPanel({
         {activeTab === 'chapter' && (
           <div role="tabpanel" id="analyze-tabpanel-chapter" aria-labelledby="analyze-tab-chapter">
             <ChapterAtAGlance />
+          </div>
+        )}
+        {activeTab === 'themes' && (
+          <div role="tabpanel" id="analyze-tabpanel-themes" aria-labelledby="analyze-tab-themes">
+            <ThemeTracker />
           </div>
         )}
         {activeTab === 'timeline' && (
