@@ -69,7 +69,7 @@ export function Toolbar() {
   const [showKeyWordManager, setShowKeyWordManager] = useState(false);
   const [showStudyToolsPanel, setShowStudyToolsPanel] = useState(false);
   const [showAnalyzeToolsPanel, setShowAnalyzeToolsPanel] = useState(false);
-  const [analyzePanelInitialTab, setAnalyzePanelInitialTab] = useState<AnalyzeTab>('theme');
+  const [analyzePanelInitialTab, setAnalyzePanelInitialTab] = useState<AnalyzeTab>('chapter');
   const [showObservationToolsPanel, setShowObservationToolsPanel] = useState(false);
   const [observationPanelInitialTab, setObservationPanelInitialTab] = useState<ObservationTab>('lists');
   const [observationPanelInitialListId, setObservationPanelInitialListId] = useState<string | undefined>(undefined);
@@ -127,7 +127,7 @@ export function Toolbar() {
     };
 
     const handleOpenAnalyzeTools = (e: CustomEvent<{ tab?: AnalyzeTab }>) => {
-      const { tab = 'theme' } = e.detail || {};
+      const { tab = 'chapter' } = e.detail || {};
       setAnalyzePanelInitialTab(tab);
       setShowAnalyzeToolsPanel(true);
       setShowObservationToolsPanel(false);

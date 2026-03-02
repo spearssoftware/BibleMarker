@@ -15,7 +15,7 @@ import { ChapterAtAGlance } from '@/components/Summary/ChapterAtAGlance';
 import { Timeline } from '@/components/Summary/Timeline';
 import type { VerseRef } from '@/types';
 
-export type AnalyzeTab = 'theme' | 'conclusions' | 'overview' | 'chapter' | 'timeline';
+export type AnalyzeTab = 'conclusions' | 'overview' | 'chapter' | 'timeline';
 
 interface AnalyzeToolsPanelProps {
   onClose: () => void;
@@ -26,7 +26,7 @@ interface AnalyzeToolsPanelProps {
 
 export function AnalyzeToolsPanel({
   onClose: _onClose,
-  initialTab = 'theme',
+  initialTab = 'chapter',
   selectedText,
   verseRef,
 }: AnalyzeToolsPanelProps) {
@@ -44,10 +44,9 @@ export function AnalyzeToolsPanel({
   }, []);
 
   const allTabs: { id: AnalyzeTab; label: string; icon: string }[] = [
-    { id: 'theme', label: 'Theme', icon: '🎯' },
+    { id: 'chapter', label: 'Chapter', icon: '📄' },
     { id: 'conclusions', label: 'Conclusions', icon: '→' },
     { id: 'overview', label: 'Overview', icon: '📚' },
-    { id: 'chapter', label: 'Chapter', icon: '📄' },
     { id: 'timeline', label: 'Timeline', icon: '📅' },
   ];
 
@@ -113,14 +112,6 @@ export function AnalyzeToolsPanel({
 
       {/* Content */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-        {activeTab === 'theme' && (
-          <div role="tabpanel" id="analyze-tabpanel-theme" aria-labelledby="analyze-tab-theme" className="space-y-6">
-            <ThemeEditor selectedText={selectedText} verseRef={verseRef} />
-            <div className="border-t border-scripture-border/30 pt-4">
-              <ThemeTracker />
-            </div>
-          </div>
-        )}
         {activeTab === 'conclusions' && (
           <div role="tabpanel" id="analyze-tabpanel-conclusions" aria-labelledby="analyze-tab-conclusions">
             <ConclusionTracker
@@ -136,8 +127,14 @@ export function AnalyzeToolsPanel({
           </div>
         )}
         {activeTab === 'chapter' && (
-          <div role="tabpanel" id="analyze-tabpanel-chapter" aria-labelledby="analyze-tab-chapter">
+          <div role="tabpanel" id="analyze-tabpanel-chapter" aria-labelledby="analyze-tab-chapter" className="space-y-6">
             <ChapterAtAGlance />
+            <div className="border-t border-scripture-border/30 pt-4" data-theme-editor>
+              <ThemeEditor selectedText={selectedText} verseRef={verseRef} />
+            </div>
+            <div className="border-t border-scripture-border/30 pt-4">
+              <ThemeTracker />
+            </div>
           </div>
         )}
         {activeTab === 'timeline' && (
