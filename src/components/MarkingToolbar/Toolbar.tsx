@@ -37,7 +37,7 @@ const COLOR_STYLE_LABELS: Record<(typeof COLOR_STYLES)[number], string> = {
 
 const TOOLS: { type: 'keyWords' | 'observe' | 'analyze' | 'studyTools'; icon: string; label: string }[] = [
   { type: 'keyWords', icon: '✏️', label: 'Mark' },
-  { type: 'observe', icon: '👁', label: 'Observe' },
+  { type: 'observe', icon: '🔍', label: 'Observe' },
   { type: 'analyze', icon: '📊', label: 'Analyze' },
   { type: 'studyTools', icon: '💭', label: 'Study' },
 ];
