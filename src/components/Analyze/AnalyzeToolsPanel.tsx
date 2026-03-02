@@ -41,7 +41,7 @@ export function AnalyzeToolsPanel({
   }, [initialTab]);
 
   useEffect(() => {
-    getPreferences().then(prefs => {
+    getPreferences().then((prefs) => {
       setDisabledTools(prefs.disabledTools || []);
     });
   }, []);
@@ -177,8 +177,18 @@ interface PlacesMapPanelProps {
   activeStudyId: string | null;
 }
 
-function PlacesMapPanel({ places, loadPlaces, filterByChapter, onFilterByChapterChange, currentBook, currentChapter, activeStudyId }: PlacesMapPanelProps) {
-  useEffect(() => { loadPlaces(); }, [loadPlaces]);
+function PlacesMapPanel({
+  places,
+  loadPlaces,
+  filterByChapter,
+  onFilterByChapterChange,
+  currentBook,
+  currentChapter,
+  activeStudyId,
+}: PlacesMapPanelProps) {
+  useEffect(() => {
+    void loadPlaces();
+  }, [loadPlaces]);
 
   const filtered = useMemo(() => {
     let result = places;
