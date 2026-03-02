@@ -9,11 +9,12 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { 
-  getChapterTitle, 
-  getChapterHeadings, 
+import {
+  getChapterTitle,
+  getChapterHeadings,
   getCachedChapter,
   getAllObservationLists,
+  saveChapterTitle,
 } from '@/lib/database';
 import type { ChapterTitle, SectionHeading } from '@/types';
 import { SYMBOLS } from '@/types';
@@ -59,6 +60,43 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
   
   const [summary, setSummary] = useState<ChapterSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [editingTheme, setEditingTheme] = useState(false);
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftTheme, setDraftTheme] = useState('');
+
+  // Reset editing state when chapter changes
+  useEffect(() => {
+    setEditingTitle(false);
+    setEditingTheme(false);
+  }, [currentBook, currentChapter]);
+
+  const saveTitle = async (newTitle: string) => {
+    const existing = summary?.title;
+    const updated: ChapterTitle = existing
+      ? { ...existing, title: newTitle, updatedAt: new Date() }
+      : {
+          id: crypto.randomUUID(),
+          book: currentBook,
+          chapter: currentChapter,
+          title: newTitle,
+          studyId: activeStudyId || undefined,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+    await saveChapterTitle(updated);
+    setSummary(prev => prev ? { ...prev, title: updated } : prev);
+    setEditingTitle(false);
+  };
+
+  const saveTheme = async (newTheme: string) => {
+    const existing = summary?.title;
+    if (!existing) return;
+    const updated = { ...existing, theme: newTheme || undefined, updatedAt: new Date() };
+    await saveChapterTitle(updated);
+    setSummary(prev => prev ? { ...prev, title: updated, theme: newTheme || null } : prev);
+    setEditingTheme(false);
+  };
   
   const bookInfo = useMemo(() => getBookById(currentBook), [currentBook]);
   
@@ -174,59 +212,143 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
       </div>
       
       {/* Chapter Title */}
-      {title && (
-        <div className="pb-3 border-b border-scripture-border/50">
-          <div className="text-sm text-scripture-muted mb-1">Chapter Title</div>
-          <div className="text-scripture-text font-medium">{title.title}</div>
-        </div>
-      )}
-      
-      {/* Chapter Theme */}
-      {theme && (
-        <div className="pb-3 border-b border-scripture-border/50">
-          <div className="text-sm text-scripture-muted mb-1">Chapter Theme</div>
-          <div className="text-scripture-text italic">{theme}</div>
-          {supportingPresetIds.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {supportingPresetIds.map(presetId => {
-                const preset = presets.find(p => p.id === presetId);
-                if (!preset) return null;
-                
-                return (
-                  <div
-                    key={presetId}
-                    className="inline-flex items-center gap-1.5 px-2 py-1 bg-scripture-elevated rounded text-xs"
-                  >
-                    {preset.symbol && (
-                      <span className="text-sm">{SYMBOLS[preset.symbol]}</span>
-                    )}
-                    {preset.highlight && (
-                      <span
-                        className="w-2.5 h-2.5 rounded"
-                        style={{
-                          backgroundColor: preset.highlight.color === 'yellow' ? '#eab308' :
-                                          preset.highlight.color === 'blue' ? '#3b82f6' :
-                                          preset.highlight.color === 'green' ? '#22c55e' :
-                                          preset.highlight.color === 'red' ? '#ef4444' :
-                                          preset.highlight.color === 'orange' ? '#f97316' :
-                                          '#eab308',
-                        }}
-                      />
-                    )}
-                    <span className="text-scripture-text">{preset.word}</span>
-                  </div>
-                );
-              })}
-            </div>
+      <div className="pb-3 border-b border-scripture-border/50">
+        <div className="flex items-center justify-between mb-1">
+          <div className="text-sm text-scripture-muted">Chapter Title</div>
+          {!editingTitle && (
+            <button
+              onClick={() => { setDraftTitle(title?.title || ''); setEditingTitle(true); }}
+              className="text-xs text-scripture-accent hover:text-scripture-accent/80 transition-colors"
+            >
+              {title ? 'Edit' : 'Add Title'}
+            </button>
           )}
         </div>
-      )}
+        {editingTitle ? (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveTitle(draftTitle.trim());
+                if (e.key === 'Escape') setEditingTitle(false);
+              }}
+              autoFocus
+              placeholder="Enter chapter title..."
+              className="flex-1 bg-scripture-bg border border-scripture-border rounded px-2 py-1 text-sm text-scripture-text focus:outline-none focus:border-scripture-accent"
+            />
+            <button
+              onClick={() => saveTitle(draftTitle.trim())}
+              disabled={!draftTitle.trim()}
+              className="px-2 py-1 text-xs bg-scripture-accent text-scripture-bg rounded disabled:opacity-50"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => setEditingTitle(false)}
+              className="px-2 py-1 text-xs bg-scripture-elevated text-scripture-text rounded"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : title ? (
+          <div className="text-scripture-text font-medium">{title.title}</div>
+        ) : (
+          <div className="text-xs text-scripture-muted italic">No title yet</div>
+        )}
+      </div>
       
-      {/* Theme prompt if no theme exists */}
-      {!theme && title && (
+      {/* Chapter Theme */}
+      {title && (
         <div className="pb-3 border-b border-scripture-border/50">
-          <div className="text-sm text-scripture-muted">Chapter Theme</div>
-          <div className="text-xs text-scripture-muted italic mt-1">No theme recorded yet</div>
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-sm text-scripture-muted">Chapter Theme</div>
+            {!editingTheme && (
+              <button
+                onClick={() => { setDraftTheme(theme || ''); setEditingTheme(true); }}
+                className="text-xs text-scripture-accent hover:text-scripture-accent/80 transition-colors"
+              >
+                {theme ? 'Edit' : 'Add Theme'}
+              </button>
+            )}
+          </div>
+          {editingTheme ? (
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={draftTheme}
+                onChange={(e) => setDraftTheme(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveTheme(draftTheme.trim());
+                  if (e.key === 'Escape') setEditingTheme(false);
+                }}
+                autoFocus
+                placeholder="Enter chapter theme..."
+                className="w-full bg-scripture-bg border border-scripture-border rounded px-2 py-1 text-sm text-scripture-text focus:outline-none focus:border-scripture-accent"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => saveTheme(draftTheme.trim())}
+                  className="px-2 py-1 text-xs bg-scripture-accent text-scripture-bg rounded"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => setEditingTheme(false)}
+                  className="px-2 py-1 text-xs bg-scripture-elevated text-scripture-text rounded"
+                >
+                  Cancel
+                </button>
+                {theme && (
+                  <button
+                    onClick={() => saveTheme('')}
+                    className="px-2 py-1 text-xs text-scripture-error hover:text-scripture-error/80 transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : theme ? (
+            <>
+              <div className="text-scripture-text italic">{theme}</div>
+              {supportingPresetIds.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {supportingPresetIds.map(presetId => {
+                    const preset = presets.find(p => p.id === presetId);
+                    if (!preset) return null;
+                    return (
+                      <div
+                        key={presetId}
+                        className="inline-flex items-center gap-1.5 px-2 py-1 bg-scripture-elevated rounded text-xs"
+                      >
+                        {preset.symbol && (
+                          <span className="text-sm">{SYMBOLS[preset.symbol]}</span>
+                        )}
+                        {preset.highlight && (
+                          <span
+                            className="w-2.5 h-2.5 rounded"
+                            style={{
+                              backgroundColor: preset.highlight.color === 'yellow' ? '#eab308' :
+                                              preset.highlight.color === 'blue' ? '#3b82f6' :
+                                              preset.highlight.color === 'green' ? '#22c55e' :
+                                              preset.highlight.color === 'red' ? '#ef4444' :
+                                              preset.highlight.color === 'orange' ? '#f97316' :
+                                              '#eab308',
+                            }}
+                          />
+                        )}
+                        <span className="text-scripture-text">{preset.word}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-xs text-scripture-muted italic">No theme recorded yet</div>
+          )}
         </div>
       )}
       
