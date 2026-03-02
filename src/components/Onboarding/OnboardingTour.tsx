@@ -34,13 +34,13 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'toolbar',
     title: 'Marking Toolbar',
-    description: 'Use the toolbar to access Key Words, Observe, Study, and Settings. All text marking is done through keywords. Press 1–4 for quick access.',
+    description: 'Use the toolbar to access Mark, Observe, Analyze, and Study tools. All text marking is done through keywords. Press 1–4 for quick access.',
     target: '[data-marking-toolbar]',
     position: 'top',
   },
   {
     id: 'keywords',
-    title: 'Key Words',
+    title: 'Mark',
     description: 'Define key words to automatically highlight across translations. Apply them from the selection menu or here. Access from the toolbar (🔑 icon or press 1).',
     target: '[data-toolbar-keywords]',
     position: 'top',
@@ -48,14 +48,21 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'observe',
     title: 'Observe',
-    description: 'Observation tools: lists, time, places, contrasts, conclusions, and more. Add to lists from the selection menu or manage them here. Access from the toolbar (🔍 icon or press 2).',
+    description: 'Observation tools: lists, 5W+H, people, places, time, and contrasts. Add to lists from the selection menu or manage them here. Access from the toolbar (👁 icon or press 2).',
     target: '[data-toolbar-observe]',
     position: 'top',
   },
   {
+    id: 'analyze',
+    title: 'Analyze',
+    description: 'Analysis tools: theme tracking, conclusions, book overview, chapter summary, and timeline. Access from the toolbar (📊 icon or press 3).',
+    target: '[data-toolbar-analyze]',
+    position: 'top',
+  },
+  {
     id: 'study-tools',
-    title: 'Study Tools',
-    description: 'View chapter summaries, book overviews, and theme tracking. Access from the toolbar (📚 icon or press 3).',
+    title: 'Study',
+    description: 'Interpretation, application, and study management. Access from the toolbar (💭 icon or press 4).',
     target: '[data-toolbar-study]',
     position: 'top',
   },
@@ -69,9 +76,9 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'settings',
     title: 'Settings',
-    description: 'Configure translations, appearance, backup/restore, and more. Access from the toolbar (⚙️ icon or press 4).',
-    target: '[data-toolbar-settings]',
-    position: 'top',
+    description: 'Configure translations, appearance, backup/restore, and more. Click the gear icon (⚙️) in the navigation bar.',
+    target: '[data-nav-settings]',
+    position: 'bottom',
   },
 ];
 
