@@ -79,30 +79,14 @@ function groupByKeyword(
   });
 }
 
-// Sort keyword groups by label (Manual last), then by earliest verse
+// Sort keyword groups alphabetically by label, Manual last
 function sortKeywordGroups(
   groups: Array<{ key: string; label: string; items: Place[] }>
 ): Array<{ key: string; label: string; items: Place[] }> {
   return [...groups].sort((a, b) => {
     if (a.key === 'manual' && b.key !== 'manual') return 1;
     if (b.key === 'manual' && a.key !== 'manual') return -1;
-    const nameCmp = a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
-    if (nameCmp !== 0) return nameCmp;
-    const minVerse = (items: Place[]) => {
-      if (items.length === 0) return '';
-      const keys = items.map(p => getVerseKey(p.verseRef));
-      keys.sort((ka, kb) => {
-        const [bookA, chA, vA] = ka.split(':');
-        const [bookB, chB, vB] = kb.split(':');
-        const ordA = getBookById(bookA)?.order ?? 999;
-        const ordB = getBookById(bookB)?.order ?? 999;
-        if (ordA !== ordB) return ordA - ordB;
-        if (parseInt(chA, 10) !== parseInt(chB, 10)) return parseInt(chA, 10) - parseInt(chB, 10);
-        return parseInt(vA, 10) - parseInt(vB, 10);
-      });
-      return keys[0];
-    };
-    return minVerse(a.items).localeCompare(minVerse(b.items));
+    return a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
   });
 }
 
