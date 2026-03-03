@@ -25,6 +25,7 @@ import type { Person } from '@/types';
 import type { Conclusion } from '@/types';
 import type { InterpretationEntry } from '@/types';
 import type { ApplicationEntry } from '@/types';
+import type { TextStructure } from '@/types';
 import type { UserPreferences } from '@/types';
 // ============================================================================
 // Database Connection
@@ -112,7 +113,7 @@ export async function closeSqliteDb(): Promise<void> {
 // Schema Initialization
 // ============================================================================
 
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 async function initializeSchema(db: Database): Promise<void> {
   // Create schema version table
@@ -301,6 +302,21 @@ async function migrateSchema(
       )
     `);
     console.log('[SQLite] v5 migration: added people table');
+  }
+
+  // Version 6: Add text_structures table
+  if (fromVersion < 6) {
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS text_structures (
+        id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        sync_status TEXT DEFAULT 'pending',
+        device_id TEXT
+      )
+    `);
+    console.log('[SQLite] v6 migration: added text_structures table');
   }
 
   // Update schema version
@@ -1180,6 +1196,7 @@ export interface SqliteExportData {
   conclusions: Conclusion[];
   interpretations: InterpretationEntry[];
   applications: ApplicationEntry[];
+  textStructures: TextStructure[];
   preferences: UserPreferences | null;
 }
 
@@ -1211,6 +1228,7 @@ export async function sqliteExportAll(): Promise<SqliteExportData> {
   const applications = await sqliteGetAllFromTable<ApplicationEntry>('applications');
   const observationLists = await sqliteGetAllFromTable<ObservationList>('observation_lists');
   const multiTranslationViews = await sqliteGetAllFromTable<MultiTranslationView>('multi_translation_views');
+  const textStructures = await sqliteGetAllFromTable<TextStructure>('text_structures');
 
   // Get headings and titles
   const headingRows = await db.select<
@@ -1299,6 +1317,7 @@ export async function sqliteExportAll(): Promise<SqliteExportData> {
     conclusions,
     interpretations,
     applications,
+    textStructures,
     preferences,
   };
 }
@@ -1372,6 +1391,9 @@ export async function sqliteImportAll(data: SqliteExportData): Promise<void> {
   for (const item of data.multiTranslationViews) {
     await sqliteSaveToTable('multi_translation_views', item);
   }
+  for (const item of (data.textStructures ?? [])) {
+    await sqliteSaveToTable('text_structures', item);
+  }
 
   // Import preferences
   if (data.preferences) {
@@ -1398,6 +1420,7 @@ export const SYNCED_TABLES = new Set([
   'time_expressions',
   'places',
   'people',
+  'text_structures',
   'conclusions',
   'interpretations',
   'applications',

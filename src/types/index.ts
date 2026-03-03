@@ -13,4 +13,5 @@ export * from './person';
 export * from './place';
 export * from './preferences';
 export * from './study';
+export * from './textStructure';
 export * from './timeExpression';

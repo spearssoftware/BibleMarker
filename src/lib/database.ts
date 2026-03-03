@@ -23,6 +23,7 @@ import type { Person } from '@/types';
 import type { Conclusion } from '@/types';
 import type { InterpretationEntry } from '@/types';
 import type { ApplicationEntry } from '@/types';
+import type { TextStructure } from '@/types';
 import type { UserPreferences } from '@/types';
 
 export type { UserPreferences, ApiConfigRecord, OnboardingState, AutoBackupConfig } from '@/types';
@@ -550,6 +551,25 @@ export async function deleteApplication(id: string): Promise<void> {
   await logChange('applications', 'delete', id);
 }
 
+// Text Structure Operations
+export async function getAllTextStructures(): Promise<TextStructure[]> {
+  const mod = await sqlite();
+  return mod.sqliteGetAllFromTable<TextStructure>('text_structures');
+}
+
+export async function saveTextStructure(entry: TextStructure): Promise<string> {
+  const mod = await sqlite();
+  const result = await mod.sqliteSaveToTable('text_structures', entry);
+  await logChange('text_structures', 'upsert', entry.id, entry);
+  return result;
+}
+
+export async function deleteTextStructure(id: string): Promise<void> {
+  const mod = await sqlite();
+  await mod.sqliteDeleteFromTable('text_structures', id);
+  await logChange('text_structures', 'delete', id);
+}
+
 // ============================================================================
 // Clear Database
 // ============================================================================
@@ -580,6 +600,7 @@ export interface DatabaseExportData {
   conclusions: Conclusion[];
   interpretations: InterpretationEntry[];
   applications: ApplicationEntry[];
+  textStructures: TextStructure[];
   preferences: UserPreferences | null;
 }
 

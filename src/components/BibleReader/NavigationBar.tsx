@@ -12,6 +12,7 @@ import { getPreferences } from '@/lib/database';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { Search } from '@/components/Search';
 import { TranslationPicker, UnifiedPicker } from './pickers';
+import { useTextStructureStore } from '@/stores/textStructureStore';
 export function NavigationBar() {
   const {
     currentBook,
@@ -46,6 +47,7 @@ export function NavigationBar() {
   const [currentVerse, setCurrentVerse] = useState<number | null>(null);
   
   const { activeView, loadActiveView, addTranslation, removeTranslation } = useMultiTranslationStore();
+  const { isStructureMode, setStructureMode } = useTextStructureStore();
 
   const bookInfo = getBookById(currentBook);
   
@@ -309,6 +311,31 @@ export function NavigationBar() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </button>
+          {/* Structure mode toggle */}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setStructureMode(!isStructureMode);
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            className={`p-2 rounded-lg transition-all duration-200 touch-target select-none
+                       ${isStructureMode
+                         ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                         : 'hover:bg-scripture-elevated'}`}
+            aria-label="Structure mode"
+            title="Structure mode"
+            aria-pressed={isStructureMode}
+          >
+            {/* Indent/structure icon */}
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h10M4 18h7" />
+            </svg>
+          </button>
+
           {/* Search button */}
           <button
             data-nav-search

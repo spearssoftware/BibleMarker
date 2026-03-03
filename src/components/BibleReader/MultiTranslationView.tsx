@@ -26,6 +26,8 @@ import { useTimeStore } from '@/stores/timeStore';
 import { usePeopleStore } from '@/stores/peopleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
+import { useTextStructureStore } from '@/stores/textStructureStore';
+import { StructureView } from '@/components/TextStructure';
 import { getBookById } from '@/types';
 import type { Chapter } from '@/types';
 import type { Annotation, SectionHeading, Note, ChapterTitle } from '@/types';
@@ -40,6 +42,7 @@ interface TranslationChapter {
 export function MultiTranslationView() {
   const { activeView, loadActiveView, addTranslation } = useMultiTranslationStore();
   const { currentBook, currentChapter, currentModuleId, navSelectedVerse } = useBibleStore();
+  const { isStructureMode } = useTextStructureStore();
   const { setSelection, setIsSelecting, fontSize, selection } = useAnnotationStore();
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const [translationChapters, setTranslationChapters] = useState<Map<string, TranslationChapter>>(new Map());
@@ -962,8 +965,27 @@ export function MultiTranslationView() {
         </div>
       )}
 
+      {/* Structure mode: show StructureView instead of translation columns */}
+      {isStructureMode ? (
+        <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+          {primaryTranslationId ? (
+            <StructureView
+              moduleId={primaryTranslationId}
+              book={currentBook}
+              chapter={currentChapter}
+              verses={translationChapters.get(primaryTranslationId)?.chapter?.verses ?? []}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-scripture-muted text-sm">
+              No translation selected.
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+
       {/* Translation headers - sticky */}
-      <div 
+      <div
         className={`grid gap-4 px-4 py-2 bg-scripture-elevated flex-shrink-0 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}
       >
         {translationList.map(({ translation, isLoading, error }) => (
@@ -1150,6 +1172,8 @@ export function MultiTranslationView() {
         </div>
       </div>
 
+        </>
+      )}
     </div>
   );
 }

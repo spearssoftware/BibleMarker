@@ -22,6 +22,7 @@ import type { Person } from '@/types';
 import type { Conclusion } from '@/types';
 import type { InterpretationEntry } from '@/types';
 import type { ApplicationEntry } from '@/types';
+import type { TextStructure } from '@/types';
 import {
   validateAnnotation,
   validateSectionHeading,
@@ -62,6 +63,7 @@ export interface BackupData {
     conclusions: Conclusion[];
     interpretations: InterpretationEntry[];
     applications: ApplicationEntry[];
+    textStructures?: TextStructure[];
     cachedChapters?: Array<{
       id: string;
       moduleId: string;
@@ -725,6 +727,7 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
       conclusions: backup.data.conclusions || [],
       interpretations: validatedInterpretations,
       applications: validatedApplications,
+      textStructures: backup.data.textStructures || [],
       preferences: backup.data.preferences || null,
     });
 
