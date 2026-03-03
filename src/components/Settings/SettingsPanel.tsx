@@ -1765,6 +1765,33 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   </p>
                 </div>
               </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
+
+              <div className="p-4">
+                <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Bible Translations</h3>
+                <div className="space-y-3 text-xs text-scripture-muted">
+                  <div>
+                    <span className="font-medium text-scripture-text">getBible API</span>
+                    {' — '}Free and open source (GPL-3.0). KJV, ASV, WEB, and more.{' '}
+                    <a href="https://github.com/getbible/v2" target="_blank" rel="noopener noreferrer" className="text-scripture-accent hover:underline">Docs →</a>
+                  </div>
+                  <div>
+                    <span className="font-medium text-scripture-text">Biblia API</span>
+                    {' — '}Faithlife/Logos. NASB, ESV, NIV, NKJV, and others. Free tier: 5,000 calls/day.{' '}
+                    <a href="https://api.biblia.com/docs/" target="_blank" rel="noopener noreferrer" className="text-scripture-accent hover:underline">Docs →</a>
+                  </div>
+                  <div>
+                    <span className="font-medium text-scripture-text">ESV API</span>
+                    {' — '}Crossway. Free for personal use with attribution.{' '}
+                    <a href="https://api.esv.org/docs/" target="_blank" rel="noopener noreferrer" className="text-scripture-accent hover:underline">Docs →</a>
+                    <p className="mt-1">Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®), © 2001 by Crossway, a publishing ministry of Good News Publishers.</p>
+                  </div>
+                </div>
+                <p className="text-xs text-scripture-muted mt-4">
+                  Bible text is provided by third-party APIs and is subject to their respective terms and copyrights. This application is provided for personal Bible study use.
+                </p>
+              </div>
             </div>
             </div>
           )}
