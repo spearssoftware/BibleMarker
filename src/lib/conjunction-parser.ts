@@ -132,57 +132,92 @@ export function detectConjunction(text: string): DetectedConjunction | undefined
  * Strip HTML tags from text, returning plain text.
  */
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+  return html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
 }
 
 /**
- * Split verse text at clause boundaries (conjunctions preceded by punctuation or verse start).
+ * Split verse text at every comma or semicolon boundary.
  * Returns an array of { text, offset } where offset is the character position in the original text.
  */
 function splitAtBoundaries(text: string): { text: string; offset: number }[] {
   const clauses: { text: string; offset: number }[] = [];
+  const regex = /[,;]\s*/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
 
-  // Manual split: look for [,;.] + whitespace + conjunction word boundary
-  let remaining = text;
-  let globalOffset = 0;
-
-  while (remaining.length > 0) {
-    let splitIndex = -1;
-
-    // Find the earliest punctuation+whitespace+conjunction boundary
-    const lowerRemaining = remaining.toLowerCase();
-
-    for (const entry of CONJUNCTIONS) {
-      const word = entry.word;
-      // Look for [,;.] + one or more spaces + word at word boundary
-      const searchPattern = new RegExp(`[,;.]\\s+(${escapeRegex(word)})(?=\\s|$|[,;.])`, 'i');
-      const match = searchPattern.exec(lowerRemaining);
-      if (match && match.index !== -1) {
-        // The split point is after the punctuation, before the conjunction
-        const conjStart = match.index + match[0].indexOf(match[1]);
-        if (splitIndex === -1 || conjStart < splitIndex) {
-          splitIndex = conjStart;
-        }
-      }
-    }
-
-    if (splitIndex > 0) {
-      clauses.push({ text: remaining.slice(0, splitIndex).trimEnd(), offset: globalOffset });
-      const consumed = splitIndex;
-      globalOffset += consumed;
-      remaining = remaining.slice(consumed);
-    } else {
-      // No more boundaries — rest is last clause
-      clauses.push({ text: remaining.trimEnd(), offset: globalOffset });
-      break;
-    }
+  while ((match = regex.exec(text)) !== null) {
+    const clauseText = text.slice(lastIndex, match.index).trim();
+    if (clauseText) clauses.push({ text: clauseText, offset: lastIndex });
+    lastIndex = match.index + match[0].length;
   }
 
-  return clauses.filter(c => c.text.trim().length > 0);
+  const remaining = text.slice(lastIndex).trim();
+  if (remaining) clauses.push({ text: remaining, offset: lastIndex });
+
+  return clauses;
 }
 
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+type ClauseType = 'main' | 'conjunction' | 'relative' | 'prepositional' | 'continuation';
+
+// Relative pronouns that introduce subordinate relative clauses
+const RELATIVE_PRONOUNS = new Set(['who', 'which', 'whose', 'whom']);
+
+// Prepositions that typically begin adverbial/adjectival phrases
+const PREPOSITIONS = new Set([
+  'into', 'in', 'on', 'at', 'by', 'of', 'through', 'with', 'from', 'to', 'unto',
+  'above', 'below', 'under', 'over', 'against', 'among', 'between', 'within',
+  'without', 'upon', 'beside', 'beyond', 'toward', 'towards', 'around', 'near',
+  'during', 'behind', 'beneath', 'across', 'along', 'throughout', 'out',
+]);
+
+function classifyClause(text: string): ClauseType {
+  const lower = text.trim().toLowerCase();
+  const firstWord = lower.split(/\s+/)[0].replace(/[,;.!?'"]+$/, '');
+
+  if (RELATIVE_PRONOUNS.has(firstWord)) return 'relative';
+  if (detectConjunction(text)) return 'conjunction';
+  if (PREPOSITIONS.has(firstWord)) return 'prepositional';
+  return 'continuation';
+}
+
+/**
+ * Assign an indent level based on clause type and context.
+ *
+ * Strategy:
+ * - main/first clause → 0
+ * - conjunction clause → 1 (logically subordinate to the main thought)
+ * - relative clause (who/which) → prevIndent + 1 (modifies the preceding noun)
+ * - prepositional phrase → 1, or stays at prevIndent when following a relative clause
+ * - continuation (appositive, bare noun phrase) → prevIndent if > 0, else 1
+ */
+function indentForClause(
+  type: ClauseType,
+  isFirst: boolean,
+  prevType: ClauseType | null,
+  prevIndent: number
+): number {
+  if (isFirst) return 0;
+
+  switch (type) {
+    case 'main':
+      return 0;
+    case 'conjunction':
+      return 1;
+    case 'relative':
+      return prevIndent + 1;
+    case 'prepositional':
+      // Keep at prevIndent when following a relative clause (parallel modifier);
+      // otherwise default to indent 1
+      return prevType === 'relative' ? prevIndent : 1;
+    case 'continuation':
+      return prevIndent > 0 ? prevIndent : 1;
+  }
 }
 
 /**
@@ -194,32 +229,23 @@ export function generateStructure(
 ): StructureLine[] {
   const lines: StructureLine[] = [];
   let order = 0;
+  let prevType: ClauseType | null = null;
+  let prevIndent = 0;
+  let isFirstClause = true;
 
   for (const { verse, text } of verses) {
     const plain = stripHtml(text).replace(/\s+/g, ' ').trim();
     if (!plain) continue;
 
     const clauses = splitAtBoundaries(plain);
-    const isFirstVerse = verse === verses[0]?.verse;
 
-    clauses.forEach((clause, clauseIndex) => {
+    for (const clause of clauses) {
       const clauseText = clause.text.trim();
-      if (!clauseText) return;
+      if (!clauseText) continue;
 
       const conjunction = detectConjunction(clauseText);
-      let indent: number;
-
-      if (clauseIndex === 0) {
-        // First clause of a verse: main clause (indent 0) unless it starts with a conjunction
-        indent = conjunction ? 1 : 0;
-        // Non-first verses' first clause: if it has a conjunction, indent 1; else 0
-        if (!isFirstVerse && clauseIndex === 0) {
-          indent = conjunction ? 1 : 0;
-        }
-      } else {
-        // Subsequent clauses default to indent 1
-        indent = 1;
-      }
+      const type = isFirstClause ? 'main' : classifyClause(clauseText);
+      const indent = indentForClause(type, isFirstClause, prevType, prevIndent);
 
       lines.push({
         id: crypto.randomUUID(),
@@ -230,10 +256,13 @@ export function generateStructure(
         conjunction,
         order,
       });
+
+      prevType = type;
+      prevIndent = indent;
+      isFirstClause = false;
       order++;
-    });
+    }
   }
 
   return lines;
 }
-
