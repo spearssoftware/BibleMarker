@@ -145,7 +145,7 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
   const [isPopulating, setIsPopulating] = useState(false);
   const { activeStudyId } = useStudyStore();
   const { presets } = useMarkingPresetStore();
-  const presetMap = useMemo(() => new Map(presets.map(p => [p.id, { word: p.word }])), [presets]);
+  const presetMap = useMemo(() => new Map(presets.map(p => [p.id, { word: p.word, category: p.category }])), [presets]);
   const [expandedKeywords, setExpandedKeywords] = useState<Set<string>>(new Set());
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -332,18 +332,25 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
   // Filter places by chapter and study
   const filteredPlaces = useMemo(() => {
     let filtered = places;
+    // Exclude places whose linked preset no longer has category === 'places'
+    filtered = filtered.filter(place => {
+      if (!place.presetId) return true; // manual entries always show
+      const preset = presetMap.get(place.presetId);
+      if (!preset) return true; // preset deleted — keep until user cleans up
+      return preset.category === 'places';
+    });
     // Filter by active study
     if (activeStudyId) {
       filtered = filtered.filter(place => !place.studyId || place.studyId === activeStudyId);
     }
     // Filter by chapter
     if (filterByChapter) {
-      filtered = filtered.filter(place => 
+      filtered = filtered.filter(place =>
         place.verseRef.book === currentBook && place.verseRef.chapter === currentChapter
       );
     }
     return filtered;
-  }, [places, filterByChapter, currentBook, currentChapter, activeStudyId]);
+  }, [places, presetMap, filterByChapter, currentBook, currentChapter, activeStudyId]);
 
   // Load verse texts when filtered places change
   useEffect(() => {
