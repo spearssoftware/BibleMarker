@@ -12,9 +12,9 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import {
   getChapterTitle,
   getChapterHeadings,
-  getCachedChapter,
   getAllObservationLists,
 } from '@/lib/database';
+import { fetchChapter } from '@/lib/bible-api';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import type { ChapterTitle } from '@/types';
@@ -80,19 +80,18 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
           const title = await getChapterTitle(null, currentBook, chapter, activeStudyId);
           const headings = await getChapterHeadings(null, currentBook, chapter, activeStudyId);
 
-          const cached = await getCachedChapter(primaryTranslationId, currentBook, chapter);
           const keywordSet = new Set<string>();
-          if (cached?.verses) {
-            for (const [verseNumStr, verseText] of Object.entries(cached.verses)) {
-              const verseNum = parseInt(verseNumStr, 10);
-              if (isNaN(verseNum) || !verseText) continue;
-              const plainText = extractPlainText(String(verseText));
-              const verseRef = { book: currentBook, chapter, verse: verseNum };
-              const matches = findKeywordMatches(plainText, verseRef, relevantPresets, primaryTranslationId);
+          try {
+            const chapterData = await fetchChapter(primaryTranslationId, currentBook, chapter);
+            for (const verse of chapterData.verses) {
+              const plainText = extractPlainText(verse.text);
+              const matches = findKeywordMatches(plainText, verse.ref, relevantPresets, primaryTranslationId);
               for (const ann of matches) {
                 if (ann.presetId) keywordSet.add(ann.presetId);
               }
             }
+          } catch {
+            // fetch failed — keyword count stays 0 for this chapter
           }
 
           const observationCount = filteredLists.reduce((count, list) => {
