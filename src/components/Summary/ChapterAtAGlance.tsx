@@ -15,7 +15,7 @@ import {
   getAllObservationLists,
   saveChapterTitle,
 } from '@/lib/database';
-import { fetchChapter } from '@/lib/bible-api';
+import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import type { ChapterTitle, SectionHeading } from '@/types';
 import { SYMBOLS } from '@/types';
 import type { MarkingPreset } from '@/types';
@@ -54,6 +54,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
   const { activeView } = useMultiTranslationStore();
   const { presets, loadPresets } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
+  const { verses: activeVerses, translationId: activeTranslationId, book: activeBook, chapter: activeChapterNum } = useActiveChapterStore();
   
   // Get the primary translation ID (first valid one) for section headings, chapter titles
   const primaryTranslationId = activeView?.translationIds[0] || currentModuleId || null;
@@ -125,38 +126,39 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
         const title = await getChapterTitle(null, currentBook, currentChapter, activeStudyId);
         const headings = await getChapterHeadings(null, currentBook, currentChapter, activeStudyId);
         
-        // Find keywords via text matching (includes auto-highlighted words).
-        // Use fetchChapter instead of getCachedChapter so chapters that exceed the ESV
-        // storage limit (not cached) still get keyword analysis.
+        // Find keywords via text matching using verse data already loaded by the reader.
+        // Reading from activeChapterStore avoids any extra API calls (important for ESV TOS).
         const keywordMap = new Map<string, { preset: MarkingPreset; count: number }>();
-        try {
-          const chapterData = await fetchChapter(primaryTranslationId, currentBook, currentChapter);
-          for (const verse of chapterData.verses) {
-            const plainText = extractPlainText(verse.text);
-            const matches = findKeywordMatches(plainText, verse.ref, relevantPresets, primaryTranslationId);
+        const versesToSearch =
+          activeTranslationId === primaryTranslationId &&
+          activeBook === currentBook &&
+          activeChapterNum === currentChapter
+            ? activeVerses
+            : [];
 
-            // Deduplicate by (presetId, startOffset) — presets with both highlight and symbol
-            // produce two annotations per occurrence, so we only count each position once.
-            const seenInVerse = new Set<string>();
-            for (const ann of matches) {
-              if (ann.presetId) {
-                const key = `${ann.presetId}:${ann.startOffset}`;
-                if (seenInVerse.has(key)) continue;
-                seenInVerse.add(key);
-                const existing = keywordMap.get(ann.presetId);
-                if (existing) {
-                  existing.count++;
-                } else {
-                  const preset = relevantPresets.find(p => p.id === ann.presetId);
-                  if (preset) {
-                    keywordMap.set(ann.presetId, { preset, count: 1 });
-                  }
+        for (const verse of versesToSearch) {
+          const plainText = extractPlainText(verse.text);
+          const matches = findKeywordMatches(plainText, verse.ref, relevantPresets, primaryTranslationId);
+
+          // Deduplicate by (presetId, startOffset) — presets with both highlight and symbol
+          // produce two annotations per occurrence, so we only count each position once.
+          const seenInVerse = new Set<string>();
+          for (const ann of matches) {
+            if (ann.presetId) {
+              const key = `${ann.presetId}:${ann.startOffset}`;
+              if (seenInVerse.has(key)) continue;
+              seenInVerse.add(key);
+              const existing = keywordMap.get(ann.presetId);
+              if (existing) {
+                existing.count++;
+              } else {
+                const preset = relevantPresets.find(p => p.id === ann.presetId);
+                if (preset) {
+                  keywordMap.set(ann.presetId, { preset, count: 1 });
                 }
               }
             }
           }
-        } catch {
-          // If fetch fails (offline, API error), keywords section stays empty
         }
         
         const keywords = Array.from(keywordMap.values())
@@ -193,7 +195,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
     }
     
     loadSummary();
-  }, [primaryTranslationId, currentBook, currentChapter, activeStudyId, relevantPresets]);
+  }, [primaryTranslationId, currentBook, currentChapter, activeStudyId, relevantPresets, activeVerses, activeTranslationId, activeBook, activeChapterNum]);
   
   if (isLoading) {
     return (
