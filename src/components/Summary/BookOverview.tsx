@@ -10,15 +10,16 @@ import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import {
-  getChapterTitle,
-  getChapterHeadings,
-  getCachedChapter,
+  getBookChapterTitles,
+  getBookSectionHeadings,
+  getBookCachedChapters,
   getAllObservationLists,
 } from '@/lib/database';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import type { ChapterTitle } from '@/types';
 import { getBookById } from '@/types';
+
 
 function extractPlainText(html: string): string {
   const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -70,20 +71,36 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
       setIsLoading(true);
 
       try {
-        const chapterSummaries: ChapterSummaryData[] = [];
-        const allLists = await getAllObservationLists();
+        // Fetch all book-level data in parallel — 4 queries total regardless of chapter count
+        const [titles, headings, cachedChapters, allLists] = await Promise.all([
+          getBookChapterTitles(currentBook, activeStudyId),
+          getBookSectionHeadings(currentBook, activeStudyId),
+          getBookCachedChapters(primaryTranslationId, currentBook),
+          getAllObservationLists(),
+        ]);
+
+        // Build lookup maps keyed by chapter number
+        const titleByChapter = new Map(titles.map(t => [t.chapter, t]));
+        const headingCountByChapter = new Map<number, number>();
+        for (const h of headings) {
+          const ch = h.beforeRef.chapter;
+          headingCountByChapter.set(ch, (headingCountByChapter.get(ch) ?? 0) + 1);
+        }
+
         const filteredLists = allLists.filter(
           list => !list.studyId || list.studyId === activeStudyId
         );
 
+        const chapterSummaries: ChapterSummaryData[] = [];
+
         for (let chapter = 1; chapter <= bookInfo.chapters; chapter++) {
-          const title = await getChapterTitle(null, currentBook, chapter, activeStudyId);
-          const headings = await getChapterHeadings(null, currentBook, chapter, activeStudyId);
+          const title = titleByChapter.get(chapter) ?? null;
+          const headingCount = headingCountByChapter.get(chapter) ?? 0;
 
           const keywordSet = new Set<string>();
-          const cached = await getCachedChapter(primaryTranslationId, currentBook, chapter);
-          if (cached?.verses) {
-            for (const [verseNumStr, verseText] of Object.entries(cached.verses)) {
+          const verses = cachedChapters.get(chapter);
+          if (verses) {
+            for (const [verseNumStr, verseText] of Object.entries(verses)) {
               const verseNum = parseInt(verseNumStr, 10);
               if (isNaN(verseNum) || !verseText) continue;
               const plainText = extractPlainText(String(verseText));
@@ -96,16 +113,15 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
           }
 
           const observationCount = filteredLists.reduce((count, list) => {
-            const itemsInChapter = list.items.filter(
+            return count + list.items.filter(
               item => item.verseRef.book === currentBook && item.verseRef.chapter === chapter
-            );
-            return count + itemsInChapter.length;
+            ).length;
           }, 0);
 
           chapterSummaries.push({
             chapter,
-            title: title ?? null,
-            headingCount: headings.length,
+            title,
+            headingCount,
             keywordCount: keywordSet.size,
             observationCount,
             theme: title?.theme || null,
