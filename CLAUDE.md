@@ -207,3 +207,4 @@ git tag app-vX.Y.Z && git push origin app-vX.Y.Z
 After tagging, monitor at:
 - https://github.com/spearssoftware/BibleMarker/actions
 - https://github.com/spearssoftware/BibleMarker/releases
+

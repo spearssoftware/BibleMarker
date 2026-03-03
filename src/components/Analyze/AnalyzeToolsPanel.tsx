@@ -48,11 +48,11 @@ export function AnalyzeToolsPanel({
 
   const allTabs: { id: AnalyzeTab; label: string; icon: string }[] = [
     { id: 'chapter', label: 'Chapter', icon: '📄' },
-    { id: 'conclusions', label: 'Conclusions', icon: '→' },
     { id: 'overview', label: 'Overview', icon: '📚' },
-    { id: 'themes', label: 'Themes', icon: '🔍' },
     { id: 'timeline', label: 'Timeline', icon: '📅' },
     { id: 'places-map', label: 'Places', icon: '🗺️' },
+    { id: 'themes', label: 'Themes', icon: '🔍' },
+    { id: 'conclusions', label: 'Conclusions', icon: '→' },
   ];
 
   const tabs = allTabs.filter(tab => !disabledTools.includes(tab.id));

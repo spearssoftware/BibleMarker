@@ -12,10 +12,10 @@ import { useStudyStore } from '@/stores/studyStore';
 import {
   getChapterTitle,
   getChapterHeadings,
-  getCachedChapter,
   getAllObservationLists,
   saveChapterTitle,
 } from '@/lib/database';
+import { fetchChapter } from '@/lib/bible-api';
 import type { ChapterTitle, SectionHeading } from '@/types';
 import { SYMBOLS } from '@/types';
 import type { MarkingPreset } from '@/types';
@@ -52,7 +52,7 @@ function extractPlainText(html: string): string {
 export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }: ChapterAtAGlanceProps = {}) {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { activeView } = useMultiTranslationStore();
-  const { presets } = useMarkingPresetStore();
+  const { presets, loadPresets } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
   
   // Get the primary translation ID (first valid one) for section headings, chapter titles
@@ -64,6 +64,10 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
   const [editingTheme, setEditingTheme] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftTheme, setDraftTheme] = useState('');
+
+  useEffect(() => {
+    loadPresets();
+  }, [loadPresets]);
 
   // Reset editing state when chapter changes
   useEffect(() => {
@@ -121,21 +125,24 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
         const title = await getChapterTitle(null, currentBook, currentChapter, activeStudyId);
         const headings = await getChapterHeadings(null, currentBook, currentChapter, activeStudyId);
         
-        // Find keywords via text matching (includes auto-highlighted words)
+        // Find keywords via text matching (includes auto-highlighted words).
+        // Use fetchChapter instead of getCachedChapter so chapters that exceed the ESV
+        // storage limit (not cached) still get keyword analysis.
         const keywordMap = new Map<string, { preset: MarkingPreset; count: number }>();
-        const cached = await getCachedChapter(primaryTranslationId, currentBook, currentChapter);
-        
-        if (cached && cached.verses) {
-          for (const [verseNumStr, verseText] of Object.entries(cached.verses)) {
-            const verseNum = parseInt(verseNumStr, 10);
-            if (isNaN(verseNum) || !verseText) continue;
-            
-            const plainText = extractPlainText(String(verseText));
-            const verseRef = { book: currentBook, chapter: currentChapter, verse: verseNum };
-            const matches = findKeywordMatches(plainText, verseRef, relevantPresets, primaryTranslationId);
-            
+        try {
+          const chapterData = await fetchChapter(primaryTranslationId, currentBook, currentChapter);
+          for (const verse of chapterData.verses) {
+            const plainText = extractPlainText(verse.text);
+            const matches = findKeywordMatches(plainText, verse.ref, relevantPresets, primaryTranslationId);
+
+            // Deduplicate by (presetId, startOffset) — presets with both highlight and symbol
+            // produce two annotations per occurrence, so we only count each position once.
+            const seenInVerse = new Set<string>();
             for (const ann of matches) {
               if (ann.presetId) {
+                const key = `${ann.presetId}:${ann.startOffset}`;
+                if (seenInVerse.has(key)) continue;
+                seenInVerse.add(key);
                 const existing = keywordMap.get(ann.presetId);
                 if (existing) {
                   existing.count++;
@@ -148,6 +155,8 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
               }
             }
           }
+        } catch {
+          // If fetch fails (offline, API error), keywords section stays empty
         }
         
         const keywords = Array.from(keywordMap.values())
@@ -356,32 +365,32 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
       {headings.length > 0 && (
         <div className="pb-3 border-b border-scripture-border/50">
           <div className="text-sm text-scripture-muted mb-2">Section Headings</div>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {headings.map(heading => {
               const verseRange = heading.coversUntil
                 ? `${heading.beforeRef.verse}${heading.coversUntil.verse !== heading.beforeRef.verse ? `-${heading.coversUntil.verse}` : ''}`
                 : `${heading.beforeRef.verse}+`;
-              
+
               return (
-                <div key={heading.id} className="flex items-start gap-2 text-sm">
-                  <span className="text-scripture-muted font-mono text-xs">
+                <button
+                  key={heading.id}
+                  onClick={() => {
+                    setTimeout(() => {
+                      const sectionHeadingElement = document.querySelector(`[data-section-heading="${heading.id}"]`) as HTMLElement;
+                      if (sectionHeadingElement) {
+                        sectionHeadingElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }, 100);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-scripture-elevated hover:bg-scripture-border/40 transition-colors text-left group"
+                >
+                  <span className="text-scripture-accent font-mono text-xs font-semibold shrink-0">
                     v{verseRange}
                   </span>
-                  <button
-                    onClick={() => {
-                      // Scroll to section heading in verse view
-                      setTimeout(() => {
-                        const sectionHeadingElement = document.querySelector(`[data-section-heading="${heading.id}"]`) as HTMLElement;
-                        if (sectionHeadingElement) {
-                          sectionHeadingElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
-                      }, 100);
-                    }}
-                    className="text-scripture-text hover:text-scripture-accent transition-colors bg-transparent border-none p-0 cursor-pointer text-left"
-                  >
+                  <span className="text-scripture-text text-sm font-medium group-hover:text-scripture-accent transition-colors">
                     {heading.title}
-                  </button>
-                </div>
+                  </span>
+                </button>
               );
             })}
           </div>
