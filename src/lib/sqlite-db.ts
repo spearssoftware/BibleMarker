@@ -1118,6 +1118,7 @@ const VALID_TABLE_NAMES = new Set([
   'conclusions',
   'interpretations',
   'applications',
+  'text_structures',
   'preferences',
   'chapter_cache',
 ]);
