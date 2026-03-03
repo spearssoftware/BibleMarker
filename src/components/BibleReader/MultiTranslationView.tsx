@@ -40,7 +40,7 @@ interface TranslationChapter {
 
 export function MultiTranslationView() {
   const { activeView, loadActiveView, addTranslation } = useMultiTranslationStore();
-  const { setActiveChapterVerses } = useActiveChapterStore();
+  const setActiveChapterVerses = useActiveChapterStore(state => state.setActiveChapterVerses);
   const { currentBook, currentChapter, currentModuleId, navSelectedVerse } = useBibleStore();
   const { setSelection, setIsSelecting, fontSize, selection } = useAnnotationStore();
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
