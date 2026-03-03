@@ -153,6 +153,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
         conclusions: allData.conclusions,
         interpretations: allData.interpretations,
         applications: allData.applications,
+        textStructures: allData.textStructures,
       },
     };
 
