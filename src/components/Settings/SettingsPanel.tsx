@@ -673,7 +673,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 <div className="space-y-4">
                   <div>
                     <div className="text-sm font-ui font-medium text-scripture-text mb-2">Observe</div>
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                       {[
                         { id: 'lists', label: 'Lists' },
                         { id: 'fiveWAndH', label: "5 W's & H" },
@@ -700,7 +700,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
                   <div>
                     <div className="text-sm font-ui font-medium text-scripture-text mb-2">Analyze</div>
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                       {[
                         { id: 'chapter', label: 'Chapter' },
                         { id: 'conclusions', label: 'Conclusions' },
@@ -726,7 +726,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
                   <div>
                     <div className="text-sm font-ui font-medium text-scripture-text mb-2">Study</div>
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                       {[
                         { id: 'interpretation', label: 'Interpretation' },
                         { id: 'application', label: 'Application' },
