@@ -13,9 +13,10 @@ import { openUrl } from '@/lib/platform';
 interface AboutSectionProps {
   /** When false, no automatic update check is run on mount */
   checkForUpdates?: boolean;
+  onCheckForUpdatesChange?: (value: boolean) => void;
 }
 
-export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true }: AboutSectionProps) {
+export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true, onCheckForUpdatesChange }: AboutSectionProps) {
   const version = __APP_VERSION__;
   const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null | 'checking'>(
     checkForUpdatesEnabled ? 'checking' : null
@@ -152,6 +153,32 @@ export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true }:
           This application is provided for personal Bible study use. Bible text is provided by third-party APIs and is subject to their respective terms and copyrights.
         </p>
       </div>
+
+      {onCheckForUpdatesChange && (
+        <div className="flex items-center justify-between gap-4 pt-2">
+          <div>
+            <div className="text-sm font-medium text-scripture-text">Check for updates automatically</div>
+            <div className="text-xs text-scripture-muted mt-0.5">
+              Check GitHub once per day for a new release
+            </div>
+          </div>
+          <button
+            onClick={() => onCheckForUpdatesChange(!checkForUpdatesEnabled)}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-scripture-accent focus:ring-offset-2 ${
+              checkForUpdatesEnabled ? 'bg-scripture-accent' : 'bg-scripture-border'
+            }`}
+            role="switch"
+            aria-checked={checkForUpdatesEnabled}
+            aria-label="Toggle check for updates automatically"
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                checkForUpdatesEnabled ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
