@@ -1,8 +1,10 @@
 /**
  * Verse Number Menu Component
- * 
+ *
  * Shows options when clicking on a verse number: add section heading or note.
  */
+
+import { useRef, useLayoutEffect, useState } from 'react';
 
 interface VerseNumberMenuProps {
   verseNum: number;
@@ -12,25 +14,37 @@ interface VerseNumberMenuProps {
   onClose: () => void;
 }
 
-export function VerseNumberMenu({ 
+export function VerseNumberMenu({
   verseNum,
   onAddHeading,
   onAddNote,
   onAddTimeExpression,
-  onClose 
+  onClose
 }: VerseNumberMenuProps) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [flipAbove, setFlipAbove] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!menuRef.current) return;
+    const rect = menuRef.current.getBoundingClientRect();
+    if (rect.bottom > window.innerHeight - 16) {
+      requestAnimationFrame(() => setFlipAbove(true));
+    }
+  }, []);
+
   return (
     <>
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 z-40" 
+      <div
+        className="fixed inset-0 z-40"
         onClick={onClose}
         aria-hidden="true"
       />
-      
+
       {/* Menu */}
-      <div 
-        className="absolute top-full left-0 mt-1 z-50 bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-2xl overflow-hidden animate-scale-in-dropdown min-w-[200px]"
+      <div
+        ref={menuRef}
+        className={`absolute ${flipAbove ? 'bottom-full mb-1' : 'top-full mt-1'} left-0 z-50 bg-scripture-surface border border-scripture-border/50 rounded-xl shadow-2xl overflow-hidden animate-scale-in-dropdown min-w-[200px]`}
         role="menu"
         aria-label={`Options for verse ${verseNum}`}
       >

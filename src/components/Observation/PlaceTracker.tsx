@@ -142,7 +142,6 @@ const sortVerseGroups = (groups: Map<string, Place[]>): Array<[string, Place[]]>
 export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = true, onFilterByChapterChange, onNavigate }: PlaceTrackerProps) {
   const { places, loadPlaces, createPlace, updatePlace, deletePlace, autoImportFromAnnotations, removeDuplicates, autoPopulateFromChapter } = usePlaceStore();
   const { currentBook, currentChapter } = useBibleStore();
-  const [isPopulating, setIsPopulating] = useState(false);
   const { activeStudyId } = useStudyStore();
   const { presets } = useMarkingPresetStore();
   const presetMap = useMemo(() => new Map(presets.map(p => [p.id, { word: p.word, category: p.category }])), [presets]);
@@ -160,22 +159,11 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
   const { activeView } = useMultiTranslationStore();
   const primaryModuleId = activeView?.translationIds[0] || '';
 
-  const handlePopulateFromChapter = async () => {
-    if (!currentBook || !currentChapter || !primaryModuleId || isPopulating) return;
-    setIsPopulating(true);
-    try {
-      const count = await autoPopulateFromChapter(currentBook, currentChapter, primaryModuleId);
-      await loadPlaces();
-      if (count > 0) alert(`Added ${count} place(s) from chapter.`);
-    } catch (e) {
-      console.error('[PlaceTracker] Populate failed:', e);
-    } finally {
-      setIsPopulating(false);
-    }
-  };
   
   // Track if we've already run initialization to prevent duplicates
   const hasInitialized = useRef(false);
+  // Track last auto-populated chapter to avoid redundant calls
+  const lastPopulatedChapter = useRef('');
 
   // Determine verse reference - use provided one, or current location
   const getCurrentVerseRef = (): VerseRef | null => {
@@ -229,6 +217,18 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
       isMounted = false;
     };
   }, [autoImportFromAnnotations, loadPlaces, removeDuplicates]);
+
+  // Auto-populate from chapter when chapter or translation changes
+  useEffect(() => {
+    if (!currentBook || !currentChapter || !primaryModuleId) return;
+    const key = `${currentBook}:${currentChapter}:${primaryModuleId}`;
+    if (lastPopulatedChapter.current === key) return;
+    lastPopulatedChapter.current = key;
+    (async () => {
+      await autoPopulateFromChapter(currentBook, currentChapter, primaryModuleId);
+      loadPlaces();
+    })();
+  }, [currentBook, currentChapter, primaryModuleId, autoPopulateFromChapter, loadPlaces]);
 
   // Pre-fill form if selectedText is provided
   useEffect(() => {
@@ -412,15 +412,6 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
           >
             + New Place
           </button>
-          {currentBook && currentChapter && (
-            <button
-              onClick={handlePopulateFromChapter}
-              disabled={isPopulating || !primaryModuleId}
-              className="px-3 py-1.5 text-sm bg-scripture-elevated text-scripture-text rounded hover:bg-scripture-border/50 transition-colors disabled:opacity-50"
-            >
-              {isPopulating ? '...' : 'Populate from Chapter'}
-            </button>
-          )}
           {onFilterByChapterChange && (
             <Checkbox
               label="Current Chapter Only"
