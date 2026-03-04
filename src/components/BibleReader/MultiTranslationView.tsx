@@ -7,6 +7,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import React from 'react';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
+import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
@@ -39,6 +40,7 @@ interface TranslationChapter {
 
 export function MultiTranslationView() {
   const { activeView, loadActiveView, addTranslation } = useMultiTranslationStore();
+  const setActiveChapterVerses = useActiveChapterStore(state => state.setActiveChapterVerses);
   const { currentBook, currentChapter, currentModuleId, navSelectedVerse } = useBibleStore();
   const { setSelection, setIsSelecting, fontSize, selection } = useAnnotationStore();
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
@@ -801,6 +803,17 @@ export function MultiTranslationView() {
         });
         setTranslationChapters(new Map(newChapters));
         
+        // Publish verse text for the primary translation so ChapterAtAGlance
+        // can do keyword matching without an extra API call.
+        if (translationId === primaryTranslationId) {
+          setActiveChapterVerses(
+            translationId,
+            currentBook,
+            currentChapter,
+            chapter.verses.map(v => ({ ref: v.ref, text: v.text }))
+          );
+        }
+
         // Auto-populate places and time expressions for keywords found in this chapter
         // Only do this once per chapter (use primary translation)
         if (translationId === primaryTranslationId) {

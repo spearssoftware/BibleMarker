@@ -1,21 +1,30 @@
 /**
  * Book Overview
- * 
- * Grid view of all chapter summaries for a book
+ *
+ * Horizontal list of all chapter summaries for a book
  */
 
 import { useEffect, useState, useMemo } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { 
-  getChapterTitle, 
-  getChapterHeadings, 
-  getChapterAnnotations,
+import { useMarkingPresetStore } from '@/stores/markingPresetStore';
+import {
+  getBookChapterTitles,
+  getBookSectionHeadings,
+  getBookCachedChapters,
   getAllObservationLists,
 } from '@/lib/database';
+import { findKeywordMatches } from '@/lib/keywordMatching';
+import { filterPresetsByStudy } from '@/lib/studyFilter';
 import type { ChapterTitle } from '@/types';
 import { getBookById } from '@/types';
+
+
+function extractPlainText(html: string): string {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return doc.body.textContent || doc.body.innerText || '';
+}
 
 interface ChapterSummaryData {
   chapter: number;
@@ -34,61 +43,91 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
   const { currentBook, currentModuleId, setLocation } = useBibleStore();
   const { activeView } = useMultiTranslationStore();
   const { activeStudyId } = useStudyStore();
-  
-  // Get the primary translation ID
+  const { presets } = useMarkingPresetStore();
+
   const primaryTranslationId = activeView?.translationIds[0] || currentModuleId || null;
-  
+
   const [summaries, setSummaries] = useState<ChapterSummaryData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const bookInfo = useMemo(() => getBookById(currentBook), [currentBook]);
   const chapterCount = bookInfo?.chapters || 0;
-  
+
+  const relevantPresets = useMemo(() => {
+    return filterPresetsByStudy(presets, activeStudyId).filter(p => {
+      if (!p.word) return false;
+      if (p.bookScope && p.bookScope !== currentBook) return false;
+      return true;
+    });
+  }, [presets, activeStudyId, currentBook]);
+
   useEffect(() => {
     async function loadBookSummary() {
       if (!primaryTranslationId || !currentBook || !bookInfo) {
         setIsLoading(false);
         return;
       }
-      
+
       setIsLoading(true);
-      
+
       try {
-        const chapterSummaries: ChapterSummaryData[] = [];
-        const allLists = await getAllObservationLists();
+        // Fetch all book-level data in parallel — 4 queries total regardless of chapter count
+        const [titles, headings, cachedChapters, allLists] = await Promise.all([
+          getBookChapterTitles(currentBook, activeStudyId),
+          getBookSectionHeadings(currentBook, activeStudyId),
+          getBookCachedChapters(primaryTranslationId, currentBook),
+          getAllObservationLists(),
+        ]);
+
+        // Build lookup maps keyed by chapter number
+        const titleByChapter = new Map(titles.map(t => [t.chapter, t]));
+        const headingCountByChapter = new Map<number, number>();
+        for (const h of headings) {
+          const ch = h.beforeRef.chapter;
+          headingCountByChapter.set(ch, (headingCountByChapter.get(ch) ?? 0) + 1);
+        }
+
         const filteredLists = allLists.filter(
           list => !list.studyId || list.studyId === activeStudyId
         );
 
-        for (let chapter = 1; chapter <= bookInfo.chapters; chapter++) {
-          const title = await getChapterTitle(null, currentBook, chapter, activeStudyId);
-          const headings = await getChapterHeadings(null, currentBook, chapter, activeStudyId);
+        const chapterSummaries: ChapterSummaryData[] = [];
 
-          const annotations = await getChapterAnnotations(primaryTranslationId, currentBook, chapter);
-          const uniqueKeywords = new Set<string>();
-          for (const ann of annotations) {
-            if (ann.presetId) {
-              uniqueKeywords.add(ann.presetId);
+        for (let chapter = 1; chapter <= bookInfo.chapters; chapter++) {
+          const title = titleByChapter.get(chapter) ?? null;
+          const headingCount = headingCountByChapter.get(chapter) ?? 0;
+
+          const keywordSet = new Set<string>();
+          const verses = cachedChapters.get(chapter);
+          if (verses) {
+            for (const [verseNumStr, verseText] of Object.entries(verses)) {
+              const verseNum = parseInt(verseNumStr, 10);
+              if (isNaN(verseNum) || !verseText) continue;
+              const plainText = extractPlainText(String(verseText));
+              const verseRef = { book: currentBook, chapter, verse: verseNum };
+              const matches = findKeywordMatches(plainText, verseRef, relevantPresets, primaryTranslationId);
+              for (const ann of matches) {
+                if (ann.presetId) keywordSet.add(ann.presetId);
+              }
             }
           }
 
           const observationCount = filteredLists.reduce((count, list) => {
-            const itemsInChapter = list.items.filter(
+            return count + list.items.filter(
               item => item.verseRef.book === currentBook && item.verseRef.chapter === chapter
-            );
-            return count + itemsInChapter.length;
+            ).length;
           }, 0);
-          
+
           chapterSummaries.push({
             chapter,
-            title: title ?? null,
-            headingCount: headings.length,
-            keywordCount: uniqueKeywords.size,
+            title,
+            headingCount,
+            keywordCount: keywordSet.size,
             observationCount,
             theme: title?.theme || null,
           });
         }
-        
+
         setSummaries(chapterSummaries);
       } catch (error) {
         console.error('Error loading book summary:', error);
@@ -96,10 +135,10 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
         setIsLoading(false);
       }
     }
-    
+
     loadBookSummary();
-  }, [primaryTranslationId, currentBook, bookInfo, activeStudyId]);
-  
+  }, [primaryTranslationId, currentBook, bookInfo, activeStudyId, relevantPresets]);
+
   if (isLoading) {
     return (
       <div className="p-4 bg-scripture-surface rounded-lg">
@@ -110,7 +149,7 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
       </div>
     );
   }
-  
+
   if (!bookInfo) {
     return (
       <div className="p-4 bg-scripture-surface rounded-lg">
@@ -118,92 +157,47 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
       </div>
     );
   }
-  
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4 px-4 pt-4 flex-shrink-0">
         <h2 className="text-lg font-semibold text-scripture-text">{bookInfo.name} Overview</h2>
         <div className="text-sm text-scripture-muted">{chapterCount} chapters</div>
       </div>
-      
+
       <div className="px-4 pb-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        {summaries.map(summary => {
-          const hasData = summary.title || summary.headingCount > 0 || summary.keywordCount > 0 || summary.observationCount > 0;
-          
-          return (
-            <button
-              key={summary.chapter}
-              onClick={() => {
-                setLocation(currentBook, summary.chapter);
-                onChapterClick?.(summary.chapter);
-              }}
-                className={`
-                p-3 rounded-lg border-2 transition-all text-left
-                ${hasData 
-                  ? 'bg-scripture-surface border-scripture-border/50 hover:border-scripture-border hover:bg-scripture-elevated' 
-                  : 'bg-scripture-elevated/50 border-scripture-border/30 hover:border-scripture-border/50'
-                }
-              `}
-            >
-              <div className="font-semibold text-scripture-text mb-2">
-                Chapter {summary.chapter}
-              </div>
-              
-              {summary.title && (
-                <div className="mb-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setLocation(currentBook, summary.chapter);
-                      onChapterClick?.(summary.chapter);
-                      // Scroll to chapter title in verse view after a short delay
-                      setTimeout(() => {
-                        const chapterTitleElement = document.querySelector(`[data-chapter-title="${summary.chapter}"]`) as HTMLElement;
-                        if (chapterTitleElement) {
-                          chapterTitleElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
-                      }, 100);
-                    }}
-                    className="text-xs text-scripture-text mb-1 line-clamp-2 text-left hover:text-scripture-accent transition-colors w-full bg-transparent border-none p-0 cursor-pointer"
-                  >
-                    {summary.title.title}
-                  </button>
+        <div className="divide-y divide-scripture-border/30 rounded-lg overflow-hidden border border-scripture-border/30">
+          {summaries.map(summary => {
+            const hasData = summary.title || summary.headingCount > 0 || summary.keywordCount > 0 || summary.observationCount > 0;
+
+            return (
+              <button
+                key={summary.chapter}
+                onClick={() => {
+                  setLocation(currentBook, summary.chapter);
+                  onChapterClick?.(summary.chapter);
+                }}
+                className="w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-scripture-elevated/60 transition-colors"
+              >
+                <span className={`w-10 shrink-0 text-sm font-semibold ${hasData ? 'text-scripture-accent' : 'text-scripture-muted/50'}`}>
+                  {summary.chapter}
+                </span>
+                <div className="flex-1 min-w-0">
+                  {summary.title && (
+                    <div className="text-sm text-scripture-text truncate">{summary.title.title}</div>
+                  )}
                   {summary.theme && (
-                    <div className="text-xs text-scripture-muted line-clamp-2 italic">
-                      {summary.theme}
-                    </div>
+                    <div className="text-xs text-scripture-muted italic truncate">{summary.theme}</div>
                   )}
                 </div>
-              )}
-              
-              <div className="flex flex-wrap gap-2 text-xs text-scripture-muted">
-                {summary.headingCount > 0 && (
-                  <span className="flex items-center gap-1">
-                    <span>📑</span>
-                    <span>{summary.headingCount}</span>
-                  </span>
-                )}
-                {summary.keywordCount > 0 && (
-                  <span className="flex items-center gap-1">
-                    <span>🔑</span>
-                    <span>{summary.keywordCount}</span>
-                  </span>
-                )}
-                {summary.observationCount > 0 && (
-                  <span className="flex items-center gap-1">
-                    <span>📝</span>
-                    <span>{summary.observationCount}</span>
-                  </span>
-                )}
-              </div>
-              
-              {!hasData && (
-                <div className="text-xs text-scripture-muted/50 mt-2">No data</div>
-              )}
-            </button>
-          );
-        })}
+                <div className="flex items-center gap-2 text-xs text-scripture-muted shrink-0">
+                  {summary.headingCount > 0 && <span>📑 {summary.headingCount}</span>}
+                  {summary.keywordCount > 0 && <span>🔑 {summary.keywordCount}</span>}
+                  {summary.observationCount > 0 && <span>📝 {summary.observationCount}</span>}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
