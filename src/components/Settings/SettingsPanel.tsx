@@ -673,7 +673,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 <div className="space-y-4">
                   <div>
                     <div className="text-sm font-ui font-medium text-scripture-text mb-2">Observe</div>
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                       {[
                         { id: 'lists', label: 'Lists' },
                         { id: 'fiveWAndH', label: "5 W's & H" },
@@ -700,7 +700,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
                   <div>
                     <div className="text-sm font-ui font-medium text-scripture-text mb-2">Analyze</div>
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                       {[
                         { id: 'chapter', label: 'Chapter' },
                         { id: 'conclusions', label: 'Conclusions' },
@@ -726,7 +726,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
                   <div>
                     <div className="text-sm font-ui font-medium text-scripture-text mb-2">Study</div>
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                       {[
                         { id: 'interpretation', label: 'Interpretation' },
                         { id: 'application', label: 'Application' },
@@ -1649,35 +1649,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             <div role="tabpanel" id="settings-tabpanel-help" aria-labelledby="settings-tab-help">
             <div className="space-y-0">
               <div className="p-4">
-                <AboutSection checkForUpdates={checkForUpdates} />
-              </div>
-
-              <div className="border-t border-scripture-border/30 my-4"></div>
-
-              <div className="p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <div className="text-sm font-medium text-scripture-text">Check for updates automatically</div>
-                    <div className="text-xs text-scripture-muted mt-0.5">
-                      Check GitHub once per day for a new release (when this is on)
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleCheckForUpdatesChange(!checkForUpdates)}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-scripture-accent focus:ring-offset-2 ${
-                      checkForUpdates ? 'bg-scripture-accent' : 'bg-scripture-border'
-                    }`}
-                    role="switch"
-                    aria-checked={checkForUpdates}
-                    aria-label="Toggle check for updates automatically"
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        checkForUpdates ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
+                <AboutSection checkForUpdates={checkForUpdates} onCheckForUpdatesChange={handleCheckForUpdatesChange} />
               </div>
 
               <div className="border-t border-scripture-border/30 my-4"></div>
@@ -1727,7 +1699,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
               <div className="p-4">
                 <div className="mb-4">
-                  <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Debug Logging</h3>
+                  <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Developer</h3>
                   <p className="text-xs text-scripture-muted mb-4">
                     Enable detailed console logging for debugging keyword matching and verse rendering issues.
                   </p>
@@ -1792,6 +1764,33 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     Debug logs will appear in the browser console (F12 → Console tab). Refresh the page after toggling for changes to take effect.
                   </p>
                 </div>
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
+
+              <div className="p-4">
+                <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Bible Translations</h3>
+                <div className="space-y-3 text-xs text-scripture-muted">
+                  <div>
+                    <span className="font-medium text-scripture-text">getBible API</span>
+                    {' — '}Free and open source (GPL-3.0). KJV, ASV, WEB, and more.{' '}
+                    <a href="https://github.com/getbible/v2" target="_blank" rel="noopener noreferrer" className="text-scripture-accent hover:underline">Docs →</a>
+                  </div>
+                  <div>
+                    <span className="font-medium text-scripture-text">Biblia API</span>
+                    {' — '}Faithlife/Logos. NASB, ESV, NIV, NKJV, and others. Free tier: 5,000 calls/day.{' '}
+                    <a href="https://api.biblia.com/docs/" target="_blank" rel="noopener noreferrer" className="text-scripture-accent hover:underline">Docs →</a>
+                  </div>
+                  <div>
+                    <span className="font-medium text-scripture-text">ESV API</span>
+                    {' — '}Crossway. Free for personal use with attribution.{' '}
+                    <a href="https://api.esv.org/docs/" target="_blank" rel="noopener noreferrer" className="text-scripture-accent hover:underline">Docs →</a>
+                    <p className="mt-1">Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®), © 2001 by Crossway, a publishing ministry of Good News Publishers.</p>
+                  </div>
+                </div>
+                <p className="text-xs text-scripture-muted mt-4">
+                  Bible text is provided by third-party APIs and is subject to their respective terms and copyrights. This application is provided for personal Bible study use.
+                </p>
               </div>
             </div>
             </div>

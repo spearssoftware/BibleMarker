@@ -655,6 +655,82 @@ export async function getAllCachedChapters(): Promise<Array<{
   }));
 }
 
+/** Fetch all chapter titles for a book in one query (used by BookOverview). */
+export async function getBookChapterTitles(
+  book: string,
+  studyId?: string | null
+): Promise<ChapterTitle[]> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  type Row = { id: string; book: string; chapter: number; title: string; theme: string | null; supporting_preset_ids: string | null; study_id: string | null; created_at: string; updated_at: string };
+  const rows = await db.select<Row[]>(
+    studyId
+      ? `SELECT * FROM chapter_titles WHERE book = ? AND (study_id IS NULL OR study_id = ?) ORDER BY chapter, CASE WHEN study_id = ? THEN 0 ELSE 1 END`
+      : `SELECT * FROM chapter_titles WHERE book = ? AND study_id IS NULL ORDER BY chapter`,
+    studyId ? [book, studyId, studyId] : [book]
+  );
+  // When a study is active, keep only the best row per chapter (study-scoped beats global)
+  const best = new Map<number, Row>();
+  for (const row of rows) {
+    if (!best.has(row.chapter)) best.set(row.chapter, row);
+  }
+  return Array.from(best.values()).map(row => ({
+    id: row.id,
+    book: row.book,
+    chapter: row.chapter,
+    title: row.title,
+    theme: row.theme ?? undefined,
+    supportingPresetIds: row.supporting_preset_ids ? JSON.parse(row.supporting_preset_ids) : [],
+    studyId: row.study_id ?? undefined,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+  }));
+}
+
+/** Fetch all section headings for a book in one query (used by BookOverview). */
+export async function getBookSectionHeadings(
+  book: string,
+  studyId?: string | null
+): Promise<SectionHeading[]> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const likePattern = `%"book":"${book}",%`;
+  type Row = { id: string; before_ref: string; title: string; covers_until: string | null; study_id: string | null; created_at: string; updated_at: string };
+  const rows = await db.select<Row[]>(
+    studyId
+      ? `SELECT * FROM section_headings WHERE before_ref LIKE ? AND (study_id IS NULL OR study_id = ?)`
+      : `SELECT * FROM section_headings WHERE before_ref LIKE ? AND study_id IS NULL`,
+    studyId ? [likePattern, studyId] : [likePattern]
+  );
+  return rows.map(row => ({
+    id: row.id,
+    beforeRef: JSON.parse(row.before_ref),
+    title: row.title,
+    coversUntil: row.covers_until ? JSON.parse(row.covers_until) : undefined,
+    studyId: row.study_id ?? undefined,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+  }));
+}
+
+/** Fetch all cached chapters for a book/translation in one query (used by BookOverview). */
+export async function getBookCachedChapters(
+  moduleId: string,
+  book: string
+): Promise<Map<number, Record<number, string>>> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const rows = await db.select<{ chapter: number; verses: string }[]>(
+    `SELECT chapter, verses FROM chapter_cache WHERE module_id = ? AND book = ?`,
+    [moduleId, book]
+  );
+  const result = new Map<number, Record<number, string>>();
+  for (const row of rows) {
+    result.set(row.chapter, JSON.parse(row.verses));
+  }
+  return result;
+}
+
 export async function clearChapterCache(): Promise<void> {
   const mod = await sqlite();
   const db = await mod.getSqliteDb();

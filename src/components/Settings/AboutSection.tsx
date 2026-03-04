@@ -13,9 +13,10 @@ import { openUrl } from '@/lib/platform';
 interface AboutSectionProps {
   /** When false, no automatic update check is run on mount */
   checkForUpdates?: boolean;
+  onCheckForUpdatesChange?: (value: boolean) => void;
 }
 
-export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true }: AboutSectionProps) {
+export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true, onCheckForUpdatesChange }: AboutSectionProps) {
   const version = __APP_VERSION__;
   const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null | 'checking'>(
     checkForUpdatesEnabled ? 'checking' : null
@@ -92,66 +93,31 @@ export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true }:
         </div>
       </div>
 
-      <div>
-        <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Bible Translations</h3>
-        <div className="space-y-3 text-xs text-scripture-muted">
+      {onCheckForUpdatesChange && (
+        <div className="flex items-center justify-between gap-4 pt-2">
           <div>
-            <div className="font-medium text-scripture-text mb-1">getBible API</div>
-            <p>Free and open source Bible API (GPL-3.0). Provides access to many translations including KJV, ASV, WEB, and more.</p>
-            <p className="mt-1">
-              <a 
-                href="https://github.com/getbible/v2" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-scripture-accent hover:underline"
-              >
-                Documentation →
-              </a>
-            </p>
+            <div className="text-sm font-medium text-scripture-text">Check for updates automatically</div>
+            <div className="text-xs text-scripture-muted mt-0.5">
+              Check GitHub once per day for a new release
+            </div>
           </div>
-
-          <div>
-            <div className="font-medium text-scripture-text mb-1">Biblia API</div>
-            <p>Provided by Faithlife/Logos. Offers NASB, ESV, NIV, NKJV, and other translations. Free tier: 5,000 calls/day.</p>
-            <p className="mt-1">
-              <a 
-                href="https://api.biblia.com/docs/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-scripture-accent hover:underline"
-              >
-                Documentation →
-              </a>
-            </p>
-          </div>
-
-          <div>
-            <div className="font-medium text-scripture-text mb-1">ESV API</div>
-            <p>Provided by Crossway. English Standard Version translation. Free for personal use with attribution.</p>
-            <p className="mt-1 text-xs">
-              Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®), © 2001 by Crossway, a publishing ministry of Good News Publishers.
-            </p>
-            <p className="mt-1">
-              <a 
-                href="https://api.esv.org/docs/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-scripture-accent hover:underline"
-              >
-                Documentation →
-              </a>
-            </p>
-          </div>
-
+          <button
+            onClick={() => onCheckForUpdatesChange(!checkForUpdatesEnabled)}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-scripture-accent focus:ring-offset-2 ${
+              checkForUpdatesEnabled ? 'bg-scripture-accent' : 'bg-scripture-border'
+            }`}
+            role="switch"
+            aria-checked={checkForUpdatesEnabled}
+            aria-label="Toggle check for updates automatically"
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                checkForUpdatesEnabled ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
         </div>
-      </div>
-
-      <div>
-        <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">License</h3>
-        <p className="text-xs text-scripture-muted">
-          This application is provided for personal Bible study use. Bible text is provided by third-party APIs and is subject to their respective terms and copyrights.
-        </p>
-      </div>
+      )}
     </div>
   );
 }
