@@ -605,7 +605,7 @@ export function Toolbar() {
                 key={tool.type}
                 {...(dataAttr ? { [dataAttr]: true } : {})}
                 onClick={() => handleToolClick(tool.type)}
-                className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg 
+                className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg
                            transition-all duration-200 touch-target
                            border border-scripture-border/30 hover:border-scripture-border/50
                            ${isActive
@@ -618,6 +618,26 @@ export function Toolbar() {
               </button>
             );
           })}
+          <button
+            data-toolbar-settings
+            onClick={() => {
+              setShowSettingsPanel((v) => !v);
+              setShowAnalyzeToolsPanel(false);
+              setShowObservationToolsPanel(false);
+              setShowKeyWordManager(false);
+              setShowPickerOverlay(false);
+            }}
+            className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg
+                       transition-all duration-200 touch-target
+                       border border-scripture-border/30 hover:border-scripture-border/50
+                       ${showSettingsPanel
+                         ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                         : 'hover:bg-scripture-elevated'}`}
+            aria-label="Settings"
+          >
+            <span className="text-lg">⚙️</span>
+            <span className="text-[10px] font-ui font-medium leading-tight">Settings</span>
+          </button>
         </div>
       </div>
     </div>
