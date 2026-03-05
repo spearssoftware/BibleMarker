@@ -24,6 +24,9 @@ import { getChapterAnnotations } from '@/lib/database';
 interface ApplicationWorksheetProps {
   selectedText?: string;
   verseRef?: VerseRef;
+  isCreating: boolean;
+  setIsCreating: (value: boolean) => void;
+  onEditingChange?: (editing: boolean) => void;
 }
 
 // Helper to create a unique key for a verse reference
@@ -56,7 +59,7 @@ const sortVerseGroups = (groups: Map<string, ApplicationEntry[]>): Array<[string
   });
 };
 
-export function ApplicationWorksheet({ verseRef: initialVerseRef }: ApplicationWorksheetProps) {
+export function ApplicationWorksheet({ verseRef: initialVerseRef, isCreating, setIsCreating, onEditingChange }: ApplicationWorksheetProps) {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const {
     applicationEntries,
@@ -68,8 +71,11 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef }: ApplicationW
   const { presets } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
   
-  const [isCreating, setIsCreating] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingIdInternal] = useState<string | null>(null);
+  const setEditingId = (id: string | null) => {
+    setEditingIdInternal(id);
+    onEditingChange?.(id !== null);
+  };
   const [expandedVerses, setExpandedVerses] = useState<Set<string>>(new Set());
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [availableKeywords, setAvailableKeywords] = useState<Array<{ id: string; word: string }>>([]);
@@ -192,11 +198,6 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef }: ApplicationW
     setEditingId(null);
   };
 
-  const handleStartCreate = () => {
-    resetForm();
-    setIsCreating(true);
-  };
-
   const handleStartEdit = (entry: ApplicationEntry) => {
     setFormVerseRef(entry.verseRef);
     setFormTeaching(entry.teaching || '');
@@ -307,10 +308,10 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef }: ApplicationW
         onCancel={handleCancelDelete}
         destructive={true}
       />
-      <div className="flex flex-col h-full min-h-0">
+      <div>
       {/* Create/Edit Form */}
       {(isCreating || editingId) && (
-        <div className="flex-shrink-0 border-b border-scripture-border/50 bg-scripture-elevated/30 p-4 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+        <div className="mb-4 bg-scripture-elevated/30 p-4 space-y-4 rounded-xl border border-scripture-border/50 max-h-[60vh] overflow-y-auto custom-scrollbar">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-ui font-semibold text-scripture-text">
               {editingId ? 'Edit Entry' : 'New Entry'}
@@ -480,27 +481,14 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef }: ApplicationW
       )}
 
       {/* Entries List */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-        {/* New Entry button */}
-        {!isCreating && !editingId && (
-          <div className="mb-4">
-            <button
-              onClick={handleStartCreate}
-              className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-            >
-              + New Entry
-            </button>
-          </div>
-        )}
-
-        {sortedGroups.length === 0 ? (
+        {sortedGroups.length === 0 && !isCreating && !editingId ? (
           <div className="text-center py-12">
             <p className="text-scripture-muted text-sm mb-4">No application entries yet.</p>
             <p className="text-scripture-muted text-xs mb-4">
               Use the Application worksheet to record how Scripture applies to your life through teaching, reproof, correction, and training in righteousness (2 Timothy 3:16-17).
             </p>
             <button
-              onClick={handleStartCreate}
+              onClick={() => { resetForm(); setIsCreating(true); }}
               className="px-4 py-2 bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
             >
               Create Your First Entry
@@ -635,7 +623,6 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef }: ApplicationW
             })}
           </div>
         )}
-      </div>
       </div>
     </>
   );

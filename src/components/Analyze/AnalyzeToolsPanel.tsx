@@ -33,8 +33,12 @@ export function AnalyzeToolsPanel({
   selectedText,
   verseRef,
 }: AnalyzeToolsPanelProps) {
-  const [activeTab, setActiveTab] = useState<AnalyzeTab>(initialTab);
+  const [activeTab, setActiveTabRaw] = useState<AnalyzeTab>(initialTab);
   const [disabledTools, setDisabledTools] = useState<string[]>([]);
+  const setActiveTab = (tab: AnalyzeTab) => {
+    setIsCreating(false);
+    setActiveTabRaw(tab);
+  };
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -68,7 +72,8 @@ export function AnalyzeToolsPanel({
   const primaryModuleId = currentModuleId || '';
   const { places, loadPlaces, autoPopulateFromChapter } = usePlaceStore();
   const { activeStudyId } = useStudyStore();
-  const [filterPlacesByChapter, setFilterPlacesByChapter] = useState(true);
+  const [filterByChapter, setFilterByChapter] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
 
   const handleNavigateToVerse = (ref: VerseRef) => {
     if (ref.book !== currentBook || ref.chapter !== currentChapter) {
@@ -119,6 +124,26 @@ export function AnalyzeToolsPanel({
         </div>
       </div>
 
+      {/* Action bar */}
+      {(activeTab === 'conclusions' || activeTab === 'places-map') && (
+        <div className="flex items-center gap-3 px-4 py-2 flex-shrink-0 border-b border-scripture-border/30">
+          {activeTab === 'conclusions' && (
+            <button
+              onClick={() => setIsCreating(true)}
+              disabled={isCreating}
+              className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              + New Conclusion
+            </button>
+          )}
+          <Checkbox
+            label="Current Chapter Only"
+            checked={filterByChapter}
+            onChange={(e) => setFilterByChapter(e.target.checked)}
+          />
+        </div>
+      )}
+
       {/* Content */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
         {activeTab === 'conclusions' && (
@@ -126,6 +151,9 @@ export function AnalyzeToolsPanel({
             <ConclusionTracker
               selectedText={selectedText}
               verseRef={verseRef}
+              filterByChapter={filterByChapter}
+              isCreating={isCreating}
+              setIsCreating={setIsCreating}
               onNavigate={handleNavigateToVerse}
             />
           </div>
@@ -156,8 +184,7 @@ export function AnalyzeToolsPanel({
             loadPlaces={loadPlaces}
             autoPopulateFromChapter={autoPopulateFromChapter}
             primaryModuleId={primaryModuleId}
-            filterByChapter={filterPlacesByChapter}
-            onFilterByChapterChange={setFilterPlacesByChapter}
+            filterByChapter={filterByChapter}
             currentBook={currentBook}
             currentChapter={currentChapter}
             activeStudyId={activeStudyId}
@@ -176,7 +203,6 @@ interface PlacesMapPanelProps {
   autoPopulateFromChapter: (book: string, chapter: number, moduleId?: string) => Promise<number>;
   primaryModuleId: string;
   filterByChapter: boolean;
-  onFilterByChapterChange: (v: boolean) => void;
   currentBook: string | null;
   currentChapter: number | null;
   activeStudyId: string | null;
@@ -188,7 +214,6 @@ function PlacesMapPanel({
   autoPopulateFromChapter,
   primaryModuleId,
   filterByChapter,
-  onFilterByChapterChange,
   currentBook,
   currentChapter,
   activeStudyId,
@@ -222,13 +247,6 @@ function PlacesMapPanel({
 
   return (
     <div role="tabpanel" id="analyze-tabpanel-places-map" aria-labelledby="analyze-tab-places-map">
-      <div className="mb-3">
-        <Checkbox
-          label="Current Chapter Only"
-          checked={filterByChapter}
-          onChange={(e) => onFilterByChapterChange(e.target.checked)}
-        />
-      </div>
       <PlaceMap places={filtered} />
     </div>
   );

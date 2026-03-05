@@ -14,7 +14,7 @@ import { getCachedChapter } from '@/lib/database';
 import type { TimeExpression } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
-import { ConfirmationDialog, Input, Textarea, Checkbox } from '@/components/shared';
+import { ConfirmationDialog, Input, Textarea } from '@/components/shared';
 
 function highlightWords(text: string, words: string[]): React.ReactNode {
   const filtered = words.filter(w => w.trim());
@@ -41,7 +41,8 @@ interface TimeTrackerProps {
   verseRef?: VerseRef;
   autoCreate?: boolean;
   filterByChapter?: boolean;
-  onFilterByChapterChange?: (value: boolean) => void;
+  isCreating: boolean;
+  setIsCreating: (value: boolean) => void;
   onNavigate?: (verseRef: VerseRef) => void;
 }
 
@@ -194,7 +195,7 @@ function formatChapterYears(years: Array<{ year: number; era: 'BC' | 'AD' }>): s
   return years.map(y => `${y.year} ${y.era}`).join(', ');
 }
 
-export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreate, filterByChapter = true, onFilterByChapterChange, onNavigate }: TimeTrackerProps) {
+export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreate, filterByChapter = true, isCreating, setIsCreating, onNavigate }: TimeTrackerProps) {
   const { timeExpressions, loadTimeExpressions, createTimeExpression, updateTimeExpression, deleteTimeExpression, autoImportFromAnnotations, removeDuplicates, autoPopulateFromChapter } = useTimeStore();
   const { currentBook, currentChapter } = useBibleStore();
   const { activeStudyId } = useStudyStore();
@@ -202,7 +203,6 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
   const presetMap = useMemo(() => new Map(presets.map(p => [p.id, { word: p.word }])), [presets]);
   const [expandedKeywords, setExpandedKeywords] = useState<Set<string>>(new Set());
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
-  const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newExpression, setNewExpression] = useState('');
   const [newNotes, setNewNotes] = useState('');
@@ -294,7 +294,7 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
     if (autoCreate) {
       requestAnimationFrame(() => setIsCreating(true));
     }
-  }, [autoCreate]);
+  }, [autoCreate, setIsCreating]);
 
   // Pre-fill form if selectedText is provided
   useEffect(() => {
@@ -513,26 +513,7 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
         onCancel={handleCancelDelete}
         destructive={true}
       />
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-      {/* Create new time expression button and Current Chapter Only */}
-      {!isCreating && (
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setIsCreating(true)}
-            className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-          >
-            + New Time Expression
-          </button>
-          {onFilterByChapterChange && (
-            <Checkbox
-              label="Current Chapter Only"
-              checked={filterByChapter}
-              onChange={(e) => onFilterByChapterChange(e.target.checked)}
-            />
-          )}
-        </div>
-      )}
-
+      <div>
       {/* Create form */}
       {isCreating && (
         <div className="mb-4 p-4 bg-scripture-surface rounded-xl border border-scripture-border/50">
