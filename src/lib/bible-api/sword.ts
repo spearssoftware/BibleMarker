@@ -74,15 +74,6 @@ const MODULE_REGISTRY: SwordModuleInfo[] = [
     copyrightUrl: null,
     language: 'en',
   },
-  {
-    id: 'sword-WEB',
-    name: 'World English Bible',
-    abbreviation: 'WEB',
-    downloadUrl: 'https://crosswire.org/ftpmirror/pub/sword/packages/rawzip/WEB.zip',
-    copyright: null,
-    copyrightUrl: null,
-    language: 'en',
-  },
 ];
 
 /** In-memory loaded module files, keyed by module ID */
