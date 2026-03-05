@@ -14,7 +14,7 @@ import { getCachedChapter } from '@/lib/database';
 import type { Place } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
-import { ConfirmationDialog, Input, Textarea, Checkbox } from '@/components/shared';
+import { ConfirmationDialog, Input, Textarea } from '@/components/shared';
 
 function highlightWords(text: string, words: string[]): React.ReactNode {
   const filtered = words.filter(w => w.trim());
@@ -40,7 +40,8 @@ interface PlaceTrackerProps {
   selectedText?: string;
   verseRef?: VerseRef;
   filterByChapter?: boolean;
-  onFilterByChapterChange?: (value: boolean) => void;
+  isCreating: boolean;
+  setIsCreating: (value: boolean) => void;
   onNavigate?: (verseRef: VerseRef) => void;
 }
 
@@ -139,14 +140,13 @@ const sortVerseGroups = (groups: Map<string, Place[]>): Array<[string, Place[]]>
   });
 };
 
-export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = true, onFilterByChapterChange, onNavigate }: PlaceTrackerProps) {
+export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = true, isCreating, setIsCreating, onNavigate }: PlaceTrackerProps) {
   const { places, loadPlaces, createPlace, updatePlace, deletePlace, autoImportFromAnnotations, removeDuplicates, autoPopulateFromChapter } = usePlaceStore();
   const { currentBook, currentChapter } = useBibleStore();
   const { activeStudyId } = useStudyStore();
   const { presets } = useMarkingPresetStore();
   const presetMap = useMemo(() => new Map(presets.map(p => [p.id, { word: p.word, category: p.category }])), [presets]);
   const [expandedKeywords, setExpandedKeywords] = useState<Set<string>>(new Set());
-  const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [newNotes, setNewNotes] = useState('');
@@ -402,26 +402,7 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
         onCancel={handleCancelDelete}
         destructive={true}
       />
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-      {/* Create new place button and Current Chapter Only */}
-      {!isCreating && (
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setIsCreating(true)}
-            className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-          >
-            + New Place
-          </button>
-          {onFilterByChapterChange && (
-            <Checkbox
-              label="Current Chapter Only"
-              checked={filterByChapter}
-              onChange={(e) => onFilterByChapterChange(e.target.checked)}
-            />
-          )}
-        </div>
-      )}
-
+      <div>
       {/* Create form */}
       {isCreating && (
         <div className="mb-4 p-4 bg-scripture-surface rounded-xl border border-scripture-border/50">

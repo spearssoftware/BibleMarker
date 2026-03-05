@@ -10,13 +10,14 @@ import { useBibleStore } from '@/stores/bibleStore';
 import type { Conclusion } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
-import { ConfirmationDialog, Input, Textarea, Checkbox } from '@/components/shared';
+import { ConfirmationDialog, Input, Textarea } from '@/components/shared';
 
 interface ConclusionTrackerProps {
   selectedText?: string;
   verseRef?: VerseRef;
   filterByChapter?: boolean;
-  onFilterByChapterChange?: (value: boolean) => void;
+  isCreating: boolean;
+  setIsCreating: (value: boolean) => void;
   onNavigate?: (verseRef: VerseRef) => void;
 }
 
@@ -71,10 +72,9 @@ const sortVerseGroups = (groups: Map<string, Conclusion[]>): Array<[string, Conc
   });
 };
 
-export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = false, onFilterByChapterChange, onNavigate }: ConclusionTrackerProps) {
+export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = true, isCreating, setIsCreating, onNavigate }: ConclusionTrackerProps) {
   const { conclusions, loadConclusions, createConclusion, updateConclusion, deleteConclusion } = useConclusionStore();
   const { currentBook, currentChapter } = useBibleStore();
-  const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newTerm, setNewTerm] = useState('');
   const [newNotes, setNewNotes] = useState('');
@@ -240,26 +240,7 @@ export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, fil
         onCancel={handleCancelDelete}
         destructive={true}
       />
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-      {/* Create new conclusion button and Current Chapter Only */}
-      {!isCreating && (
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setIsCreating(true)}
-            className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-          >
-            + New Conclusion
-          </button>
-          {onFilterByChapterChange && (
-            <Checkbox
-              label="Current Chapter Only"
-              checked={filterByChapter}
-              onChange={(e) => onFilterByChapterChange(e.target.checked)}
-            />
-          )}
-        </div>
-      )}
-
+      <div>
       {/* Create form */}
       {isCreating && (
         <div className="mb-4 p-4 bg-scripture-surface rounded-xl border border-scripture-border/50">

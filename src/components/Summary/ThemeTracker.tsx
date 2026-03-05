@@ -40,6 +40,7 @@ export function ThemeTracker() {
   const [keywordData, setKeywordData] = useState<KeywordChapterData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   
   const bookInfo = useMemo(() => getBookById(currentBook), [currentBook]);
   const chapterCount = bookInfo?.chapters || 0;
@@ -174,6 +175,14 @@ export function ThemeTracker() {
         <div className="text-sm text-scripture-muted">{keywordData.length} keywords</div>
       </div>
       
+      <input
+        type="text"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        placeholder="Search keywords..."
+        className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg text-scripture-text placeholder:text-scripture-muted focus:outline-none focus:ring-1 focus:ring-scripture-accent"
+      />
+
       {keywordData.length === 0 ? (
         <div className="text-center py-8 text-scripture-muted text-sm">
           No keywords found in this book.
@@ -182,7 +191,9 @@ export function ThemeTracker() {
         </div>
       ) : (
         <div className="space-y-3">
-          {keywordData.map(({ keywordId, keyword, chapters, totalCount }) => {
+          {keywordData
+            .filter(({ keyword }) => !searchTerm || keyword.word?.toLowerCase().includes(searchTerm.toLowerCase()))
+            .map(({ keywordId, keyword, chapters, totalCount }) => {
             const chapterArray = Array.from(chapters).sort((a, b) => a - b);
             const isSelected = selectedKeyword === keywordId;
             

@@ -11,14 +11,16 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { formatVerseRef, getBookById } from '@/types';
 import type { FiveWAndHEntry } from '@/types';
 import type { VerseRef } from '@/types';
-import { Textarea, ConfirmationDialog, Checkbox } from '@/components/shared';
+import { Textarea, ConfirmationDialog } from '@/components/shared';
 import { getChapterAnnotations } from '@/lib/database';
 
 interface FiveWAndHProps {
   selectedText?: string;
   verseRef?: VerseRef;
   filterByChapter?: boolean;
-  onFilterByChapterChange?: (value: boolean) => void;
+  isCreating: boolean;
+  setIsCreating: (value: boolean) => void;
+  onEditingChange?: (editing: boolean) => void;
   onNavigate?: (verseRef: VerseRef) => void;
 }
 
@@ -73,7 +75,7 @@ const sortVerseGroups = (groups: Map<string, FiveWAndHEntry[]>): Array<[string, 
   });
 };
 
-export function FiveWAndH({ verseRef: initialVerseRef, filterByChapter = false, onFilterByChapterChange, onNavigate }: FiveWAndHProps) {
+export function FiveWAndH({ verseRef: initialVerseRef, filterByChapter = true, isCreating, setIsCreating, onEditingChange, onNavigate }: FiveWAndHProps) {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { 
     fiveWAndHEntries, 
@@ -84,8 +86,11 @@ export function FiveWAndH({ verseRef: initialVerseRef, filterByChapter = false, 
   } = useObservationStore();
   const { presets } = useMarkingPresetStore();
   
-  const [isCreating, setIsCreating] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingIdInternal] = useState<string | null>(null);
+  const setEditingId = (id: string | null) => {
+    setEditingIdInternal(id);
+    onEditingChange?.(id !== null);
+  };
   const [expandedVerses, setExpandedVerses] = useState<Set<string>>(new Set());
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [availableKeywords, setAvailableKeywords] = useState<Array<{ id: string; word: string }>>([]);
@@ -334,10 +339,10 @@ export function FiveWAndH({ verseRef: initialVerseRef, filterByChapter = false, 
         onCancel={handleCancelDelete}
         destructive={true}
       />
-      <div className="flex flex-col h-full min-h-0">
+      <div>
       {/* Create/Edit Form */}
       {(isCreating || editingId) && (
-        <div className="flex-shrink-0 border-b border-scripture-border/50 bg-scripture-elevated/30 p-4 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+        <div className="mb-4 bg-scripture-elevated/30 p-4 space-y-4 rounded-xl border border-scripture-border/50">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-ui font-semibold text-scripture-text">
               {editingId ? 'Edit Entry' : 'New Entry'}
@@ -515,27 +520,7 @@ export function FiveWAndH({ verseRef: initialVerseRef, filterByChapter = false, 
       )}
 
       {/* Entries List */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-        {/* New Entry button and Current Chapter Only */}
-        {!isCreating && !editingId && (
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <button
-              onClick={handleStartCreate}
-              className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-            >
-              + New Entry
-            </button>
-            {onFilterByChapterChange && (
-              <Checkbox
-                label="Current Chapter Only"
-                checked={filterByChapter}
-                onChange={(e) => onFilterByChapterChange(e.target.checked)}
-              />
-            )}
-          </div>
-        )}
-
-        {sortedGroups.length === 0 ? (
+      {sortedGroups.length === 0 && !isCreating && !editingId ? (
           <div className="text-center py-12">
             <p className="text-scripture-muted text-sm mb-4">No 5W+H entries yet.</p>
             <p className="text-scripture-muted text-xs mb-4">
@@ -704,7 +689,6 @@ export function FiveWAndH({ verseRef: initialVerseRef, filterByChapter = false, 
             })}
           </div>
         )}
-      </div>
       </div>
     </>
   );

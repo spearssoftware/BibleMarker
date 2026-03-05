@@ -21,7 +21,7 @@ import { ContrastTracker } from './ContrastTracker';
 import { TimeTracker } from './TimeTracker';
 import { PlaceTracker } from './PlaceTracker';
 import { PeopleTracker } from './PeopleTracker';
-import { ConfirmationDialog, Textarea } from '@/components/shared';
+import { Checkbox, ConfirmationDialog, Textarea } from '@/components/shared';
 
 export type ObservationTab = 'lists' | 'fiveWAndH' | 'contrasts' | 'time' | 'places' | 'people';
 
@@ -147,6 +147,9 @@ export function ObservationToolsPanel({
   const { activeView } = useMultiTranslationStore();
   const primaryModuleId = activeView?.translationIds[0] || '';
   const [disabledTools, setDisabledTools] = useState<string[]>([]);
+  const [filterByChapter, setFilterByChapter] = useState(true);
+  const [trackerIsCreating, setTrackerIsCreating] = useState(false);
+  const [trackerIsEditing, setTrackerIsEditing] = useState(false);
 
   useEffect(() => {
     getPreferences().then(prefs => {
@@ -164,6 +167,8 @@ export function ObservationToolsPanel({
   // Update activeTab when initialTab changes (e.g., when opened from quick action)
   useEffect(() => {
     setActiveTab(initialTab);
+    setTrackerIsCreating(false);
+    setTrackerIsEditing(false);
   }, [initialTab]);
 
   // Load lists on mount
@@ -391,6 +396,40 @@ export function ObservationToolsPanel({
     }
   };
 
+  const newButtonLabels: Record<ObservationTab, string> = {
+    lists: '+ New List',
+    fiveWAndH: '+ New Entry',
+    contrasts: '+ New Contrast',
+    time: '+ New Time Expression',
+    places: '+ New Place',
+    people: '+ New Person',
+  };
+
+  const isAnyCreatingOrEditing = activeTab === 'lists'
+    ? (isCreating || !!editingListId)
+    : (trackerIsCreating || trackerIsEditing);
+
+  const handleNewClick = () => {
+    if (activeTab === 'lists') {
+      setIsCreating(true);
+    } else {
+      setTrackerIsCreating(true);
+    }
+  };
+
+  const handleTabChange = (tab: ObservationTab) => {
+    setTrackerIsCreating(false);
+    setTrackerIsEditing(false);
+    setActiveTab(tab);
+  };
+
+  const chapFilteredLists = filterByChapter && currentBook && currentChapter
+    ? displayLists.map(l => ({
+        ...l,
+        items: l.items.filter(item => item.verseRef.book === currentBook && item.verseRef.chapter === currentChapter)
+      }))
+    : displayLists;
+
   return (
     <>
       <ConfirmationDialog
@@ -421,7 +460,7 @@ export function ObservationToolsPanel({
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 role="tab"
                 id={`observation-tab-${tab.id}`}
                 aria-selected={activeTab === tab.id}
@@ -442,6 +481,22 @@ export function ObservationToolsPanel({
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Action bar */}
+      <div className="flex items-center gap-3 px-4 py-2 flex-shrink-0 border-b border-scripture-border/30">
+        <button
+          onClick={handleNewClick}
+          disabled={isAnyCreatingOrEditing}
+          className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {newButtonLabels[activeTab]}
+        </button>
+        <Checkbox
+          label="Current Chapter Only"
+          checked={filterByChapter}
+          onChange={(e) => setFilterByChapter(e.target.checked)}
+        />
       </div>
 
       {/* Content */}
@@ -476,17 +531,6 @@ export function ObservationToolsPanel({
           </div>
         ) : activeTab === 'lists' ? (
           <div role="tabpanel" id="observation-tabpanel-lists" aria-labelledby="observation-tab-lists">
-            {!isCreating && !editingListId && (
-              <div className="mb-4">
-                <button
-                  onClick={() => setIsCreating(true)}
-                  className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-                >
-                  + New List
-                </button>
-              </div>
-            )}
-
             {displayLists.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-scripture-muted text-sm mb-4">No observation lists yet.</p>
@@ -500,7 +544,7 @@ export function ObservationToolsPanel({
               </div>
             ) : (
               <div className="space-y-3">
-                {sortListsByVerse(displayLists).map(list => {
+                {sortListsByVerse(chapFilteredLists).map(list => {
                   const isExpanded = expandedLists.has(list.id);
                   const keywordName = getKeywordName(list.keyWordId);
                   const studyName = getStudyName(list.studyId);
@@ -759,42 +803,58 @@ export function ObservationToolsPanel({
           </div>
         ) : activeTab === 'fiveWAndH' ? (
           <div role="tabpanel" id="observation-tabpanel-fiveWAndH" aria-labelledby="observation-tab-fiveWAndH">
-            <FiveWAndH 
-              selectedText={selectedText} 
+            <FiveWAndH
+              selectedText={selectedText}
               verseRef={verseRef}
+              filterByChapter={filterByChapter}
+              isCreating={trackerIsCreating}
+              setIsCreating={setTrackerIsCreating}
+              onEditingChange={setTrackerIsEditing}
               onNavigate={handleNavigateToVerse}
             />
           </div>
         ) : activeTab === 'contrasts' ? (
           <div role="tabpanel" id="observation-tabpanel-contrasts" aria-labelledby="observation-tab-contrasts">
-            <ContrastTracker 
-              selectedText={selectedText} 
+            <ContrastTracker
+              selectedText={selectedText}
               verseRef={verseRef}
+              filterByChapter={filterByChapter}
+              isCreating={trackerIsCreating}
+              setIsCreating={setTrackerIsCreating}
               onNavigate={handleNavigateToVerse}
             />
           </div>
         ) : activeTab === 'time' ? (
           <div role="tabpanel" id="observation-tabpanel-time" aria-labelledby="observation-tab-time">
-            <TimeTracker 
-              selectedText={selectedText} 
+            <TimeTracker
+              selectedText={selectedText}
               verseRef={verseRef}
               autoCreate={autoCreate && initialTab === 'time'}
+              filterByChapter={filterByChapter}
+              isCreating={trackerIsCreating}
+              setIsCreating={setTrackerIsCreating}
               onNavigate={handleNavigateToVerse}
             />
           </div>
         ) : activeTab === 'places' ? (
           <div role="tabpanel" id="observation-tabpanel-places" aria-labelledby="observation-tab-places">
-            <PlaceTracker 
-              selectedText={selectedText} 
+            <PlaceTracker
+              selectedText={selectedText}
               verseRef={verseRef}
+              filterByChapter={filterByChapter}
+              isCreating={trackerIsCreating}
+              setIsCreating={setTrackerIsCreating}
               onNavigate={handleNavigateToVerse}
             />
           </div>
         ) : activeTab === 'people' ? (
           <div role="tabpanel" id="observation-tabpanel-people" aria-labelledby="observation-tab-people">
-            <PeopleTracker 
-              selectedText={selectedText} 
+            <PeopleTracker
+              selectedText={selectedText}
               verseRef={verseRef}
+              filterByChapter={filterByChapter}
+              isCreating={trackerIsCreating}
+              setIsCreating={setTrackerIsCreating}
               onNavigate={handleNavigateToVerse}
             />
           </div>

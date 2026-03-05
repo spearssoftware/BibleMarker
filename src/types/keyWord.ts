@@ -82,6 +82,7 @@ export const SYMBOL_CATEGORY_MAP: Record<SymbolKey, KeyWordCategory> = {
   clock: 'time', calendar: 'time', hourglass: 'time', arrowRight: 'conclusions', arrowLeft: 'time', doubleArrow: 'contrasts',
   mapPin: 'places', mountain: 'places', globe: 'places', tree: 'places', river: 'places', house: 'places', temple: 'places', city: 'places',
   water: 'actions', fire: 'actions', check: 'actions', x: 'actions', hand: 'actions', eye: 'actions', mouth: 'actions', foot: 'actions',
+  ear: 'actions', megaphone: 'actions',
   circle: 'custom', square: 'custom', diamond: 'custom', hexagon: 'custom', plus: 'custom', minus: 'custom',
   sin: 'themes',
   question: 'custom', exclamation: 'custom', asterisk: 'custom',

@@ -14,7 +14,7 @@ import { getCachedChapter } from '@/lib/database';
 import type { Person } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
-import { ConfirmationDialog, Input, Textarea, Checkbox } from '@/components/shared';
+import { ConfirmationDialog, Input, Textarea } from '@/components/shared';
 
 function highlightWords(text: string, words: string[]): React.ReactNode {
   const filtered = words.filter(w => w.trim());
@@ -40,7 +40,8 @@ interface PeopleTrackerProps {
   selectedText?: string;
   verseRef?: VerseRef;
   filterByChapter?: boolean;
-  onFilterByChapterChange?: (value: boolean) => void;
+  isCreating: boolean;
+  setIsCreating: (value: boolean) => void;
   onNavigate?: (verseRef: VerseRef) => void;
 }
 
@@ -119,7 +120,8 @@ export function PeopleTracker({
   selectedText,
   verseRef: initialVerseRef,
   filterByChapter = true,
-  onFilterByChapterChange,
+  isCreating,
+  setIsCreating,
   onNavigate,
 }: PeopleTrackerProps) {
   const { people, loadPeople, createPerson, updatePerson, deletePerson, autoImportFromAnnotations, removeDuplicates, autoPopulateFromChapter } = usePeopleStore();
@@ -128,7 +130,6 @@ export function PeopleTracker({
   const { presets } = useMarkingPresetStore();
   const presetMap = useMemo(() => new Map(presets.map(p => [p.id, { word: p.word }])), [presets]);
   const [expandedKeywords, setExpandedKeywords] = useState<Set<string>>(new Set());
-  const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [newNotes, setNewNotes] = useState('');
@@ -143,8 +144,8 @@ export function PeopleTracker({
   const [addingObservationToId, setAddingObservationToId] = useState<string | null>(null);
   const [newObservation, setNewObservation] = useState('');
   const [verseTexts, setVerseTexts] = useState<Map<string, string>>(new Map());
-  const [isPopulating, setIsPopulating] = useState(false);
   const hasInitialized = useRef(false);
+  const lastPopulatedChapter = useRef('');
   const { activeView } = useMultiTranslationStore();
   const primaryModuleId = activeView?.translationIds[0] || '';
 
@@ -274,19 +275,15 @@ export function PeopleTracker({
     loadPeople();
   };
 
-  const handlePopulateFromChapter = async () => {
-    if (!currentBook || !currentChapter || !primaryModuleId || isPopulating) return;
-    setIsPopulating(true);
-    try {
-      const count = await autoPopulateFromChapter(currentBook, currentChapter, primaryModuleId);
-      await loadPeople();
-      if (count > 0) alert(`Added ${count} person(s) from chapter.`);
-    } catch (e) {
-      console.error('[PeopleTracker] Populate failed:', e);
-    } finally {
-      setIsPopulating(false);
-    }
-  };
+  useEffect(() => {
+    if (!currentBook || !currentChapter || !primaryModuleId) return;
+    const key = `${currentBook}:${currentChapter}:${primaryModuleId}`;
+    if (lastPopulatedChapter.current === key) return;
+    lastPopulatedChapter.current = key;
+    void autoPopulateFromChapter(currentBook, currentChapter, primaryModuleId).then(count => {
+      if (count > 0) void loadPeople();
+    });
+  }, [currentBook, currentChapter, primaryModuleId, autoPopulateFromChapter, loadPeople]);
 
   const filteredPeople = useMemo(() => {
     let f = people;
@@ -341,34 +338,7 @@ export function PeopleTracker({
         onCancel={handleCancelDelete}
         destructive={true}
       />
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-        {!isCreating && (
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => setIsCreating(true)}
-              className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-            >
-              + New Person
-            </button>
-            {currentBook && currentChapter && (
-              <button
-                onClick={handlePopulateFromChapter}
-                disabled={isPopulating || !primaryModuleId}
-                className="px-3 py-1.5 text-sm bg-scripture-elevated text-scripture-text rounded hover:bg-scripture-border/50 transition-colors disabled:opacity-50"
-              >
-                {isPopulating ? '...' : 'Populate from Chapter'}
-              </button>
-            )}
-            {onFilterByChapterChange && (
-              <Checkbox
-                label="Current Chapter Only"
-                checked={filterByChapter}
-                onChange={(e) => onFilterByChapterChange(e.target.checked)}
-              />
-            )}
-          </div>
-        )}
-
+      <div>
         {isCreating && (
           <div className="mb-4 p-4 bg-scripture-surface rounded-xl border border-scripture-border/50">
             <h3 className="text-sm font-medium text-scripture-text mb-3">New Person</h3>
