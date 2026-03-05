@@ -196,83 +196,71 @@ export function ThemeTracker() {
           <span className="text-xs">Mark keywords in the text to see them tracked here.</span>
         </div>
       ) : (
-        <div className="overflow-x-auto -mx-4 px-4">
-          <table className="w-full border-collapse" style={{ minWidth: `${Math.max(chapterCount * 24 + 140, 300)}px` }}>
-            <thead>
-              <tr>
-                <th className="sticky left-0 z-10 bg-scripture-surface text-left text-[10px] font-medium text-scripture-muted uppercase tracking-wider py-1 pr-2 min-w-[120px]">
-                  Keyword
-                </th>
-                {chapterNumbers.map(ch => (
-                  <th key={ch} className="text-center text-[10px] font-medium text-scripture-muted py-1 px-0" style={{ width: '24px', minWidth: '24px' }}>
-                    {ch}
-                  </th>
-                ))}
-                <th className="text-right text-[10px] font-medium text-scripture-muted py-1 pl-2 min-w-[32px]">
-                  #
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredKeywords.map(({ keywordId, keyword, chapters, totalCount }) => {
-                const isSelected = selectedKeyword === keywordId;
-                const highlightColor = keyword.highlight ? getHighlightColorHex(keyword.highlight.color) : null;
+        <div className="flex -mx-4 px-4">
+          {/* Fixed keyword labels column */}
+          <div className="shrink-0 w-[120px] pr-2 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)]">
+            {filteredKeywords.map(({ keywordId, keyword }) => {
+              const highlightColor = keyword.highlight ? getHighlightColorHex(keyword.highlight.color) : null;
+              return (
+                <div key={keywordId} className="h-7 flex items-center gap-1.5 min-w-0">
+                  {keyword.symbol && (
+                    <span className="text-sm shrink-0">{SYMBOLS[keyword.symbol]}</span>
+                  )}
+                  {keyword.highlight && !keyword.symbol && (
+                    <span
+                      className="w-3 h-3 rounded-sm shrink-0"
+                      style={{ backgroundColor: highlightColor || undefined }}
+                    />
+                  )}
+                  <span className="text-xs font-medium text-scripture-text truncate">
+                    {keyword.word}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
 
-                return (
-                  <tr
-                    key={keywordId}
-                    className={`group/row transition-colors ${isSelected ? 'bg-scripture-accent/10' : 'hover:bg-scripture-elevated/30'}`}
-                  >
-                    <td
-                      className="sticky left-0 z-10 bg-scripture-surface py-1 pr-2 group-hover/row:bg-scripture-elevated/30 transition-colors"
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {keyword.symbol && (
-                          <span className="text-sm shrink-0">{SYMBOLS[keyword.symbol]}</span>
-                        )}
-                        {keyword.highlight && !keyword.symbol && (
-                          <span
-                            className="w-3 h-3 rounded-sm shrink-0"
-                            style={{ backgroundColor: highlightColor || undefined }}
-                          />
-                        )}
-                        <span className="text-xs font-medium text-scripture-text truncate">
-                          {keyword.word}
-                        </span>
-                      </div>
-                    </td>
-                    {chapterNumbers.map(ch => {
-                      const present = chapters.has(ch);
-                      return (
-                        <td key={ch} className="text-center py-1 px-0" style={{ width: '24px', minWidth: '24px' }}>
-                          <button
-                            onClick={() => {
-                              setLocation(currentBook, ch);
-                              setSelectedKeyword(keywordId);
-                            }}
-                            className={`w-5 h-5 rounded-sm transition-all ${
-                              present
-                                ? 'hover:scale-125'
-                                : 'hover:bg-scripture-elevated'
-                            }`}
-                            style={present ? {
-                              backgroundColor: highlightColor || 'var(--scripture-accent)',
-                              opacity: 0.85,
-                            } : undefined}
-                            title={`${keyword.word} — ${bookInfo.name} ${ch}${present ? ` (found)` : ''}`}
-                            aria-label={`${keyword.word} in chapter ${ch}${present ? ' — present' : ''}`}
-                          />
-                        </td>
-                      );
-                    })}
-                    <td className="text-right py-1 pl-2">
-                      <span className="text-[10px] text-scripture-muted tabular-nums">{totalCount}</span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          {/* Scrollable chapter grid */}
+          <div className="flex-1 overflow-x-auto min-w-0">
+            {filteredKeywords.map(({ keywordId, keyword, chapters, totalCount }) => {
+              const isSelected = selectedKeyword === keywordId;
+              const highlightColor = keyword.highlight ? getHighlightColorHex(keyword.highlight.color) : null;
+
+              return (
+                <div
+                  key={keywordId}
+                  className={`h-7 flex items-center gap-px ${isSelected ? 'bg-scripture-accent/10' : ''}`}
+                >
+                  {chapterNumbers.map(ch => {
+                    const present = chapters.has(ch);
+                    return (
+                      <button
+                        key={ch}
+                        onClick={() => {
+                          setLocation(currentBook, ch);
+                          setSelectedKeyword(keywordId);
+                        }}
+                        className={`w-6 h-6 shrink-0 rounded-sm text-[9px] font-medium leading-none flex items-center justify-center transition-all ${
+                          present
+                            ? 'text-white/90 hover:scale-110'
+                            : 'text-scripture-muted/30 hover:bg-scripture-elevated hover:text-scripture-muted/60'
+                        }`}
+                        style={present ? {
+                          backgroundColor: highlightColor || 'var(--scripture-accent)',
+                          opacity: 0.85,
+                        } : undefined}
+                        title={`${keyword.word} — ${bookInfo.name} ${ch}${present ? ` (found)` : ''}`}
+                        aria-label={`${keyword.word} in chapter ${ch}${present ? ' — present' : ''}`}
+                      >
+                        {ch}
+                      </button>
+                    );
+                  })}
+                  <span className="shrink-0 pl-2 text-[10px] text-scripture-muted tabular-nums">{totalCount}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
