@@ -554,7 +554,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         onCancel={() => setShowClearBookConfirm(false)}
         destructive={true}
       />
-      <div className="flex flex-col">
+      <div
+        className="flex-1 min-h-0 flex flex-col relative"
+        role="dialog"
+        aria-label="Settings"
+        aria-modal="true"
+      >
         {/* Tabs */}
         <div className="px-4 py-2 flex-shrink-0" role="tablist" aria-label="Settings sections">
           <div className="flex gap-1 sm:gap-2">
@@ -584,7 +589,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         </div>
 
         {/* Content */}
-        <div className="p-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
           {isLoadingPrefs ? (
             <div className="flex items-center justify-center h-full">
               <div className="flex flex-col items-center gap-3">

@@ -18,7 +18,7 @@ import { AddToList } from '@/components/Lists';
 import { SettingsPanel } from '@/components/Settings';
 import { ObservationToolsPanel, type ObservationTab } from '@/components/Observation';
 import { AnalyzeToolsPanel, type AnalyzeTab } from '@/components/Analyze';
-import { ConfirmationDialog, Modal } from '@/components/shared';
+import { ConfirmationDialog } from '@/components/shared';
 import { clearDatabase } from '@/lib/database';
 import { resetAllStores } from '@/lib/storeReset';
 import { useBibleStore } from '@/stores/bibleStore';
@@ -483,14 +483,11 @@ export function Toolbar() {
       )}
 
       {/* Settings Panel */}
-      <Modal
-        isOpen={showSettingsPanel}
-        onClose={() => setShowSettingsPanel(false)}
-        title="Settings"
-        size="lg"
-      >
-        <SettingsPanel onClose={() => setShowSettingsPanel(false)} />
-      </Modal>
+      {showSettingsPanel && (
+        <ToolbarOverlay onClose={() => setShowSettingsPanel(false)}>
+          <SettingsPanel onClose={() => setShowSettingsPanel(false)} />
+        </ToolbarOverlay>
+      )}
 
 
       {/* Observation Tools Panel */}
