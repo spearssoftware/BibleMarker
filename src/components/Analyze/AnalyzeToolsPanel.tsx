@@ -73,6 +73,7 @@ export function AnalyzeToolsPanel({
   const { places, loadPlaces, autoPopulateFromChapter } = usePlaceStore();
   const { activeStudyId } = useStudyStore();
   const [filterByChapter, setFilterByChapter] = useState(true);
+  const [filterByBook, setFilterByBook] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
 
   const handleNavigateToVerse = (ref: VerseRef) => {
@@ -125,7 +126,7 @@ export function AnalyzeToolsPanel({
       </div>
 
       {/* Action bar */}
-      {(activeTab === 'conclusions' || activeTab === 'places-map') && (
+      {(activeTab === 'conclusions' || activeTab === 'places-map' || activeTab === 'timeline') && (
         <div className="flex items-center gap-3 px-4 py-2 flex-shrink-0 border-b border-scripture-border/30">
           {activeTab === 'conclusions' && (
             <button
@@ -136,11 +137,19 @@ export function AnalyzeToolsPanel({
               + New Conclusion
             </button>
           )}
-          <Checkbox
-            label="Current Chapter Only"
-            checked={filterByChapter}
-            onChange={(e) => setFilterByChapter(e.target.checked)}
-          />
+          {activeTab === 'timeline' ? (
+            <Checkbox
+              label="Current Book Only"
+              checked={filterByBook}
+              onChange={(e) => setFilterByBook(e.target.checked)}
+            />
+          ) : (
+            <Checkbox
+              label="Current Chapter Only"
+              checked={filterByChapter}
+              onChange={(e) => setFilterByChapter(e.target.checked)}
+            />
+          )}
         </div>
       )}
 
@@ -175,7 +184,7 @@ export function AnalyzeToolsPanel({
         )}
         {activeTab === 'timeline' && (
           <div role="tabpanel" id="analyze-tabpanel-timeline" aria-labelledby="analyze-tab-timeline">
-            <Timeline />
+            <Timeline filterByBook={filterByBook} />
           </div>
         )}
         {activeTab === 'places-map' && (

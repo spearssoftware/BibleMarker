@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { useTimeStore } from '@/stores/timeStore';
 import { usePeopleStore } from '@/stores/peopleStore';
 import { useStudyStore } from '@/stores/studyStore';
@@ -54,12 +54,15 @@ const MIN_BAR_PX = 24;
 const AXIS_WIDTH = 64;
 const MIN_LANE_WIDTH = 80;
 
-export function Timeline() {
+interface TimelineProps {
+  filterByBook?: boolean;
+}
+
+export function Timeline({ filterByBook = true }: TimelineProps) {
   const { timeExpressions, loadTimeExpressions, autoPopulateFromChapter } = useTimeStore();
   const { people, loadPeople, autoPopulateFromChapter: autoPopulatePeople } = usePeopleStore();
   const { activeStudyId } = useStudyStore();
   const { currentBook, currentChapter, currentModuleId, setLocation, setNavSelectedVerse } = useBibleStore();
-  const [filterByBook, setFilterByBook] = useState(true);
   const lastPopulatedChapter = useRef('');
 
   useEffect(() => {
@@ -189,19 +192,6 @@ export function Timeline() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-ui font-semibold text-scripture-text">Timeline</h3>
-        <label className="flex items-center gap-2 text-xs text-scripture-muted cursor-pointer">
-          <input
-            type="checkbox"
-            checked={filterByBook}
-            onChange={(e) => setFilterByBook(e.target.checked)}
-            className="rounded"
-          />
-          Current Book Only
-        </label>
-      </div>
-
       {lanedEntries.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-scripture-muted text-sm mb-2">No timeline entries yet.</p>
