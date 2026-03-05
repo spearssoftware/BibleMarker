@@ -142,6 +142,8 @@ export const SYMBOLS = {
   hand: '✋',        // Action / Deed / Service
   eye: '👁',         // See / Witness / Revelation
   mouth: '👄',       // Speak / Testify / Proclaim
+  ear: '👂',         // Hear / Listen / Obey
+  megaphone: '📢',   // Proclaim / Announce / Herald
   foot: '🦶',        // Walk / Path / Way
 
   // Shapes for general marking (Precept-style)

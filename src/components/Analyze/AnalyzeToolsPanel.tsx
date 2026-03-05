@@ -4,7 +4,7 @@
  * Panel for analysis phase tools: Theme, Conclusions, Overview, Chapter, Timeline.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { getPreferences } from '@/lib/database';
 import { useBibleStore } from '@/stores/bibleStore';
 import { ConclusionTracker } from '@/components/Observation/ConclusionTracker';
@@ -64,8 +64,9 @@ export function AnalyzeToolsPanel({
     }
   }, [tabs, activeTab]);
 
-  const { currentBook, currentChapter, setLocation, setNavSelectedVerse } = useBibleStore();
-  const { places, loadPlaces } = usePlaceStore();
+  const { currentBook, currentChapter, setLocation, setNavSelectedVerse, currentModuleId } = useBibleStore();
+  const primaryModuleId = currentModuleId || '';
+  const { places, loadPlaces, autoPopulateFromChapter } = usePlaceStore();
   const { activeStudyId } = useStudyStore();
   const [filterPlacesByChapter, setFilterPlacesByChapter] = useState(true);
 
@@ -153,6 +154,8 @@ export function AnalyzeToolsPanel({
           <PlacesMapPanel
             places={places}
             loadPlaces={loadPlaces}
+            autoPopulateFromChapter={autoPopulateFromChapter}
+            primaryModuleId={primaryModuleId}
             filterByChapter={filterPlacesByChapter}
             onFilterByChapterChange={setFilterPlacesByChapter}
             currentBook={currentBook}
@@ -170,6 +173,8 @@ export function AnalyzeToolsPanel({
 interface PlacesMapPanelProps {
   places: Place[];
   loadPlaces: () => Promise<void>;
+  autoPopulateFromChapter: (book: string, chapter: number, moduleId?: string) => Promise<number>;
+  primaryModuleId: string;
   filterByChapter: boolean;
   onFilterByChapterChange: (v: boolean) => void;
   currentBook: string | null;
@@ -180,15 +185,29 @@ interface PlacesMapPanelProps {
 function PlacesMapPanel({
   places,
   loadPlaces,
+  autoPopulateFromChapter,
+  primaryModuleId,
   filterByChapter,
   onFilterByChapterChange,
   currentBook,
   currentChapter,
   activeStudyId,
 }: PlacesMapPanelProps) {
+  const lastPopulatedChapter = useRef('');
+
   useEffect(() => {
     void loadPlaces();
   }, [loadPlaces]);
+
+  useEffect(() => {
+    if (!currentBook || !currentChapter || !primaryModuleId) return;
+    const key = `${currentBook}:${currentChapter}:${primaryModuleId}`;
+    if (lastPopulatedChapter.current === key) return;
+    lastPopulatedChapter.current = key;
+    void autoPopulateFromChapter(currentBook, currentChapter, primaryModuleId).then(count => {
+      if (count > 0) void loadPlaces();
+    });
+  }, [currentBook, currentChapter, primaryModuleId, autoPopulateFromChapter, loadPlaces]);
 
   const filtered = useMemo(() => {
     let result = places;

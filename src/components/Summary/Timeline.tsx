@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useTimeStore } from '@/stores/timeStore';
 import { usePeopleStore } from '@/stores/peopleStore';
 import { useStudyStore } from '@/stores/studyStore';
@@ -49,24 +49,37 @@ function assignLanes(entries: Omit<SwimLaneEntry, 'lane'>[]): SwimLaneEntry[] {
   });
 }
 
-const MIN_CHART_HEIGHT = 400;
+const SLOT_PX = 56;       // pixels per unique data-year slot
 const MIN_BAR_PX = 24;
 const AXIS_WIDTH = 64;
 const MIN_LANE_WIDTH = 80;
 
 export function Timeline() {
-  const { timeExpressions } = useTimeStore();
-  const { people } = usePeopleStore();
+  const { timeExpressions, loadTimeExpressions, autoPopulateFromChapter } = useTimeStore();
+  const { people, loadPeople, autoPopulateFromChapter: autoPopulatePeople } = usePeopleStore();
   const { activeStudyId } = useStudyStore();
-  const { currentBook, currentChapter, setLocation, setNavSelectedVerse } = useBibleStore();
-  const { loadTimeExpressions } = useTimeStore();
-  const { loadPeople } = usePeopleStore();
+  const { currentBook, currentChapter, currentModuleId, setLocation, setNavSelectedVerse } = useBibleStore();
   const [filterByBook, setFilterByBook] = useState(true);
+  const lastPopulatedChapter = useRef('');
 
   useEffect(() => {
     loadTimeExpressions();
     loadPeople();
   }, [loadTimeExpressions, loadPeople]);
+
+  useEffect(() => {
+    if (!currentBook || !currentChapter || !currentModuleId) return;
+    const key = `${currentBook}:${currentChapter}:${currentModuleId}`;
+    if (lastPopulatedChapter.current === key) return;
+    lastPopulatedChapter.current = key;
+    void Promise.all([
+      autoPopulateFromChapter(currentBook, currentChapter, currentModuleId),
+      autoPopulatePeople(currentBook, currentChapter, currentModuleId),
+    ]).then(([timeCount, peopleCount]) => {
+      if (timeCount > 0) void loadTimeExpressions();
+      if (peopleCount > 0) void loadPeople();
+    });
+  }, [currentBook, currentChapter, currentModuleId, autoPopulateFromChapter, autoPopulatePeople, loadTimeExpressions, loadPeople]);
 
   const handleNavigateToVerse = (verseRef: VerseRef) => {
     const highlight = (verse: number) => {
@@ -87,8 +100,9 @@ export function Timeline() {
     }
   };
 
-  const { lanedEntries, ticks, chartHeight, minNum, pxPerYear, numLanes, timeLaneCount } = useMemo(() => {
-    const empty = { lanedEntries: [] as SwimLaneEntry[], ticks: [] as { num: number; label: string }[], chartHeight: 0, minNum: 0, pxPerYear: 0, numLanes: 0, timeLaneCount: 0 };
+  const { lanedEntries, ticks, chartHeight, yearToPixel, numLanes, timeLaneCount } = useMemo(() => {
+    const noopScale = (_: number) => 0;
+    const empty = { lanedEntries: [] as SwimLaneEntry[], ticks: [] as { num: number; label: string }[], chartHeight: 0, yearToPixel: noopScale, numLanes: 0, timeLaneCount: 0 };
 
     const matchesStudy = (studyId: string | undefined) =>
       !activeStudyId || !studyId || studyId === activeStudyId;
@@ -121,17 +135,36 @@ export function Timeline() {
 
     if (rawTimeEntries.length === 0 && rawPersonEntries.length === 0) return empty;
 
+    // Build ordinal scale: each unique data year gets one SLOT_PX slot.
+    // Years that fall between data points (e.g. axis ticks) are interpolated.
     const allNums = [...rawTimeEntries, ...rawPersonEntries].flatMap(e => [e.startNum, e.endNum]);
     const rawMin = Math.min(...allNums);
     const rawMax = Math.max(...allNums);
     const range = Math.max(rawMax - rawMin, 1);
-    const pad = Math.max(range * 0.08, 5);
-    const minN = rawMin - pad;
-    const maxN = rawMax + pad;
-    const totalRange = maxN - minN;
+    const interval = getNiceInterval(range);
 
-    const pxPY = Math.max(3, MIN_CHART_HEIGHT / totalRange);
-    const height = totalRange * pxPY;
+    // Anchor years = data years + padding slots on each end
+    const dataYearSet = new Set(allNums);
+    const sortedAnchors = [...dataYearSet].sort((a, b) => a - b);
+    const paddedAnchors = [rawMin - interval, ...sortedAnchors, rawMax + interval];
+    const anchorIndex = new Map(paddedAnchors.map((y, i) => [y, i]));
+
+    const toPixel = (year: number): number => {
+      const exact = anchorIndex.get(year);
+      if (exact !== undefined) return exact * SLOT_PX;
+      // linear interpolation between surrounding anchors
+      let lo = 0;
+      for (let i = 0; i < paddedAnchors.length - 1; i++) {
+        if (paddedAnchors[i] <= year) lo = i;
+        else break;
+      }
+      const hi = Math.min(lo + 1, paddedAnchors.length - 1);
+      if (lo === hi) return lo * SLOT_PX;
+      const t = (year - paddedAnchors[lo]) / (paddedAnchors[hi] - paddedAnchors[lo]);
+      return (lo + t) * SLOT_PX;
+    };
+
+    const chartH = (paddedAnchors.length - 1) * SLOT_PX;
 
     const lanedTime = assignLanes(rawTimeEntries);
     const numTimeLanes = lanedTime.length > 0 ? Math.max(...lanedTime.map(e => e.lane + 1)) : 0;
@@ -142,7 +175,6 @@ export function Timeline() {
     const laned = [...lanedTime, ...lanedPeople];
     const nLanes = Math.max(1, numTimeLanes + numPeopleLanes);
 
-    const interval = getNiceInterval(range);
     const firstTick = Math.ceil(rawMin / interval) * interval;
     const lastTick = Math.floor(rawMax / interval) * interval;
     const tickList: { num: number; label: string }[] = [];
@@ -150,10 +182,10 @@ export function Timeline() {
       tickList.push({ num: n, label: formatYearNum(n) });
     }
 
-    return { lanedEntries: laned, ticks: tickList, chartHeight: height, minNum: minN, pxPerYear: pxPY, numLanes: nLanes, timeLaneCount: numTimeLanes };
+    return { lanedEntries: laned, ticks: tickList, chartHeight: chartH, yearToPixel: toPixel, numLanes: nLanes, timeLaneCount: numTimeLanes };
   }, [timeExpressions, people, activeStudyId, currentBook, filterByBook]);
 
-  const getTop = (num: number) => (num - minNum) * pxPerYear;
+  const getTop = yearToPixel;
 
   return (
     <div>
@@ -222,7 +254,7 @@ export function Timeline() {
               {/* Entries */}
               {lanedEntries.map((entry) => {
                 const top = getTop(entry.startNum);
-                const naturalHeight = (entry.endNum - entry.startNum) * pxPerYear;
+                const naturalHeight = yearToPixel(entry.endNum) - yearToPixel(entry.startNum);
                 const leftPct = (entry.lane / numLanes) * 100;
                 const widthPct = (1 / numLanes) * 100;
                 const yearLabel = formatYearNum(entry.startNum) +
@@ -235,10 +267,10 @@ export function Timeline() {
                     <button
                       key={`person-${entry.id}`}
                       onClick={() => handleNavigateToVerse(entry.verseRef)}
-                      className="absolute rounded-sm bg-scripture-accent/75 hover:bg-scripture-accent transition-colors cursor-pointer overflow-hidden flex flex-col justify-center px-1.5"
+                      className="absolute rounded-md bg-scripture-accent/70 hover:bg-scripture-accent border border-scripture-accent transition-colors cursor-pointer overflow-hidden flex flex-col justify-center px-1.5"
                       style={{
-                        top,
-                        height: barHeight,
+                        top: top + 1,
+                        height: barHeight - 2,
                         left: `calc(${leftPct}% + 2px)`,
                         width: `calc(${widthPct}% - 4px)`,
                       }}

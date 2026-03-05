@@ -143,8 +143,8 @@ export function PeopleTracker({
   const [addingObservationToId, setAddingObservationToId] = useState<string | null>(null);
   const [newObservation, setNewObservation] = useState('');
   const [verseTexts, setVerseTexts] = useState<Map<string, string>>(new Map());
-  const [isPopulating, setIsPopulating] = useState(false);
   const hasInitialized = useRef(false);
+  const lastPopulatedChapter = useRef('');
   const { activeView } = useMultiTranslationStore();
   const primaryModuleId = activeView?.translationIds[0] || '';
 
@@ -274,19 +274,15 @@ export function PeopleTracker({
     loadPeople();
   };
 
-  const handlePopulateFromChapter = async () => {
-    if (!currentBook || !currentChapter || !primaryModuleId || isPopulating) return;
-    setIsPopulating(true);
-    try {
-      const count = await autoPopulateFromChapter(currentBook, currentChapter, primaryModuleId);
-      await loadPeople();
-      if (count > 0) alert(`Added ${count} person(s) from chapter.`);
-    } catch (e) {
-      console.error('[PeopleTracker] Populate failed:', e);
-    } finally {
-      setIsPopulating(false);
-    }
-  };
+  useEffect(() => {
+    if (!currentBook || !currentChapter || !primaryModuleId) return;
+    const key = `${currentBook}:${currentChapter}:${primaryModuleId}`;
+    if (lastPopulatedChapter.current === key) return;
+    lastPopulatedChapter.current = key;
+    void autoPopulateFromChapter(currentBook, currentChapter, primaryModuleId).then(count => {
+      if (count > 0) void loadPeople();
+    });
+  }, [currentBook, currentChapter, primaryModuleId, autoPopulateFromChapter, loadPeople]);
 
   const filteredPeople = useMemo(() => {
     let f = people;
@@ -350,15 +346,6 @@ export function PeopleTracker({
             >
               + New Person
             </button>
-            {currentBook && currentChapter && (
-              <button
-                onClick={handlePopulateFromChapter}
-                disabled={isPopulating || !primaryModuleId}
-                className="px-3 py-1.5 text-sm bg-scripture-elevated text-scripture-text rounded hover:bg-scripture-border/50 transition-colors disabled:opacity-50"
-              >
-                {isPopulating ? '...' : 'Populate from Chapter'}
-              </button>
-            )}
             {onFilterByChapterChange && (
               <Checkbox
                 label="Current Chapter Only"
