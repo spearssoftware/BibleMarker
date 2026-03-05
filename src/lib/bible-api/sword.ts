@@ -172,9 +172,12 @@ async function ensureLoaded(moduleId: string): Promise<SwordModuleFiles> {
 
   const { readFile } = await import('@tauri-apps/plugin-fs');
   const path = await getModulePath(moduleId);
+  console.log(`[SWORD] Loading module from ${path}`);
   const bytes = await readFile(path);
+  console.log(`[SWORD] Read ${bytes.byteLength} bytes`);
   const blob = new Blob([bytes]);
-  const { files } = await loadFromZip(blob);
+  const { files, meta } = await loadFromZip(blob);
+  console.log(`[SWORD] Loaded module: ${meta.name} (${meta.abbreviation}), files: ${Object.keys(files).join(', ')}`);
   loadedModules.set(moduleId, files);
   return files;
 }
@@ -254,10 +257,14 @@ class SwordClient implements BibleApiClient {
     for (let v = 1; v <= verseCount; v++) {
       const raw = getVerseRaw(files, book, chapter, v, bufCache);
       const text = stripOsis(raw);
+      if (v === 1) {
+        console.log(`[SWORD] ${moduleId} ${book} ${chapter}:1 raw=${raw.substring(0, 80)}... text=${text.substring(0, 80)}...`);
+      }
       if (text) {
         verses.push({ book, chapter, verse: v, text, html: text });
       }
     }
+    console.log(`[SWORD] ${moduleId} ${book} ${chapter}: ${verses.length}/${verseCount} verses`);
 
     const info = getModuleInfo(moduleId);
     return {
