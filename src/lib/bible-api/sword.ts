@@ -98,15 +98,16 @@ function stripOsis(text: string): string {
 
 /** Get the app data directory path for SWORD module storage */
 async function getSwordDir(): Promise<string> {
-  const { appDataDir } = await import('@tauri-apps/api/path');
+  const { appDataDir, join } = await import('@tauri-apps/api/path');
   const base = await appDataDir();
-  return `${base}sword`;
+  return await join(base, 'sword');
 }
 
 /** Get the file path for a module zip */
 async function getModulePath(moduleId: string): Promise<string> {
+  const { join } = await import('@tauri-apps/api/path');
   const dir = await getSwordDir();
-  return `${dir}/${moduleId}.zip`;
+  return await join(dir, `${moduleId}.zip`);
 }
 
 /** Check if a module zip exists on disk */
@@ -130,11 +131,14 @@ export async function downloadModule(
 
   onProgress?.(0);
   const destPath = await getModulePath(moduleId);
+  console.log(`[SWORD] Downloading ${info.name} from ${info.downloadUrl} to ${destPath}`);
 
   try {
     const { invoke } = await import('@tauri-apps/api/core');
     await invoke('download_file', { url: info.downloadUrl, destPath });
+    console.log(`[SWORD] Download complete: ${destPath}`);
   } catch (e) {
+    console.error(`[SWORD] Download failed:`, e);
     throw new BibleApiError(
       `Failed to download ${info.name}: ${e instanceof Error ? e.message : String(e)}`,
       'sword'
