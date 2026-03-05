@@ -1,10 +1,9 @@
 /**
  * Bible API Module
- * 
- * Unified interface for fetching Bible text from multiple providers:
- * - getBible API (free, many translations, no API key required)
- * - Biblia API (NASB, ESV, NIV, etc.)
- * - ESV API (ESV only, generous limits)
+ *
+ * Unified interface for fetching Bible text from two sources:
+ * - SWORD modules (local, offline) — NASB, KJV, ASV, WEB
+ * - ESV API (network, requires API key) — ESV only
  */
 
 import type {
@@ -16,36 +15,30 @@ import type {
   BibleApiClient,
 } from './types';
 import { BibleApiError } from './types';
-import { bibliaClient } from './biblia';
 import { esvClient, parseVerseText } from './esv';
-import { getBibleClient } from './getbible';
+import { swordClient } from './sword';
 import type { Chapter } from '@/types';
 import { getPreferences, updatePreferences, getCachedChapter, setCachedChapter, getAllCachedChapters, clearChapterCache, sqlSelect, sqlExecute } from '@/lib/database';
 import { retryWithBackoff, isNetworkError, getNetworkErrorMessage, isOnline } from '../offline';
 
 // Re-export types
 export * from './types';
-export { bibliaClient } from './biblia';
 export { esvClient, ESV_COPYRIGHT } from './esv';
-export { getBibleClient } from './getbible';
+export { swordClient } from './sword';
+export {
+  isModuleDownloaded,
+  downloadModule,
+  deleteModule,
+  getAvailableModules,
+  getModuleInfo,
+  getModuleCopyright,
+  NASB_COPYRIGHT,
+  NASB95_COPYRIGHT,
+  LOCKMAN_URL,
+} from './sword';
 
-/**
- * Check if a Bible translation is available with the current Biblia API key
- * Usage: In browser console, type: window.testBibleAvailability('NASB')
- */
+// Console helpers
 if (typeof window !== 'undefined') {
-  (window as Window & { testBibleAvailability?: (bibleId: string) => Promise<boolean> }).testBibleAvailability = async (bibleId: string) => {
-    const { bibliaClient } = await import('./biblia');
-    const isAvailable = await bibliaClient.isBibleAvailable(bibleId);
-    return isAvailable;
-  };
-
-  (window as Window & { listAvailableBibles?: () => Promise<string[]> }).listAvailableBibles = async () => {
-    const { bibliaClient } = await import('./biblia');
-    const bibleIds = await bibliaClient.getAvailableBibleIds();
-    return bibleIds;
-  };
-
   (window as Window & { clearChapterCache?: () => Promise<number> }).clearChapterCache = async () => {
     const allCached = await getAllCachedChapters();
     const count = allCached.length;
@@ -62,14 +55,13 @@ if (typeof window !== 'undefined') {
 }
 
 /** All available API clients */
-const clients: Record<BibleApiProvider, BibleApiClient | null> = {
-  biblia: bibliaClient,
+const clients: Record<BibleApiProvider, BibleApiClient> = {
   esv: esvClient,
-  getbible: getBibleClient,
+  sword: swordClient,
 };
 
 /** Get a specific API client */
-export function getClient(provider: BibleApiProvider): BibleApiClient | null {
+export function getClient(provider: BibleApiProvider): BibleApiClient {
   return clients[provider];
 }
 
@@ -87,163 +79,67 @@ export function isApiConfigured(provider: BibleApiProvider): boolean {
   return client?.isConfigured() ?? false;
 }
 
-// Request deduplication: if getAllTranslations is already in progress, 
-// subsequent calls wait for the first one to complete
+// Request deduplication
 let getAllTranslationsPromise: Promise<ApiTranslation[]> | null = null;
-
-// In-memory cache for the current session
 let cachedTranslations: ApiTranslation[] | null = null;
 
 const CACHE_KEY = 'all-translations';
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-function applyLanguageFilter(
-  translations: ApiTranslation[],
-  filter: string[] | undefined
-): ApiTranslation[] {
-  if (!filter || filter.length === 0) return translations;
-  const allowed = new Set(filter.map((lang) => lang.toLowerCase()));
-  // getBible and others may use "eng" for English; treat as "en" when "en" is selected
-  if (allowed.has('en')) allowed.add('eng');
-  return translations.filter((t) =>
-    allowed.has((t.language || '').toLowerCase())
-  );
-}
-
-/** Get all available translations from all configured APIs */
+/** Get all available translations from installed SWORD modules + ESV */
 export async function getAllTranslations(): Promise<ApiTranslation[]> {
-  const prefs = await getPreferences();
-  const apiResourcesEnabled = prefs?.apiResourcesEnabled !== false;
-  // Default to English when no preference set; explicit [] means show all languages
-  const raw = prefs?.translationLanguageFilter;
-  const languageFilter =
-    raw !== undefined && raw.length === 0
-      ? undefined
-      : (raw?.length ? raw : ['en']);
-
-  // When API resources disabled: return cached list (filtered) or []
-  if (!apiResourcesEnabled) {
-    try {
-      const rows = await sqlSelect<{ translations: string; cached_at: string }>(
-        `SELECT translations, cached_at FROM translation_cache WHERE id = ?`,
-        [CACHE_KEY]
-      );
-      if (rows.length > 0) {
-        const cachedAt = rows[0].cached_at;
-        if (cachedAt) {
-          const now = new Date();
-          const cacheAge = now.getTime() - new Date(cachedAt).getTime();
-          if (cacheAge < CACHE_DURATION_MS) {
-            const list = JSON.parse(rows[0].translations) as ApiTranslation[];
-            return applyLanguageFilter(list, languageFilter);
-          }
-        }
-      }
-    } catch {
-      // ignore cache read errors
-    }
-    if (cachedTranslations) {
-      return applyLanguageFilter(cachedTranslations, languageFilter);
-    }
-    return [];
+  // Check in-memory cache
+  if (cachedTranslations) {
+    return cachedTranslations;
   }
 
-  // Check SQLite cache first (24 hour TTL)
+  // If a request is already in progress, wait for it
+  if (getAllTranslationsPromise) {
+    return await getAllTranslationsPromise;
+  }
+
+  // Check SQLite cache
   try {
     const rows = await sqlSelect<{ translations: string; cached_at: string }>(
       `SELECT translations, cached_at FROM translation_cache WHERE id = ?`,
       [CACHE_KEY]
     );
-    if (rows.length > 0) {
-      const cachedAt = rows[0].cached_at;
-      if (cachedAt) {
-        const now = new Date();
-        const cacheAge = now.getTime() - new Date(cachedAt).getTime();
-        if (cacheAge < CACHE_DURATION_MS) {
-          const translations = JSON.parse(rows[0].translations) as ApiTranslation[];
-          cachedTranslations = translations;
-          return applyLanguageFilter(translations, languageFilter);
-        }
+    if (rows.length > 0 && rows[0].cached_at) {
+      const cacheAge = Date.now() - new Date(rows[0].cached_at).getTime();
+      if (cacheAge < CACHE_DURATION_MS) {
+        const translations = JSON.parse(rows[0].translations) as ApiTranslation[];
+        cachedTranslations = translations;
+        return translations;
       }
     }
-  } catch (error) {
-    console.warn('[getAllTranslations] Error reading cache, fetching fresh:', error);
+  } catch {
+    // ignore cache read errors
   }
 
-  // Check in-memory cache (for same-session calls)
-  if (cachedTranslations) {
-    return applyLanguageFilter(cachedTranslations, languageFilter);
-  }
-
-  // If a request is already in progress, wait for it instead of starting a new one
-  if (getAllTranslationsPromise) {
-    const result = await getAllTranslationsPromise;
-    return applyLanguageFilter(result, languageFilter);
-  }
-
-  // Ensure getBible is configured (it's free and always available)
-  if (!getBibleClient.isConfigured()) {
-    getBibleClient.configure({
-      provider: 'getbible',
-      enabled: true,
-    });
-  }
-
-  // Create the promise and store it so concurrent calls can wait for it
   getAllTranslationsPromise = (async () => {
     const translations: ApiTranslation[] = [];
-    const seenIds = new Set<string>();
 
-    // Load translations sequentially to avoid overwhelming browser resources
-    const allProviderTranslations: ApiTranslation[][] = [];
-
-    for (const [provider, client] of Object.entries(clients)) {
-      if (!client) continue;
-      const isConfigured = client.isConfigured();
-
-      if (isConfigured) {
-        try {
-          const providerTranslations = await client.getTranslations();
-          allProviderTranslations.push(providerTranslations);
-        } catch (error) {
-          console.error(`Failed to get translations from ${provider}:`, error);
-          allProviderTranslations.push([]);
-        }
-      } else {
-        allProviderTranslations.push([]);
-      }
-
-      const remainingProviders = Object.entries(clients).slice(
-        Object.entries(clients).findIndex(([p]) => p === provider) + 1
-      );
-      if (remainingProviders.length > 0) {
-        await new Promise((resolve) => setTimeout(resolve, 150));
-      }
+    // SWORD modules (local, always available)
+    try {
+      const swordTranslations = await swordClient.getTranslations();
+      translations.push(...swordTranslations);
+    } catch (error) {
+      console.error('Failed to get SWORD translations:', error);
     }
 
-    // Combine and deduplicate translations (unfiltered for cache)
-    for (const providerTranslations of allProviderTranslations) {
-      for (const translation of providerTranslations) {
-        if (!translation.id || typeof translation.id !== 'string' || translation.id.trim() === '') {
-          console.warn(`Skipping translation without valid ID:`, translation);
-          continue;
-        }
-
-        let uniqueId = translation.id.trim();
-        if (seenIds.has(uniqueId)) {
-          uniqueId = `${translation.provider}-${translation.id.trim()}`;
-        }
-        seenIds.add(uniqueId);
-
-        translations.push({
-          ...translation,
-          id: uniqueId,
-        });
+    // ESV (network, only if configured)
+    if (esvClient.isConfigured()) {
+      try {
+        const esvTranslations = await esvClient.getTranslations();
+        translations.push(...esvTranslations);
+      } catch (error) {
+        console.error('Failed to get ESV translations:', error);
       }
     }
 
     cachedTranslations = translations;
 
+    // Persist to SQLite cache
     try {
       const now = new Date().toISOString();
       await sqlExecute(
@@ -258,14 +154,13 @@ export async function getAllTranslations(): Promise<ApiTranslation[]> {
   })();
 
   try {
-    const result = await getAllTranslationsPromise;
-    return applyLanguageFilter(result, languageFilter);
+    return await getAllTranslationsPromise;
   } finally {
     getAllTranslationsPromise = null;
   }
 }
 
-/** Clear the translations cache (useful when API configs change) */
+/** Clear the translations cache (useful when modules are installed/removed or API configs change) */
 export async function clearTranslationsCache(): Promise<void> {
   cachedTranslations = null;
   try {
@@ -277,10 +172,11 @@ export async function clearTranslationsCache(): Promise<void> {
 
 /**
  * Fetch a chapter from the appropriate source
- * 
+ *
  * Priority:
- * 1. Check IndexedDB cache
- * 2. Try API (getBible, Biblia, or ESV)
+ * 1. Check cache
+ * 2. If sword-* translation -> swordClient.getChapter()
+ * 3. If ESV -> esvClient.getChapter()
  */
 export async function fetchChapter(
   translationId: string,
@@ -289,327 +185,129 @@ export async function fetchChapter(
 ): Promise<Chapter> {
   // Check cache first
   const cached = await getCachedChapter(translationId, book, chapter);
-  
+
   if (cached) {
-    // Determine if this is ESV (for special handling)
-    const normalizedId = translationId.toUpperCase();
-    const normalizedOriginalId = translationId.toUpperCase();
-    const isESV = normalizedId === 'ESV' || 
-                  normalizedId === 'ESV-ESV' ||
-                  normalizedOriginalId === 'ESV' ||
-                  normalizedOriginalId.startsWith('ESV-');
-    
-    // Handle both old format (objects) and new format (strings)
-    // Note: cached.verses is Record<number, string> from getCachedChapter
+    const isESV = isEsvTranslation(translationId);
     const verses = Object.entries(cached.verses).map(([num, text]) => {
-      // Convert to string if it's an object (old cached format)
       let textStr = '';
       if (typeof text === 'string') {
         textStr = text;
       } else if (text && typeof text === 'object') {
-        // Old format - extract text property
         textStr = String((text as { text?: string; content?: string }).text || (text as { text?: string; content?: string }).content || '');
       } else {
         textStr = String(text || '');
       }
-      
-      // For ESV, ensure cached text is clean (re-parse to handle old cached data with HTML)
-      // This ensures cached text matches the format we'd get from fresh parsing
-      // Use the same parseVerseText function to ensure consistency
+
       if (isESV && textStr) {
         const parsed = parseVerseText(textStr);
         textStr = parsed.text;
       }
-      
+
       return {
         ref: { book, chapter, verse: parseInt(num, 10) },
         text: textStr,
         html: textStr,
       };
     });
-    
-    return {
-      book,
-      chapter,
-      verses,
-    };
+
+    return { book, chapter, verses };
   }
 
-  // API resources disabled: do not fetch from any provider
-  const prefs = await getPreferences();
-  if (prefs?.apiResourcesEnabled === false) {
-    throw new BibleApiError(
-      'API resources are disabled. Enable them in Settings to fetch new content.',
-      'getbible',
-      undefined
-    );
-  }
+  // Determine source
+  const isSword = translationId.startsWith('sword-');
+  const isESV = isEsvTranslation(translationId);
 
-  // Determine which API to use based on translation ID
-  // Strip provider prefix if present (e.g., "getbible-kjv" -> "kjv")
-  let actualTranslationId = translationId;
-  let provider: BibleApiProvider | null = null;
-  
-  if (translationId.includes('-')) {
-    const [prefix, ...rest] = translationId.split('-');
-    if (['getbible', 'biblia', 'esv'].includes(prefix)) {
-      provider = prefix as BibleApiProvider;
-      actualTranslationId = rest.join('-');
-    }
-  }
-  
   let chapterData: ChapterResponse | null = null;
-  
-  // Check ESV first (case-insensitive) - ESV is a specific API, not getBible
-  // Handle multiple formats: "ESV", "esv-ESV", or provider prefix "esv"
-  const normalizedId = actualTranslationId.toUpperCase();
-  const normalizedOriginalId = translationId.toUpperCase();
-  const isESV = normalizedId === 'ESV' || 
-                normalizedId === 'ESV-ESV' ||
-                normalizedOriginalId === 'ESV' ||
-                normalizedOriginalId.startsWith('ESV-') ||
-                provider === 'esv';
-  
-  if (isESV) {
-    if (esvClient.isConfigured()) {
-      try {
-        // Use retry with backoff for network errors
-        chapterData = await retryWithBackoff(
-          () => esvClient.getChapter('ESV', book, chapter),
-          { maxRetries: 2, initialDelay: 1000 }
-        );
-      } catch (error) {
-        // Check if it's a network/offline error
-        if (isNetworkError(error) || !isOnline()) {
-          throw new BibleApiError(
-            getNetworkErrorMessage(error),
-            'esv',
-            error instanceof BibleApiError ? error.statusCode : undefined
-          );
-        }
-        console.warn('ESV API failed:', error);
-        // Don't silently fail - rethrow if it's a configuration error
-        if (error instanceof BibleApiError && error.statusCode === 401) {
-          throw error;
-        }
-        throw error;
-      }
-    } else {
-      // ESV API not configured - provide helpful error
+
+  if (isSword) {
+    chapterData = await swordClient.getChapter(translationId, book, chapter);
+  } else if (isESV) {
+    // API resources check
+    const prefs = await getPreferences();
+    if (prefs?.apiResourcesEnabled === false) {
       throw new BibleApiError(
-        'ESV API key not configured. Please configure your ESV API key in the Module Manager settings.',
+        'API resources are disabled. Enable them in Settings to fetch new content.',
+        'esv'
+      );
+    }
+
+    if (!esvClient.isConfigured()) {
+      throw new BibleApiError(
+        'ESV API key not configured. Please configure your ESV API key in Settings.',
         'esv',
         401
       );
     }
-  }
-  
-  // Check if it's a Biblia translation
-  // Biblia now only handles unique translations: LEB, DARBY, YLT, EMPHBBL
-  // KJV and ASV are handled by getBible (free)
-  // Also handle old format with "eng-" prefix for backwards compatibility
-  const isBibliaTranslation = (!provider || provider === 'biblia') && (
-    actualTranslationId.startsWith('eng-') || 
-    ['LEB', 'DARBY', 'YLT', 'EMPHBBL'].includes(actualTranslationId.toUpperCase())
-  );
-  
-  let bibliaError: Error | null = null;
-  if (!chapterData && isBibliaTranslation) {
-    if (bibliaClient.isConfigured()) {
-      try {
-        // Remove "eng-" prefix if present for backwards compatibility
-        let bibliaTranslationId = actualTranslationId;
-        if (bibliaTranslationId.startsWith('eng-')) {
-          bibliaTranslationId = bibliaTranslationId.substring(4);
-        }
-        // Convert to uppercase to match Biblia API format
-        bibliaTranslationId = bibliaTranslationId.toUpperCase();
-        chapterData = await retryWithBackoff(
-          () => bibliaClient.getChapter(bibliaTranslationId, book, chapter),
-          { maxRetries: 2, initialDelay: 1000 }
+
+    try {
+      chapterData = await retryWithBackoff(
+        () => esvClient.getChapter('ESV', book, chapter),
+        { maxRetries: 2, initialDelay: 1000 }
+      );
+    } catch (error) {
+      if (isNetworkError(error) || !isOnline()) {
+        throw new BibleApiError(
+          getNetworkErrorMessage(error),
+          'esv',
+          error instanceof BibleApiError ? error.statusCode : undefined
         );
-      } catch (error) {
-        bibliaError = error as Error;
-        // Check if it's a network/offline error
-        if (isNetworkError(error) || !isOnline()) {
-          throw new BibleApiError(
-            getNetworkErrorMessage(error),
-            'biblia',
-            error instanceof BibleApiError ? error.statusCode : undefined
-          );
-        }
-        // Check if it's a 403 error (translation not available)
-        const is403Error = error instanceof BibleApiError && error.statusCode === 403;
-        if (is403Error) {
-          console.warn(`[fetchChapter] Translation "${actualTranslationId}" not available with your Biblia API key. Try KJV, ASV, or LEB instead.`);
-        } else {
-          console.warn('Biblia API failed, trying other sources:', error);
-        }
       }
+      throw error;
     }
-  }
-  
-  // Check if it's a getBible translation (only if not ESV or Biblia)
-  // If provider is explicitly getbible, or if it's not from another provider, try getBible
-  // getBible uses lowercase translation IDs (abbreviations)
-  let getBibleError: Error | null = null;
-  if (!chapterData && !isESV && (!provider || provider === 'getbible')) {
-    if (getBibleClient.isConfigured()) {
-      try {
-        // Try getBible for any translation ID (it will fail gracefully if not found)
-        // Use retry with backoff for network errors
-        chapterData = await retryWithBackoff(
-          () => getBibleClient.getChapter(actualTranslationId.toLowerCase(), book, chapter),
-          { maxRetries: 2, initialDelay: 1000 }
-        );
-      } catch (error) {
-        getBibleError = error as Error;
-        
-        // Check if it's a network/offline error
-        if (isNetworkError(error) || !isOnline()) {
-          // If offline, check cache and provide helpful message
-          if (!isOnline()) {
-            throw new BibleApiError(
-              `You are offline. Chapter ${book} ${chapter} is not cached. Please check your internet connection to load new chapters.`,
-              'getbible',
-              undefined
-            );
-          }
-          throw new BibleApiError(
-            getNetworkErrorMessage(error),
-            'getbible',
-            error instanceof BibleApiError ? error.statusCode : undefined
-          );
-        }
-        
-        // If provider is explicitly getbible and we get a 404, the translation doesn't exist
-        if (provider === 'getbible' && error instanceof BibleApiError && error.statusCode === 404) {
-          // Translation explicitly from getBible but not found - report error immediately
-          throw new BibleApiError(
-            `Translation "${translationId}" not found in getBible API. The translation may not be available or the ID may be incorrect.`,
-            'getbible',
-            404
-          );
-        }
-        // For non-explicit getbible translations, log but continue to try other APIs
-        // Only log if it's not a CORS/network error (these are expected for invalid translations)
-        const isCorsError = error instanceof Error && (
-          error.message.includes('CORS') || 
-          error.message.includes('Failed to fetch') ||
-          error.message.includes('NetworkError') ||
-          error.message.includes('timeout')
-        );
-        if (!isCorsError) {
-          console.warn('getBible API failed, trying other sources:', error);
-        }
-        // Continue to try other APIs
-      }
-    }
+  } else {
+    throw new BibleApiError(
+      `Unknown translation "${translationId}". Available sources: SWORD modules (offline) and ESV API.`,
+      'sword',
+      404
+    );
   }
 
   if (chapterData) {
-    // For ESV, check storage limits before caching
-    const isESV = normalizedId === 'ESV' || 
-                  normalizedId === 'ESV-ESV' ||
-                  normalizedOriginalId === 'ESV' ||
-                  normalizedOriginalId.startsWith('ESV-') ||
-                  provider === 'esv';
-    
+    // Cache the chapter
     if (isESV) {
-      // Check ESV storage limits: max 500 consecutive verses or half book
+      // ESV storage limits: max 500 consecutive verses or half book
       const verseCount = chapterData.verses.length;
-      const { getBookVerseCount, getVerseCount } = await import('@/types/bible');
+      const { getBookVerseCount, getVerseCount: getVC } = await import('@/types/bible');
       const halfBook = Math.floor(getBookVerseCount(book) / 2);
       const maxVerses = Math.min(500, halfBook);
-      
-      // Check if this chapter alone exceeds the limit
-      if (verseCount > maxVerses) {
-        // Don't cache if it exceeds limits - but still return the data
-        console.warn(`[ESV Storage Limit] Chapter ${book} ${chapter} has ${verseCount} verses, exceeding limit of ${maxVerses}. Not caching.`);
-      } else {
-        // Check if caching this chapter would create more than 500 consecutive verses
-        // Get all cached chapters for this book/translation
+
+      if (verseCount <= maxVerses) {
         const allCached = await getAllCachedChapters();
         const cachedChapters = allCached.filter(c => c.moduleId === translationId && c.book === book);
-        
-        // Get all chapter numbers (cached + new one)
         const chapterNumbers = new Set<number>();
-        cachedChapters.forEach(c => {
-          if (c.chapter !== undefined) {
-            chapterNumbers.add(c.chapter);
-          }
-        });
+        cachedChapters.forEach(c => { if (c.chapter !== undefined) chapterNumbers.add(c.chapter); });
         chapterNumbers.add(chapter);
-        
-        // Sort chapter numbers
         const sortedChapters = Array.from(chapterNumbers).sort((a, b) => a - b);
-        
-        // Find the longest consecutive sequence that includes the new chapter
+
         let maxConsecutiveVerses = 0;
-        
-        // Find all consecutive sequences and check if any that includes the new chapter exceeds the limit
         for (let i = 0; i < sortedChapters.length; i++) {
-          // Start a new sequence from this chapter
           let sequenceVerses = 0;
           let includesNewChapter = false;
-          
-          // Count verses in the starting chapter
-          if (sortedChapters[i] === chapter) {
-            sequenceVerses += verseCount;
-            includesNewChapter = true;
-          } else {
-            const cached = cachedChapters.find(c => c.chapter === sortedChapters[i]);
-            if (cached) {
-              sequenceVerses += Object.keys(cached.verses || {}).length;
-            }
-          }
-          
-          // Extend the sequence forward as long as chapters are consecutive
-          for (let j = i + 1; j < sortedChapters.length; j++) {
-            if (sortedChapters[j] === sortedChapters[j - 1] + 1) {
-              // Chapters are consecutive, add verses
-              if (sortedChapters[j] === chapter) {
-                sequenceVerses += verseCount;
-                includesNewChapter = true;
-              } else {
-                const cached = cachedChapters.find(c => c.chapter === sortedChapters[j]);
-                if (cached) {
-                  sequenceVerses += Object.keys(cached.verses || {}).length;
-                } else {
-                  // Chapter not cached yet, use verse count from Bible structure
-                  sequenceVerses += getVerseCount(book, sortedChapters[j]);
-                }
-              }
+          for (let j = i; j < sortedChapters.length; j++) {
+            if (j > i && sortedChapters[j] !== sortedChapters[j - 1] + 1) break;
+            if (sortedChapters[j] === chapter) {
+              sequenceVerses += verseCount;
+              includesNewChapter = true;
             } else {
-              // Not consecutive, stop extending this sequence
-              break;
+              const cc = cachedChapters.find(c => c.chapter === sortedChapters[j]);
+              sequenceVerses += cc ? Object.keys(cc.verses || {}).length : getVC(book, sortedChapters[j]);
             }
           }
-          
-          // Only check sequences that include the new chapter
           if (includesNewChapter) {
             maxConsecutiveVerses = Math.max(maxConsecutiveVerses, sequenceVerses);
           }
         }
-        
-        if (maxConsecutiveVerses > maxVerses) {
-          // Don't cache if it would exceed limits
-          console.warn(`[ESV Storage Limit] Caching chapter ${book} ${chapter} would create ${maxConsecutiveVerses} consecutive verses, exceeding limit of ${maxVerses}. Not caching.`);
-        } else {
-          // Safe to cache
+
+        if (maxConsecutiveVerses <= maxVerses) {
           const versesMap: Record<number, string> = {};
-          for (const v of chapterData.verses) {
-            versesMap[v.verse] = v.text;
-          }
+          for (const v of chapterData.verses) versesMap[v.verse] = v.text;
           await setCachedChapter(translationId, book, chapter, versesMap);
         }
       }
     } else {
-      // For non-ESV translations, cache normally
+      // SWORD modules: cache normally
       const versesMap: Record<number, string> = {};
-      for (const v of chapterData.verses) {
-        versesMap[v.verse] = v.text;
-      }
+      for (const v of chapterData.verses) versesMap[v.verse] = v.text;
       await setCachedChapter(translationId, book, chapter, versesMap);
     }
 
@@ -624,55 +322,26 @@ export async function fetchChapter(
     };
   }
 
-  // No API data available - provide helpful error message
-  if (bibliaError && bibliaError instanceof BibleApiError && bibliaError.statusCode === 403) {
-    // Biblia translation not available - suggest alternatives
-    throw new BibleApiError(
-      `Translation "${translationId}" is not available with your Biblia API key. Try KJV, ASV, or LEB instead. You can change the translation in the Module Manager.`,
-      'biblia',
-      403
-    );
-  }
-  
-  // If getBible was tried and failed with a non-404 error, mention it
-  if (getBibleError && getBibleError instanceof BibleApiError && getBibleError.statusCode !== 404) {
-    throw new BibleApiError(
-      `Failed to load translation "${translationId}" from getBible API: ${getBibleError.message}. Please check your internet connection or try a different translation.`,
-      'getbible',
-      getBibleError.statusCode
-    );
-  }
-  
-  // Generic error - translation not found in any API
-  throw new BibleApiError(
-    `Translation "${translationId}" not found. Available APIs: getBible (free), Biblia, ESV. The translation may not be available or the ID may be incorrect.`,
-    'getbible',
-    404
-  );
+  return { book, chapter, verses: [] };
+}
+
+/** Check if a translation ID refers to ESV */
+function isEsvTranslation(translationId: string): boolean {
+  const upper = translationId.toUpperCase();
+  return upper === 'ESV' || upper === 'ESV-ESV' || upper.startsWith('ESV-');
 }
 
 /**
- * Search across Bible text
+ * Search across Bible text (ESV only — SWORD modules don't support search)
  */
 export async function searchBible(
   translationId: string,
   query: string,
   limit = 20
 ): Promise<SearchResult[]> {
-  // Determine which API to use
-  if (translationId.startsWith('eng-') || ['NASB', 'NIV', 'NKJV'].includes(translationId)) {
-    if (bibliaClient.isConfigured()) {
-      return bibliaClient.search(translationId, query, limit);
-    }
+  if (isEsvTranslation(translationId) && esvClient.isConfigured()) {
+    return esvClient.search(translationId, query, limit);
   }
-  
-  if (translationId === 'ESV') {
-    if (esvClient.isConfigured()) {
-      return esvClient.search(translationId, query, limit);
-    }
-  }
-
-  // No search available
   return [];
 }
 
@@ -685,43 +354,19 @@ export async function loadApiConfigs(): Promise<void> {
 
     if (prefs?.apiConfigs) {
       for (const configRecord of prefs.apiConfigs) {
-        // Convert ApiConfigRecord to ApiConfig
-        const config: ApiConfig = {
-          provider: configRecord.provider as BibleApiProvider,
-          apiKey: configRecord.apiKey,
-          username: configRecord.username,
-          password: configRecord.password,
-          baseUrl: configRecord.baseUrl,
-          enabled: configRecord.enabled,
-        };
-        
-        // Configure the API client
-        configureApi(config.provider, config);
-        
-        // Check configuration status
-        const client = getClient(config.provider);
-        if (client) {
-          const isConfigured = client.isConfigured();
-          if (!isConfigured && config.enabled && config.apiKey) {
-            console.warn(`[loadApiConfigs] ${config.provider} has API key but client reports not configured - this may indicate a configuration issue`);
-          }
+        // Only handle ESV configs (SWORD doesn't need config)
+        if (configRecord.provider === 'esv') {
+          const config: ApiConfig = {
+            provider: configRecord.provider as BibleApiProvider,
+            apiKey: configRecord.apiKey,
+            enabled: configRecord.enabled,
+          };
+          configureApi(config.provider, config);
         }
       }
     }
-    
-    // Enable getBible by default (no API key required)
-    // Note: getBible doesn't need to be stored in apiConfigs since it's always available
-    getBibleClient.configure({
-      provider: 'getbible',
-      enabled: true,
-    });
   } catch (error) {
     console.error('Failed to load API configs:', error);
-    // Still enable getBible even if loading configs fails
-    getBibleClient.configure({
-      provider: 'getbible',
-      enabled: true,
-    });
   }
 }
 
@@ -729,20 +374,17 @@ export async function loadApiConfigs(): Promise<void> {
  * Save API configuration to database
  */
 export async function saveApiConfig(config: ApiConfig): Promise<void> {
-  // getBible doesn't need to be saved (it's always enabled)
-  if (config.provider === 'getbible') {
-    configureApi(config.provider, config);
-    return;
-  }
-  
-  const prefs = await getPreferences();
+  // SWORD doesn't need saved config
+  if (config.provider === 'sword') return;
 
-  const existingConfigs = prefs.apiConfigs || [];
+  const prefs = await getPreferences();
+  const existingConfigs = (prefs.apiConfigs || []).filter(c =>
+    c.provider === 'esv' || c.provider === 'sword'
+  );
   const updatedConfigs = existingConfigs.filter(c => c.provider !== config.provider);
-  
-  // Convert ApiConfig to ApiConfigRecord (exclude getbible)
+
   updatedConfigs.push({
-    provider: config.provider as 'biblia' | 'esv' | 'getbible',
+    provider: config.provider as 'esv' | 'sword',
     apiKey: config.apiKey,
     username: config.username,
     password: config.password,
@@ -750,11 +392,7 @@ export async function saveApiConfig(config: ApiConfig): Promise<void> {
     enabled: config.enabled,
   });
 
-  await updatePreferences({
-    apiConfigs: updatedConfigs,
-  });
-
-  // Apply the config immediately
+  await updatePreferences({ apiConfigs: updatedConfigs });
   configureApi(config.provider, config);
 }
 
@@ -762,23 +400,18 @@ export async function saveApiConfig(config: ApiConfig): Promise<void> {
  * Get API configuration from database
  */
 export async function getApiConfig(provider: BibleApiProvider): Promise<ApiConfig | null> {
-  // getBible is always enabled, no config needed
-  if (provider === 'getbible') {
-    return { provider: 'getbible', enabled: true };
+  if (provider === 'sword') {
+    return { provider: 'sword', enabled: true };
   }
-  
+
   const prefs = await getPreferences();
   if (!prefs?.apiConfigs) return null;
   const config = prefs.apiConfigs.find(c => c.provider === provider);
   if (!config) return null;
-  
-  // Convert ApiConfigRecord to ApiConfig
+
   return {
     provider: config.provider as BibleApiProvider,
     apiKey: config.apiKey,
-    username: config.username,
-    password: config.password,
-    baseUrl: config.baseUrl,
     enabled: config.enabled,
   };
 }

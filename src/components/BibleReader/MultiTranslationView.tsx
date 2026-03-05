@@ -347,7 +347,7 @@ export function MultiTranslationView() {
               name: translationId.toUpperCase(),
               abbreviation: translationId.toUpperCase(),
               language: 'en',
-              provider: 'getbible',
+              provider: 'sword',
             },
             chapter: { book: currentBook, chapter: currentChapter, verses },
             isLoading: false,
@@ -1150,19 +1150,47 @@ export function MultiTranslationView() {
           {translationList.some(({ translation }) => translation.copyright) && (
             <div className={`grid gap-4 px-4 py-3 border-t border-scripture-muted/20 bg-scripture-surface/50 flex-shrink-0 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
               {translationList.map(({ translation }) => (
-                <div key={`copyright-${translation.id}`} className="flex flex-col">
-                  {translation.copyright && (
-                    <p className="text-[10px] text-scripture-muted leading-tight">
-                      {translation.copyright}
-                    </p>
-                  )}
-                </div>
+                <CopyrightNotice key={`copyright-${translation.id}`} translation={translation} />
               ))}
             </div>
           )}
         </div>
       </div>
 
+    </div>
+  );
+}
+
+/** Copyright notice for a translation, with clickable Lockman link for NASB */
+function CopyrightNotice({ translation }: { translation: ApiTranslation }) {
+  if (!translation.copyright) {
+    return <div className="flex flex-col" />;
+  }
+
+  const isNasb = translation.id === 'sword-NASB' || translation.id === 'sword-NASB95';
+
+  return (
+    <div className="flex flex-col">
+      <p className="text-[10px] text-scripture-muted leading-tight">
+        {translation.copyright}
+        {isNasb && (
+          <>
+            {' '}
+            <a
+              href="https://www.lockman.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-scripture-accent hover:underline"
+              onClick={(e) => {
+                e.preventDefault();
+                import('@/lib/platform').then(({ openUrl }) => openUrl('https://www.lockman.org'));
+              }}
+            >
+              lockman.org
+            </a>
+          </>
+        )}
+      </p>
     </div>
   );
 }

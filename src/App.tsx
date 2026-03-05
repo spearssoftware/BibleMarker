@@ -1,7 +1,7 @@
 /**
  * BibleMarker
- * 
- * Main application component with Bible API support (getBible, Biblia, ESV).
+ *
+ * Main application component with SWORD modules and ESV API support.
  */
 
 import { useEffect, useState } from 'react';
@@ -177,16 +177,20 @@ export default function App() {
             // No translation anywhere — set up a default
             const prefs = await getPreferences();
             const defaultTranslation = prefs.defaultTranslation;
-            
+
             if (defaultTranslation) {
               setCurrentModule(defaultTranslation);
               const { addTranslation } = useMultiTranslationStore.getState();
               await addTranslation(defaultTranslation);
             } else {
-              // Fall back to KJV if no default is set
-              setCurrentModule('kjv');
+              // Use first installed SWORD module, or sword-KJV as fallback
+              const { getAllTranslations: getAll } = await import('@/lib/bible-api');
+              const available = await getAll();
+              const firstSword = available.find(t => t.provider === 'sword');
+              const fallback = firstSword?.id || 'sword-KJV';
+              setCurrentModule(fallback);
               const { addTranslation } = useMultiTranslationStore.getState();
-              await addTranslation('kjv');
+              await addTranslation(fallback);
             }
           }
         }
@@ -266,7 +270,7 @@ export default function App() {
   );
 }
 
-const FALLBACK_TRANSLATION = 'kjv';
+const FALLBACK_TRANSLATION = 'sword-KJV';
 
 // Load chapter from cache or Bible API
 async function loadChapter(moduleId: string, book: string, chapter: number) {
@@ -288,19 +292,22 @@ async function loadChapter(moduleId: string, book: string, chapter: number) {
     };
   }
   
-  // Fetch from Bible API (getBible, Biblia, or ESV)
+  // Fetch from SWORD module or ESV API
   try {
     const chapterData = await fetchChapter(moduleId, book, chapter);
     return chapterData;
   } catch (error) {
     console.error(`Failed to load ${moduleId} ${book} ${chapter}:`, error);
 
-    // Try KJV as fallback (free, no API key required)
-    if (moduleId.toLowerCase() !== FALLBACK_TRANSLATION) {
+    // Try fallback (SWORD KJV if downloaded)
+    if (moduleId !== FALLBACK_TRANSLATION) {
       try {
-        const fallback = await fetchChapter(FALLBACK_TRANSLATION, book, chapter);
-        console.warn(`[App] Using KJV fallback for ${moduleId} ${book} ${chapter}`);
-        return fallback;
+        const { isModuleDownloaded } = await import('@/lib/bible-api/sword');
+        if (await isModuleDownloaded(FALLBACK_TRANSLATION)) {
+          const fallback = await fetchChapter(FALLBACK_TRANSLATION, book, chapter);
+          console.warn(`[App] Using ${FALLBACK_TRANSLATION} fallback for ${moduleId} ${book} ${chapter}`);
+          return fallback;
+        }
       } catch {
         // Fallback also failed
       }

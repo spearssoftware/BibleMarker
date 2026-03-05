@@ -276,7 +276,7 @@ export function TranslationPicker({
             </>
           ) : (
             <div className="text-center py-4 text-scripture-muted text-xs">
-              No translations available. Configure API keys in settings.
+              No translations available. Download a Bible module in Settings.
             </div>
           )}
         </div>
