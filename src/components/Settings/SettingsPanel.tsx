@@ -875,10 +875,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     { code: 'it', label: 'Italian' },
                     { code: 'nl', label: 'Dutch' },
                     { code: 'ru', label: 'Russian' },
-                    { code: 'zh', label: 'Chinese' },
-                    { code: 'ar', label: 'Arabic' },
-                    { code: 'ko', label: 'Korean' },
-                    { code: 'ja', label: 'Japanese' },
+                    { code: 'la', label: 'Latin' },
                   ].map(({ code, label }) => (
                     <Checkbox
                       key={code}
@@ -963,7 +960,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     Licensed (The Lockman Foundation)
                   </h4>
                   <div className="space-y-2">
-                    {getAvailableModules().filter(m => m.category === 'licensed').map(mod => {
+                    {getAvailableModules().filter(m => m.category === 'licensed' && (selectedLanguageCodes.length === 0 || selectedLanguageCodes.includes(m.language))).map(mod => {
                       const status = moduleStatuses[mod.id] || 'not-installed';
                       const progress = downloadProgress[mod.id];
                       const copyright = getModuleCopyright(mod.id);
@@ -1030,7 +1027,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     Public Domain
                   </h4>
                   <div className="space-y-2">
-                    {getAvailableModules().filter(m => m.category === 'public-domain').map(mod => {
+                    {getAvailableModules().filter(m => m.category === 'public-domain' && (selectedLanguageCodes.length === 0 || selectedLanguageCodes.includes(m.language))).map(mod => {
                       const status = moduleStatuses[mod.id] || 'not-installed';
                       const progress = downloadProgress[mod.id];
                       return (
