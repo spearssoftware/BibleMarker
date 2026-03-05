@@ -45,7 +45,7 @@ const CROSSWIRE_BASE = 'https://crosswire.org/ftpmirror/pub/sword/packages/rawzi
 
 
 /** Helper to create a public domain module entry */
-function pdModule(abbreviation: string, name: string): SwordModuleInfo {
+function pdModule(abbreviation: string, name: string, language = 'en'): SwordModuleInfo {
   return {
     id: `sword-${abbreviation}`,
     name,
@@ -53,7 +53,7 @@ function pdModule(abbreviation: string, name: string): SwordModuleInfo {
     downloadUrl: `${CROSSWIRE_BASE}/${abbreviation}.zip`,
     copyright: null,
     copyrightUrl: null,
-    language: 'en',
+    language,
     category: 'public-domain',
   };
 }
@@ -112,6 +112,16 @@ const MODULE_REGISTRY: SwordModuleInfo[] = [
   pdModule('WLC', 'Westminster Leningrad Codex (Hebrew OT)'),
   pdModule('Worsley', 'Worsley New Testament'),
   pdModule('YLT', 'Young\'s Literal Translation'),
+
+  // Non-English literal/formal equivalence translations (for precept study)
+  pdModule('SpaRV1909', 'Reina-Valera 1909', 'es'),
+  pdModule('FreSegond1910', 'Louis Segond 1910', 'fr'),
+  pdModule('GerElb1905', 'Elberfelder 1905', 'de'),
+  pdModule('PorAlmeida1911', 'Almeida 1911', 'pt'),
+  pdModule('ItaRive', 'Riveduta Bibbia', 'it'),
+  pdModule('RusSynodal', 'Synodal Translation', 'ru'),
+  pdModule('DutSVV', 'Statenvertaling', 'nl'),
+  pdModule('Vulgate', 'Latin Vulgate', 'la'),
 ];
 
 /** In-memory loaded module files, keyed by module ID */
