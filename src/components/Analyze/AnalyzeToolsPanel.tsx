@@ -35,13 +35,22 @@ export function AnalyzeToolsPanel({
 }: AnalyzeToolsPanelProps) {
   const [activeTab, setActiveTabRaw] = useState<AnalyzeTab>(initialTab);
   const [disabledTools, setDisabledTools] = useState<string[]>([]);
+  const [filterByChapter, setFilterByChapter] = useState(true);
+  const [filterByBook, setFilterByBook] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const { currentBook, currentChapter, setLocation, setNavSelectedVerse, currentModuleId } = useBibleStore();
+  const primaryModuleId = currentModuleId || '';
+  const { places, loadPlaces, autoPopulateFromChapter } = usePlaceStore();
+  const { activeStudyId } = useStudyStore();
+
   const setActiveTab = (tab: AnalyzeTab) => {
     setIsCreating(false);
     setActiveTabRaw(tab);
   };
 
   useEffect(() => {
-    setActiveTab(initialTab);
+    setActiveTabRaw(initialTab);
   }, [initialTab]);
 
   useEffect(() => {
@@ -67,14 +76,6 @@ export function AnalyzeToolsPanel({
       setActiveTab(tabs[0].id);
     }
   }, [tabs, activeTab]);
-
-  const { currentBook, currentChapter, setLocation, setNavSelectedVerse, currentModuleId } = useBibleStore();
-  const primaryModuleId = currentModuleId || '';
-  const { places, loadPlaces, autoPopulateFromChapter } = usePlaceStore();
-  const { activeStudyId } = useStudyStore();
-  const [filterByChapter, setFilterByChapter] = useState(true);
-  const [filterByBook, setFilterByBook] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
 
   const handleNavigateToVerse = (ref: VerseRef) => {
     if (ref.book !== currentBook || ref.chapter !== currentChapter) {

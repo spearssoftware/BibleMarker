@@ -166,9 +166,11 @@ export function ObservationToolsPanel({
 
   // Update activeTab when initialTab changes (e.g., when opened from quick action)
   useEffect(() => {
-    setActiveTab(initialTab);
-    setTrackerIsCreating(false);
-    setTrackerIsEditing(false);
+    queueMicrotask(() => {
+      setActiveTab(initialTab);
+      setTrackerIsCreating(false);
+      setTrackerIsEditing(false);
+    });
   }, [initialTab]);
 
   // Load lists on mount
@@ -179,8 +181,10 @@ export function ObservationToolsPanel({
   // If initialListId is provided, expand that list and scroll to it
   useEffect(() => {
     if (initialListId && lists.length > 0) {
-      setExpandedLists(new Set([initialListId]));
-      setActiveTab('lists');
+      queueMicrotask(() => {
+        setExpandedLists(new Set([initialListId]));
+        setActiveTab('lists');
+      });
       // Small delay to ensure the tab switch completes before scrolling
       setTimeout(() => {
         const listElement = document.querySelector(`[data-list-id="${initialListId}"]`);
