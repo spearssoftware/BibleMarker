@@ -13,12 +13,14 @@ import { ChapterAtAGlance } from '@/components/Summary/ChapterAtAGlance';
 import { ThemeTracker } from '@/components/Summary/ThemeTracker';
 import { Timeline } from '@/components/Summary/Timeline';
 import { PlaceMap } from '@/components/Observation/PlaceMap';
+import { InterpretationWorksheet } from '@/components/Interpretation';
+import { ApplicationWorksheet } from '@/components/Application';
 import { usePlaceStore } from '@/stores/placeStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { Checkbox } from '@/components/shared';
 import type { Place, VerseRef } from '@/types';
 
-export type AnalyzeTab = 'conclusions' | 'overview' | 'chapter' | 'themes' | 'timeline' | 'places-map';
+export type AnalyzeTab = 'conclusions' | 'overview' | 'chapter' | 'themes' | 'timeline' | 'places-map' | 'interpretation' | 'application';
 
 interface AnalyzeToolsPanelProps {
   onClose: () => void;
@@ -38,6 +40,7 @@ export function AnalyzeToolsPanel({
   const [filterByChapter, setFilterByChapter] = useState(true);
   const [filterByBook, setFilterByBook] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const { currentBook, currentChapter, setLocation, setNavSelectedVerse, currentModuleId } = useBibleStore();
   const primaryModuleId = currentModuleId || '';
@@ -65,6 +68,8 @@ export function AnalyzeToolsPanel({
     { id: 'timeline', label: 'Timeline', icon: '📅' },
     { id: 'places-map', label: 'Places', icon: '🗺️' },
     { id: 'themes', label: 'Themes', icon: '🔍' },
+    { id: 'interpretation', label: 'Interpret', icon: '💭' },
+    { id: 'application', label: 'Apply', icon: '✍️' },
     { id: 'conclusions', label: 'Conclusions', icon: '→' },
   ];
 
@@ -127,7 +132,7 @@ export function AnalyzeToolsPanel({
       </div>
 
       {/* Action bar */}
-      {(activeTab === 'conclusions' || activeTab === 'places-map' || activeTab === 'timeline') && (
+      {(activeTab === 'conclusions' || activeTab === 'places-map' || activeTab === 'timeline' || activeTab === 'interpretation' || activeTab === 'application') && (
         <div className="flex items-center gap-3 px-4 py-2 flex-shrink-0 border-b border-scripture-border/30">
           {activeTab === 'conclusions' && (
             <button
@@ -138,19 +143,28 @@ export function AnalyzeToolsPanel({
               + New Conclusion
             </button>
           )}
+          {(activeTab === 'interpretation' || activeTab === 'application') && (
+            <button
+              onClick={() => setIsCreating(true)}
+              disabled={isCreating || isEditing}
+              className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {activeTab === 'interpretation' ? '+ New Interpretation' : '+ New Entry'}
+            </button>
+          )}
           {activeTab === 'timeline' ? (
             <Checkbox
               label="Current Book Only"
               checked={filterByBook}
               onChange={(e) => setFilterByBook(e.target.checked)}
             />
-          ) : (
+          ) : (activeTab !== 'interpretation' && activeTab !== 'application') ? (
             <Checkbox
               label="Current Chapter Only"
               checked={filterByChapter}
               onChange={(e) => setFilterByChapter(e.target.checked)}
             />
-          )}
+          ) : null}
         </div>
       )}
 
@@ -186,6 +200,24 @@ export function AnalyzeToolsPanel({
         {activeTab === 'timeline' && (
           <div role="tabpanel" id="analyze-tabpanel-timeline" aria-labelledby="analyze-tab-timeline">
             <Timeline filterByBook={filterByBook} />
+          </div>
+        )}
+        {activeTab === 'interpretation' && (
+          <div role="tabpanel" id="analyze-tabpanel-interpretation" aria-labelledby="analyze-tab-interpretation">
+            <InterpretationWorksheet
+              isCreating={isCreating}
+              setIsCreating={setIsCreating}
+              onEditingChange={setIsEditing}
+            />
+          </div>
+        )}
+        {activeTab === 'application' && (
+          <div role="tabpanel" id="analyze-tabpanel-application" aria-labelledby="analyze-tab-application">
+            <ApplicationWorksheet
+              isCreating={isCreating}
+              setIsCreating={setIsCreating}
+              onEditingChange={setIsEditing}
+            />
           </div>
         )}
         {activeTab === 'places-map' && (
