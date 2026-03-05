@@ -8,6 +8,9 @@ pub use mobile::*;
 // iCloud integration for macOS/iOS
 mod icloud;
 
+// File download (bypasses webview CORS)
+mod download;
+
 pub type SetupHook = Box<dyn FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send>;
 
 #[derive(Default)]
@@ -52,6 +55,7 @@ impl AppBuilder {
                 icloud::list_sync_dir,
                 icloud::test_icloud_write,
                 icloud::delete_local_database,
+                download::download_file,
             ])
             .setup(move |app| {
                 if let Some(setup) = setup {

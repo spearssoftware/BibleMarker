@@ -120,7 +120,7 @@ export async function isModuleDownloaded(moduleId: string): Promise<boolean> {
   }
 }
 
-/** Download a module zip to disk */
+/** Download a module zip to disk via Tauri backend (bypasses CORS) */
 export async function downloadModule(
   moduleId: string,
   onProgress?: (percent: number) => void
@@ -128,46 +128,19 @@ export async function downloadModule(
   const info = MODULE_REGISTRY.find((m) => m.id === moduleId);
   if (!info) throw new Error(`Unknown SWORD module: ${moduleId}`);
 
-  const { mkdir, writeFile, exists } = await import('@tauri-apps/plugin-fs');
-  const dir = await getSwordDir();
-  if (!(await exists(dir))) {
-    await mkdir(dir, { recursive: true });
-  }
-
   onProgress?.(0);
-  const response = await fetch(info.downloadUrl);
-  if (!response.ok) {
+  const destPath = await getModulePath(moduleId);
+
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('download_file', { url: info.downloadUrl, destPath });
+  } catch (e) {
     throw new BibleApiError(
-      `Failed to download ${info.name}: ${response.statusText}`,
-      'sword',
-      response.status
+      `Failed to download ${info.name}: ${e instanceof Error ? e.message : String(e)}`,
+      'sword'
     );
   }
 
-  const contentLength = response.headers.get('content-length');
-  const total = contentLength ? parseInt(contentLength, 10) : 0;
-  const reader = response.body?.getReader();
-  if (!reader) throw new Error('No response body');
-
-  const chunks: Uint8Array[] = [];
-  let received = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    received += value.length;
-    if (total > 0) onProgress?.(Math.round((received / total) * 100));
-  }
-
-  const blob = new Uint8Array(received);
-  let offset = 0;
-  for (const chunk of chunks) {
-    blob.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  const path = await getModulePath(moduleId);
-  await writeFile(path, blob);
   onProgress?.(100);
 
   // Clear in-memory cache so next read loads fresh
