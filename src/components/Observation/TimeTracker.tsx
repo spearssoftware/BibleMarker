@@ -386,17 +386,22 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
     loadTimeExpressions();
   };
 
-  const handleStartEditGroupYear = (groupKey: string) => {
-    const allMatching = timeExpressions.filter(t => getTimeGroupKey(t) === groupKey);
+  const handleStartEditGroupYear = (keywordKey: string, chapterKey: string) => {
+    const compositeKey = `${keywordKey}::${chapterKey}`;
+    const allMatching = timeExpressions.filter(
+      t => getTimeGroupKey(t) === keywordKey && getChapterKey(t.verseRef) === chapterKey
+    );
     const withYear = allMatching.find(t => t.year != null);
-    setEditingGroupYear(groupKey);
+    setEditingGroupYear(compositeKey);
     setGroupYear(withYear?.year?.toString() || '');
     setGroupYearEra(withYear?.yearEra || defaultYearEra);
   };
 
-  const handleSaveGroupYear = async (groupKey: string) => {
+  const handleSaveGroupYear = async (keywordKey: string, chapterKey: string) => {
     const yearVal = groupYear ? parseInt(groupYear, 10) : undefined;
-    const allMatching = timeExpressions.filter(t => getTimeGroupKey(t) === groupKey);
+    const allMatching = timeExpressions.filter(
+      t => getTimeGroupKey(t) === keywordKey && getChapterKey(t.verseRef) === chapterKey
+    );
     for (const te of allMatching) {
       await updateTimeExpression({
         ...te,
@@ -605,9 +610,6 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
           {keywordGroups.map(({ key, label, items: keywordItems }) => {
             const isExpanded = expandedKeywords.has(key);
             const chapterGroups = groupByChapter(keywordItems);
-            const withYear = timeExpressions.find(t => getTimeGroupKey(t) === key && t.year != null);
-            const isEditingYear = editingGroupYear === key;
-
             return (
               <div key={key} className="bg-scripture-surface rounded-xl border border-scripture-border/50 overflow-hidden">
                 <div className="flex items-center gap-2 p-4 hover:bg-scripture-elevated/50 transition-colors">
@@ -619,62 +621,11 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
                       {isExpanded ? '▼' : '▶'}
                     </span>
                     <h3 className="font-medium text-scripture-text">{label}</h3>
-                    {withYear && !isEditingYear && (
-                      <span className="text-xs text-scripture-muted">
-                        {withYear.year} {withYear.yearEra ?? 'AD'}
-                      </span>
-                    )}
                     <span className="text-xs text-scripture-muted bg-scripture-elevated px-2 py-0.5 rounded">
                       {keywordItems.length} {keywordItems.length === 1 ? 'entry' : 'entries'}
                     </span>
                   </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleStartEditGroupYear(key); }}
-                    className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated shrink-0"
-                    title="Edit year"
-                  >
-                    📅
-                  </button>
                 </div>
-                {isEditingYear && (
-                  <div className="border-t border-scripture-border/30 px-4 py-3">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex items-center gap-1.5">
-                        <label className="text-xs text-scripture-muted whitespace-nowrap">Year</label>
-                        <input
-                          type="number"
-                          value={groupYear}
-                          onChange={(e) => setGroupYear(e.target.value)}
-                          placeholder="e.g. 586"
-                          className="w-20 px-2 py-1 text-xs bg-scripture-bg border border-scripture-border rounded text-scripture-text"
-                          autoFocus
-                        />
-                        <select
-                          value={groupYearEra}
-                          onChange={(e) => setGroupYearEra(e.target.value as 'BC' | 'AD')}
-                          className="px-1.5 py-1 text-xs bg-scripture-bg border border-scripture-border rounded text-scripture-text"
-                        >
-                          <option value="BC">BC</option>
-                          <option value="AD">AD</option>
-                        </select>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleSaveGroupYear(key)}
-                          className="px-3 py-1 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => setEditingGroupYear(null)}
-                          className="px-3 py-1 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
                 {isExpanded && (
                   <div className="border-t border-scripture-border/30 p-3 space-y-2">
                     {chapterGroups.map((chGroup) => {
@@ -684,26 +635,76 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
                       const yearLabel = formatChapterYears(chGroup.years);
                       const verseGroups = groupByVerse(chGroup.items);
                       const sortedVerseGroups = sortVerseGroups(verseGroups);
+                      const chapterCompositeKey = `${key}::${chGroup.key}`;
+                      const isEditingChapterYear = editingGroupYear === chapterCompositeKey;
 
                       return (
                         <div key={chGroup.key} className="bg-scripture-bg/30 rounded-lg border border-scripture-border/20 overflow-hidden">
-                          <button
-                            onClick={() => toggleChapter(key, chGroup.key)}
-                            className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-scripture-elevated/30 transition-colors"
-                          >
-                            <span className="text-xs text-scripture-muted shrink-0" aria-hidden="true">
-                              {chapterExpanded ? '▼' : '▶'}
-                            </span>
-                            <span className="text-sm font-medium text-scripture-text">{chapterLabel}</span>
-                            {yearLabel && (
-                              <span className="text-xs text-scripture-accent bg-scripture-accent/10 px-1.5 py-0.5 rounded">
-                                {yearLabel}
+                          <div className="flex items-center">
+                            <button
+                              onClick={() => toggleChapter(key, chGroup.key)}
+                              className="flex-1 px-3 py-2 text-left flex items-center gap-2 hover:bg-scripture-elevated/30 transition-colors"
+                            >
+                              <span className="text-xs text-scripture-muted shrink-0" aria-hidden="true">
+                                {chapterExpanded ? '▼' : '▶'}
                               </span>
-                            )}
-                            <span className="text-xs text-scripture-muted">
-                              {chGroup.items.length} {chGroup.items.length === 1 ? 'expression' : 'expressions'}
-                            </span>
-                          </button>
+                              <span className="text-sm font-medium text-scripture-text">{chapterLabel}</span>
+                              {yearLabel && (
+                                <span className="text-xs text-scripture-accent bg-scripture-accent/10 px-1.5 py-0.5 rounded">
+                                  {yearLabel}
+                                </span>
+                              )}
+                              <span className="text-xs text-scripture-muted">
+                                {chGroup.items.length} {chGroup.items.length === 1 ? 'expression' : 'expressions'}
+                              </span>
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleStartEditGroupYear(key, chGroup.key); }}
+                              className="px-2 py-2 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated shrink-0"
+                              title="Edit year for this chapter"
+                            >
+                              📅
+                            </button>
+                          </div>
+                          {isEditingChapterYear && (
+                            <div className="border-t border-scripture-border/20 px-3 py-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex items-center gap-1.5">
+                                  <label className="text-xs text-scripture-muted whitespace-nowrap">Year</label>
+                                  <input
+                                    type="number"
+                                    value={groupYear}
+                                    onChange={(e) => setGroupYear(e.target.value)}
+                                    placeholder="e.g. 586"
+                                    className="w-20 px-2 py-1 text-xs bg-scripture-bg border border-scripture-border rounded text-scripture-text"
+                                    autoFocus
+                                  />
+                                  <select
+                                    value={groupYearEra}
+                                    onChange={(e) => setGroupYearEra(e.target.value as 'BC' | 'AD')}
+                                    className="px-1.5 py-1 text-xs bg-scripture-bg border border-scripture-border rounded text-scripture-text"
+                                  >
+                                    <option value="BC">BC</option>
+                                    <option value="AD">AD</option>
+                                  </select>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={() => handleSaveGroupYear(key, chGroup.key)}
+                                    className="px-3 py-1 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingGroupYear(null)}
+                                    className="px-3 py-1 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                           {chapterExpanded && (
                             <div className="border-t border-scripture-border/20 p-2 space-y-2">
                               {sortedVerseGroups.map(([verseKey, verseTimeExpressions]) => {
