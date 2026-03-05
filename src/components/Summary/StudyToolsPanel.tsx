@@ -23,9 +23,16 @@ const VALID_TABS: StudyToolTab[] = ['interpretation', 'application', 'studies'];
 
 export function StudyToolsPanel({ onClose: _onClose, initialTab = 'interpretation' }: StudyToolsPanelProps) {
   const resolvedInitial = VALID_TABS.includes(initialTab) ? initialTab : 'interpretation';
-  const [activeTab, setActiveTab] = useState<StudyToolTab>(resolvedInitial);
+  const [activeTab, setActiveTabRaw] = useState<StudyToolTab>(resolvedInitial);
   const { studies, activeStudyId, loadStudies, createStudy, updateStudy, deleteStudy, setActiveStudy } = useStudyStore();
   const [disabledTools, setDisabledTools] = useState<string[]>([]);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const setActiveTab = (tab: StudyToolTab) => {
+    setIsCreating(false);
+    setIsEditing(false);
+    setActiveTabRaw(tab);
+  };
 
   // Study management state
   const [editingStudy, setEditingStudy] = useState<{ id: string; name: string; book?: string } | null>(null);
@@ -139,16 +146,37 @@ export function StudyToolsPanel({ onClose: _onClose, initialTab = 'interpretatio
 
       </div>
 
+      {/* Action bar */}
+      {(activeTab === 'interpretation' || activeTab === 'application') && (
+        <div className="flex items-center gap-3 px-4 py-2 flex-shrink-0 border-b border-scripture-border/30">
+          <button
+            onClick={() => setIsCreating(true)}
+            disabled={isCreating || isEditing}
+            className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {activeTab === 'interpretation' ? '+ New Interpretation' : '+ New Entry'}
+          </button>
+        </div>
+      )}
+
       {/* Content */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
             {activeTab === 'interpretation' && (
               <div role="tabpanel" id="study-tabpanel-interpretation" aria-labelledby="study-tab-interpretation">
-                <InterpretationWorksheet />
+                <InterpretationWorksheet
+                  isCreating={isCreating}
+                  setIsCreating={setIsCreating}
+                  onEditingChange={setIsEditing}
+                />
               </div>
             )}
             {activeTab === 'application' && (
               <div role="tabpanel" id="study-tabpanel-application" aria-labelledby="study-tab-application">
-                <ApplicationWorksheet />
+                <ApplicationWorksheet
+                  isCreating={isCreating}
+                  setIsCreating={setIsCreating}
+                  onEditingChange={setIsEditing}
+                />
               </div>
             )}
             {activeTab === 'studies' && (

@@ -11,14 +11,15 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import type { Contrast } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
-import { ConfirmationDialog, Input, Textarea, Checkbox } from '@/components/shared';
+import { ConfirmationDialog, Input, Textarea } from '@/components/shared';
 import { getAnnotationsBySymbol, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 
 interface ContrastTrackerProps {
   selectedText?: string;
   verseRef?: VerseRef;
   filterByChapter?: boolean;
-  onFilterByChapterChange?: (value: boolean) => void;
+  isCreating: boolean;
+  setIsCreating: (value: boolean) => void;
   onNavigate?: (verseRef: VerseRef) => void;
 }
 
@@ -73,11 +74,10 @@ const sortVerseGroups = (groups: Map<string, Contrast[]>): Array<[string, Contra
   });
 };
 
-export function ContrastTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = false, onFilterByChapterChange, onNavigate }: ContrastTrackerProps) {
+export function ContrastTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = true, isCreating, setIsCreating, onNavigate }: ContrastTrackerProps) {
   const { contrasts, loadContrasts, createContrast, updateContrast, deleteContrast } = useContrastStore();
   const { currentBook, currentChapter } = useBibleStore();
   const { presets } = useMarkingPresetStore();
-  const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newItemA, setNewItemA] = useState('');
   const [newItemB, setNewItemB] = useState('');
@@ -363,26 +363,7 @@ export function ContrastTracker({ selectedText, verseRef: initialVerseRef, filte
         onCancel={handleCancelDelete}
         destructive={true}
       />
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-      {/* Create new contrast button and Current Chapter Only */}
-      {!isCreating && (
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setIsCreating(true)}
-            className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-          >
-            + New Contrast
-          </button>
-          {onFilterByChapterChange && (
-            <Checkbox
-              label="Current Chapter Only"
-              checked={filterByChapter}
-              onChange={(e) => onFilterByChapterChange(e.target.checked)}
-            />
-          )}
-        </div>
-      )}
-
+      <div>
       {/* Create form */}
       {isCreating && (
         <div className="mb-4 p-4 bg-scripture-surface rounded-xl border border-scripture-border/50">
