@@ -4,11 +4,20 @@ import {
   validateAnnotation,
   validateStudy,
   validateMarkingPreset,
+  validateSectionHeading,
+  validateChapterTitle,
+  validateNote,
+  validateMultiTranslationView,
+  validateObservationList,
+  validateFiveWAndH,
+  validateInterpretation,
+  validateApplication,
+  validatePlace,
+  validatePerson,
   sanitizeData,
   validateArray,
 } from './validation'
-
-const iso = '2025-01-01T00:00:00.000Z'
+import { ISO as iso } from './__test__/factories'
 
 describe('ValidationError', () => {
   it('sets name, message, field, and value', () => {
@@ -141,5 +150,309 @@ describe('validateArray', () => {
     expect(valid).toHaveLength(2)
     expect(errors).toHaveLength(1)
     expect(errors[0].message).toContain('index 1')
+  })
+})
+
+// --- New validator tests ---
+
+const ref = { book: 'Gen', chapter: 1, verse: 1 }
+
+describe('validateSectionHeading', () => {
+  const valid = {
+    id: 'h1',
+    title: 'Creation',
+    beforeRef: ref,
+    createdAt: iso,
+    updatedAt: iso,
+  }
+
+  it('accepts valid heading', () => {
+    expect(validateSectionHeading(valid).id).toBe('h1')
+  })
+
+  it('throws on non-object', () => {
+    expect(() => validateSectionHeading(null)).toThrow(ValidationError)
+  })
+
+  it('throws on missing title', () => {
+    expect(() => validateSectionHeading({ ...valid, title: '' })).toThrow(ValidationError)
+  })
+
+  it('throws on invalid beforeRef', () => {
+    expect(() =>
+      validateSectionHeading({ ...valid, beforeRef: { book: '', chapter: 1, verse: 1 } })
+    ).toThrow(ValidationError)
+  })
+})
+
+describe('validateChapterTitle', () => {
+  const valid = {
+    id: 'ct1',
+    book: 'Gen',
+    chapter: 1,
+    title: 'The Beginning',
+    createdAt: iso,
+    updatedAt: iso,
+  }
+
+  it('accepts valid chapter title', () => {
+    expect(validateChapterTitle(valid).id).toBe('ct1')
+  })
+
+  it('throws on non-object', () => {
+    expect(() => validateChapterTitle(null)).toThrow(ValidationError)
+  })
+
+  it('throws on missing book', () => {
+    expect(() => validateChapterTitle({ ...valid, book: '' })).toThrow(ValidationError)
+  })
+
+  it('throws on chapter < 1', () => {
+    expect(() => validateChapterTitle({ ...valid, chapter: 0 })).toThrow(ValidationError)
+  })
+})
+
+describe('validateNote', () => {
+  const valid = {
+    id: 'n1',
+    moduleId: 'eng-ESV',
+    content: 'A note',
+    ref,
+    createdAt: iso,
+    updatedAt: iso,
+  }
+
+  it('accepts valid note', () => {
+    expect(validateNote(valid).id).toBe('n1')
+  })
+
+  it('throws on non-object', () => {
+    expect(() => validateNote(null)).toThrow(ValidationError)
+  })
+
+  it('throws on missing content (non-string)', () => {
+    expect(() => validateNote({ ...valid, content: 123 })).toThrow(ValidationError)
+  })
+
+  it('throws on invalid ref', () => {
+    expect(() =>
+      validateNote({ ...valid, ref: { book: 'Gen', chapter: -1, verse: 1 } })
+    ).toThrow(ValidationError)
+  })
+})
+
+describe('validateMultiTranslationView', () => {
+  const valid = {
+    id: 'mtv1',
+    translationIds: ['ESV', 'NIV'],
+    syncScrolling: true,
+    createdAt: iso,
+    updatedAt: iso,
+  }
+
+  it('accepts valid view', () => {
+    expect(validateMultiTranslationView(valid).id).toBe('mtv1')
+  })
+
+  it('throws on non-object', () => {
+    expect(() => validateMultiTranslationView(null)).toThrow(ValidationError)
+  })
+
+  it('throws when > 3 translation IDs', () => {
+    expect(() =>
+      validateMultiTranslationView({ ...valid, translationIds: ['a', 'b', 'c', 'd'] })
+    ).toThrow(ValidationError)
+  })
+
+  it('throws on missing syncScrolling', () => {
+    expect(() =>
+      validateMultiTranslationView({ ...valid, syncScrolling: undefined })
+    ).toThrow(ValidationError)
+  })
+})
+
+describe('validateObservationList', () => {
+  const validItem = {
+    id: 'oi1',
+    content: 'An observation',
+    verseRef: ref,
+    createdAt: iso,
+    updatedAt: iso,
+  }
+  const valid = {
+    id: 'ol1',
+    title: 'Observations',
+    keyWordId: 'kw1',
+    items: [validItem],
+    createdAt: iso,
+    updatedAt: iso,
+  }
+
+  it('accepts valid list', () => {
+    expect(validateObservationList(valid).id).toBe('ol1')
+  })
+
+  it('throws on non-object', () => {
+    expect(() => validateObservationList(null)).toThrow(ValidationError)
+  })
+
+  it('throws on invalid item in items array', () => {
+    expect(() =>
+      validateObservationList({ ...valid, items: [{ id: '', content: '', verseRef: ref }] })
+    ).toThrow(ValidationError)
+  })
+
+  it('throws on missing keyWordId', () => {
+    expect(() =>
+      validateObservationList({ ...valid, keyWordId: '' })
+    ).toThrow(ValidationError)
+  })
+})
+
+describe('validateFiveWAndH', () => {
+  const valid = {
+    id: 'fwh1',
+    verseRef: ref,
+    who: 'God',
+    createdAt: iso,
+    updatedAt: iso,
+  }
+
+  it('accepts valid entry', () => {
+    expect(validateFiveWAndH(valid).id).toBe('fwh1')
+  })
+
+  it('throws on non-object', () => {
+    expect(() => validateFiveWAndH(null)).toThrow(ValidationError)
+  })
+
+  it('throws when all fields empty (no content)', () => {
+    expect(() =>
+      validateFiveWAndH({ ...valid, who: undefined })
+    ).toThrow(ValidationError)
+  })
+
+  it('throws on invalid linkedPresetIds', () => {
+    expect(() =>
+      validateFiveWAndH({ ...valid, linkedPresetIds: ['valid', ''] })
+    ).toThrow(ValidationError)
+  })
+})
+
+describe('validateInterpretation', () => {
+  const valid = {
+    id: 'int1',
+    verseRef: ref,
+    meaning: 'God created everything',
+    createdAt: iso,
+    updatedAt: iso,
+  }
+
+  it('accepts valid entry', () => {
+    expect(validateInterpretation(valid).id).toBe('int1')
+  })
+
+  it('throws on non-object', () => {
+    expect(() => validateInterpretation(null)).toThrow(ValidationError)
+  })
+
+  it('throws when endVerseRef is before verseRef', () => {
+    expect(() =>
+      validateInterpretation({
+        ...valid,
+        verseRef: { book: 'Gen', chapter: 1, verse: 5 },
+        endVerseRef: { book: 'Gen', chapter: 1, verse: 3 },
+      })
+    ).toThrow(ValidationError)
+  })
+
+  it('throws when all fields empty', () => {
+    expect(() =>
+      validateInterpretation({ ...valid, meaning: undefined })
+    ).toThrow(ValidationError)
+  })
+})
+
+describe('validateApplication', () => {
+  const valid = {
+    id: 'app1',
+    verseRef: ref,
+    teaching: 'God is sovereign',
+    createdAt: iso,
+    updatedAt: iso,
+  }
+
+  it('accepts valid entry', () => {
+    expect(validateApplication(valid).id).toBe('app1')
+  })
+
+  it('throws on non-object', () => {
+    expect(() => validateApplication(null)).toThrow(ValidationError)
+  })
+
+  it('throws when all fields empty', () => {
+    expect(() =>
+      validateApplication({ ...valid, teaching: undefined })
+    ).toThrow(ValidationError)
+  })
+
+  it('throws on invalid linkedPresetIds', () => {
+    expect(() =>
+      validateApplication({ ...valid, linkedPresetIds: [123] })
+    ).toThrow(ValidationError)
+  })
+})
+
+describe('validatePlace', () => {
+  const valid = {
+    id: 'pl1',
+    name: 'Eden',
+    verseRef: ref,
+    createdAt: iso,
+    updatedAt: iso,
+  }
+
+  it('accepts valid place', () => {
+    expect(validatePlace(valid).id).toBe('pl1')
+  })
+
+  it('throws on non-object', () => {
+    expect(() => validatePlace(null)).toThrow(ValidationError)
+  })
+
+  it('throws on missing name', () => {
+    expect(() => validatePlace({ ...valid, name: '' })).toThrow(ValidationError)
+  })
+
+  it('throws on invalid latitude type', () => {
+    expect(() => validatePlace({ ...valid, latitude: 'bad' })).toThrow(ValidationError)
+  })
+})
+
+describe('validatePerson', () => {
+  const valid = {
+    id: 'pe1',
+    name: 'Adam',
+    verseRef: ref,
+    createdAt: iso,
+    updatedAt: iso,
+  }
+
+  it('accepts valid person', () => {
+    expect(validatePerson(valid).id).toBe('pe1')
+  })
+
+  it('throws on non-object', () => {
+    expect(() => validatePerson(null)).toThrow(ValidationError)
+  })
+
+  it('throws on missing name', () => {
+    expect(() => validatePerson({ ...valid, name: '' })).toThrow(ValidationError)
+  })
+
+  it('throws on invalid yearStartEra', () => {
+    expect(() =>
+      validatePerson({ ...valid, yearStartEra: 'BCE' })
+    ).toThrow(ValidationError)
   })
 })
