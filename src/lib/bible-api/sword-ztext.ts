@@ -92,34 +92,34 @@ export function getTestamentIndex(
 }
 
 /**
- * 1-based chapter index within testament (Gen 1 = 1, Gen 2 = 2, ..., Exod 1 = 51, ..., Matt 1 = 1, ...).
- * Used to compute preamble offset for .bzv modules (chapter title/number entries).
- */
-function getChapterIndexInTestament(book: string, chapter: number): number {
-  const bookInfo = BIBLE_BOOKS.find((b) => b.id === book);
-  if (!bookInfo) return 1;
-  const testament = bookInfo.order <= 39 ? 'OT' : 'NT';
-  let n = 0;
-  for (const b of BIBLE_BOOKS) {
-    if (b.testament !== testament) continue;
-    if (b.order < bookInfo.order) {
-      n += b.chapters;
-    } else if (b.id === book) {
-      n += chapter;
-      break;
-    }
-  }
-  return n;
-}
-
-/**
- * Preamble offset for .bzv/.bzs/.bzz (CrossWire KJV): first chapter of testament has 4
- * extra entries (blank, blank, title, number); each other chapter has 2 (title, number).
+ * Preamble offset for .bzv/.bzs/.bzz modules (BlockType=BOOK).
+ *
+ * The bzv index has non-verse entries before each verse:
+ *   2 testament header entries (at the start)
+ *   1 book header entry per book
+ *   1 chapter header entry per chapter
+ *
+ * So preamble = 2 + numBooksUpToAndIncluding + numChaptersUpToAndIncluding.
  */
 function bzvPreambleOffset(verseIndexKey: string, book: string, chapter: number): number {
   if (!verseIndexKey.toLowerCase().endsWith('.bzv')) return 0;
-  const chapterIndex = getChapterIndexInTestament(book, chapter);
-  return 4 + 2 * (chapterIndex - 1);
+  const bookInfo = BIBLE_BOOKS.find((b) => b.id === book);
+  if (!bookInfo) return 2;
+  const testament = bookInfo.order <= 39 ? 'OT' : 'NT';
+  let numBooks = 0;
+  let numChapters = 0;
+  for (const b of BIBLE_BOOKS) {
+    if (b.testament !== testament) continue;
+    if (b.order < bookInfo.order) {
+      numBooks++;
+      numChapters += b.chapters;
+    } else if (b.id === book) {
+      numBooks++;
+      numChapters += chapter;
+      break;
+    }
+  }
+  return 2 + numBooks + numChapters;
 }
 
 /**
@@ -207,7 +207,11 @@ function isLittleEndian(testamentFiles: TestamentFiles): boolean {
 
 /**
  * Read 10-byte verse index record at index.
- * CrossWire .bzv uses little-endian; .vzv/.idx use big-endian.
+ *
+ * Layout (little-endian for .bzv/.vzv):
+ *   bufferNum  (u32) — which compressed buffer this verse is in
+ *   verseStart (u32) — byte offset within the decompressed buffer
+ *   verseLen   (u16) — byte length of this verse's text
  */
 export function readVerseIndex(
   files: SwordModuleFiles,
@@ -219,36 +223,11 @@ export function readVerseIndex(
     return { bufferNum: 0, verseStart: 0, verseLen: 0 };
   }
   const le = isLittleEndian(testamentFiles);
-
-  // 10-byte bzv entry layout:
-  //   bookOffset (u32) — fixed offset within decompressed buffer
-  //   cumSize    (u16) — cumulative size of verse data (relative to bookOffset)
-  //   bufferNum  (u16) — which compressed buffer this verse is in
-  //   (unused)   (u16)
   const base = index * 10;
-  const bookOffset = le ? readU32LE(buf, base) : readU32BE(buf, base);
-  const cumSize = le ? readU16LE(buf, base + 4) : readU16BE(buf, base + 4);
-  const bufferNum = le ? readU16LE(buf, base + 6) : readU16BE(buf, base + 6);
-
-  if (cumSize === 0 && bookOffset === 0) {
-    return { bufferNum, verseStart: 0, verseLen: 0 };
-  }
-
-  // Read previous entry's cumSize to compute this verse's start and length.
-  // If previous entry has a different bufferNum, this is the first verse in
-  // the buffer so prevCum resets to 0.
-  let prevCum = 0;
-  if (index > 0) {
-    const prevBase = (index - 1) * 10;
-    const prevBuf = le ? readU16LE(buf, prevBase + 6) : readU16BE(buf, prevBase + 6);
-    if (prevBuf === bufferNum) {
-      prevCum = le ? readU16LE(buf, prevBase + 4) : readU16BE(buf, prevBase + 4);
-    }
-  }
-
-  const verseStart = bookOffset + prevCum;
-  const verseLen = cumSize - prevCum;
-  return { bufferNum, verseStart, verseLen: verseLen > 0 ? verseLen : 0 };
+  const bufferNum = le ? readU32LE(buf, base) : readU32BE(buf, base);
+  const verseStart = le ? readU32LE(buf, base + 4) : readU32BE(buf, base + 4);
+  const verseLen = le ? readU16LE(buf, base + 8) : readU16BE(buf, base + 8);
+  return { bufferNum, verseStart, verseLen };
 }
 
 /**
