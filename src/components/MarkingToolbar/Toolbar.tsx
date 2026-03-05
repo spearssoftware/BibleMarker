@@ -15,7 +15,6 @@ import { ToolbarOverlay } from './ToolbarOverlay';
 import { SelectionMenu } from './SelectionMenu';
 import { KeyWordManager } from '@/components/KeyWords';
 import { AddToList } from '@/components/Lists';
-import { StudyToolsPanel } from '@/components/Summary';
 import { SettingsPanel } from '@/components/Settings';
 import { ObservationToolsPanel, type ObservationTab } from '@/components/Observation';
 import { AnalyzeToolsPanel, type AnalyzeTab } from '@/components/Analyze';
@@ -35,11 +34,10 @@ const COLOR_STYLE_LABELS: Record<(typeof COLOR_STYLES)[number], string> = {
   underline: 'Underline',
 };
 
-const TOOLS: { type: 'keyWords' | 'observe' | 'analyze' | 'studyTools'; icon: string; label: string }[] = [
+const TOOLS: { type: 'keyWords' | 'observe' | 'analyze'; icon: string; label: string }[] = [
   { type: 'keyWords', icon: '✏️', label: 'Mark' },
   { type: 'observe', icon: '🔍', label: 'Observe' },
   { type: 'analyze', icon: '📊', label: 'Analyze' },
-  { type: 'studyTools', icon: '💭', label: 'Study' },
 ];
 
 export function Toolbar() {
@@ -67,7 +65,6 @@ export function Toolbar() {
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [, _setShowModuleManager] = useState(false);
   const [showKeyWordManager, setShowKeyWordManager] = useState(false);
-  const [showStudyToolsPanel, setShowStudyToolsPanel] = useState(false);
   const [showAnalyzeToolsPanel, setShowAnalyzeToolsPanel] = useState(false);
   const [analyzePanelInitialTab, setAnalyzePanelInitialTab] = useState<AnalyzeTab>('chapter');
   const [showObservationToolsPanel, setShowObservationToolsPanel] = useState(false);
@@ -119,7 +116,6 @@ export function Toolbar() {
       setObservationPanelVerseRef(eventVerseRef);
       setObservationPanelAutoCreate(!!autoCreate);
       setShowObservationToolsPanel(true);
-      setShowStudyToolsPanel(false);
       setShowAnalyzeToolsPanel(false);
       setShowKeyWordManager(false);
       setShowSettingsPanel(false);
@@ -131,7 +127,7 @@ export function Toolbar() {
       setAnalyzePanelInitialTab(tab);
       setShowAnalyzeToolsPanel(true);
       setShowObservationToolsPanel(false);
-      setShowStudyToolsPanel(false);
+
       setShowKeyWordManager(false);
       setShowSettingsPanel(false);
       setActiveTool(null);
@@ -141,7 +137,7 @@ export function Toolbar() {
       setShowSettingsPanel(true);
       setShowAnalyzeToolsPanel(false);
       setShowObservationToolsPanel(false);
-      setShowStudyToolsPanel(false);
+
       setShowKeyWordManager(false);
       setActiveTool(null);
     };
@@ -183,7 +179,6 @@ export function Toolbar() {
         setShowKeyWordManager(false);
         setShowKeyWordApplyPicker(false);
         setShowAddAsVariantPicker(false);
-        setShowStudyToolsPanel(false);
         setShowAnalyzeToolsPanel(false);
         setShowObservationToolsPanel(false);
         setActiveTool(null);
@@ -284,7 +279,7 @@ export function Toolbar() {
       setShowColorPicker(false);
       setShowSymbolPicker(false);
       setShowSettingsPanel(false);
-      setShowStudyToolsPanel(false);
+
       setShowAnalyzeToolsPanel(false);
       setShowObservationToolsPanel(false);
       if (willOpen) setActiveTool(null);
@@ -297,7 +292,7 @@ export function Toolbar() {
       setShowSymbolPicker(false);
       setShowKeyWordManager(false);
       setShowSettingsPanel(false);
-      setShowStudyToolsPanel(false);
+
       setShowAnalyzeToolsPanel(false);
       if (willOpen) setActiveTool(null);
       if (willOpen && selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
@@ -309,18 +304,7 @@ export function Toolbar() {
       setShowSymbolPicker(false);
       setShowKeyWordManager(false);
       setShowSettingsPanel(false);
-      setShowStudyToolsPanel(false);
-      setShowObservationToolsPanel(false);
-      if (willOpen) setActiveTool(null);
-    } else if (toolType === 'studyTools') {
-      const willOpen = !showStudyToolsPanel;
-      setShowStudyToolsPanel((v) => !v);
-      setShowPickerOverlay(false);
-      setShowColorPicker(false);
-      setShowSymbolPicker(false);
-      setShowKeyWordManager(false);
-      setShowSettingsPanel(false);
-      setShowAnalyzeToolsPanel(false);
+
       setShowObservationToolsPanel(false);
       if (willOpen) setActiveTool(null);
     }
@@ -381,7 +365,7 @@ export function Toolbar() {
             setShowPickerOverlay(false);
             setShowColorPicker(false);
             setShowSymbolPicker(false);
-            setShowStudyToolsPanel(false);
+      
             setActiveTool(null);
             if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
           }}
@@ -557,19 +541,6 @@ export function Toolbar() {
         </ToolbarOverlay>
       )}
 
-      {/* Study Tools Panel */}
-      {showStudyToolsPanel && (
-        <ToolbarOverlay onClose={() => { setShowStudyToolsPanel(false); clearSelection(); }}>
-          <StudyToolsPanel
-            onClose={() => {
-              setShowStudyToolsPanel(false);
-              clearSelection();
-            }}
-            initialTab="interpretation"
-          />
-        </ToolbarOverlay>
-      )}
-
       {/* Add to List */}
       {showAddToList && selection && (
         <AddToList
@@ -612,7 +583,7 @@ export function Toolbar() {
         </ToolbarOverlay>
       )}
 
-      {/* Main toolbar: Mark | Observe | Analyze | Study */}
+      {/* Main toolbar: Mark | Observe | Analyze */}
       <div className="bg-scripture-surface/80 backdrop-blur-md shadow-lg"
            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
@@ -621,19 +592,17 @@ export function Toolbar() {
               tool.type === 'keyWords' ? showKeyWordManager
               : tool.type === 'observe' ? showObservationToolsPanel
               : tool.type === 'analyze' ? showAnalyzeToolsPanel
-              : tool.type === 'studyTools' ? showStudyToolsPanel
               : false;
             const dataAttr = tool.type === 'keyWords' ? 'data-toolbar-keywords'
               : tool.type === 'observe' ? 'data-toolbar-observe'
               : tool.type === 'analyze' ? 'data-toolbar-analyze'
-              : tool.type === 'studyTools' ? 'data-toolbar-study'
               : undefined;
             return (
               <button
                 key={tool.type}
                 {...(dataAttr ? { [dataAttr]: true } : {})}
                 onClick={() => handleToolClick(tool.type)}
-                className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg 
+                className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg
                            transition-all duration-200 touch-target
                            border border-scripture-border/30 hover:border-scripture-border/50
                            ${isActive
@@ -646,6 +615,26 @@ export function Toolbar() {
               </button>
             );
           })}
+          <button
+            data-toolbar-settings
+            onClick={() => {
+              setShowSettingsPanel((v) => !v);
+              setShowAnalyzeToolsPanel(false);
+              setShowObservationToolsPanel(false);
+              setShowKeyWordManager(false);
+              setShowPickerOverlay(false);
+            }}
+            className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg
+                       transition-all duration-200 touch-target
+                       border border-scripture-border/30 hover:border-scripture-border/50
+                       ${showSettingsPanel
+                         ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                         : 'hover:bg-scripture-elevated'}`}
+            aria-label="Settings"
+          >
+            <span className="text-lg">⚙️</span>
+            <span className="text-[10px] font-ui font-medium leading-tight">Settings</span>
+          </button>
         </div>
       </div>
     </div>

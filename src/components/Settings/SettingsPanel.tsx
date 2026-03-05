@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import { getBookById } from '@/types';
+import { getBookById, BIBLE_BOOKS } from '@/types';
 import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences, getSyncDiagnostics, type SyncDiagnostics } from '@/lib/database';
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
 import { exportStudyData } from '@/lib/export';
@@ -30,6 +30,7 @@ import { AboutSection } from './AboutSection';
 import { GettingStartedSection } from './GettingStartedSection';
 import { ConfirmationDialog, Input, DropdownSelect, Checkbox } from '@/components/shared';
 import { resetAllStores } from '@/lib/storeReset';
+import { useStudyStore } from '@/stores/studyStore';
 import { onSyncStatusChange, getSyncStatusMessage, triggerSync, type SyncStatus } from '@/lib/sync';
 import {
   bibliaClient,
@@ -40,7 +41,7 @@ import {
   type ApiTranslation,
 } from '@/lib/bible-api';
 
-type SettingsTab = 'appearance' | 'bible' | 'data' | 'help';
+type SettingsTab = 'appearance' | 'bible' | 'data' | 'studies' | 'help';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -105,6 +106,13 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
   // Disabled tools state
   const [disabledTools, setDisabledTools] = useState<string[]>([]);
+
+  // Studies state
+  const { studies, activeStudyId, loadStudies, createStudy, updateStudy, deleteStudy, setActiveStudy } = useStudyStore();
+  const [newStudyName, setNewStudyName] = useState('');
+  const [newStudyBook, setNewStudyBook] = useState<string>('');
+  const [editingStudy, setEditingStudy] = useState<{ id: string; name: string; book?: string } | null>(null);
+  const [confirmDeleteStudyId, setConfirmDeleteStudyId] = useState<string | null>(null);
 
   // Auto-backup state
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(true);
@@ -217,6 +225,13 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     };
   }, []);
 
+  // Load studies when studies tab is active
+  useEffect(() => {
+    if (activeTab === 'studies') {
+      loadStudies();
+    }
+  }, [activeTab, loadStudies]);
+
   // Subscribe to sync status changes
   useEffect(() => {
     const unsubscribe = onSyncStatusChange(setSyncStatus);
@@ -286,6 +301,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     { id: 'appearance', label: 'Appearance', icon: '🎨' },
     { id: 'bible', label: 'Bible', icon: '📖' },
     { id: 'data', label: 'Data', icon: '💾' },
+    { id: 'studies', label: 'Studies', icon: '📖' },
     { id: 'help', label: 'Help', icon: '❓' },
   ];
 
@@ -538,10 +554,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         onCancel={() => setShowClearBookConfirm(false)}
         destructive={true}
       />
-      <div 
-        className="flex-1 min-h-0 flex flex-col relative" 
-        role="dialog" 
-        aria-label="Settings" 
+      <div
+        className="flex-1 min-h-0 flex flex-col relative"
+        role="dialog"
+        aria-label="Settings"
         aria-modal="true"
       >
         {/* Tabs */}
@@ -1641,6 +1657,180 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </div>
               </div>
             </div>
+            </div>
+          )}
+
+          {/* Studies Tab */}
+          {activeTab === 'studies' && (
+            <div role="tabpanel" id="settings-tabpanel-studies" aria-labelledby="settings-tab-studies">
+              <ConfirmationDialog
+                isOpen={confirmDeleteStudyId != null}
+                title="Delete Study"
+                message="Are you sure you want to delete this study? This cannot be undone."
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                onConfirm={async () => {
+                  if (!confirmDeleteStudyId) return;
+                  const id = confirmDeleteStudyId;
+                  setConfirmDeleteStudyId(null);
+                  await deleteStudy(id);
+                }}
+                onCancel={() => setConfirmDeleteStudyId(null)}
+                destructive
+              />
+              <div className="space-y-0">
+                <div className="p-4">
+                  <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Create New Study</h3>
+                  <div className="space-y-3">
+                    <Input
+                      type="text"
+                      value={newStudyName}
+                      onChange={(e) => setNewStudyName(e.target.value)}
+                      placeholder="Study name (e.g., 'John - Character Study')"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newStudyName.trim()) {
+                          createStudy(newStudyName.trim(), newStudyBook || undefined).then(() => {
+                            setNewStudyName('');
+                            setNewStudyBook('');
+                          });
+                        }
+                      }}
+                    />
+                    <DropdownSelect
+                      value={newStudyBook}
+                      onChange={(value) => setNewStudyBook(value)}
+                      options={[
+                        { value: '', label: 'All books (global study)' },
+                        ...BIBLE_BOOKS.map(book => ({ value: book.id, label: book.name }))
+                      ]}
+                    />
+                    <button
+                      onClick={() => {
+                        if (!newStudyName.trim()) return;
+                        createStudy(newStudyName.trim(), newStudyBook || undefined).then(() => {
+                          setNewStudyName('');
+                          setNewStudyBook('');
+                        });
+                      }}
+                      disabled={!newStudyName.trim()}
+                      className="w-full px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
+                               hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed
+                               transition-all duration-200 shadow-md"
+                    >
+                      Create Study
+                    </button>
+                  </div>
+                </div>
+
+                <div className="border-t border-scripture-border/30 my-4"></div>
+
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-base font-ui font-semibold text-scripture-text">Your Studies</h3>
+                    {activeStudyId && (
+                      <button
+                        onClick={() => setActiveStudy(null)}
+                        className="px-3 py-2 text-sm font-ui bg-scripture-elevated hover:bg-scripture-border/50
+                                 border border-scripture-border/50 text-scripture-text rounded-lg transition-all duration-200"
+                      >
+                        Clear Active Study
+                      </button>
+                    )}
+                  </div>
+                  {studies.length === 0 ? (
+                    <p className="text-scripture-muted text-sm">No studies yet. Create one above to get started.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {studies.map(study => (
+                        <div
+                          key={study.id}
+                          className="p-4 bg-scripture-surface/50 rounded-lg border border-scripture-muted/20 flex items-center justify-between"
+                        >
+                          {editingStudy?.id === study.id ? (
+                            <div className="flex-1 space-y-2">
+                              <Input
+                                type="text"
+                                value={editingStudy.name}
+                                onChange={(e) => setEditingStudy({ ...editingStudy, name: e.target.value })}
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    updateStudy({ ...study, name: editingStudy.name.trim(), book: editingStudy.book }).then(() => setEditingStudy(null));
+                                  } else if (e.key === 'Escape') {
+                                    setEditingStudy(null);
+                                  }
+                                }}
+                              />
+                              <DropdownSelect
+                                value={editingStudy.book || ''}
+                                onChange={(value) => setEditingStudy({ ...editingStudy, book: value || undefined })}
+                                options={[
+                                  { value: '', label: 'All books' },
+                                  ...BIBLE_BOOKS.map(book => ({ value: book.id, label: book.name }))
+                                ]}
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => updateStudy({ ...study, name: editingStudy.name.trim(), book: editingStudy.book }).then(() => setEditingStudy(null))}
+                                  className="px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
+                                           hover:bg-scripture-accent/90 transition-all duration-200 shadow-md"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={() => setEditingStudy(null)}
+                                  className="px-3 py-2 text-sm font-ui bg-scripture-elevated hover:bg-scripture-border/50
+                                           border border-scripture-border/50 text-scripture-text rounded-lg transition-all duration-200"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <div className="font-medium text-scripture-text">{study.name}</div>
+                                  {activeStudyId === study.id && (
+                                    <span className="px-2 py-0.5 text-xs bg-scripture-accent text-scripture-bg rounded">Active</span>
+                                  )}
+                                </div>
+                                <div className="text-sm text-scripture-muted">
+                                  {study.book ? `Scoped to: ${getBookById(study.book)?.name || study.book}` : 'Global study'}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {activeStudyId !== study.id && (
+                                  <button
+                                    onClick={() => setActiveStudy(study.id)}
+                                    className="px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
+                                             hover:bg-scripture-accent/90 transition-all duration-200 shadow-md"
+                                  >
+                                    Set Active
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => setEditingStudy({ id: study.id, name: study.name, book: study.book })}
+                                  className="px-3 py-2 text-sm font-ui bg-scripture-elevated hover:bg-scripture-border/50
+                                           border border-scripture-border/50 text-scripture-text rounded-lg transition-all duration-200"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDeleteStudyId(study.id)}
+                                  className="px-3 py-2 text-sm font-ui text-scripture-errorText hover:text-scripture-error transition-colors underline"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
