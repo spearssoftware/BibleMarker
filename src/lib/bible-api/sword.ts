@@ -30,50 +30,88 @@ interface SwordModuleInfo {
   id: string;
   name: string;
   abbreviation: string;
-  downloadUrl: string;
+  /** URL for single-zip download (most modules) */
+  downloadUrl?: string;
+  /** Resource filename for modules bundled with the app */
+  bundledResource?: string;
   copyright: string | null;
   copyrightUrl: string | null;
   language: string;
+  category: 'licensed' | 'public-domain';
+}
+
+/** CrossWire rawzip base URL */
+const CROSSWIRE_BASE = 'https://crosswire.org/ftpmirror/pub/sword/packages/rawzip';
+
+
+/** Helper to create a public domain module entry */
+function pdModule(abbreviation: string, name: string): SwordModuleInfo {
+  return {
+    id: `sword-${abbreviation}`,
+    name,
+    abbreviation,
+    downloadUrl: `${CROSSWIRE_BASE}/${abbreviation}.zip`,
+    copyright: null,
+    copyrightUrl: null,
+    language: 'en',
+    category: 'public-domain',
+  };
 }
 
 /** Hardcoded module registry */
 const MODULE_REGISTRY: SwordModuleInfo[] = [
+  // Licensed modules (Lockman Foundation) — bundled with the app
   {
     id: 'sword-NASB',
     name: 'New American Standard Bible (2020)',
     abbreviation: 'NASB',
-    downloadUrl: 'https://crosswire.org/ftpmirror/pub/sword/packages/rawzip/NASB.zip',
+    bundledResource: 'sword-NASB.zip',
     copyright: NASB_COPYRIGHT,
     copyrightUrl: LOCKMAN_URL,
     language: 'en',
+    category: 'licensed',
   },
   {
-    id: 'sword-NASB95',
+    id: 'sword-NASB1995',
     name: 'New American Standard Bible (1995)',
     abbreviation: 'NASB95',
-    downloadUrl: 'https://crosswire.org/ftpmirror/pub/sword/packages/rawzip/NASB95.zip',
+    bundledResource: 'sword-NASB1995.zip',
     copyright: NASB95_COPYRIGHT,
     copyrightUrl: LOCKMAN_URL,
     language: 'en',
+    category: 'licensed',
   },
-  {
-    id: 'sword-KJV',
-    name: 'King James Version',
-    abbreviation: 'KJV',
-    downloadUrl: 'https://crosswire.org/ftpmirror/pub/sword/packages/rawzip/KJV.zip',
-    copyright: null,
-    copyrightUrl: null,
-    language: 'en',
-  },
-  {
-    id: 'sword-ASV',
-    name: 'American Standard Version',
-    abbreviation: 'ASV',
-    downloadUrl: 'https://crosswire.org/ftpmirror/pub/sword/packages/rawzip/ASV.zip',
-    copyright: null,
-    copyrightUrl: null,
-    language: 'en',
-  },
+
+  // Public domain modules (CrossWire)
+  pdModule('KJV', 'King James Version'),
+  pdModule('ASV', 'American Standard Version'),
+  pdModule('BBE', 'Bible in Basic English'),
+  pdModule('BSB', 'Berean Standard Bible'),
+  pdModule('Darby', 'Darby Translation'),
+  pdModule('DRC', 'Douay-Rheims Challoner'),
+  pdModule('Geneva', 'Geneva Bible (1599)'),
+  pdModule('Godbey', 'Godbey New Testament'),
+  pdModule('JPS', 'JPS 1917 Old Testament'),
+  pdModule('KJVA', 'King James Version with Apocrypha'),
+  pdModule('LITV', 'Green\'s Literal Translation'),
+  pdModule('LEB', 'Lexham English Bible'),
+  pdModule('MKJV', 'Modern King James Version'),
+  pdModule('Montgomery', 'Montgomery New Testament'),
+  pdModule('Murdock', 'Murdock Peshitta Translation'),
+  pdModule('NHEB', 'New Heart English Bible'),
+  pdModule('Noyes', 'Noyes Translation'),
+  pdModule('OEBcth', 'Open English Bible (Commonwealth)'),
+  pdModule('RKJNT', 'Revised King James New Testament'),
+  pdModule('RWebster', 'Revised Webster Version'),
+  pdModule('SPMT', 'Smith\'s Peshitta Targum'),
+  pdModule('Twenty', 'Twentieth Century New Testament'),
+  pdModule('Tyndale', 'Tyndale Bible (1525/1530)'),
+  pdModule('UKJV', 'Updated King James Version'),
+  pdModule('Webster', 'Webster Bible'),
+  pdModule('Weymouth', 'Weymouth New Testament'),
+  pdModule('WLC', 'Westminster Leningrad Codex (Hebrew OT)'),
+  pdModule('Worsley', 'Worsley New Testament'),
+  pdModule('YLT', 'Young\'s Literal Translation'),
 ];
 
 /** In-memory loaded module files, keyed by module ID */
@@ -82,9 +120,32 @@ const loadedModules = new Map<string, SwordModuleFiles>();
 /** Per-module decompression buffer caches */
 const bufferCaches = new Map<string, Map<string, Uint8Array>>();
 
-/** Strip OSIS XML tags from verse text */
+/** Strip OSIS XML to plain verse text (removes notes, titles, divs, keeps word content) */
 function stripOsis(text: string): string {
-  return text.replace(/<[^>]+>/g, '').trim();
+  return text
+    .replace(/<title\b[^>]*>[\s\S]*?<\/title>/g, '') // remove section headings
+    .replace(/<note\b[^>]*>[\s\S]*?<\/note>/g, '')   // remove notes (cross-refs, footnotes)
+    .replace(/<div\b[^>]*\/>/g, '')                    // remove self-closing divs (milestones)
+    .replace(/<div\b[^>]*>[\s\S]*?<\/div>/g, '')      // remove div blocks
+    .replace(/<[^>]+>/g, '')                           // remove remaining tags
+    .replace(/\s+/g, ' ')                              // normalize whitespace
+    .trim();
+}
+
+/** Extract cross-references from OSIS XML */
+export function extractCrossRefs(osisText: string): { label: string; osisRef: string }[] {
+  const refs: { label: string; osisRef: string }[] = [];
+  const noteRegex = /<note\b[^>]*type="crossReference"[^>]*>([\s\S]*?)<\/note>/g;
+  let noteMatch: RegExpExecArray | null;
+  while ((noteMatch = noteRegex.exec(osisText)) !== null) {
+    const noteContent = noteMatch[1];
+    const refRegex = /<reference\s+osisRef="([^"]+)"[^>]*>([^<]*)<\/reference>/g;
+    let refMatch: RegExpExecArray | null;
+    while ((refMatch = refRegex.exec(noteContent)) !== null) {
+      refs.push({ osisRef: refMatch[1], label: refMatch[2] });
+    }
+  }
+  return refs;
 }
 
 /** Get the app data directory path for SWORD module storage */
@@ -101,9 +162,29 @@ async function getModulePath(moduleId: string): Promise<string> {
   return await join(dir, `${moduleId}.zip`);
 }
 
-/** Check if a module zip exists on disk */
+/** Install a bundled module from app resources if not already on disk */
+async function installBundledIfNeeded(moduleId: string): Promise<void> {
+  const info = MODULE_REGISTRY.find((m) => m.id === moduleId);
+  if (!info?.bundledResource) return;
+
+  const destPath = await getModulePath(moduleId);
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('install_bundled_module', {
+      resourceName: info.bundledResource,
+      destPath,
+    });
+  } catch (e) {
+    console.warn(`[SWORD] Failed to install bundled module ${moduleId}:`, e);
+  }
+}
+
+/** Check if a module zip exists on disk (auto-installs bundled modules) */
 export async function isModuleDownloaded(moduleId: string): Promise<boolean> {
   try {
+    // Auto-install bundled modules on first check
+    await installBundledIfNeeded(moduleId);
+
     const { exists } = await import('@tauri-apps/plugin-fs');
     const path = await getModulePath(moduleId);
     return await exists(path);
@@ -119,6 +200,14 @@ export async function downloadModule(
 ): Promise<void> {
   const info = MODULE_REGISTRY.find((m) => m.id === moduleId);
   if (!info) throw new Error(`Unknown SWORD module: ${moduleId}`);
+
+  if (!info.downloadUrl) {
+    // Bundled module — install from resources
+    await installBundledIfNeeded(moduleId);
+    loadedModules.delete(moduleId);
+    bufferCaches.delete(moduleId);
+    return;
+  }
 
   onProgress?.(0);
   const destPath = await getModulePath(moduleId);
@@ -181,6 +270,11 @@ function getBufferCache(moduleId: string): Map<string, Uint8Array> {
     bufferCaches.set(moduleId, cache);
   }
   return cache;
+}
+
+/** Check if a module is bundled with the app (not removable) */
+export function isModuleBundled(moduleId: string): boolean {
+  return MODULE_REGISTRY.some((m) => m.id === moduleId && !!m.bundledResource);
 }
 
 /** Get the module registry entry */

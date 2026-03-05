@@ -9,11 +9,11 @@ import { useBibleStore } from '@/stores/bibleStore';
 import {
   esvClient,
   getAllTranslations,
-  clearTranslationsCache,
   getAvailableModules,
   isModuleDownloaded,
   downloadModule,
   deleteModule,
+  isModuleBundled,
   getModuleCopyright,
   LOCKMAN_URL,
   type ApiTranslation,
@@ -67,7 +67,6 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
         setDownloadProgress(prev => ({ ...prev, [moduleId]: percent }));
       });
       setModuleStatuses(prev => ({ ...prev, [moduleId]: 'installed' }));
-      await clearTranslationsCache();
       const translations = await getAllTranslations();
       setApiTranslations(translations);
       if (onTranslationsUpdated) onTranslationsUpdated();
@@ -88,7 +87,6 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
     try {
       await deleteModule(moduleId);
       setModuleStatuses(prev => ({ ...prev, [moduleId]: 'not-installed' }));
-      await clearTranslationsCache();
       const translations = await getAllTranslations();
       setApiTranslations(translations);
       if (onTranslationsUpdated) onTranslationsUpdated();
@@ -177,7 +175,7 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                           Use
                         </Button>
                       )}
-                      {status === 'installed' && (
+                      {status === 'installed' && !isModuleBundled(mod.id) && (
                         <button
                           onClick={() => handleDeleteModule(mod.id)}
                           className="text-xs px-2 py-1 text-scripture-errorText hover:text-scripture-error"

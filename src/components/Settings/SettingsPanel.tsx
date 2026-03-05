@@ -34,7 +34,6 @@ import { useStudyStore } from '@/stores/studyStore';
 import { onSyncStatusChange, getSyncStatusMessage, triggerSync, type SyncStatus } from '@/lib/sync';
 import {
   esvClient,
-  clearTranslationsCache,
   saveApiConfig as saveApiConfigToDb,
   getAllTranslations,
   getAvailableModules,
@@ -42,6 +41,7 @@ import {
   downloadModule,
   deleteModule,
   getModuleCopyright,
+  isModuleBundled,
   LOCKMAN_URL,
   type ApiTranslation,
 } from '@/lib/bible-api';
@@ -287,8 +287,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       });
       setEsvApiKey(apiKey);
 
-      // Clear cache to reflect changes
-      await clearTranslationsCache();
       window.dispatchEvent(new Event('translationsUpdated'));
 
       const translations = await getAllTranslations();
@@ -310,8 +308,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       });
       setModuleStatuses(prev => ({ ...prev, [moduleId]: 'installed' }));
 
-      // Refresh translation list
-      await clearTranslationsCache();
       window.dispatchEvent(new Event('translationsUpdated'));
       const translations = await getAllTranslations();
       setAvailableTranslations(translations);
@@ -334,7 +330,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       await deleteModule(moduleId);
       setModuleStatuses(prev => ({ ...prev, [moduleId]: 'not-installed' }));
 
-      await clearTranslationsCache();
       window.dispatchEvent(new Event('translationsUpdated'));
       const translations = await getAllTranslations();
       setAvailableTranslations(translations);
@@ -899,7 +894,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                           await updatePreferences({
                             translationLanguageFilter: next.length > 0 ? next : undefined,
                           });
-                          await clearTranslationsCache();
                           window.dispatchEvent(new Event('translationsUpdated'));
                           const translations = await getAllTranslations();
                           setAvailableTranslations(translations);
@@ -969,7 +963,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     Licensed (The Lockman Foundation)
                   </h4>
                   <div className="space-y-2">
-                    {getAvailableModules().filter(m => m.id === 'sword-NASB' || m.id === 'sword-NASB95').map(mod => {
+                    {getAvailableModules().filter(m => m.category === 'licensed').map(mod => {
                       const status = moduleStatuses[mod.id] || 'not-installed';
                       const progress = downloadProgress[mod.id];
                       const copyright = getModuleCopyright(mod.id);
@@ -981,7 +975,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                               <p className="text-xs text-scripture-muted mt-0.5">{mod.name}</p>
                             </div>
                             <div className="flex-shrink-0 ml-2">
-                              {status === 'installed' && (
+                              {status === 'installed' && isModuleBundled(mod.id) && (
+                                <span className="text-xs text-scripture-muted">Included</span>
+                              )}
+                              {status === 'installed' && !isModuleBundled(mod.id) && (
                                 <button
                                   onClick={() => handleDeleteModule(mod.id)}
                                   className="text-xs px-2 py-1 text-scripture-errorText hover:text-scripture-error"
@@ -1033,7 +1030,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     Public Domain
                   </h4>
                   <div className="space-y-2">
-                    {getAvailableModules().filter(m => m.id !== 'sword-NASB' && m.id !== 'sword-NASB95').map(mod => {
+                    {getAvailableModules().filter(m => m.category === 'public-domain').map(mod => {
                       const status = moduleStatuses[mod.id] || 'not-installed';
                       const progress = downloadProgress[mod.id];
                       return (
@@ -1044,7 +1041,10 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                               <p className="text-xs text-scripture-muted mt-0.5">{mod.name}</p>
                             </div>
                             <div className="flex-shrink-0 ml-2">
-                              {status === 'installed' && (
+                              {status === 'installed' && isModuleBundled(mod.id) && (
+                                <span className="text-xs text-scripture-muted">Included</span>
+                              )}
+                              {status === 'installed' && !isModuleBundled(mod.id) && (
                                 <button
                                   onClick={() => handleDeleteModule(mod.id)}
                                   className="text-xs px-2 py-1 text-scripture-errorText hover:text-scripture-error"

@@ -31,6 +31,7 @@ export {
   deleteModule,
   getAvailableModules,
   getModuleInfo,
+  isModuleBundled,
   getModuleCopyright,
   NASB_COPYRIGHT,
   NASB95_COPYRIGHT,
@@ -79,95 +80,29 @@ export function isApiConfigured(provider: BibleApiProvider): boolean {
   return client?.isConfigured() ?? false;
 }
 
-// Request deduplication
-let getAllTranslationsPromise: Promise<ApiTranslation[]> | null = null;
-let cachedTranslations: ApiTranslation[] | null = null;
-
-const CACHE_KEY = 'all-translations';
-const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
-
 /** Get all available translations from installed SWORD modules + ESV */
 export async function getAllTranslations(): Promise<ApiTranslation[]> {
-  // Check in-memory cache
-  if (cachedTranslations) {
-    return cachedTranslations;
-  }
+  const translations: ApiTranslation[] = [];
 
-  // If a request is already in progress, wait for it
-  if (getAllTranslationsPromise) {
-    return await getAllTranslationsPromise;
-  }
-
-  // Check SQLite cache
+  // SWORD modules (local, always available)
   try {
-    const rows = await sqlSelect<{ translations: string; cached_at: string }>(
-      `SELECT translations, cached_at FROM translation_cache WHERE id = ?`,
-      [CACHE_KEY]
-    );
-    if (rows.length > 0 && rows[0].cached_at) {
-      const cacheAge = Date.now() - new Date(rows[0].cached_at).getTime();
-      if (cacheAge < CACHE_DURATION_MS) {
-        const translations = JSON.parse(rows[0].translations) as ApiTranslation[];
-        cachedTranslations = translations;
-        return translations;
-      }
-    }
-  } catch {
-    // ignore cache read errors
-  }
-
-  getAllTranslationsPromise = (async () => {
-    const translations: ApiTranslation[] = [];
-
-    // SWORD modules (local, always available)
-    try {
-      const swordTranslations = await swordClient.getTranslations();
-      translations.push(...swordTranslations);
-    } catch (error) {
-      console.error('Failed to get SWORD translations:', error);
-    }
-
-    // ESV (network, only if configured)
-    if (esvClient.isConfigured()) {
-      try {
-        const esvTranslations = await esvClient.getTranslations();
-        translations.push(...esvTranslations);
-      } catch (error) {
-        console.error('Failed to get ESV translations:', error);
-      }
-    }
-
-    cachedTranslations = translations;
-
-    // Persist to SQLite cache
-    try {
-      const now = new Date().toISOString();
-      await sqlExecute(
-        `INSERT OR REPLACE INTO translation_cache (id, translations, cached_at) VALUES (?, ?, ?)`,
-        [CACHE_KEY, JSON.stringify(translations), now]
-      );
-    } catch (error) {
-      console.warn('[getAllTranslations] Failed to cache translations:', error);
-    }
-
-    return translations;
-  })();
-
-  try {
-    return await getAllTranslationsPromise;
-  } finally {
-    getAllTranslationsPromise = null;
-  }
-}
-
-/** Clear the translations cache (useful when modules are installed/removed or API configs change) */
-export async function clearTranslationsCache(): Promise<void> {
-  cachedTranslations = null;
-  try {
-    await sqlExecute(`DELETE FROM translation_cache WHERE id = ?`, [CACHE_KEY]);
+    const swordTranslations = await swordClient.getTranslations();
+    translations.push(...swordTranslations);
   } catch (error) {
-    console.warn('[getAllTranslations] Failed to clear cache:', error);
+    console.error('Failed to get SWORD translations:', error);
   }
+
+  // ESV (network, only if configured)
+  if (esvClient.isConfigured()) {
+    try {
+      const esvTranslations = await esvClient.getTranslations();
+      translations.push(...esvTranslations);
+    } catch (error) {
+      console.error('Failed to get ESV translations:', error);
+    }
+  }
+
+  return translations;
 }
 
 /**
@@ -183,8 +118,9 @@ export async function fetchChapter(
   book: string,
   chapter: number
 ): Promise<Chapter> {
-  // Check cache first
-  const cached = await getCachedChapter(translationId, book, chapter);
+  // Check cache first (SWORD modules are local, skip cache)
+  const isSword = translationId.startsWith('sword-');
+  const cached = isSword ? null : await getCachedChapter(translationId, book, chapter);
 
   if (cached) {
     const isESV = isEsvTranslation(translationId);
@@ -214,7 +150,6 @@ export async function fetchChapter(
   }
 
   // Determine source
-  const isSword = translationId.startsWith('sword-');
   const isESV = isEsvTranslation(translationId);
 
   let chapterData: ChapterResponse | null = null;
@@ -304,12 +239,8 @@ export async function fetchChapter(
           await setCachedChapter(translationId, book, chapter, versesMap);
         }
       }
-    } else {
-      // SWORD modules: cache normally
-      const versesMap: Record<number, string> = {};
-      for (const v of chapterData.verses) versesMap[v.verse] = v.text;
-      await setCachedChapter(translationId, book, chapter, versesMap);
     }
+    // SWORD modules are local — no caching needed
 
     return {
       book,
@@ -367,6 +298,13 @@ export async function loadApiConfigs(): Promise<void> {
     }
   } catch (error) {
     console.error('Failed to load API configs:', error);
+  }
+
+  // Clean up stale SWORD chapter cache (SWORD modules are local, no caching needed)
+  try {
+    await sqlExecute(`DELETE FROM cached_chapters WHERE module_id LIKE 'sword-%'`);
+  } catch {
+    // ignore
   }
 }
 

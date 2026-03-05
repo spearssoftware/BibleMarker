@@ -56,6 +56,7 @@ impl AppBuilder {
                 icloud::test_icloud_write,
                 icloud::delete_local_database,
                 download::download_file,
+                download::install_bundled_module,
             ])
             .setup(move |app| {
                 if let Some(setup) = setup {

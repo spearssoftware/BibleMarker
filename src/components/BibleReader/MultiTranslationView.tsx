@@ -12,7 +12,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
 import { getAllTranslations, type ApiTranslation, fetchChapter } from '@/lib/bible-api';
-import { getCachedChapter, getChapterAnnotations, getChapterHeadings, getChapterTitle, getChapterNotes, saveSectionHeading, deleteSectionHeading, saveChapterTitle, deleteChapterTitle, saveNote, deleteNote } from '@/lib/database';
+import { getChapterAnnotations, getChapterHeadings, getChapterTitle, getChapterNotes, saveSectionHeading, deleteSectionHeading, saveChapterTitle, deleteChapterTitle, saveNote, deleteNote } from '@/lib/database';
 import { filterAnnotationsByStudy } from '@/lib/studyFilter';
 import { VerseText } from './VerseText';
 import { SectionHeadingEditor } from './SectionHeadingEditor';
@@ -316,55 +316,6 @@ export function MultiTranslationView() {
     }
   }, [activeView, currentModuleId, addTranslation]);
 
-  // Eagerly load cached chapters before the full translations list is available.
-  // This lets cached text appear instantly on startup instead of waiting for getAllTranslations().
-  useEffect(() => {
-    if (!activeView || activeView.translationIds.length === 0) return;
-    // Skip if translations already loaded — loadChapters will handle it
-    if (translations.length > 0) return;
-    // Skip if we already have chapter data (e.g. from a previous eager load)
-    if (translationChapters.size > 0) return;
-
-    let cancelled = false;
-
-    async function loadCachedChapters() {
-      const newChapters = new Map<string, TranslationChapter>();
-
-      for (const translationId of activeView!.translationIds) {
-        const cached = await getCachedChapter(translationId, currentBook, currentChapter);
-        if (cancelled) return;
-
-        if (cached) {
-          const verses = Object.entries(cached.verses).map(([num, text]) => ({
-            ref: { book: currentBook, chapter: currentChapter, verse: parseInt(num, 10) },
-            text: text as string,
-            html: text as string,
-          }));
-
-          newChapters.set(translationId, {
-            translation: {
-              id: translationId,
-              name: translationId.toUpperCase(),
-              abbreviation: translationId.toUpperCase(),
-              language: 'en',
-              provider: 'sword',
-            },
-            chapter: { book: currentBook, chapter: currentChapter, verses },
-            isLoading: false,
-            error: null,
-          });
-        }
-      }
-
-      if (!cancelled && newChapters.size > 0) {
-        setTranslationChapters(newChapters);
-      }
-    }
-
-    loadCachedChapters();
-    return () => { cancelled = true; };
-  }, [activeView, currentBook, currentChapter, translations.length, translationChapters.size]);
-
   useEffect(() => {
     // Reset loading refs when book/chapter changes
     const key = `${currentBook}-${currentChapter}`;
@@ -410,9 +361,11 @@ export function MultiTranslationView() {
     };
   }, [activeView, currentBook, currentChapter, activeStudyId, loadAnnotations, loadSectionHeadings, loadChapterTitle, loadNotes]);
 
-  // When API configs change (e.g. keys synced from iCloud), retry any failed chapters
+  // When modules are installed/removed or API configs change, reload translations list
+  // and retry any failed chapters
   useEffect(() => {
     const handleTranslationsUpdated = () => {
+      loadTranslations();
       const hasErrors = Array.from(translationChapters.values()).some(tc => tc.error);
       if (hasErrors) {
         setConfigGeneration(g => g + 1);

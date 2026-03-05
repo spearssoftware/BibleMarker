@@ -218,13 +218,37 @@ export function readVerseIndex(
   if (!buf || buf.byteLength < (index + 1) * 10) {
     return { bufferNum: 0, verseStart: 0, verseLen: 0 };
   }
-  const offset = index * 10;
   const le = isLittleEndian(testamentFiles);
-  return {
-    bufferNum: le ? readU32LE(buf, offset) : readU32BE(buf, offset),
-    verseStart: le ? readU32LE(buf, offset + 4) : readU32BE(buf, offset + 4),
-    verseLen: le ? readU16LE(buf, offset + 8) : readU16BE(buf, offset + 8),
-  };
+
+  // 10-byte bzv entry layout:
+  //   bookOffset (u32) — fixed offset within decompressed buffer
+  //   cumSize    (u16) — cumulative size of verse data (relative to bookOffset)
+  //   bufferNum  (u16) — which compressed buffer this verse is in
+  //   (unused)   (u16)
+  const base = index * 10;
+  const bookOffset = le ? readU32LE(buf, base) : readU32BE(buf, base);
+  const cumSize = le ? readU16LE(buf, base + 4) : readU16BE(buf, base + 4);
+  const bufferNum = le ? readU16LE(buf, base + 6) : readU16BE(buf, base + 6);
+
+  if (cumSize === 0 && bookOffset === 0) {
+    return { bufferNum, verseStart: 0, verseLen: 0 };
+  }
+
+  // Read previous entry's cumSize to compute this verse's start and length.
+  // If previous entry has a different bufferNum, this is the first verse in
+  // the buffer so prevCum resets to 0.
+  let prevCum = 0;
+  if (index > 0) {
+    const prevBase = (index - 1) * 10;
+    const prevBuf = le ? readU16LE(buf, prevBase + 6) : readU16BE(buf, prevBase + 6);
+    if (prevBuf === bufferNum) {
+      prevCum = le ? readU16LE(buf, prevBase + 4) : readU16BE(buf, prevBase + 4);
+    }
+  }
+
+  const verseStart = bookOffset + prevCum;
+  const verseLen = cumSize - prevCum;
+  return { bufferNum, verseStart, verseLen: verseLen > 0 ? verseLen : 0 };
 }
 
 /**
