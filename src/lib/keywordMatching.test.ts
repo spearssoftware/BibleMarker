@@ -110,4 +110,129 @@ describe('findKeywordMatches', () => {
     expect(result.length).toBeGreaterThanOrEqual(1)
     expect(result[0].presetId).toBe('p1')
   })
+
+  // --- Chapter-scoped presets ---
+  it('returns match only for matching chapter', () => {
+    const presets = [
+      preset({ id: 'p1', word: 'God', bookScope: 'Gen', chapterScope: 1 }),
+    ]
+    const ch1 = findKeywordMatches('God is good', verseRef, presets)
+    expect(ch1.length).toBeGreaterThanOrEqual(1)
+
+    const ch2Ref: VerseRef = { book: 'Gen', chapter: 2, verse: 1 }
+    const ch2 = findKeywordMatches('God is good', ch2Ref, presets)
+    expect(ch2).toEqual([])
+  })
+
+  // --- Module-scoped presets ---
+  it('skips preset when moduleScope does not match currentModuleId', () => {
+    const presets = [
+      preset({ id: 'p1', word: 'God', moduleScope: 'eng-ESV' }),
+    ]
+    const result = findKeywordMatches('God is good', verseRef, presets, 'eng-NIV')
+    expect(result).toEqual([])
+  })
+
+  it('matches when moduleScope matches currentModuleId', () => {
+    const presets = [
+      preset({ id: 'p1', word: 'God', moduleScope: 'eng-ESV' }),
+    ]
+    const result = findKeywordMatches('God is good', verseRef, presets, 'eng-ESV')
+    expect(result.length).toBeGreaterThanOrEqual(1)
+  })
+
+  // --- Symbol annotations ---
+  it('creates SymbolAnnotation for preset with symbol only (no highlight)', () => {
+    const presets = [
+      preset({ id: 'p1', word: 'God', highlight: undefined, symbol: 'triangle' }),
+    ]
+    const result = findKeywordMatches('God is good', verseRef, presets)
+    expect(result).toHaveLength(1)
+    expect(result[0].type).toBe('symbol')
+  })
+
+  // --- Both symbol + highlight ---
+  it('creates two annotations per match when preset has both', () => {
+    const presets = [
+      preset({ id: 'p1', word: 'God', symbol: 'triangle' }),
+    ]
+    const result = findKeywordMatches('God is good', verseRef, presets)
+    expect(result).toHaveLength(2)
+    const types = result.map(a => a.type)
+    expect(types).toContain('highlight')
+    expect(types).toContain('symbol')
+  })
+
+  // --- Variant matching ---
+  it('matches variant text', () => {
+    const presets = [
+      preset({ id: 'p1', word: 'God', variants: [{ text: 'LORD' }] }),
+    ]
+    const result = findKeywordMatches('The LORD is good', verseRef, presets)
+    expect(result.length).toBeGreaterThanOrEqual(1)
+  })
+
+  // --- Scoped variants ---
+  it('applies scoped variant only to matching book', () => {
+    const presets = [
+      preset({
+        id: 'p1',
+        word: 'God',
+        variants: [{ text: 'Elohim', bookScope: 'Gen' }],
+      }),
+    ]
+    const genResult = findKeywordMatches('Elohim created', verseRef, presets)
+    expect(genResult.length).toBeGreaterThanOrEqual(1)
+
+    const exodRef: VerseRef = { book: 'Exod', chapter: 1, verse: 1 }
+    const exodResult = findKeywordMatches('Elohim appeared', exodRef, presets)
+    // Should still match "God" if present, but not "Elohim" in Exodus
+    expect(exodResult).toEqual([])
+  })
+
+  // --- Overlapping presets ---
+  it('allows two different presets to match the same text range', () => {
+    const presets = [
+      preset({ id: 'p1', word: 'God' }),
+      preset({ id: 'p2', word: 'God', highlight: { style: 'underline', color: 'blue' } }),
+    ]
+    const result = findKeywordMatches('God is good', verseRef, presets)
+    // Each preset should produce at least one annotation for "God"
+    const p1Anns = result.filter(a => a.presetId === 'p1')
+    const p2Anns = result.filter(a => a.presetId === 'p2')
+    expect(p1Anns.length).toBeGreaterThanOrEqual(1)
+    expect(p2Anns.length).toBeGreaterThanOrEqual(1)
+  })
+
+  // --- Same-preset overlap prevention ---
+  it('longer phrase match prevents shorter variant from matching same range', () => {
+    const presets = [
+      preset({
+        id: 'p1',
+        word: 'God Almighty',
+        variants: [{ text: 'God' }],
+      }),
+    ]
+    const result = findKeywordMatches('God Almighty is great', verseRef, presets)
+    // Should match "God Almighty" but not also "God" separately within the same preset
+    expect(result).toHaveLength(1)
+    if ('startOffset' in result[0] && 'endOffset' in result[0]) {
+      const matched = 'God Almighty is great'.substring(result[0].startOffset!, result[0].endOffset!)
+      expect(matched).toBe('God Almighty')
+    }
+  })
+
+  // --- Multiple occurrences ---
+  it('word appearing twice produces two annotations', () => {
+    const presets = [preset({ id: 'p1', word: 'God' })]
+    const result = findKeywordMatches('God made God known', verseRef, presets)
+    expect(result).toHaveLength(2)
+  })
+
+  // --- Case insensitivity ---
+  it('"God" preset matches "god" in text', () => {
+    const presets = [preset({ id: 'p1', word: 'God' })]
+    const result = findKeywordMatches('In the beginning god created', verseRef, presets)
+    expect(result.length).toBeGreaterThanOrEqual(1)
+  })
 })

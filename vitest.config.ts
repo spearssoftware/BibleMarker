@@ -12,5 +12,16 @@ export default defineConfig({
   },
   test: {
     globals: false,
+    coverage: {
+      provider: 'v8',
+      include: ['src/lib/**/*.ts'],
+      exclude: [
+        'src/lib/**/*.test.ts',
+        'src/lib/__test__/**',
+        'src/lib/database.ts',
+        'src/lib/sqlite-db.ts',
+        'src/lib/sync-engine.ts',
+      ],
+    },
   },
 })
