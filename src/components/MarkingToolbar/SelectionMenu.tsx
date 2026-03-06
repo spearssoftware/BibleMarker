@@ -21,11 +21,13 @@ interface SelectionMenuProps {
   position: { x: number; y: number };
   presets: MarkingPreset[];
   activeSymbol?: SymbolKey;
+  strongsNumbers?: string[];
   onApplyPreset: (preset: MarkingPreset) => void;
   onAddAsVariant: (preset: MarkingPreset) => void;
   onOpenKeyWordManager: () => void;
   onOpenObservationTools: (tab?: ObservationTab) => void;
   onAddToList: () => void;
+  onStrongsLookup?: () => void;
   onCancel: () => void;
   onClose: () => void;
 }
@@ -35,11 +37,13 @@ export function SelectionMenu({
   position,
   presets,
   activeSymbol,
+  strongsNumbers,
   onApplyPreset,
   onAddAsVariant,
   onOpenKeyWordManager,
   onOpenObservationTools,
   onAddToList,
+  onStrongsLookup,
   onCancel,
   onClose,
 }: SelectionMenuProps) {
@@ -385,6 +389,26 @@ export function SelectionMenu({
             <span className="text-lg" aria-hidden="true">🔍</span>
             <span>Observe</span>
           </button>
+
+          {/* Strong's Lookup */}
+          {strongsNumbers && strongsNumbers.length > 0 && onStrongsLookup && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onStrongsLookup();
+                onClose();
+              }}
+              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                       hover:shadow-sm text-scripture-text"
+              role="menuitem"
+              aria-label="Strong's lookup"
+            >
+              <span className="text-lg" aria-hidden="true">&#x1F4D6;</span>
+              <span>Strong&apos;s Lookup</span>
+            </button>
+          )}
 
           {/* Quick action for symbol-based observations */}
           {activeSymbol && trackerMapping && (

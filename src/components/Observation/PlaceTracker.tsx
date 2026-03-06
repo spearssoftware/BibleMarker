@@ -10,7 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
-import { getCachedChapter } from '@/lib/database';
+import { fetchChapter } from '@/lib/bible-api';
 import type { Place } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
@@ -357,18 +357,21 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
     let cancelled = false;
     (async () => {
       if (!primaryModuleId) return;
-      const chapterCache = new Map<string, Record<number, string>>();
+      const chapterCache = new Map<string, Map<number, string>>();
       const newTexts = new Map<string, string>();
       for (const place of filteredPlaces) {
         const cacheKey = `${place.verseRef.book}:${place.verseRef.chapter}`;
         if (!chapterCache.has(cacheKey)) {
-          const cached = await getCachedChapter(primaryModuleId, place.verseRef.book, place.verseRef.chapter);
-          if (cached?.verses) chapterCache.set(cacheKey, cached.verses);
+          try {
+            const ch = await fetchChapter(primaryModuleId, place.verseRef.book, place.verseRef.chapter);
+            const verseMap = new Map<number, string>();
+            for (const v of ch.verses) verseMap.set(v.ref.verse, v.text);
+            chapterCache.set(cacheKey, verseMap);
+          } catch { /* skip */ }
         }
         const verses = chapterCache.get(cacheKey);
         if (verses) {
-          const text = verses[place.verseRef.verse] || '';
-          newTexts.set(getVerseKey(place.verseRef), text);
+          newTexts.set(getVerseKey(place.verseRef), verses.get(place.verseRef.verse) || '');
         }
       }
       if (!cancelled) setVerseTexts(newTexts);

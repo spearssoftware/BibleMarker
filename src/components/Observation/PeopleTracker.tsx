@@ -10,7 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
-import { getCachedChapter } from '@/lib/database';
+import { fetchChapter } from '@/lib/bible-api';
 import type { Person } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
@@ -296,16 +296,20 @@ export function PeopleTracker({
     let cancelled = false;
     (async () => {
       if (!primaryModuleId) return;
-      const chapterCache = new Map<string, Record<number, string>>();
+      const chapterCache = new Map<string, Map<number, string>>();
       const newTexts = new Map<string, string>();
       for (const p of filteredPeople) {
         const cacheKey = `${p.verseRef.book}:${p.verseRef.chapter}`;
         if (!chapterCache.has(cacheKey)) {
-          const cached = await getCachedChapter(primaryModuleId, p.verseRef.book, p.verseRef.chapter);
-          if (cached?.verses) chapterCache.set(cacheKey, cached.verses);
+          try {
+            const ch = await fetchChapter(primaryModuleId, p.verseRef.book, p.verseRef.chapter);
+            const verseMap = new Map<number, string>();
+            for (const v of ch.verses) verseMap.set(v.ref.verse, v.text);
+            chapterCache.set(cacheKey, verseMap);
+          } catch { /* skip */ }
         }
         const verses = chapterCache.get(cacheKey);
-        if (verses) newTexts.set(getVerseKey(p.verseRef), verses[p.verseRef.verse] || '');
+        if (verses) newTexts.set(getVerseKey(p.verseRef), verses.get(p.verseRef.verse) || '');
       }
       if (!cancelled) setVerseTexts(newTexts);
     })();

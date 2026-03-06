@@ -34,6 +34,8 @@ export interface TextSelection {
   endVerseText?: string;   // Full text of end verse (for finding offset)
   /** Viewport position for the selection menu (captured when selection is made) */
   menuAnchor?: { x: number; y: number };
+  /** Strong's numbers for the selected word(s), if available */
+  strongsNumbers?: string[];
 }
 
 type FontSize = 'sm' | 'base' | 'lg' | 'xl';

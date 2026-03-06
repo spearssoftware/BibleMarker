@@ -684,6 +684,21 @@ export function MultiTranslationView() {
       y: selRect.top,
     };
 
+    // Look up Strong's numbers for the selected word(s)
+    let strongsNumbers: string[] | undefined;
+    const tc = translationChapters.get(translationId);
+    const verseData = tc?.chapter?.verses.find((v) => v.ref.verse === verseNum);
+    if (verseData?.words) {
+      const selectedLower = text.trim().toLowerCase();
+      const matched = new Set<string>();
+      for (const w of verseData.words) {
+        if (selectedLower.includes(w.word.toLowerCase()) || w.word.toLowerCase().includes(selectedLower)) {
+          for (const s of w.strongs) matched.add(s);
+        }
+      }
+      if (matched.size > 0) strongsNumbers = [...matched];
+    }
+
     // Set selection with translation ID as moduleId
     setSelection({
       moduleId: translationId,
@@ -697,6 +712,7 @@ export function MultiTranslationView() {
       startVerseText: originalText || undefined,
       endVerseText: originalText || undefined,
       menuAnchor,
+      strongsNumbers,
     });
     setIsSelecting(true);
   }, [activeView, currentBook, currentChapter, setSelection, setIsSelecting]);

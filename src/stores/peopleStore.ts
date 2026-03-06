@@ -180,9 +180,9 @@ export const usePeopleStore = create<PeopleState>()(
         const { people, createPerson } = get();
         const { useStudyStore } = await import('@/stores/studyStore');
         const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
-        const { getCachedChapter } = await import('@/lib/database');
-        const chapterCache = await getCachedChapter(moduleId || '', book, chapter);
-        if (!chapterCache?.verses) return 0;
+        const { fetchChapter } = await import('@/lib/bible-api');
+        const chapterData = await fetchChapter(moduleId || '', book, chapter);
+        if (!chapterData?.verses.length) return 0;
         const { useMarkingPresetStore } = await import('@/stores/markingPresetStore');
         const { presets } = useMarkingPresetStore.getState();
         const peoplePresets = presets.filter(p =>
@@ -191,11 +191,9 @@ export const usePeopleStore = create<PeopleState>()(
           (p.highlight || p.symbol)
         );
         let total = 0;
-        for (const [verseNum, verseText] of Object.entries(chapterCache.verses)) {
-          const text = verseText as string;
-          const verseNumInt = parseInt(verseNum, 10);
-          if (isNaN(verseNumInt) || verseNumInt <= 0) continue;
-          const verseRef = { book, chapter, verse: verseNumInt };
+        for (const verse of chapterData.verses) {
+          const text = verse.text;
+          const verseRef = verse.ref;
           for (const preset of peoplePresets) {
             if (preset.bookScope && preset.bookScope !== book) continue;
             if (preset.chapterScope !== undefined && preset.chapterScope !== chapter) continue;
