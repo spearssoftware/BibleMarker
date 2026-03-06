@@ -949,7 +949,7 @@ export function MultiTranslationView() {
 
       {/* Verse rows - scrollable container */}
       <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchEnd={() => { setTimeout(handleMouseUp, 50); }}>
-          <div className={`px-4 py-4 space-y-1.5 border-b border-scripture-border/50 `}>
+          <div className={`px-4 py-4 space-y-1.5`}>
             {sortedVerseNumbers.map(verseNum => (
               <div key={verseNum}>
                 {/* Section heading if exists - show once per verse row, not per translation */}
@@ -1101,7 +1101,7 @@ export function MultiTranslationView() {
           
           {/* Copyright notices */}
           {translationList.some(({ translation }) => translation.copyright) && (
-            <div className={`grid gap-4 px-4 py-3 bg-scripture-surface/50 flex-shrink-0 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            <div className={`grid gap-4 px-4 py-3 border-t border-scripture-muted/20 bg-scripture-surface/50 flex-shrink-0 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
               {translationList.map(({ translation }) => (
                 <CopyrightNotice key={`copyright-${translation.id}`} translation={translation} />
               ))}

@@ -15,10 +15,7 @@ pub async fn download_file(url: String, dest_path: String) -> Result<(), String>
         .map_err(|e| format!("Download failed: {e}"))?;
 
     if !response.status().is_success() {
-        return Err(format!(
-            "Download failed: HTTP {}",
-            response.status()
-        ));
+        return Err(format!("Download failed: HTTP {}", response.status()));
     }
 
     let bytes = response
@@ -72,8 +69,7 @@ pub async fn install_bundled_module(
         dev_path
     };
 
-    std::fs::copy(&source, &dest)
-        .map_err(|e| format!("Failed to copy bundled module: {e}"))?;
+    std::fs::copy(&source, &dest).map_err(|e| format!("Failed to copy bundled module: {e}"))?;
 
     Ok(())
 }
