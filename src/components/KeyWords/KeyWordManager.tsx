@@ -11,6 +11,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, type KeyWordCategory, type MarkingPreset, type Variant } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { SYMBOLS, getHighlightColorHex, HIGHLIGHT_COLORS, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
+import { useAnnotationStore } from '@/stores/annotationStore';
 import { Input, Textarea, Label, DropdownSelect, Checkbox, Button } from '@/components/shared';
 import { getBookById, BIBLE_BOOKS } from '@/types';
 
@@ -664,6 +665,7 @@ function KeyWordEditor({
   });
   const [symbol, setSymbol] = useState<SymbolKey | undefined>(initialSymbol ?? preset?.symbol);
   const [color, setColor] = useState<HighlightColor | undefined>(preset?.highlight?.color ?? (preset ? initialColor : getRandomHighlightColor()));
+  const recentSymbols = useAnnotationStore(s => s.preferences.recentSymbols);
 
   // Update word when initialWord changes (e.g., new selection made)
   useEffect(() => {
@@ -713,6 +715,10 @@ function KeyWordEditor({
 
     // Filter out empty variants
     const validVariants = variants.filter(v => v.text.trim().length > 0);
+
+    if (symbol) {
+      useAnnotationStore.getState().addRecentSymbol(symbol);
+    }
 
     onSave({
       word: word.trim(),
@@ -773,6 +779,27 @@ function KeyWordEditor({
         <div className="space-y-4">
           <div>
             <Label>Symbol</Label>
+            {recentSymbols.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-1.5 mb-2">
+                <span className="text-xs text-scripture-muted font-ui w-full">Recent</span>
+                {recentSymbols.map(key => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => {
+                      setSymbol(key);
+                      setCategory(getCategoryForSymbol(key));
+                      if (!color) setColor(getRandomHighlightColor());
+                    }}
+                    className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition-all
+                      ${symbol === key ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border'}`}
+                    title={key}
+                  >
+                    {SYMBOLS[key]}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="flex flex-wrap gap-2 mt-1.5">
               <button
                 type="button"

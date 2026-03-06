@@ -1,10 +1,11 @@
 /**
  * Search Utility
- * 
+ *
  * Functions for searching Bible text, notes, and annotations.
  */
 
 import { getAllCachedChapters, getAllNotes } from './database';
+import { searchModuleText, fetchChapter } from './bible-api';
 import { parseVerseRef } from '@/types';
 import type { VerseRef } from '@/types';
 export interface SearchResult {
@@ -21,7 +22,8 @@ export interface SearchResult {
 export type SearchScope = 'all' | 'bible' | 'notes' | 'chapter';
 
 /**
- * Search Bible text across all cached chapters
+ * Search Bible text — uses SWORD module direct search for sword-* modules,
+ * falls back to chapter cache for other providers (e.g. ESV).
  */
 export async function searchBibleText(
   query: string,
@@ -30,10 +32,35 @@ export async function searchBibleText(
 ): Promise<SearchResult[]> {
   if (!query.trim()) return [];
 
+  // For SWORD modules, search the module directly (full Bible text available)
+  if (moduleId?.startsWith('sword-')) {
+    const swordResults = await searchModuleText(moduleId, query, limit);
+    return swordResults.map(r => ({
+      type: 'verse' as const,
+      book: r.book,
+      chapter: r.chapter,
+      verse: r.verse,
+      text: r.text,
+      context: r.context,
+      moduleId: r.moduleId,
+    }));
+  }
+
+  // Fallback: search chapter cache (for ESV and other cached providers)
+  return searchCachedChapters(query, moduleId, limit);
+}
+
+/**
+ * Search chapter cache (for non-SWORD providers)
+ */
+async function searchCachedChapters(
+  query: string,
+  moduleId?: string,
+  limit = 100
+): Promise<SearchResult[]> {
   const normalizedQuery = query.toLowerCase();
   const results: SearchResult[] = [];
 
-  // Get all cached chapters (optionally filtered by moduleId)
   let allChapters = await getAllCachedChapters();
   if (moduleId) {
     allChapters = allChapters.filter(c => c.moduleId === moduleId);
@@ -45,25 +72,22 @@ export async function searchBibleText(
       const lowerText = text.toLowerCase();
 
       if (lowerText.includes(normalizedQuery)) {
-        // Find all occurrences and create results with context
-        let index = 0;
-        while ((index = lowerText.indexOf(normalizedQuery, index)) !== -1 && results.length < limit) {
-          const start = Math.max(0, index - 50);
-          const end = Math.min(text.length, index + normalizedQuery.length + 50);
-          const context = text.substring(start, end);
+        const index = lowerText.indexOf(normalizedQuery);
+        const start = Math.max(0, index - 50);
+        const end = Math.min(text.length, index + normalizedQuery.length + 50);
+        const context = text.substring(start, end);
 
-          results.push({
-            type: 'verse',
-            book: chapterCache.book,
-            chapter: chapterCache.chapter,
-            verse: parseInt(verseNum, 10),
-            text,
-            context,
-            moduleId: chapterCache.moduleId,
-          });
+        results.push({
+          type: 'verse',
+          book: chapterCache.book,
+          chapter: chapterCache.chapter,
+          verse: parseInt(verseNum, 10),
+          text,
+          context,
+          moduleId: chapterCache.moduleId,
+        });
 
-          index += normalizedQuery.length;
-        }
+        if (results.length >= limit) return results;
       }
     }
   }
@@ -136,31 +160,45 @@ export async function searchAll(
   if (verseRef) {
     // If it's a verse reference, search for that specific verse
     const results: SearchResult[] = [];
-    
-    // Try to find the verse in cached chapters (search all modules if no moduleId specified)
-    let allChapters = await getAllCachedChapters();
-    allChapters = allChapters.filter(c => c.book === verseRef.book);
-    
-    // Filter by chapter
-    allChapters = allChapters.filter(c => c.chapter === verseRef.chapter);
-    
-    if (moduleId) {
-      allChapters = allChapters.filter(c => c.moduleId === moduleId);
-    }
-    
-    for (const cached of allChapters) {
-      const verseText = cached.verses[verseRef.verse];
-      if (verseText) {
-        results.push({
-          type: 'verse',
-          book: verseRef.book,
-          chapter: verseRef.chapter,
-          verse: verseRef.verse,
-          text: verseText as string,
-          moduleId: cached.moduleId,
-        });
-        // Only add one result per module to avoid duplicates
-        break;
+
+    // For SWORD modules, fetch the verse directly via the chapter API
+    if (moduleId?.startsWith('sword-')) {
+      try {
+        const chapter = await fetchChapter(moduleId, verseRef.book, verseRef.chapter);
+        const match = chapter.verses.find(v => v.ref.verse === verseRef.verse);
+        if (match) {
+          results.push({
+            type: 'verse',
+            book: verseRef.book,
+            chapter: verseRef.chapter,
+            verse: verseRef.verse,
+            text: match.text,
+            moduleId,
+          });
+        }
+      } catch {
+        // Module not available
+      }
+    } else {
+      // Fallback: search cached chapters
+      let allChapters = await getAllCachedChapters();
+      allChapters = allChapters.filter(c => c.book === verseRef.book && c.chapter === verseRef.chapter);
+      if (moduleId) {
+        allChapters = allChapters.filter(c => c.moduleId === moduleId);
+      }
+      for (const cached of allChapters) {
+        const verseText = cached.verses[verseRef.verse];
+        if (verseText) {
+          results.push({
+            type: 'verse',
+            book: verseRef.book,
+            chapter: verseRef.chapter,
+            verse: verseRef.verse,
+            text: verseText as string,
+            moduleId: cached.moduleId,
+          });
+          break;
+        }
       }
     }
 
@@ -170,7 +208,7 @@ export async function searchAll(
       if (moduleId) {
         notes = notes.filter(n => n.moduleId === moduleId);
       }
-      notes = notes.filter(n => 
+      notes = notes.filter(n =>
         n.ref.book === verseRef.book &&
         n.ref.chapter === verseRef.chapter &&
         n.ref.verse === verseRef.verse
@@ -198,7 +236,7 @@ export async function searchAll(
   if (scope === 'chapter' && currentBook && currentChapter !== undefined) {
     const bibleResults = await searchBibleTextInChapter(query, currentBook, currentChapter, moduleId, limit);
     results.push(...bibleResults);
-    
+
     // Also search notes in the current chapter
     const noteResults = await searchNotesInChapter(query, currentBook, currentChapter, moduleId, limit);
     results.push(...noteResults);
@@ -240,14 +278,26 @@ async function searchBibleTextInChapter(
 ): Promise<SearchResult[]> {
   if (!query.trim()) return [];
 
+  // For SWORD modules, search the module directly with book/chapter filter
+  if (moduleId?.startsWith('sword-')) {
+    const swordResults = await searchModuleText(moduleId, query, limit, book, chapter);
+    return swordResults.map(r => ({
+      type: 'verse' as const,
+      book: r.book,
+      chapter: r.chapter,
+      verse: r.verse,
+      text: r.text,
+      context: r.context,
+      moduleId: r.moduleId,
+    }));
+  }
+
+  // Fallback: search chapter cache
   const normalizedQuery = query.toLowerCase();
   const results: SearchResult[] = [];
 
-  // Get only the specific chapter(s) from cache
   let chapters = await getAllCachedChapters();
-  chapters = chapters.filter(c => c.book === book);
-  chapters = chapters.filter(c => c.chapter === chapter);
-  
+  chapters = chapters.filter(c => c.book === book && c.chapter === chapter);
   if (moduleId) {
     chapters = chapters.filter(c => c.moduleId === moduleId);
   }
@@ -258,25 +308,22 @@ async function searchBibleTextInChapter(
       const lowerText = text.toLowerCase();
 
       if (lowerText.includes(normalizedQuery)) {
-        // Find all occurrences and create results with context
-        let index = 0;
-        while ((index = lowerText.indexOf(normalizedQuery, index)) !== -1 && results.length < limit) {
-          const start = Math.max(0, index - 50);
-          const end = Math.min(text.length, index + normalizedQuery.length + 50);
-          const context = text.substring(start, end);
+        const index = lowerText.indexOf(normalizedQuery);
+        const start = Math.max(0, index - 50);
+        const end = Math.min(text.length, index + normalizedQuery.length + 50);
+        const context = text.substring(start, end);
 
-          results.push({
-            type: 'verse',
-            book: chapterCache.book,
-            chapter: chapterCache.chapter,
-            verse: parseInt(verseNum, 10),
-            text,
-            context,
-            moduleId: chapterCache.moduleId,
-          });
+        results.push({
+          type: 'verse',
+          book: chapterCache.book,
+          chapter: chapterCache.chapter,
+          verse: parseInt(verseNum, 10),
+          text,
+          context,
+          moduleId: chapterCache.moduleId,
+        });
 
-          index += normalizedQuery.length;
-        }
+        if (results.length >= limit) return results;
       }
     }
   }
@@ -302,7 +349,7 @@ async function searchNotesInChapter(
   // Get all notes filtered by book and chapter
   let allNotes = await getAllNotes();
   allNotes = allNotes.filter(n => n.ref.book === book && n.ref.chapter === chapter);
-  
+
   if (moduleId) {
     allNotes = allNotes.filter(n => n.moduleId === moduleId);
   }
