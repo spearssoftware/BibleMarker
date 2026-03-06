@@ -663,7 +663,7 @@ function KeyWordEditor({
     return preset.variants.map(v => typeof v === 'string' ? { text: v } : v);
   });
   const [symbol, setSymbol] = useState<SymbolKey | undefined>(initialSymbol ?? preset?.symbol);
-  const [color, setColor] = useState<HighlightColor | undefined>(initialColor ?? preset?.highlight?.color);
+  const [color, setColor] = useState<HighlightColor | undefined>(preset?.highlight?.color ?? (preset ? initialColor : getRandomHighlightColor()));
 
   // Update word when initialWord changes (e.g., new selection made)
   useEffect(() => {
@@ -679,11 +679,7 @@ function KeyWordEditor({
     }
   }, [initialSymbol, preset]);
 
-  useEffect(() => {
-    if (initialColor !== undefined && !preset) {
-      queueMicrotask(() => setColor(initialColor));
-    }
-  }, [initialColor, preset]);
+  // Don't sync initialColor for new presets — we use a random color instead
   const { studies, activeStudyId, getActiveStudy } = useStudyStore();
   const activeStudy = getActiveStudy();
   
