@@ -12,9 +12,9 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import {
   getBookChapterTitles,
   getBookSectionHeadings,
-  getBookCachedChapters,
   getAllObservationLists,
 } from '@/lib/database';
+import { fetchChapter } from '@/lib/bible-api';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import type { ChapterTitle } from '@/types';
@@ -71,11 +71,10 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
       setIsLoading(true);
 
       try {
-        // Fetch all book-level data in parallel — 4 queries total regardless of chapter count
-        const [titles, headings, cachedChapters, allLists] = await Promise.all([
+        // Fetch all book-level data in parallel
+        const [titles, headings, allLists] = await Promise.all([
           getBookChapterTitles(currentBook, activeStudyId),
           getBookSectionHeadings(currentBook, activeStudyId),
-          getBookCachedChapters(primaryTranslationId, currentBook),
           getAllObservationLists(),
         ]);
 
@@ -98,19 +97,19 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
           const headingCount = headingCountByChapter.get(chapter) ?? 0;
 
           const keywordSet = new Set<string>();
-          const verses = cachedChapters.get(chapter);
-          if (verses) {
-            for (const [verseNumStr, verseText] of Object.entries(verses)) {
-              const verseNum = parseInt(verseNumStr, 10);
-              if (isNaN(verseNum) || !verseText) continue;
-              const plainText = extractPlainText(String(verseText));
-              const verseRef = { book: currentBook, chapter, verse: verseNum };
-              const matches = findKeywordMatches(plainText, verseRef, relevantPresets, primaryTranslationId);
-              for (const ann of matches) {
-                if (ann.presetId) keywordSet.add(ann.presetId);
+          try {
+            const chapterData = await fetchChapter(primaryTranslationId, currentBook, chapter);
+            if (chapterData?.verses.length) {
+              for (const verse of chapterData.verses) {
+                if (!verse.text) continue;
+                const plainText = extractPlainText(verse.text);
+                const matches = findKeywordMatches(plainText, verse.ref, relevantPresets, primaryTranslationId);
+                for (const ann of matches) {
+                  if (ann.presetId) keywordSet.add(ann.presetId);
+                }
               }
             }
-          }
+          } catch { /* skip chapters that fail to load */ }
 
           const observationCount = filteredLists.reduce((count, list) => {
             return count + list.items.filter(

@@ -190,7 +190,7 @@ export function ToolbarOverlay({ children, onClose }: ToolbarOverlayProps) {
   
   return (
     <div 
-      className="animate-slide-up flex flex-col w-full max-w-5xl mx-auto overflow-hidden flex-shrink-0
+      className="animate-slide-up flex flex-col w-full mx-auto overflow-hidden flex-shrink-0
                  pl-safe-left pr-safe-right"
       data-marking-toolbar-overlay
       style={{ zIndex: Z_INDEX.TOOLBAR_OVERLAY, height: maxHeightStyle, maxHeight: maxHeightStyle }}
