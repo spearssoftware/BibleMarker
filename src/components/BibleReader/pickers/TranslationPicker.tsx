@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { type ApiTranslation } from '@/lib/bible-api';
+import { type ApiTranslation, hasModuleStrongs } from '@/lib/bible-api';
 import { getPreferences } from '@/lib/database';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useModal } from '@/hooks/useModal';
@@ -247,6 +247,15 @@ function TranslationButton({
           </div>
         </button>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {hasModuleStrongs(translation.id) && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${
+              isSelected
+                ? 'bg-scripture-bg/20 text-scripture-bg border-scripture-bg/30'
+                : 'bg-scripture-info/15 text-scripture-info border-scripture-info/30'
+            }`}>
+              Strong's
+            </span>
+          )}
           <div className={`text-xs font-mono ${isSelected ? 'text-scripture-bg/80' : 'text-scripture-muted'}`}>
             {translation.abbreviation}
           </div>
