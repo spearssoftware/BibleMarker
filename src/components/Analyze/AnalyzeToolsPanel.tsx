@@ -27,6 +27,7 @@ interface AnalyzeToolsPanelProps {
   initialTab?: AnalyzeTab;
   selectedText?: string;
   verseRef?: VerseRef;
+  themeSearchTerm?: string;
 }
 
 export function AnalyzeToolsPanel({
@@ -34,6 +35,7 @@ export function AnalyzeToolsPanel({
   initialTab = 'chapter',
   selectedText,
   verseRef,
+  themeSearchTerm,
 }: AnalyzeToolsPanelProps) {
   const [activeTab, setActiveTabRaw] = useState<AnalyzeTab>(initialTab);
   const [disabledTools, setDisabledTools] = useState<string[]>([]);
@@ -194,7 +196,7 @@ export function AnalyzeToolsPanel({
         )}
         {activeTab === 'themes' && (
           <div role="tabpanel" id="analyze-tabpanel-themes" aria-labelledby="analyze-tab-themes">
-            <ThemeTracker />
+            <ThemeTracker initialSearchTerm={themeSearchTerm} />
           </div>
         )}
         {activeTab === 'timeline' && (
