@@ -31,6 +31,8 @@ export interface SearchResult {
   noteId?: string;
   /** Sub-label for observation results (e.g. "Conclusion", "Interpretation") */
   subType?: string;
+  /** For keyword results: the keyword word for filtering */
+  keywordWord?: string;
 }
 
 export type SearchScope = 'all' | 'bible' | 'notes' | 'keywords' | 'headings' | 'observations' | 'chapter';
@@ -175,6 +177,7 @@ export async function searchKeywords(
         verse: 0,
         text: parts.join(' '),
         context: preset.category || undefined,
+        keywordWord: preset.word,
       });
 
       if (results.length >= limit) break;

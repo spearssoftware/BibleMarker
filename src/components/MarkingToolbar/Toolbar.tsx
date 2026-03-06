@@ -69,6 +69,7 @@ export function Toolbar() {
   const [showKeyWordManager, setShowKeyWordManager] = useState(false);
   const [showAnalyzeToolsPanel, setShowAnalyzeToolsPanel] = useState(false);
   const [analyzePanelInitialTab, setAnalyzePanelInitialTab] = useState<AnalyzeTab>('chapter');
+  const [analyzeThemeSearchTerm, setAnalyzeThemeSearchTerm] = useState<string | undefined>();
   const [showObservationToolsPanel, setShowObservationToolsPanel] = useState(false);
   const [observationPanelInitialTab, setObservationPanelInitialTab] = useState<ObservationTab>('lists');
   const [observationPanelInitialListId, setObservationPanelInitialListId] = useState<string | undefined>(undefined);
@@ -125,9 +126,10 @@ export function Toolbar() {
       setActiveTool(null);
     };
 
-    const handleOpenAnalyzeTools = (e: CustomEvent<{ tab?: AnalyzeTab }>) => {
-      const { tab = 'chapter' } = e.detail || {};
+    const handleOpenAnalyzeTools = (e: CustomEvent<{ tab?: AnalyzeTab; themeSearchTerm?: string }>) => {
+      const { tab = 'chapter', themeSearchTerm } = e.detail || {};
       setAnalyzePanelInitialTab(tab);
+      setAnalyzeThemeSearchTerm(themeSearchTerm);
       setShowAnalyzeToolsPanel(true);
       setShowObservationToolsPanel(false);
 
@@ -564,6 +566,7 @@ export function Toolbar() {
               clearSelection();
             }}
             initialTab={analyzePanelInitialTab}
+            themeSearchTerm={analyzeThemeSearchTerm}
             selectedText={selection?.text}
             verseRef={selection ? {
               book: selection.book,

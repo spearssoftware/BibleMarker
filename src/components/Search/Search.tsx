@@ -107,6 +107,13 @@ export function Search({ onClose, onNavigate }: SearchProps) {
   };
 
   const handleSelectResult = (result: SearchResult) => {
+    if (result.type === 'keyword' && result.keywordWord) {
+      onClose();
+      window.dispatchEvent(new CustomEvent('openAnalyzeTools', {
+        detail: { tab: 'themes', themeSearchTerm: result.keywordWord }
+      }));
+      return;
+    }
     if (result.book && result.chapter > 0) {
       onNavigate(result.book, result.chapter, result.verse > 0 ? result.verse : undefined);
     }
