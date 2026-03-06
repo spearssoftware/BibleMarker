@@ -12,7 +12,7 @@ import { useModal } from '@/hooks/useModal';
 import { ModalBackdrop } from '@/components/shared';
 import { Z_INDEX } from '@/lib/modalConstants';
 
-type DisplayScope = 'all' | 'bible' | 'notes' | 'chapter';
+type DisplayScope = SearchScope;
 
 interface SearchProps {
   onClose: () => void;
@@ -107,7 +107,9 @@ export function Search({ onClose, onNavigate }: SearchProps) {
   };
 
   const handleSelectResult = (result: SearchResult) => {
-    onNavigate(result.book, result.chapter, result.verse);
+    if (result.book && result.chapter > 0) {
+      onNavigate(result.book, result.chapter, result.verse > 0 ? result.verse : undefined);
+    }
     onClose();
   };
 
@@ -137,6 +139,13 @@ export function Search({ onClose, onNavigate }: SearchProps) {
         return '📖';
       case 'note':
         return '📝';
+      case 'keyword':
+        return '🏷️';
+      case 'heading':
+      case 'chapter-title':
+        return '📑';
+      case 'observation':
+        return '🔬';
       default:
         return '🔍';
     }
@@ -202,7 +211,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
           {/* Scope selector */}
           <div className="flex items-baseline gap-2 mt-3 flex-wrap">
             <span className="text-xs text-scripture-muted font-ui leading-none py-1.5">Search in:</span>
-            {(['all', 'bible', 'notes', 'chapter'] as const).map((s) => (
+            {(['all', 'bible', 'keywords', 'headings', 'notes', 'observations', 'chapter'] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setScope(s)}
@@ -213,7 +222,13 @@ export function Search({ onClose, onNavigate }: SearchProps) {
                 aria-label={`Search in ${s === 'all' ? 'all' : s === 'chapter' ? `${bookInfo?.name || currentBook} ${currentChapter}` : s}`}
                 aria-pressed={scope === s}
               >
-                {s === 'all' ? 'All' : s === 'bible' ? 'Bible' : s === 'notes' ? 'Notes' : `${bookInfo?.name || currentBook} ${currentChapter}`}
+                {s === 'all' ? 'All'
+                  : s === 'bible' ? 'Bible'
+                  : s === 'keywords' ? 'Keywords'
+                  : s === 'headings' ? 'Headings'
+                  : s === 'notes' ? 'Notes'
+                  : s === 'observations' ? 'Study'
+                  : `${bookInfo?.name || currentBook} ${currentChapter}`}
               </button>
             ))}
           </div>
@@ -258,11 +273,13 @@ export function Search({ onClose, onNavigate }: SearchProps) {
                       <span className="text-lg flex-shrink-0">{getResultIcon(result.type)}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-scripture-text text-sm">
-                            {bookInfo?.name || result.book} {result.chapter}:{result.verse}
-                          </span>
+                          {result.book ? (
+                            <span className="font-medium text-scripture-text text-sm">
+                              {bookInfo?.name || result.book} {result.chapter}{result.verse > 0 ? `:${result.verse}` : ''}
+                            </span>
+                          ) : null}
                           <span className="text-xs text-scripture-muted uppercase">
-                            {result.type}
+                            {result.subType || result.type.replace('-', ' ')}
                           </span>
                         </div>
                         <p className="text-sm text-scripture-text leading-relaxed line-clamp-2">

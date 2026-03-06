@@ -153,6 +153,29 @@ export async function deleteSectionHeading(id: string): Promise<void> {
   await logChange('section_headings', 'delete', id);
 }
 
+export async function getAllSectionHeadings(): Promise<SectionHeading[]> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const rows = await db.select<{
+    id: string;
+    before_ref: string;
+    title: string;
+    covers_until: string | null;
+    study_id: string | null;
+    created_at: string;
+    updated_at: string;
+  }[]>(`SELECT * FROM section_headings`);
+  return rows.map(row => ({
+    id: row.id,
+    beforeRef: JSON.parse(row.before_ref),
+    title: row.title,
+    coversUntil: row.covers_until ? JSON.parse(row.covers_until) : undefined,
+    studyId: row.study_id ?? undefined,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+  }));
+}
+
 // ============================================================================
 // Chapter Title Operations
 // ============================================================================
@@ -178,6 +201,33 @@ export async function deleteChapterTitle(id: string): Promise<void> {
   const mod = await sqlite();
   await mod.sqliteDeleteChapterTitle(id);
   await logChange('chapter_titles', 'delete', id);
+}
+
+export async function getAllChapterTitles(): Promise<ChapterTitle[]> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const rows = await db.select<{
+    id: string;
+    book: string;
+    chapter: number;
+    title: string;
+    theme: string | null;
+    supporting_preset_ids: string | null;
+    study_id: string | null;
+    created_at: string;
+    updated_at: string;
+  }[]>(`SELECT * FROM chapter_titles`);
+  return rows.map(row => ({
+    id: row.id,
+    book: row.book,
+    chapter: row.chapter,
+    title: row.title,
+    theme: row.theme ?? undefined,
+    supportingPresetIds: row.supporting_preset_ids ? JSON.parse(row.supporting_preset_ids) : undefined,
+    studyId: row.study_id ?? undefined,
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+  }));
 }
 
 // ============================================================================
