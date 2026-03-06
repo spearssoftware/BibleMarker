@@ -33,6 +33,8 @@ export {
   getModuleInfo,
   isModuleBundled,
   getModuleCopyright,
+  hasModuleStrongs,
+  searchModuleText,
   NASB_COPYRIGHT,
   NASB95_COPYRIGHT,
   LOCKMAN_URL,
