@@ -14,7 +14,7 @@ import type {
   BibleApiProvider,
 } from './types';
 import { BibleApiError } from './types';
-import type { VerseRef } from '@/types';
+import type { VerseRef, WordStrongs } from '@/types';
 import { getVerseCount } from '@/types';
 import { loadFromZip, getVerseRaw, type SwordModuleFiles } from './sword-ztext';
 
@@ -156,6 +156,30 @@ export function extractCrossRefs(osisText: string): { label: string; osisRef: st
     }
   }
   return refs;
+}
+
+/** Extract words with Strong's numbers from OSIS XML (before stripping) */
+export function extractWordsWithStrongs(osisText: string): WordStrongs[] {
+  const result: WordStrongs[] = [];
+  const wTagRegex = /<w\b[^>]*lemma="([^"]*)"[^>]*>([^<]*)<\/w>/g;
+  let match: RegExpExecArray | null;
+  while ((match = wTagRegex.exec(osisText)) !== null) {
+    const lemmaAttr = match[1];
+    const word = match[2].trim();
+    if (!word) continue;
+
+    const strongs: string[] = [];
+    const strongsRegex = /strong:([HG]\d+)/gi;
+    let strongsMatch: RegExpExecArray | null;
+    while ((strongsMatch = strongsRegex.exec(lemmaAttr)) !== null) {
+      strongs.push(strongsMatch[1].toUpperCase());
+    }
+
+    if (strongs.length > 0) {
+      result.push({ word, strongs });
+    }
+  }
+  return result;
 }
 
 /** Get the app data directory path for SWORD module storage */
@@ -351,12 +375,15 @@ class SwordClient implements BibleApiClient {
 
     for (let v = 1; v <= verseCount; v++) {
       const raw = getVerseRaw(files, book, chapter, v, bufCache);
+      const words = raw.includes('lemma="strong:') ? extractWordsWithStrongs(raw) : undefined;
       const text = stripOsis(raw);
       if (v === 1) {
         console.log(`[SWORD] ${moduleId} ${book} ${chapter}:1 raw=${raw.substring(0, 80)}... text=${text.substring(0, 80)}...`);
       }
       if (text) {
-        verses.push({ book, chapter, verse: v, text, html: text });
+        const verse: VerseResponse = { book, chapter, verse: v, text, html: text };
+        if (words && words.length > 0) verse.words = words;
+        verses.push(verse);
       }
     }
     console.log(`[SWORD] ${moduleId} ${book} ${chapter}: ${verses.length}/${verseCount} verses`);

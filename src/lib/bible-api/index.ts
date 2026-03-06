@@ -249,6 +249,7 @@ export async function fetchChapter(
         ref: { book, chapter, verse: v.verse },
         text: v.text,
         html: v.html || v.text,
+        ...(v.words ? { words: v.words } : {}),
       })),
     };
   }

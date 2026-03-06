@@ -4,7 +4,7 @@
  * Common types for Bible API providers (SWORD modules, ESV API).
  */
 
-import type { VerseRef } from '@/types';
+import type { VerseRef, WordStrongs } from '@/types';
 
 /** Supported Bible API providers */
 export type BibleApiProvider = 'esv' | 'sword';
@@ -45,6 +45,7 @@ export interface VerseResponse {
   verse: number;
   text: string;
   html?: string;
+  words?: WordStrongs[];
 }
 
 /** Search result from Bible API */

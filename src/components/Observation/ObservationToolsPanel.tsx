@@ -11,7 +11,8 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
-import { getCachedChapter, getPreferences } from '@/lib/database';
+import { getPreferences } from '@/lib/database';
+import { fetchChapter } from '@/lib/bible-api';
 import { getBookById, formatVerseRef } from '@/types';
 import type { ObservationList, ObservationItem } from '@/types';
 import type { VerseRef } from '@/types';
@@ -200,7 +201,7 @@ export function ObservationToolsPanel({
     let cancelled = false;
     (async () => {
       if (!primaryModuleId || displayLists.length === 0) return;
-      const chapterCache = new Map<string, Record<number, string>>();
+      const chapterCache = new Map<string, Map<number, string>>();
       const newTexts = new Map<string, string>();
       for (const list of displayLists) {
         for (const item of list.items) {
@@ -208,12 +209,16 @@ export function ObservationToolsPanel({
           if (newTexts.has(verseKey)) continue;
           const cacheKey = `${item.verseRef.book}:${item.verseRef.chapter}`;
           if (!chapterCache.has(cacheKey)) {
-            const cached = await getCachedChapter(primaryModuleId, item.verseRef.book, item.verseRef.chapter);
-            if (cached?.verses) chapterCache.set(cacheKey, cached.verses);
+            try {
+              const ch = await fetchChapter(primaryModuleId, item.verseRef.book, item.verseRef.chapter);
+              const verseMap = new Map<number, string>();
+              for (const v of ch.verses) verseMap.set(v.ref.verse, v.text);
+              chapterCache.set(cacheKey, verseMap);
+            } catch { /* skip */ }
           }
           const verses = chapterCache.get(cacheKey);
           if (verses) {
-            newTexts.set(verseKey, verses[item.verseRef.verse] || '');
+            newTexts.set(verseKey, verses.get(item.verseRef.verse) || '');
           }
         }
       }

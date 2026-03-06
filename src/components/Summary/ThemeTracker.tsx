@@ -9,7 +9,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { getCachedChapter } from '@/lib/database';
+import { fetchChapter } from '@/lib/bible-api';
 import { getBookById } from '@/types';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
@@ -82,42 +82,34 @@ export function ThemeTracker() {
         // Load cached text for each chapter and find keyword matches
         // This uses the same logic as the UI to find keywords (both manually marked and auto-detected)
         for (let chapter = 1; chapter <= bookInfo.chapters; chapter++) {
-          const cached = await getCachedChapter(primaryTranslationId, currentBook, chapter);
-          
-          if (cached && cached.verses) {
-            // Track which keywords we've found in this chapter (to avoid double-counting)
-            const chapterKeywordSet = new Set<string>();
-            
-            // Process each verse in the chapter
-            for (const [verseNumStr, verseText] of Object.entries(cached.verses)) {
-              const verseNum = parseInt(verseNumStr, 10);
-              if (isNaN(verseNum) || !verseText) continue;
-              
-              // Extract plain text (remove HTML/OSIS tags)
-              const plainText = extractPlainText(String(verseText));
-              
-              // Find keyword matches in this verse using the same logic as the UI
-              const verseRef = { book: currentBook, chapter, verse: verseNum };
-              const virtualAnnotations = findKeywordMatches(
-                plainText,
-                verseRef,
-                relevantPresets,
-                primaryTranslationId
-              );
-              
-              // Count keyword occurrences
-              for (const ann of virtualAnnotations) {
-                if (ann.presetId) {
-                  const data = keywordMap.get(ann.presetId);
-                  if (data) {
-                    // Mark that this keyword appears in this chapter
-                    chapterKeywordSet.add(ann.presetId);
-                    data.chapters.add(chapter);
-                    data.count++;
+          try {
+            const chapterData = await fetchChapter(primaryTranslationId, currentBook, chapter);
+
+            if (chapterData && chapterData.verses.length > 0) {
+              for (const verse of chapterData.verses) {
+                if (!verse.text) continue;
+
+                const plainText = extractPlainText(verse.text);
+                const virtualAnnotations = findKeywordMatches(
+                  plainText,
+                  verse.ref,
+                  relevantPresets,
+                  primaryTranslationId
+                );
+
+                for (const ann of virtualAnnotations) {
+                  if (ann.presetId) {
+                    const data = keywordMap.get(ann.presetId);
+                    if (data) {
+                      data.chapters.add(chapter);
+                      data.count++;
+                    }
                   }
                 }
               }
             }
+          } catch {
+            // Skip chapters that fail to load
           }
         }
         

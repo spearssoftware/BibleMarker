@@ -280,11 +280,18 @@ export interface VerseRange {
   end: VerseRef;
 }
 
+/** A word mapped to its Strong's number(s) */
+export interface WordStrongs {
+  word: string;
+  strongs: string[]; // e.g. ["H7225"] or ["G3056", "G1234"]
+}
+
 /** A single verse of text */
 export interface Verse {
   ref: VerseRef;
   text: string;           // Raw text with OSIS/ThML markup
   html?: string;          // Rendered HTML
+  words?: WordStrongs[];  // populated only when module has Strong's
 }
 
 /** A chapter of verses */
