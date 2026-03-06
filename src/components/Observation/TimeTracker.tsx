@@ -14,7 +14,7 @@ import { fetchChapter } from '@/lib/bible-api';
 import type { TimeExpression } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
-import { ConfirmationDialog, Input, Textarea } from '@/components/shared';
+import { Button, ConfirmationDialog, Input, Textarea } from '@/components/shared';
 
 function highlightWords(text: string, words: string[]): React.ReactNode {
   const filtered = words.filter(w => w.trim());
@@ -567,20 +567,9 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
               placeholder="Additional notes about this time expression"
               rows={2}
             />
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleCreate}
-                disabled={!newExpression.trim() || !getCurrentVerseRef()}
-                className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Save
-              </button>
-              <button
-                onClick={handleCancelCreate}
-                className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-              >
-                Cancel
-              </button>
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="ghost" onClick={handleCancelCreate}>Cancel</Button>
+              <Button onClick={handleCreate} disabled={!newExpression.trim() || !getCurrentVerseRef()}>Save</Button>
             </div>
             {!getCurrentVerseRef() && (
               <p className="text-xs text-scripture-error">
@@ -758,20 +747,9 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
                                                   onChange={(e) => setEditingNotes(e.target.value)}
                                                   rows={2}
                                                 />
-                                                <div className="flex items-center gap-2">
-                                                  <button
-                                                    onClick={() => handleSaveEdit(timeExpression.id)}
-                                                    disabled={!editingExpression.trim()}
-                                                    className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                  >
-                                                    Save
-                                                  </button>
-                                                  <button
-                                                    onClick={handleCancelEdit}
-                                                    className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-                                                  >
-                                                    Cancel
-                                                  </button>
+                                                <div className="flex items-center justify-end gap-2">
+                                                  <Button variant="ghost" onClick={handleCancelEdit}>Cancel</Button>
+                                                  <Button onClick={() => handleSaveEdit(timeExpression.id)} disabled={!editingExpression.trim()}>Save</Button>
                                                 </div>
                                               </div>
                                             ) : (
@@ -823,20 +801,9 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
                                                       rows={2}
                                                       autoFocus
                                                     />
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                      <button
-                                                        onClick={() => handleAddObservation(timeExpression.id)}
-                                                        disabled={!newObservation.trim()}
-                                                        className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                      >
-                                                        Add
-                                                      </button>
-                                                      <button
-                                                        onClick={() => { setAddingObservationToId(null); setNewObservation(''); }}
-                                                        className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-                                                      >
-                                                        Cancel
-                                                      </button>
+                                                    <div className="flex items-center justify-end gap-2 mt-1">
+                                                      <Button variant="ghost" onClick={() => { setAddingObservationToId(null); setNewObservation(''); }}>Cancel</Button>
+                                                      <Button onClick={() => handleAddObservation(timeExpression.id)} disabled={!newObservation.trim()}>Add</Button>
                                                     </div>
                                                   </div>
                                                 )}

@@ -11,7 +11,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import type { ObservationList } from '@/types';
 import { BIBLE_BOOKS } from '@/types';
-import { Modal, Input, DropdownSelect, Label } from '@/components/shared';
+import { Button, Modal, Input, DropdownSelect, Label } from '@/components/shared';
 
 interface ListEditorProps {
   list?: ObservationList;
@@ -192,36 +192,14 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
 
       {/* Sticky Save/Cancel bar */}
       {inline ? (
-        <div className="flex-shrink-0 p-4 border-t border-scripture-border/50 flex gap-2 bg-scripture-surface z-10">
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 text-sm bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!title.trim() || !selectedKeywordId}
-            className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {list ? 'Save' : 'Create'}
-          </button>
+        <div className="flex-shrink-0 p-4 border-t border-scripture-border/50 flex justify-end gap-2 bg-scripture-surface z-10">
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={!title.trim() || !selectedKeywordId}>{list ? 'Save' : 'Create'}</Button>
         </div>
       ) : (
         <div className="flex items-center justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!title.trim() || !selectedKeywordId}
-            className="px-4 py-2 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {list ? 'Save' : 'Create'}
-          </button>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={!title.trim() || !selectedKeywordId}>{list ? 'Save' : 'Create'}</Button>
         </div>
       )}
     </>
@@ -243,19 +221,8 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
       size="md"
       footer={
         <div className="flex items-center justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!title.trim() || !selectedKeywordId}
-            className="px-4 py-2 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {list ? 'Save' : 'Create'}
-          </button>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave} disabled={!title.trim() || !selectedKeywordId}>{list ? 'Save' : 'Create'}</Button>
         </div>
       }
     >

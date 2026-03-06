@@ -167,13 +167,9 @@ export function StudyManager({ onClose }: StudyManagerProps = {}) {
                               ...BIBLE_BOOKS.map(book => ({ value: book.id, label: book.name }))
                             ]}
                           />
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={handleUpdate}>
-                              Save
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setEditingStudy(null)}>
-                              Cancel
-                            </Button>
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" onClick={() => setEditingStudy(null)}>Cancel</Button>
+                            <Button onClick={handleUpdate}>Save</Button>
                           </div>
                         </div>
                       ) : (

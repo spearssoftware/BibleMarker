@@ -10,7 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import type { Conclusion } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
-import { ConfirmationDialog, Input, Textarea } from '@/components/shared';
+import { Button, ConfirmationDialog, Input, Textarea } from '@/components/shared';
 
 interface ConclusionTrackerProps {
   selectedText?: string;
@@ -261,20 +261,9 @@ export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, fil
               placeholder="Additional notes about this conclusion"
               rows={2}
             />
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleCreate}
-                disabled={!newTerm.trim() || !getCurrentVerseRef()}
-                className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Save
-              </button>
-              <button
-                onClick={handleCancelCreate}
-                className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-              >
-                Cancel
-              </button>
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="ghost" onClick={handleCancelCreate}>Cancel</Button>
+              <Button onClick={handleCreate} disabled={!newTerm.trim() || !getCurrentVerseRef()}>Save</Button>
             </div>
             {!getCurrentVerseRef() && (
               <p className="text-xs text-scripture-muted">
@@ -371,20 +360,9 @@ export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, fil
                                 onChange={(e) => setEditingNotes(e.target.value)}
                                 rows={2}
                               />
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => handleSaveEdit(conclusion.id)}
-                                  disabled={!editingTerm.trim()}
-                                  className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={handleCancelEdit}
-                                  className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-                                >
-                                  Cancel
-                                </button>
+                              <div className="flex items-center justify-end gap-2">
+                                <Button variant="ghost" onClick={handleCancelEdit}>Cancel</Button>
+                                <Button onClick={() => handleSaveEdit(conclusion.id)} disabled={!editingTerm.trim()}>Save</Button>
                               </div>
                             </div>
                           ) : (

@@ -28,7 +28,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { AboutSection } from './AboutSection';
 import { GettingStartedSection } from './GettingStartedSection';
-import { ConfirmationDialog, Input, DropdownSelect, Checkbox } from '@/components/shared';
+import { Button, ConfirmationDialog, Input, DropdownSelect, Checkbox } from '@/components/shared';
 import { resetAllStores } from '@/lib/storeReset';
 import { useStudyStore } from '@/stores/studyStore';
 import { onSyncStatusChange, getSyncStatusMessage, triggerSync, type SyncStatus } from '@/lib/sync';
@@ -1796,21 +1796,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                                   ...BIBLE_BOOKS.map(book => ({ value: book.id, label: book.name }))
                                 ]}
                               />
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => updateStudy({ ...study, name: editingStudy.name.trim(), book: editingStudy.book }).then(() => setEditingStudy(null))}
-                                  className="px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                                           hover:bg-scripture-accent/90 transition-all duration-200 shadow-md"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={() => setEditingStudy(null)}
-                                  className="px-3 py-2 text-sm font-ui bg-scripture-elevated hover:bg-scripture-border/50
-                                           border border-scripture-border/50 text-scripture-text rounded-lg transition-all duration-200"
-                                >
-                                  Cancel
-                                </button>
+                              <div className="flex justify-end gap-2">
+                                <Button variant="ghost" onClick={() => setEditingStudy(null)}>Cancel</Button>
+                                <Button onClick={() => updateStudy({ ...study, name: editingStudy.name.trim(), book: editingStudy.book }).then(() => setEditingStudy(null))}>Save</Button>
                               </div>
                             </div>
                           ) : (

@@ -12,7 +12,7 @@ import { getBookById, formatVerseRef } from '@/types';
 import type { ObservationList, ObservationItem } from '@/types';
 import type { VerseRef } from '@/types';
 import { ListEditor } from './ListEditor';
-import { Modal, ConfirmationDialog } from '@/components/shared';
+import { Button, Modal, ConfirmationDialog } from '@/components/shared';
 
 interface ListPanelProps {
   onClose?: () => void;
@@ -413,20 +413,9 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
                                                   className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
                                                   autoFocus
                                                 />
-                                                <div className="flex items-center gap-2">
-                                                  <button
-                                                    onClick={() => handleSaveEdit(list.id, item.id)}
-                                                    disabled={!editingItemText.trim()}
-                                                    className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                  >
-                                                    Save
-                                                  </button>
-                                                  <button
-                                                    onClick={handleCancelEdit}
-                                                    className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-                                                  >
-                                                    Cancel
-                                                  </button>
+                                                <div className="flex items-center justify-end gap-2">
+                                                  <Button variant="ghost" onClick={handleCancelEdit}>Cancel</Button>
+                                                  <Button onClick={() => handleSaveEdit(list.id, item.id)} disabled={!editingItemText.trim()}>Save</Button>
                                                 </div>
                                               </div>
                                             ) : (
@@ -466,20 +455,9 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
                                           className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none mb-2"
                                           autoFocus
                                         />
-                                        <div className="flex items-center gap-2">
-                                          <button
-                                            onClick={handleAddObservation}
-                                            disabled={!newObservationText.trim()}
-                                            className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                          >
-                                            Add
-                                          </button>
-                                          <button
-                                            onClick={handleCancelAddObservation}
-                                            className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-                                          >
-                                            Cancel
-                                          </button>
+                                        <div className="flex items-center justify-end gap-2">
+                                          <Button variant="ghost" onClick={handleCancelAddObservation}>Cancel</Button>
+                                          <Button onClick={handleAddObservation} disabled={!newObservationText.trim()}>Add</Button>
                                         </div>
                                       </div>
                                     )}

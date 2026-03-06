@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import type { Note } from '@/types';
-import { Textarea } from '@/components/shared';
+import { Button, Textarea } from '@/components/shared';
 
 interface NoteEditorProps {
   note: Note;
@@ -84,26 +84,19 @@ export function NoteEditor({
           </div>
         </div>
         <div className="flex items-center justify-end gap-2 mt-2">
-          <button
-            onClick={handleSave}
-            className="px-3 py-1.5 text-xs font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                     hover:bg-scripture-accent/90 transition-colors"
-          >
-            Save
-          </button>
           {onDelete && (
-            <button
+            <Button
+              variant="destructive"
               onClick={handleDelete}
               onMouseDown={(e) => {
                 // Prevent textarea blur from firing before delete
                 e.preventDefault();
               }}
-              className="px-3 py-1.5 text-xs font-ui bg-scripture-errorBg text-scripture-error rounded-lg
-                       hover:bg-scripture-errorBg/80 transition-colors"
             >
               Delete
-            </button>
+            </Button>
           )}
+          <Button onClick={handleSave}>Save</Button>
         </div>
       </div>
     );

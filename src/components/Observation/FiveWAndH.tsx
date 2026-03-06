@@ -11,7 +11,7 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { formatVerseRef, getBookById } from '@/types';
 import type { FiveWAndHEntry } from '@/types';
 import type { VerseRef } from '@/types';
-import { Textarea, ConfirmationDialog } from '@/components/shared';
+import { Button, Textarea, ConfirmationDialog } from '@/components/shared';
 import { getChapterAnnotations } from '@/lib/database';
 
 interface FiveWAndHProps {
@@ -502,19 +502,10 @@ export function FiveWAndH({ verseRef: initialVerseRef, filterByChapter = true, i
 
           {/* Save/Cancel */}
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-scripture-border/30">
-            <button
-              onClick={handleCancel}
-              className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!formVerseRef || (!formWho.trim() && !formWhat.trim() && !formWhen.trim() && !formWhere.trim() && !formWhy.trim() && !formHow.trim() && !formNotes.trim())}
-              className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
+            <Button variant="ghost" onClick={handleCancel}>Cancel</Button>
+            <Button onClick={handleSave} disabled={!formVerseRef || (!formWho.trim() && !formWhat.trim() && !formWhen.trim() && !formWhere.trim() && !formWhy.trim() && !formHow.trim() && !formNotes.trim())}>
               {editingId ? 'Save' : 'Create'}
-            </button>
+            </Button>
           </div>
         </div>
       )}
