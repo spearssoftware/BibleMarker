@@ -137,14 +137,18 @@ const bufferCaches = new Map<string, Map<string, Uint8Array>>();
 
 /** Strip OSIS XML to plain verse text (removes notes, titles, divs, keeps word content) */
 function stripOsis(text: string): string {
-  return text
+  let result = text
     .replace(/<title\b[^>]*>[\s\S]*?<\/title>/g, '') // remove section headings
     .replace(/<note\b[^>]*>[\s\S]*?<\/note>/g, '')   // remove notes (cross-refs, footnotes)
     .replace(/<div\b[^>]*\/>/g, '')                    // remove self-closing divs (milestones)
-    .replace(/<div\b[^>]*>[\s\S]*?<\/div>/g, '')      // remove div blocks
-    .replace(/<[^>]+>/g, '')                           // remove remaining tags
-    .replace(/\s+/g, ' ')                              // normalize whitespace
-    .trim();
+    .replace(/<div\b[^>]*>[\s\S]*?<\/div>/g, '');     // remove div blocks
+  // Loop catch-all tag removal to handle any tags reconstituted by prior replacements
+  let previous;
+  do {
+    previous = result;
+    result = result.replace(/<[^>]+>/g, '');
+  } while (result !== previous);
+  return result.replace(/\s+/g, ' ').trim();
 }
 
 /** Extract cross-references from OSIS XML */
