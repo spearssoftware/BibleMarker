@@ -369,8 +369,7 @@ export const useListStore = create<ListState>()(
     }),
     {
       name: 'list-store',
-      partialize: (state) => ({ 
-        lists: state.lists,
+      partialize: (state) => ({
         lastUsedListId: state.lastUsedListId,
       }),
     }
