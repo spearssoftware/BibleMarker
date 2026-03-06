@@ -1101,7 +1101,7 @@ export function MultiTranslationView() {
           
           {/* Copyright notices */}
           {translationList.some(({ translation }) => translation.copyright) && (
-            <div className={`grid gap-4 px-4 py-3 bg-scripture-surface/50 flex-shrink-0 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            <div className={`grid gap-4 px-4 py-3 border-t border-scripture-muted/20 bg-scripture-surface/50 flex-shrink-0 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
               {translationList.map(({ translation }) => (
                 <CopyrightNotice key={`copyright-${translation.id}`} translation={translation} />
               ))}
