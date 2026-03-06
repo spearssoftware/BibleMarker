@@ -15,7 +15,7 @@ import type {
 } from './types';
 import { BibleApiError } from './types';
 import type { VerseRef, WordStrongs } from '@/types';
-import { getVerseCount } from '@/types';
+import { getVerseCount, BIBLE_BOOKS } from '@/types';
 import { loadFromZip, getVerseRaw, type SwordModuleFiles } from './sword-ztext';
 
 /** Copyright text for NASB editions */
@@ -38,6 +38,8 @@ interface SwordModuleInfo {
   copyrightUrl: string | null;
   language: string;
   category: 'licensed' | 'public-domain';
+  /** Whether this module includes Strong's number tagging */
+  hasStrongs?: boolean;
 }
 
 /** CrossWire rawzip base URL */
@@ -45,7 +47,7 @@ const CROSSWIRE_BASE = 'https://crosswire.org/ftpmirror/pub/sword/packages/rawzi
 
 
 /** Helper to create a public domain module entry */
-function pdModule(abbreviation: string, name: string, language = 'en'): SwordModuleInfo {
+function pdModule(abbreviation: string, name: string, language = 'en', hasStrongs = false): SwordModuleInfo {
   return {
     id: `sword-${abbreviation}`,
     name,
@@ -55,6 +57,7 @@ function pdModule(abbreviation: string, name: string, language = 'en'): SwordMod
     copyrightUrl: null,
     language,
     category: 'public-domain',
+    hasStrongs,
   };
 }
 
@@ -70,6 +73,7 @@ const MODULE_REGISTRY: SwordModuleInfo[] = [
     copyrightUrl: LOCKMAN_URL,
     language: 'en',
     category: 'licensed',
+    hasStrongs: true,
   },
   {
     id: 'sword-NASB1995',
@@ -80,10 +84,11 @@ const MODULE_REGISTRY: SwordModuleInfo[] = [
     copyrightUrl: LOCKMAN_URL,
     language: 'en',
     category: 'licensed',
+    hasStrongs: true,
   },
 
   // Public domain modules (CrossWire)
-  pdModule('KJV', 'King James Version'),
+  pdModule('KJV', 'King James Version', 'en', true),
   pdModule('ASV', 'American Standard Version'),
   pdModule('BBE', 'Bible in Basic English'),
   pdModule('BSB', 'Berean Standard Bible'),
@@ -92,7 +97,7 @@ const MODULE_REGISTRY: SwordModuleInfo[] = [
   pdModule('Geneva', 'Geneva Bible (1599)'),
   pdModule('Godbey', 'Godbey New Testament'),
   pdModule('JPS', 'JPS 1917 Old Testament'),
-  pdModule('KJVA', 'King James Version with Apocrypha'),
+  pdModule('KJVA', 'King James Version with Apocrypha', 'en', true),
   pdModule('LITV', 'Green\'s Literal Translation'),
   pdModule('LEB', 'Lexham English Bible'),
   pdModule('MKJV', 'Modern King James Version'),
@@ -326,6 +331,79 @@ export function getModuleCopyright(moduleId: string): { text: string; url?: stri
 /** Get the full list of available modules (for settings UI) */
 export function getAvailableModules(): SwordModuleInfo[] {
   return [...MODULE_REGISTRY];
+}
+
+/** Check if a module has Strong's number tagging */
+export function hasModuleStrongs(moduleId: string): boolean {
+  const info = getModuleInfo(moduleId);
+  return info?.hasStrongs === true;
+}
+
+/** Search result from SWORD module text search */
+export interface SwordSearchResult {
+  book: string;
+  chapter: number;
+  verse: number;
+  text: string;
+  context: string;
+  moduleId: string;
+}
+
+/**
+ * Search a SWORD module's full text directly (no cache needed).
+ * Loads the module into memory if not already loaded, then iterates all verses.
+ */
+export async function searchModuleText(
+  moduleId: string,
+  query: string,
+  limit = 100,
+  filterBook?: string,
+  filterChapter?: number
+): Promise<SwordSearchResult[]> {
+  if (!query.trim()) return [];
+
+  const downloaded = await isModuleDownloaded(moduleId);
+  if (!downloaded) return [];
+
+  const files = await ensureLoaded(moduleId);
+  const bufCache = getBufferCache(moduleId);
+  const normalizedQuery = query.toLowerCase();
+  const results: SwordSearchResult[] = [];
+
+  const books = filterBook
+    ? BIBLE_BOOKS.filter(b => b.id === filterBook)
+    : BIBLE_BOOKS;
+
+  for (const book of books) {
+    const startChapter = filterChapter ?? 1;
+    const endChapter = filterChapter ?? book.chapters;
+    for (let ch = startChapter; ch <= endChapter; ch++) {
+      const verseCount = getVerseCount(book.id, ch);
+      for (let v = 1; v <= verseCount; v++) {
+        const raw = getVerseRaw(files, book.id, ch, v, bufCache);
+        const text = stripOsis(raw);
+        if (!text) continue;
+
+        const lowerText = text.toLowerCase();
+        if (lowerText.includes(normalizedQuery)) {
+          const index = lowerText.indexOf(normalizedQuery);
+          const start = Math.max(0, index - 50);
+          const end = Math.min(text.length, index + normalizedQuery.length + 50);
+          results.push({
+            book: book.id,
+            chapter: ch,
+            verse: v,
+            text,
+            context: text.substring(start, end),
+            moduleId,
+          });
+          if (results.length >= limit) return results;
+        }
+      }
+    }
+  }
+
+  return results;
 }
 
 class SwordClient implements BibleApiClient {

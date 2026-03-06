@@ -52,7 +52,8 @@ async function loadGreek(): Promise<void> {
 }
 
 export async function lookupStrongs(number: string): Promise<StrongsEntry | null> {
-  const upper = number.toUpperCase();
+  // Normalize: strip leading zeros from numeric part (e.g. H07225 -> H7225)
+  const upper = number.toUpperCase().replace(/^([HG])0+(\d)/, '$1$2');
   if (upper.startsWith('H')) {
     await loadHebrew();
     const entry = hebrewDict?.[upper];

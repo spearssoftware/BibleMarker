@@ -42,6 +42,7 @@ import {
   deleteModule,
   getModuleCopyright,
   isModuleBundled,
+  hasModuleStrongs,
   LOCKMAN_URL,
   type ApiTranslation,
 } from '@/lib/bible-api';
@@ -928,7 +929,14 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                         <div key={mod.id} className="p-3 bg-scripture-elevated rounded-lg border border-scripture-border/30">
                           <div className="flex items-center justify-between">
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium text-scripture-text">{mod.abbreviation}</div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-scripture-text">{mod.abbreviation}</span>
+                                {hasModuleStrongs(mod.id) && (
+                                  <span className="text-[10px] px-1.5 py-0.5 bg-scripture-info/15 text-scripture-info rounded border border-scripture-info/30 font-medium">
+                                    Strong's
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-xs text-scripture-muted mt-0.5">{mod.name}</p>
                             </div>
                             <div className="flex-shrink-0 ml-2">
@@ -994,7 +1002,14 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                         <div key={mod.id} className="p-3 bg-scripture-elevated rounded-lg border border-scripture-border/30">
                           <div className="flex items-center justify-between">
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium text-scripture-text">{mod.abbreviation}</div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-scripture-text">{mod.abbreviation}</span>
+                                {hasModuleStrongs(mod.id) && (
+                                  <span className="text-[10px] px-1.5 py-0.5 bg-scripture-info/15 text-scripture-info rounded border border-scripture-info/30 font-medium">
+                                    Strong's
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-xs text-scripture-muted mt-0.5">{mod.name}</p>
                             </div>
                             <div className="flex-shrink-0 ml-2">
