@@ -26,6 +26,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import type { MarkingPreset } from '@/types';
 import type { VerseRef } from '@/types';
+import { createMarkingPreset, getRandomHighlightColor } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 
 const COLOR_STYLES = ['highlight', 'textColor', 'underline'] as const;
@@ -57,7 +58,7 @@ export function Toolbar() {
 
   useBibleStore();
   const { createTextAnnotation, createSymbolAnnotation } = useAnnotations();
-  const { presets, loadPresets, markPresetUsed, updatePreset } = useMarkingPresetStore();
+  const { presets, loadPresets, addPreset, markPresetUsed, updatePreset } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showSymbolPicker, setShowSymbolPicker] = useState(false);
@@ -271,6 +272,28 @@ export function Toolbar() {
     await applyPresetToSelection(preset);
   };
 
+  const quickAddKeyword = async (type: 'person' | 'place') => {
+    if (!selection) return;
+    const word = selection.text.trim();
+    if (!word) return;
+
+    const config = type === 'person'
+      ? { symbol: 'person' as const, category: 'people' as const }
+      : { symbol: 'mapPin' as const, category: 'places' as const };
+
+    const color = getRandomHighlightColor();
+    const preset = createMarkingPreset({
+      word,
+      symbol: config.symbol,
+      highlight: { style: 'highlight', color },
+      category: config.category,
+      studyId: activeStudyId || undefined,
+    });
+
+    await addPreset(preset);
+    await applyPresetToSelection(preset);
+  };
+
   const isColorActive = activeTool === 'highlight' || activeTool === 'textColor' || activeTool === 'underline';
 
   const handleToolClick = (toolType: (typeof TOOLS)[number]['type']) => {
@@ -351,7 +374,6 @@ export function Toolbar() {
           selection={selection}
           position={selectionMenuPosition}
           presets={filterPresetsByStudy(presets, activeStudyId)}
-          activeSymbol={activeSymbol}
           strongsNumbers={selection.strongsNumbers}
           onApplyPreset={applyPresetToSelection}
           onAddAsVariant={addToVariantsAndApply}
@@ -362,16 +384,7 @@ export function Toolbar() {
             setActiveTool(null);
             if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
           }}
-          onOpenObservationTools={(tab) => {
-            setObservationPanelInitialTab(tab || 'lists');
-            setShowObservationToolsPanel(true);
-            setShowPickerOverlay(false);
-            setShowColorPicker(false);
-            setShowSymbolPicker(false);
-
-            setActiveTool(null);
-            if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
-          }}
+          onQuickAddKeyword={quickAddKeyword}
           onAddToList={() => {
             setShowAddToList(true);
           }}

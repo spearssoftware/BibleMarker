@@ -8,24 +8,19 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import type { TextSelection } from '@/stores/annotationStore';
 import type { MarkingPreset } from '@/types';
-import type { SymbolKey } from '@/types';
-import type { ObservationTab } from '@/components/Observation';
-import type { ObservationTrackerType } from '@/lib/observationSymbols';
 import { SYMBOLS, getHighlightColorHex } from '@/types';
 import { isCommonPronoun } from '@/types';
 import { getBookById } from '@/types';
-import { getTrackerForSymbol } from '@/lib/observationSymbols';
 
 interface SelectionMenuProps {
   selection: TextSelection;
   position: { x: number; y: number };
   presets: MarkingPreset[];
-  activeSymbol?: SymbolKey;
   strongsNumbers?: string[];
   onApplyPreset: (preset: MarkingPreset) => void;
   onAddAsVariant: (preset: MarkingPreset) => void;
   onOpenKeyWordManager: () => void;
-  onOpenObservationTools: (tab?: ObservationTab) => void;
+  onQuickAddKeyword: (type: 'person' | 'place') => void;
   onAddToList: () => void;
   onStrongsLookup?: () => void;
   onCancel: () => void;
@@ -36,12 +31,11 @@ export function SelectionMenu({
   selection,
   position,
   presets,
-  activeSymbol,
   strongsNumbers,
   onApplyPreset,
   onAddAsVariant,
   onOpenKeyWordManager,
-  onOpenObservationTools,
+  onQuickAddKeyword,
   onAddToList,
   onStrongsLookup,
   onCancel,
@@ -239,19 +233,6 @@ export function SelectionMenu({
     </div>
   );
 
-  const getTabForTracker = (tracker: ObservationTrackerType): ObservationTab | null => {
-    switch (tracker) {
-      case 'contrast': return 'contrasts';
-      case 'time': return 'time';
-      case 'place': return 'places';
-      case 'people': return 'people';
-      case 'conclusion': return null; // Conclusions moved to Analyze panel
-      default: return 'lists';
-    }
-  };
-
-  const trackerMapping = activeSymbol ? getTrackerForSymbol(activeSymbol) : null;
-
   return (
     <>
       {/* Backdrop */}
@@ -288,38 +269,23 @@ export function SelectionMenu({
         <div className={`flex ${isMobile ? 'flex-col' : ''} min-w-0`}>
           {/* Main menu buttons */}
           <div className={`p-2 space-y-1 overflow-y-auto custom-scrollbar flex-shrink-0 ${isMobile ? 'max-h-[70vh] px-4 pb-4' : ''}`}>
-            {/* Apply Key Word */}
-            {keywordPresets.length > 0 && (
-              <div className="relative">
-                <button
-                  ref={applyKeyWordRef}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                setShowAddVariantSubmenu(false);
-                  setShowApplyKeyWordSubmenu(!showApplyKeyWordSubmenu);
-                  }}
-                  className={`w-full pl-4 pr-3 py-2.5 text-left rounded-lg transition-all duration-200 flex items-center justify-between text-sm font-ui font-medium
-                           hover:shadow-sm text-scripture-text
-                           ${showApplyKeyWordSubmenu
-                             ? 'bg-scripture-accent/20 dark:bg-scripture-accent/30 border border-scripture-accent'
-                             : 'bg-scripture-elevated hover:bg-scripture-border'
-                           }`}
-                  role="menuitem"
-                  aria-label="Apply key word"
-                  aria-expanded={showApplyKeyWordSubmenu}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg" aria-hidden="true">🔑</span>
-                    <span>Apply Key Word</span>
-                  </div>
-                  <span className="text-xs opacity-70 ml-2">▶</span>
-                </button>
-                {showApplyKeyWordSubmenu && isMobile && (
-                  <div className="mt-1">{renderKeywordList('apply', true)}</div>
-                )}
-              </div>
-            )}
+          {/* Key Word */}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onOpenKeyWordManager();
+              onClose();
+            }}
+            className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                     transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                     hover:shadow-sm text-scripture-text"
+            role="menuitem"
+            aria-label="Create key word"
+          >
+            <span className="text-lg" aria-hidden="true">➕</span>
+            <span>Key Word</span>
+          </button>
 
             {/* Add as Variant */}
             {!isCommonPronoun(selection.text) && keywordPresets.length > 0 && (
@@ -329,8 +295,8 @@ export function SelectionMenu({
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                setShowApplyKeyWordSubmenu(false);
-                  setShowAddVariantSubmenu(!showAddVariantSubmenu);
+                    setShowApplyKeyWordSubmenu(false);
+                    setShowAddVariantSubmenu(!showAddVariantSubmenu);
                   }}
                   className={`w-full pl-4 pr-3 py-2.5 text-left rounded-lg transition-all duration-200 flex items-center justify-between text-sm font-ui font-medium
                            hover:shadow-sm text-scripture-text
@@ -354,22 +320,73 @@ export function SelectionMenu({
               </div>
             )}
 
-          {/* Key Word */}
+            {/* Apply Key Word */}
+            {keywordPresets.length > 0 && (
+              <div className="relative">
+                <button
+                  ref={applyKeyWordRef}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowAddVariantSubmenu(false);
+                    setShowApplyKeyWordSubmenu(!showApplyKeyWordSubmenu);
+                  }}
+                  className={`w-full pl-4 pr-3 py-2.5 text-left rounded-lg transition-all duration-200 flex items-center justify-between text-sm font-ui font-medium
+                           hover:shadow-sm text-scripture-text
+                           ${showApplyKeyWordSubmenu
+                             ? 'bg-scripture-accent/20 dark:bg-scripture-accent/30 border border-scripture-accent'
+                             : 'bg-scripture-elevated hover:bg-scripture-border'
+                           }`}
+                  role="menuitem"
+                  aria-label="Apply key word"
+                  aria-expanded={showApplyKeyWordSubmenu}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg" aria-hidden="true">🔑</span>
+                    <span>Apply Key Word</span>
+                  </div>
+                  <span className="text-xs opacity-70 ml-2">▶</span>
+                </button>
+                {showApplyKeyWordSubmenu && isMobile && (
+                  <div className="mt-1">{renderKeywordList('apply', true)}</div>
+                )}
+              </div>
+            )}
+
+          {/* Add Person */}
           <button
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              onOpenKeyWordManager();
+              onQuickAddKeyword('person');
               onClose();
             }}
             className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
                      transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
                      hover:shadow-sm text-scripture-text"
             role="menuitem"
-            aria-label="Create key word"
+            aria-label="Add person"
           >
-            <span className="text-lg" aria-hidden="true">➕</span>
-            <span>Key Word</span>
+            <span className="text-lg" aria-hidden="true">{SYMBOLS.person}</span>
+            <span>Add Person</span>
+          </button>
+
+          {/* Add Place */}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onQuickAddKeyword('place');
+              onClose();
+            }}
+            className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                     transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                     hover:shadow-sm text-scripture-text"
+            role="menuitem"
+            aria-label="Add place"
+          >
+            <span className="text-lg" aria-hidden="true">{SYMBOLS.mapPin}</span>
+            <span>Add Place</span>
           </button>
 
           {/* Observe */}
@@ -407,32 +424,6 @@ export function SelectionMenu({
             >
               <span className="text-lg" aria-hidden="true">&#x1F4D6;</span>
               <span>Strong&apos;s Lookup</span>
-            </button>
-          )}
-
-          {/* Quick action for symbol-based observations */}
-          {activeSymbol && trackerMapping && (
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const tab = getTabForTracker(trackerMapping.tracker);
-                if (tab === null) {
-                  // Conclusions moved to Analyze panel
-                  window.dispatchEvent(new CustomEvent('openAnalyzeTools', { detail: { tab: 'conclusions' } }));
-                } else {
-                  onOpenObservationTools(tab);
-                }
-                onClose();
-              }}
-              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                       hover:shadow-sm text-scripture-text border-l-2 border-l-scripture-accent"
-              role="menuitem"
-              aria-label={`Add to ${trackerMapping.label}`}
-            >
-              <span className="text-base">{SYMBOLS[activeSymbol]}</span>
-              <span>Add to {trackerMapping.label}</span>
             </button>
           )}
 

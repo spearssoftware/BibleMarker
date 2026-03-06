@@ -28,6 +28,7 @@ import { usePeopleStore } from '@/stores/peopleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { getBookById } from '@/types';
+import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import type { Chapter } from '@/types';
 import type { Annotation, SectionHeading, Note, ChapterTitle } from '@/types';
 
@@ -41,7 +42,7 @@ interface TranslationChapter {
 export function MultiTranslationView() {
   const { activeView, loadActiveView, addTranslation } = useMultiTranslationStore();
   const setActiveChapterVerses = useActiveChapterStore(state => state.setActiveChapterVerses);
-  const { currentBook, currentChapter, currentModuleId, navSelectedVerse } = useBibleStore();
+  const { currentBook, currentChapter, currentModuleId, navSelectedVerse, nextChapter, previousChapter } = useBibleStore();
   const { setSelection, setIsSelecting, fontSize, selection } = useAnnotationStore();
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const [translationChapters, setTranslationChapters] = useState<Map<string, TranslationChapter>>(new Map());
@@ -96,6 +97,11 @@ export function MultiTranslationView() {
   const [configGeneration, setConfigGeneration] = useState(0);
   
   const verseContainerRef = useRef<HTMLDivElement>(null);
+
+  const { handleTouchStart: swipeTouchStart, handleTouchEnd: swipeTouchEnd } = useSwipeNavigation({
+    onSwipeLeft: nextChapter,
+    onSwipeRight: previousChapter,
+  });
 
   // Force WebKit to recalculate layout on resize (works around emoji line-box bug)
   useEffect(() => {
@@ -964,7 +970,7 @@ export function MultiTranslationView() {
       </div>
 
       {/* Verse rows - scrollable container */}
-      <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchEnd={() => { setTimeout(handleMouseUp, 50); }}>
+      <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchStart={swipeTouchStart} onTouchEnd={(e) => { swipeTouchEnd(e); setTimeout(handleMouseUp, 50); }}>
           <div className={`px-4 py-4 space-y-1.5`}>
             {sortedVerseNumbers.map(verseNum => (
               <div key={verseNum}>
