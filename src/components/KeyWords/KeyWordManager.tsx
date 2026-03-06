@@ -716,6 +716,10 @@ function KeyWordEditor({
     // Filter out empty variants
     const validVariants = variants.filter(v => v.text.trim().length > 0);
 
+    if (symbol) {
+      useAnnotationStore.getState().addRecentSymbol(symbol);
+    }
+
     onSave({
       word: word.trim(),
       variants: validVariants,
