@@ -33,11 +33,16 @@ import { resetAllStores } from '@/lib/storeReset';
 import { useStudyStore } from '@/stores/studyStore';
 import { onSyncStatusChange, getSyncStatusMessage, triggerSync, type SyncStatus } from '@/lib/sync';
 import {
-  bibliaClient,
   esvClient,
-  clearTranslationsCache,
   saveApiConfig as saveApiConfigToDb,
   getAllTranslations,
+  getAvailableModules,
+  isModuleDownloaded,
+  downloadModule,
+  deleteModule,
+  getModuleCopyright,
+  isModuleBundled,
+  LOCKMAN_URL,
   type ApiTranslation,
 } from '@/lib/bible-api';
 
@@ -83,10 +88,13 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [restoreSuccess, setRestoreSuccess] = useState(false);
   
   // API Configuration state
-  const [bibliaApiKey, setBibliaApiKey] = useState('');
   const [esvApiKey, setEsvApiKey] = useState('');
   const [savingApi, setSavingApi] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // SWORD module state
+  const [moduleStatuses, setModuleStatuses] = useState<Record<string, 'installed' | 'downloading' | 'not-installed'>>({});
+  const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
   
   // API resources and language filter state
   const [apiResourcesEnabled, setApiResourcesEnabled] = useState(true);
@@ -174,11 +182,17 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         
         // Load API configs
         if (prefs.apiConfigs) {
-          const bibliaConfig = prefs.apiConfigs.find(c => c.provider === 'biblia');
           const esvConfig = prefs.apiConfigs.find(c => c.provider === 'esv');
-          if (bibliaConfig?.apiKey) setBibliaApiKey(bibliaConfig.apiKey);
           if (esvConfig?.apiKey) setEsvApiKey(esvConfig.apiKey);
         }
+
+        // Load SWORD module statuses
+        const modules = getAvailableModules();
+        const statuses: Record<string, 'installed' | 'not-installed'> = {};
+        for (const mod of modules) {
+          statuses[mod.id] = (await isModuleDownloaded(mod.id)) ? 'installed' : 'not-installed';
+        }
+        setModuleStatuses(statuses);
         
         // Load API resources and language filter (default to English when unset)
         setApiResourcesEnabled(prefs.apiResourcesEnabled !== false);
@@ -189,7 +203,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         );
 
         // Load default translation (fallback to KJV)
-        setDefaultTranslation(prefs.defaultTranslation || 'kjv');
+        setDefaultTranslation(prefs.defaultTranslation || 'sword-NASB');
         
         // Load available translations
         const translations = await getAllTranslations();
@@ -262,30 +276,19 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     }
   }
 
-  async function saveApiConfig(
-    provider: 'biblia' | 'esv',
-    apiKey: string
-  ) {
+  async function saveEsvConfig(apiKey: string) {
     setSavingApi(true);
     setApiError(null);
     try {
       await saveApiConfigToDb({
-        provider,
+        provider: 'esv',
         apiKey,
         enabled: apiKey.length > 0,
       });
+      setEsvApiKey(apiKey);
 
-      if (provider === 'biblia') {
-        setBibliaApiKey(apiKey);
-      } else if (provider === 'esv') {
-        setEsvApiKey(apiKey);
-      }
-
-      // Clear cache to reflect changes
-      await clearTranslationsCache();
       window.dispatchEvent(new Event('translationsUpdated'));
 
-      // Reload available translations for the default translation selector
       const translations = await getAllTranslations();
       setAvailableTranslations(translations);
     } catch (err) {
@@ -293,6 +296,46 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       setApiError(err instanceof Error ? err.message : 'Failed to save API config');
     } finally {
       setSavingApi(false);
+    }
+  }
+
+  async function handleDownloadModule(moduleId: string) {
+    setModuleStatuses(prev => ({ ...prev, [moduleId]: 'downloading' }));
+    setDownloadProgress(prev => ({ ...prev, [moduleId]: 0 }));
+    try {
+      await downloadModule(moduleId, (percent) => {
+        setDownloadProgress(prev => ({ ...prev, [moduleId]: percent }));
+      });
+      setModuleStatuses(prev => ({ ...prev, [moduleId]: 'installed' }));
+
+      window.dispatchEvent(new Event('translationsUpdated'));
+      const translations = await getAllTranslations();
+      setAvailableTranslations(translations);
+    } catch (err) {
+      console.error(`Failed to download module ${moduleId}:`, err);
+      setModuleStatuses(prev => ({ ...prev, [moduleId]: 'not-installed' }));
+      setApiError(err instanceof Error ? err.message : 'Failed to download module');
+    } finally {
+      setDownloadProgress(prev => {
+        const next = { ...prev };
+        delete next[moduleId];
+        return next;
+      });
+    }
+  }
+
+  async function handleDeleteModule(moduleId: string) {
+    if (!confirm(`Remove this Bible module? You can re-download it later.`)) return;
+    try {
+      await deleteModule(moduleId);
+      setModuleStatuses(prev => ({ ...prev, [moduleId]: 'not-installed' }));
+
+      window.dispatchEvent(new Event('translationsUpdated'));
+      const translations = await getAllTranslations();
+      setAvailableTranslations(translations);
+    } catch (err) {
+      console.error(`Failed to delete module ${moduleId}:`, err);
+      setApiError(err instanceof Error ? err.message : 'Failed to remove module');
     }
   }
 
@@ -782,9 +825,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               <div className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <div className="font-ui font-medium text-scripture-text mb-1">Enable API resources</div>
+                    <div className="font-ui font-medium text-scripture-text mb-1">Enable network API</div>
                     <p className="text-xs text-scripture-muted">
-                      Fetch translations and Bible text from getBible, Biblia, ESV. When off, only cached content is used.
+                      Fetch Bible text from the ESV API. When off, only local SWORD modules and cached content are used.
                     </p>
                   </div>
                   <button
@@ -832,10 +875,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     { code: 'it', label: 'Italian' },
                     { code: 'nl', label: 'Dutch' },
                     { code: 'ru', label: 'Russian' },
-                    { code: 'zh', label: 'Chinese' },
-                    { code: 'ar', label: 'Arabic' },
-                    { code: 'ko', label: 'Korean' },
-                    { code: 'ja', label: 'Japanese' },
+                    { code: 'la', label: 'Latin' },
                   ].map(({ code, label }) => (
                     <Checkbox
                       key={code}
@@ -851,7 +891,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                           await updatePreferences({
                             translationLanguageFilter: next.length > 0 ? next : undefined,
                           });
-                          await clearTranslationsCache();
                           window.dispatchEvent(new Event('translationsUpdated'));
                           const translations = await getAllTranslations();
                           setAvailableTranslations(translations);
@@ -908,100 +947,128 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
               <div className="border-t border-scripture-border/30 my-4"></div>
 
-              {/* getBible API Section */}
+              {/* Offline Bible Modules (SWORD) */}
               <div className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-ui font-semibold text-scripture-text mb-3">getBible API</h3>
-                  <span className="text-xs px-2 py-1 bg-scripture-successBg text-scripture-successText rounded border border-scripture-success/30">
-                    Free • No API Key Required
-                  </span>
-                </div>
-                <p className="text-sm text-scripture-muted mb-0">
-                  Free, open-source Bible API with many translations available. No configuration needed.
-                </p>
-              </div>
-
-              <div className="border-t border-scripture-border/30 my-4"></div>
-
-              {/* Biblia API Section */}
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-ui font-semibold text-scripture-text mb-3">Biblia API</h3>
-                  {bibliaClient.isConfigured() ? (
-                    <span className="text-xs px-2 py-1 bg-scripture-successBg text-scripture-successText border border-scripture-success/30 rounded">
-                      ✓ Configured
-                    </span>
-                  ) : (
-                    <span className="text-xs px-2 py-1 bg-scripture-warningBg text-scripture-warningText border border-scripture-warning/30 rounded">
-                      API Key Required
-                    </span>
-                  )}
-                </div>
+                <h3 className="text-base font-ui font-semibold text-scripture-text mb-2">Offline Bible Modules</h3>
                 <p className="text-sm text-scripture-muted mb-4">
-                  Get a free API key from Biblia.com. Free tier allows 5,000 requests/day.
-                  <br />
-                  <strong>Available translations:</strong> LEB, Darby, Young's Literal Translation, Emphasized Bible (unique to Biblia).
+                  Download Bible translations for offline reading. No API key required.
                 </p>
-                <div className="mb-3 space-y-2">
-                  <a 
-                    href="https://api.biblia.com/v1/Users/SignIn" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="block px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                             hover:bg-scripture-accent/90 transition-all duration-200 shadow-md text-center"
-                  >
-                    Sign In / Register at api.biblia.com
-                  </a>
-                  <a 
-                    href="https://bibliaapi.com/docs/API_Keys" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="block text-xs text-scripture-accent hover:underline text-center"
-                  >
-                    View API Key Documentation
-                  </a>
+
+                {/* Licensed modules (Lockman) */}
+                <div className="mb-4">
+                  <h4 className="text-xs font-ui font-semibold text-scripture-muted uppercase tracking-wider mb-3">
+                    Licensed (The Lockman Foundation)
+                  </h4>
+                  <div className="space-y-2">
+                    {getAvailableModules().filter(m => m.category === 'licensed' && (selectedLanguageCodes.length === 0 || selectedLanguageCodes.includes(m.language))).map(mod => {
+                      const status = moduleStatuses[mod.id] || 'not-installed';
+                      const progress = downloadProgress[mod.id];
+                      const copyright = getModuleCopyright(mod.id);
+                      return (
+                        <div key={mod.id} className="p-3 bg-scripture-elevated rounded-lg border border-scripture-border/30">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-scripture-text">{mod.abbreviation}</div>
+                              <p className="text-xs text-scripture-muted mt-0.5">{mod.name}</p>
+                            </div>
+                            <div className="flex-shrink-0 ml-2">
+                              {status === 'installed' && isModuleBundled(mod.id) && (
+                                <span className="text-xs text-scripture-muted">Included</span>
+                              )}
+                              {status === 'installed' && !isModuleBundled(mod.id) && (
+                                <button
+                                  onClick={() => handleDeleteModule(mod.id)}
+                                  className="text-xs px-2 py-1 text-scripture-errorText hover:text-scripture-error"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                              {status === 'downloading' && (
+                                <span className="text-xs text-scripture-muted">
+                                  {progress !== undefined ? `${progress}%` : 'Downloading...'}
+                                </span>
+                              )}
+                              {status === 'not-installed' && (
+                                <button
+                                  onClick={() => handleDownloadModule(mod.id)}
+                                  className="text-xs px-3 py-1 bg-scripture-accent text-scripture-bg rounded hover:bg-scripture-accent/90"
+                                >
+                                  Download
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {copyright && (
+                            <p className="text-[10px] text-scripture-muted mt-2 leading-tight">
+                              {copyright.text}{' '}
+                              <a
+                                href={LOCKMAN_URL}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-scripture-accent hover:underline"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  import('@/lib/platform').then(({ openUrl }) => openUrl(LOCKMAN_URL));
+                                }}
+                              >
+                                lockman.org
+                              </a>
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="mb-4 p-3 bg-scripture-elevated rounded-lg border border-scripture-border/30">
-                  <p className="text-xs text-scripture-text mb-1">
-                    <strong>How to get your API key:</strong>
-                  </p>
-                  <ol className="text-xs text-scripture-muted list-decimal list-inside space-y-1">
-                    <li>Click "Sign In / Register" above</li>
-                    <li>Create a free account or sign in</li>
-                    <li>From your account, create a new API key for this application</li>
-                    <li>Copy your API key and paste it below</li>
-                  </ol>
+
+                {/* Public domain modules */}
+                <div>
+                  <h4 className="text-xs font-ui font-semibold text-scripture-muted uppercase tracking-wider mb-3">
+                    Public Domain
+                  </h4>
+                  <div className="space-y-2">
+                    {getAvailableModules().filter(m => m.category === 'public-domain' && (selectedLanguageCodes.length === 0 || selectedLanguageCodes.includes(m.language))).map(mod => {
+                      const status = moduleStatuses[mod.id] || 'not-installed';
+                      const progress = downloadProgress[mod.id];
+                      return (
+                        <div key={mod.id} className="p-3 bg-scripture-elevated rounded-lg border border-scripture-border/30">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-scripture-text">{mod.abbreviation}</div>
+                              <p className="text-xs text-scripture-muted mt-0.5">{mod.name}</p>
+                            </div>
+                            <div className="flex-shrink-0 ml-2">
+                              {status === 'installed' && isModuleBundled(mod.id) && (
+                                <span className="text-xs text-scripture-muted">Included</span>
+                              )}
+                              {status === 'installed' && !isModuleBundled(mod.id) && (
+                                <button
+                                  onClick={() => handleDeleteModule(mod.id)}
+                                  className="text-xs px-2 py-1 text-scripture-errorText hover:text-scripture-error"
+                                >
+                                  Remove
+                                </button>
+                              )}
+                              {status === 'downloading' && (
+                                <span className="text-xs text-scripture-muted">
+                                  {progress !== undefined ? `${progress}%` : 'Downloading...'}
+                                </span>
+                              )}
+                              {status === 'not-installed' && (
+                                <button
+                                  onClick={() => handleDownloadModule(mod.id)}
+                                  className="text-xs px-3 py-1 bg-scripture-accent text-scripture-bg rounded hover:bg-scripture-accent/90"
+                                >
+                                  Download
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    value={bibliaApiKey}
-                    onChange={(e) => setBibliaApiKey(e.target.value)}
-                    placeholder={bibliaClient.isConfigured() ? "Edit your Biblia API key" : "Paste your Biblia API key here"}
-                    className="flex-1"
-                  />
-                  <button
-                    onClick={() => saveApiConfig('biblia', bibliaApiKey)}
-                    disabled={savingApi}
-                    className="px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                             hover:bg-scripture-accent/90 transition-all duration-200 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {savingApi ? 'Saving...' : bibliaClient.isConfigured() ? 'Update' : 'Save'}
-                  </button>
-                </div>
-                {bibliaClient.isConfigured() && (
-                  <button
-                    onClick={() => {
-                      if (confirm('Are you sure you want to remove the Biblia API key?')) {
-                        saveApiConfig('biblia', '');
-                        setBibliaApiKey('');
-                      }
-                    }}
-                    className="text-xs text-scripture-errorText hover:text-scripture-error underline"
-                  >
-                    Remove API Key
-                  </button>
-                )}
               </div>
 
               <div className="border-t border-scripture-border/30 my-4"></div>
@@ -1021,12 +1088,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   )}
                 </div>
                 <p className="text-sm text-scripture-muted mb-4">
-                  Get a free API key from ESV.org. Alternative to Biblia for ESV with generous limits for personal use.
+                  Get a free API key from ESV.org for English Standard Version text. Requires internet.
                 </p>
                 <div className="mb-4 space-y-2">
-                  <a 
-                    href="https://api.esv.org/docs/" 
-                    target="_blank" 
+                  <a
+                    href="https://api.esv.org/docs/"
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="block px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
                              hover:bg-scripture-accent/90 transition-all duration-200 shadow-md text-center"
@@ -1057,7 +1124,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     className="flex-1"
                   />
                   <button
-                    onClick={() => saveApiConfig('esv', esvApiKey)}
+                    onClick={() => saveEsvConfig(esvApiKey)}
                     disabled={savingApi}
                     className="px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
                              hover:bg-scripture-accent/90 transition-all duration-200 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1069,7 +1136,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   <button
                     onClick={() => {
                       if (confirm('Are you sure you want to remove the ESV API key?')) {
-                        saveApiConfig('esv', '');
+                        saveEsvConfig('');
                         setEsvApiKey('');
                       }
                     }}
@@ -1962,14 +2029,26 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Bible Translations</h3>
                 <div className="space-y-3 text-xs text-scripture-muted">
                   <div>
-                    <span className="font-medium text-scripture-text">getBible API</span>
-                    {' — '}Free and open source (GPL-3.0). KJV, ASV, WEB, and more.{' '}
-                    <a href="https://github.com/getbible/v2" target="_blank" rel="noopener noreferrer" className="text-scripture-accent hover:underline">Docs →</a>
+                    <span className="font-medium text-scripture-text">SWORD Modules</span>
+                    {' — '}Offline Bible modules from{' '}
+                    <a href="https://crosswire.org" target="_blank" rel="noopener noreferrer" className="text-scripture-accent hover:underline">CrossWire</a>
+                    . NASB, KJV, ASV, WEB.
                   </div>
                   <div>
-                    <span className="font-medium text-scripture-text">Biblia API</span>
-                    {' — '}Faithlife/Logos. NASB, ESV, NIV, NKJV, and others. Free tier: 5,000 calls/day.{' '}
-                    <a href="https://api.biblia.com/docs/" target="_blank" rel="noopener noreferrer" className="text-scripture-accent hover:underline">Docs →</a>
+                    <span className="font-medium text-scripture-text">NASB</span>
+                    {' — '}New American Standard Bible. Copyright The Lockman Foundation.{' '}
+                    <a
+                      href={LOCKMAN_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-scripture-accent hover:underline"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        import('@/lib/platform').then(({ openUrl }) => openUrl(LOCKMAN_URL));
+                      }}
+                    >
+                      lockman.org
+                    </a>
                   </div>
                   <div>
                     <span className="font-medium text-scripture-text">ESV API</span>
@@ -1979,7 +2058,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   </div>
                 </div>
                 <p className="text-xs text-scripture-muted mt-4">
-                  Bible text is provided by third-party APIs and is subject to their respective terms and copyrights. This application is provided for personal Bible study use.
+                  Bible text is subject to the respective terms and copyrights of each translation. This application is provided for personal Bible study use.
                 </p>
               </div>
             </div>

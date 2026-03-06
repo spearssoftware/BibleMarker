@@ -1,13 +1,13 @@
 /**
  * Bible API Types
- * 
- * Common types for Bible API providers (Biblia, ESV API, etc.)
+ *
+ * Common types for Bible API providers (SWORD modules, ESV API).
  */
 
 import type { VerseRef } from '@/types';
 
 /** Supported Bible API providers */
-export type BibleApiProvider = 'biblia' | 'esv' | 'getbible';
+export type BibleApiProvider = 'esv' | 'sword';
 
 /** API configuration for a provider */
 export interface ApiConfig {

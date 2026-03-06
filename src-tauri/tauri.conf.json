@@ -27,6 +27,10 @@
   },
   "bundle": {
     "active": true,
+    "resources": [
+      "resources/sword-NASB.zip",
+      "resources/sword-NASB1995.zip"
+    ],
     "createUpdaterArtifacts": true,
     "targets": "all",
     "icon": [
