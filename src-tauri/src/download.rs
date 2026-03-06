@@ -48,9 +48,13 @@ pub async fn install_bundled_module(
     }
 
     // Try the production resource path first
+    // Bundle config preserves the "resources/" subdirectory, so we must include it
     let resource_path = app
         .path()
-        .resolve(&resource_name, tauri::path::BaseDirectory::Resource)
+        .resolve(
+            format!("resources/{}", resource_name),
+            tauri::path::BaseDirectory::Resource,
+        )
         .map_err(|e| format!("Failed to resolve resource path: {e}"))?;
 
     let source = if resource_path.exists() {
