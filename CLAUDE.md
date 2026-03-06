@@ -139,21 +139,18 @@ async function migrateSchema(db, fromVersion, toVersion) {
 
 ## Bible API
 
-All Bible API logic is in `src/lib/bible-api/`. Providers:
+All Bible API logic is in `src/lib/bible-api/`. Two providers:
 
-| Provider | Module | Key Required |
-|----------|--------|-------------|
-| getBible | `getbible.ts` | No |
-| BibleGateway | `biblegateway.ts` | No (scraper) |
-| Biblia | `biblia.ts` | Yes |
-| ESV | `esv.ts` | Yes |
-| SWORD | local Z-Text | No |
+| Provider | Module | Key Required | Notes |
+|----------|--------|-------------|-------|
+| SWORD | `sword.ts` + `sword-ztext.ts` | No | Local zText modules, offline. NASB bundled with app. |
+| ESV | `esv.ts` | Yes | Network API, requires API key from esv.org |
 
-Key functions: `fetchChapter()`, `getAllTranslations()`, `configureApi()`, `saveApiConfig()`.
+SWORD modules are downloaded on demand and stored in `{appDataDir}/sword/`. NASB 2020 and NASB 1995 are bundled as app resources (`src-tauri/resources/`). Module registry is hardcoded in `sword.ts`.
+
+Key functions: `fetchChapter()`, `getAllTranslations()`, `downloadModule()`, `isModuleDownloaded()`.
 
 Error handling: use `BibleApiError`, check `isNetworkError()` / `isOnline()`, use `retryWithBackoff()`.
-
-Adding a provider: create `src/lib/bible-api/newprovider.ts` implementing `BibleApiClient`, add to `clients` in `index.ts`, add to `BibleApiProvider` type.
 
 ## Running the App
 
