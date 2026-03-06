@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react';
-import { Textarea } from '@/components/shared';
+import { Button, Textarea } from '@/components/shared';
 
 interface NoteCreatorProps {
   verseNum: number;
@@ -59,25 +59,9 @@ export function NoteCreator({
           Note will cover verses {range.startVerse}-{range.endVerse}
         </p>
       )}
-      <div className="flex items-center justify-end gap-2 mt-2">
-        <button
-          onClick={onCancel}
-          className="px-3 py-1.5 text-xs font-ui bg-scripture-surface text-scripture-muted rounded-lg
-                   hover:bg-scripture-elevated transition-colors"
-          aria-label="Cancel creating note"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={!content.trim()}
-          className="px-3 py-1.5 text-xs font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                   hover:bg-scripture-accent/90 transition-colors disabled:opacity-50
-                   disabled:cursor-not-allowed"
-          aria-label="Save note"
-        >
-          Save
-        </button>
+      <div className="flex items-center justify-center sm:justify-end gap-2 mt-2">
+        <Button variant="ghost" onClick={onCancel} aria-label="Cancel creating note">Cancel</Button>
+        <Button onClick={handleSave} disabled={!content.trim()} aria-label="Save note">Save</Button>
       </div>
     </div>
   );

@@ -11,7 +11,7 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import type { Contrast } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
-import { ConfirmationDialog, Input, Textarea } from '@/components/shared';
+import { Button, ConfirmationDialog, Input, Textarea } from '@/components/shared';
 import { getAnnotationsBySymbol, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 
 interface ContrastTrackerProps {
@@ -391,20 +391,9 @@ export function ContrastTracker({ selectedText, verseRef: initialVerseRef, filte
               placeholder="Additional notes about this contrast"
               rows={2}
             />
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleCreate}
-                disabled={!newItemA.trim() || !newItemB.trim() || !getCurrentVerseRef()}
-                className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Save
-              </button>
-              <button
-                onClick={handleCancelCreate}
-                className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-              >
-                Cancel
-              </button>
+            <div className="flex items-center justify-center sm:justify-end gap-2">
+              <Button variant="ghost" onClick={handleCancelCreate}>Cancel</Button>
+              <Button onClick={handleCreate} disabled={!newItemA.trim() || !newItemB.trim() || !getCurrentVerseRef()}>Save</Button>
             </div>
             {!getCurrentVerseRef() && (
               <p className="text-xs text-scripture-muted">
@@ -507,20 +496,9 @@ export function ContrastTracker({ selectedText, verseRef: initialVerseRef, filte
                                 onChange={(e) => setEditingNotes(e.target.value)}
                                 rows={2}
                               />
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => handleSaveEdit(contrast.id)}
-                                  disabled={!editingItemA.trim() || !editingItemB.trim()}
-                                  className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={handleCancelEdit}
-                                  className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-                                >
-                                  Cancel
-                                </button>
+                              <div className="flex items-center justify-center sm:justify-end gap-2">
+                                <Button variant="ghost" onClick={handleCancelEdit}>Cancel</Button>
+                                <Button onClick={() => handleSaveEdit(contrast.id)} disabled={!editingItemA.trim() || !editingItemB.trim()}>Save</Button>
                               </div>
                             </div>
                           ) : (

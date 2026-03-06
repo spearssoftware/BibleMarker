@@ -22,7 +22,7 @@ import { ContrastTracker } from './ContrastTracker';
 import { TimeTracker } from './TimeTracker';
 import { PlaceTracker } from './PlaceTracker';
 import { PeopleTracker } from './PeopleTracker';
-import { Checkbox, ConfirmationDialog, Textarea } from '@/components/shared';
+import { Button, Checkbox, ConfirmationDialog, Textarea } from '@/components/shared';
 
 export type ObservationTab = 'lists' | 'fiveWAndH' | 'contrasts' | 'time' | 'places' | 'people';
 
@@ -696,20 +696,9 @@ export function ObservationToolsPanel({
                                                   placeholder="Add additional notes about this observation..."
                                                   rows={2}
                                                 />
-                                                <div className="flex items-center gap-2">
-                                                  <button
-                                                    onClick={() => handleSaveEdit(list.id, item.id)}
-                                                    disabled={!editingItemText.trim()}
-                                                    className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                  >
-                                                    Save
-                                                  </button>
-                                                  <button
-                                                    onClick={handleCancelEdit}
-                                                    className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-                                                  >
-                                                    Cancel
-                                                  </button>
+                                                <div className="flex items-center justify-center sm:justify-end gap-2">
+                                                  <Button variant="ghost" onClick={handleCancelEdit}>Cancel</Button>
+                                                  <Button onClick={() => handleSaveEdit(list.id, item.id)} disabled={!editingItemText.trim()}>Save</Button>
                                                 </div>
                                               </div>
                                             ) : isVerseSnippet ? (
@@ -780,20 +769,9 @@ export function ObservationToolsPanel({
                                           className="mb-2"
                                           autoFocus
                                         />
-                                        <div className="flex items-center gap-2">
-                                          <button
-                                            onClick={handleAddObservation}
-                                            disabled={!newObservationText.trim()}
-                                            className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                          >
-                                            Add
-                                          </button>
-                                          <button
-                                            onClick={handleCancelAddObservation}
-                                            className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-                                          >
-                                            Cancel
-                                          </button>
+                                        <div className="flex items-center justify-center sm:justify-end gap-2">
+                                          <Button variant="ghost" onClick={handleCancelAddObservation}>Cancel</Button>
+                                          <Button onClick={handleAddObservation} disabled={!newObservationText.trim()}>Add</Button>
                                         </div>
                                       </div>
                                     )}

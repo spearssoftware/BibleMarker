@@ -157,15 +157,6 @@ export async function fetchChapter(
   if (isSword) {
     chapterData = await swordClient.getChapter(translationId, book, chapter);
   } else if (isESV) {
-    // API resources check
-    const prefs = await getPreferences();
-    if (prefs?.apiResourcesEnabled === false) {
-      throw new BibleApiError(
-        'API resources are disabled. Enable them in Settings to fetch new content.',
-        'esv'
-      );
-    }
-
     if (!esvClient.isConfigured()) {
       throw new BibleApiError(
         'ESV API key not configured. Please configure your ESV API key in Settings.',

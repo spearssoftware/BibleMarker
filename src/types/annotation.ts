@@ -46,6 +46,9 @@ export const HIGHLIGHT_COLORS = {
 
   // Browns & Neutrals
   brown: '#d97706',
+  tan: '#d4a574',
+  beige: '#c8b48a',
+  salmon: '#fa8072',
   gray: '#94a3b8',
   slate: '#64748b',
   silver: '#cbd5e1',
