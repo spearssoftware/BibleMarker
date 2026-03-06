@@ -766,7 +766,7 @@ function KeyWordEditor({
             <Button
               type="button"
               variant="secondary"
-              fullWidth
+              className="w-full sm:w-auto"
               onClick={() => setVariants([...variants, { text: '' }])}
             >
               + Add Variant
@@ -836,16 +836,32 @@ function KeyWordEditor({
           </div>
         </div>
 
-        <DropdownSelect
-          label="Category"
-          value={category}
-          onChange={(val) => setCategory(val as KeyWordCategory)}
-          options={Object.entries(KEY_WORD_CATEGORIES).map(([key, info]) => ({
-            value: key,
-            label: `${info.icon} ${info.label}`
-          }))}
-          placeholder="Select a category..."
-        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <DropdownSelect
+            label="Category"
+            value={category}
+            onChange={(val) => setCategory(val as KeyWordCategory)}
+            options={Object.entries(KEY_WORD_CATEGORIES).map(([key, info]) => ({
+              value: key,
+              label: `${info.icon} ${info.label}`
+            }))}
+            placeholder="Select a category..."
+          />
+          <DropdownSelect
+            label="Study (Optional)"
+            value={studyId || ''}
+            onChange={(val) => setStudyId(val || undefined)}
+            helpText="Assign to a specific study"
+            options={[
+              { value: '', label: 'Global (all studies)' },
+              ...studies.map(study => ({
+                value: study.id,
+                label: study.name
+              }))
+            ]}
+            placeholder="Select a study..."
+          />
+        </div>
 
         <Textarea
           label="Description"
@@ -975,33 +991,17 @@ function KeyWordEditor({
           </div>
         </div>
 
-        <div className="border-t border-scripture-border/30 mt-4 pt-4">
-          <DropdownSelect
-            label="Study (Optional)"
-            value={studyId || ''}
-            onChange={(val) => setStudyId(val || undefined)}
-            helpText="Assign this keyword to a specific study. Global keywords are visible in all studies."
-            options={[
-              { value: '', label: 'Global (visible in all studies)' },
-              ...studies.map(study => ({
-                value: study.id,
-                label: study.name
-              }))
-            ]}
-            placeholder="Select a study..."
-          />
-        </div>
         
         {/* Extra padding at bottom to ensure last field is scrollable above save button */}
         <div className="h-4"></div>
       </div>
 
       {/* Sticky Save/Cancel bar — always visible at bottom */}
-      <div className="flex-shrink-0 p-4 border-t border-scripture-border/50 flex gap-2 bg-scripture-surface z-10">
-        <Button variant="primary" type="submit" className="flex-1">
+      <div className="flex-shrink-0 p-4 border-t border-scripture-border/50 flex justify-center gap-3 bg-scripture-surface z-10">
+        <Button variant="primary" type="submit" className="min-w-[120px]">
           Save
         </Button>
-        <Button variant="secondary" onClick={onCancel} className="flex-1">
+        <Button variant="secondary" onClick={onCancel} className="min-w-[120px]">
           Cancel
         </Button>
       </div>
