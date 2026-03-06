@@ -584,7 +584,7 @@ export function Toolbar() {
       )}
 
       {/* Main toolbar: Mark | Observe | Analyze */}
-      <div className="bg-scripture-surface/80 backdrop-blur-md shadow-lg"
+      <div className="bg-scripture-surface/80 backdrop-blur-md border-t border-scripture-border/30"
            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
           {TOOLS.map((tool) => {

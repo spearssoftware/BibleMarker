@@ -8,7 +8,7 @@ import type { MarkingPreferences } from './annotation';
 
 /** API configuration for Bible APIs */
 export interface ApiConfigRecord {
-  provider: 'biblia' | 'esv' | 'getbible';
+  provider: 'esv' | 'sword';
   apiKey?: string;
   username?: string;
   password?: string;
@@ -71,9 +71,9 @@ export interface ChapterCache {
   cachedAt: Date;
 }
 
-/** Cached translation list from getBible API */
+/** Cached translation list */
 export interface TranslationCache {
-  id: string;                    // 'getbible-translations'
+  id: string;
   translations: unknown[];
   cachedAt: Date;
 }

@@ -382,9 +382,8 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
       return sourceText;
     }
 
-    // For ESV/ASV/getBible, sourceText is already plain text after parsing
-    // Only extractPlainText if needed for HTML/OSIS markup (other APIs)
-    // Since we're using verse.text directly, sourceText should already be plain text
+    // sourceText is already plain text (SWORD strips OSIS tags, ESV strips HTML)
+    // No further extraction needed
     const plainText = sourceText;
     if (!plainText || plainText.length === 0) {
       return sourceText;
@@ -742,19 +741,12 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     return div.innerHTML;
   }
 
-  // Use verse.text as the base - it's already plain text after parsing (ESV/ASV/getBible)
-  // Only use extractPlainText for APIs that return HTML/OSIS markup
+  // verse.text is already plain text (SWORD strips OSIS tags, ESV strips HTML)
   const baseContent = verse.text || '';
-  
-  // For ESV/ASV/getBible, verse.text is already plain text, so use it directly
-  // This ensures offsets calculated during keyword matching match the rendered text
   const plainTextForOffset = baseContent;
-  
+
   // Render annotations on the base text
   const content = renderAnnotatedText(baseContent);
-  
-  // Note: getBible returns plain text, so there are no cross-references to merge
-  // If we add support for other APIs that provide cross-refs, we can add that logic here
 
   // Handle clicks on remove buttons and cross-references (using event delegation)
   const handleVerseContentClick = (e: React.MouseEvent<HTMLSpanElement>) => {

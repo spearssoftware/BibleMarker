@@ -130,7 +130,13 @@ export function NavigationBar() {
   useEffect(() => {
     async function loadTranslations() {
       const available = await getAllTranslations();
-      setTranslations(available);
+      const prefs = await getPreferences();
+      const langFilter = prefs.translationLanguageFilter;
+      if (langFilter && langFilter.length > 0) {
+        setTranslations(available.filter(t => langFilter.includes(t.language ?? 'en')));
+      } else {
+        setTranslations(available);
+      }
     }
     loadTranslations();
     loadActiveView();
