@@ -214,11 +214,10 @@ export const useTimeStore = create<TimeState>()(
         const { useStudyStore } = await import('@/stores/studyStore');
         const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
         
-        // Get cached chapter data
-        const { getCachedChapter } = await import('@/lib/database');
-        const chapterCache = await getCachedChapter(moduleId || '', book, chapter);
-        
-        if (!chapterCache || !chapterCache.verses) {
+        const { fetchChapter } = await import('@/lib/bible-api');
+        const chapterData = await fetchChapter(moduleId || '', book, chapter);
+
+        if (!chapterData?.verses.length) {
           return 0;
         }
         
@@ -239,16 +238,9 @@ export const useTimeStore = create<TimeState>()(
         const timeExpressionsForOrdering: Array<{ preset: typeof timePresets[0]; verseRef: VerseRef; expression: string }> = [];
         
         // For each verse in the chapter, find which time keywords appear
-        for (const [verseNum, verseText] of Object.entries(chapterCache.verses)) {
-          const text = verseText as string;
-          const verseNumInt = parseInt(verseNum, 10);
-          if (isNaN(verseNumInt) || verseNumInt <= 0) continue;
-          
-          const verseRef: VerseRef = {
-            book,
-            chapter,
-            verse: verseNumInt,
-          };
+        for (const verse of chapterData.verses) {
+          const text = verse.text;
+          const verseRef = verse.ref;
           
           // Find which time keywords appear in this verse
           for (const preset of timePresets) {

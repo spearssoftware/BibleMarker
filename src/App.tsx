@@ -265,27 +265,10 @@ export default function App() {
 
 const FALLBACK_TRANSLATION = 'sword-KJV';
 
-// Load chapter from cache or Bible API
+// Load chapter from SWORD module or ESV API
 async function loadChapter(moduleId: string, book: string, chapter: number) {
-  const { getCachedChapter } = await import('@/lib/database');
   const { fetchChapter } = await import('@/lib/bible-api');
-  
-  // Check cache first
-  const cached = await getCachedChapter(moduleId, book, chapter);
-  
-  if (cached) {
-    return {
-      book,
-      chapter,
-      verses: Object.entries(cached.verses).map(([num, text]) => ({
-        ref: { book, chapter, verse: parseInt(num, 10) },
-        text: text as string,
-        html: text as string,
-      })),
-    };
-  }
-  
-  // Fetch from SWORD module or ESV API
+
   try {
     const chapterData = await fetchChapter(moduleId, book, chapter);
     return chapterData;
