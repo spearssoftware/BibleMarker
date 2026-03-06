@@ -273,14 +273,18 @@ export function Search({ onClose, onNavigate }: SearchProps) {
                               ${isSelected
                                 ? 'bg-scripture-accent/20 border-scripture-accent shadow-md'
                                 : 'bg-scripture-surface/80 border-scripture-border/50 hover:bg-scripture-surface hover:shadow-sm'}`}
-                    aria-label={`${bookInfo?.name || result.book} ${result.chapter}:${result.verse} - ${result.type}`}
+                    aria-label={result.type === 'keyword' ? `${result.keywordWord} keyword` : `${bookInfo?.name || result.book} ${result.chapter}:${result.verse} - ${result.type}`}
                     aria-selected={isSelected}
                   >
                     <div className="flex items-start gap-3">
                       <span className="text-lg flex-shrink-0">{getResultIcon(result.type)}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          {result.book ? (
+                          {result.type === 'keyword' ? (
+                            <span className="font-medium text-scripture-text text-sm">
+                              {highlightText(result.keywordWord || result.text, query)}
+                            </span>
+                          ) : result.book ? (
                             <span className="font-medium text-scripture-text text-sm">
                               {bookInfo?.name || result.book} {result.chapter}{result.verse > 0 ? `:${result.verse}` : ''}
                             </span>
@@ -288,12 +292,23 @@ export function Search({ onClose, onNavigate }: SearchProps) {
                           <span className="text-xs text-scripture-muted uppercase">
                             {result.subType || result.type.replace('-', ' ')}
                           </span>
+                          {result.type === 'keyword' && result.context && (
+                            <span className="text-xs text-scripture-muted">· {result.context}</span>
+                          )}
                         </div>
-                        <p className="text-sm text-scripture-text leading-relaxed line-clamp-2">
-                          {result.context 
-                            ? highlightText(result.context, query)
-                            : highlightText(result.text, query)}
-                        </p>
+                        {result.type === 'keyword' ? (
+                          result.text !== result.keywordWord && (
+                            <p className="text-sm text-scripture-muted leading-relaxed line-clamp-2">
+                              {highlightText(result.text, query)}
+                            </p>
+                          )
+                        ) : (
+                          <p className="text-sm text-scripture-text leading-relaxed line-clamp-2">
+                            {result.context
+                              ? highlightText(result.context, query)
+                              : highlightText(result.text, query)}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </button>
