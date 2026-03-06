@@ -721,7 +721,7 @@ export function MultiTranslationView() {
       strongsNumbers,
     });
     setIsSelecting(true);
-  }, [activeView, currentBook, currentChapter, setSelection, setIsSelecting]);
+  }, [activeView, currentBook, currentChapter, translationChapters, setSelection, setIsSelecting]);
 
   const loadTranslations = async () => {
     const all = await getAllTranslations();
