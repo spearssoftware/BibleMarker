@@ -396,31 +396,34 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
             maxWidth: 'calc(100vw - 2rem)',
           }}
         >
-          <div className="bg-scripture-surface rounded-lg shadow-2xl p-4 border border-scripture-overlayBorder max-h-[calc(100vh-2rem)] overflow-y-auto custom-scrollbar">
-            {/* Progress indicator */}
-            <div className="mb-3">
-              <div className="flex items-center justify-between text-xs text-scripture-muted mb-1">
-                <span>Step {currentStep + 1} of {TOUR_STEPS.length}</span>
-                <span>{Math.round(progress)}%</span>
+          <div className="bg-scripture-surface rounded-lg shadow-2xl border border-scripture-overlayBorder max-h-[calc(100vh-2rem)] flex flex-col">
+            {/* Scrollable content */}
+            <div className="p-4 pb-2 overflow-y-auto custom-scrollbar">
+              {/* Progress indicator */}
+              <div className="mb-3">
+                <div className="flex items-center justify-between text-xs text-scripture-muted mb-1">
+                  <span>Step {currentStep + 1} of {TOUR_STEPS.length}</span>
+                  <span>{Math.round(progress)}%</span>
+                </div>
+                <div className="h-1.5 bg-scripture-overlay rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-scripture-accent transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
               </div>
-              <div className="h-1.5 bg-scripture-overlay rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-scripture-accent transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
+
+              {/* Content */}
+              <h3 className="text-lg font-ui font-semibold text-scripture-text mb-2">
+                {step.title}
+              </h3>
+              <p className="text-sm text-scripture-muted">
+                {step.description}
+              </p>
             </div>
 
-            {/* Content */}
-            <h3 className="text-lg font-ui font-semibold text-scripture-text mb-2">
-              {step.title}
-            </h3>
-            <p className="text-sm text-scripture-muted mb-4">
-              {step.description}
-            </p>
-
-            {/* Actions */}
-            <div className="flex gap-2">
+            {/* Actions — always visible */}
+            <div className="flex gap-2 p-4 pt-2 flex-shrink-0">
               <button
                 onClick={handleSkip}
                 className="px-3 py-2 text-xs font-ui bg-scripture-surface border border-scripture-overlayBorder

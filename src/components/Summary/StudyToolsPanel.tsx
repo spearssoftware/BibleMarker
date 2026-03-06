@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useStudyStore } from '@/stores/studyStore';
 import { getBookById, BIBLE_BOOKS } from '@/types';
-import { ConfirmationDialog, DropdownSelect, Input } from '@/components/shared';
+import { Button, ConfirmationDialog, DropdownSelect, Input } from '@/components/shared';
 import { InterpretationWorksheet } from '@/components/Interpretation';
 import { ApplicationWorksheet } from '@/components/Application';
 import { getPreferences } from '@/lib/database';
@@ -271,22 +271,9 @@ export function StudyToolsPanel({ onClose: _onClose, initialTab = 'interpretatio
                                   }))
                                 ]}
                               />
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={handleUpdateStudy}
-                                  className="px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg 
-                                           hover:bg-scripture-accent/90 transition-all duration-200 shadow-md"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={() => setEditingStudy(null)}
-                                  className="px-3 py-2 text-sm font-ui bg-scripture-elevated hover:bg-scripture-border/50 
-                                           border border-scripture-border/50 text-scripture-text rounded-lg 
-                                           transition-all duration-200"
-                                >
-                                  Cancel
-                                </button>
+                              <div className="flex justify-center sm:justify-end gap-2">
+                                <Button variant="ghost" onClick={() => setEditingStudy(null)}>Cancel</Button>
+                                <Button onClick={handleUpdateStudy}>Save</Button>
                               </div>
                             </div>
                           ) : (

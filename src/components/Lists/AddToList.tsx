@@ -165,7 +165,7 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
       size="md"
       initialFocusRef={textareaRef}
       footer={
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-center sm:justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>

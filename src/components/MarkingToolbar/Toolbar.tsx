@@ -79,7 +79,7 @@ export function Toolbar() {
   const [, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [selectionMenuPosition, setSelectionMenuPosition] = useState<{ x: number; y: number } | null>(null);
-  const [strongsPopup, setStrongsPopup] = useState<{ numbers: string[]; position: { x: number; y: number } } | null>(null);
+  const [strongsPopup, setStrongsPopup] = useState<{ numbers: string[]; position: { x: number; y: number }; word?: string } | null>(null);
 
   // Load marking presets on mount
   useEffect(() => {
@@ -379,6 +379,7 @@ export function Toolbar() {
             setStrongsPopup({
               numbers: selection.strongsNumbers!,
               position: selectionMenuPosition,
+              word: selection.text?.trim(),
             });
           } : undefined}
           onCancel={() => {
@@ -397,6 +398,7 @@ export function Toolbar() {
         <StrongsPopup
           strongsNumbers={strongsPopup.numbers}
           position={strongsPopup.position}
+          word={strongsPopup.word}
           onClose={() => setStrongsPopup(null)}
         />
       )}

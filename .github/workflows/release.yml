@@ -239,6 +239,42 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  rename-artifacts:
+    needs: [prepare, publish-tauri]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download versioned artifacts and re-upload with stable names
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          TAG: app-v${{ needs.prepare.outputs.version }}
+        run: |
+          mkdir artifacts
+          gh release download "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir artifacts \
+            --pattern "BibleMarker_${VERSION}_x64-setup.exe" \
+            --pattern "BibleMarker_${VERSION}_x64_en-US.msi" \
+            --pattern "BibleMarker_${VERSION}_amd64.AppImage" \
+            --pattern "BibleMarker_${VERSION}_amd64.deb" \
+            --pattern "BibleMarker-${VERSION}-1.x86_64.rpm"
+
+          cp "artifacts/BibleMarker_${VERSION}_x64-setup.exe"   "artifacts/BibleMarker-windows-x64-setup.exe"
+          cp "artifacts/BibleMarker_${VERSION}_x64_en-US.msi"   "artifacts/BibleMarker-windows-x64.msi"
+          cp "artifacts/BibleMarker_${VERSION}_amd64.AppImage"  "artifacts/BibleMarker-linux-x64.AppImage"
+          cp "artifacts/BibleMarker_${VERSION}_amd64.deb"       "artifacts/BibleMarker-linux-x64.deb"
+          cp "artifacts/BibleMarker-${VERSION}-1.x86_64.rpm"    "artifacts/BibleMarker-linux-x64.rpm"
+
+          gh release upload "$TAG" \
+            "artifacts/BibleMarker-windows-x64-setup.exe" \
+            "artifacts/BibleMarker-windows-x64.msi" \
+            "artifacts/BibleMarker-linux-x64.AppImage" \
+            "artifacts/BibleMarker-linux-x64.deb" \
+            "artifacts/BibleMarker-linux-x64.rpm" \
+            --repo "$GITHUB_REPOSITORY" --clobber
+
   create-latest-json:
     needs: [prepare, publish-tauri]
     runs-on: ubuntu-latest
@@ -411,8 +447,8 @@ jobs:
             --apiIssuer "$API_ISSUER_ID"
 
   publish-release:
-    needs: [prepare, create-latest-json, build-ios]
-    if: always() && needs.create-latest-json.result == 'success'
+    needs: [prepare, create-latest-json, build-ios, rename-artifacts]
+    if: always() && needs.create-latest-json.result == 'success' && needs.rename-artifacts.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write

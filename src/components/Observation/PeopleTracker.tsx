@@ -14,7 +14,7 @@ import { fetchChapter } from '@/lib/bible-api';
 import type { Person } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
-import { ConfirmationDialog, Input, Textarea } from '@/components/shared';
+import { Button, ConfirmationDialog, Input, Textarea } from '@/components/shared';
 
 function highlightWords(text: string, words: string[]): React.ReactNode {
   const filtered = words.filter(w => w.trim());
@@ -362,20 +362,9 @@ export function PeopleTracker({
                 placeholder="Additional notes about this person"
                 rows={2}
               />
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleCreate}
-                  disabled={!newName.trim() || !getCurrentVerseRef()}
-                  className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={handleCancelCreate}
-                  className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors"
-                >
-                  Cancel
-                </button>
+              <div className="flex items-center justify-center sm:justify-end gap-2">
+                <Button variant="ghost" onClick={handleCancelCreate}>Cancel</Button>
+                <Button onClick={handleCreate} disabled={!newName.trim() || !getCurrentVerseRef()}>Save</Button>
               </div>
               {!getCurrentVerseRef() && (
                 <p className="text-xs text-scripture-muted">Note: Verse reference will use current location or selected verse.</p>
@@ -532,9 +521,9 @@ export function PeopleTracker({
                                       <div className="space-y-3">
                                         <Input label="Person Name" type="text" value={editingName} onChange={(e) => setEditingName(e.target.value)} autoFocus />
                                         <Textarea label="Notes (optional)" value={editingNotes} onChange={(e) => setEditingNotes(e.target.value)} rows={2} />
-                                        <div className="flex items-center gap-2">
-                                          <button onClick={() => handleSaveEdit(person.id)} disabled={!editingName.trim()} className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Save</button>
-                                          <button onClick={handleCancelEdit} className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors">Cancel</button>
+                                        <div className="flex items-center justify-center sm:justify-end gap-2">
+                                          <Button variant="ghost" onClick={handleCancelEdit}>Cancel</Button>
+                                          <Button onClick={() => handleSaveEdit(person.id)} disabled={!editingName.trim()}>Save</Button>
                                         </div>
                                       </div>
                                     ) : (
@@ -555,9 +544,9 @@ export function PeopleTracker({
                                         {isAddingObs && (
                                           <div className="mt-2">
                                             <Textarea value={newObservation} onChange={(e) => setNewObservation(e.target.value)} placeholder="What do you observe about this person?" rows={2} autoFocus />
-                                            <div className="flex items-center gap-2 mt-1">
-                                              <button onClick={() => handleAddObservation(person.id)} disabled={!newObservation.trim()} className="px-3 py-1.5 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">Add</button>
-                                              <button onClick={() => { setAddingObservationToId(null); setNewObservation(''); }} className="px-3 py-1.5 text-xs bg-scripture-muted/20 text-scripture-text rounded hover:bg-scripture-muted/30 transition-colors">Cancel</button>
+                                            <div className="flex items-center justify-center sm:justify-end gap-2 mt-1">
+                                              <Button variant="ghost" onClick={() => { setAddingObservationToId(null); setNewObservation(''); }}>Cancel</Button>
+                                              <Button onClick={() => handleAddObservation(person.id)} disabled={!newObservation.trim()}>Add</Button>
                                             </div>
                                           </div>
                                         )}

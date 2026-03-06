@@ -11,9 +11,10 @@ interface StrongsPopupProps {
   strongsNumbers: string[];
   onClose: () => void;
   position: { x: number; y: number };
+  word?: string;
 }
 
-export function StrongsPopup({ strongsNumbers, onClose, position }: StrongsPopupProps) {
+export function StrongsPopup({ strongsNumbers, onClose, position, word }: StrongsPopupProps) {
   const popupRef = useRef<HTMLDivElement>(null);
   const [entries, setEntries] = useState<{ number: string; entry: StrongsEntry }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,9 +89,14 @@ export function StrongsPopup({ strongsNumbers, onClose, position }: StrongsPopup
         }}
       >
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-ui font-semibold text-scripture-text uppercase tracking-wider">
-            Strong&apos;s Lookup
-          </h4>
+          <div className="flex items-center gap-2">
+            <h4 className="text-sm font-ui font-semibold text-scripture-text uppercase tracking-wider">
+              Strong&apos;s Lookup
+            </h4>
+            {word && (
+              <span className="text-sm text-scripture-muted italic">&ldquo;{word}&rdquo;</span>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="text-scripture-muted hover:text-scripture-text transition-colors p-1"

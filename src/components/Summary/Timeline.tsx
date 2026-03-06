@@ -295,6 +295,9 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
                     <span className="text-[10px] text-scripture-text font-medium truncate leading-none">
                       {entry.label}
                     </span>
+                    <span className="text-[9px] text-scripture-muted shrink-0">
+                      {yearLabel}
+                    </span>
                   </button>
                 );
               })}

@@ -28,7 +28,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { AboutSection } from './AboutSection';
 import { GettingStartedSection } from './GettingStartedSection';
-import { ConfirmationDialog, Input, DropdownSelect, Checkbox } from '@/components/shared';
+import { Button, ConfirmationDialog, Input, DropdownSelect, Checkbox } from '@/components/shared';
 import { resetAllStores } from '@/lib/storeReset';
 import { useStudyStore } from '@/stores/studyStore';
 import { onSyncStatusChange, getSyncStatusMessage, triggerSync, type SyncStatus } from '@/lib/sync';
@@ -97,7 +97,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
   
   // API resources and language filter state
-  const [apiResourcesEnabled, setApiResourcesEnabled] = useState(true);
   const [selectedLanguageCodes, setSelectedLanguageCodes] = useState<string[]>([]);
 
   // Default translation state
@@ -195,7 +194,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         setModuleStatuses(statuses);
         
         // Load API resources and language filter (default to English when unset)
-        setApiResourcesEnabled(prefs.apiResourcesEnabled !== false);
         setSelectedLanguageCodes(
           prefs.translationLanguageFilter !== undefined
             ? prefs.translationLanguageFilter
@@ -821,44 +819,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </div>
               )}
 
-              {/* Enable API resources */}
-              <div className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="font-ui font-medium text-scripture-text mb-1">Enable network API</div>
-                    <p className="text-xs text-scripture-muted">
-                      Fetch Bible text from the ESV API. When off, only local SWORD modules and cached content are used.
-                    </p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      const next = !apiResourcesEnabled;
-                      setApiResourcesEnabled(next);
-                      try {
-                        await updatePreferences({ apiResourcesEnabled: next });
-                        const translations = await getAllTranslations();
-                        setAvailableTranslations(translations);
-                      } catch (error) {
-                        console.error('Failed to save API resources preference:', error);
-                        setApiResourcesEnabled(!next);
-                      }
-                    }}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-scripture-accent focus:ring-offset-2 ${
-                      apiResourcesEnabled ? 'bg-scripture-accent' : 'bg-scripture-border'
-                    }`}
-                    role="switch"
-                    aria-checked={apiResourcesEnabled}
-                    aria-label="Enable API resources"
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        apiResourcesEnabled ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
               {/* Show translations in (language filter) */}
               <div className="p-4">
                 <div className="font-ui font-medium text-scripture-text mb-2">Show translations in</div>
@@ -951,7 +911,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-2">Offline Bible Modules</h3>
                 <p className="text-sm text-scripture-muted mb-4">
-                  Download Bible translations for offline reading. No API key required.
+                  Download Bible translations for offline reading.
                 </p>
 
                 {/* Licensed modules (Lockman) */}
@@ -1836,21 +1796,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                                   ...BIBLE_BOOKS.map(book => ({ value: book.id, label: book.name }))
                                 ]}
                               />
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => updateStudy({ ...study, name: editingStudy.name.trim(), book: editingStudy.book }).then(() => setEditingStudy(null))}
-                                  className="px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                                           hover:bg-scripture-accent/90 transition-all duration-200 shadow-md"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={() => setEditingStudy(null)}
-                                  className="px-3 py-2 text-sm font-ui bg-scripture-elevated hover:bg-scripture-border/50
-                                           border border-scripture-border/50 text-scripture-text rounded-lg transition-all duration-200"
-                                >
-                                  Cancel
-                                </button>
+                              <div className="flex justify-center sm:justify-end gap-2">
+                                <Button variant="ghost" onClick={() => setEditingStudy(null)}>Cancel</Button>
+                                <Button onClick={() => updateStudy({ ...study, name: editingStudy.name.trim(), book: editingStudy.book }).then(() => setEditingStudy(null))}>Save</Button>
                               </div>
                             </div>
                           ) : (
