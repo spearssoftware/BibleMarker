@@ -1796,7 +1796,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                                   ...BIBLE_BOOKS.map(book => ({ value: book.id, label: book.name }))
                                 ]}
                               />
-                              <div className="flex justify-end gap-2">
+                              <div className="flex justify-center sm:justify-end gap-2">
                                 <Button variant="ghost" onClick={() => setEditingStudy(null)}>Cancel</Button>
                                 <Button onClick={() => updateStudy({ ...study, name: editingStudy.name.trim(), book: editingStudy.book }).then(() => setEditingStudy(null))}>Save</Button>
                               </div>

@@ -413,7 +413,7 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
                                                   className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none"
                                                   autoFocus
                                                 />
-                                                <div className="flex items-center justify-end gap-2">
+                                                <div className="flex items-center justify-center sm:justify-end gap-2">
                                                   <Button variant="ghost" onClick={handleCancelEdit}>Cancel</Button>
                                                   <Button onClick={() => handleSaveEdit(list.id, item.id)} disabled={!editingItemText.trim()}>Save</Button>
                                                 </div>
@@ -455,7 +455,7 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
                                           className="w-full px-3 py-2 text-sm bg-scripture-bg border border-scripture-border/50 rounded-lg focus:outline-none focus:border-scripture-accent text-scripture-text placeholder-scripture-muted resize-none mb-2"
                                           autoFocus
                                         />
-                                        <div className="flex items-center justify-end gap-2">
+                                        <div className="flex items-center justify-center sm:justify-end gap-2">
                                           <Button variant="ghost" onClick={handleCancelAddObservation}>Cancel</Button>
                                           <Button onClick={handleAddObservation} disabled={!newObservationText.trim()}>Add</Button>
                                         </div>

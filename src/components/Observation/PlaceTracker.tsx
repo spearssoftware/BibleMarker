@@ -426,7 +426,7 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
               placeholder="Additional notes about this place"
               rows={2}
             />
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex items-center justify-center sm:justify-end gap-2">
               <Button variant="ghost" onClick={handleCancelCreate}>Cancel</Button>
               <Button onClick={handleCreate} disabled={!newName.trim() || !getCurrentVerseRef()}>Save</Button>
             </div>
@@ -527,7 +527,7 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
                               onChange={(e) => setEditingNotes(e.target.value)}
                               rows={2}
                             />
-                            <div className="flex items-center justify-end gap-2">
+                            <div className="flex items-center justify-center sm:justify-end gap-2">
                               <Button variant="ghost" onClick={handleCancelEdit}>Cancel</Button>
                               <Button onClick={() => handleSaveEdit(place.id)} disabled={!editingName.trim()}>Save</Button>
                             </div>
@@ -581,7 +581,7 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
                                   rows={2}
                                   autoFocus
                                 />
-                                <div className="flex items-center justify-end gap-2 mt-1">
+                                <div className="flex items-center justify-center sm:justify-end gap-2 mt-1">
                                   <Button variant="ghost" onClick={() => { setAddingObservationToId(null); setNewObservation(''); }}>Cancel</Button>
                                   <Button onClick={() => handleAddObservation(place.id)} disabled={!newObservation.trim()}>Add</Button>
                                 </div>

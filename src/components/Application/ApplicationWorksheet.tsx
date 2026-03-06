@@ -462,7 +462,7 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef, isCreating, se
           )}
 
           {/* Save/Cancel */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-scripture-border/30">
+          <div className="flex items-center justify-center sm:justify-end gap-2 pt-2 border-t border-scripture-border/30">
             <Button variant="ghost" onClick={handleCancel}>Cancel</Button>
             <Button onClick={handleSave} disabled={!formVerseRef || (!formTeaching.trim() && !formReproof.trim() && !formCorrection.trim() && !formTraining.trim() && !formNotes.trim())}>
               {editingId ? 'Save' : 'Create'}

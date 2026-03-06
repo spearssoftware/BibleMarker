@@ -696,7 +696,7 @@ export function ObservationToolsPanel({
                                                   placeholder="Add additional notes about this observation..."
                                                   rows={2}
                                                 />
-                                                <div className="flex items-center justify-end gap-2">
+                                                <div className="flex items-center justify-center sm:justify-end gap-2">
                                                   <Button variant="ghost" onClick={handleCancelEdit}>Cancel</Button>
                                                   <Button onClick={() => handleSaveEdit(list.id, item.id)} disabled={!editingItemText.trim()}>Save</Button>
                                                 </div>
@@ -769,7 +769,7 @@ export function ObservationToolsPanel({
                                           className="mb-2"
                                           autoFocus
                                         />
-                                        <div className="flex items-center justify-end gap-2">
+                                        <div className="flex items-center justify-center sm:justify-end gap-2">
                                           <Button variant="ghost" onClick={handleCancelAddObservation}>Cancel</Button>
                                           <Button onClick={handleAddObservation} disabled={!newObservationText.trim()}>Add</Button>
                                         </div>

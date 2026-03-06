@@ -261,7 +261,7 @@ export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, fil
               placeholder="Additional notes about this conclusion"
               rows={2}
             />
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex items-center justify-center sm:justify-end gap-2">
               <Button variant="ghost" onClick={handleCancelCreate}>Cancel</Button>
               <Button onClick={handleCreate} disabled={!newTerm.trim() || !getCurrentVerseRef()}>Save</Button>
             </div>
@@ -360,7 +360,7 @@ export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, fil
                                 onChange={(e) => setEditingNotes(e.target.value)}
                                 rows={2}
                               />
-                              <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center justify-center sm:justify-end gap-2">
                                 <Button variant="ghost" onClick={handleCancelEdit}>Cancel</Button>
                                 <Button onClick={() => handleSaveEdit(conclusion.id)} disabled={!editingTerm.trim()}>Save</Button>
                               </div>

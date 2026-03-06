@@ -192,12 +192,12 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
 
       {/* Sticky Save/Cancel bar */}
       {inline ? (
-        <div className="flex-shrink-0 p-4 border-t border-scripture-border/50 flex justify-end gap-2 bg-scripture-surface z-10">
+        <div className="flex-shrink-0 p-4 border-t border-scripture-border/50 flex justify-center sm:justify-end gap-2 bg-scripture-surface z-10">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={!title.trim() || !selectedKeywordId}>{list ? 'Save' : 'Create'}</Button>
         </div>
       ) : (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-center sm:justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={!title.trim() || !selectedKeywordId}>{list ? 'Save' : 'Create'}</Button>
         </div>
@@ -220,7 +220,7 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
       title={list ? 'Edit List' : 'Create Observation List'}
       size="md"
       footer={
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-center sm:justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={!title.trim() || !selectedKeywordId}>{list ? 'Save' : 'Create'}</Button>
         </div>

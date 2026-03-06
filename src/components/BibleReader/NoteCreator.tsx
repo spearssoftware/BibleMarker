@@ -59,7 +59,7 @@ export function NoteCreator({
           Note will cover verses {range.startVerse}-{range.endVerse}
         </p>
       )}
-      <div className="flex items-center justify-end gap-2 mt-2">
+      <div className="flex items-center justify-center sm:justify-end gap-2 mt-2">
         <Button variant="ghost" onClick={onCancel} aria-label="Cancel creating note">Cancel</Button>
         <Button onClick={handleSave} disabled={!content.trim()} aria-label="Save note">Save</Button>
       </div>

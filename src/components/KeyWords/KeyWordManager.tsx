@@ -993,7 +993,7 @@ function KeyWordEditor({
       </div>
 
       {/* Sticky Save/Cancel bar — always visible at bottom */}
-      <div className="flex-shrink-0 p-4 border-t border-scripture-border/50 flex justify-end gap-3 bg-scripture-surface z-10">
+      <div className="flex-shrink-0 p-4 border-t border-scripture-border/50 flex justify-center sm:justify-end gap-3 bg-scripture-surface z-10">
         <Button variant="ghost" onClick={onCancel} className="min-w-[120px]">
           Cancel
         </Button>

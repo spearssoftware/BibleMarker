@@ -271,7 +271,7 @@ export function StudyToolsPanel({ onClose: _onClose, initialTab = 'interpretatio
                                   }))
                                 ]}
                               />
-                              <div className="flex justify-end gap-2">
+                              <div className="flex justify-center sm:justify-end gap-2">
                                 <Button variant="ghost" onClick={() => setEditingStudy(null)}>Cancel</Button>
                                 <Button onClick={handleUpdateStudy}>Save</Button>
                               </div>

@@ -525,7 +525,7 @@ export function InterpretationWorksheet({ verseRef: initialVerseRef, isCreating,
           )}
 
           {/* Save/Cancel */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-scripture-border/30">
+          <div className="flex items-center justify-center sm:justify-end gap-2 pt-2 border-t border-scripture-border/30">
             <Button variant="ghost" onClick={handleCancel}>Cancel</Button>
             <Button onClick={handleSave} disabled={!formVerseRef || (!formMeaning.trim() && !formAuthorIntent.trim() && !formKeyThemes.trim() && !formContext.trim() && !formImplications.trim() && !formCrossReferences.trim() && !formQuestions.trim() && !formInsights.trim())}>
               {editingId ? 'Save' : 'Create'}

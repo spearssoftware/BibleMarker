@@ -391,7 +391,7 @@ export function ContrastTracker({ selectedText, verseRef: initialVerseRef, filte
               placeholder="Additional notes about this contrast"
               rows={2}
             />
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex items-center justify-center sm:justify-end gap-2">
               <Button variant="ghost" onClick={handleCancelCreate}>Cancel</Button>
               <Button onClick={handleCreate} disabled={!newItemA.trim() || !newItemB.trim() || !getCurrentVerseRef()}>Save</Button>
             </div>
@@ -496,7 +496,7 @@ export function ContrastTracker({ selectedText, verseRef: initialVerseRef, filte
                                 onChange={(e) => setEditingNotes(e.target.value)}
                                 rows={2}
                               />
-                              <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center justify-center sm:justify-end gap-2">
                                 <Button variant="ghost" onClick={handleCancelEdit}>Cancel</Button>
                                 <Button onClick={() => handleSaveEdit(contrast.id)} disabled={!editingItemA.trim() || !editingItemB.trim()}>Save</Button>
                               </div>
