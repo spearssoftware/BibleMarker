@@ -13,6 +13,7 @@ import { ColorPicker } from './ColorPicker';
 import { SymbolPicker } from './SymbolPicker';
 import { ToolbarOverlay } from './ToolbarOverlay';
 import { SelectionMenu } from './SelectionMenu';
+import { StrongsPopup } from '@/components/BibleReader/StrongsPopup';
 import { KeyWordManager } from '@/components/KeyWords';
 import { AddToList } from '@/components/Lists';
 import { SettingsPanel } from '@/components/Settings';
@@ -78,6 +79,7 @@ export function Toolbar() {
   const [, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [selectionMenuPosition, setSelectionMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [strongsPopup, setStrongsPopup] = useState<{ numbers: string[]; position: { x: number; y: number } } | null>(null);
 
   // Load marking presets on mount
   useEffect(() => {
@@ -350,6 +352,7 @@ export function Toolbar() {
           position={selectionMenuPosition}
           presets={filterPresetsByStudy(presets, activeStudyId)}
           activeSymbol={activeSymbol}
+          strongsNumbers={selection.strongsNumbers}
           onApplyPreset={applyPresetToSelection}
           onAddAsVariant={addToVariantsAndApply}
           onOpenKeyWordManager={() => {
@@ -365,13 +368,19 @@ export function Toolbar() {
             setShowPickerOverlay(false);
             setShowColorPicker(false);
             setShowSymbolPicker(false);
-      
+
             setActiveTool(null);
             if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
           }}
           onAddToList={() => {
             setShowAddToList(true);
           }}
+          onStrongsLookup={selection.strongsNumbers ? () => {
+            setStrongsPopup({
+              numbers: selection.strongsNumbers!,
+              position: selectionMenuPosition,
+            });
+          } : undefined}
           onCancel={() => {
             window.getSelection()?.removeAllRanges();
             clearSelection();
@@ -382,6 +391,15 @@ export function Toolbar() {
         />
       )}
 
+
+      {/* Strong's Popup */}
+      {strongsPopup && (
+        <StrongsPopup
+          strongsNumbers={strongsPopup.numbers}
+          position={strongsPopup.position}
+          onClose={() => setStrongsPopup(null)}
+        />
+      )}
 
       {/* Combined Annotate overlay (Color and Symbol) */}
       {showPickerOverlay && (isColorActive || activeTool === 'symbol') && (
