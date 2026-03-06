@@ -28,19 +28,23 @@ interface KeywordChapterData {
   totalCount: number; // Total occurrences across all chapters
 }
 
-export function ThemeTracker() {
+interface ThemeTrackerProps {
+  initialSearchTerm?: string;
+}
+
+export function ThemeTracker({ initialSearchTerm }: ThemeTrackerProps = {}) {
   const { currentBook, currentModuleId, setLocation } = useBibleStore();
   const { activeView } = useMultiTranslationStore();
   const { presets, loadPresets } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
-  
+
   // Get the primary translation ID
   const primaryTranslationId = activeView?.translationIds[0] || currentModuleId || null;
-  
+
   const [keywordData, setKeywordData] = useState<KeywordChapterData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm || '');
   
   const bookInfo = useMemo(() => getBookById(currentBook), [currentBook]);
   const chapterCount = bookInfo?.chapters || 0;
