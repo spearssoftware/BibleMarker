@@ -152,7 +152,7 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
                         )}
                         {hasModuleStrongs(mod.id) && (
                           <span className="text-[10px] px-1.5 py-0.5 bg-scripture-info/15 text-scripture-info rounded border border-scripture-info/30 font-medium">
-                            Strong's #
+                            Strong's
                           </span>
                         )}
                       </div>
