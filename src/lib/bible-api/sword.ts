@@ -136,7 +136,7 @@ const loadedModules = new Map<string, SwordModuleFiles>();
 const bufferCaches = new Map<string, Map<string, Uint8Array>>();
 
 /** Strip OSIS XML to plain verse text (removes notes, titles, divs, keeps word content) */
-function stripOsis(text: string): string {
+export function stripOsis(text: string): string {
   let result = text
     .replace(/<title\b[^>]*>[\s\S]*?<\/title>/g, '') // remove section headings
     .replace(/<note\b[^>]*>[\s\S]*?<\/note>/g, '')   // remove notes (cross-refs, footnotes)
