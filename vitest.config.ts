@@ -12,13 +12,14 @@ export default defineConfig({
   },
   test: {
     globals: false,
+    setupFiles: ['src/stores/__tests__/setup.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/lib/**/*.ts'],
+      include: ['src/lib/**/*.ts', 'src/stores/**/*.ts'],
       exclude: [
         'src/lib/**/*.test.ts',
         'src/lib/__test__/**',
-        'src/lib/database.ts',
+        'src/stores/__tests__/**',
         'src/lib/sqlite-db.ts',
         'src/lib/sync-engine.ts',
       ],
