@@ -141,7 +141,7 @@ const sortVerseGroups = (groups: Map<string, Place[]>): Array<[string, Place[]]>
 };
 
 export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = true, isCreating, setIsCreating, onNavigate }: PlaceTrackerProps) {
-  const { places, loadPlaces, createPlace, updatePlace, deletePlace, autoImportFromAnnotations, removeDuplicates, autoPopulateFromChapter } = usePlaceStore();
+  const { places, loadPlaces, createPlace, updatePlace, deletePlace, autoImportFromAnnotations, removeDuplicates, removeOrphaned, autoPopulateFromChapter } = usePlaceStore();
   const { currentBook, currentChapter } = useBibleStore();
   const { activeStudyId } = useStudyStore();
   const { presets } = useMarkingPresetStore();
@@ -192,6 +192,10 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
       if (!hasInitialized.current) {
         hasInitialized.current = true;
         
+        // Clean up places whose keyword preset was deleted
+        const validPresetIds = new Set(presets.map(p => p.id));
+        await removeOrphaned(validPresetIds);
+
         // Clean up any existing duplicates first
         const removedCount = await removeDuplicates();
         if (removedCount > 0 && isMounted) {
@@ -216,7 +220,7 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
     return () => {
       isMounted = false;
     };
-  }, [autoImportFromAnnotations, loadPlaces, removeDuplicates]);
+  }, [autoImportFromAnnotations, loadPlaces, removeDuplicates, removeOrphaned, presets]);
 
   // Auto-populate from chapter when chapter or translation changes
   useEffect(() => {
