@@ -41,21 +41,21 @@ function groupPlaces(places: Place[]): PlaceGroup[] {
   return Array.from(map.values());
 }
 
-function createMarkerIcon(selected: boolean) {
-  const color = selected ? '#f97316' : '#3b82f6';
-  const size = selected ? 14 : 11;
-  const anchor = size / 2;
+function makeIcon(color: string, size: number) {
   return L.divIcon({
     html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.45)"></div>`,
     iconSize: [size, size],
-    iconAnchor: [anchor, anchor],
+    iconAnchor: [size / 2, size / 2],
     className: '',
   });
 }
 
+const MARKER_ICON_NORMAL = makeIcon('#3b82f6', 11);
+const MARKER_ICON_SELECTED = makeIcon('#f97316', 14);
+
 function FitBounds({ groups }: { groups: PlaceGroup[] }) {
   const map = useMap();
-  useMemo(() => {
+  useEffect(() => {
     if (groups.length === 0) return;
     const bounds = L.latLngBounds(
       groups.map(g => [g.latitude!, g.longitude!] as [number, number])
@@ -192,7 +192,7 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
       <div className="flex-1 rounded-xl overflow-hidden border border-scripture-border/50 relative">
         <button
           onClick={() => setTileLayer(t => t === 'map' ? 'satellite' : 'map')}
-          className="absolute top-2 right-2 z-[1000] px-2 py-1 text-xs font-medium bg-white/90 hover:bg-white text-gray-700 rounded shadow transition-colors"
+          className="absolute top-2 right-2 z-[1000] px-2 py-1 text-xs font-medium bg-scripture-surface/95 hover:bg-scripture-surface text-scripture-text rounded shadow transition-colors"
         >
           {tileLayer === 'map' ? 'Satellite' : 'Map'}
         </button>
@@ -216,7 +216,7 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
               <Marker
                 key={group.name}
                 position={[group.latitude!, group.longitude!]}
-                icon={createMarkerIcon(group.name === effectiveSelectedName)}
+                icon={group.name === effectiveSelectedName ? MARKER_ICON_SELECTED : MARKER_ICON_NORMAL}
                 ref={(marker) => {
                   if (marker) markerRefs.current.set(group.name, marker);
                   else markerRefs.current.delete(group.name);
