@@ -27,7 +27,19 @@ export function VerseNumberMenu({
   useLayoutEffect(() => {
     if (!menuRef.current) return;
     const rect = menuRef.current.getBoundingClientRect();
-    if (rect.bottom > window.innerHeight - 16) {
+
+    // Find the nearest scrollable ancestor to use as the clip boundary
+    let scrollAncestor: HTMLElement | null = menuRef.current.parentElement;
+    while (scrollAncestor) {
+      const { overflowY } = getComputedStyle(scrollAncestor);
+      if (overflowY === 'auto' || overflowY === 'scroll') break;
+      scrollAncestor = scrollAncestor.parentElement;
+    }
+    const bottomBoundary = scrollAncestor
+      ? scrollAncestor.getBoundingClientRect().bottom - 16
+      : window.innerHeight - 16;
+
+    if (rect.bottom > bottomBoundary) {
       requestAnimationFrame(() => setFlipAbove(true));
     }
   }, []);

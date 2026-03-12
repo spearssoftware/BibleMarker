@@ -597,13 +597,13 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         destructive={true}
       />
       <div
-        className="flex-1 min-h-0 flex flex-col relative"
+        className="flex-1 min-h-0 flex flex-col overflow-hidden relative"
         role="dialog"
         aria-label="Settings"
         aria-modal="true"
       >
         {/* Tabs */}
-        <div className="px-4 py-2 flex-shrink-0" role="tablist" aria-label="Settings sections">
+        <div className="flex items-center justify-between px-4 py-2 flex-shrink-0 border-b border-scripture-border/30" role="tablist" aria-label="Settings sections">
           <div className="flex gap-1 sm:gap-2">
             {tabs.map((tab) => (
               <button
@@ -1308,7 +1308,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
                 {importStep === 'preview' && backupPreview && previewCounts && (
                   <div className="space-y-4">
-                    <div className="p-4 bg-scripture-surface/50 border border-scripture-border/50 rounded-xl">
+                    <div className="p-4 bg-scripture-surface border border-scripture-border/50 shadow-sm rounded-xl">
                       <div className="text-sm text-scripture-muted mb-2">
                         Backup created: {new Date(backupPreview.timestamp).toLocaleString()}
                       </div>
@@ -1327,7 +1327,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                       </div>
                     </div>
 
-                    <div className="bg-scripture-surface/50 border border-scripture-border/50 rounded-xl p-4">
+                    <div className="bg-scripture-surface border border-scripture-border/50 shadow-sm rounded-xl p-4">
                       <div className="mb-4">
                         <p className="text-sm text-scripture-muted mb-3">
                           This will replace all your existing data with the backup data. This action cannot be undone.
@@ -1398,8 +1398,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 <button
                   onClick={handleExportStudy}
                   disabled={isExportingStudy}
-                  className="w-full px-3 py-2 bg-scripture-accent text-scripture-bg rounded-lg hover:bg-scripture-accent/90 
-                           disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 
+                  className="w-full px-3 py-2 bg-scripture-accent text-scripture-bg rounded-lg hover:bg-scripture-accent/90
+                           disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200
                            font-ui text-sm shadow-md flex items-center justify-center gap-2"
                 >
                   {isExportingStudy ? (
@@ -1587,8 +1587,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                             }
                           }}
                           disabled={isCreatingBackup || savingAutoBackup}
-                          className="w-full px-3 py-2 text-sm font-ui bg-scripture-warningBg text-scripture-warningText rounded-lg 
-                                   hover:bg-scripture-warningBg/80 disabled:opacity-50 disabled:cursor-not-allowed 
+                          className="w-full px-3 py-2 text-sm font-ui bg-scripture-warningBg text-scripture-warningText rounded-lg
+                                   hover:bg-scripture-warningBg/80 disabled:opacity-50 disabled:cursor-not-allowed
                                    transition-all duration-200 shadow-md flex items-center justify-center gap-2"
                         >
                           {isCreatingBackup ? (
@@ -1625,8 +1625,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                           }
                         }}
                         disabled={isCreatingBackup || savingAutoBackup}
-                        className="w-full px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg 
-                                 hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed 
+                        className="w-full px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
+                                 hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed
                                  transition-all duration-200 shadow-md flex items-center justify-center gap-2"
                       >
                         {isCreatingBackup ? (
@@ -1655,8 +1655,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   <div>
                     <button
                       onClick={handleClearBook}
-                      className="w-full px-3 py-2 text-sm font-ui bg-scripture-warningBg 
-                               hover:bg-scripture-warningBg/80 text-scripture-warningText rounded-lg 
+                      className="w-full px-3 py-2 text-sm font-ui bg-scripture-warningBg
+                               hover:bg-scripture-warningBg/80 text-scripture-warningText rounded-lg
                                transition-all duration-200 flex items-center justify-center gap-2
                                border border-scripture-warning/30 shadow-md"
                     >
@@ -1684,9 +1684,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     <button
                       onClick={handleClearDatabase}
                       disabled={isClearing}
-                      className="w-full px-3 py-2 text-sm font-ui bg-scripture-errorBg 
-                               hover:bg-scripture-errorBg/80 text-scripture-errorText rounded-lg 
-                               disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 
+                      className="w-full px-3 py-2 text-sm font-ui bg-scripture-errorBg
+                               hover:bg-scripture-errorBg/80 text-scripture-errorText rounded-lg
+                               disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200
                                flex items-center justify-center gap-2 border border-scripture-error/30 shadow-md"
                     >
                       <span>🗑️</span>
@@ -1786,7 +1786,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                       {studies.map(study => (
                         <div
                           key={study.id}
-                          className="p-4 bg-scripture-surface/50 rounded-lg border border-scripture-muted/20 flex items-center justify-between"
+                          className="p-4 bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm flex items-center justify-between"
                         >
                           {editingStudy?.id === study.id ? (
                             <div className="flex-1 space-y-2">

@@ -199,7 +199,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
   
   if (isLoading) {
     return (
-      <div className="p-4 bg-scripture-surface rounded-lg">
+      <div className="p-4 bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm">
         <div className="flex items-center justify-center gap-3 py-8">
           <div className="w-6 h-6 border-2 border-scripture-border border-t-scripture-accent rounded-full animate-spin"></div>
           <div className="text-scripture-muted text-sm">Loading summary...</div>
@@ -215,7 +215,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
   const { title, headings, keywords, observations, theme, supportingPresetIds } = summary;
   
   return (
-    <div className="p-4 bg-scripture-surface rounded-lg space-y-4">
+    <div className="p-4 bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm space-y-4">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-lg font-semibold text-scripture-text">
           {bookInfo?.name} {currentChapter}
