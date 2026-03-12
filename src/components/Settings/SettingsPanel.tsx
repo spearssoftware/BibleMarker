@@ -1950,7 +1950,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
                 <div className="mb-4">
                   <Button
-                    variant="secondary"
+                    variant="primary"
                     fullWidth
                     onClick={() => {
                       window.dispatchEvent(new CustomEvent('showWhatsNew'));
