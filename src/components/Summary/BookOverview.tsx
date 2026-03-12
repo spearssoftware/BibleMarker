@@ -140,7 +140,7 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
 
   if (isLoading) {
     return (
-      <div className="p-4 bg-scripture-surface rounded-lg">
+      <div className="p-4 bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm">
         <div className="flex items-center justify-center gap-3 py-8">
           <div className="w-6 h-6 border-2 border-scripture-border border-t-scripture-accent rounded-full animate-spin"></div>
           <div className="text-scripture-muted text-sm">Loading book overview...</div>
@@ -151,7 +151,7 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
 
   if (!bookInfo) {
     return (
-      <div className="p-4 bg-scripture-surface rounded-lg">
+      <div className="p-4 bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm">
         <div className="text-scripture-muted">Book not found</div>
       </div>
     );
@@ -165,7 +165,7 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
       </div>
 
       <div className="px-4 pb-4">
-        <div className="divide-y divide-scripture-border/30 rounded-lg overflow-hidden border border-scripture-border/30">
+        <div className="divide-y divide-scripture-border/30 rounded-xl overflow-hidden border border-scripture-border/50">
           {summaries.map(summary => {
             const hasData = summary.title || summary.headingCount > 0 || summary.keywordCount > 0 || summary.observationCount > 0;
 

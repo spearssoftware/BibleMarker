@@ -147,7 +147,7 @@ export function ThemeTracker({ initialSearchTerm }: ThemeTrackerProps = {}) {
   
   if (isLoading) {
     return (
-      <div className="p-4 bg-scripture-surface rounded-lg">
+      <div className="p-4 bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm">
         <div className="flex items-center justify-center gap-3 py-8">
           <div className="w-6 h-6 border-2 border-scripture-border border-t-scripture-accent rounded-full animate-spin"></div>
           <div className="text-scripture-muted text-sm">Loading theme tracker...</div>
@@ -158,7 +158,7 @@ export function ThemeTracker({ initialSearchTerm }: ThemeTrackerProps = {}) {
   
   if (!bookInfo) {
     return (
-      <div className="p-4 bg-scripture-surface rounded-lg">
+      <div className="p-4 bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm">
         <div className="text-scripture-muted">Book not found</div>
       </div>
     );
@@ -171,7 +171,7 @@ export function ThemeTracker({ initialSearchTerm }: ThemeTrackerProps = {}) {
   );
 
   return (
-    <div className="bg-scripture-surface rounded-lg space-y-3">
+    <div className="bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm space-y-3 p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-scripture-text">{bookInfo.name} Themes</h2>
         <div className="text-xs text-scripture-muted">{keywordData.length} keywords</div>
