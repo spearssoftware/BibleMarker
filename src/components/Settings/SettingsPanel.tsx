@@ -1923,12 +1923,19 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               <div className="border-t border-scripture-border/30 my-4"></div>
 
               <div className="p-4">
+                <KeyboardShortcutsHelp />
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
+
+              <div className="p-4">
                 <div className="mb-4">
                   <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Onboarding</h3>
-                  <button
+                  <Button
+                    variant="primary"
+                    fullWidth
                     onClick={async () => {
-                      // Reset onboarding state
-                      await getPreferences(); // ensure prefs loaded before partial update
+                      await getPreferences();
                       await updatePreferences({
                         onboarding: {
                           hasSeenWelcome: false,
@@ -1936,25 +1943,16 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                           dismissedTooltips: [],
                         },
                       });
-                      // Dispatch event to trigger tour restart
                       window.dispatchEvent(new CustomEvent('restartOnboarding'));
                       onClose();
                     }}
-                    className="w-full px-3 py-2 text-sm font-ui bg-scripture-surface border border-scripture-overlayBorder
-                             hover:bg-scripture-overlay/50 text-scripture-text rounded-lg transition-colors"
                   >
                     Restart Welcome & Tour
-                  </button>
+                  </Button>
                   <p className="text-xs text-scripture-muted mt-2">
                     Show the welcome screen and guided tour again
                   </p>
                 </div>
-              </div>
-
-              <div className="border-t border-scripture-border/30 my-4"></div>
-
-              <div className="p-4">
-                <KeyboardShortcutsHelp />
               </div>
 
               <div className="border-t border-scripture-border/30 my-4"></div>
