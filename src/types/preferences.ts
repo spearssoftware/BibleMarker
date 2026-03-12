@@ -38,6 +38,7 @@ export interface UserPreferences {
   currentChapter?: number;
   marking: MarkingPreferences;
   fontSize: 'sm' | 'base' | 'lg' | 'xl';
+  scriptureFont?: 'crimson-pro' | 'lora' | 'merriweather' | 'literata';
   theme: 'dark' | 'light' | 'auto';
   highContrast?: boolean;
   apiConfigs?: ApiConfigRecord[];

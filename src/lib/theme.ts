@@ -5,6 +5,21 @@
  */
 
 export type Theme = 'light' | 'dark' | 'auto';
+export type ScriptureFont = 'crimson-pro' | 'lora' | 'merriweather' | 'literata';
+
+const SCRIPTURE_FONT_STACKS: Record<ScriptureFont, string> = {
+  'crimson-pro': "'Crimson Pro', Georgia, serif",
+  'lora': "'Lora', Georgia, serif",
+  'merriweather': "'Merriweather', Georgia, serif",
+  'literata': "'Literata', Georgia, serif",
+};
+
+export function applyScriptureFont(font: ScriptureFont): void {
+  document.documentElement.style.setProperty(
+    '--scripture-font-family',
+    SCRIPTURE_FONT_STACKS[font]
+  );
+}
 
 /**
  * Get the effective theme (resolves 'auto' to OS preference)
@@ -218,6 +233,9 @@ export async function initTheme(): Promise<void> {
     const highContrast = prefs.highContrast || false;
     _currentThemePreference = theme;
     applyTheme(theme, highContrast);
+    if (prefs.scriptureFont) {
+      applyScriptureFont(prefs.scriptureFont);
+    }
     
     // Set up OS theme watcher (will only apply if in auto mode)
     watchOSTheme();
