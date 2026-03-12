@@ -53,15 +53,25 @@ function makeIcon(color: string, size: number) {
 const MARKER_ICON_NORMAL = makeIcon('#3b82f6', 11);
 const MARKER_ICON_SELECTED = makeIcon('#f97316', 14);
 
+function fitAll(map: L.Map, groups: PlaceGroup[]) {
+  if (groups.length === 0) return;
+  const bounds = L.latLngBounds(groups.map(g => [g.latitude!, g.longitude!] as [number, number]));
+  map.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
+}
+
 function FitBounds({ groups }: { groups: PlaceGroup[] }) {
   const map = useMap();
+  useEffect(() => { fitAll(map, groups); }, [groups, map]);
+  return null;
+}
+
+function ResetBounds({ selectedName, groups }: { selectedName: string | null; groups: PlaceGroup[] }) {
+  const map = useMap();
+  const prev = useRef<string | null>(null);
   useEffect(() => {
-    if (groups.length === 0) return;
-    const bounds = L.latLngBounds(
-      groups.map(g => [g.latitude!, g.longitude!] as [number, number])
-    );
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
-  }, [groups, map]);
+    if (prev.current !== null && selectedName === null) fitAll(map, groups);
+    prev.current = selectedName;
+  }, [selectedName, groups, map]);
   return null;
 }
 
@@ -212,6 +222,7 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
             />
             <FitBounds groups={mappableGroups} />
             <FlyToSelected selectedName={effectiveSelectedName} groups={mappableGroups} markerRefs={markerRefs} />
+            <ResetBounds selectedName={effectiveSelectedName} groups={mappableGroups} />
             {mappableGroups.map(group => (
               <Marker
                 key={group.name}
@@ -221,7 +232,7 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
                   if (marker) markerRefs.current.set(group.name, marker);
                   else markerRefs.current.delete(group.name);
                 }}
-                eventHandlers={{ click: () => setSelectedName(group.name) }}
+                eventHandlers={{ click: () => setSelectedName(group.name), popupclose: () => setSelectedName(null) }}
               >
                 <Popup>
                   <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '13px', lineHeight: '1.6' }}>
