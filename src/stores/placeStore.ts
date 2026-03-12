@@ -196,7 +196,11 @@ export const usePlaceStore = create<PlaceState>()(
           let placeName = getAnnotationText(annotation);
           if (annotation.presetId) {
             const preset = await getMarkingPreset(annotation.presetId);
-            if (preset?.word) {
+            // Skip if the preset no longer exists or is no longer in the 'places' category
+            if (!preset || (preset.category && preset.category !== 'places')) {
+              continue;
+            }
+            if (preset.word) {
               placeName = preset.word;
             }
           }

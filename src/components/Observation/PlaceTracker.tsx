@@ -336,7 +336,7 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
     filtered = filtered.filter(place => {
       if (!place.presetId) return true; // manual entries always show
       const preset = presetMap.get(place.presetId);
-      if (!preset) return true; // preset deleted — keep until user cleans up
+      if (!preset) return false; // preset deleted — hide orphaned places
       return preset.category === 'places';
     });
     // Filter by active study
