@@ -1,8 +1,8 @@
 /**
  * Biblical Places Map
  *
- * Renders places with coordinates on a Leaflet map with OpenStreetMap tiles.
- * A sidebar list lets users click a place to fly to and highlight it on the map.
+ * Renders places on a Leaflet map grouped by name (one marker per unique place).
+ * Sidebar lists each place once with all verse references beneath it.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -14,6 +14,31 @@ import { formatVerseRef } from '@/types';
 interface PlaceMapProps {
   places: Place[];
   onNavigate?: (ref: VerseRef) => void;
+}
+
+interface PlaceGroup {
+  name: string;
+  latitude?: number;
+  longitude?: number;
+  entries: Place[];
+}
+
+function groupPlaces(places: Place[]): PlaceGroup[] {
+  const map = new Map<string, PlaceGroup>();
+  for (const place of places) {
+    const existing = map.get(place.name);
+    if (existing) {
+      existing.entries.push(place);
+    } else {
+      map.set(place.name, {
+        name: place.name,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        entries: [place],
+      });
+    }
+  }
+  return Array.from(map.values());
 }
 
 function createMarkerIcon(selected: boolean) {
@@ -28,60 +53,58 @@ function createMarkerIcon(selected: boolean) {
   });
 }
 
-/** Auto-fit map bounds to markers */
-function FitBounds({ places }: { places: Place[] }) {
+function FitBounds({ groups }: { groups: PlaceGroup[] }) {
   const map = useMap();
-
   useMemo(() => {
-    if (places.length === 0) return;
+    if (groups.length === 0) return;
     const bounds = L.latLngBounds(
-      places.map(p => [p.latitude!, p.longitude!] as [number, number])
+      groups.map(g => [g.latitude!, g.longitude!] as [number, number])
     );
     map.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
-  }, [places, map]);
-
+  }, [groups, map]);
   return null;
 }
 
-/** Fly to selected place and open its popup */
 function FlyToSelected({
-  selectedId,
-  places,
+  selectedName,
+  groups,
   markerRefs,
 }: {
-  selectedId: string | null;
-  places: Place[];
+  selectedName: string | null;
+  groups: PlaceGroup[];
   markerRefs: React.RefObject<Map<string, L.Marker>>;
 }) {
   const map = useMap();
-  const prevId = useRef<string | null>(null);
+  const prevName = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!selectedId || selectedId === prevId.current) return;
-    prevId.current = selectedId;
-    const place = places.find(p => p.id === selectedId);
-    if (!place) return;
+    if (!selectedName || selectedName === prevName.current) return;
+    prevName.current = selectedName;
+    const group = groups.find(g => g.name === selectedName);
+    if (!group) return;
     const zoom = Math.max(map.getZoom(), 8);
-    map.flyTo([place.latitude!, place.longitude!], zoom, { duration: 0.6 });
+    map.flyTo([group.latitude!, group.longitude!], zoom, { duration: 0.6 });
     setTimeout(() => {
-      markerRefs.current?.get(selectedId)?.openPopup();
+      markerRefs.current?.get(selectedName)?.openPopup();
     }, 700);
-  }, [selectedId, places, map, markerRefs]);
+  }, [selectedName, groups, map, markerRefs]);
 
   return null;
 }
 
 export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedName, setSelectedName] = useState<string | null>(null);
   const markerRefs = useRef<Map<string, L.Marker>>(new Map());
 
-  const mappable = useMemo(
-    () => places.filter(p => p.latitude != null && p.longitude != null),
-    [places]
+  const groups = useMemo(() => groupPlaces(places), [places]);
+  const mappableGroups = useMemo(
+    () => groups.filter(g => g.latitude != null && g.longitude != null),
+    [groups]
   );
 
-  // Treat selectedId as cleared if the place is no longer in the list
-  const effectiveSelectedId = selectedId && places.some(p => p.id === selectedId) ? selectedId : null;
+  const effectiveSelectedName = selectedName && groups.some(g => g.name === selectedName)
+    ? selectedName
+    : null;
 
   const center: [number, number] = [31.7767, 35.2342];
 
@@ -91,47 +114,63 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
       <div className="w-44 flex-shrink-0 flex flex-col bg-scripture-surface rounded-xl border border-scripture-border/50 overflow-hidden">
         <div className="px-3 py-2 border-b border-scripture-border/30 flex-shrink-0">
           <span className="text-xs font-medium text-scripture-muted uppercase tracking-wide">
-            Places ({places.length})
+            Places ({groups.length})
           </span>
         </div>
-        {places.length === 0 ? (
+        {groups.length === 0 ? (
           <div className="flex-1 flex items-center justify-center p-3">
             <p className="text-xs text-scripture-muted text-center">No places yet.</p>
           </div>
         ) : (
           <div className="overflow-y-auto flex-1 custom-scrollbar p-1.5 space-y-0.5">
-            {places.map(place => {
-              const hasCoordsMap = place.latitude != null && place.longitude != null;
-              const isSelected = effectiveSelectedId === place.id;
+            {groups.map(group => {
+              const hasCoordsMap = group.latitude != null && group.longitude != null;
+              const isSelected = effectiveSelectedName === group.name;
               return (
-                <button
-                  key={place.id}
-                  onClick={() => hasCoordsMap ? setSelectedId(place.id) : undefined}
-                  disabled={!hasCoordsMap}
-                  className={`w-full text-left px-2.5 py-2 rounded-lg text-sm transition-colors ${
-                    isSelected
-                      ? 'bg-scripture-accent text-scripture-bg'
-                      : hasCoordsMap
-                      ? 'hover:bg-scripture-elevated text-scripture-text'
-                      : 'text-scripture-muted cursor-default'
+                <div
+                  key={group.name}
+                  className={`rounded-lg transition-colors ${
+                    isSelected ? 'bg-scripture-accent' : ''
                   }`}
                 >
-                  <div className="font-medium truncate">{place.name}</div>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <span className={`text-xs truncate ${isSelected ? 'opacity-80' : 'text-scripture-muted'}`}>
-                      {formatVerseRef(place.verseRef.book, place.verseRef.chapter, place.verseRef.verse)}
-                    </span>
-                    {onNavigate && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onNavigate(place.verseRef); }}
-                        className={`shrink-0 text-xs underline transition-colors ${isSelected ? 'text-scripture-bg/80 hover:text-scripture-bg' : 'text-scripture-accent hover:text-scripture-accent/70'}`}
-                        title="Jump to verse"
-                      >
-                        →
-                      </button>
-                    )}
+                  {/* Place name row — clickable to select on map */}
+                  <button
+                    onClick={() => hasCoordsMap ? setSelectedName(group.name) : undefined}
+                    disabled={!hasCoordsMap}
+                    className={`w-full text-left px-2.5 pt-2 pb-1 text-sm font-medium transition-colors rounded-lg ${
+                      isSelected
+                        ? 'text-scripture-bg'
+                        : hasCoordsMap
+                        ? 'hover:bg-scripture-elevated text-scripture-text'
+                        : 'text-scripture-muted cursor-default'
+                    }`}
+                  >
+                    {group.name}
+                  </button>
+                  {/* Verse list */}
+                  <div className="px-2.5 pb-1.5 space-y-0.5">
+                    {group.entries.map(place => (
+                      <div key={place.id} className="flex items-center gap-1">
+                        <span className={`text-xs ${isSelected ? 'text-scripture-bg/70' : 'text-scripture-muted'}`}>
+                          {formatVerseRef(place.verseRef.book, place.verseRef.chapter, place.verseRef.verse)}
+                        </span>
+                        {onNavigate && (
+                          <button
+                            onClick={() => onNavigate(place.verseRef)}
+                            className={`shrink-0 text-xs transition-colors ${
+                              isSelected
+                                ? 'text-scripture-bg/80 hover:text-scripture-bg'
+                                : 'text-scripture-accent hover:text-scripture-accent/70'
+                            }`}
+                            title="Jump to verse"
+                          >
+                            →
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -140,7 +179,7 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
 
       {/* Map */}
       <div className="flex-1 rounded-xl overflow-hidden border border-scripture-border/50">
-        {mappable.length === 0 ? (
+        {mappableGroups.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6">
             <p className="text-scripture-muted text-sm">No places with coordinates to display.</p>
             <p className="text-scripture-muted text-xs mt-2">
@@ -153,30 +192,30 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
               url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
             />
-            <FitBounds places={mappable} />
-            <FlyToSelected selectedId={effectiveSelectedId} places={mappable} markerRefs={markerRefs} />
-            {mappable.map(place => (
+            <FitBounds groups={mappableGroups} />
+            <FlyToSelected selectedName={effectiveSelectedName} groups={mappableGroups} markerRefs={markerRefs} />
+            {mappableGroups.map(group => (
               <Marker
-                key={place.id}
-                position={[place.latitude!, place.longitude!]}
-                icon={createMarkerIcon(place.id === effectiveSelectedId)}
+                key={group.name}
+                position={[group.latitude!, group.longitude!]}
+                icon={createMarkerIcon(group.name === effectiveSelectedName)}
                 ref={(marker) => {
-                  if (marker) markerRefs.current.set(place.id, marker);
-                  else markerRefs.current.delete(place.id);
+                  if (marker) markerRefs.current.set(group.name, marker);
+                  else markerRefs.current.delete(group.name);
                 }}
-                eventHandlers={{ click: () => setSelectedId(place.id) }}
+                eventHandlers={{ click: () => setSelectedName(group.name) }}
               >
                 <Popup>
-                  <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '13px', lineHeight: '1.4' }}>
-                    <div style={{ fontWeight: 600, marginBottom: '2px' }}>{place.name}</div>
-                    <div style={{ color: '#666', fontSize: '12px' }}>
-                      {formatVerseRef(place.verseRef.book, place.verseRef.chapter, place.verseRef.verse)}
-                    </div>
-                    {place.notes && (
-                      <div style={{ marginTop: '4px', fontSize: '12px', color: '#444' }}>
-                        {place.notes}
+                  <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '13px', lineHeight: '1.6' }}>
+                    <div style={{ fontWeight: 600, marginBottom: '4px' }}>{group.name}</div>
+                    {group.entries.map(place => (
+                      <div key={place.id} style={{ color: '#555', fontSize: '12px' }}>
+                        {formatVerseRef(place.verseRef.book, place.verseRef.chapter, place.verseRef.verse)}
+                        {place.notes && (
+                          <span style={{ color: '#888', marginLeft: '4px' }}>— {place.notes}</span>
+                        )}
                       </div>
-                    )}
+                    ))}
                   </div>
                 </Popup>
               </Marker>
