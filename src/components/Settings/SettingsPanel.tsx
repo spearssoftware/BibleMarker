@@ -1398,8 +1398,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 <button
                   onClick={handleExportStudy}
                   disabled={isExportingStudy}
-                  className="w-full px-3 py-2 bg-scripture-accent text-scripture-bg rounded-lg hover:bg-scripture-accent/90 
-                           disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 
+                  className="px-3 py-2 bg-scripture-accent text-scripture-bg rounded-lg hover:bg-scripture-accent/90
+                           disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200
                            font-ui text-sm shadow-md flex items-center justify-center gap-2"
                 >
                   {isExportingStudy ? (
@@ -1587,8 +1587,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                             }
                           }}
                           disabled={isCreatingBackup || savingAutoBackup}
-                          className="w-full px-3 py-2 text-sm font-ui bg-scripture-warningBg text-scripture-warningText rounded-lg 
-                                   hover:bg-scripture-warningBg/80 disabled:opacity-50 disabled:cursor-not-allowed 
+                          className="px-3 py-2 text-sm font-ui bg-scripture-warningBg text-scripture-warningText rounded-lg
+                                   hover:bg-scripture-warningBg/80 disabled:opacity-50 disabled:cursor-not-allowed
                                    transition-all duration-200 shadow-md flex items-center justify-center gap-2"
                         >
                           {isCreatingBackup ? (
@@ -1625,8 +1625,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                           }
                         }}
                         disabled={isCreatingBackup || savingAutoBackup}
-                        className="w-full px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg 
-                                 hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed 
+                        className="px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
+                                 hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed
                                  transition-all duration-200 shadow-md flex items-center justify-center gap-2"
                       >
                         {isCreatingBackup ? (
@@ -1655,8 +1655,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   <div>
                     <button
                       onClick={handleClearBook}
-                      className="w-full px-3 py-2 text-sm font-ui bg-scripture-warningBg 
-                               hover:bg-scripture-warningBg/80 text-scripture-warningText rounded-lg 
+                      className="px-3 py-2 text-sm font-ui bg-scripture-warningBg
+                               hover:bg-scripture-warningBg/80 text-scripture-warningText rounded-lg
                                transition-all duration-200 flex items-center justify-center gap-2
                                border border-scripture-warning/30 shadow-md"
                     >
@@ -1684,9 +1684,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     <button
                       onClick={handleClearDatabase}
                       disabled={isClearing}
-                      className="w-full px-3 py-2 text-sm font-ui bg-scripture-errorBg 
-                               hover:bg-scripture-errorBg/80 text-scripture-errorText rounded-lg 
-                               disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 
+                      className="px-3 py-2 text-sm font-ui bg-scripture-errorBg
+                               hover:bg-scripture-errorBg/80 text-scripture-errorText rounded-lg
+                               disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200
                                flex items-center justify-center gap-2 border border-scripture-error/30 shadow-md"
                     >
                       <span>🗑️</span>
@@ -1898,7 +1898,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                       window.dispatchEvent(new CustomEvent('restartOnboarding'));
                       onClose();
                     }}
-                    className="w-full px-3 py-2 text-sm font-ui bg-scripture-surface border border-scripture-overlayBorder
+                    className="px-3 py-2 text-sm font-ui bg-scripture-surface border border-scripture-overlayBorder
                              hover:bg-scripture-overlay/50 text-scripture-text rounded-lg transition-colors"
                   >
                     Restart Welcome & Tour
