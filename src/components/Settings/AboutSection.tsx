@@ -8,7 +8,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { checkForUpdateIfDue, checkForUpdateNow, type UpdateCheckResult } from '@/lib/updateCheck';
-import { openUrl } from '@/lib/platform';
+import { UpdateBanner } from '@/components/shared';
 
 interface AboutSectionProps {
   /** When false, no automatic update check is run on mount */
@@ -21,6 +21,7 @@ export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true, o
   const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null | 'checking'>(
     checkForUpdatesEnabled ? 'checking' : null
   );
+  const [showUpdateBanner, setShowUpdateBanner] = useState(false);
 
   useEffect(() => {
     if (!checkForUpdatesEnabled) {
@@ -69,7 +70,7 @@ export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true, o
                 <span className="text-xs text-scripture-muted">Checking for updates…</span>
               ) : updateResult ? (
                 <button
-                  onClick={() => openUrl(updateResult.url)}
+                  onClick={() => setShowUpdateBanner(true)}
                   className="text-xs text-scripture-accent hover:underline"
                 >
                   A new version ({updateResult.version}) is available →
@@ -92,6 +93,14 @@ export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true, o
           </p>
         </div>
       </div>
+
+      {showUpdateBanner && updateResult && updateResult !== 'checking' && (
+        <UpdateBanner
+          version={updateResult.version}
+          url={updateResult.url}
+          onDismiss={() => setShowUpdateBanner(false)}
+        />
+      )}
 
       {onCheckForUpdatesChange && (
         <div className="flex items-center justify-between gap-4 pt-2">
