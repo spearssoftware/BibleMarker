@@ -8,11 +8,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import type { Place } from '@/types';
+import type { Place, VerseRef } from '@/types';
 import { formatVerseRef } from '@/types';
 
 interface PlaceMapProps {
   places: Place[];
+  onNavigate?: (ref: VerseRef) => void;
 }
 
 function createMarkerIcon(selected: boolean) {
@@ -70,7 +71,7 @@ function FlyToSelected({
   return null;
 }
 
-export function PlaceMap({ places }: PlaceMapProps) {
+export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const markerRefs = useRef<Map<string, L.Marker>>(new Map());
 
@@ -116,8 +117,19 @@ export function PlaceMap({ places }: PlaceMapProps) {
                   }`}
                 >
                   <div className="font-medium truncate">{place.name}</div>
-                  <div className={`text-xs truncate ${isSelected ? 'opacity-80' : 'text-scripture-muted'}`}>
-                    {formatVerseRef(place.verseRef.book, place.verseRef.chapter, place.verseRef.verse)}
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className={`text-xs truncate ${isSelected ? 'opacity-80' : 'text-scripture-muted'}`}>
+                      {formatVerseRef(place.verseRef.book, place.verseRef.chapter, place.verseRef.verse)}
+                    </span>
+                    {onNavigate && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onNavigate(place.verseRef); }}
+                        className={`shrink-0 text-xs underline transition-colors ${isSelected ? 'text-scripture-bg/80 hover:text-scripture-bg' : 'text-scripture-accent hover:text-scripture-accent/70'}`}
+                        title="Jump to verse"
+                      >
+                        →
+                      </button>
+                    )}
                   </div>
                 </button>
               );

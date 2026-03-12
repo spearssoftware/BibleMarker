@@ -182,6 +182,7 @@ export function AnalyzeToolsPanel({
             currentBook={currentBook}
             currentChapter={currentChapter}
             activeStudyId={activeStudyId}
+            onNavigate={handleNavigateToVerse}
           />
         </div>
       ) : (
@@ -253,6 +254,7 @@ interface PlacesMapPanelProps {
   currentBook: string | null;
   currentChapter: number | null;
   activeStudyId: string | null;
+  onNavigate: (ref: VerseRef) => void;
 }
 
 function PlacesMapPanel({
@@ -264,6 +266,7 @@ function PlacesMapPanel({
   currentBook,
   currentChapter,
   activeStudyId,
+  onNavigate,
 }: PlacesMapPanelProps) {
   const lastPopulatedChapter = useRef('');
 
@@ -294,7 +297,7 @@ function PlacesMapPanel({
 
   return (
     <div role="tabpanel" id="analyze-tabpanel-places-map" aria-labelledby="analyze-tab-places-map" className="h-full">
-      <PlaceMap places={filtered} />
+      <PlaceMap places={filtered} onNavigate={onNavigate} />
     </div>
   );
 }
