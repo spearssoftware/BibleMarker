@@ -24,8 +24,8 @@ import { useVirtualKeyboard } from '@/hooks/useVirtualKeyboard';
 import { autoBackupService } from '@/lib/autoBackup';
 import { getDebugFlags } from '@/lib/debug';
 import { initializeSync, shutdownSync } from '@/lib/sync';
-import { checkForUpdateIfDue } from '@/lib/updateCheck';
-import { UpdateBanner } from '@/components/shared';
+import { checkForUpdateIfDue, fetchWhatsNew } from '@/lib/updateCheck';
+import { UpdateBanner, WhatsNewModal } from '@/components/shared';
 
 export default function App() {
   const { setChapter, currentBook, currentChapter, currentModuleId, setLoading, setError } = useBibleStore();
@@ -44,6 +44,9 @@ export default function App() {
   // Update check: show banner when new version available (respects checkForUpdates pref, 24h throttle)
   const [updateAvailable, setUpdateAvailable] = useState<{ version: string; url: string } | null>(null);
   const [updateBannerDismissed, setUpdateBannerDismissed] = useState(false);
+
+  // What's New popup: shown once after updating to a new version
+  const [whatsNew, setWhatsNew] = useState<{ version: string; notes: string[] } | null>(null);
 
   // Initialize theme on mount (before other initialization)
   useEffect(() => {
@@ -101,6 +104,10 @@ export default function App() {
         if (result) {
           setUpdateAvailable({ version: result.version, url: result.url });
         }
+      });
+
+      fetchWhatsNew().then(result => {
+        if (result) setWhatsNew(result);
       });
     }, 0);
 
@@ -257,6 +264,14 @@ export default function App() {
       {showTour && (
         <OnboardingTour
           onComplete={() => setShowTour(false)}
+        />
+      )}
+
+      {whatsNew && !showWelcome && !showTour && (
+        <WhatsNewModal
+          version={whatsNew.version}
+          notes={whatsNew.notes}
+          onDismiss={() => setWhatsNew(null)}
         />
       )}
     </div>
