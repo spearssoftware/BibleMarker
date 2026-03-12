@@ -134,6 +134,40 @@ export async function checkForUpdateIfDue(): Promise<UpdateCheckResult | null> {
 }
 
 /**
+ * Fetch the What's New notes for the latest release, ignoring whether the user has already seen it.
+ * Used for manual "Show What's New" triggers from the Help panel.
+ */
+export async function fetchWhatsNewForced(): Promise<WhatsNewResult | null> {
+  try {
+    const res = await fetch(GITHUB_RELEASES_URL, {
+      headers: { Accept: 'application/vnd.github.v3+json' },
+    });
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as { tag_name?: string; body?: string };
+    const tag = data.tag_name;
+    const body = data.body;
+    if (!tag || !body) return null;
+
+    const releaseVersion = tag.replace(/^app-v?/i, '').replace(/^v/i, '').trim();
+
+    const match = body.match(/##\s+What['']s New\s*\n([\s\S]*?)(?:\n##|$)/i);
+    if (!match) return null;
+
+    const notes = match[1]
+      .split('\n')
+      .map(line => line.replace(/^[-*]\s*/, '').trim())
+      .filter(line => line.length > 0);
+
+    if (notes.length === 0) return null;
+
+    return { version: releaseVersion, notes };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Manually check for updates, bypassing the 24-hour throttle.
  * Use this when the user explicitly requests an update check.
  * Returns the newer version and releases URL if one exists, otherwise null.
