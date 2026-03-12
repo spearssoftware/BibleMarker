@@ -92,8 +92,20 @@ function FlyToSelected({
   return null;
 }
 
+const TILE_LAYERS = {
+  map: {
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; <a href="https://www.esri.com">Esri</a>',
+  },
+} as const;
+
 export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
   const [selectedName, setSelectedName] = useState<string | null>(null);
+  const [tileLayer, setTileLayer] = useState<keyof typeof TILE_LAYERS>('map');
   const markerRefs = useRef<Map<string, L.Marker>>(new Map());
 
   const groups = useMemo(() => groupPlaces(places), [places]);
@@ -177,7 +189,13 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
       </div>
 
       {/* Map */}
-      <div className="flex-1 rounded-xl overflow-hidden border border-scripture-border/50">
+      <div className="flex-1 rounded-xl overflow-hidden border border-scripture-border/50 relative">
+        <button
+          onClick={() => setTileLayer(t => t === 'map' ? 'satellite' : 'map')}
+          className="absolute top-2 right-2 z-[1000] px-2 py-1 text-xs font-medium bg-white/90 hover:bg-white text-gray-700 rounded shadow transition-colors"
+        >
+          {tileLayer === 'map' ? 'Satellite' : 'Map'}
+        </button>
         {mappableGroups.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6">
             <p className="text-scripture-muted text-sm">No places with coordinates to display.</p>
@@ -188,8 +206,9 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
         ) : (
           <MapContainer center={center} zoom={7} className="h-full w-full" scrollWheelZoom={true}>
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              key={tileLayer}
+              attribution={TILE_LAYERS[tileLayer].attribution}
+              url={TILE_LAYERS[tileLayer].url}
             />
             <FitBounds groups={mappableGroups} />
             <FlyToSelected selectedName={effectiveSelectedName} groups={mappableGroups} markerRefs={markerRefs} />
