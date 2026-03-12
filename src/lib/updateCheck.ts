@@ -31,6 +31,66 @@ export interface UpdateCheckResult {
   url: string;
 }
 
+export interface WhatsNewResult {
+  version: string;
+  notes: string[];
+}
+
+/**
+ * Fetches the latest GitHub release and extracts the ## What's New section.
+ * Returns null if offline, no section found, or the version was already seen.
+ */
+export async function fetchWhatsNew(): Promise<WhatsNewResult | null> {
+  const prefs = await getPreferences();
+  const currentVersion = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
+
+  // Don't show on first install (no lastSeenVersion means fresh install)
+  if (!prefs.lastSeenVersion) {
+    await updatePreferences({ lastSeenVersion: currentVersion });
+    return null;
+  }
+
+  // Already seen this version
+  if (prefs.lastSeenVersion === currentVersion) {
+    return null;
+  }
+
+  try {
+    const res = await fetch(GITHUB_RELEASES_URL, {
+      headers: { Accept: 'application/vnd.github.v3+json' },
+    });
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as { tag_name?: string; body?: string };
+    const tag = data.tag_name;
+    const body = data.body;
+    if (!tag || !body) return null;
+
+    const releaseVersion = tag.replace(/^app-v?/i, '').replace(/^v/i, '').trim();
+
+    // Only show if this release matches the current app version
+    if (releaseVersion !== currentVersion) return null;
+
+    // Parse ## What's New section
+    const match = body.match(/##\s+What['']s New\s*\n([\s\S]*?)(?:\n##|$)/i);
+    if (!match) return null;
+
+    const notes = match[1]
+      .split('\n')
+      .map(line => line.replace(/^[-*]\s*/, '').trim())
+      .filter(line => line.length > 0);
+
+    if (notes.length === 0) return null;
+
+    // Mark as seen
+    await updatePreferences({ lastSeenVersion: currentVersion });
+
+    return { version: currentVersion, notes };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Internal function to fetch and compare versions.
  * Returns the newer version info if available, null otherwise.

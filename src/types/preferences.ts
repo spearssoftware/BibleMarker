@@ -54,6 +54,8 @@ export interface UserPreferences {
   checkForUpdates?: boolean;
   /** ISO date string of last update check (used to throttle to once per 24h) */
   lastUpdateCheck?: string;
+  /** Last app version the user has seen the What's New popup for */
+  lastSeenVersion?: string;
   /** Tool IDs that should be hidden from their respective panels */
   disabledTools?: string[];
   debug?: {
