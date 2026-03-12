@@ -106,7 +106,12 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     const step = TOUR_STEPS[currentStep];
     if (!step || !step.target) {
       setHighlightRect(null);
-      setTooltipPosition(null);
+      // No target — center in viewport
+      setTooltipPosition({
+        top: window.innerHeight / 2,
+        left: window.innerWidth / 2,
+        position: 'center',
+      });
       return;
     }
 
