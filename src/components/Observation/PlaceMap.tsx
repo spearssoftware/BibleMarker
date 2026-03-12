@@ -150,24 +150,23 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
                   {/* Verse list */}
                   <div className="px-2.5 pb-1.5 space-y-0.5">
                     {group.entries.map(place => (
-                      <div key={place.id} className="flex items-center gap-1">
-                        <span className={`text-xs ${isSelected ? 'text-scripture-bg/70' : 'text-scripture-muted'}`}>
+                      onNavigate ? (
+                        <button
+                          key={place.id}
+                          onClick={() => onNavigate(place.verseRef)}
+                          className={`block text-xs transition-colors ${
+                            isSelected
+                              ? 'text-scripture-bg/80 hover:text-scripture-bg'
+                              : 'text-scripture-accent hover:text-scripture-accent/70'
+                          }`}
+                        >
+                          {formatVerseRef(place.verseRef.book, place.verseRef.chapter, place.verseRef.verse)}
+                        </button>
+                      ) : (
+                        <span key={place.id} className={`block text-xs ${isSelected ? 'text-scripture-bg/70' : 'text-scripture-muted'}`}>
                           {formatVerseRef(place.verseRef.book, place.verseRef.chapter, place.verseRef.verse)}
                         </span>
-                        {onNavigate && (
-                          <button
-                            onClick={() => onNavigate(place.verseRef)}
-                            className={`shrink-0 text-xs transition-colors ${
-                              isSelected
-                                ? 'text-scripture-bg/80 hover:text-scripture-bg'
-                                : 'text-scripture-accent hover:text-scripture-accent/70'
-                            }`}
-                            title="Jump to verse"
-                          >
-                            →
-                          </button>
-                        )}
-                      </div>
+                      )
                     ))}
                   </div>
                 </div>
