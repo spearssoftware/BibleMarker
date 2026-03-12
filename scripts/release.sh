@@ -4,9 +4,24 @@ set -euo pipefail
 # pnpm passes '--' before args; skip it
 if [ "${1:-}" = "--" ]; then shift; fi
 BUMP_TYPE="${1:-}"
+WHATS_NEW=""
+
+# Parse optional --notes "..." flag
+shift || true
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --notes)
+      WHATS_NEW="${2:-}"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
 
 if [ -z "$BUMP_TYPE" ]; then
-  echo "Usage: pnpm run release -- <major|minor|patch>"
+  echo "Usage: pnpm run release -- <major|minor|patch> [--notes \"User-facing notes\"]"
   exit 1
 fi
 
@@ -54,3 +69,24 @@ git push && git push origin "app-v${NEW_VERSION}"
 echo ""
 echo "Release v${NEW_VERSION} triggered!"
 echo "Monitor at: https://github.com/spearssoftware/BibleMarker/actions"
+
+# If --notes provided, wait for CI to create the draft release then prepend What's New
+if [ -n "$WHATS_NEW" ]; then
+  echo ""
+  echo "Waiting for CI to create draft release..."
+  for i in $(seq 1 24); do
+    sleep 10
+    if gh release view "app-v${NEW_VERSION}" &>/dev/null; then
+      echo "Draft release found. Adding What's New section..."
+      EXISTING_NOTES=$(gh release view "app-v${NEW_VERSION}" --json body -q .body)
+      NEW_BODY="## What's New
+${WHATS_NEW}
+
+${EXISTING_NOTES}"
+      gh release edit "app-v${NEW_VERSION}" --notes "$NEW_BODY"
+      echo "What's New section added to release notes."
+      break
+    fi
+    echo "  Still waiting... (${i}/24)"
+  done
+fi
