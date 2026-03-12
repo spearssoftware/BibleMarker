@@ -1,6 +1,6 @@
 /**
  * Getting Started Section Component
- * 
+ *
  * Provides an overview of key features and how to use them.
  */
 
@@ -24,39 +24,51 @@ export function GettingStartedSection() {
           </div>
 
           <div>
-            <div className="font-medium text-scripture-text mb-2">🖍️ Marking Text</div>
+            <div className="font-medium text-scripture-text mb-2">✏️ Marking Text</div>
             <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
-              <li>Select text to open the selection menu: apply key words, add as variant, create keywords, or add to observation lists</li>
+              <li>Select text to open the selection menu: apply keywords, add variants, or add to observation lists</li>
               <li>All markings use keywords for consistency across translations</li>
               <li>Keywords automatically highlight matching text in all visible translations</li>
-              <li>Press 1–4 for Key Words, Observe, Study, Settings</li>
+              <li>Press 1–3 for Mark, Observe, Analyze</li>
             </ul>
           </div>
 
           <div>
-            <div className="font-medium text-scripture-text mb-2">🔑 Key Words</div>
+            <div className="font-medium text-scripture-text mb-2">✏️ Key Words</div>
             <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
               <li>Define key words (e.g., "God", "Jesus", "love") with colors and symbols</li>
               <li>Key words automatically highlight across all visible translations</li>
               <li>Create studies to scope keywords to specific books</li>
-              <li>Access Key Words from the toolbar (🔑 or press 1) or from the selection menu</li>
+              <li>Access Key Words from the toolbar (✏️ or press 1) or from the selection menu</li>
             </ul>
           </div>
 
           <div>
-            <div className="font-medium text-scripture-text mb-2">📝 Notes & Observations</div>
+            <div className="font-medium text-scripture-text mb-2">🔍 Observe</div>
             <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
-              <li>Click verse numbers to add notes (supports Markdown)</li>
-              <li>Use “Add to List” from the selection menu to capture observations</li>
-              <li>Open Observe (🔍 or press 2) for lists, time, places, contrasts, conclusions</li>
-              <li>View summaries in Study Tools (📚 icon or press 3)</li>
+              <li>Open Observe (🔍 or press 2) to capture structured study observations</li>
+              <li>📝 Lists — free-form observation lists per chapter</li>
+              <li>❓ 5 W's & H — Who, What, When, Where, Why, How questions</li>
+              <li>⇔ Contrasts, 🕐 Time, 📍 Places, 👤 People — categorized lists</li>
+              <li>Click verse numbers to add inline notes (supports Markdown)</li>
             </ul>
           </div>
 
           <div>
-            <div className="font-medium text-scripture-text mb-2">🔍 Search</div>
+            <div className="font-medium text-scripture-text mb-2">📊 Analyze</div>
             <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
-              <li>Press Cmd/Ctrl+F or click the search icon</li>
+              <li>Open Analyze (📊 or press 3) for deeper study tools</li>
+              <li>📄 Chapter — at-a-glance summary and structure</li>
+              <li>📚 Overview — book-level themes and outlines</li>
+              <li>📅 Timeline, 🗺️ Places, 🔍 Themes — contextual research</li>
+              <li>💭 Interpret and ✍️ Apply — personal study notes</li>
+            </ul>
+          </div>
+
+          <div>
+            <div className="font-medium text-scripture-text mb-2">🔎 Search</div>
+            <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
+              <li>Press Cmd/Ctrl+F or tap the search icon in the navigation bar</li>
               <li>Search Bible text, notes, and annotations</li>
               <li>Search by verse reference (e.g., "John 3:16")</li>
             </ul>

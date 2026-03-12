@@ -24,7 +24,7 @@ import { useVirtualKeyboard } from '@/hooks/useVirtualKeyboard';
 import { autoBackupService } from '@/lib/autoBackup';
 import { getDebugFlags } from '@/lib/debug';
 import { initializeSync, shutdownSync } from '@/lib/sync';
-import { checkForUpdateIfDue, fetchWhatsNew } from '@/lib/updateCheck';
+import { checkForUpdateIfDue, fetchWhatsNew, fetchWhatsNewForced } from '@/lib/updateCheck';
 import { UpdateBanner, WhatsNewModal } from '@/components/shared';
 
 export default function App() {
@@ -124,10 +124,17 @@ export default function App() {
       setShowWelcome(true);
       setShowTour(false);
     };
-    
+
+    const handleShowWhatsNew = async () => {
+      const result = await fetchWhatsNewForced();
+      if (result) setWhatsNew(result);
+    };
+
     window.addEventListener('restartOnboarding', handleRestartOnboarding);
+    window.addEventListener('showWhatsNew', handleShowWhatsNew);
     return () => {
       window.removeEventListener('restartOnboarding', handleRestartOnboarding);
+      window.removeEventListener('showWhatsNew', handleShowWhatsNew);
     };
   }, []);
 
