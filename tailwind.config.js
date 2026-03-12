@@ -57,7 +57,7 @@ export default {
         }
       },
       fontFamily: {
-        scripture: ['"Crimson Pro"', 'Georgia', 'serif'],
+        scripture: ['var(--scripture-font-family)'],
         ui: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', '"Helvetica Neue"', '"Segoe UI"', 'system-ui', 'sans-serif'],
       },
       fontSize: {
