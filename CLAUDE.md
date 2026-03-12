@@ -83,6 +83,8 @@ If you need a custom input style, import and extend `BASE_INPUT_CLASSES` from `@
 ## Zustand Stores
 
 ```typescript
+import { getAllXxx, saveXxx, deleteXxx } from '@/lib/database';
+
 export const useXxxStore = create<XxxState>()(
   persist(
     (set, get) => ({
@@ -90,13 +92,13 @@ export const useXxxStore = create<XxxState>()(
       activeId: null,
 
       loadItems: async () => {
-        const items = await db.tableName.toArray();
+        const items = await getAllXxx();
         set({ items });
       },
 
       createItem: async (data) => {
         const item = { id: crypto.randomUUID(), ...data, createdAt: new Date(), updatedAt: new Date() };
-        await db.tableName.put(item);
+        await saveXxx(item);
         set({ items: [...get().items, item] });
         return item;
       },
@@ -130,7 +132,7 @@ All write operations via `database.ts` automatically log to `change_log` for syn
 Update `SCHEMA_VERSION` and `migrateSchema()` in `sqlite-db.ts`:
 
 ```typescript
-const SCHEMA_VERSION = 3; // bump for each migration
+const SCHEMA_VERSION = 5; // bump for each migration
 
 async function migrateSchema(db, fromVersion, toVersion) {
   if (fromVersion < 3) { /* add tables/columns */ }

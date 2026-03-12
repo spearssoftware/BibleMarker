@@ -243,7 +243,7 @@ export function StudyToolsPanel({ onClose: _onClose, initialTab = 'interpretatio
                       {studies.map(study => (
                         <div
                           key={study.id}
-                          className="p-4 bg-scripture-surface/50 rounded-lg border border-scripture-muted/20 flex items-center justify-between"
+                          className="p-4 bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm flex items-center justify-between"
                         >
                           {editingStudy?.id === study.id ? (
                             <div className="flex-1 space-y-2">
