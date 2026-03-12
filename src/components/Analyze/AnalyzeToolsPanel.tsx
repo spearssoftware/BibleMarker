@@ -140,7 +140,7 @@ export function AnalyzeToolsPanel({
             <button
               onClick={() => setIsCreating(true)}
               disabled={isCreating}
-              className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 text-sm bg-scripture-accent text-scripture-bg rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               + New Conclusion
             </button>
@@ -149,7 +149,7 @@ export function AnalyzeToolsPanel({
             <button
               onClick={() => setIsCreating(true)}
               disabled={isCreating || isEditing}
-              className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 text-sm bg-scripture-accent text-scripture-bg rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {activeTab === 'interpretation' ? '+ New Interpretation' : '+ New Entry'}
             </button>
