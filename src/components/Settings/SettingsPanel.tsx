@@ -1923,6 +1923,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
               <div className="border-t border-scripture-border/30 my-4"></div>
 
               <div className="p-4">
+                <KeyboardShortcutsHelp />
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
+
+              <div className="p-4">
                 <div className="mb-4">
                   <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Onboarding</h3>
                   <Button
@@ -1947,13 +1953,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     Show the welcome screen and guided tour again
                   </p>
                 </div>
-
-              </div>
-
-              <div className="border-t border-scripture-border/30 my-4"></div>
-
-              <div className="p-4">
-                <KeyboardShortcutsHelp />
               </div>
 
               <div className="border-t border-scripture-border/30 my-4"></div>
