@@ -94,7 +94,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   const [showTour, setShowTour] = useState(true);
   const [newStudyName, setNewStudyName] = useState('');
   const [studyCreated, setStudyCreated] = useState(false);
-  const { createStudy } = useStudyStore();
+  const { createStudy, setActiveStudy } = useStudyStore();
 
   useEffect(() => {
     stepRef.current = currentStep;
@@ -326,7 +326,8 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
 
   async function handleCreateStudy() {
     if (!newStudyName.trim()) return;
-    await createStudy(newStudyName.trim());
+    const study = await createStudy(newStudyName.trim());
+    await setActiveStudy(study.id);
     setStudyCreated(true);
     setNewStudyName('');
   }
@@ -466,13 +467,15 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
 
             {/* Actions — always visible */}
             <div className="flex gap-2 p-4 pt-2 flex-shrink-0">
-              <button
-                onClick={handleSkip}
-                className="px-3 py-2 text-xs font-ui bg-scripture-surface border border-scripture-overlayBorder
-                         text-scripture-text rounded-lg hover:bg-scripture-overlay/50 transition-colors"
-              >
-                Skip
-              </button>
+              {currentStep < TOUR_STEPS.length - 1 && (
+                <button
+                  onClick={handleSkip}
+                  className="px-3 py-2 text-xs font-ui bg-scripture-surface border border-scripture-overlayBorder
+                           text-scripture-text rounded-lg hover:bg-scripture-overlay/50 transition-colors"
+                >
+                  Skip
+                </button>
+              )}
               <button
                 onClick={handleBack}
                 disabled={currentStep === 0}
