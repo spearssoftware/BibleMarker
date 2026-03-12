@@ -11,7 +11,7 @@ import { getBookById, BIBLE_BOOKS } from '@/types';
 import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences, getSyncDiagnostics, type SyncDiagnostics } from '@/lib/database';
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
 import { exportStudyData } from '@/lib/export';
-import { applyTheme } from '@/lib/theme';
+import { applyTheme, applyScriptureFont, type ScriptureFont } from '@/lib/theme';
 import { clearDebugFlagsCache, getDebugFlags } from '@/lib/debug';
 import { 
   getAutoBackupConfig, 
@@ -55,7 +55,7 @@ interface SettingsPanelProps {
 
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
-  const { fontSize, setFontSize } = useAnnotationStore();
+  const { fontSize, setFontSize, scriptureFont, setScriptureFont } = useAnnotationStore();
   const { currentBook, currentModuleId } = useBibleStore();
   const [theme, setTheme] = useState<'dark' | 'light' | 'auto'>('dark');
   const [highContrast, setHighContrast] = useState(false);
@@ -369,6 +369,23 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     }
   };
 
+  const SCRIPTURE_FONTS: Array<{ id: ScriptureFont; label: string; stack: string }> = [
+    { id: 'crimson-pro', label: 'Crimson Pro', stack: "'Crimson Pro', Georgia, serif" },
+    { id: 'lora', label: 'Lora', stack: "'Lora', Georgia, serif" },
+    { id: 'merriweather', label: 'Merriweather', stack: "'Merriweather', Georgia, serif" },
+    { id: 'literata', label: 'Literata', stack: "'Literata', Georgia, serif" },
+  ];
+
+  const handleFontChange = async (font: ScriptureFont) => {
+    setScriptureFont(font);
+    applyScriptureFont(font);
+    try {
+      await updatePreferences({ scriptureFont: font });
+    } catch (error) {
+      console.error('Error updating scripture font:', error);
+    }
+  };
+
   const handleThemeChange = async (newTheme: 'dark' | 'light' | 'auto') => {
     setTheme(newTheme);
     applyTheme(newTheme, highContrast);
@@ -664,6 +681,31 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </div>
                 <p className="text-xs text-scripture-muted mt-2">
                   Adjust the text size for Bible reading
+                </p>
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
+
+              <div className="p-4">
+                <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Scripture Font</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {SCRIPTURE_FONTS.map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => handleFontChange(f.id)}
+                      className={`px-3 py-3 rounded-lg text-sm transition-all duration-200 text-left
+                                ${scriptureFont === f.id
+                                  ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                                  : 'bg-scripture-elevated hover:bg-scripture-border/50 border border-scripture-border/50 text-scripture-text'
+                                }`}
+                    >
+                      <span className="block font-ui text-xs mb-1 opacity-70">{f.label}</span>
+                      <span style={{ fontFamily: f.stack }} className="text-base italic">The Word</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-scripture-muted mt-2">
+                  Choose the font used for Bible text
                 </p>
               </div>
 
