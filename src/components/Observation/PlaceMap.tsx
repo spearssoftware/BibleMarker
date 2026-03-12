@@ -52,7 +52,7 @@ export function PlaceMap({ places }: PlaceMapProps) {
   const center: [number, number] = [31.7767, 35.2342];
 
   return (
-    <div className="h-[400px] rounded-xl overflow-hidden border border-scripture-border/50">
+    <div className="h-full rounded-xl overflow-hidden border border-scripture-border/50">
       <MapContainer
         center={center}
         zoom={7}

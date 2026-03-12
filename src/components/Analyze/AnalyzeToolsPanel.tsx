@@ -170,59 +170,9 @@ export function AnalyzeToolsPanel({
         </div>
       )}
 
-      {/* Content */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-        {activeTab === 'conclusions' && (
-          <div role="tabpanel" id="analyze-tabpanel-conclusions" aria-labelledby="analyze-tab-conclusions">
-            <ConclusionTracker
-              selectedText={selectedText}
-              verseRef={verseRef}
-              filterByChapter={filterByChapter}
-              isCreating={isCreating}
-              setIsCreating={setIsCreating}
-              onNavigate={handleNavigateToVerse}
-            />
-          </div>
-        )}
-        {activeTab === 'overview' && (
-          <div role="tabpanel" id="analyze-tabpanel-overview" aria-labelledby="analyze-tab-overview">
-            <BookOverview onChapterClick={() => setActiveTab('chapter')} />
-          </div>
-        )}
-        {activeTab === 'chapter' && (
-          <div role="tabpanel" id="analyze-tabpanel-chapter" aria-labelledby="analyze-tab-chapter">
-            <ChapterAtAGlance />
-          </div>
-        )}
-        {activeTab === 'themes' && (
-          <div role="tabpanel" id="analyze-tabpanel-themes" aria-labelledby="analyze-tab-themes">
-            <ThemeTracker initialSearchTerm={themeSearchTerm} />
-          </div>
-        )}
-        {activeTab === 'timeline' && (
-          <div role="tabpanel" id="analyze-tabpanel-timeline" aria-labelledby="analyze-tab-timeline">
-            <Timeline filterByBook={filterByBook} />
-          </div>
-        )}
-        {activeTab === 'interpretation' && (
-          <div role="tabpanel" id="analyze-tabpanel-interpretation" aria-labelledby="analyze-tab-interpretation">
-            <InterpretationWorksheet
-              isCreating={isCreating}
-              setIsCreating={setIsCreating}
-              onEditingChange={setIsEditing}
-            />
-          </div>
-        )}
-        {activeTab === 'application' && (
-          <div role="tabpanel" id="analyze-tabpanel-application" aria-labelledby="analyze-tab-application">
-            <ApplicationWorksheet
-              isCreating={isCreating}
-              setIsCreating={setIsCreating}
-              onEditingChange={setIsEditing}
-            />
-          </div>
-        )}
-        {activeTab === 'places-map' && (
+      {/* Content — map gets its own non-scrolling wrapper so it can fill height */}
+      {activeTab === 'places-map' ? (
+        <div className="flex-1 min-h-0 overflow-hidden p-4">
           <PlacesMapPanel
             places={places}
             loadPlaces={loadPlaces}
@@ -233,8 +183,61 @@ export function AnalyzeToolsPanel({
             currentChapter={currentChapter}
             activeStudyId={activeStudyId}
           />
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
+          {activeTab === 'conclusions' && (
+            <div role="tabpanel" id="analyze-tabpanel-conclusions" aria-labelledby="analyze-tab-conclusions">
+              <ConclusionTracker
+                selectedText={selectedText}
+                verseRef={verseRef}
+                filterByChapter={filterByChapter}
+                isCreating={isCreating}
+                setIsCreating={setIsCreating}
+                onNavigate={handleNavigateToVerse}
+              />
+            </div>
+          )}
+          {activeTab === 'overview' && (
+            <div role="tabpanel" id="analyze-tabpanel-overview" aria-labelledby="analyze-tab-overview">
+              <BookOverview onChapterClick={() => setActiveTab('chapter')} />
+            </div>
+          )}
+          {activeTab === 'chapter' && (
+            <div role="tabpanel" id="analyze-tabpanel-chapter" aria-labelledby="analyze-tab-chapter">
+              <ChapterAtAGlance />
+            </div>
+          )}
+          {activeTab === 'themes' && (
+            <div role="tabpanel" id="analyze-tabpanel-themes" aria-labelledby="analyze-tab-themes">
+              <ThemeTracker initialSearchTerm={themeSearchTerm} />
+            </div>
+          )}
+          {activeTab === 'timeline' && (
+            <div role="tabpanel" id="analyze-tabpanel-timeline" aria-labelledby="analyze-tab-timeline">
+              <Timeline filterByBook={filterByBook} />
+            </div>
+          )}
+          {activeTab === 'interpretation' && (
+            <div role="tabpanel" id="analyze-tabpanel-interpretation" aria-labelledby="analyze-tab-interpretation">
+              <InterpretationWorksheet
+                isCreating={isCreating}
+                setIsCreating={setIsCreating}
+                onEditingChange={setIsEditing}
+              />
+            </div>
+          )}
+          {activeTab === 'application' && (
+            <div role="tabpanel" id="analyze-tabpanel-application" aria-labelledby="analyze-tab-application">
+              <ApplicationWorksheet
+                isCreating={isCreating}
+                setIsCreating={setIsCreating}
+                onEditingChange={setIsEditing}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -290,7 +293,7 @@ function PlacesMapPanel({
   }, [places, filterByChapter, currentBook, currentChapter, activeStudyId]);
 
   return (
-    <div role="tabpanel" id="analyze-tabpanel-places-map" aria-labelledby="analyze-tab-places-map">
+    <div role="tabpanel" id="analyze-tabpanel-places-map" aria-labelledby="analyze-tab-places-map" className="h-full">
       <PlaceMap places={filtered} />
     </div>
   );
