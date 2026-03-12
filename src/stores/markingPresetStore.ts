@@ -14,6 +14,8 @@ import {
   deleteMarkingPreset,
   searchMarkingPresets,
   incrementMarkingPresetUsage,
+  getAllPlaces,
+  deletePlace,
 } from '@/lib/database';
 
 interface MarkingPresetState {
@@ -84,6 +86,10 @@ export const useMarkingPresetStore = create<MarkingPresetState>((set, get) => ({
   removePreset: async (id) => {
     try {
       await deleteMarkingPreset(id);
+      // Cascade-delete places linked to this preset
+      const places = (await getAllPlaces()) ?? [];
+      const linked = places.filter(p => p.presetId === id);
+      await Promise.all(linked.map(p => deletePlace(p.id)));
       await get().loadPresets();
       const { selectedPreset } = get();
       if (selectedPreset?.id === id) set({ selectedPreset: null });

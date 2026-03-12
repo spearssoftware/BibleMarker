@@ -29,6 +29,7 @@ interface PlaceState {
   autoImportFromAnnotations: () => Promise<number>; // Returns count of imported places
   autoPopulateFromChapter: (book: string, chapter: number, moduleId?: string) => Promise<number>; // Auto-populate places for keywords found in chapter
   removeDuplicates: () => Promise<number>; // Remove duplicate places, returns count removed
+  removeOrphaned: (validPresetIds: Set<string>) => Promise<number>; // Remove places whose preset was deleted
 }
 
 export const usePlaceStore = create<PlaceState>()(
@@ -196,7 +197,11 @@ export const usePlaceStore = create<PlaceState>()(
           let placeName = getAnnotationText(annotation);
           if (annotation.presetId) {
             const preset = await getMarkingPreset(annotation.presetId);
-            if (preset?.word) {
+            // Skip if the preset no longer exists or is no longer in the 'places' category
+            if (!preset || (preset.category && preset.category !== 'places')) {
+              continue;
+            }
+            if (preset.word) {
               placeName = preset.word;
             }
           }
@@ -362,6 +367,21 @@ export const usePlaceStore = create<PlaceState>()(
         }
         
         return duplicateIds.length;
+      },
+
+      removeOrphaned: async (validPresetIds) => {
+        const allPlaces = await dbGetAllPlaces();
+        const orphanedIds = allPlaces
+          .filter(p => p.presetId && !validPresetIds.has(p.presetId))
+          .map(p => p.id);
+
+        if (orphanedIds.length > 0) {
+          await Promise.all(orphanedIds.map(id => dbDeletePlace(id)));
+          const cleaned = await dbGetAllPlaces();
+          set({ places: cleaned });
+        }
+
+        return orphanedIds.length;
       },
     }),
     {

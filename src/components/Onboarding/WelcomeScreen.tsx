@@ -136,7 +136,7 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                   <ul className="space-y-1.5 text-xs text-scripture-muted ml-4 list-disc">
                     <li>Select text to open the selection menu (mark, add to list, observe)</li>
                     <li>Use arrow keys or J/K to navigate between chapters</li>
-                    <li>Press 1{'\u{2013}'}4 for Key Words, Observe, Study, Settings</li>
+                    <li>Press 1{'\u{2013}'}3 for Mark, Observe, Analyze</li>
                     <li>Press Cmd/Ctrl+F to search</li>
                     <li>Click verse numbers to add notes</li>
                   </ul>
