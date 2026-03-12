@@ -597,13 +597,13 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         destructive={true}
       />
       <div
-        className="flex-1 min-h-0 flex flex-col relative"
+        className="flex-1 min-h-0 flex flex-col overflow-hidden relative"
         role="dialog"
         aria-label="Settings"
         aria-modal="true"
       >
         {/* Tabs */}
-        <div className="px-4 py-2 flex-shrink-0" role="tablist" aria-label="Settings sections">
+        <div className="flex items-center justify-between px-4 py-2 flex-shrink-0 border-b border-scripture-border/30" role="tablist" aria-label="Settings sections">
           <div className="flex gap-1 sm:gap-2">
             {tabs.map((tab) => (
               <button
@@ -1308,7 +1308,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
                 {importStep === 'preview' && backupPreview && previewCounts && (
                   <div className="space-y-4">
-                    <div className="p-4 bg-scripture-surface/50 border border-scripture-border/50 rounded-xl">
+                    <div className="p-4 bg-scripture-surface border border-scripture-border/50 shadow-sm rounded-xl">
                       <div className="text-sm text-scripture-muted mb-2">
                         Backup created: {new Date(backupPreview.timestamp).toLocaleString()}
                       </div>
@@ -1327,7 +1327,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                       </div>
                     </div>
 
-                    <div className="bg-scripture-surface/50 border border-scripture-border/50 rounded-xl p-4">
+                    <div className="bg-scripture-surface border border-scripture-border/50 shadow-sm rounded-xl p-4">
                       <div className="mb-4">
                         <p className="text-sm text-scripture-muted mb-3">
                           This will replace all your existing data with the backup data. This action cannot be undone.
@@ -1786,7 +1786,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                       {studies.map(study => (
                         <div
                           key={study.id}
-                          className="p-4 bg-scripture-surface/50 rounded-lg border border-scripture-muted/20 flex items-center justify-between"
+                          className="p-4 bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm flex items-center justify-between"
                         >
                           {editingStudy?.id === study.id ? (
                             <div className="flex-1 space-y-2">
