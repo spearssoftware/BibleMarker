@@ -12,3 +12,4 @@ export { Input, Textarea, Select, Label, FormField, ReadOnlyField, Checkbox, Rad
 export { DropdownSelect } from './DropdownSelect';
 export { SyncStatusIndicator } from './SyncStatusIndicator';
 export { UpdateBanner } from './UpdateBanner';
+export { WhatsNewModal } from './WhatsNewModal';

@@ -190,6 +190,24 @@ macOS release builds require Apple signing certs (CI secrets only). `public/icon
 - **Tag format**: `app-vX.Y.Z` (semver)
 - **Release notes**: auto-generated from commits since the last tag (`--generate-notes`)
 
+### User-Facing Release Notes
+
+After the CI draft release is created, edit it on GitHub to prepend a `## What's New` section **before** the auto-generated commit list. This section is fetched by the app and shown to users as an in-app popup on first launch after an update.
+
+Rules for `## What's New`:
+- Write for non-technical Bible study users — no jargon, no internal terms
+- Use plain bullet points describing what the user can now do or what got fixed for them
+- **Omit the section entirely** for patch releases that are purely internal fixes (no visible user impact)
+- Keep it short — 2–5 bullets max
+
+Example:
+```markdown
+## What's New
+- Choose from 4 scripture fonts in Appearance settings
+- Studies are now easier to find — go to Settings → Studies to create one
+- Fixed an issue where deleted keywords still appeared in the Places list
+```
+
 ```bash
 pnpm run release -- patch   # or major / minor
 ```
