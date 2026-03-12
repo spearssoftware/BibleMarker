@@ -1948,21 +1948,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   </p>
                 </div>
 
-                <div className="mb-4">
-                  <Button
-                    variant="primary"
-                    fullWidth
-                    onClick={() => {
-                      window.dispatchEvent(new CustomEvent('showWhatsNew'));
-                      onClose();
-                    }}
-                  >
-                    What's New
-                  </Button>
-                  <p className="text-xs text-scripture-muted mt-2">
-                    Show the latest release notes
-                  </p>
-                </div>
               </div>
 
               <div className="border-t border-scripture-border/30 my-4"></div>

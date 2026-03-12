@@ -86,6 +86,12 @@ export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true, o
                   Check now
                 </button>
               )}
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('showWhatsNew'))}
+                className="text-xs text-scripture-accent hover:underline"
+              >
+                What's New
+              </button>
             </div>
           </div>
           <p className="text-xs text-scripture-muted">
