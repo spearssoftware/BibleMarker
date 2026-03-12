@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { updatePreferences, getPreferences } from '@/lib/database';
+import { useStudyStore } from '@/stores/studyStore';
 
 interface TourStep {
   id: string;
@@ -73,6 +74,12 @@ const TOUR_STEPS: TourStep[] = [
     target: '[data-toolbar-settings]',
     position: 'top',
   },
+  {
+    id: 'studies',
+    title: 'Create a Study',
+    description: 'Studies let you organize your keywords, notes, and observations around a topic or book. Find them under Settings → Studies. You can create one now or skip and start reading.',
+    position: 'center',
+  },
 ];
 
 interface OnboardingTourProps {
@@ -85,6 +92,9 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; position?: string } | null>(null);
   const stepRef = useRef<number>(0);
   const [showTour, setShowTour] = useState(true);
+  const [newStudyName, setNewStudyName] = useState('');
+  const [studyCreated, setStudyCreated] = useState(false);
+  const { createStudy } = useStudyStore();
 
   useEffect(() => {
     stepRef.current = currentStep;
@@ -309,6 +319,13 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     handleComplete();
   }
 
+  async function handleCreateStudy() {
+    if (!newStudyName.trim()) return;
+    await createStudy(newStudyName.trim());
+    setStudyCreated(true);
+    setNewStudyName('');
+  }
+
   async function handleComplete() {
     setShowTour(false);
     const prefs = await getPreferences();
@@ -413,6 +430,33 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
               <p className="text-sm text-scripture-muted">
                 {step.description}
               </p>
+
+              {/* Studies step: inline create form */}
+              {step.id === 'studies' && (
+                <div className="mt-3">
+                  {studyCreated ? (
+                    <p className="text-sm text-scripture-success font-medium">✓ Study created! You can manage studies in Settings → Studies.</p>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newStudyName}
+                        onChange={(e) => setNewStudyName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleCreateStudy(); }}
+                        placeholder="Study name…"
+                        className="flex-1 px-3 py-2 text-sm bg-scripture-elevated border border-scripture-border/50 rounded-lg text-scripture-text placeholder:text-scripture-muted focus:outline-none focus:border-scripture-accent"
+                      />
+                      <button
+                        onClick={handleCreateStudy}
+                        disabled={!newStudyName.trim()}
+                        className="px-3 py-2 text-sm bg-scripture-accent text-scripture-bg rounded-lg disabled:opacity-40 hover:bg-scripture-accent/90 transition-colors"
+                      >
+                        Create
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Actions — always visible */}
