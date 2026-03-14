@@ -186,7 +186,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<strin
 
         const dir = await documentDir();
         const filename = generateBackupFilename();
-        const filePath = `${dir}${filename}`;
+        const filePath = `${dir}/${filename}`;
         await writeTextFile(filePath, json);
         return filename;
       } catch (error: unknown) {
