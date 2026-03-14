@@ -8,7 +8,7 @@
  */
 
 import { exportAllData, importAllData, clearDatabase as clearAllDatabases, type UserPreferences } from './database';
-import { isTauri } from './platform';
+import { isTauri, isIOS } from './platform';
 import type { Annotation, SectionHeading, ChapterTitle, Note } from '@/types';
 import type { MarkingPreset } from '@/types';
 import type { Study } from '@/types';
@@ -178,8 +178,8 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
     const json = JSON.stringify(backup, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
 
-    // Use Tauri native file dialog if running in Tauri
-    if (isTauri()) {
+    // Use Tauri native file dialog if running in Tauri (skip on iOS — sandbox blocks writes to dialog paths)
+    if (isTauri() && !isIOS()) {
       try {
         const { save } = await import('@tauri-apps/plugin-dialog');
         const { writeTextFile } = await import('@tauri-apps/plugin-fs');
@@ -484,8 +484,8 @@ export async function importBackup(): Promise<BackupData> {
   let text: string;
 
   try {
-    // Use Tauri native file dialog if running in Tauri
-    if (isTauri()) {
+    // Use Tauri native file dialog if running in Tauri (skip on iOS — sandbox blocks reads from dialog paths)
+    if (isTauri() && !isIOS()) {
       try {
         const { open } = await import('@tauri-apps/plugin-dialog');
         const { readTextFile } = await import('@tauri-apps/plugin-fs');
