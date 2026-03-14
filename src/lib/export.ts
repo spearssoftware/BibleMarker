@@ -471,7 +471,7 @@ export async function exportStudyData(): Promise<string | void> {
         const { documentDir } = await import('@tauri-apps/api/path');
 
         const dir = await documentDir();
-        const filePath = `${dir}${filename}`;
+        const filePath = `${dir}/${filename}`;
         await writeTextFile(filePath, markdown);
         return filename;
       } catch (error: unknown) {
