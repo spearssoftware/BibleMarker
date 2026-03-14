@@ -25,7 +25,7 @@ import type { InterpretationEntry } from '@/types';
 import type { ApplicationEntry } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
-import { isTauri } from './platform';
+import { isTauri, isIOS } from './platform';
 
 /**
  * Group entries by book and chapter
@@ -464,8 +464,8 @@ export async function exportStudyData(): Promise<void> {
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const filename = `BibleMarker-Study-Export-${year}-${month}-${day}-${hours}${minutes}.md`;
 
-    // Tauri: Use native file dialog
-    if (isTauri()) {
+    // Tauri: Use native file dialog (skip on iOS — sandbox blocks writes to dialog paths)
+    if (isTauri() && !isIOS()) {
       try {
         const { save } = await import('@tauri-apps/plugin-dialog');
         const filePath = await save({
