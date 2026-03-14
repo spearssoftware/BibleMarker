@@ -75,12 +75,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [includeCache, setIncludeCache] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [exportSuccess, setExportSuccess] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState<string | boolean>(false);
   
   // Study Export state
   const [isExportingStudy, setIsExportingStudy] = useState(false);
   const [studyExportError, setStudyExportError] = useState<string | null>(null);
-  const [studyExportSuccess, setStudyExportSuccess] = useState(false);
+  const [studyExportSuccess, setStudyExportSuccess] = useState<string | boolean>(false);
   
   const [importStep, setImportStep] = useState<'select' | 'preview' | 'restoring'>('select');
   const [backupPreview, setBackupPreview] = useState<BackupData | null>(null);
@@ -493,8 +493,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     setExportSuccess(false);
 
     try {
-      await exportBackup(includeCache);
-      setExportSuccess(true);
+      const result = await exportBackup(includeCache);
+      setExportSuccess(result || true);
       setTimeout(() => {
         setExportSuccess(false);
       }, 3000);
@@ -511,8 +511,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     setStudyExportSuccess(false);
 
     try {
-      await exportStudyData();
-      setStudyExportSuccess(true);
+      const result = await exportStudyData();
+      setStudyExportSuccess(result || true);
       setTimeout(() => {
         setStudyExportSuccess(false);
       }, 3000);
@@ -1330,7 +1330,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
                     {exportSuccess && (
                       <div className="mt-3 p-3 bg-scripture-successBg border border-scripture-success/30 rounded-lg text-scripture-successText text-sm">
-                        ✓ Backup exported successfully!
+                        ✓ Backup exported successfully!{typeof exportSuccess === 'string' && (
+                          <> Saved to Documents/{exportSuccess}</>
+                        )}
                       </div>
                     )}
 
@@ -1459,7 +1461,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
                 {studyExportSuccess && (
                   <div className="mt-3 p-3 bg-scripture-successBg border border-scripture-success/30 rounded-lg text-scripture-successText text-sm">
-                    ✓ Study data exported successfully!
+                    ✓ Study data exported successfully!{typeof studyExportSuccess === 'string' && (
+                      <> Saved to Documents/{studyExportSuccess}</>
+                    )}
                   </div>
                 )}
 

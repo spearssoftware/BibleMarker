@@ -100,7 +100,7 @@ function generateBackupFilename(): string {
 /**
  * Export all user data to a backup file
  */
-export async function exportBackup(includeCache: boolean = false): Promise<void> {
+export async function exportBackup(includeCache: boolean = false): Promise<string | void> {
   try {
     // Collect all data via database abstraction (routes to SQLite on native, IndexedDB on web)
     const allData = await exportAllData();
@@ -178,12 +178,28 @@ export async function exportBackup(includeCache: boolean = false): Promise<void>
     const json = JSON.stringify(backup, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
 
-    // Use Tauri native file dialog if running in Tauri (skip on iOS — sandbox blocks writes to dialog paths)
-    if (isTauri() && !isIOS()) {
+    // iOS: write to Documents folder (accessible via Files app)
+    if (isTauri() && isIOS()) {
+      try {
+        const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+        const { documentDir } = await import('@tauri-apps/api/path');
+
+        const dir = await documentDir();
+        const filename = generateBackupFilename();
+        const filePath = `${dir}${filename}`;
+        await writeTextFile(filePath, json);
+        return filename;
+      } catch (error: unknown) {
+        throw new Error(`Failed to export backup: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
+      }
+    }
+
+    // Desktop: use native file dialog
+    if (isTauri()) {
       try {
         const { save } = await import('@tauri-apps/plugin-dialog');
         const { writeTextFile } = await import('@tauri-apps/plugin-fs');
-        
+
         const filePath = await save({
           defaultPath: generateBackupFilename(),
           filters: [{
