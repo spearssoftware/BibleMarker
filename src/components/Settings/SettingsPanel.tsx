@@ -343,7 +343,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     { id: 'appearance', label: 'Appearance', icon: '🎨' },
     { id: 'bible', label: 'Bible', icon: '📖' },
     { id: 'data', label: 'Data', icon: '💾' },
-    { id: 'studies', label: 'Studies', icon: '📖' },
+    { id: 'studies', label: 'Studies', icon: '📝' },
     { id: 'help', label: 'Help', icon: '❓' },
   ];
 
