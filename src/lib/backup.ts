@@ -500,8 +500,8 @@ export async function importBackup(): Promise<BackupData> {
   let text: string;
 
   try {
-    // Use Tauri native file dialog if running in Tauri (skip on iOS — sandbox blocks reads from dialog paths)
-    if (isTauri() && !isIOS()) {
+    // Use Tauri native file dialog if running in Tauri (iOS read access works via security-scoped URLs)
+    if (isTauri()) {
       try {
         const { open } = await import('@tauri-apps/plugin-dialog');
         const { readTextFile } = await import('@tauri-apps/plugin-fs');
