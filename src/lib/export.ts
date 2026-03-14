@@ -450,7 +450,7 @@ export async function exportStudyDataAsMarkdown(): Promise<string> {
 /**
  * Export study data as Markdown file
  */
-export async function exportStudyData(): Promise<void> {
+export async function exportStudyData(): Promise<string | void> {
   try {
     const markdown = await exportStudyDataAsMarkdown();
     const blob = new Blob([markdown], { type: 'text/markdown' });
@@ -464,8 +464,23 @@ export async function exportStudyData(): Promise<void> {
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const filename = `BibleMarker-Study-Export-${year}-${month}-${day}-${hours}${minutes}.md`;
 
-    // Tauri: Use native file dialog (skip on iOS — sandbox blocks writes to dialog paths)
-    if (isTauri() && !isIOS()) {
+    // iOS: write to Documents folder (accessible via Files app)
+    if (isTauri() && isIOS()) {
+      try {
+        const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+        const { documentDir } = await import('@tauri-apps/api/path');
+
+        const dir = await documentDir();
+        const filePath = `${dir}${filename}`;
+        await writeTextFile(filePath, markdown);
+        return filename;
+      } catch (error: unknown) {
+        throw new Error(`Failed to export: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    // Desktop: use native file dialog
+    if (isTauri()) {
       try {
         const { save } = await import('@tauri-apps/plugin-dialog');
         const filePath = await save({
