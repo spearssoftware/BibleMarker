@@ -775,6 +775,8 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
                   `"${matchedText}" dismissed`,
                   () => useKeywordExclusionStore.getState().removeExclusion(exclusion.id)
                 );
+              }).catch((err) => {
+                console.error('Failed to create keyword exclusion:', err);
               });
             }
           }
