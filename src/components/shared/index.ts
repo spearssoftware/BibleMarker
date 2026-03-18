@@ -13,3 +13,4 @@ export { DropdownSelect } from './DropdownSelect';
 export { SyncStatusIndicator } from './SyncStatusIndicator';
 export { UpdateBanner } from './UpdateBanner';
 export { WhatsNewModal } from './WhatsNewModal';
+export { UndoToast } from './UndoToast';
