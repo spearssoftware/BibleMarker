@@ -112,7 +112,7 @@ export async function closeSqliteDb(): Promise<void> {
 // Schema Initialization
 // ============================================================================
 
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 async function initializeSchema(db: Database): Promise<void> {
   // Create schema version table
@@ -301,6 +301,21 @@ async function migrateSchema(
       )
     `);
     console.log('[SQLite] v5 migration: added people table');
+  }
+
+  // Version 6: Add keyword_exclusions table
+  if (fromVersion < 6) {
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS keyword_exclusions (
+        id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        sync_status TEXT DEFAULT 'pending',
+        device_id TEXT
+      )
+    `);
+    console.log('[SQLite] v6 migration: added keyword_exclusions table');
   }
 
   // Update schema version
@@ -1402,6 +1417,7 @@ export const SYNCED_TABLES = new Set([
   'interpretations',
   'applications',
   'preferences',
+  'keyword_exclusions',
 ]);
 
 /**

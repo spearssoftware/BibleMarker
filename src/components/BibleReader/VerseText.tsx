@@ -15,6 +15,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { getDebugFlagsSync } from '@/lib/debug';
+import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
 
 interface VerseTextProps {
   verse: Verse;
@@ -36,7 +37,8 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
   // Get all marking presets for cross-translation keyword highlighting
   const { presets } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
-  
+  const { exclusions } = useKeywordExclusionStore();
+
   // Filter presets by active study (null = global only; study = global + study)
   const filteredPresets = useMemo(
     () => filterPresetsByStudy(presets, activeStudyId),
@@ -79,7 +81,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
       });
     }
     
-    const matches = findKeywordMatches(verseText, verse.ref, filteredPresets, moduleId);
+    const matches = findKeywordMatches(verseText, verse.ref, filteredPresets, moduleId, exclusions);
     
     if (isESVDebug) {
       console.log(`[VerseText] ESV Debug - Verse ${verse.ref.verse} matches:`, {
@@ -130,7 +132,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     
     return matches;
   // eslint-disable-next-line react-hooks/exhaustive-deps -- filteredPresets already reflects presets/activeStudyId; debug output only
-  }, [verse.text, verse.ref, filteredPresets, moduleId]);
+  }, [verse.text, verse.ref, filteredPresets, moduleId, exclusions]);
 
   // Merge real annotations with virtual annotations
   // Virtual annotations are filtered out if a real annotation already covers the same range
@@ -690,9 +692,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           annotationIds.push(symAnn.id);
           const textStyles = combinedStyles.length ? ` style="${combinedStyles.join('; ')}"` : '';
           const classNames = `symbol-inline annotation-group ${annotationIds.map(id => `annotation-${id}`).join(' ')}`;
-          // Only show remove button for real annotations (non-virtual)
-          const isVirtual = !symAnn.moduleId || symAnn.moduleId === '';
-          const removeButton = isVirtual ? '' : `<button 
+          const removeButton = `<button
                 class="annotation-remove"
                 data-annotation-id="${annotationIds[0]}"
                 title="Remove annotation"
@@ -714,10 +714,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           // Only text annotations
           const styleAttr = combinedStyles.length ? ` style="${combinedStyles.join('; ')}"` : '';
           const classNames = `annotation-group ${annotationIds.map(id => `annotation-${id}`).join(' ')}`;
-          // Only show remove button for real annotations (non-virtual)
-          const firstAnn = segment.annotations[0];
-          const isVirtual = firstAnn && (!firstAnn.moduleId || firstAnn.moduleId === '');
-          const removeButton = isVirtual ? '' : `<button 
+          const removeButton = `<button
                 class="annotation-remove"
                 data-annotation-id="${annotationIds[0]}"
                 title="Remove annotation"
@@ -754,12 +751,34 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     
     // Check for remove button clicks
     const removeButton = target.closest('.annotation-remove') as HTMLElement;
-    if (removeButton && onRemoveAnnotation) {
+    if (removeButton) {
       const annotationId = removeButton.getAttribute('data-annotation-id');
       if (annotationId) {
         e.preventDefault();
         e.stopPropagation();
-        onRemoveAnnotation(annotationId);
+
+        // Virtual annotation: create an exclusion instead of deleting
+        if (annotationId.startsWith('virtual-')) {
+          // Format: virtual-{presetId(36)}-{book}-{chapter}-{verse}-{startOffset}-{type}
+          const match = annotationId.match(/^virtual-([0-9a-f-]{36})-(.+?)-(\d+)-(\d+)-(\d+)-/);
+          if (match) {
+            const [, presetId, book, chapterStr, verseStr] = match;
+            // Find the matched text from the virtual annotation
+            const ann = virtualAnnotations.find(a => a.id === annotationId);
+            const matchedText = ann && 'selectedText' in ann ? ann.selectedText || '' : '';
+            if (matchedText) {
+              useKeywordExclusionStore.getState().addExclusion(
+                presetId, book, parseInt(chapterStr), parseInt(verseStr), matchedText
+              );
+            }
+          }
+          return;
+        }
+
+        // Real annotation: delete it
+        if (onRemoveAnnotation) {
+          onRemoveAnnotation(annotationId);
+        }
       }
       return;
     }

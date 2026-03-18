@@ -131,6 +131,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
     bookScope?: string;
     chapterScope?: number;
     studyId?: string;
+    caseSensitive?: boolean;
   }) {
     try {
       const highlight = formData.color ? { style: 'highlight' as const, color: formData.color } : undefined;
@@ -149,6 +150,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
             bookScope: formData.bookScope,
             chapterScope: formData.chapterScope,
             studyId: formData.studyId,
+            caseSensitive: formData.caseSensitive,
             updatedAt: new Date(),
           });
         }
@@ -168,6 +170,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
           bookScope: formData.bookScope,
           chapterScope: formData.chapterScope,
           studyId: formData.studyId,
+          caseSensitive: formData.caseSensitive,
         });
         await addPreset(preset);
         if (initialWord && onPresetCreated) {
@@ -584,6 +587,11 @@ function KeyWordCard({
                 🌐 Global
               </span>
             )}
+            {preset.caseSensitive && (
+              <span className="text-xs px-2 py-0.5 bg-scripture-warningBg text-scripture-warningText rounded" title="Case sensitive matching">
+                Aa
+              </span>
+            )}
             {study && (
               <span className="text-xs px-2 py-0.5 bg-scripture-elevated text-scripture-text rounded border border-scripture-border/50" title={`Study: ${study.name}`}>
                 📚 {study.name}
@@ -654,6 +662,7 @@ function KeyWordEditor({
     bookScope?: string;
     chapterScope?: number;
     studyId?: string;
+    caseSensitive?: boolean;
   }) => void;
   onCancel: () => void;
 }) {
@@ -688,6 +697,7 @@ function KeyWordEditor({
   const [category, setCategory] = useState<KeyWordCategory>(preset?.category || 'custom');
   const [description, setDescription] = useState(preset?.description || '');
   const [autoSuggest, setAutoSuggest] = useState(preset?.autoSuggest ?? true);
+  const [caseSensitive, setCaseSensitive] = useState(preset?.caseSensitive ?? false);
   
   // Default to active study if creating new keyword (not editing)
   const [studyId, setStudyId] = useState<string | undefined>(
@@ -731,6 +741,7 @@ function KeyWordEditor({
       bookScope: scopeType === 'book' || scopeType === 'chapter' ? bookScope : undefined,
       chapterScope: scopeType === 'chapter' ? chapterScope : undefined,
       studyId: studyId || undefined,
+      caseSensitive: caseSensitive || undefined,
     });
   }
 
@@ -898,6 +909,13 @@ function KeyWordEditor({
           label="Auto-suggest when selecting matching text"
           checked={autoSuggest}
           onChange={(e) => setAutoSuggest(e.target.checked)}
+        />
+
+        <Checkbox
+          id="caseSensitive"
+          label="Case sensitive (e.g., &quot;God&quot; won't match &quot;god&quot;)"
+          checked={caseSensitive}
+          onChange={(e) => setCaseSensitive(e.target.checked)}
         />
 
         <div className="border-t border-scripture-border/30 mt-4 pt-4">

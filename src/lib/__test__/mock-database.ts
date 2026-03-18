@@ -95,6 +95,11 @@ export const getAllPeople = vi.fn().mockResolvedValue([]);
 export const savePerson = vi.fn().mockResolvedValue('person-id');
 export const deletePerson = vi.fn().mockResolvedValue(undefined);
 
+export const getAllKeywordExclusions = vi.fn().mockResolvedValue([]);
+export const saveKeywordExclusion = vi.fn().mockResolvedValue('exclusion-id');
+export const deleteKeywordExclusion = vi.fn().mockResolvedValue(undefined);
+export const deleteKeywordExclusionsByPreset = vi.fn().mockResolvedValue(undefined);
+
 export const getAllConclusions = vi.fn().mockResolvedValue([]);
 export const saveConclusion = vi.fn().mockResolvedValue('conclusion-id');
 export const deleteConclusion = vi.fn().mockResolvedValue(undefined);
@@ -173,6 +178,7 @@ export function resetMockDatabase(): void {
     getAllTimeExpressions, saveTimeExpression, deleteTimeExpression,
     getAllPlaces, savePlace, deletePlace,
     getAllPeople, savePerson, deletePerson,
+    getAllKeywordExclusions, saveKeywordExclusion, deleteKeywordExclusion, deleteKeywordExclusionsByPreset,
     getAllConclusions, saveConclusion, deleteConclusion,
     getAllInterpretations, saveInterpretation, deleteInterpretation,
     getAllApplications, saveApplication, deleteApplication,

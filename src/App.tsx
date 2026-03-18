@@ -10,6 +10,7 @@ import { useAnnotationStore } from '@/stores/annotationStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useListStore } from '@/stores/listStore';
+import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
 import { NavigationBar } from '@/components/BibleReader';
 import { MultiTranslationView } from '@/components/BibleReader/MultiTranslationView';
 import { Toolbar } from '@/components/MarkingToolbar';
@@ -35,6 +36,7 @@ export default function App() {
   const { loadStudies } = useStudyStore();
   const { loadActiveView } = useMultiTranslationStore();
   const { loadLists } = useListStore();
+  const { loadExclusions } = useKeywordExclusionStore();
   
   // Onboarding state
   const [showWelcome, setShowWelcome] = useState(false);
@@ -93,6 +95,7 @@ export default function App() {
     const id = setTimeout(() => {
       loadStudies();
       loadLists();
+      loadExclusions();
       getDebugFlags();
       autoBackupService.start();
 
@@ -116,7 +119,7 @@ export default function App() {
       autoBackupService.stop();
       shutdownSync().catch(() => {});
     };
-  }, [loadStudies, loadLists]);
+  }, [loadStudies, loadLists, loadExclusions]);
 
   // Listen for restart onboarding event
   useEffect(() => {
