@@ -114,6 +114,23 @@ export async function closeSqliteDb(): Promise<void> {
 
 const SCHEMA_VERSION = 6;
 
+/**
+ * Safety net: ensure all expected tables exist.
+ * Handles edge cases where schema version was bumped but table creation failed or was skipped.
+ */
+async function ensureTablesExist(db: Database): Promise<void> {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS keyword_exclusions (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      sync_status TEXT DEFAULT 'pending',
+      device_id TEXT
+    )
+  `);
+}
+
 async function initializeSchema(db: Database): Promise<void> {
   // Create schema version table
   await db.execute(`
@@ -133,6 +150,9 @@ async function initializeSchema(db: Database): Promise<void> {
   if (currentVersion < SCHEMA_VERSION) {
     await migrateSchema(db, currentVersion, SCHEMA_VERSION);
   }
+
+  // Safety net: ensure tables exist even if version was bumped without creating them
+  await ensureTablesExist(db);
 
   // Load or generate device ID from sync_config (local SQLite, not iCloud-synced localStorage)
   await initDeviceId(db);
