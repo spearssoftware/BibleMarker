@@ -754,6 +754,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     const removeButton = target.closest('.annotation-remove') as HTMLElement;
     if (removeButton) {
       const annotationId = removeButton.getAttribute('data-annotation-id');
+      console.log('[VerseText] Remove button clicked, annotationId:', annotationId);
       if (annotationId) {
         e.preventDefault();
         e.stopPropagation();
@@ -762,21 +763,24 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         if (annotationId.startsWith('virtual-')) {
           // Format: virtual-{presetId(36)}-{book}-{chapter}-{verse}-{startOffset}-{type}
           const match = annotationId.match(/^virtual-([0-9a-f-]{36})-(.+?)-(\d+)-(\d+)-(\d+)-/);
+          console.log('[VerseText] Virtual annotation regex match:', match);
           if (match) {
             const [, presetId, book, chapterStr, verseStr] = match;
             // Find the matched text from the virtual annotation
             const ann = virtualAnnotations.find(a => a.id === annotationId);
             const matchedText = ann && 'selectedText' in ann ? ann.selectedText || '' : '';
+            console.log('[VerseText] Parsed exclusion:', { presetId, book, chapterStr, verseStr, matchedText, annFound: !!ann });
             if (matchedText) {
               useKeywordExclusionStore.getState().addExclusion(
                 presetId, book, parseInt(chapterStr), parseInt(verseStr), matchedText
               ).then((exclusion) => {
+                console.log('[VerseText] Exclusion created:', exclusion.id);
                 useUndoToastStore.getState().show(
                   `"${matchedText}" dismissed`,
                   () => useKeywordExclusionStore.getState().removeExclusion(exclusion.id)
                 );
               }).catch((err) => {
-                console.error('Failed to create keyword exclusion:', err);
+                console.error('[VerseText] Failed to create keyword exclusion:', err);
               });
             }
           }
@@ -784,6 +788,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         }
 
         // Real annotation: delete it
+        console.log('[VerseText] Deleting real annotation:', annotationId, 'hasHandler:', !!onRemoveAnnotation);
         if (onRemoveAnnotation) {
           onRemoveAnnotation(annotationId);
         }

@@ -1119,6 +1119,7 @@ const VALID_TABLE_NAMES = new Set([
   'applications',
   'preferences',
   'chapter_cache',
+  'keyword_exclusions',
 ]);
 
 function validateTableName(tableName: string): void {
