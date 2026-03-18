@@ -28,6 +28,8 @@ import type { MarkingPreset } from '@/types';
 import type { VerseRef } from '@/types';
 import { createMarkingPreset, getRandomHighlightColor } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
+import { usePeopleStore } from '@/stores/peopleStore';
+import { usePlaceStore } from '@/stores/placeStore';
 
 const COLOR_STYLES = ['highlight', 'textColor', 'underline'] as const;
 const COLOR_STYLE_LABELS: Record<(typeof COLOR_STYLES)[number], string> = {
@@ -290,10 +292,19 @@ export function Toolbar() {
       highlight: { style: 'highlight', color },
       category: config.category,
       studyId: activeStudyId || undefined,
+      bookScope: selection.book,
     });
 
     await addPreset(preset);
     await applyPresetToSelection(preset);
+
+    // Create Person/Place entity linked to this preset
+    const verseRef = { book: selection.book, chapter: selection.chapter, verse: selection.startVerse };
+    if (type === 'person') {
+      await usePeopleStore.getState().createPerson(word, verseRef, undefined, preset.id, undefined, activeStudyId || undefined);
+    } else {
+      await usePlaceStore.getState().createPlace(word, verseRef, undefined, preset.id, undefined, activeStudyId || undefined);
+    }
   };
 
   const isColorActive = activeTool === 'highlight' || activeTool === 'textColor' || activeTool === 'underline';
