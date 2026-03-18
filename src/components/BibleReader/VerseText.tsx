@@ -16,6 +16,7 @@ import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { getDebugFlagsSync } from '@/lib/debug';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
+import { useUndoToastStore } from '@/stores/undoToastStore';
 
 interface VerseTextProps {
   verse: Verse;
@@ -769,7 +770,12 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
             if (matchedText) {
               useKeywordExclusionStore.getState().addExclusion(
                 presetId, book, parseInt(chapterStr), parseInt(verseStr), matchedText
-              );
+              ).then((exclusion) => {
+                useUndoToastStore.getState().show(
+                  `"${matchedText}" dismissed`,
+                  () => useKeywordExclusionStore.getState().removeExclusion(exclusion.id)
+                );
+              });
             }
           }
           return;

@@ -24,9 +24,23 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useVirtualKeyboard } from '@/hooks/useVirtualKeyboard';
 import { autoBackupService } from '@/lib/autoBackup';
 import { getDebugFlags } from '@/lib/debug';
+import { useUndoToastStore } from '@/stores/undoToastStore';
+import { UndoToast } from '@/components/shared';
 import { initializeSync, shutdownSync } from '@/lib/sync';
 import { checkForUpdateIfDue, fetchWhatsNew, fetchWhatsNewForced } from '@/lib/updateCheck';
 import { UpdateBanner, WhatsNewModal } from '@/components/shared';
+
+function GlobalUndoToast() {
+  const { message, onUndo, dismiss } = useUndoToastStore();
+  if (!message || !onUndo) return null;
+  return (
+    <UndoToast
+      message={message}
+      onUndo={() => { onUndo(); dismiss(); }}
+      onDismiss={dismiss}
+    />
+  );
+}
 
 export default function App() {
   const { setChapter, currentBook, currentChapter, currentModuleId, setLoading, setError } = useBibleStore();
@@ -258,7 +272,10 @@ export default function App() {
 
       {/* Bottom marking toolbar */}
       <Toolbar />
-      
+
+      {/* Undo toast */}
+      <GlobalUndoToast />
+
       {/* Onboarding */}
       {!isCheckingOnboarding && showWelcome && (
         <WelcomeScreen

@@ -14,6 +14,7 @@ import { SYMBOLS, getHighlightColorHex, HIGHLIGHT_COLORS, getRandomHighlightColo
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { Input, Textarea, Label, DropdownSelect, Checkbox, Button } from '@/components/shared';
 import { getBookById, BIBLE_BOOKS } from '@/types';
+import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
 
 interface KeyWordManagerProps {
   onClose?: () => void;
@@ -1032,7 +1033,9 @@ function KeyWordEditor({
           </div>
         </div>
 
-        
+        {/* Dismissed matches (only show when editing existing preset) */}
+        {preset && <DismissedMatches presetId={preset.id} />}
+
         {/* Extra padding at bottom to ensure last field is scrollable above save button */}
         <div className="h-4"></div>
       </div>
@@ -1208,6 +1211,42 @@ function VariantEditor({
             />
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Dismissed Matches — shows exclusions for a preset with restore buttons */
+function DismissedMatches({ presetId }: { presetId: string }) {
+  const { exclusions, removeExclusion } = useKeywordExclusionStore();
+  const presetExclusions = exclusions.filter(e => e.presetId === presetId);
+
+  if (presetExclusions.length === 0) return null;
+
+  return (
+    <div className="border-t border-scripture-border/30 mt-4 pt-4">
+      <label className="block text-sm font-ui text-scripture-text mb-2">
+        Dismissed Matches ({presetExclusions.length})
+      </label>
+      <div className="space-y-1.5">
+        {presetExclusions.map(ex => {
+          const bookInfo = getBookById(ex.book);
+          const bookName = bookInfo?.name || ex.book;
+          return (
+            <div key={ex.id} className="flex items-center justify-between gap-2 px-3 py-1.5 bg-scripture-elevated rounded-lg text-sm">
+              <span className="text-scripture-muted">
+                &ldquo;{ex.matchedText}&rdquo; in {bookName} {ex.chapter}:{ex.verse}
+              </span>
+              <button
+                type="button"
+                onClick={() => removeExclusion(ex.id)}
+                className="text-xs text-scripture-accent hover:text-scripture-text transition-colors"
+              >
+                Restore
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
