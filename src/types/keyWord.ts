@@ -39,6 +39,8 @@ export interface MarkingPreset {
   moduleScope?: string;
   /** Optional: link to a study (if null/undefined, keyword is global and always visible) */
   studyId?: string;
+  /** When true, matching respects case (e.g., "God" won't match "god") */
+  caseSensitive?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -177,6 +179,20 @@ export const PRESET_KEY_WORDS: Partial<MarkingPreset>[] = [
   { word: 'faith', variants: normalizeVariants(['believe', 'believed', 'believes', 'believing', 'trust']), symbol: 'shield', highlight: { style: 'highlight', color: 'blue' }, category: 'themes', description: 'Faith and belief', autoSuggest: true },
 ];
 
+/** An exclusion record that suppresses a specific auto-matched keyword in a verse */
+export interface KeywordExclusion {
+  id: string;
+  presetId: string;
+  book: string;
+  chapter: number;
+  verse: number;
+  /** Lowercase matched text for comparison */
+  matchedText: string;
+  studyId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 /** Result of searching for key word occurrences */
 export interface KeyWordOccurrence {
   book: string;
@@ -189,9 +205,9 @@ export interface KeyWordOccurrence {
 
 /** Create a new marking preset (or key word when `word` is set) */
 export function createMarkingPreset(
-  options: { word?: string; variants?: string[] | Variant[]; symbol?: SymbolKey; highlight?: { style: 'highlight' | 'textColor' | 'underline'; color: HighlightColor }; category?: KeyWordCategory; description?: string; autoSuggest?: boolean; usageCount?: number; bookScope?: string; chapterScope?: number; moduleScope?: string; studyId?: string }
+  options: { word?: string; variants?: string[] | Variant[]; symbol?: SymbolKey; highlight?: { style: 'highlight' | 'textColor' | 'underline'; color: HighlightColor }; category?: KeyWordCategory; description?: string; autoSuggest?: boolean; usageCount?: number; bookScope?: string; chapterScope?: number; moduleScope?: string; studyId?: string; caseSensitive?: boolean }
 ): MarkingPreset {
-  const { word, variants = [], symbol, highlight, category = 'custom', description = '', autoSuggest = true, usageCount = 0, bookScope, chapterScope, moduleScope, studyId } = options;
+  const { word, variants = [], symbol, highlight, category = 'custom', description = '', autoSuggest = true, usageCount = 0, bookScope, chapterScope, moduleScope, studyId, caseSensitive } = options;
   if (!symbol && !highlight) throw new Error('MarkingPreset must have at least one of symbol or highlight');
   if (chapterScope !== undefined && !bookScope) throw new Error('chapterScope requires bookScope');
   return {
@@ -208,6 +224,7 @@ export function createMarkingPreset(
     chapterScope,
     moduleScope,
     studyId,
+    caseSensitive,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { splitIntoWords, findKeywordMatches } from './keywordMatching'
-import type { MarkingPreset } from '@/types'
+import type { MarkingPreset, KeywordExclusion } from '@/types'
 import type { VerseRef } from '@/types'
 
 describe('splitIntoWords', () => {
@@ -233,6 +233,74 @@ describe('findKeywordMatches', () => {
   it('"God" preset matches "god" in text', () => {
     const presets = [preset({ id: 'p1', word: 'God' })]
     const result = findKeywordMatches('In the beginning god created', verseRef, presets)
+    expect(result.length).toBeGreaterThanOrEqual(1)
+  })
+
+  // --- Case sensitivity ---
+  it('caseSensitive preset "God" does NOT match "god" in text', () => {
+    const presets = [preset({ id: 'p1', word: 'God', caseSensitive: true })]
+    const result = findKeywordMatches('In the beginning god created', verseRef, presets)
+    expect(result).toEqual([])
+  })
+
+  it('caseSensitive preset "God" matches "God" in text', () => {
+    const presets = [preset({ id: 'p1', word: 'God', caseSensitive: true })]
+    const result = findKeywordMatches('In the beginning God created', verseRef, presets)
+    expect(result.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('caseSensitive preset "LORD" does NOT match "Lord" in text', () => {
+    const presets = [preset({ id: 'p1', word: 'LORD', caseSensitive: true })]
+    const result = findKeywordMatches('The Lord is good', verseRef, presets)
+    expect(result).toEqual([])
+  })
+
+  it('caseSensitive preset "LORD" matches "LORD" in text', () => {
+    const presets = [preset({ id: 'p1', word: 'LORD', caseSensitive: true })]
+    const result = findKeywordMatches('The LORD is good', verseRef, presets)
+    expect(result.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('caseSensitive variant matching respects case', () => {
+    const presets = [preset({ id: 'p1', word: 'God', caseSensitive: true, variants: [{ text: 'LORD' }] })]
+    // "LORD" should match, "lord" should not
+    const result1 = findKeywordMatches('The LORD is good', verseRef, presets)
+    expect(result1.length).toBeGreaterThanOrEqual(1)
+    const result2 = findKeywordMatches('The lord is good', verseRef, presets)
+    expect(result2).toEqual([])
+  })
+
+  // --- Keyword exclusions ---
+  it('excluded match is suppressed', () => {
+    const presets = [preset({ id: 'p1', word: 'God' })]
+    const exclusions: KeywordExclusion[] = [{
+      id: 'ex1',
+      presetId: 'p1',
+      book: 'Gen',
+      chapter: 1,
+      verse: 1,
+      matchedText: 'god',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }]
+    const result = findKeywordMatches('In the beginning God created', verseRef, presets, undefined, exclusions)
+    expect(result).toEqual([])
+  })
+
+  it('exclusion only suppresses matching verse, not others', () => {
+    const presets = [preset({ id: 'p1', word: 'God' })]
+    const exclusions: KeywordExclusion[] = [{
+      id: 'ex1',
+      presetId: 'p1',
+      book: 'Gen',
+      chapter: 1,
+      verse: 2,
+      matchedText: 'god',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }]
+    // verse 1 should still match since exclusion is for verse 2
+    const result = findKeywordMatches('In the beginning God created', verseRef, presets, undefined, exclusions)
     expect(result.length).toBeGreaterThanOrEqual(1)
   })
 })

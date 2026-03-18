@@ -4,7 +4,7 @@
  * Functions to find keyword matches in verse text for cross-translation highlighting.
  */
 
-import type { MarkingPreset } from '@/types';
+import type { MarkingPreset, KeywordExclusion } from '@/types';
 import type { TextAnnotation, SymbolAnnotation } from '@/types';
 import type { VerseRef } from '@/types';
 import { getDebugFlagsSync } from '@/lib/debug';
@@ -96,10 +96,11 @@ function getMatchablePhrases(preset: MarkingPreset, verseRef: VerseRef): Array<{
 }
 
 /**
- * Normalize text for matching (remove punctuation from boundaries, lowercase)
+ * Normalize text for matching (remove punctuation from boundaries, optionally lowercase)
  */
-function normalizeForMatching(text: string): string {
-  return text.replace(/^[^\w]*|[^\w]*$/g, '').toLowerCase().trim();
+function normalizeForMatching(text: string, caseSensitive = false): string {
+  const stripped = text.replace(/^[^\w]*|[^\w]*$/g, '').trim();
+  return caseSensitive ? stripped : stripped.toLowerCase();
 }
 
 /**
@@ -107,27 +108,27 @@ function normalizeForMatching(text: string): string {
  * Handles multi-word phrases by matching normalized versions
  * Trims punctuation (except apostrophes) from the match boundaries
  */
-function findPhraseMatches(text: string, phrase: string): Array<{ startIndex: number; endIndex: number; matchedText: string }> {
+function findPhraseMatches(text: string, phrase: string, caseSensitive = false): Array<{ startIndex: number; endIndex: number; matchedText: string }> {
   const matches: Array<{ startIndex: number; endIndex: number; matchedText: string }> = [];
-  const normalizedPhrase = normalizeForMatching(phrase);
+  const normalizedPhrase = normalizeForMatching(phrase, caseSensitive);
   const phraseWords = normalizedPhrase.split(/\s+/).filter(w => w.length > 0);
-  
+
   if (phraseWords.length === 0) return matches;
-  
+
   // Normalize each phrase word separately (strips punctuation like commas from each token)
   // so "word1, word2, word3" matches verse text "word1, word2, word3" where each word has punctuation
-  const normalizedPhraseForMatch = phraseWords.map(w => normalizeForMatching(w)).join(' ');
-  
+  const normalizedPhraseForMatch = phraseWords.map(w => normalizeForMatching(w, caseSensitive)).join(' ');
+
   // Split text into words with positions
   const words = splitIntoWords(text);
-  
+
   // Try matching phrase starting at each word position
   // For single-word phrases, check every position to find all occurrences
   // For multi-word phrases, we can optimize by skipping, but for now check all positions
   for (let i = 0; i <= words.length - phraseWords.length; i++) {
     // Extract consecutive words starting at position i
     const candidateWords = words.slice(i, i + phraseWords.length);
-    const candidateText = candidateWords.map(w => normalizeForMatching(w.word)).join(' ');
+    const candidateText = candidateWords.map(w => normalizeForMatching(w.word, caseSensitive)).join(' ');
     
     if (candidateText === normalizedPhraseForMatch) {
       // Found a match! Get the actual start and end positions from original text
@@ -195,12 +196,23 @@ export function findKeywordMatches(
   verseText: string,
   verseRef: VerseRef,
   presets: MarkingPreset[],
-  currentModuleId?: string
+  currentModuleId?: string,
+  exclusions?: KeywordExclusion[]
 ): Array<TextAnnotation | SymbolAnnotation> {
   const annotations: Array<TextAnnotation | SymbolAnnotation> = [];
   
   if (!verseText || presets.length === 0) return annotations;
-  
+
+  // Build exclusion lookup set: "presetId|book|chapter|verse|lowercaseText"
+  const exclusionKeys = new Set<string>();
+  if (exclusions) {
+    for (const ex of exclusions) {
+      if (ex.book === verseRef.book && ex.chapter === verseRef.chapter) {
+        exclusionKeys.add(`${ex.presetId}|${ex.verse}|${ex.matchedText}`);
+      }
+    }
+  }
+
   // Get debug flags once for this function call
   const debugFlags = getDebugFlagsSync();
   
@@ -310,7 +322,7 @@ export function findKeywordMatches(
   
   // Process each phrase (already sorted longest-first)
   for (const { preset, phrase } of allPhrases) {
-    const matches = findPhraseMatches(verseText, phrase);
+    const matches = findPhraseMatches(verseText, phrase, preset.caseSensitive);
     
     // Get or create the matched ranges set for this preset
     if (!matchedRangesByPreset.has(preset.id)) {
@@ -392,6 +404,12 @@ export function findKeywordMatches(
       }
       
       if (!hasOverlap) {
+        // Check if this match is excluded
+        if (exclusionKeys.size > 0) {
+          const exKey = `${preset.id}|${verseRef.verse}|${match.matchedText.toLowerCase()}`;
+          if (exclusionKeys.has(exKey)) continue;
+        }
+
         // Mark this range as matched BEFORE creating annotations
         // This prevents shorter phrases from matching within this range (within the same preset)
         const rangeKey = `${match.startIndex}-${match.endIndex}`;

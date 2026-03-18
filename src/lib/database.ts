@@ -24,6 +24,7 @@ import type { Conclusion } from '@/types';
 import type { InterpretationEntry } from '@/types';
 import type { ApplicationEntry } from '@/types';
 import type { UserPreferences } from '@/types';
+import type { KeywordExclusion } from '@/types';
 
 export type { UserPreferences, ApiConfigRecord, OnboardingState, AutoBackupConfig } from '@/types';
 
@@ -541,6 +542,31 @@ export async function deletePerson(id: string): Promise<void> {
   const mod = await sqlite();
   await mod.sqliteDeleteFromTable('people', id);
   await logChange('people', 'delete', id);
+}
+
+// Keyword Exclusion Operations
+export async function getAllKeywordExclusions(): Promise<KeywordExclusion[]> {
+  const mod = await sqlite();
+  return mod.sqliteGetAllFromTable<KeywordExclusion>('keyword_exclusions');
+}
+
+export async function saveKeywordExclusion(entry: KeywordExclusion): Promise<string> {
+  const mod = await sqlite();
+  const result = await mod.sqliteSaveToTable('keyword_exclusions', entry);
+  await logChange('keyword_exclusions', 'upsert', entry.id, entry);
+  return result;
+}
+
+export async function deleteKeywordExclusion(id: string): Promise<void> {
+  const mod = await sqlite();
+  await mod.sqliteDeleteFromTable('keyword_exclusions', id);
+  await logChange('keyword_exclusions', 'delete', id);
+}
+
+export async function deleteKeywordExclusionsByPreset(presetId: string): Promise<void> {
+  const all = await getAllKeywordExclusions();
+  const linked = all.filter(e => e.presetId === presetId);
+  await Promise.all(linked.map(e => deleteKeywordExclusion(e.id)));
 }
 
 // Conclusion Operations
