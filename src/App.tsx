@@ -93,6 +93,8 @@ export default function App() {
           setShowWelcome(true);
         }
         setIsCheckingOnboarding(false);
+        // Load exclusions after DB is ready (needs v6 schema)
+        loadExclusions();
       } catch (err) {
         console.error('Error loading preferences:', err);
         setIsCheckingOnboarding(false);
@@ -109,7 +111,6 @@ export default function App() {
     const id = setTimeout(() => {
       loadStudies();
       loadLists();
-      loadExclusions();
       getDebugFlags();
       autoBackupService.start();
 
@@ -133,7 +134,7 @@ export default function App() {
       autoBackupService.stop();
       shutdownSync().catch(() => {});
     };
-  }, [loadStudies, loadLists, loadExclusions]);
+  }, [loadStudies, loadLists]);
 
   // Listen for restart onboarding event
   useEffect(() => {
