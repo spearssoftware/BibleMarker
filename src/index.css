@@ -432,3 +432,19 @@ select:focus-visible {
     transform: rotate(90deg);
   }
 }
+
+/* ── MapLibre popup overrides ──────────────────────────────────────────── */
+
+.place-map-popup .maplibregl-popup-content {
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+}
+
+.place-map-popup .maplibregl-popup-close-button {
+  font-size: 16px;
+  padding: 4px 8px;
+  right: 2px;
+  top: 2px;
+}
+

@@ -43,9 +43,24 @@ function groupPlaces(places: Place[]): PlaceGroup[] {
 }
 
 function applyEnglishLabels(style: StyleSpecification): StyleSpecification {
+  style.layers = style.layers.filter(layer => {
+    // Remove icon-only symbol layers (no text) — they render as empty squares
+    if (layer.type === 'symbol' && 'layout' in layer && layer.layout) {
+      const hasIcon = 'icon-image' in layer.layout;
+      const hasText = 'text-field' in layer.layout;
+      if (hasIcon && !hasText) return false;
+    }
+    return true;
+  });
   for (const layer of style.layers) {
-    if ('layout' in layer && layer.layout && 'text-field' in layer.layout) {
-      layer.layout['text-field'] = ['coalesce', ['get', 'name:en'], ['get', 'name']];
+    if ('layout' in layer && layer.layout) {
+      if ('text-field' in layer.layout) {
+        layer.layout['text-field'] = ['coalesce', ['get', 'name:en'], ['get', 'name']];
+      }
+      // Remove icon-image from label layers — sprites render as white squares in Tauri webview
+      if ('icon-image' in layer.layout) {
+        delete layer.layout['icon-image'];
+      }
     }
   }
   return style;
@@ -268,6 +283,7 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
                   anchor="bottom"
                   onClose={() => setSelectedName(null)}
                   closeOnClick={false}
+                  className="place-map-popup"
                 >
                   <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '13px', lineHeight: '1.6' }}>
                     <div style={{ fontWeight: 600, marginBottom: '4px' }}>{group.name}</div>
