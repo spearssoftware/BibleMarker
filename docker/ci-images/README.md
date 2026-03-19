@@ -9,6 +9,11 @@ Base Docker images for GitHub Actions CI via ARC (Actions Runner Controller).
 | `biblemarker-ci-node` | Node 22, pnpm 10, gh CLI, semgrep. For lint, test, and helper jobs. |
 | `biblemarker-ci-full` | Above + Rust stable, clippy, rustfmt, cargo-audit, Tauri system deps. For Rust checks and Linux release builds. |
 
+## Prerequisites
+
+- Gitea instance with container registry enabled
+- ARC (Actions Runner Controller) v0.13+ with container mode
+
 ## Setup
 
 1. Copy this directory to a Gitea repo (e.g. `infra/biblemarker-ci-images`)
