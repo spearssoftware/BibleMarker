@@ -1,13 +1,14 @@
 /**
  * Biblical Places Map
  *
- * Renders places on a Leaflet map grouped by name (one marker per unique place).
+ * Renders places on a MapLibre GL map grouped by name (one marker per unique place).
+ * Uses OpenFreeMap vector tiles with English labels.
  * Sidebar lists each place once with all verse references beneath it.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import MapGL, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
+import type { StyleSpecification } from 'maplibre-gl';
 import type { Place, VerseRef } from '@/types';
 import { formatVerseRef } from '@/types';
 
@@ -41,82 +42,50 @@ function groupPlaces(places: Place[]): PlaceGroup[] {
   return Array.from(map.values());
 }
 
-function makeIcon(color: string, size: number) {
-  return L.divIcon({
-    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.45)"></div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    className: '',
-  });
+function applyEnglishLabels(style: StyleSpecification): StyleSpecification {
+  for (const layer of style.layers) {
+    if ('layout' in layer && layer.layout && 'text-field' in layer.layout) {
+      layer.layout['text-field'] = ['coalesce', ['get', 'name:en'], ['get', 'name']];
+    }
+  }
+  return style;
 }
 
-const MARKER_ICON_NORMAL = makeIcon('#3b82f6', 11);
-const MARKER_ICON_SELECTED = makeIcon('#f97316', 14);
-
-function fitAll(map: L.Map, groups: PlaceGroup[]) {
-  if (groups.length === 0) return;
-  const bounds = L.latLngBounds(groups.map(g => [g.latitude!, g.longitude!] as [number, number]));
-  map.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
+function buildSatelliteStyle(baseStyle: StyleSpecification): StyleSpecification {
+  const labelLayers = baseStyle.layers.filter(
+    l => l.type === 'symbol' || (l.type === 'line' && l.id.includes('boundary'))
+  );
+  return {
+    version: 8,
+    sources: {
+      ...baseStyle.sources,
+      satellite: {
+        type: 'raster',
+        tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+        tileSize: 256,
+        attribution: '&copy; <a href="https://www.esri.com">Esri</a>',
+      },
+    },
+    layers: [
+      { id: 'satellite', type: 'raster', source: 'satellite' },
+      ...labelLayers,
+    ],
+  };
 }
 
-function FitBounds({ groups }: { groups: PlaceGroup[] }) {
-  const map = useMap();
-  useEffect(() => { fitAll(map, groups); }, [groups, map]);
-  return null;
+async function fetchStyles(): Promise<{ map: StyleSpecification; satellite: StyleSpecification }> {
+  const res = await fetch('https://tiles.openfreemap.org/styles/liberty');
+  const style: StyleSpecification = await res.json();
+  const mapStyle = applyEnglishLabels(structuredClone(style));
+  const satelliteStyle = buildSatelliteStyle(mapStyle);
+  return { map: mapStyle, satellite: satelliteStyle };
 }
-
-function ResetBounds({ selectedName, groups }: { selectedName: string | null; groups: PlaceGroup[] }) {
-  const map = useMap();
-  const prev = useRef<string | null>(null);
-  useEffect(() => {
-    if (prev.current !== null && selectedName === null) fitAll(map, groups);
-    prev.current = selectedName;
-  }, [selectedName, groups, map]);
-  return null;
-}
-
-function FlyToSelected({
-  selectedName,
-  groups,
-  markerRefs,
-}: {
-  selectedName: string | null;
-  groups: PlaceGroup[];
-  markerRefs: React.RefObject<Map<string, L.Marker>>;
-}) {
-  const map = useMap();
-  const prevName = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!selectedName || selectedName === prevName.current) return;
-    prevName.current = selectedName;
-    const group = groups.find(g => g.name === selectedName);
-    if (!group) return;
-    const zoom = Math.max(map.getZoom(), 8);
-    map.flyTo([group.latitude!, group.longitude!], zoom, { duration: 0.6 });
-    setTimeout(() => {
-      markerRefs.current?.get(selectedName)?.openPopup();
-    }, 700);
-  }, [selectedName, groups, map, markerRefs]);
-
-  return null;
-}
-
-const TILE_LAYERS = {
-  map: {
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  },
-  satellite: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: '&copy; <a href="https://www.esri.com">Esri</a>',
-  },
-} as const;
 
 export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
   const [selectedName, setSelectedName] = useState<string | null>(null);
-  const [tileLayer, setTileLayer] = useState<keyof typeof TILE_LAYERS>('map');
-  const markerRefs = useRef<Map<string, L.Marker>>(new Map());
+  const [tileLayer, setTileLayer] = useState<'map' | 'satellite'>('map');
+  const [styles, setStyles] = useState<{ map: StyleSpecification; satellite: StyleSpecification } | null>(null);
+  const mapRef = useRef<MapRef>(null);
 
   const groups = useMemo(() => groupPlaces(places), [places]);
   const mappableGroups = useMemo(
@@ -128,7 +97,55 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
     ? selectedName
     : null;
 
-  const center: [number, number] = [31.7767, 35.2342];
+  // Fetch and cache the English-label style on mount
+  useEffect(() => {
+    fetchStyles().then(setStyles).catch(() => {
+      setStyles(null);
+    });
+  }, []);
+
+  // Fit bounds when groups change
+  const fitAll = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || mappableGroups.length === 0) return;
+    if (mappableGroups.length === 1) {
+      map.flyTo({ center: [mappableGroups[0].longitude!, mappableGroups[0].latitude!], zoom: 8, duration: 0 });
+      return;
+    }
+    const lngs = mappableGroups.map(g => g.longitude!);
+    const lats = mappableGroups.map(g => g.latitude!);
+    map.fitBounds(
+      [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+      { padding: 40, maxZoom: 10, duration: 0 }
+    );
+  }, [mappableGroups]);
+
+  // Fly to selected place
+  const prevSelected = useRef<string | null>(null);
+  useEffect(() => {
+    if (!effectiveSelectedName || effectiveSelectedName === prevSelected.current) {
+      if (prevSelected.current !== null && effectiveSelectedName === null) fitAll();
+      prevSelected.current = effectiveSelectedName;
+      return;
+    }
+    prevSelected.current = effectiveSelectedName;
+    const group = mappableGroups.find(g => g.name === effectiveSelectedName);
+    if (!group) return;
+    const map = mapRef.current;
+    if (!map) return;
+    const zoom = Math.max(map.getZoom(), 8);
+    map.flyTo({ center: [group.longitude!, group.latitude!], zoom, duration: 0.6 });
+  }, [effectiveSelectedName, mappableGroups, fitAll]);
+
+  const activeStyle = styles ? styles[tileLayer] : null;
+
+  if (!activeStyle) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-scripture-muted text-sm">Loading map...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full gap-2">
@@ -155,7 +172,6 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
                     isSelected ? 'bg-scripture-accent' : ''
                   }`}
                 >
-                  {/* Place name row — clickable to select on map */}
                   <button
                     onClick={() => hasCoordsMap ? setSelectedName(group.name) : undefined}
                     disabled={!hasCoordsMap}
@@ -169,7 +185,6 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
                   >
                     {group.name}
                   </button>
-                  {/* Verse list */}
                   <div className="px-2.5 pb-1.5 space-y-0.5">
                     {group.entries.map(place => (
                       onNavigate ? (
@@ -202,7 +217,7 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
       <div className="flex-1 rounded-xl overflow-hidden border border-scripture-border/50 relative">
         <button
           onClick={() => setTileLayer(t => t === 'map' ? 'satellite' : 'map')}
-          className="absolute top-2 right-2 z-[1000] px-2 py-1 text-xs font-medium bg-scripture-surface/95 hover:bg-scripture-surface text-scripture-text rounded shadow transition-colors"
+          className="absolute top-2 right-2 z-10 px-2 py-1 text-xs font-medium bg-scripture-surface/95 hover:bg-scripture-surface text-scripture-text rounded shadow transition-colors"
         >
           {tileLayer === 'map' ? 'Satellite' : 'Map'}
         </button>
@@ -214,27 +229,46 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
             </p>
           </div>
         ) : (
-          <MapContainer center={center} zoom={7} className="h-full w-full" scrollWheelZoom={true}>
-            <TileLayer
-              key={tileLayer}
-              attribution={TILE_LAYERS[tileLayer].attribution}
-              url={TILE_LAYERS[tileLayer].url}
-            />
-            <FitBounds groups={mappableGroups} />
-            <FlyToSelected selectedName={effectiveSelectedName} groups={mappableGroups} markerRefs={markerRefs} />
-            <ResetBounds selectedName={effectiveSelectedName} groups={mappableGroups} />
+          <MapGL
+            ref={mapRef}
+            initialViewState={{ longitude: 35.2342, latitude: 31.7767, zoom: 7 }}
+            style={{ width: '100%', height: '100%' }}
+            mapStyle={activeStyle!}
+            onLoad={fitAll}
+            attributionControl={{ compact: false }}
+          >
             {mappableGroups.map(group => (
               <Marker
                 key={group.name}
-                position={[group.latitude!, group.longitude!]}
-                icon={group.name === effectiveSelectedName ? MARKER_ICON_SELECTED : MARKER_ICON_NORMAL}
-                ref={(marker) => {
-                  if (marker) markerRefs.current.set(group.name, marker);
-                  else markerRefs.current.delete(group.name);
-                }}
-                eventHandlers={{ click: () => setSelectedName(group.name), popupclose: () => setSelectedName(null) }}
+                longitude={group.longitude!}
+                latitude={group.latitude!}
+                anchor="center"
+                onClick={(e) => { e.originalEvent.stopPropagation(); setSelectedName(group.name); }}
               >
-                <Popup>
+                <div
+                  style={{
+                    width: group.name === effectiveSelectedName ? 14 : 11,
+                    height: group.name === effectiveSelectedName ? 14 : 11,
+                    borderRadius: '50%',
+                    background: group.name === effectiveSelectedName ? '#f97316' : '#3b82f6',
+                    border: '2px solid white',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.45)',
+                    cursor: 'pointer',
+                  }}
+                />
+              </Marker>
+            ))}
+            {effectiveSelectedName && (() => {
+              const group = mappableGroups.find(g => g.name === effectiveSelectedName);
+              if (!group) return null;
+              return (
+                <Popup
+                  longitude={group.longitude!}
+                  latitude={group.latitude!}
+                  anchor="bottom"
+                  onClose={() => setSelectedName(null)}
+                  closeOnClick={false}
+                >
                   <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '13px', lineHeight: '1.6' }}>
                     <div style={{ fontWeight: 600, marginBottom: '4px' }}>{group.name}</div>
                     {group.entries.map(place => (
@@ -247,9 +281,9 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
                     ))}
                   </div>
                 </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
+              );
+            })()}
+          </MapGL>
         )}
       </div>
     </div>
