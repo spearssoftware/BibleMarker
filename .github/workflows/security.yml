@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   scan:
-    runs-on: [self-hosted, linux, biblemarker]
+    runs-on: spearssoftware-k8s
     container:
       image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-node:latest
       credentials:
@@ -34,7 +34,7 @@ jobs:
         continue-on-error: true
 
   audit:
-    runs-on: [self-hosted, linux, biblemarker]
+    runs-on: spearssoftware-k8s
     container:
       image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-full:latest
       credentials:

@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   check:
-    runs-on: [self-hosted, linux, biblemarker]
+    runs-on: spearssoftware-k8s
     container:
       image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-node:latest
       credentials:
@@ -30,7 +30,7 @@ jobs:
 
   prepare:
     needs: check
-    runs-on: [self-hosted, linux, biblemarker]
+    runs-on: spearssoftware-k8s
     container:
       image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-node:latest
       credentials:
@@ -81,7 +81,7 @@ jobs:
           - platform: windows-latest
             args: ""
             tauri_target: ""
-    runs-on: ${{ matrix.platform == 'linux' && fromJSON('["self-hosted", "linux", "biblemarker"]') || matrix.platform }}
+    runs-on: ${{ matrix.platform == 'linux' && 'spearssoftware-k8s' || matrix.platform }}
     container:
       image: ${{ matrix.platform == 'linux' && format('{0}/biblemarker-ci-full:latest', vars.GITEA_REGISTRY) || '' }}
       credentials:
@@ -243,7 +243,7 @@ jobs:
 
   rename-artifacts:
     needs: [prepare, publish-tauri]
-    runs-on: [self-hosted, linux, biblemarker]
+    runs-on: spearssoftware-k8s
     container:
       image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-node:latest
       credentials:
@@ -284,7 +284,7 @@ jobs:
 
   create-latest-json:
     needs: [prepare, publish-tauri]
-    runs-on: [self-hosted, linux, biblemarker]
+    runs-on: spearssoftware-k8s
     container:
       image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-node:latest
       credentials:
@@ -463,7 +463,7 @@ jobs:
   publish-release:
     needs: [prepare, create-latest-json, build-ios, rename-artifacts]
     if: always() && needs.create-latest-json.result == 'success' && needs.rename-artifacts.result == 'success'
-    runs-on: [self-hosted, linux, biblemarker]
+    runs-on: spearssoftware-k8s
     container:
       image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-node:latest
       credentials:

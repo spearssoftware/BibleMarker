@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   lint-and-test:
-    runs-on: [self-hosted, linux, biblemarker]
+    runs-on: spearssoftware-k8s
     container:
       image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-node:latest
       credentials:
@@ -39,7 +39,7 @@ jobs:
         run: pnpm build
 
   rust-checks:
-    runs-on: [self-hosted, linux, biblemarker]
+    runs-on: spearssoftware-k8s
     container:
       image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-full:latest
       credentials:
