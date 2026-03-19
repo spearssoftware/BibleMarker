@@ -11,16 +11,14 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, biblemarker]
+    container:
+      image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-node:latest
+      credentials:
+        username: ${{ secrets.GITEA_REGISTRY_USER }}
+        password: ${{ secrets.GITEA_REGISTRY_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "lts/*"
-          cache: "pnpm"
       - name: Install dependencies
         run: pnpm install
       - name: Lint
@@ -32,7 +30,12 @@ jobs:
 
   prepare:
     needs: check
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, biblemarker]
+    container:
+      image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-node:latest
+      credentials:
+        username: ${{ secrets.GITEA_REGISTRY_USER }}
+        password: ${{ secrets.GITEA_REGISTRY_TOKEN }}
     permissions:
       contents: write
     outputs:
@@ -42,12 +45,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "lts/*"
       - id: version
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
       - name: Create draft release for tag
@@ -78,40 +75,45 @@ jobs:
           - platform: macos-latest
             args: --target x86_64-apple-darwin
             tauri_target: x86_64-apple-darwin
-          - platform: ubuntu-22.04
+          - platform: linux
             args: ""
             tauri_target: ""
           - platform: windows-latest
             args: ""
             tauri_target: ""
-    runs-on: ${{ matrix.platform }}
+    runs-on: ${{ matrix.platform == 'linux' && fromJSON('["self-hosted", "linux", "biblemarker"]') || matrix.platform }}
+    container:
+      image: ${{ matrix.platform == 'linux' && format('{0}/biblemarker-ci-full:latest', vars.GITEA_REGISTRY) || '' }}
+      credentials:
+        username: ${{ secrets.GITEA_REGISTRY_USER }}
+        password: ${{ secrets.GITEA_REGISTRY_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
+      # macOS/Windows: install pnpm + Node (not needed on Linux — already in container)
       - name: Install pnpm
+        if: matrix.platform != 'linux'
         uses: pnpm/action-setup@v4
         with:
           version: 10
 
       - name: Setup Node.js
+        if: matrix.platform != 'linux'
         uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
           cache: "pnpm"
 
+      # macOS/Windows: install Rust (not needed on Linux — already in container)
       - name: Install Rust stable
+        if: matrix.platform != 'linux'
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Rust cache
+        if: matrix.platform != 'linux'
         uses: swatinem/rust-cache@v2
         continue-on-error: true
         with:
@@ -241,7 +243,12 @@ jobs:
 
   rename-artifacts:
     needs: [prepare, publish-tauri]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, biblemarker]
+    container:
+      image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-node:latest
+      credentials:
+        username: ${{ secrets.GITEA_REGISTRY_USER }}
+        password: ${{ secrets.GITEA_REGISTRY_TOKEN }}
     permissions:
       contents: write
     steps:
@@ -277,11 +284,18 @@ jobs:
 
   create-latest-json:
     needs: [prepare, publish-tauri]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, biblemarker]
+    container:
+      image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-node:latest
+      credentials:
+        username: ${{ secrets.GITEA_REGISTRY_USER }}
+        password: ${{ secrets.GITEA_REGISTRY_TOKEN }}
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: pnpm install
       - name: Create and upload latest.json
         run: node scripts/create-latest-json.js app-v${{ needs.prepare.outputs.version }} ${{ needs.prepare.outputs.version }}
         env:
@@ -449,7 +463,12 @@ jobs:
   publish-release:
     needs: [prepare, create-latest-json, build-ios, rename-artifacts]
     if: always() && needs.create-latest-json.result == 'success' && needs.rename-artifacts.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, biblemarker]
+    container:
+      image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-node:latest
+      credentials:
+        username: ${{ secrets.GITEA_REGISTRY_USER }}
+        password: ${{ secrets.GITEA_REGISTRY_TOKEN }}
     permissions:
       contents: write
     steps:

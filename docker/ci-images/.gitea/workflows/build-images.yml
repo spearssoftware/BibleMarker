@@ -1,0 +1,60 @@
+name: Build CI Images
+
+on:
+  schedule:
+    - cron: '0 6 * * 0'  # Sunday 6am UTC
+  workflow_dispatch:
+    inputs:
+      rust_version:
+        description: 'Rust version override'
+        default: 'stable'
+
+env:
+  REGISTRY: ${{ vars.GITEA_REGISTRY }}  # e.g. gitea.example.com/infra
+
+jobs:
+  build-node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Gitea registry
+        run: echo "${{ secrets.GITEA_TOKEN }}" | docker login "$REGISTRY" -u "${{ secrets.GITEA_USER }}" --password-stdin
+
+      - name: Build node image
+        run: |
+          docker build -f Dockerfile.node \
+            -t $REGISTRY/biblemarker-ci-node:latest \
+            -t $REGISTRY/biblemarker-ci-node:node22-pnpm10 \
+            .
+
+      - name: Push node image
+        run: |
+          docker push $REGISTRY/biblemarker-ci-node:latest
+          docker push $REGISTRY/biblemarker-ci-node:node22-pnpm10
+
+  build-full:
+    needs: build-node
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Gitea registry
+        run: echo "${{ secrets.GITEA_TOKEN }}" | docker login "$REGISTRY" -u "${{ secrets.GITEA_USER }}" --password-stdin
+
+      # Fetch Cargo manifests from the BibleMarker repo for dependency pre-fetching
+      - name: Fetch Cargo.toml and Cargo.lock
+        run: |
+          curl -sL "https://raw.githubusercontent.com/spearssoftware/BibleMarker/main/src-tauri/Cargo.toml" -o Cargo.toml
+          curl -sL "https://raw.githubusercontent.com/spearssoftware/BibleMarker/main/src-tauri/Cargo.lock" -o Cargo.lock
+
+      - name: Build full image
+        run: |
+          docker build -f Dockerfile.full \
+            --build-arg REGISTRY=$REGISTRY \
+            --build-arg RUST_VERSION=${{ inputs.rust_version || 'stable' }} \
+            -t $REGISTRY/biblemarker-ci-full:latest \
+            .
+
+      - name: Push full image
+        run: docker push $REGISTRY/biblemarker-ci-full:latest

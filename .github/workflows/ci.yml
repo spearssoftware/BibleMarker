@@ -19,16 +19,14 @@ permissions:
 
 jobs:
   lint-and-test:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, biblemarker]
+    container:
+      image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-node:latest
+      credentials:
+        username: ${{ secrets.GITEA_REGISTRY_USER }}
+        password: ${{ secrets.GITEA_REGISTRY_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "lts/*"
-          cache: "pnpm"
       - name: Install dependencies
         run: pnpm install
       - name: Lint
@@ -41,22 +39,14 @@ jobs:
         run: pnpm build
 
   rust-checks:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, biblemarker]
+    container:
+      image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-full:latest
+      credentials:
+        username: ${{ secrets.GITEA_REGISTRY_USER }}
+        password: ${{ secrets.GITEA_REGISTRY_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        continue-on-error: true
-        with:
-          workspaces: "./src-tauri -> target"
       - name: Check
         run: cargo check
         working-directory: src-tauri

@@ -19,41 +19,34 @@ permissions:
 
 jobs:
   scan:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, biblemarker]
+    container:
+      image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-node:latest
+      credentials:
+        username: ${{ secrets.GITEA_REGISTRY_USER }}
+        password: ${{ secrets.GITEA_REGISTRY_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      # - name: Gitleaks (secret detection)
-      #   uses: gitleaks/gitleaks-action@v2
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Semgrep (static analysis)
-        run: |
-          pip install semgrep
-          semgrep scan --config auto --severity ERROR
+        run: semgrep scan --config auto --severity ERROR
         continue-on-error: true
 
   audit:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, biblemarker]
+    container:
+      image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-full:latest
+      credentials:
+        username: ${{ secrets.GITEA_REGISTRY_USER }}
+        password: ${{ secrets.GITEA_REGISTRY_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "lts/*"
-          cache: "pnpm"
       - name: Install dependencies
         run: pnpm install
       - name: pnpm audit
         run: pnpm audit --prod
         continue-on-error: true
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
       - name: cargo audit
         run: cargo audit
         working-directory: src-tauri
