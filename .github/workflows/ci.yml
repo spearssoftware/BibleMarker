@@ -23,4 +23,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Test ARC
-        run: echo "ARC basic test passed" && uname -a && date
+        run: |
+          echo "ARC basic test passed"
+          uname -a
+          date
+          whoami
+          pwd
