@@ -1,0 +1,48 @@
+name: Build CI Images
+
+on:
+  schedule:
+    - cron: '0 6 * * 0'  # Sunday 6am UTC
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io/spearssoftware/biblemarker
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push node image
+        run: |
+          docker build -f .github/docker/Dockerfile.node \
+            -t $REGISTRY/ci-node:latest \
+            -t $REGISTRY/ci-node:node22-pnpm10 \
+            .
+          docker push $REGISTRY/ci-node:latest
+          docker push $REGISTRY/ci-node:node22-pnpm10
+
+  build-full:
+    needs: build-node
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build and push full image
+        run: |
+          docker build -f .github/docker/Dockerfile.full \
+            --build-arg REGISTRY=$REGISTRY \
+            -t $REGISTRY/ci-full:latest \
+            .
+          docker push $REGISTRY/ci-full:latest
