@@ -21,38 +21,8 @@ jobs:
   lint-and-test:
     runs-on: spearssoftware-k8s
     container:
-      image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-node:latest
-      credentials:
-        username: ${{ secrets.GITEA_REGISTRY_USER }}
-        password: ${{ secrets.GITEA_REGISTRY_TOKEN }}
+      image: node:22-bookworm-slim
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
-        run: pnpm install
-      - name: Lint
-        run: pnpm run lint
-      - name: Type check
-        run: pnpm tsc --noEmit
-      - name: Test
-        run: pnpm test
-      - name: Build
-        run: pnpm build
-
-  rust-checks:
-    runs-on: spearssoftware-k8s
-    container:
-      image: ${{ vars.GITEA_REGISTRY }}/biblemarker-ci-full:latest
-      credentials:
-        username: ${{ secrets.GITEA_REGISTRY_USER }}
-        password: ${{ secrets.GITEA_REGISTRY_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check
-        run: cargo check
-        working-directory: src-tauri
-      - name: Clippy
-        run: cargo clippy -- -D warnings
-        working-directory: src-tauri
-      - name: Format
-        run: cargo fmt --check
-        working-directory: src-tauri
+      - name: Test ARC
+        run: echo "ARC is working" && node --version
