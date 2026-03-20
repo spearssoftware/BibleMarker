@@ -21,11 +21,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Rust toolchain
+# Rust toolchain — install to /usr/local so it's available to all users
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV CARGO_HOME=/usr/local/cargo
+ENV PATH="/usr/local/cargo/bin:${PATH}"
+
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
     --default-toolchain ${RUST_VERSION}
-
-ENV PATH="/root/.cargo/bin:${PATH}"
 
 RUN rustup component add clippy rustfmt
 
