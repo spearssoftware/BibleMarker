@@ -1,0 +1,50 @@
+# Extends the node image with Rust toolchain and Tauri system dependencies
+ARG REGISTRY=ghcr.io/spearssoftware/biblemarker
+FROM ${REGISTRY}/ci-node:latest
+
+ARG RUST_VERSION=stable
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Tauri system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libwebkit2gtk-4.1-dev \
+    libappindicator3-dev \
+    librsvg2-dev \
+    patchelf \
+    libssl-dev \
+    libgtk-3-dev \
+    libsoup-3.0-dev \
+    libjavascriptcoregtk-4.1-dev \
+    build-essential \
+    file \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Rust toolchain
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    --default-toolchain ${RUST_VERSION}
+
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+RUN rustup component add clippy rustfmt
+
+# cargo-audit for security scans
+RUN cargo install cargo-audit
+
+# Pre-fetch Cargo dependencies from the BibleMarker project.
+# This populates /root/.cargo/registry/ so CI builds skip the network fetch.
+WORKDIR /tmp/prefetch
+COPY src-tauri/Cargo.toml ./Cargo.toml
+COPY src-tauri/Cargo.lock ./Cargo.lock
+RUN mkdir -p src \
+    && echo 'fn main() {}' > src/main.rs \
+    && echo '' > src/lib.rs \
+    && echo 'fn main() {}' > build.rs
+RUN cargo fetch
+RUN rm -rf /tmp/prefetch
+
+WORKDIR /
+
+# Verify installs
+RUN rustc --version && cargo --version && cargo clippy --version && cargo fmt --version && cargo audit --version
