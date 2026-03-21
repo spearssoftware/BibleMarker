@@ -7,57 +7,60 @@ A cross-platform Bible study application for deep text study using the precepts 
 
 **Website:** [biblemarker.app](https://biblemarker.app)
 
-![BibleMarker Screenshot](./public/biblemaker-screenshot-202601.png)
+![BibleMarker Screenshot](./public/biblemarker-screenshot-202603.png)
 
 ## Features
 
 ### 📖 Bible Reading
-- **Multiple Translations**: Access various Bible translations through multiple API providers
-  - getBible (free, no API key required)
-  - Biblia API (NASB, ESV, NIV, NKJV, and more)
-  - ESV API (Crossway)
-  - BibleGateway (web scraper, no API key required)
-  - SWORD modules (local Z-Text format)
-- **Offline Support**: Previously fetched chapters are cached locally for offline reading
+- **Multiple Translations**: NASB 2020 and NASB 1995 bundled. Additional translations available via downloadable SWORD modules or an ESV API key
+- **Fully Offline**: SWORD modules are stored locally—no internet required after download
 - **Multi-Translation View**: Compare up to 3 translations side-by-side with synchronized scrolling
+- **Strong's Numbers**: Look up original Hebrew and Greek definitions from the text selection menu
 
 ### ✏️ Text Marking & Annotation
 - **Flexible Highlighting**: Mark text with colors, underline styles, and custom symbols
-- **Keyword System**: Create reusable keyword presets with automatic matching
+- **Keyword System**: Create reusable keyword presets with automatic matching across translations
+- **Case-Sensitive Keywords**: Match exact casing when needed (e.g. "LORD" vs "Lord")
+- **Dismiss Auto-Matches**: Hide false positives from automatic keyword matching, with undo support
 - **Smart Suggestions**: Previously used markings suggested for repeated words
 - **Notes**: Add markdown-supported notes to any verse
 - **Section Headings & Chapter Titles**: Create custom structure and organization
 
 ### 🔍 Inductive Bible Study Tools
 - **Observation Tools**:
-  - Track places, people, and times
+  - Track places, people, and times—with optional book scope
   - Identify contrasts and conclusions
   - Mark themes throughout passages
   - 5 W's and H (Who, What, When, Where, Why, How)
 - **Interpretation Worksheet**: Explore what the text means
 - **Application Worksheet**: Record personal applications
 - **Lists**: Create custom lists to track any concept
+- **Interactive Maps**: View places on an OpenFreeMap map with English labels
 
 ### 📚 Study Management
 - **Study System**: Organize keywords and markings by study
 - **Book-Scoped Keywords**: Limit keywords to specific books for focused study
+- **Book-Scoped People & Places**: Scope observation entries to specific books
 - **Clear Book Highlights**: Start fresh on any book while preserving your data structure
 
 ### 💾 Data Management
 - **Automatic Backups**: Configurable auto-backup system with retention policies
 - **Import/Export**: Full backup and restore capabilities
 - **Study Export**: Export formatted study notes with all observations and applications
-- **Local Storage**: All data stored locally in IndexedDB - no cloud required
+- **Local Storage**: All data stored locally in SQLite—no cloud required
+- **iCloud Sync**: Optionally sync study data between macOS and iOS via iCloud
 
 ### ⚡ User Experience
 - **Keyboard Shortcuts**: Navigate efficiently with arrow keys, J/K navigation, and toolbar shortcuts
 - **Dark/Light Themes**: Choose dark, light, or auto (follows OS preference)
-- **Responsive Design**: Works on desktop and mobile devices
-- **PWA Support**: Install as a progressive web app
+- **Scripture Fonts**: Choose from multiple scripture fonts in Appearance settings
+- **Native App**: Runs natively on macOS, Windows, Linux, and iOS via Tauri
 
 ## Download & Installation
 
-Pre-built desktop apps (macOS, Windows, Linux) are on [GitHub Releases](https://github.com/spearssoftware/BibleMarker/releases). BibleMarker is built with [Tauri](https://tauri.app) for native desktop.
+**iOS:** [Download on the App Store](https://apps.apple.com/us/app/biblemarker/id6759001361)
+
+**Desktop:** Pre-built apps (macOS, Windows, Linux) are on [GitHub Releases](https://github.com/spearssoftware/BibleMarker/releases).
 
 **Windows:** SmartScreen may warn for unsigned downloads. Click **More info** → **Run anyway**. For signed builds (no warning), see [Windows code signing](./docs/WINDOWS_CODE_SIGNING.md).
 
@@ -78,37 +81,25 @@ pnpm install
 
 3. Run desktop app in development:
 ```bash
-pnpm tauri:dev
+pnpm run tauri:dev
 ```
 
 4. Build desktop app for production:
 ```bash
-pnpm tauri:build
+pnpm run tauri:build
 ```
 
 See [docs/MAC_APP_GUIDE.md](./docs/MAC_APP_GUIDE.md) for detailed macOS-specific instructions.
 
-To build and run the web app only: `pnpm install`, `pnpm dev` (development) or `pnpm build` (production).
-
 ## Configuration
 
-### Bible API Keys (Optional)
+### Bible Translations
 
-While the app works without API keys using the free getBible service, you can configure additional providers for more translation options:
+NASB 2020 and NASB 1995 are bundled with the app. Additional translations are available as downloadable SWORD modules in **Settings → Bible → Manage Translations**.
 
-1. **Biblia API** (for NASB, ESV, NIV, NKJV):
-   - Sign up at [biblia.com/api](https://biblia.com/api)
-   - Free tier: 5,000 calls/day
-   - Add key in Settings → Bible → API Configuration
+### ESV API Key (Optional)
 
-2. **ESV API** (for ESV translation):
-   - Register at [api.esv.org](https://api.esv.org)
-   - Free tier available
-   - Add key in Settings → Bible → API Configuration
-
-### Self-Hosting Bible Data
-
-For complete offline functionality, you can self-host Bible data using GetBible. See [docs/GETBIBLE_SELF_HOSTING.md](./docs/GETBIBLE_SELF_HOSTING.md) for detailed instructions.
+For the ESV translation, register for a free API key at [api.esv.org](https://api.esv.org) and add it in **Settings → Bible → API Configuration**.
 
 ## Keyboard Shortcuts
 
@@ -132,27 +123,29 @@ View all shortcuts in **Settings → Help → Keyboard Shortcuts**
 ```
 biblemarker/
 ├── src/
-│   ├── components/      # React components
+│   ├── components/      # React components (feature-based folders)
 │   ├── stores/          # Zustand state management
 │   ├── lib/             # Core libraries
-│   │   ├── bible-api/   # Bible API integrations
-│   │   ├── db.ts        # IndexedDB/Dexie database
-│   │   ├── backup.ts    # Backup/restore functionality
+│   │   ├── bible-api/   # SWORD module reader + ESV API
+│   │   ├── database.ts  # All CRUD and SQL operations
+│   │   ├── sqlite-db.ts # SQLite driver and migrations
+│   │   ├── sync.ts      # iCloud sync API
 │   │   └── ...
 │   └── types/           # TypeScript type definitions
-├── src-tauri/           # Tauri native app code
+├── src-tauri/           # Tauri native app code (Rust)
 ├── docs/                # Documentation
 └── public/              # Static assets
 ```
 
 ### Tech Stack
 
-- **Frontend**: React 19, TypeScript, Tailwind CSS
+- **Frontend**: React 19, TypeScript, Tailwind CSS 4
 - **State Management**: Zustand
-- **Database**: Dexie (IndexedDB wrapper)
-- **Desktop**: Tauri 2
-- **Build Tool**: Vite
-- **Bible APIs**: getBible, Biblia, ESV
+- **Database**: SQLite via @tauri-apps/plugin-sql
+- **Desktop/Mobile**: Tauri 2 (Rust)
+- **Build**: Vite, pnpm, Vitest, ESLint
+- **Bible Data**: SWORD modules (local Z-Text format), ESV API
+- **Maps**: MapLibre GL + OpenFreeMap
 
 ### Debug Logging
 
@@ -168,17 +161,20 @@ This is useful for troubleshooting keyword matching issues or rendering problems
 
 ```bash
 # Development
-pnpm dev              # Run web dev server
-pnpm tauri:dev        # Run Tauri desktop dev
+pnpm dev                  # Run web dev server
+pnpm run tauri:dev        # Run Tauri desktop dev
 
 # Building
-pnpm build            # Build web app
-pnpm tauri:build      # Build desktop app
+pnpm build                # Build web app
+pnpm run tauri:build      # Build desktop app
+
+# Testing & Linting
+pnpm test                 # Run tests (Vitest)
+pnpm run lint             # Run ESLint
 
 # Utilities
-pnpm generate-icons   # Generate app icons
-pnpm version:sync     # Sync version across configs
-pnpm lint             # Run ESLint
+pnpm run generate-icons   # Generate app icons
+pnpm run version:sync     # Sync version across configs
 ```
 
 ## License
@@ -196,10 +192,6 @@ See [LICENSE](./LICENSE) file for full terms.
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Roadmap
-
-See [docs/CROSS_PLATFORM_STRATEGY.md](./docs/CROSS_PLATFORM_STRATEGY.md) for the current development roadmap.
-
 ## Support
 
 For questions or issues:
@@ -210,9 +202,9 @@ For questions or issues:
 
 ## Acknowledgments
 
-- Bible text provided by getBible, Biblia API, and ESV API
-- Built with [Tauri](https://tauri.app), [React](https://react.dev), and [Dexie](https://dexie.org)
-- Icons generated using Sharp (see [docs/ICON_GENERATION.md](./docs/ICON_GENERATION.md))
+- Bible text provided via [SWORD modules](https://crosswire.org/sword/) and [ESV API](https://api.esv.org)
+- Maps powered by [OpenFreeMap](https://openfreemap.org) and [MapLibre GL](https://maplibre.org)
+- Built with [Tauri](https://tauri.app) and [React](https://react.dev)
 
 ## Disclaimer
 
