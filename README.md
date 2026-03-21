@@ -3,7 +3,7 @@
 [![CI](https://github.com/spearssoftware/BibleMarker/actions/workflows/ci.yml/badge.svg)](https://github.com/spearssoftware/BibleMarker/actions/workflows/ci.yml)
 [![Security](https://github.com/spearssoftware/BibleMarker/actions/workflows/security.yml/badge.svg)](https://github.com/spearssoftware/BibleMarker/actions/workflows/security.yml)
 
-A cross-platform Bible study application for deep text study using the precepts of inductive Bible study—observation, interpretation, and application. Mark, annotate, and analyze Scripture with powerful study tools.
+Bible study built on the precepts of inductive study — observation, interpretation, and application. Mark, annotate, and analyze Scripture with powerful study tools.
 
 **Website:** [biblemarker.app](https://biblemarker.app)
 
