@@ -196,9 +196,100 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   const step = TOUR_STEPS[currentStep];
   const progress = ((currentStep + 1) / TOUR_STEPS.length) * 100;
 
+  // Anchor sheet to top when the highlighted element is in the bottom half, bottom otherwise
+  const anchorTop = highlightRect
+    ? highlightRect.top + highlightRect.height / 2 > window.innerHeight / 2
+    : false;
+
   if (!step || !showTour) {
     return null;
   }
+
+  const sheetContent = (
+    <div className="bg-scripture-surface shadow-2xl border border-scripture-overlayBorder max-w-lg mx-auto"
+      style={{ borderRadius: anchorTop ? '0 0 1rem 1rem' : '1rem 1rem 0 0' }}
+    >
+      {/* Progress bar */}
+      <div className="px-4 pt-4 pb-2">
+        <div className="flex items-center justify-between text-xs text-scripture-muted mb-1">
+          <span>Step {currentStep + 1} of {TOUR_STEPS.length}</span>
+          <span>{Math.round(progress)}%</span>
+        </div>
+        <div className="h-1.5 bg-scripture-overlay rounded-full overflow-hidden">
+          <div
+            className="h-full bg-scripture-accent transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-4 pb-2">
+        <h3 className="text-lg font-ui font-semibold text-scripture-text mb-1">
+          {step.title}
+        </h3>
+        <p className="text-sm text-scripture-muted leading-relaxed">
+          {step.description}
+        </p>
+
+        {/* Studies step: inline create form */}
+        {step.id === 'studies' && (
+          <div className="mt-3">
+            {studyCreated ? (
+              <p className="text-sm text-scripture-success font-medium">Study created! You can manage studies in Settings &rarr; Studies.</p>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newStudyName}
+                  onChange={(e) => setNewStudyName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleCreateStudy(); }}
+                  placeholder="Study name..."
+                  className="flex-1 px-3 py-2 text-sm bg-scripture-elevated border border-scripture-border/50 rounded-lg text-scripture-text placeholder:text-scripture-muted focus:outline-none focus:border-scripture-accent"
+                />
+                <button
+                  onClick={handleCreateStudy}
+                  disabled={!newStudyName.trim()}
+                  className="px-3 py-2 text-sm bg-scripture-accent text-scripture-bg rounded-lg disabled:opacity-40 hover:bg-scripture-accent/90 transition-colors"
+                >
+                  Create
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-2 px-4 pb-4 pt-2">
+        {currentStep < TOUR_STEPS.length - 1 && (
+          <button
+            onClick={handleSkip}
+            className="px-3 py-2 text-xs font-ui bg-scripture-surface border border-scripture-overlayBorder
+                     text-scripture-text rounded-lg hover:bg-scripture-overlay/50 transition-colors"
+          >
+            Skip
+          </button>
+        )}
+        <button
+          onClick={handleBack}
+          disabled={currentStep === 0}
+          className="px-3 py-2 text-xs font-ui bg-scripture-surface border border-scripture-overlayBorder
+                   text-scripture-text rounded-lg hover:bg-scripture-overlay/50 transition-colors
+                   disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-scripture-surface"
+        >
+          Back
+        </button>
+        <button
+          onClick={handleNext}
+          className="flex-1 px-3 py-2 text-xs font-ui bg-scripture-accent text-scripture-bg rounded-lg
+                   hover:bg-scripture-accent/90 transition-colors"
+        >
+          {currentStep === TOUR_STEPS.length - 1 ? 'Finish' : 'Next'}
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -237,89 +328,15 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
         />
       )}
 
-      {/* Bottom sheet card */}
-      <div className="fixed z-[302] bottom-0 left-0 right-0 px-4 pb-[env(safe-area-inset-bottom,16px)] animate-scale-in">
-        <div className="bg-scripture-surface rounded-t-2xl shadow-2xl border border-b-0 border-scripture-overlayBorder max-w-lg mx-auto">
-          {/* Progress bar */}
-          <div className="px-4 pt-4 pb-2">
-            <div className="flex items-center justify-between text-xs text-scripture-muted mb-1">
-              <span>Step {currentStep + 1} of {TOUR_STEPS.length}</span>
-              <span>{Math.round(progress)}%</span>
-            </div>
-            <div className="h-1.5 bg-scripture-overlay rounded-full overflow-hidden">
-              <div
-                className="h-full bg-scripture-accent transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="px-4 pb-2">
-            <h3 className="text-lg font-ui font-semibold text-scripture-text mb-1">
-              {step.title}
-            </h3>
-            <p className="text-sm text-scripture-muted leading-relaxed">
-              {step.description}
-            </p>
-
-            {/* Studies step: inline create form */}
-            {step.id === 'studies' && (
-              <div className="mt-3">
-                {studyCreated ? (
-                  <p className="text-sm text-scripture-success font-medium">Study created! You can manage studies in Settings &rarr; Studies.</p>
-                ) : (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newStudyName}
-                      onChange={(e) => setNewStudyName(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleCreateStudy(); }}
-                      placeholder="Study name..."
-                      className="flex-1 px-3 py-2 text-sm bg-scripture-elevated border border-scripture-border/50 rounded-lg text-scripture-text placeholder:text-scripture-muted focus:outline-none focus:border-scripture-accent"
-                    />
-                    <button
-                      onClick={handleCreateStudy}
-                      disabled={!newStudyName.trim()}
-                      className="px-3 py-2 text-sm bg-scripture-accent text-scripture-bg rounded-lg disabled:opacity-40 hover:bg-scripture-accent/90 transition-colors"
-                    >
-                      Create
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-2 px-4 pb-4 pt-2">
-            {currentStep < TOUR_STEPS.length - 1 && (
-              <button
-                onClick={handleSkip}
-                className="px-3 py-2 text-xs font-ui bg-scripture-surface border border-scripture-overlayBorder
-                         text-scripture-text rounded-lg hover:bg-scripture-overlay/50 transition-colors"
-              >
-                Skip
-              </button>
-            )}
-            <button
-              onClick={handleBack}
-              disabled={currentStep === 0}
-              className="px-3 py-2 text-xs font-ui bg-scripture-surface border border-scripture-overlayBorder
-                       text-scripture-text rounded-lg hover:bg-scripture-overlay/50 transition-colors
-                       disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-scripture-surface"
-            >
-              Back
-            </button>
-            <button
-              onClick={handleNext}
-              className="flex-1 px-3 py-2 text-xs font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                       hover:bg-scripture-accent/90 transition-colors"
-            >
-              {currentStep === TOUR_STEPS.length - 1 ? 'Finish' : 'Next'}
-            </button>
-          </div>
-        </div>
+      {/* Sheet card — anchors to top or bottom depending on where the highlight is */}
+      <div
+        className="fixed z-[302] left-0 right-0 px-4 animate-scale-in"
+        style={anchorTop
+          ? { top: 0, paddingTop: 'env(safe-area-inset-top, 0px)' }
+          : { bottom: 0, paddingBottom: 'env(safe-area-inset-bottom, 16px)' }
+        }
+      >
+        {sheetContent}
       </div>
     </>
   );
