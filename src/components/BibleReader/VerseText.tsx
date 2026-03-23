@@ -691,7 +691,6 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const symbolText = SYMBOLS[symAnn.symbol];
           const symbolColor = symAnn.color ? getHighlightColorHex(symAnn.color) : undefined;
           annotationIds.push(symAnn.id);
-          const textStyles = combinedStyles.length ? ` style="${combinedStyles.join('; ')}"` : '';
           const classNames = `symbol-inline annotation-group ${annotationIds.map(id => `annotation-${id}`).join(' ')}`;
           const removeButton = `<button
                 class="annotation-remove"
@@ -707,10 +706,11 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const trailingPunct = trailingPunctMatch ? trailingPunctMatch[1] : '';
           const wordContent = trailingPunct ? segmentText.slice(0, -trailingPunct.length) : segmentText;
           
-          htmlSegments.push(`<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">
-              <span class="symbol-before" style="margin-right: 0.2em; font-size: 1.1em; ${symbolColor ? `color: ${symbolColor};` : 'color: currentColor;'}">${symbolText}</span>
-              <span class="annotation-text"${textStyles}>${escapeHtml(wordContent)}</span>${escapeHtml(trailingPunct)}${removeButton}
-            </span>`);
+          // Symbol overlay: render symbol behind the word with colored underline
+          const overlayTextStyles = symbolColor
+            ? `text-decoration: underline; text-decoration-color: ${symbolColor}; text-decoration-thickness: 2px; text-underline-offset: 3px;`
+            : '';
+          htmlSegments.push(`<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}"><span style="display: inline-grid; vertical-align: bottom; min-width: 2.2em; text-align: center;"><span class="symbol-overlay" style="grid-area: 1/1; place-self: center; font-size: 2.2em; line-height: 0; height: 0; opacity: 0.4; pointer-events: none; ${symbolColor ? `color: ${symbolColor};` : 'color: currentColor;'}">${symbolText}</span><span class="annotation-text" style="grid-area: 1/1; ${overlayTextStyles}">${escapeHtml(wordContent)}</span></span>${escapeHtml(trailingPunct)}${removeButton}</span>`);
         } else {
           // Only text annotations
           const styleAttr = combinedStyles.length ? ` style="${combinedStyles.join('; ')}"` : '';
