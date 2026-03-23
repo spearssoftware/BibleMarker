@@ -78,7 +78,7 @@ export type KeyWordCategory =
 export const SYMBOL_CATEGORY_MAP: Record<SymbolKey, KeyWordCategory> = {
   triangle: 'identity', cross: 'identity', dove: 'identity', flame: 'identity', angel: 'identity', lamb: 'identity', anchor: 'identity', cloud: 'identity',
   person: 'people', peopleGroup: 'people', crown: 'people', prayer: 'people',
-  obey: 'actions', liberty: 'themes', nationLand: 'places',
+  obey: 'actions', chains: 'themes', liberty: 'themes', nationLand: 'places',
   star: 'themes', starOutline: 'themes', heart: 'themes', heartRed: 'themes', heartSparkle: 'themes', lightning: 'themes', skull: 'themes', shield: 'themes', scales: 'themes', key: 'themes', sun: 'themes', moon: 'themes', cup: 'themes', sword: 'themes',
   scroll: 'themes', book: 'themes', tablet: 'themes', lamp: 'themes',
   clock: 'time', calendar: 'time', hourglass: 'time', arrowRight: 'conclusions', arrowLeft: 'time', doubleArrow: 'contrasts',
@@ -86,7 +86,7 @@ export const SYMBOL_CATEGORY_MAP: Record<SymbolKey, KeyWordCategory> = {
   water: 'actions', fire: 'actions', check: 'actions', x: 'actions', hand: 'actions', eye: 'actions', mouth: 'actions', foot: 'actions',
   ear: 'actions', megaphone: 'actions',
   circle: 'custom', square: 'custom', diamond: 'custom', hexagon: 'custom', plus: 'custom', minus: 'custom',
-  sin: 'themes',
+  sin: 'themes', vine: 'themes', bread: 'themes', trumpet: 'themes', rock: 'themes', door: 'themes', olive: 'themes', harvest: 'themes',
   question: 'custom', exclamation: 'custom', asterisk: 'custom',
 };
 
