@@ -215,6 +215,7 @@ select:focus-visible {
   /* Verse content styling - ensure text color is set explicitly */
   .verse-content {
     color: var(--scripture-text);
+    line-height: 2.2;
     -webkit-touch-callout: none;
   }
 
@@ -394,6 +395,7 @@ select:focus-visible {
   /* Annotation remove button - appears on hover */
   .annotation-group {
     display: inline;
+    position: relative;
   }
 
   .annotation-group:hover .annotation-remove {
@@ -402,8 +404,9 @@ select:focus-visible {
 
   .annotation-remove {
     display: none;
-    vertical-align: super;
-    margin-left: 1px;
+    position: absolute;
+    top: -4px;
+    right: -6px;
     width: 14px;
     height: 14px;
     border-radius: 50%;
