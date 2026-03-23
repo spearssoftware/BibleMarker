@@ -1,7 +1,8 @@
 /**
  * Onboarding Tour Component
- * 
- * Guided tour that highlights key features with step-by-step instructions.
+ *
+ * Guided tour that highlights key features with a bottom-sheet card
+ * that's always visible regardless of screen size.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -13,7 +14,6 @@ interface TourStep {
   title: string;
   description: string;
   target?: string; // CSS selector for element to highlight
-  position?: 'top' | 'bottom' | 'left' | 'right' | 'center';
   action?: () => void; // Optional action to perform before showing step
 }
 
@@ -23,62 +23,53 @@ const TOUR_STEPS: TourStep[] = [
     title: 'Navigation Bar',
     description: 'Use the navigation bar to select translations, books, and chapters. You can view up to 3 translations side-by-side.',
     target: '[data-nav-bar]',
-    position: 'bottom',
   },
   {
     id: 'reading',
     title: 'Bible Reading',
     description: 'Read Scripture here. Select text to open the selection menu—apply key words, add to observation lists, or open Observe tools. Click verse numbers to add notes or view cross-references.',
     target: '[data-bible-reader]',
-    position: 'top',
   },
   {
     id: 'toolbar',
     title: 'Marking Toolbar',
     description: 'Use the toolbar to access Mark, Observe, and Analyze tools. All text marking is done through keywords. Press 1–3 for quick access.',
     target: '[data-marking-toolbar]',
-    position: 'top',
   },
   {
     id: 'keywords',
     title: 'Mark',
-    description: 'Define key words to automatically highlight across translations. Apply them from the selection menu or here. Access from the toolbar (✏️ icon or press 1).',
+    description: 'Define key words to automatically highlight across translations. Apply them from the selection menu or here. Access from the toolbar (pencil icon or press 1).',
     target: '[data-toolbar-keywords]',
-    position: 'top',
   },
   {
     id: 'observe',
     title: 'Observe',
-    description: 'Observation tools: lists, 5W+H, people, places, time, and contrasts. Add to lists from the selection menu or manage them here. Access from the toolbar (🔍 icon or press 2).',
+    description: 'Observation tools: lists, 5W+H, people, places, time, and contrasts. Add to lists from the selection menu or manage them here. Access from the toolbar (magnifying glass icon or press 2).',
     target: '[data-toolbar-observe]',
-    position: 'top',
   },
   {
     id: 'analyze',
     title: 'Analyze',
-    description: 'Analysis tools: theme tracking, conclusions, book overview, chapter summary, and timeline. Access from the toolbar (📊 icon or press 3).',
+    description: 'Analysis tools: theme tracking, conclusions, book overview, chapter summary, and timeline. Access from the toolbar (chart icon or press 3).',
     target: '[data-toolbar-analyze]',
-    position: 'top',
   },
   {
     id: 'search',
     title: 'Search',
     description: 'Search Bible text, notes, and annotations. Press Cmd/Ctrl+F or click the search icon in the navigation bar.',
     target: '[data-nav-search]',
-    position: 'bottom',
   },
   {
     id: 'settings',
     title: 'Settings',
-    description: 'Configure translations, appearance, backup/restore, and more. Click the gear icon (⚙️) in the bottom toolbar.',
+    description: 'Configure translations, appearance, backup/restore, and more. Click the gear icon in the bottom toolbar.',
     target: '[data-toolbar-settings]',
-    position: 'top',
   },
   {
     id: 'studies',
     title: 'Create a Study',
-    description: 'Studies let you organize your keywords, notes, and observations around a topic or book. Find them under Settings → Studies. You can create one now or skip and start reading.',
-    position: 'center',
+    description: 'Studies let you organize your keywords, notes, and observations around a topic or book. Find them under Settings \u2192 Studies. You can create one now or skip and start reading.',
   },
 ];
 
@@ -89,7 +80,6 @@ interface OnboardingTourProps {
 export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
-  const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; position?: string } | null>(null);
   const stepRef = useRef<number>(0);
   const [showTour, setShowTour] = useState(true);
   const [newStudyName, setNewStudyName] = useState('');
@@ -104,43 +94,28 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
 
   function updateHighlight() {
     const step = TOUR_STEPS[currentStep];
-    if (!step || !step.target) {
+    if (!step?.target) {
       setHighlightRect(null);
-      // No target — center in viewport
-      setTooltipPosition({
-        top: window.innerHeight / 2,
-        left: window.innerWidth / 2,
-        position: 'center',
-      });
       return;
     }
 
-    // Execute action if present
     if (step.action) {
       step.action();
-      // Wait a bit for UI to update
-      setTimeout(() => {
-        updateHighlightPosition();
-      }, 100);
+      setTimeout(findAndHighlight, 100);
     } else {
-      // Small delay to ensure DOM is ready
-      setTimeout(() => {
-        updateHighlightPosition();
-      }, 50);
+      setTimeout(findAndHighlight, 50);
     }
   }
 
-  function updateHighlightPosition() {
+  function findAndHighlight() {
     const step = TOUR_STEPS[stepRef.current];
-    if (!step || !step.target) {
+    if (!step?.target) {
       setHighlightRect(null);
-      setTooltipPosition(null);
       return;
     }
 
     const element = document.querySelector(step.target);
     if (!element) {
-      // Element not found, skip to next step after a delay
       setTimeout(() => {
         if (stepRef.current < TOUR_STEPS.length - 1) {
           setCurrentStep(stepRef.current + 1);
@@ -152,10 +127,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     }
 
     const rect = element.getBoundingClientRect();
-    
-    // Only set highlight if element is visible
     if (rect.width === 0 && rect.height === 0) {
-      // Element not visible, skip to next step
       setTimeout(() => {
         if (stepRef.current < TOUR_STEPS.length - 1) {
           setCurrentStep(stepRef.current + 1);
@@ -165,145 +137,22 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
       }, 500);
       return;
     }
-    
+
     setHighlightRect(rect);
-
-    // Calculate tooltip position based on step position preference
-    // But adjust if it would go off-screen
-    const spacing = 16;
-    const tooltipHeight = 220; // Estimated tooltip height (including padding)
-    const tooltipWidth = 384; // max-w-sm = 384px
-    const viewportHeight = window.innerHeight;
-    const viewportWidth = window.innerWidth;
-    
-    let top = 0;
-    let left = 0;
-    let actualPosition = step.position || 'center';
-
-    switch (step.position) {
-      case 'top':
-        // Try to position above the element
-        left = rect.left + rect.width / 2;
-        // Check if there's enough space above (need space for full tooltip height)
-        if (rect.top < tooltipHeight + spacing) {
-          // Not enough space above, position below instead
-          top = rect.bottom + spacing;
-          actualPosition = 'bottom';
-        } else {
-          // Enough space above, position tooltip above
-          // For toolbar elements near bottom, add extra spacing to keep tooltip well above
-          const isNearBottom = rect.bottom > viewportHeight * 0.7; // If element is in bottom 30% of screen
-          if (isNearBottom) {
-            // Position tooltip with extra spacing above toolbar (tooltip bottom will be at rect.top - extraSpacing)
-            // Since transform is translate(-50%, -100%), the top coordinate is where the bottom of tooltip will be
-            const extraSpacing = spacing * 3; // Extra space above toolbar
-            top = rect.top - extraSpacing;
-            // Ensure tooltip doesn't go off the top of viewport
-            if (top - tooltipHeight < spacing) {
-              top = tooltipHeight + spacing;
-            }
-          } else {
-            // Normal spacing for elements higher up
-            top = rect.top - spacing;
-          }
-          actualPosition = 'top';
-        }
-        break;
-      case 'bottom':
-        // Try to position below the element
-        top = rect.bottom + spacing;
-        left = rect.left + rect.width / 2;
-        // Check if there's enough space below
-        if (rect.bottom + tooltipHeight + spacing > viewportHeight) {
-          // Not enough space below, position above instead
-          top = rect.top;
-          actualPosition = 'top';
-        } else {
-          // Enough space below
-          actualPosition = 'bottom';
-        }
-        break;
-      case 'left':
-        top = rect.top + rect.height / 2;
-        left = rect.left;
-        // Check if there's enough space on the left
-        if (rect.left < tooltipWidth + spacing) {
-          // Not enough space left, position right instead
-          left = rect.right + spacing;
-          actualPosition = 'right';
-        } else {
-          actualPosition = 'left';
-        }
-        break;
-      case 'right':
-        top = rect.top + rect.height / 2;
-        left = rect.right + spacing;
-        // Check if there's enough space on the right
-        if (rect.right + tooltipWidth + spacing > viewportWidth) {
-          // Not enough space right, position left instead
-          left = rect.left;
-          actualPosition = 'left';
-        } else {
-          actualPosition = 'right';
-        }
-        break;
-      case 'center':
-      default:
-        top = rect.top + rect.height / 2;
-        left = rect.left + rect.width / 2;
-        // For center, try to keep it in viewport
-        if (top + tooltipHeight / 2 > viewportHeight) {
-          top = viewportHeight - tooltipHeight / 2 - spacing;
-        }
-        if (top - tooltipHeight / 2 < 0) {
-          top = tooltipHeight / 2 + spacing;
-        }
-        actualPosition = 'center';
-        break;
-    }
-
-    // Final bounds check - ensure tooltip stays within viewport
-    // For horizontal positioning (top/bottom)
-    if (actualPosition === 'top' || actualPosition === 'bottom') {
-      left = Math.max(tooltipWidth / 2 + spacing, Math.min(left, viewportWidth - tooltipWidth / 2 - spacing));
-      // For 'top', ensure tooltip doesn't go above viewport
-      if (actualPosition === 'top' && top < tooltipHeight + spacing) {
-        top = tooltipHeight + spacing;
-      }
-      // For 'bottom', ensure tooltip doesn't go below viewport
-      if (actualPosition === 'bottom' && top + tooltipHeight > viewportHeight - spacing) {
-        top = viewportHeight - tooltipHeight - spacing;
-      }
-    } else {
-      // For vertical positioning (left/right)
-      top = Math.max(tooltipHeight / 2 + spacing, Math.min(top, viewportHeight - tooltipHeight / 2 - spacing));
-      if (actualPosition === 'left' && left < tooltipWidth + spacing) {
-        left = tooltipWidth + spacing;
-      }
-      if (actualPosition === 'right' && left + tooltipWidth > viewportWidth - spacing) {
-        left = viewportWidth - tooltipWidth - spacing;
-      }
-    }
-
-    setTooltipPosition({ top, left, position: actualPosition });
   }
 
-  // Update highlight on scroll/resize
   useEffect(() => {
     if (!showTour) return;
-    
-    const handleUpdate = () => {
-      updateHighlightPosition();
-    };
-    
+
+    const handleUpdate = () => findAndHighlight();
     window.addEventListener('scroll', handleUpdate, true);
     window.addEventListener('resize', handleUpdate);
-    
+
     return () => {
       window.removeEventListener('scroll', handleUpdate, true);
       window.removeEventListener('resize', handleUpdate);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- updateHighlightPosition intentional on showTour only
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- findAndHighlight intentional on showTour only
   }, [showTour]);
 
   function handleNext() {
@@ -347,28 +196,119 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   const step = TOUR_STEPS[currentStep];
   const progress = ((currentStep + 1) / TOUR_STEPS.length) * 100;
 
+  // Anchor sheet to top when the highlighted element is in the bottom half, bottom otherwise
+  const anchorTop = highlightRect
+    ? highlightRect.top + highlightRect.height / 2 > window.innerHeight / 2
+    : false;
+
   if (!step || !showTour) {
     return null;
   }
 
+  const sheetContent = (
+    <div className="bg-scripture-surface shadow-2xl border border-scripture-overlayBorder max-w-lg mx-auto"
+      style={{ borderRadius: anchorTop ? '0 0 1rem 1rem' : '1rem 1rem 0 0' }}
+    >
+      {/* Progress bar */}
+      <div className="px-4 pt-4 pb-2">
+        <div className="flex items-center justify-between text-xs text-scripture-muted mb-1">
+          <span>Step {currentStep + 1} of {TOUR_STEPS.length}</span>
+          <span>{Math.round(progress)}%</span>
+        </div>
+        <div className="h-1.5 bg-scripture-overlay rounded-full overflow-hidden">
+          <div
+            className="h-full bg-scripture-accent transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-4 pb-2">
+        <h3 className="text-lg font-ui font-semibold text-scripture-text mb-1">
+          {step.title}
+        </h3>
+        <p className="text-sm text-scripture-muted leading-relaxed">
+          {step.description}
+        </p>
+
+        {/* Studies step: inline create form */}
+        {step.id === 'studies' && (
+          <div className="mt-3">
+            {studyCreated ? (
+              <p className="text-sm text-scripture-success font-medium">Study created! You can manage studies in Settings &rarr; Studies.</p>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newStudyName}
+                  onChange={(e) => setNewStudyName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleCreateStudy(); }}
+                  placeholder="Study name..."
+                  className="flex-1 px-3 py-2 text-sm bg-scripture-elevated border border-scripture-border/50 rounded-lg text-scripture-text placeholder:text-scripture-muted focus:outline-none focus:border-scripture-accent"
+                />
+                <button
+                  onClick={handleCreateStudy}
+                  disabled={!newStudyName.trim()}
+                  className="px-3 py-2 text-sm bg-scripture-accent text-scripture-bg rounded-lg disabled:opacity-40 hover:bg-scripture-accent/90 transition-colors"
+                >
+                  Create
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-2 px-4 pb-4 pt-2">
+        {currentStep < TOUR_STEPS.length - 1 && (
+          <button
+            onClick={handleSkip}
+            className="px-3 py-2 text-xs font-ui bg-scripture-surface border border-scripture-overlayBorder
+                     text-scripture-text rounded-lg hover:bg-scripture-overlay/50 transition-colors"
+          >
+            Skip
+          </button>
+        )}
+        <button
+          onClick={handleBack}
+          disabled={currentStep === 0}
+          className="px-3 py-2 text-xs font-ui bg-scripture-surface border border-scripture-overlayBorder
+                   text-scripture-text rounded-lg hover:bg-scripture-overlay/50 transition-colors
+                   disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-scripture-surface"
+        >
+          Back
+        </button>
+        <button
+          onClick={handleNext}
+          className="flex-1 px-3 py-2 text-xs font-ui bg-scripture-accent text-scripture-bg rounded-lg
+                   hover:bg-scripture-accent/90 transition-colors"
+        >
+          {currentStep === TOUR_STEPS.length - 1 ? 'Finish' : 'Next'}
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <>
       {/* Backdrop with cutout */}
-      <div 
+      <div
         className="fixed inset-0 z-[300] bg-black/60 transition-opacity"
         onClick={handleNext}
         style={{
           clipPath: highlightRect
             ? `polygon(
-                0% 0%, 
-                0% 100%, 
-                ${highlightRect.left}px 100%, 
-                ${highlightRect.left}px ${highlightRect.top}px, 
-                ${highlightRect.right}px ${highlightRect.top}px, 
-                ${highlightRect.right}px ${highlightRect.bottom}px, 
-                ${highlightRect.left}px ${highlightRect.bottom}px, 
-                ${highlightRect.left}px 100%, 
-                100% 100%, 
+                0% 0%,
+                0% 100%,
+                ${highlightRect.left}px 100%,
+                ${highlightRect.left}px ${highlightRect.top}px,
+                ${highlightRect.right}px ${highlightRect.top}px,
+                ${highlightRect.right}px ${highlightRect.bottom}px,
+                ${highlightRect.left}px ${highlightRect.bottom}px,
+                ${highlightRect.left}px 100%,
+                100% 100%,
                 100% 0%
               )`
             : undefined,
@@ -388,114 +328,16 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
         />
       )}
 
-      {/* Tooltip */}
-      {tooltipPosition && (
-        <div
-          className="fixed z-[302] max-w-sm animate-scale-in"
-          style={{
-            top: tooltipPosition.position === 'top'
-              ? `${tooltipPosition.top}px`
-              : tooltipPosition.position === 'bottom'
-              ? `${tooltipPosition.top}px`
-              : `${tooltipPosition.top}px`,
-            left: tooltipPosition.left,
-            transform: tooltipPosition.position === 'top'
-              ? 'translate(-50%, -100%)' // Position above, anchor to bottom of tooltip
-              : tooltipPosition.position === 'bottom'
-              ? 'translateX(-50%)' // Position below, anchor to top of tooltip
-              : tooltipPosition.position === 'left'
-              ? 'translate(-100%, -50%)'
-              : tooltipPosition.position === 'right'
-              ? 'translateY(-50%)'
-              : 'translate(-50%, -50%)',
-            maxHeight: 'calc(100vh - 2rem)',
-            maxWidth: 'calc(100vw - 2rem)',
-          }}
-        >
-          <div className="bg-scripture-surface rounded-lg shadow-2xl border border-scripture-overlayBorder max-h-[calc(100vh-2rem)] flex flex-col">
-            {/* Scrollable content */}
-            <div className="p-4 pb-2 overflow-y-auto custom-scrollbar">
-              {/* Progress indicator */}
-              <div className="mb-3">
-                <div className="flex items-center justify-between text-xs text-scripture-muted mb-1">
-                  <span>Step {currentStep + 1} of {TOUR_STEPS.length}</span>
-                  <span>{Math.round(progress)}%</span>
-                </div>
-                <div className="h-1.5 bg-scripture-overlay rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-scripture-accent transition-all duration-300"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Content */}
-              <h3 className="text-lg font-ui font-semibold text-scripture-text mb-2">
-                {step.title}
-              </h3>
-              <p className="text-sm text-scripture-muted">
-                {step.description}
-              </p>
-
-              {/* Studies step: inline create form */}
-              {step.id === 'studies' && (
-                <div className="mt-3">
-                  {studyCreated ? (
-                    <p className="text-sm text-scripture-success font-medium">✓ Study created! You can manage studies in Settings → Studies.</p>
-                  ) : (
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={newStudyName}
-                        onChange={(e) => setNewStudyName(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleCreateStudy(); }}
-                        placeholder="Study name…"
-                        className="flex-1 px-3 py-2 text-sm bg-scripture-elevated border border-scripture-border/50 rounded-lg text-scripture-text placeholder:text-scripture-muted focus:outline-none focus:border-scripture-accent"
-                      />
-                      <button
-                        onClick={handleCreateStudy}
-                        disabled={!newStudyName.trim()}
-                        className="px-3 py-2 text-sm bg-scripture-accent text-scripture-bg rounded-lg disabled:opacity-40 hover:bg-scripture-accent/90 transition-colors"
-                      >
-                        Create
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Actions — always visible */}
-            <div className="flex gap-2 p-4 pt-2 flex-shrink-0">
-              {currentStep < TOUR_STEPS.length - 1 && (
-                <button
-                  onClick={handleSkip}
-                  className="px-3 py-2 text-xs font-ui bg-scripture-surface border border-scripture-overlayBorder
-                           text-scripture-text rounded-lg hover:bg-scripture-overlay/50 transition-colors"
-                >
-                  Skip
-                </button>
-              )}
-              <button
-                onClick={handleBack}
-                disabled={currentStep === 0}
-                className="px-3 py-2 text-xs font-ui bg-scripture-surface border border-scripture-overlayBorder
-                         text-scripture-text rounded-lg hover:bg-scripture-overlay/50 transition-colors
-                         disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-scripture-surface"
-              >
-                Back
-              </button>
-              <button
-                onClick={handleNext}
-                className="flex-1 px-3 py-2 text-xs font-ui bg-scripture-accent text-scripture-bg rounded-lg
-                         hover:bg-scripture-accent/90 transition-colors"
-              >
-                {currentStep === TOUR_STEPS.length - 1 ? 'Finish' : 'Next'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Sheet card — anchors to top or bottom depending on where the highlight is */}
+      <div
+        className="fixed z-[302] left-0 right-0 px-4 animate-scale-in"
+        style={anchorTop
+          ? { top: 0, paddingTop: 'env(safe-area-inset-top, 0px)' }
+          : { bottom: 0, paddingBottom: 'env(safe-area-inset-bottom, 16px)' }
+        }
+      >
+        {sheetContent}
+      </div>
     </>
   );
 }
