@@ -78,7 +78,7 @@ export async function fetchWhatsNew(): Promise<WhatsNewResult | null> {
     const notes = match[1]
       .split('\n')
       .map(line => line.replace(/^[-*]\s*/, '').trim())
-      .filter(line => line.length > 0);
+      .filter(line => line.length > 0 && !line.startsWith('#'));
 
     if (notes.length === 0) return null;
 
@@ -157,7 +157,7 @@ export async function fetchWhatsNewForced(): Promise<WhatsNewResult | null> {
     const notes = match[1]
       .split('\n')
       .map(line => line.replace(/^[-*]\s*/, '').trim())
-      .filter(line => line.length > 0);
+      .filter(line => line.length > 0 && !line.startsWith('#'));
 
     if (notes.length === 0) return null;
 
