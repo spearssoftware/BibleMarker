@@ -93,6 +93,7 @@ export const SYMBOLS = {
 
   // Obedience & Freedom
   obey: '🙇',        // Obey / Submit / Bow
+  chains: '🔗',       // Slave / Servant / Bondage
   liberty: '🔓',     // Liberty / Freedom / Unshackled
 
   // Concepts & Themes
@@ -112,6 +113,13 @@ export const SYMBOLS = {
   lamp: '🪔',        // Word / Truth / Light
   cup: '🍷',         // Cup / Suffering / Covenant
   sword: '⚔',        // Word of God / Battle / Judgment
+  vine: '🌿',        // Vine / Branch / Abide
+  bread: '🍞',       // Bread of Life / Communion / Manna
+  trumpet: '🎺',     // Prophecy / Judgment / End Times
+  rock: '🪨',        // Rock / Cornerstone / Foundation
+  door: '🚪',        // Door / Gate / Access
+  olive: '🫒',       // Anointing / Oil / Holy Spirit
+  harvest: '🌾',     // Harvest / Grain / Sowing
 
   // Scripture & Teaching
   scroll: '📜',      // Law / Commandment / Scripture

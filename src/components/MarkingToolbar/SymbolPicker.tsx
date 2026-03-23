@@ -24,11 +24,11 @@ const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   },
   {
     name: 'Obedience & Freedom',
-    symbols: ['obey', 'liberty'],
+    symbols: ['obey', 'chains', 'liberty'],
   },
   {
     name: 'Concepts & Themes',
-    symbols: ['star', 'starOutline', 'heart', 'heartRed', 'heartSparkle', 'lightning', 'skull', 'sin', 'shield', 'scales', 'key', 'sun', 'moon', 'cup', 'sword'],
+    symbols: ['star', 'starOutline', 'heart', 'heartRed', 'heartSparkle', 'lightning', 'skull', 'sin', 'shield', 'scales', 'key', 'sun', 'moon', 'cup', 'sword', 'vine', 'bread', 'trumpet', 'rock', 'door', 'olive', 'harvest'],
   },
   {
     name: 'Scripture & Teaching',
