@@ -45,7 +45,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'observe',
     title: 'Observe',
-    description: 'Observation tools: lists, 5W+H, people, places, time, and contrasts. Add to lists from the selection menu or manage them here. Access from the toolbar (magnifying glass icon or press 2).',
+    description: 'Observation tools: lists, people, places, and time. Add to lists from the selection menu or manage them here. Access from the toolbar (magnifying glass icon or press 2).',
     target: '[data-toolbar-observe]',
   },
   {

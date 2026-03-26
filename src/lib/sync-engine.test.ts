@@ -28,14 +28,14 @@ vi.mock('./sqlite-db', () => ({
   sqliteExportAll: vi.fn().mockResolvedValue({
     annotations: [], sectionHeadings: [], chapterTitles: [], notes: [],
     markingPresets: [], studies: [], multiTranslationViews: [],
-    observationLists: [], fiveWAndH: [], contrasts: [], timeExpressions: [],
+    observationLists: [], timeExpressions: [],
     places: [], people: [], conclusions: [], interpretations: [],
     applications: [], preferences: null,
   }),
   SYNCED_TABLES: new Set([
     'annotations', 'section_headings', 'chapter_titles', 'notes',
     'marking_presets', 'studies', 'multi_translation_views',
-    'observation_lists', 'five_w_and_h', 'contrasts', 'time_expressions',
+    'observation_lists', 'time_expressions',
     'places', 'people', 'conclusions', 'interpretations', 'applications', 'preferences',
   ]),
 }))
@@ -129,14 +129,14 @@ describe('sync engine status listener', () => {
       sqliteExportAll: vi.fn().mockResolvedValue({
         annotations: [], sectionHeadings: [], chapterTitles: [], notes: [],
         markingPresets: [], studies: [], multiTranslationViews: [],
-        observationLists: [], fiveWAndH: [], contrasts: [], timeExpressions: [],
+        observationLists: [], timeExpressions: [],
         places: [], people: [], conclusions: [], interpretations: [],
         applications: [], preferences: null,
       }),
       SYNCED_TABLES: new Set([
         'annotations', 'section_headings', 'chapter_titles', 'notes',
         'marking_presets', 'studies', 'multi_translation_views',
-        'observation_lists', 'five_w_and_h', 'contrasts', 'time_expressions',
+        'observation_lists', 'time_expressions',
         'places', 'people', 'conclusions', 'interpretations', 'applications', 'preferences',
       ]),
     }))

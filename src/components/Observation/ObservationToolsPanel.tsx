@@ -17,14 +17,12 @@ import { getBookById, formatVerseRef } from '@/types';
 import type { ObservationList, ObservationItem } from '@/types';
 import type { VerseRef } from '@/types';
 import { ListEditor } from '@/components/Lists/ListEditor';
-import { FiveWAndH } from './FiveWAndH';
-import { ContrastTracker } from './ContrastTracker';
 import { TimeTracker } from './TimeTracker';
 import { PlaceTracker } from './PlaceTracker';
 import { PeopleTracker } from './PeopleTracker';
 import { Button, Checkbox, ConfirmationDialog, Textarea } from '@/components/shared';
 
-export type ObservationTab = 'lists' | 'fiveWAndH' | 'contrasts' | 'time' | 'places' | 'people';
+export type ObservationTab = 'lists' | 'time' | 'places' | 'people';
 
 interface ObservationToolsPanelProps {
   onClose: () => void;
@@ -229,8 +227,6 @@ export function ObservationToolsPanel({
 
   const allTabs: { id: ObservationTab; label: string; icon: string }[] = [
     { id: 'lists', label: 'Lists', icon: '📝' },
-    { id: 'fiveWAndH', label: '5 W\'s & H', icon: '❓' },
-    { id: 'contrasts', label: 'Contrasts', icon: '⇔' },
     { id: 'time', label: 'Time', icon: '🕐' },
     { id: 'places', label: 'Places', icon: '📍' },
     { id: 'people', label: 'People', icon: '👤' },
@@ -407,8 +403,6 @@ export function ObservationToolsPanel({
 
   const newButtonLabels: Record<ObservationTab, string> = {
     lists: '+ New List',
-    fiveWAndH: '+ New Entry',
-    contrasts: '+ New Contrast',
     time: '+ New Time Expression',
     places: '+ New Place',
     people: '+ New Person',
@@ -787,29 +781,6 @@ export function ObservationToolsPanel({
                 })}
               </div>
             )}
-          </div>
-        ) : activeTab === 'fiveWAndH' ? (
-          <div role="tabpanel" id="observation-tabpanel-fiveWAndH" aria-labelledby="observation-tab-fiveWAndH">
-            <FiveWAndH
-              selectedText={selectedText}
-              verseRef={verseRef}
-              filterByChapter={filterByChapter}
-              isCreating={trackerIsCreating}
-              setIsCreating={setTrackerIsCreating}
-              onEditingChange={setTrackerIsEditing}
-              onNavigate={handleNavigateToVerse}
-            />
-          </div>
-        ) : activeTab === 'contrasts' ? (
-          <div role="tabpanel" id="observation-tabpanel-contrasts" aria-labelledby="observation-tab-contrasts">
-            <ContrastTracker
-              selectedText={selectedText}
-              verseRef={verseRef}
-              filterByChapter={filterByChapter}
-              isCreating={trackerIsCreating}
-              setIsCreating={setTrackerIsCreating}
-              onNavigate={handleNavigateToVerse}
-            />
           </div>
         ) : activeTab === 'time' ? (
           <div role="tabpanel" id="observation-tabpanel-time" aria-labelledby="observation-tab-time">

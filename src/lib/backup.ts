@@ -14,8 +14,6 @@ import type { MarkingPreset } from '@/types';
 import type { Study } from '@/types';
 import type { MultiTranslationView } from '@/types';
 import type { ObservationList } from '@/types';
-import type { FiveWAndHEntry } from '@/types';
-import type { Contrast } from '@/types';
 import type { TimeExpression } from '@/types';
 import type { Place } from '@/types';
 import type { Person } from '@/types';
@@ -31,7 +29,6 @@ import {
   validateStudy,
   validateMultiTranslationView,
   validateObservationList,
-  validateFiveWAndH,
   validateApplication,
   validateInterpretation,
   validatePlace,
@@ -54,8 +51,8 @@ export interface BackupData {
     studies: Study[];
     multiTranslationViews: MultiTranslationView[];
     observationLists: ObservationList[];
-    fiveWAndH: FiveWAndHEntry[];
-    contrasts: Contrast[];
+    fiveWAndH?: unknown[];
+    contrasts?: unknown[];
     timeExpressions: TimeExpression[];
     places: Place[];
     people: Person[];
@@ -143,8 +140,8 @@ export async function exportBackup(includeCache: boolean = false): Promise<strin
         studies: allData.studies,
         multiTranslationViews: cleanedMultiTranslationViews,
         observationLists: allData.observationLists,
-        fiveWAndH: allData.fiveWAndH,
-        contrasts: allData.contrasts,
+        fiveWAndH: [],
+        contrasts: [],
         timeExpressions: allData.timeExpressions,
         places: allData.places,
         people: allData.people,
@@ -382,28 +379,6 @@ export function validateBackup(data: unknown): { valid: boolean; errors: string[
     }
   }
 
-  if (Array.isArray(d.data.fiveWAndH)) {
-    const { errors: fiveWErrors } = validateArray(d.data.fiveWAndH, validateFiveWAndH, '5W+H entry');
-    if (fiveWErrors.length > 0) {
-      errors.push(`5W+H entries validation errors: ${fiveWErrors.length} invalid records`);
-      errors.push(...fiveWErrors.slice(0, 3).map(e => `  - ${e.message}`));
-    }
-  }
-
-  if (Array.isArray(d.data.contrasts)) {
-    const { errors: contrastErrors } = validateArray(d.data.contrasts, (entry: unknown) => {
-      // Basic validation for contrasts (full validation would require importing validateContrast)
-      if (!entry || typeof entry !== 'object') throw new ValidationError('Contrast must be an object');
-      const e = entry as { id: string };
-      if (typeof e.id !== 'string' || e.id.trim() === '') throw new ValidationError('Contrast must have valid id');
-      return entry;
-    }, 'contrast');
-    if (contrastErrors.length > 0) {
-      errors.push(`Contrasts validation errors: ${contrastErrors.length} invalid records`);
-      errors.push(...contrastErrors.slice(0, 3).map(e => `  - ${e.message}`));
-    }
-  }
-
   if (Array.isArray(d.data.timeExpressions)) {
     const { errors: timeErrors } = validateArray(d.data.timeExpressions, (entry: unknown) => {
       if (!entry || typeof entry !== 'object') throw new ValidationError('Time expression must be an object');
@@ -479,8 +454,6 @@ export function getBackupPreview(backup: BackupData): Record<string, number> {
     studies: backup.data.studies.length,
     multiTranslationViews: backup.data.multiTranslationViews.length,
     observationLists: backup.data.observationLists.length,
-    fiveWAndH: backup.data.fiveWAndH?.length || 0,
-    contrasts: backup.data.contrasts?.length || 0,
     timeExpressions: backup.data.timeExpressions?.length || 0,
     places: backup.data.places?.length || 0,
     people: backup.data.people?.length || 0,
@@ -676,13 +649,6 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
       validatedLists = valid;
     }
 
-    // Validate 5W+H entries
-    let validatedFiveW: FiveWAndHEntry[] = [];
-    if (backup.data.fiveWAndH && backup.data.fiveWAndH.length > 0) {
-      const { valid } = validateArray(backup.data.fiveWAndH, validateFiveWAndH, '5W+H entry');
-      validatedFiveW = valid;
-    }
-
     // Validate places
     let validatedPlaces: Place[] = [];
     if (backup.data.places && backup.data.places.length > 0) {
@@ -733,8 +699,6 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
       studies: validatedStudies,
       multiTranslationViews: validatedViews,
       observationLists: validatedLists,
-      fiveWAndH: validatedFiveW,
-      contrasts: backup.data.contrasts || [],
       timeExpressions: backup.data.timeExpressions || [],
       places: validatedPlaces,
       people: validatedPeople,

@@ -6,8 +6,6 @@
  */
 
 import {
-  getAllFiveWAndH,
-  getAllContrasts,
   getAllTimeExpressions,
   getAllPlaces,
   getAllConclusions,
@@ -15,8 +13,6 @@ import {
   getAllInterpretations,
   getAllApplications,
 } from './database';
-import type { FiveWAndHEntry } from '@/types';
-import type { Contrast } from '@/types';
 import type { TimeExpression } from '@/types';
 import type { Place } from '@/types';
 import type { Conclusion } from '@/types';
@@ -33,8 +29,6 @@ import { isTauri, isIOS } from './platform';
 interface GroupedEntries {
   [book: string]: {
     [chapter: number]: {
-      fiveWAndH: FiveWAndHEntry[];
-      contrasts: Contrast[];
       timeExpressions: TimeExpression[];
       places: Place[];
       conclusions: Conclusion[];
@@ -64,8 +58,6 @@ function formatVerseRange(verseRef: VerseRef, endVerseRef?: VerseRef): string {
  * Group entries by book and chapter
  */
 function groupEntries(
-  fiveWAndH: FiveWAndHEntry[],
-  contrasts: Contrast[],
   timeExpressions: TimeExpression[],
   places: Place[],
   conclusions: Conclusion[],
@@ -74,15 +66,13 @@ function groupEntries(
 ): GroupedEntries {
   const grouped: GroupedEntries = {};
 
-  type GroupedEntry = FiveWAndHEntry | Contrast | TimeExpression | Place | Conclusion | InterpretationEntry | ApplicationEntry;
+  type GroupedEntry = TimeExpression | Place | Conclusion | InterpretationEntry | ApplicationEntry;
   const addEntry = (book: string, chapter: number, type: keyof GroupedEntries[string][number], entry: GroupedEntry) => {
     if (!grouped[book]) {
       grouped[book] = {};
     }
     if (!grouped[book][chapter]) {
       grouped[book][chapter] = {
-        fiveWAndH: [],
-        contrasts: [],
         timeExpressions: [],
         places: [],
         conclusions: [],
@@ -92,16 +82,6 @@ function groupEntries(
     }
     (grouped[book][chapter][type] as GroupedEntry[]).push(entry);
   };
-
-  // Group 5W+H entries
-  fiveWAndH.forEach(entry => {
-    addEntry(entry.verseRef.book, entry.verseRef.chapter, 'fiveWAndH', entry);
-  });
-
-  // Group contrasts
-  contrasts.forEach(entry => {
-    addEntry(entry.verseRef.book, entry.verseRef.chapter, 'contrasts', entry);
-  });
 
   // Group time expressions
   timeExpressions.forEach(entry => {
@@ -129,35 +109,6 @@ function groupEntries(
   });
 
   return grouped;
-}
-
-/**
- * Format 5W+H entry as Markdown
- */
-function formatFiveWAndH(entry: FiveWAndHEntry): string {
-  const ref = formatVerseRef(entry.verseRef.book, entry.verseRef.chapter, entry.verseRef.verse);
-  const lines: string[] = [`**${ref}**`];
-  
-  if (entry.who) lines.push(`- **Who:** ${entry.who}`);
-  if (entry.what) lines.push(`- **What:** ${entry.what}`);
-  if (entry.when) lines.push(`- **When:** ${entry.when}`);
-  if (entry.where) lines.push(`- **Where:** ${entry.where}`);
-  if (entry.why) lines.push(`- **Why:** ${entry.why}`);
-  if (entry.how) lines.push(`- **How:** ${entry.how}`);
-  if (entry.notes) lines.push(`- **Notes:** ${entry.notes}`);
-  
-  return lines.join('\n');
-}
-
-/**
- * Format contrast entry as Markdown
- */
-function formatContrast(entry: Contrast): string {
-  const ref = formatVerseRef(entry.verseRef.book, entry.verseRef.chapter, entry.verseRef.verse);
-  const lines: string[] = [`**${ref}**`];
-  lines.push(`- ${entry.itemA} ⇔ ${entry.itemB}`);
-  if (entry.notes) lines.push(`- **Notes:** ${entry.notes}`);
-  return lines.join('\n');
 }
 
 /**
@@ -267,8 +218,6 @@ function formatObservationList(list: ObservationList): string {
 export async function exportStudyDataAsMarkdown(): Promise<string> {
   // Load all data
   const [
-    fiveWAndH,
-    contrasts,
     timeExpressions,
     places,
     conclusions,
@@ -276,8 +225,6 @@ export async function exportStudyDataAsMarkdown(): Promise<string> {
     interpretations,
     applications,
   ] = await Promise.all([
-    getAllFiveWAndH(),
-    getAllContrasts(),
     getAllTimeExpressions(),
     getAllPlaces(),
     getAllConclusions(),
@@ -288,8 +235,6 @@ export async function exportStudyDataAsMarkdown(): Promise<string> {
 
   // Group entries by book and chapter
   const grouped = groupEntries(
-    fiveWAndH,
-    contrasts,
     timeExpressions,
     places,
     conclusions,
@@ -315,8 +260,6 @@ export async function exportStudyDataAsMarkdown(): Promise<string> {
   // Summary
   lines.push('## Summary');
   lines.push('');
-  lines.push(`- **5W+H Entries:** ${fiveWAndH.length}`);
-  lines.push(`- **Contrasts:** ${contrasts.length}`);
   lines.push(`- **Time Expressions:** ${timeExpressions.length}`);
   lines.push(`- **Places:** ${places.length}`);
   lines.push(`- **Conclusions:** ${conclusions.length}`);
@@ -367,26 +310,6 @@ export async function exportStudyDataAsMarkdown(): Promise<string> {
         const data = grouped[book][chapter];
         lines.push(`### ${bookName} ${chapter}`);
         lines.push('');
-
-        // 5W+H
-        if (data.fiveWAndH.length > 0) {
-          lines.push('#### 5 W\'s and H');
-          lines.push('');
-          data.fiveWAndH.forEach(entry => {
-            lines.push(formatFiveWAndH(entry));
-            lines.push('');
-          });
-        }
-
-        // Contrasts
-        if (data.contrasts.length > 0) {
-          lines.push('#### Contrasts and Comparisons');
-          lines.push('');
-          data.contrasts.forEach(entry => {
-            lines.push(formatContrast(entry));
-            lines.push('');
-          });
-        }
 
         // Time Expressions
         if (data.timeExpressions.length > 0) {
