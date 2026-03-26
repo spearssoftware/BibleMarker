@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@protomaps/basemaps':
+        specifier: ^5.7.2
+        version: 5.7.2
       '@tanstack/react-query':
         specifier: ^5.90.20
         version: 5.90.20(react@19.2.4)
@@ -38,6 +41,9 @@ importers:
       pako:
         specifier: ^2.1.0
         version: 2.1.0
+      pmtiles:
+        specifier: ^4.4.0
+        version: 4.4.0
       react:
         specifier: ^19.2.4
         version: 19.2.4
@@ -619,6 +625,10 @@ packages:
 
   '@maplibre/vt-pbf@4.3.0':
     resolution: {integrity: sha512-jIvp8F5hQCcreqOOpEt42TJMUlsrEcpf/kI1T2v85YrQRV6PPXUcEXUg5karKtH6oh47XJZ4kHu56pUkOuqA7w==}
+
+  '@protomaps/basemaps@5.7.2':
+    resolution: {integrity: sha512-K1Yk6bWdULulYg+R2QRVXx4NzJZan5YQhpejEG0c1/sXruJrfPIPZuakpf3jwAgVmjIRVQwAv+yRafDeN0aaUQ==}
+    hasBin: true
 
   '@rolldown/pluginutils@1.0.0-beta.53':
     resolution: {integrity: sha512-vENRlFU4YbrwVqNDZ7fLvy+JR1CRkyr01jhSiDpE1u6py3OMzQfztQU2jxykW3ALNxO4kSlqIDeYyD0Y9RcQeQ==}
@@ -1336,6 +1346,9 @@ packages:
       picomatch:
         optional: true
 
+  fflate@0.8.2:
+    resolution: {integrity: sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==}
+
   file-entry-cache@8.0.0:
     resolution: {integrity: sha512-XXTUwCvisa5oacNGRP9SfNtYBNAMi+RPwBFmblZEF7N7swHYQS6/Zfk7SRwx4D5j3CH211YNRco1DEMNVfZCnQ==}
     engines: {node: '>=16.0.0'}
@@ -1681,6 +1694,9 @@ packages:
   picomatch@4.0.3:
     resolution: {integrity: sha512-5gTmgEY/sqK6gFXLIsQNH19lWb4ebPDLA4SdLP7dsWkIXHWlG66oPuVvXSGFPppYZz8ZDZq0dYYrbHfBCVUb1Q==}
     engines: {node: '>=12'}
+
+  pmtiles@4.4.0:
+    resolution: {integrity: sha512-tCLI1C5134MR54i8izUWhse0QUtO/EC33n9yWp1N5dYLLvyc197U0fkF5gAJhq1TdWO9Tvl+9hgvFvM0fR27Zg==}
 
   postcss@8.5.6:
     resolution: {integrity: sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg==}
@@ -2476,6 +2492,8 @@ snapshots:
       pbf: 4.0.1
       supercluster: 8.0.1
 
+  '@protomaps/basemaps@5.7.2': {}
+
   '@rolldown/pluginutils@1.0.0-beta.53': {}
 
   '@rollup/rollup-android-arm-eabi@4.59.0':
@@ -3180,6 +3198,8 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.3
 
+  fflate@0.8.2: {}
+
   file-entry-cache@8.0.0:
     dependencies:
       flat-cache: 4.0.1
@@ -3476,6 +3496,10 @@ snapshots:
   picocolors@1.1.1: {}
 
   picomatch@4.0.3: {}
+
+  pmtiles@4.4.0:
+    dependencies:
+      fflate: 0.8.2
 
   postcss@8.5.6:
     dependencies:

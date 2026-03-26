@@ -2,13 +2,19 @@
  * Biblical Places Map
  *
  * Renders places on a MapLibre GL map grouped by name (one marker per unique place).
- * Uses OpenFreeMap vector tiles with English labels.
+ * Uses PMTiles with Protomaps basemaps for vector tiles.
  * Sidebar lists each place once with all verse references beneath it.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import maplibregl from 'maplibre-gl';
 import MapGL, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import type { StyleSpecification } from 'maplibre-gl';
+import { Protocol } from 'pmtiles';
+import { layers, namedFlavor } from '@protomaps/basemaps';
+
+const pmtilesProtocol = new Protocol();
+maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
 import type { Place, VerseRef } from '@/types';
 import { formatVerseRef } from '@/types';
 
@@ -42,38 +48,38 @@ function groupPlaces(places: Place[]): PlaceGroup[] {
   return Array.from(map.values());
 }
 
-function applyEnglishLabels(style: StyleSpecification): StyleSpecification {
-  style.layers = style.layers.filter(layer => {
-    // Remove icon-only symbol layers (no text) — they render as empty squares
-    if (layer.type === 'symbol' && 'layout' in layer && layer.layout) {
-      const hasIcon = 'icon-image' in layer.layout;
-      const hasText = 'text-field' in layer.layout;
-      if (hasIcon && !hasText) return false;
-    }
-    return true;
-  });
-  for (const layer of style.layers) {
-    if ('layout' in layer && layer.layout) {
-      if ('text-field' in layer.layout) {
-        layer.layout['text-field'] = ['coalesce', ['get', 'name:en'], ['get', 'name']];
-      }
-      // Remove icon-image from label layers — sprites render as white squares in Tauri webview
-      if ('icon-image' in layer.layout) {
-        delete layer.layout['icon-image'];
-      }
-    }
-  }
-  return style;
-}
+const PMTILES_URL = import.meta.env.VITE_PMTILES_URL
+  ?? (import.meta.env.DEV
+    ? `${window.location.origin}/tiles/biblical-lands.pmtiles`
+    : 'https://tiles.biblemarker.app/biblical-lands.pmtiles');
 
-function buildSatelliteStyle(baseStyle: StyleSpecification): StyleSpecification {
-  const labelLayers = baseStyle.layers.filter(
-    l => l.type === 'symbol' || (l.type === 'line' && l.id.includes('boundary'))
-  );
+const SOURCE_NAME = 'protomaps';
+
+function buildMapStyle(): StyleSpecification {
   return {
     version: 8,
+    glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
     sources: {
-      ...baseStyle.sources,
+      [SOURCE_NAME]: {
+        type: 'vector',
+        url: `pmtiles://${PMTILES_URL}`,
+        attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
+      },
+    },
+    layers: layers(SOURCE_NAME, namedFlavor('light'), { lang: 'en' }),
+  };
+}
+
+function buildSatelliteStyle(): StyleSpecification {
+  return {
+    version: 8,
+    glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
+    sources: {
+      [SOURCE_NAME]: {
+        type: 'vector',
+        url: `pmtiles://${PMTILES_URL}`,
+        attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
+      },
       satellite: {
         type: 'raster',
         tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
@@ -83,23 +89,24 @@ function buildSatelliteStyle(baseStyle: StyleSpecification): StyleSpecification 
     },
     layers: [
       { id: 'satellite', type: 'raster', source: 'satellite' },
-      ...labelLayers,
+      ...layers(SOURCE_NAME, namedFlavor('light'), { labelsOnly: true, lang: 'en' }),
     ],
   };
 }
 
-async function fetchStyles(): Promise<{ map: StyleSpecification; satellite: StyleSpecification }> {
-  const res = await fetch('https://tiles.openfreemap.org/styles/liberty');
-  const style: StyleSpecification = await res.json();
-  const mapStyle = applyEnglishLabels(structuredClone(style));
-  const satelliteStyle = buildSatelliteStyle(mapStyle);
-  return { map: mapStyle, satellite: satelliteStyle };
+let cachedStyles: { map: StyleSpecification; satellite: StyleSpecification } | null = null;
+
+function getStyles() {
+  if (!cachedStyles) {
+    cachedStyles = { map: buildMapStyle(), satellite: buildSatelliteStyle() };
+  }
+  return cachedStyles;
 }
 
 export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [tileLayer, setTileLayer] = useState<'map' | 'satellite'>('map');
-  const [styles, setStyles] = useState<{ map: StyleSpecification; satellite: StyleSpecification } | null>(null);
+  const [tileError, setTileError] = useState(false);
   const mapRef = useRef<MapRef>(null);
 
   const groups = useMemo(() => groupPlaces(places), [places]);
@@ -112,12 +119,14 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
     ? selectedName
     : null;
 
-  // Fetch and cache the English-label style on mount
-  useEffect(() => {
-    fetchStyles().then(setStyles).catch(() => {
-      setStyles(null);
-    });
+  const handleMapError = useCallback((e: { error: { message?: string; url?: string } }) => {
+    const msg = e.error?.message ?? e.error?.url ?? '';
+    if (msg.includes(PMTILES_URL) || msg.includes('pmtiles')) {
+      setTileError(true);
+    }
   }, []);
+
+  const styles = getStyles();
 
   // Fit bounds when groups change
   const fitAll = useCallback(() => {
@@ -152,15 +161,7 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
     map.flyTo({ center: [group.longitude!, group.latitude!], zoom, duration: 0.6 });
   }, [effectiveSelectedName, mappableGroups, fitAll]);
 
-  const activeStyle = styles ? styles[tileLayer] : null;
-
-  if (!activeStyle) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-scripture-muted text-sm">Loading map...</p>
-      </div>
-    );
-  }
+  const activeStyle = styles[tileLayer];
 
   return (
     <div className="flex h-full gap-2">
@@ -231,7 +232,7 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
       {/* Map */}
       <div className="flex-1 rounded-xl overflow-hidden border border-scripture-border/50 relative">
         <button
-          onClick={() => setTileLayer(t => t === 'map' ? 'satellite' : 'map')}
+          onClick={() => { setTileLayer(t => t === 'map' ? 'satellite' : 'map'); setTileError(false); }}
           className="absolute top-2 right-2 z-10 px-2 py-1 text-xs font-medium bg-scripture-surface/95 hover:bg-scripture-surface text-scripture-text rounded shadow transition-colors"
         >
           {tileLayer === 'map' ? 'Satellite' : 'Map'}
@@ -248,10 +249,16 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
             ref={mapRef}
             initialViewState={{ longitude: 35.2342, latitude: 31.7767, zoom: 7 }}
             style={{ width: '100%', height: '100%' }}
-            mapStyle={activeStyle!}
+            mapStyle={activeStyle}
             onLoad={fitAll}
+            onError={handleMapError}
             attributionControl={{ compact: false }}
           >
+            {tileError && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-scripture-surface/80 pointer-events-none">
+                <p className="text-scripture-muted text-sm">Map tiles unavailable</p>
+              </div>
+            )}
             {mappableGroups.map(group => (
               <Marker
                 key={group.name}
