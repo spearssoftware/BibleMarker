@@ -27,6 +27,7 @@ import { useTimeStore } from '@/stores/timeStore';
 import { usePeopleStore } from '@/stores/peopleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
+import { useListStore } from '@/stores/listStore';
 import { getBookById } from '@/types';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import type { Chapter } from '@/types';
@@ -1066,6 +1067,14 @@ export function MultiTranslationView() {
                                 ) : undefined
                               }
                               onRemoveAnnotation={removeAnnotation}
+                              onKeywordTap={(presetId, verseRef) => {
+                                const activeStudyIdForList = useStudyStore.getState().activeStudyId ?? undefined;
+                                useListStore.getState().getOrCreateListForKeyword(presetId, activeStudyIdForList, verseRef.book).then(list => {
+                                  window.dispatchEvent(new CustomEvent('openObservationTools', {
+                                    detail: { tab: 'lists', listId: list.id, verseRef }
+                                  }));
+                                });
+                              }}
                             />
                           </div>
                         ) : (

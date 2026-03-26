@@ -10,7 +10,6 @@ import type { MarkingPreset } from '@/types';
 import type { Study } from '@/types';
 import type { MultiTranslationView } from '@/types';
 import type { ObservationList } from '@/types';
-import type { FiveWAndHEntry } from '@/types';
 import type { Place } from '@/types';
 import type { Person } from '@/types';
 import type { InterpretationEntry } from '@/types';
@@ -336,58 +335,6 @@ export function validateObservationList(list: unknown): ObservationList {
   validateDate(l.createdAt, 'createdAt');
   validateDate(l.updatedAt, 'updatedAt');
   return l;
-}
-
-/**
- * Validate a 5W+H entry
- */
-export function validateFiveWAndH(entry: unknown): FiveWAndHEntry {
-  if (!entry || typeof entry !== 'object') {
-    throw new ValidationError('5W+H entry must be an object', 'entry', entry);
-  }
-  const e = entry as FiveWAndHEntry;
-  if (typeof e.id !== 'string' || e.id.trim() === '') {
-    throw new ValidationError('5W+H entry must have a valid id', 'id', e.id);
-  }
-  validateVerseRef(e.verseRef);
-  if (e.who !== undefined && typeof e.who !== 'string') {
-    throw new ValidationError('5W+H entry who must be a string if provided', 'who', e.who);
-  }
-  if (e.what !== undefined && typeof e.what !== 'string') {
-    throw new ValidationError('5W+H entry what must be a string if provided', 'what', e.what);
-  }
-  if (e.when !== undefined && typeof e.when !== 'string') {
-    throw new ValidationError('5W+H entry when must be a string if provided', 'when', e.when);
-  }
-  if (e.where !== undefined && typeof e.where !== 'string') {
-    throw new ValidationError('5W+H entry where must be a string if provided', 'where', e.where);
-  }
-  if (e.why !== undefined && typeof e.why !== 'string') {
-    throw new ValidationError('5W+H entry why must be a string if provided', 'why', e.why);
-  }
-  if (e.how !== undefined && typeof e.how !== 'string') {
-    throw new ValidationError('5W+H entry how must be a string if provided', 'how', e.how);
-  }
-  if (e.notes !== undefined && typeof e.notes !== 'string') {
-    throw new ValidationError('5W+H entry notes must be a string if provided', 'notes', e.notes);
-  }
-  if (e.linkedPresetIds !== undefined) {
-    if (!Array.isArray(e.linkedPresetIds)) {
-      throw new ValidationError('5W+H entry linkedPresetIds must be an array if provided', 'linkedPresetIds', e.linkedPresetIds);
-    }
-    for (const presetId of e.linkedPresetIds) {
-      if (typeof presetId !== 'string' || presetId.trim() === '') {
-        throw new ValidationError('5W+H entry linkedPresetIds must contain valid string IDs', 'linkedPresetIds', e.linkedPresetIds);
-      }
-    }
-  }
-  const hasContent = e.who?.trim() || e.what?.trim() || e.when?.trim() || e.where?.trim() || e.why?.trim() || e.how?.trim() || e.notes?.trim();
-  if (!hasContent) {
-    throw new ValidationError('5W+H entry must have at least one field with content', 'entry', e);
-  }
-  validateDate(e.createdAt, 'createdAt');
-  validateDate(e.updatedAt, 'updatedAt');
-  return e;
 }
 
 /**

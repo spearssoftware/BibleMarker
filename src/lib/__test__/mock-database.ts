@@ -75,14 +75,6 @@ export const getAllObservationLists = vi.fn().mockResolvedValue([]);
 export const saveObservationList = vi.fn().mockResolvedValue('list-id');
 export const deleteObservationList = vi.fn().mockResolvedValue(undefined);
 
-export const getAllFiveWAndH = vi.fn().mockResolvedValue([]);
-export const saveFiveWAndH = vi.fn().mockResolvedValue('entry-id');
-export const deleteFiveWAndH = vi.fn().mockResolvedValue(undefined);
-
-export const getAllContrasts = vi.fn().mockResolvedValue([]);
-export const saveContrast = vi.fn().mockResolvedValue('contrast-id');
-export const deleteContrast = vi.fn().mockResolvedValue(undefined);
-
 export const getAllTimeExpressions = vi.fn().mockResolvedValue([]);
 export const saveTimeExpression = vi.fn().mockResolvedValue('time-id');
 export const deleteTimeExpression = vi.fn().mockResolvedValue(undefined);
@@ -125,8 +117,6 @@ export const exportAllData = vi.fn().mockResolvedValue({
   studies: [],
   multiTranslationViews: [],
   observationLists: [],
-  fiveWAndH: [],
-  contrasts: [],
   timeExpressions: [],
   places: [],
   people: [],
@@ -173,8 +163,6 @@ export function resetMockDatabase(): void {
     getPreferences, updatePreferences,
     getMultiTranslationView, saveMultiTranslationView, deleteMultiTranslationView,
     getAllObservationLists, saveObservationList, deleteObservationList,
-    getAllFiveWAndH, saveFiveWAndH, deleteFiveWAndH,
-    getAllContrasts, saveContrast, deleteContrast,
     getAllTimeExpressions, saveTimeExpression, deleteTimeExpression,
     getAllPlaces, savePlace, deletePlace,
     getAllPeople, savePerson, deletePerson,

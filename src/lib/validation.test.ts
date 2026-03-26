@@ -9,7 +9,6 @@ import {
   validateNote,
   validateMultiTranslationView,
   validateObservationList,
-  validateFiveWAndH,
   validateInterpretation,
   validateApplication,
   validatePlace,
@@ -305,36 +304,6 @@ describe('validateObservationList', () => {
   it('throws on missing keyWordId', () => {
     expect(() =>
       validateObservationList({ ...valid, keyWordId: '' })
-    ).toThrow(ValidationError)
-  })
-})
-
-describe('validateFiveWAndH', () => {
-  const valid = {
-    id: 'fwh1',
-    verseRef: ref,
-    who: 'God',
-    createdAt: iso,
-    updatedAt: iso,
-  }
-
-  it('accepts valid entry', () => {
-    expect(validateFiveWAndH(valid).id).toBe('fwh1')
-  })
-
-  it('throws on non-object', () => {
-    expect(() => validateFiveWAndH(null)).toThrow(ValidationError)
-  })
-
-  it('throws when all fields empty (no content)', () => {
-    expect(() =>
-      validateFiveWAndH({ ...valid, who: undefined })
-    ).toThrow(ValidationError)
-  })
-
-  it('throws on invalid linkedPresetIds', () => {
-    expect(() =>
-      validateFiveWAndH({ ...valid, linkedPresetIds: ['valid', ''] })
     ).toThrow(ValidationError)
   })
 })

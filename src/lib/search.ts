@@ -10,8 +10,6 @@ import {
   getAllSectionHeadings,
   getAllChapterTitles,
   getAllMarkingPresets,
-  getAllFiveWAndH,
-  getAllContrasts,
   getAllConclusions,
   getAllInterpretations,
   getAllApplications,
@@ -255,41 +253,6 @@ export async function searchObservations(
     }
     return undefined;
   };
-
-  // 5W+H
-  const fiveW = await getAllFiveWAndH();
-  for (const e of fiveW) {
-    const match = matchFields([e.who, e.what, e.when, e.where, e.why, e.how, e.notes]);
-    if (match) {
-      results.push({
-        type: 'observation',
-        subType: '5W+H',
-        book: e.verseRef.book,
-        chapter: e.verseRef.chapter,
-        verse: e.verseRef.verse,
-        text: match,
-      });
-      if (results.length >= limit) return results;
-    }
-  }
-
-  // Contrasts
-  const contrasts = await getAllContrasts();
-  for (const e of contrasts) {
-    const combined = `${e.itemA} vs ${e.itemB}`;
-    const match = matchFields([combined, e.notes]);
-    if (match) {
-      results.push({
-        type: 'observation',
-        subType: 'Contrast',
-        book: e.verseRef.book,
-        chapter: e.verseRef.chapter,
-        verse: e.verseRef.verse,
-        text: match,
-      });
-      if (results.length >= limit) return results;
-    }
-  }
 
   // Conclusions
   const conclusions = await getAllConclusions();
