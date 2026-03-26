@@ -99,6 +99,7 @@ function getStyles() {
 export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [tileLayer, setTileLayer] = useState<'map' | 'satellite'>('map');
+  const [tileError, setTileError] = useState(false);
   const mapRef = useRef<MapRef>(null);
 
   const groups = useMemo(() => groupPlaces(places), [places]);
@@ -110,6 +111,10 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
   const effectiveSelectedName = selectedName && groups.some(g => g.name === selectedName)
     ? selectedName
     : null;
+
+  const handleMapError = useCallback(() => {
+    setTileError(true);
+  }, []);
 
   const styles = getStyles();
 
@@ -236,8 +241,14 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
             style={{ width: '100%', height: '100%' }}
             mapStyle={activeStyle}
             onLoad={fitAll}
+            onError={handleMapError}
             attributionControl={{ compact: false }}
           >
+            {tileError && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-scripture-surface/80 pointer-events-none">
+                <p className="text-scripture-muted text-sm">Map tiles unavailable</p>
+              </div>
+            )}
             {mappableGroups.map(group => (
               <Marker
                 key={group.name}
