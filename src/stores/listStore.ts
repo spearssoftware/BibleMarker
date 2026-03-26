@@ -256,8 +256,8 @@ export const useListStore = create<ListState>()(
             const keywordName = preset?.word || 'Unknown';
             const bookInfo = book ? getBookById(book) : null;
             const title = bookInfo
-              ? `Observations about '${keywordName}' in ${bookInfo.name}`
-              : `Observations about '${keywordName}'`;
+              ? `What I learn about ${keywordName} in ${bookInfo.name}`
+              : `What I learn about ${keywordName}`;
             const scope = book ? { book } : undefined;
             return createList(title, keyWordId, scope, studyId);
           } finally {

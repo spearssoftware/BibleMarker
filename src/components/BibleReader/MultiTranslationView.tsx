@@ -31,7 +31,7 @@ import { useListStore } from '@/stores/listStore';
 import { getBookById } from '@/types';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import type { Chapter } from '@/types';
-import type { Annotation, SectionHeading, Note, ChapterTitle } from '@/types';
+import type { Annotation, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
 
 interface TranslationChapter {
   translation: ApiTranslation;
@@ -256,7 +256,16 @@ export function MultiTranslationView() {
     await deleteChapterTitle(id);
     await loadChapterTitle();
   }, [loadChapterTitle]);
-  
+
+  const handleKeywordTap = useCallback((presetId: string, verseRef: VerseRef) => {
+    const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
+    useListStore.getState().getOrCreateListForKeyword(presetId, activeStudyId, verseRef.book).then(list => {
+      window.dispatchEvent(new CustomEvent('openObservationTools', {
+        detail: { tab: 'lists', listId: list.id, verseRef }
+      }));
+    });
+  }, []);
+
   const createNote = useCallback(async (verseNum: number, content: string, range?: { startVerse: number; endVerse: number }) => {
     if (!primaryTranslationId || !content.trim()) return null;
     
@@ -1067,14 +1076,7 @@ export function MultiTranslationView() {
                                 ) : undefined
                               }
                               onRemoveAnnotation={removeAnnotation}
-                              onKeywordTap={(presetId, verseRef) => {
-                                const activeStudyIdForList = useStudyStore.getState().activeStudyId ?? undefined;
-                                useListStore.getState().getOrCreateListForKeyword(presetId, activeStudyIdForList, verseRef.book).then(list => {
-                                  window.dispatchEvent(new CustomEvent('openObservationTools', {
-                                    detail: { tab: 'lists', listId: list.id, verseRef }
-                                  }));
-                                });
-                              }}
+                              onKeywordTap={handleKeywordTap}
                             />
                           </div>
                         ) : (

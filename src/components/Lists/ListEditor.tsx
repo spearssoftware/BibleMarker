@@ -10,7 +10,7 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import type { ObservationList } from '@/types';
-import { BIBLE_BOOKS } from '@/types';
+import { BIBLE_BOOKS, getBookById } from '@/types';
 import { Button, Modal, Input, DropdownSelect, Label } from '@/components/shared';
 
 interface ListEditorProps {
@@ -47,7 +47,7 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
       const preset = presets.find(p => p.id === presetId);
       const keyword = preset?.word;
       if (keyword) {
-        const bookInfo = scopeBook ? BIBLE_BOOKS.find(b => b.id === scopeBook) : null;
+        const bookInfo = scopeBook ? getBookById(scopeBook) : (currentBook ? getBookById(currentBook) : null);
         const autoTitle = bookInfo
           ? `What I learn about ${keyword} in ${bookInfo.name}`
           : `What I learn about ${keyword}`;

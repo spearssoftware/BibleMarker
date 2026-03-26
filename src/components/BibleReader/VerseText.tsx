@@ -830,9 +830,8 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
                   break;
                 }
               } else {
-                // Real annotation — look up in filteredPresets via virtualAnnotations context
                 const realAnn = annotations.find(a => a.id === annotationId);
-                if (realAnn && 'presetId' in realAnn && realAnn.presetId) {
+                if (realAnn?.presetId) {
                   presetId = realAnn.presetId;
                   break;
                 }
