@@ -131,7 +131,7 @@ export function ObservationToolsPanel({
   const { lists, loadLists, deleteList, addItemToList, updateItem, deleteItem } = useListStore();
   const { presets } = useMarkingPresetStore();
   const { studies, activeStudyId } = useStudyStore();
-  const { currentBook, currentChapter, setLocation, setNavSelectedVerse } = useBibleStore();
+  const { currentBook, currentChapter, navSelectedVerse, setLocation, setNavSelectedVerse } = useBibleStore();
   const [editingListId, setEditingListId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [expandedLists, setExpandedLists] = useState<Set<string>>(new Set());
@@ -624,9 +624,23 @@ export function ObservationToolsPanel({
                       {/* List items (collapsible) - grouped by verse */}
                       {isExpanded && (
                         <div className="border-t border-scripture-muted/20 p-4 bg-scripture-bg/50">
+                          {/* Quick add for current verse */}
+                          {currentBook && currentChapter && (!addingToVerse || addingToVerse.listId !== list.id) && (
+                            <div className="mb-3">
+                              <button
+                                onClick={() => setAddingToVerse({
+                                  listId: list.id,
+                                  verseRef: { book: currentBook, chapter: currentChapter, verse: navSelectedVerse ?? 1 }
+                                })}
+                                className="text-xs text-scripture-accent hover:text-scripture-accent/80 transition-colors px-2 py-1 rounded hover:bg-scripture-elevated border border-scripture-accent/30"
+                              >
+                                + Add observation for {currentBook} {currentChapter}:{navSelectedVerse ?? 1}
+                              </button>
+                            </div>
+                          )}
                           {itemsToShow.length === 0 ? (
                             <p className="text-sm text-scripture-muted">
-                              No observations yet. Add some from the Bible text.
+                              No observations yet.
                             </p>
                           ) : (
                             <div className="space-y-4">
@@ -772,6 +786,26 @@ export function ObservationToolsPanel({
                                   </div>
                                 );
                               })}
+                            </div>
+                          )}
+                          {/* Inline add form for a new verse (quick-add from current verse button) */}
+                          {addingToVerse?.listId === list.id && !verseGroups.has(getVerseKey(addingToVerse.verseRef)) && (
+                            <div className="mt-3 pt-3 border-t border-scripture-border/30">
+                              <p className="text-xs text-scripture-muted mb-2">
+                                Adding to {formatVerseRef(addingToVerse.verseRef.book, addingToVerse.verseRef.chapter, addingToVerse.verseRef.verse)}
+                              </p>
+                              <Textarea
+                                value={newObservationText}
+                                onChange={(e) => setNewObservationText(e.target.value)}
+                                placeholder={`What do you observe about "${getKeywordName(list.keyWordId) || 'this keyword'}" in this verse?`}
+                                rows={3}
+                                className="mb-2"
+                                autoFocus
+                              />
+                              <div className="flex items-center justify-center sm:justify-end gap-2">
+                                <Button variant="ghost" onClick={handleCancelAddObservation}>Cancel</Button>
+                                <Button onClick={handleAddObservation} disabled={!newObservationText.trim()}>Add</Button>
+                              </div>
                             </div>
                           )}
                         </div>
