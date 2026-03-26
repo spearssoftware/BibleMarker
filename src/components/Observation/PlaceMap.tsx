@@ -7,9 +7,14 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import maplibregl from 'maplibre-gl';
 import MapGL, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
 import type { StyleSpecification } from 'maplibre-gl';
+import { Protocol } from 'pmtiles';
 import { layers, namedFlavor } from '@protomaps/basemaps';
+
+const pmtilesProtocol = new Protocol();
+maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
 import type { Place, VerseRef } from '@/types';
 import { formatVerseRef } from '@/types';
 
@@ -44,7 +49,9 @@ function groupPlaces(places: Place[]): PlaceGroup[] {
 }
 
 const PMTILES_URL = import.meta.env.VITE_PMTILES_URL
-  ?? 'https://tiles.biblemarker.app/biblical-lands.pmtiles';
+  ?? (import.meta.env.DEV
+    ? `${window.location.origin}/tiles/biblical-lands.pmtiles`
+    : 'https://tiles.biblemarker.app/biblical-lands.pmtiles');
 
 const SOURCE_NAME = 'protomaps';
 
@@ -112,8 +119,11 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
     ? selectedName
     : null;
 
-  const handleMapError = useCallback(() => {
-    setTileError(true);
+  const handleMapError = useCallback((e: { error: { message?: string; url?: string } }) => {
+    const msg = e.error?.message ?? e.error?.url ?? '';
+    if (msg.includes(PMTILES_URL) || msg.includes('pmtiles')) {
+      setTileError(true);
+    }
   }, []);
 
   const styles = getStyles();
@@ -222,7 +232,7 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
       {/* Map */}
       <div className="flex-1 rounded-xl overflow-hidden border border-scripture-border/50 relative">
         <button
-          onClick={() => setTileLayer(t => t === 'map' ? 'satellite' : 'map')}
+          onClick={() => { setTileLayer(t => t === 'map' ? 'satellite' : 'map'); setTileError(false); }}
           className="absolute top-2 right-2 z-10 px-2 py-1 text-xs font-medium bg-scripture-surface/95 hover:bg-scripture-surface text-scripture-text rounded shadow transition-colors"
         >
           {tileLayer === 'map' ? 'Satellite' : 'Map'}

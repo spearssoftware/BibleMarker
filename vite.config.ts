@@ -40,6 +40,11 @@ export default defineConfig({
           });
         },
       },
+      '/tiles': {
+        target: 'https://tiles.biblemarker.app',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/tiles/, ''),
+      },
     },
   },
 })
