@@ -88,12 +88,16 @@ function buildSatelliteStyle(baseStyle: StyleSpecification): StyleSpecification 
   };
 }
 
+let cachedStyles: { map: StyleSpecification; satellite: StyleSpecification } | null = null;
+
 async function fetchStyles(): Promise<{ map: StyleSpecification; satellite: StyleSpecification }> {
+  if (cachedStyles) return cachedStyles;
   const res = await fetch('https://tiles.openfreemap.org/styles/liberty');
   const style: StyleSpecification = await res.json();
   const mapStyle = applyEnglishLabels(structuredClone(style));
   const satelliteStyle = buildSatelliteStyle(mapStyle);
-  return { map: mapStyle, satellite: satelliteStyle };
+  cachedStyles = { map: mapStyle, satellite: satelliteStyle };
+  return cachedStyles;
 }
 
 export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
