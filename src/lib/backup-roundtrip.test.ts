@@ -4,8 +4,8 @@ import { importAllData, clearDatabase } from '@/lib/database'
 import { performBackup } from '@/lib/autoBackup'
 import {
   ISO, makeHighlightAnnotation, makeSymbolAnnotation, makeMarkingPreset,
-  makeStudy, makeObservationList, makeObservationItem, makeFiveWAndH,
-  makeContrast, makeTimeExpression, makePerson, makePlace,
+  makeStudy, makeObservationList, makeObservationItem,
+  makeTimeExpression, makePerson, makePlace,
   makeConclusion, makeInterpretation, makeApplication, makeVerseRef,
 } from './__test__/factories'
 
@@ -108,8 +108,6 @@ function makeFullBackup(): BackupData {
         id: 'ol-1',
         items: [makeObservationItem({ id: 'item-1' })],
       })],
-      fiveWAndH: [makeFiveWAndH({ id: 'fwh-1', who: 'God', what: 'Created' })],
-      contrasts: [makeContrast({ id: 'contrast-1' })],
       timeExpressions: [makeTimeExpression({ id: 'time-1' })],
       places: [makePlace({ id: 'place-1' })],
       people: [makePerson({ id: 'person-1' })],
@@ -146,8 +144,6 @@ describe('backup roundtrip', () => {
     expect(preview.studies).toBe(1)
     expect(preview.multiTranslationViews).toBe(1)
     expect(preview.observationLists).toBe(1)
-    expect(preview.fiveWAndH).toBe(1)
-    expect(preview.contrasts).toBe(1)
     expect(preview.timeExpressions).toBe(1)
     expect(preview.places).toBe(1)
     expect(preview.people).toBe(1)
@@ -173,7 +169,6 @@ describe('backup roundtrip', () => {
     expect(restored.data.observationLists[0].items).toHaveLength(1)
     expect(restored.data.places[0].name).toBe('Jerusalem')
     expect(restored.data.people[0].name).toBe('Moses')
-    expect(restored.data.contrasts[0].itemA).toBe('Light')
     expect(restored.data.timeExpressions[0].expression).toBe('In the beginning')
     expect(restored.data.conclusions[0].term).toBe('therefore')
   })
@@ -252,8 +247,6 @@ describe('restoreBackup', () => {
     expect(importedData.studies).toHaveLength(1)
     expect(importedData.multiTranslationViews).toHaveLength(1)
     expect(importedData.observationLists).toHaveLength(1)
-    expect(importedData.fiveWAndH).toHaveLength(1)
-    expect(importedData.contrasts).toHaveLength(1)
     expect(importedData.timeExpressions).toHaveLength(1)
     expect(importedData.places).toHaveLength(1)
     expect(importedData.people).toHaveLength(1)
@@ -279,8 +272,6 @@ describe('restoreBackup', () => {
 
   it('restores backup with empty optional arrays', async () => {
     const backup = makeFullBackup()
-    backup.data.fiveWAndH = []
-    backup.data.contrasts = []
     backup.data.timeExpressions = []
     backup.data.places = []
     backup.data.people = []
@@ -291,8 +282,6 @@ describe('restoreBackup', () => {
     await restoreBackup(backup)
 
     const importedData = mockImportAllData.mock.calls[0][0]
-    expect(importedData.fiveWAndH).toHaveLength(0)
-    expect(importedData.contrasts).toHaveLength(0)
     expect(importedData.places).toHaveLength(0)
     expect(importedData.applications).toHaveLength(0)
   })
@@ -340,7 +329,7 @@ describe('backward compatibility', () => {
         multiTranslationViews: [],
         observationLists: [],
         applications: [],
-        // Missing: fiveWAndH, contrasts, timeExpressions, places, people, conclusions, interpretations
+        // Missing: timeExpressions, places, people, conclusions, interpretations
       },
     }
 

@@ -28,9 +28,10 @@ interface VerseTextProps {
   verseMenu?: React.ReactNode;
   onNavigate?: (ref: VerseRef) => void;
   onShowVerse?: (ref: VerseRef) => void; // Show verse in overlay
+  onKeywordTap?: (presetId: string, verseRef: VerseRef) => void;
 }
 
-export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAnnotation, onVerseNumberClick, verseMenu, onNavigate, onShowVerse }: VerseTextProps) {
+export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAnnotation, onVerseNumberClick, verseMenu, onNavigate, onShowVerse, onKeywordTap }: VerseTextProps) {
   const [crossRefState, setCrossRefState] = useState<{ refs: string[]; position: { x: number; y: number } } | null>(null);
   const [overlayVerse, setOverlayVerse] = useState<VerseRef | null>(null);
   const verseContentRef = useRef<HTMLSpanElement>(null);
@@ -806,6 +807,48 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
             y: rect.bottom + 8,
           },
         });
+      }
+    }
+
+    // Check for annotation-group taps (keyword tap to open list)
+    if (onKeywordTap) {
+      const annotationGroup = target.closest('.annotation-group') as HTMLElement;
+      if (annotationGroup && !target.closest('.annotation-remove') && !target.closest('.cross-ref')) {
+        // Only trigger on a simple tap (collapsed selection — not a text drag/selection)
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) {
+          const annotationIdsStr = annotationGroup.getAttribute('data-annotation-ids');
+          if (annotationIdsStr) {
+            const annotationIds = annotationIdsStr.split(',');
+            let presetId: string | null = null;
+            for (const annotationId of annotationIds) {
+              if (annotationId.startsWith('virtual-')) {
+                // Format: virtual-{presetId(36)}-...
+                const match = annotationId.match(/^virtual-([0-9a-f-]{36})-/);
+                if (match) {
+                  presetId = match[1];
+                  break;
+                }
+              } else {
+                // Real annotation — look up in filteredPresets via virtualAnnotations context
+                const realAnn = annotations.find(a => a.id === annotationId);
+                if (realAnn && 'presetId' in realAnn && realAnn.presetId) {
+                  presetId = realAnn.presetId;
+                  break;
+                }
+              }
+            }
+            if (presetId) {
+              e.preventDefault();
+              e.stopPropagation();
+              onKeywordTap(presetId, {
+                book: verse.ref.book,
+                chapter: verse.ref.chapter,
+                verse: verse.ref.verse,
+              });
+            }
+          }
+        }
       }
     }
   };

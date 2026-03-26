@@ -17,8 +17,6 @@ import type { MarkingPreset } from '@/types';
 import type { Study } from '@/types';
 import type { MultiTranslationView } from '@/types';
 import type { ObservationList } from '@/types';
-import type { FiveWAndHEntry } from '@/types';
-import type { Contrast } from '@/types';
 import type { TimeExpression } from '@/types';
 import type { Place } from '@/types';
 import type { Person } from '@/types';
@@ -112,7 +110,7 @@ export async function closeSqliteDb(): Promise<void> {
 // Schema Initialization
 // ============================================================================
 
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 /**
  * Safety net: ensure all expected tables exist.
@@ -338,6 +336,13 @@ async function migrateSchema(
     console.log('[SQLite] v6 migration: added keyword_exclusions table');
   }
 
+  // Version 7: Drop five_w_and_h and contrasts tables
+  if (fromVersion < 7) {
+    await db.execute(`DROP TABLE IF EXISTS five_w_and_h`);
+    await db.execute(`DROP TABLE IF EXISTS contrasts`);
+    console.log('[SQLite] v7 migration: dropped five_w_and_h and contrasts tables');
+  }
+
   // Update schema version
   await db.execute(
     `INSERT OR REPLACE INTO schema_version (id, version, updated_at) VALUES (1, ?, ?)`,
@@ -480,30 +485,6 @@ async function createInitialSchema(db: Database): Promise<void> {
   `);
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_observation_lists_keyword ON observation_lists(key_word_id)`);
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_observation_lists_study ON observation_lists(study_id)`);
-
-  // 5W+H entries table
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS five_w_and_h (
-      id TEXT PRIMARY KEY,
-      data TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      sync_status TEXT DEFAULT 'pending',
-      device_id TEXT
-    )
-  `);
-
-  // Contrasts table
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS contrasts (
-      id TEXT PRIMARY KEY,
-      data TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      sync_status TEXT DEFAULT 'pending',
-      device_id TEXT
-    )
-  `);
 
   // Time expressions table
   await db.execute(`
@@ -1129,8 +1110,6 @@ const VALID_TABLE_NAMES = new Set([
   'studies',
   'multi_translation_views',
   'observation_lists',
-  'five_w_and_h',
-  'contrasts',
   'time_expressions',
   'places',
   'people',
@@ -1208,8 +1187,6 @@ export interface SqliteExportData {
   studies: Study[];
   multiTranslationViews: MultiTranslationView[];
   observationLists: ObservationList[];
-  fiveWAndH: FiveWAndHEntry[];
-  contrasts: Contrast[];
   timeExpressions: TimeExpression[];
   places: Place[];
   people: Person[];
@@ -1237,8 +1214,6 @@ export async function sqliteExportAll(): Promise<SqliteExportData> {
   const preferences = await sqliteGetPreferences();
 
   // Get observation data
-  const fiveWAndH = await sqliteGetAllFromTable<FiveWAndHEntry>('five_w_and_h');
-  const contrasts = await sqliteGetAllFromTable<Contrast>('contrasts');
   const timeExpressions = await sqliteGetAllFromTable<TimeExpression>('time_expressions');
   const places = await sqliteGetAllFromTable<Place>('places');
   const people = await sqliteGetAllFromTable<Person>('people');
@@ -1327,8 +1302,6 @@ export async function sqliteExportAll(): Promise<SqliteExportData> {
     studies,
     multiTranslationViews,
     observationLists,
-    fiveWAndH,
-    contrasts,
     timeExpressions,
     places,
     people,
@@ -1378,12 +1351,6 @@ export async function sqliteImportAll(data: SqliteExportData): Promise<void> {
   }
 
   // Import observation data
-  for (const item of data.fiveWAndH) {
-    await sqliteSaveToTable('five_w_and_h', item);
-  }
-  for (const item of data.contrasts) {
-    await sqliteSaveToTable('contrasts', item);
-  }
   for (const item of data.timeExpressions) {
     await sqliteSaveToTable('time_expressions', item);
   }
@@ -1429,8 +1396,6 @@ export const SYNCED_TABLES = new Set([
   'studies',
   'multi_translation_views',
   'observation_lists',
-  'five_w_and_h',
-  'contrasts',
   'time_expressions',
   'places',
   'people',
@@ -1737,8 +1702,6 @@ export async function sqliteClearDatabase(): Promise<void> {
     'studies',
     'multi_translation_views',
     'observation_lists',
-    'five_w_and_h',
-    'contrasts',
     'time_expressions',
     'places',
     'people',

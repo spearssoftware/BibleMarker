@@ -15,8 +15,6 @@ import type { MarkingPreset } from '@/types';
 import type { Study } from '@/types';
 import type { MultiTranslationView } from '@/types';
 import type { ObservationList } from '@/types';
-import type { FiveWAndHEntry } from '@/types';
-import type { Contrast } from '@/types';
 import type { TimeExpression } from '@/types';
 import type { Place } from '@/types';
 import type { Person } from '@/types';
@@ -449,44 +447,6 @@ export async function deleteObservationList(id: string): Promise<void> {
   await logChange('observation_lists', 'delete', id);
 }
 
-// 5W+H Operations
-export async function getAllFiveWAndH(): Promise<FiveWAndHEntry[]> {
-  const mod = await sqlite();
-  return mod.sqliteGetAllFromTable<FiveWAndHEntry>('five_w_and_h');
-}
-
-export async function saveFiveWAndH(entry: FiveWAndHEntry): Promise<string> {
-  const mod = await sqlite();
-  const result = await mod.sqliteSaveToTable('five_w_and_h', entry);
-  await logChange('five_w_and_h', 'upsert', entry.id, entry);
-  return result;
-}
-
-export async function deleteFiveWAndH(id: string): Promise<void> {
-  const mod = await sqlite();
-  await mod.sqliteDeleteFromTable('five_w_and_h', id);
-  await logChange('five_w_and_h', 'delete', id);
-}
-
-// Contrast Operations
-export async function getAllContrasts(): Promise<Contrast[]> {
-  const mod = await sqlite();
-  return mod.sqliteGetAllFromTable<Contrast>('contrasts');
-}
-
-export async function saveContrast(entry: Contrast): Promise<string> {
-  const mod = await sqlite();
-  const result = await mod.sqliteSaveToTable('contrasts', entry);
-  await logChange('contrasts', 'upsert', entry.id, entry);
-  return result;
-}
-
-export async function deleteContrast(id: string): Promise<void> {
-  const mod = await sqlite();
-  await mod.sqliteDeleteFromTable('contrasts', id);
-  await logChange('contrasts', 'delete', id);
-}
-
 // Time Expression Operations
 export async function getAllTimeExpressions(): Promise<TimeExpression[]> {
   const mod = await sqlite();
@@ -648,8 +608,6 @@ export interface DatabaseExportData {
   studies: Study[];
   multiTranslationViews: MultiTranslationView[];
   observationLists: ObservationList[];
-  fiveWAndH: FiveWAndHEntry[];
-  contrasts: Contrast[];
   timeExpressions: TimeExpression[];
   places: Place[];
   people: Person[];

@@ -477,8 +477,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     studies: 'Studies',
     multiTranslationViews: 'Multi-Translation Views',
     observationLists: 'Observation Lists',
-    fiveWAndH: '5W+H Entries',
-    contrasts: 'Contrasts',
     timeExpressions: 'Time Expressions',
     places: 'Places',
     conclusions: 'Conclusions',
@@ -776,11 +774,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                       {[
                         { id: 'lists', label: 'Lists' },
-                        { id: 'fiveWAndH', label: "5 W's & H" },
                         { id: 'people', label: 'People' },
                         { id: 'places', label: 'Places' },
                         { id: 'time', label: 'Time' },
-                        { id: 'contrasts', label: 'Contrasts' },
                       ].map(tool => (
                         <Checkbox
                           key={tool.id}

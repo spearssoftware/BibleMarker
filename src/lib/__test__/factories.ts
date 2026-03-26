@@ -1,7 +1,6 @@
 import type {
   VerseRef, MarkingPreset, TextAnnotation, SymbolAnnotation,
-  Study, ObservationList, ObservationItem, FiveWAndHEntry,
-  Contrast, TimeExpression, Person, Place, Conclusion,
+  Study, ObservationList, ObservationItem, TimeExpression, Person, Place, Conclusion,
   InterpretationEntry, ApplicationEntry,
 } from '@/types';
 import type { SyncStatus } from '@/lib/sync';
@@ -94,28 +93,6 @@ export function makeObservationList(overrides?: Partial<ObservationList>): Obser
     title: 'Test List',
     items: [],
     keyWordId: 'preset-1',
-    createdAt: new Date(ISO),
-    updatedAt: new Date(ISO),
-    ...overrides,
-  };
-}
-
-export function makeFiveWAndH(overrides?: Partial<FiveWAndHEntry>): FiveWAndHEntry {
-  return {
-    id: 'fwh-1',
-    verseRef: makeVerseRef(),
-    createdAt: new Date(ISO),
-    updatedAt: new Date(ISO),
-    ...overrides,
-  };
-}
-
-export function makeContrast(overrides?: Partial<Contrast>): Contrast {
-  return {
-    id: 'contrast-1',
-    itemA: 'Light',
-    itemB: 'Darkness',
-    verseRef: makeVerseRef(),
     createdAt: new Date(ISO),
     updatedAt: new Date(ISO),
     ...overrides,

@@ -26,6 +26,7 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
   const { studies, activeStudyId } = useStudyStore();
   const { currentBook } = useBibleStore();
   const [title, setTitle] = useState(list?.title || '');
+  const [titleManuallyEdited, setTitleManuallyEdited] = useState(!!list?.title);
   const [selectedKeywordId, setSelectedKeywordId] = useState<string>(list?.keyWordId || '');
   const [selectedStudyId, setSelectedStudyId] = useState<string>(list?.studyId || '');
   const [scopeBook, setScopeBook] = useState<string>(list?.scope?.book || '');
@@ -38,6 +39,24 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
       if (activeStudyId) queueMicrotask(() => setSelectedStudyId(activeStudyId));
     }
   }, [list, currentBook, activeStudyId]);
+
+  // Auto-generate title when keyword is selected (only if user hasn't manually typed a title)
+  const handleKeywordChange = (presetId: string) => {
+    setSelectedKeywordId(presetId);
+    if (!titleManuallyEdited && presetId) {
+      const preset = presets.find(p => p.id === presetId);
+      const keyword = preset?.word;
+      if (keyword) {
+        const bookInfo = scopeBook ? BIBLE_BOOKS.find(b => b.id === scopeBook) : null;
+        const autoTitle = bookInfo
+          ? `What I learn about ${keyword} in ${bookInfo.name}`
+          : `What I learn about ${keyword}`;
+        setTitle(autoTitle);
+      }
+    } else if (!titleManuallyEdited && !presetId) {
+      setTitle('');
+    }
+  };
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -108,7 +127,10 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
                 label="List Title"
                 type="text"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  setTitleManuallyEdited(true);
+                }}
                 placeholder="e.g., 'What I learn about God in John 1'"
                 autoFocus
               />
@@ -119,7 +141,7 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
                   label="Keyword"
                   helpText="This list is about observations of this keyword"
                   value={selectedKeywordId}
-                  onChange={setSelectedKeywordId}
+                  onChange={handleKeywordChange}
                   placeholder="Select a keyword..."
                   options={[
                     { value: '', label: 'Select a keyword...' },
@@ -158,7 +180,7 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
                 value={selectedStudyId}
                 onChange={setSelectedStudyId}
                 options={[
-                  { value: '', label: 'No study' },
+                  { value: '', label: 'Global (all studies)' },
                   ...studies.map(study => ({
                     value: study.id,
                     label: study.name

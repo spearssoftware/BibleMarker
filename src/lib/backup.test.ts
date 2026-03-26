@@ -22,8 +22,6 @@ function makeBackup(overrides: Record<string, any> = {}): BackupData {
       studies: [],
       multiTranslationViews: [],
       observationLists: [],
-      fiveWAndH: [],
-      contrasts: [],
       timeExpressions: [],
       places: [],
       people: [],
@@ -111,15 +109,6 @@ const validObservationList = {
   updatedAt: now,
 }
 
-const validFiveWAndH = {
-  id: 'fwh-1',
-  verseRef: { book: 'Genesis', chapter: 1, verse: 1 },
-  who: 'God',
-  what: 'Created the heavens and earth',
-  createdAt: now,
-  updatedAt: now,
-}
-
 const validPlace = {
   id: 'place-1',
   name: 'Eden',
@@ -132,15 +121,6 @@ const validPerson = {
   id: 'person-1',
   name: 'Adam',
   verseRef: { book: 'Genesis', chapter: 2, verse: 7 },
-  createdAt: now,
-  updatedAt: now,
-}
-
-const validContrast = {
-  id: 'contrast-1',
-  itemA: 'Light',
-  itemB: 'Darkness',
-  verseRef: { book: 'Genesis', chapter: 1, verse: 1 },
   createdAt: now,
   updatedAt: now,
 }
@@ -196,8 +176,6 @@ describe('validateBackup', () => {
       studies: [validStudy],
       multiTranslationViews: [validMultiTranslationView],
       observationLists: [validObservationList],
-      fiveWAndH: [validFiveWAndH],
-      contrasts: [validContrast],
       timeExpressions: [validTimeExpression],
       places: [validPlace],
       people: [validPerson],
@@ -341,24 +319,6 @@ describe('validateBackup', () => {
     expect(result.errors.some(e => e.includes('Observation lists validation errors'))).toBe(true)
   })
 
-  it('reports invalid 5W+H records', () => {
-    const backup = makeBackup({
-      fiveWAndH: [{ id: '' }] as never[],
-    })
-    const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('5W+H entries validation errors'))).toBe(true)
-  })
-
-  it('reports invalid contrast records', () => {
-    const backup = makeBackup({
-      contrasts: [{ id: '' }] as never[],
-    })
-    const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('Contrasts validation errors'))).toBe(true)
-  })
-
   it('reports invalid time expression records', () => {
     const backup = makeBackup({
       timeExpressions: [{ id: '' }] as never[],
@@ -442,8 +402,6 @@ describe('validateBackup', () => {
     // Simulate an older backup missing optional fields
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = backup.data as any
-    delete data.fiveWAndH
-    delete data.contrasts
     delete data.timeExpressions
     delete data.places
     delete data.people
@@ -481,8 +439,6 @@ describe('getBackupPreview', () => {
     expect(preview.studies).toBe(0)
     expect(preview.multiTranslationViews).toBe(0)
     expect(preview.observationLists).toBe(0)
-    expect(preview.fiveWAndH).toBe(0)
-    expect(preview.contrasts).toBe(0)
     expect(preview.timeExpressions).toBe(0)
     expect(preview.places).toBe(0)
     expect(preview.people).toBe(0)
@@ -502,8 +458,6 @@ describe('getBackupPreview', () => {
       studies: [validStudy],
       multiTranslationViews: [validMultiTranslationView],
       observationLists: [validObservationList],
-      fiveWAndH: [validFiveWAndH],
-      contrasts: [validContrast],
       timeExpressions: [validTimeExpression],
       places: [validPlace],
       people: [validPerson],
@@ -537,8 +491,6 @@ describe('getBackupPreview', () => {
     const backup = makeBackup()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = backup.data as any
-    delete data.fiveWAndH
-    delete data.contrasts
     delete data.timeExpressions
     delete data.places
     delete data.people
@@ -546,8 +498,6 @@ describe('getBackupPreview', () => {
     delete data.interpretations
     delete data.cachedChapters
     const preview = getBackupPreview(backup)
-    expect(preview.fiveWAndH).toBe(0)
-    expect(preview.contrasts).toBe(0)
     expect(preview.timeExpressions).toBe(0)
     expect(preview.places).toBe(0)
     expect(preview.people).toBe(0)
