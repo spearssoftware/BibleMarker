@@ -388,7 +388,7 @@ export function Toolbar() {
             clearSelection();
           }}
           onClose={() => {
-            // Bottom sheet dismissal — selection cleared via onCancel
+            clearSelection();
           }}
         />
       )}
