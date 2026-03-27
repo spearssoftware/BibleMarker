@@ -149,6 +149,9 @@ export function ObservationToolsPanel({
   const [filterByChapter, setFilterByChapter] = useState(true);
   const [trackerIsCreating, setTrackerIsCreating] = useState(false);
   const [trackerIsEditing, setTrackerIsEditing] = useState(false);
+  const [showCustomVerse, setShowCustomVerse] = useState<string | null>(null); // listId when open
+  const [customChapter, setCustomChapter] = useState('');
+  const [customVerse, setCustomVerse] = useState('');
 
   useEffect(() => {
     getPreferences().then(prefs => {
@@ -624,17 +627,78 @@ export function ObservationToolsPanel({
                       {/* List items (collapsible) - grouped by verse */}
                       {isExpanded && (
                         <div className="border-t border-scripture-muted/20 p-4 bg-scripture-bg/50">
-                          {/* Quick add for current verse */}
-                          {currentBook && currentChapter && (!addingToVerse || addingToVerse.listId !== list.id) && (
-                            <div className="mb-3">
+                          {/* Quick add buttons */}
+                          {currentBook && currentChapter && (!addingToVerse || addingToVerse.listId !== list.id) && (() => {
+                            const targetRef = verseRef ?? { book: currentBook, chapter: currentChapter, verse: navSelectedVerse ?? 1 };
+                            return (
+                            <div className="mb-3 flex flex-wrap gap-2">
                               <button
-                                onClick={() => setAddingToVerse({
-                                  listId: list.id,
-                                  verseRef: { book: currentBook, chapter: currentChapter, verse: navSelectedVerse ?? 1 }
-                                })}
+                                onClick={() => {
+                                  setShowCustomVerse(null);
+                                  setAddingToVerse({ listId: list.id, verseRef: targetRef });
+                                }}
                                 className="text-xs text-scripture-accent hover:text-scripture-accent/80 transition-colors px-2 py-1 rounded hover:bg-scripture-elevated border border-scripture-accent/30"
                               >
-                                + Add observation for {currentBook} {currentChapter}:{navSelectedVerse ?? 1}
+                                + Add for {formatVerseRef(targetRef.book, targetRef.chapter, targetRef.verse)}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setShowCustomVerse(showCustomVerse === list.id ? null : list.id);
+                                  setCustomChapter(String(currentChapter));
+                                  setCustomVerse('');
+                                }}
+                                className="text-xs text-scripture-muted hover:text-scripture-text transition-colors px-2 py-1 rounded hover:bg-scripture-elevated border border-scripture-border/30"
+                              >
+                                + Other verse...
+                              </button>
+                            </div>
+                            );
+                          })()}
+                          {/* Custom verse input */}
+                          {showCustomVerse === list.id && currentBook && (
+                            <div className="mb-3 flex items-center gap-2">
+                              <span className="text-xs text-scripture-muted">{getBookById(currentBook)?.name ?? currentBook}</span>
+                              <input
+                                type="number"
+                                value={customChapter}
+                                onChange={(e) => setCustomChapter(e.target.value)}
+                                placeholder="Ch"
+                                className="w-14 px-2 py-1 text-xs bg-scripture-elevated border border-scripture-border/50 rounded text-scripture-text"
+                                min={1}
+                              />
+                              <span className="text-xs text-scripture-muted">:</span>
+                              <input
+                                type="number"
+                                value={customVerse}
+                                onChange={(e) => setCustomVerse(e.target.value)}
+                                placeholder="Vs"
+                                className="w-14 px-2 py-1 text-xs bg-scripture-elevated border border-scripture-border/50 rounded text-scripture-text"
+                                min={1}
+                                autoFocus
+                              />
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                disabled={!customChapter || !customVerse}
+                                onClick={() => {
+                                  const ch = parseInt(customChapter, 10);
+                                  const vs = parseInt(customVerse, 10);
+                                  if (ch > 0 && vs > 0) {
+                                    setAddingToVerse({
+                                      listId: list.id,
+                                      verseRef: { book: currentBook, chapter: ch, verse: vs }
+                                    });
+                                    setShowCustomVerse(null);
+                                  }
+                                }}
+                              >
+                                Add
+                              </Button>
+                              <button
+                                onClick={() => setShowCustomVerse(null)}
+                                className="text-xs text-scripture-muted hover:text-scripture-text px-1"
+                              >
+                                ✕
                               </button>
                             </div>
                           )}
