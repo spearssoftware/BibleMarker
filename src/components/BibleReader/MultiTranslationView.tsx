@@ -607,6 +607,10 @@ export function MultiTranslationView() {
                                 primaryTranslationId
                                   ? (verseNum) => {
                                       setVerseMenuAt({ verseNum, translationId: translation.id });
+                                      requestAnimationFrame(() => {
+                                        const verseEl = verseContainerRef.current?.querySelector(`[data-verse="${verseNum}"]`);
+                                        if (verseEl) verseEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                      });
                                     }
                                   : undefined
                               }
