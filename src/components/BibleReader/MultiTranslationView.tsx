@@ -104,21 +104,22 @@ export function MultiTranslationView() {
     onSwipeRight: previousChapter,
   });
 
-  // Scroll the selected word into view when the selection menu (bottom sheet) opens
+  // Track the active highlight mark so we can clean it up when selection clears
+  const highlightRef = useRef<HTMLElement | null>(null);
+
+  // Clean up highlight when selection is cleared
   useEffect(() => {
-    const handler = (e: Event) => {
-      const container = verseContainerRef.current;
-      if (!container) return;
-      const { selectionY } = (e as CustomEvent<{ selectionY: number }>).detail;
-      const sheetHeight = window.innerHeight * 0.4;
-      const safeBottom = window.innerHeight - sheetHeight - 20;
-      if (selectionY > safeBottom) {
-        container.scrollBy({ top: selectionY - safeBottom + 60, behavior: 'smooth' });
+    if (!selection && highlightRef.current?.parentNode) {
+      const el = highlightRef.current;
+      const parent = el.parentNode!;
+      while (el.firstChild) {
+        parent.insertBefore(el.firstChild, el);
       }
-    };
-    window.addEventListener('selection-menu-opened', handler);
-    return () => window.removeEventListener('selection-menu-opened', handler);
-  }, []);
+      parent.removeChild(el);
+      parent.normalize();
+      highlightRef.current = null;
+    }
+  }, [selection]);
 
   // Force WebKit to recalculate layout on resize (works around emoji line-box bug)
   useEffect(() => {
@@ -747,6 +748,29 @@ export function MultiTranslationView() {
       strongsNumbers,
     });
     setIsSelecting(true);
+
+    // Highlight the selected word in scripture
+    try {
+      sel.removeAllRanges();
+      sel.addRange(expandedRange.cloneRange());
+      const mark = document.createElement('mark');
+      mark.className = 'selection-active-highlight';
+      expandedRange.surroundContents(mark);
+      highlightRef.current = mark;
+      sel.removeAllRanges();
+    } catch {
+      // surroundContents fails on partial node selections — ignore
+    }
+
+    // Scroll the selected word into view above the bottom sheet
+    const container = verseContainerRef.current;
+    if (container) {
+      const sheetHeight = window.innerHeight * 0.4;
+      const safeBottom = window.innerHeight - sheetHeight - 20;
+      if (menuAnchor.y > safeBottom) {
+        container.scrollBy({ top: menuAnchor.y - safeBottom + 60, behavior: 'smooth' });
+      }
+    }
   }, [activeView, currentBook, currentChapter, translationChapters, setSelection, setIsSelecting]);
 
   const loadTranslations = async () => {

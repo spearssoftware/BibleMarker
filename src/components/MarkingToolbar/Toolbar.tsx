@@ -385,7 +385,6 @@ export function Toolbar() {
       {selection && selectionMenuPosition && (
         <SelectionMenu
           selection={selection}
-          position={selectionMenuPosition}
           presets={filterPresetsByStudy(presets, activeStudyId)}
           strongsNumbers={selection.strongsNumbers}
           onApplyPreset={applyPresetToSelection}

@@ -14,7 +14,6 @@ import { getBookById } from '@/types';
 
 interface SelectionMenuProps {
   selection: TextSelection;
-  position: { x: number; y: number };
   presets: MarkingPreset[];
   strongsNumbers?: string[];
   onApplyPreset: (preset: MarkingPreset) => void;
@@ -29,7 +28,6 @@ interface SelectionMenuProps {
 
 export function SelectionMenu({
   selection,
-  position,
   presets,
   strongsNumbers,
   onApplyPreset,
@@ -73,40 +71,6 @@ export function SelectionMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Scroll selection into view and highlight the selected word in scripture
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent('selection-menu-opened', {
-      detail: { selectionY: position.y },
-    }));
-
-    // Wrap the current browser selection in a highlight mark
-    const sel = window.getSelection();
-    let highlightEl: HTMLElement | null = null;
-    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
-      try {
-        const range = sel.getRangeAt(0);
-        highlightEl = document.createElement('mark');
-        highlightEl.className = 'selection-active-highlight';
-        range.surroundContents(highlightEl);
-        sel.removeAllRanges();
-      } catch {
-        // surroundContents fails on partial node selections — ignore
-        highlightEl = null;
-      }
-    }
-
-    return () => {
-      // Unwrap the highlight mark on close
-      if (highlightEl?.parentNode) {
-        const parent = highlightEl.parentNode;
-        while (highlightEl.firstChild) {
-          parent.insertBefore(highlightEl.firstChild, highlightEl);
-        }
-        parent.removeChild(highlightEl);
-        parent.normalize();
-      }
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const keywordPresets = presets.filter((p) => p.word);
   const sortedPresets = useMemo(
