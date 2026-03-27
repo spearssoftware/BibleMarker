@@ -290,10 +290,11 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
                   anchor="bottom"
                   onClose={() => setSelectedName(null)}
                   closeOnClick={false}
+                  closeButton={false}
                   className="place-map-popup"
                 >
                   <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '13px', lineHeight: '1.6' }}>
-                    <div style={{ fontWeight: 600, marginBottom: '4px' }}>{group.name}</div>
+                    <div style={{ fontWeight: 600, marginBottom: '4px', paddingRight: '16px' }}>{group.name}</div>
                     {group.entries.map(place => (
                       <div key={place.id} style={{ color: '#555', fontSize: '12px' }}>
                         {formatVerseRef(place.verseRef.book, place.verseRef.chapter, place.verseRef.verse)}
