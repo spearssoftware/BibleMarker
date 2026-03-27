@@ -9,7 +9,6 @@ import { persist } from 'zustand/middleware';
 import type { ObservationList, ObservationItem } from '@/types';
 import { getAllObservationLists as dbGetAllLists, saveObservationList as dbSaveList, deleteObservationList as dbDeleteList, getMarkingPreset } from '@/lib/database';
 import type { VerseRef } from '@/types';
-import { getBookById } from '@/types';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { validateObservationList, sanitizeData, ValidationError } from '@/lib/validation';
 
@@ -254,10 +253,7 @@ export const useListStore = create<ListState>()(
 
             const preset = await getMarkingPreset(keyWordId);
             const keywordName = preset?.word || 'Unknown';
-            const bookInfo = book ? getBookById(book) : null;
-            const title = bookInfo
-              ? `What I learn about ${keywordName} in ${bookInfo.name}`
-              : `What I learn about ${keywordName}`;
+            const title = keywordName;
             const scope = book ? { book } : undefined;
             return createList(title, keyWordId, scope, studyId);
           } finally {

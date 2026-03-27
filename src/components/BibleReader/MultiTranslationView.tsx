@@ -626,6 +626,15 @@ export function MultiTranslationView() {
                                       setCreatingNoteAt(verseNum);
                                       setVerseMenuAt(null);
                                     }}
+                                    onAddObservation={() => {
+                                      setVerseMenuAt(null);
+                                      window.dispatchEvent(new CustomEvent('openObservationTools', {
+                                        detail: {
+                                          tab: 'lists',
+                                          verseRef: { book: currentBook, chapter: currentChapter, verse: verseNum },
+                                        },
+                                      }));
+                                    }}
                                     onAddTimeExpression={() => {
                                       setVerseMenuAt(null);
                                       window.dispatchEvent(new CustomEvent('openObservationTools', {

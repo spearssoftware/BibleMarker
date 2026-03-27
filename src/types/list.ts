@@ -26,7 +26,7 @@ export interface ObservationScope {
 /** Observation list - a collection of observations about a specific key word */
 export interface ObservationList {
   id: string;
-  title: string;          // "What I learn about God in John 1"
+  title: string;          // Defaults to keyword name, user can rename
   scope?: ObservationScope; // Optional: limit to book/chapters
   items: ObservationItem[];
   keyWordId: string;      // Required: link to a key word (MarkingPreset) - list is about this keyword

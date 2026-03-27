@@ -11,6 +11,7 @@ interface VerseNumberMenuProps {
   verseNum: number;
   onAddHeading?: () => void;
   onAddNote: () => void;
+  onAddObservation: () => void;
   onAddTimeExpression: () => void;
   onClose: () => void;
 }
@@ -19,6 +20,7 @@ export function VerseNumberMenu({
   verseNum,
   onAddHeading,
   onAddNote,
+  onAddObservation,
   onAddTimeExpression,
   onClose
 }: VerseNumberMenuProps) {
@@ -89,6 +91,23 @@ export function VerseNumberMenu({
             >
               <span className="text-lg" aria-hidden="true">📝</span>
               <span>Add Note</span>
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onAddObservation();
+                onClose();
+              }}
+              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                       hover:shadow-sm text-scripture-text"
+              role="menuitem"
+              aria-label={`Add observation for verse ${verseNum}`}
+            >
+              <span className="text-lg" aria-hidden="true">🔍</span>
+              <span>Add Observation</span>
             </button>
 
             <button
