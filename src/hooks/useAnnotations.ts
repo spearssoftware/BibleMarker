@@ -252,6 +252,7 @@ export function useAnnotations() {
 
     await saveSectionHeading(heading);
     await loadSectionHeadings();
+    window.dispatchEvent(new CustomEvent('annotationsUpdated'));
     return heading;
   }, [currentBook, currentChapter, activeStudyId, loadSectionHeadings]);
 
@@ -265,6 +266,7 @@ export function useAnnotations() {
     };
     await saveSectionHeading(updated);
     await loadSectionHeadings();
+    window.dispatchEvent(new CustomEvent('annotationsUpdated'));
   }, [loadSectionHeadings]);
 
   /**
@@ -273,6 +275,7 @@ export function useAnnotations() {
   const removeSectionHeading = useCallback(async (id: string) => {
     await deleteSectionHeading(id);
     await loadSectionHeadings();
+    window.dispatchEvent(new CustomEvent('annotationsUpdated'));
   }, [loadSectionHeadings]);
 
   /**
@@ -293,6 +296,7 @@ export function useAnnotations() {
 
     await saveChapterTitle(chapterTitle);
     await loadChapterTitle();
+    window.dispatchEvent(new CustomEvent('annotationsUpdated'));
     return chapterTitle;
   }, [currentBook, currentChapter, activeStudyId, loadChapterTitle]);
 
@@ -306,6 +310,7 @@ export function useAnnotations() {
     };
     await saveChapterTitle(updated);
     await loadChapterTitle();
+    window.dispatchEvent(new CustomEvent('annotationsUpdated'));
   }, [loadChapterTitle]);
 
   /**
@@ -314,6 +319,7 @@ export function useAnnotations() {
   const removeChapterTitle = useCallback(async (id: string) => {
     await deleteChapterTitle(id);
     await loadChapterTitle();
+    window.dispatchEvent(new CustomEvent('annotationsUpdated'));
   }, [loadChapterTitle]);
 
   /**
@@ -333,6 +339,7 @@ export function useAnnotations() {
     range?: { startVerse: number; endVerse: number }
   ): Promise<Note | null> => {
     if (!currentModuleId) return null;
+    if (!content.trim()) return null;
 
     const note: Note = {
       id: crypto.randomUUID(),
@@ -361,6 +368,7 @@ export function useAnnotations() {
 
     await saveNote(note);
     await loadNotes();
+    window.dispatchEvent(new CustomEvent('annotationsUpdated'));
     return note;
   }, [currentModuleId, currentBook, currentChapter, loadNotes]);
 
@@ -374,6 +382,7 @@ export function useAnnotations() {
     };
     await saveNote(updated);
     await loadNotes();
+    window.dispatchEvent(new CustomEvent('annotationsUpdated'));
   }, [loadNotes]);
 
   /**
@@ -382,6 +391,7 @@ export function useAnnotations() {
   const removeNote = useCallback(async (id: string): Promise<void> => {
     await deleteNote(id);
     await loadNotes();
+    window.dispatchEvent(new CustomEvent('annotationsUpdated'));
   }, [loadNotes]);
 
   return {

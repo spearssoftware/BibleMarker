@@ -12,7 +12,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
 import { getAllTranslations, type ApiTranslation, fetchChapter } from '@/lib/bible-api';
-import { getChapterAnnotations, getChapterHeadings, getChapterTitle, getChapterNotes, saveSectionHeading, deleteSectionHeading, saveChapterTitle, deleteChapterTitle, saveNote, deleteNote } from '@/lib/database';
+import { getChapterAnnotations, getChapterHeadings, getChapterTitle, getChapterNotes } from '@/lib/database';
 import { filterAnnotationsByStudy } from '@/lib/studyFilter';
 import { VerseText } from './VerseText';
 import { SectionHeadingEditor } from './SectionHeadingEditor';
@@ -30,21 +30,14 @@ import { useStudyStore } from '@/stores/studyStore';
 import { useListStore } from '@/stores/listStore';
 import { getBookById } from '@/types';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
-import type { Chapter } from '@/types';
+import { useTextSelection, type TranslationChapter } from '@/hooks/useTextSelection';
 import type { Annotation, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
-
-interface TranslationChapter {
-  translation: ApiTranslation;
-  chapter: Chapter | null;
-  isLoading: boolean;
-  error: string | null;
-}
 
 export function MultiTranslationView() {
   const { activeView, loadActiveView, addTranslation } = useMultiTranslationStore();
   const setActiveChapterVerses = useActiveChapterStore(state => state.setActiveChapterVerses);
   const { currentBook, currentChapter, currentModuleId, navSelectedVerse, nextChapter, previousChapter } = useBibleStore();
-  const { setSelection, setIsSelecting, fontSize, selection } = useAnnotationStore();
+  const { fontSize, selection } = useAnnotationStore();
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const [translationChapters, setTranslationChapters] = useState<Map<string, TranslationChapter>>(new Map());
   const [annotationsByTranslation, setAnnotationsByTranslation] = useState<Map<string, Annotation[]>>(new Map());
@@ -62,7 +55,18 @@ export function MultiTranslationView() {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- translationIdsJoin captures activeView?.translationIds
   }, [translationIdsJoin, currentModuleId]);
   
-  const { removeAnnotation } = useAnnotations();
+  const {
+    removeAnnotation,
+    createSectionHeading,
+    updateSectionHeading,
+    removeSectionHeading,
+    createChapterTitle,
+    updateChapterTitle,
+    removeChapterTitle,
+    createNote,
+    updateNote,
+    removeNote,
+  } = useAnnotations();
   const { presets } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
 
@@ -98,6 +102,14 @@ export function MultiTranslationView() {
   const [configGeneration, setConfigGeneration] = useState(0);
   
   const verseContainerRef = useRef<HTMLDivElement>(null);
+
+  const { handleMouseUp } = useTextSelection({
+    activeView,
+    currentBook,
+    currentChapter,
+    translationChapters,
+    verseContainerRef,
+  });
 
   const { handleTouchStart: swipeTouchStart, handleTouchEnd: swipeTouchEnd } = useSwipeNavigation({
     onSwipeLeft: nextChapter,
@@ -186,77 +198,6 @@ export function MultiTranslationView() {
     setAnnotationsByTranslation(newAnnotations);
   }, [activeView, currentBook, currentChapter]);
 
-  // Create/update/delete functions (translation-agnostic)
-  const createSectionHeading = useCallback(async (verseNum: number, title: string) => {
-    if (!title.trim()) return null;
-    
-    const heading: SectionHeading = {
-      id: globalThis.crypto.randomUUID(),
-      beforeRef: {
-        book: currentBook,
-        chapter: currentChapter,
-        verse: verseNum,
-      },
-      title: title.trim(),
-      studyId: activeStudyId ?? undefined,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    
-    await saveSectionHeading(heading);
-    await loadSectionHeadings();
-    return heading;
-  }, [currentBook, currentChapter, activeStudyId, loadSectionHeadings]);
-  
-  const updateSectionHeading = useCallback(async (heading: SectionHeading) => {
-    const updated = {
-      ...heading,
-      updatedAt: new Date(),
-    };
-    await saveSectionHeading(updated);
-    await loadSectionHeadings();
-  }, [loadSectionHeadings]);
-  
-  const removeSectionHeading = useCallback(async (id: string) => {
-    await deleteSectionHeading(id);
-    await loadSectionHeadings();
-  }, [loadSectionHeadings]);
-  
-  const createChapterTitle = useCallback(async (title: string) => {
-    if (!title.trim()) return null;
-    
-    const chapterTitleData = {
-      id: globalThis.crypto.randomUUID(),
-      book: currentBook,
-      chapter: currentChapter,
-      title: title.trim(),
-      studyId: activeStudyId ?? undefined,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    
-    await saveChapterTitle(chapterTitleData);
-    await loadChapterTitle();
-    return chapterTitleData;
-  }, [currentBook, currentChapter, activeStudyId, loadChapterTitle]);
-  
-  const updateChapterTitle = useCallback(async (title: ChapterTitle) => {
-    // Ensure we use the current book and chapter, not the title's (which might be stale)
-    const updated = {
-      ...title,
-      book: currentBook,
-      chapter: currentChapter,
-      updatedAt: new Date(),
-    };
-    await saveChapterTitle(updated);
-    await loadChapterTitle();
-  }, [currentBook, currentChapter, loadChapterTitle]);
-  
-  const removeChapterTitle = useCallback(async (id: string) => {
-    await deleteChapterTitle(id);
-    await loadChapterTitle();
-  }, [loadChapterTitle]);
-
   const handleKeywordTap = useCallback((presetId: string, verseRef: VerseRef) => {
     const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
     useListStore.getState().getOrCreateListForKeyword(presetId, activeStudyId, verseRef.book).then(list => {
@@ -266,45 +207,6 @@ export function MultiTranslationView() {
     });
   }, []);
 
-  const createNote = useCallback(async (verseNum: number, content: string, range?: { startVerse: number; endVerse: number }) => {
-    if (!primaryTranslationId || !content.trim()) return null;
-    
-    const note: Note = {
-      id: globalThis.crypto.randomUUID(),
-      moduleId: primaryTranslationId,
-      ref: {
-        book: currentBook,
-        chapter: currentChapter,
-        verse: verseNum,
-      },
-      range: range ? {
-        start: { book: currentBook, chapter: currentChapter, verse: range.startVerse },
-        end: { book: currentBook, chapter: currentChapter, verse: range.endVerse },
-      } : undefined,
-      content: content.trim(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    
-    await saveNote(note);
-    await loadNotes();
-    return note;
-  }, [primaryTranslationId, currentBook, currentChapter, loadNotes]);
-  
-  const updateNote = useCallback(async (note: Note) => {
-    const updated = {
-      ...note,
-      updatedAt: new Date(),
-    };
-    await saveNote(updated);
-    await loadNotes();
-  }, [loadNotes]);
-  
-  const removeNote = useCallback(async (id: string) => {
-    await deleteNote(id);
-    await loadNotes();
-  }, [loadNotes]);
-  
   // Helper functions
   function getHeadingBefore(verseNum: number): SectionHeading | undefined {
     return sectionHeadings.find(h => h.beforeRef.verse === verseNum);
@@ -391,347 +293,6 @@ export function MultiTranslationView() {
     return () => window.removeEventListener('translationsUpdated', handleTranslationsUpdated);
   }, [translationChapters]);
 
-  // Helper function to expand selection to word boundaries
-  const expandToWordBoundaries = (range: Range): { expandedRange: Range; text: string } => {
-    const expandedRange = range.cloneRange();
-    
-    // Get the common ancestor container
-    const commonAncestor = expandedRange.commonAncestorContainer;
-    
-    // If the common ancestor is a text node, work with it directly
-    if (commonAncestor.nodeType === Node.TEXT_NODE) {
-      const textContent = commonAncestor.textContent || '';
-      let startOffset = expandedRange.startOffset;
-      let endOffset = expandedRange.endOffset;
-      
-      // Expand backward to word boundary
-      while (startOffset > 0 && /\w/.test(textContent[startOffset - 1])) {
-        startOffset--;
-      }
-      
-      // Expand forward to word boundary
-      while (endOffset < textContent.length && /\w/.test(textContent[endOffset])) {
-        endOffset++;
-      }
-      
-      expandedRange.setStart(commonAncestor, startOffset);
-      expandedRange.setEnd(commonAncestor, endOffset);
-    } else {
-      // For multi-node selections, try to expand using Range methods
-      // First, try to expand to word boundaries
-      try {
-        // Get the text content of the range
-        const selectedText = expandedRange.toString();
-        
-        // Find the first word character in the selection
-        const firstWordMatch = selectedText.match(/\w/);
-        const lastWordMatch = selectedText.match(/\w(?=[\s\p{P}]*$)/u);
-        
-        if (firstWordMatch && lastWordMatch) {
-          // Try to adjust the range to start/end at word boundaries
-          // This is approximate - we'll refine the text after
-          const startContainer = expandedRange.startContainer;
-          const endContainer = expandedRange.endContainer;
-          
-          if (startContainer.nodeType === Node.TEXT_NODE && endContainer.nodeType === Node.TEXT_NODE) {
-            let startOffset = expandedRange.startOffset;
-            let endOffset = expandedRange.endOffset;
-            
-            // Expand backward from start
-            const startText = startContainer.textContent || '';
-            while (startOffset > 0 && /\w/.test(startText[startOffset - 1])) {
-              startOffset--;
-            }
-            
-            // Expand forward from end
-            const endText = endContainer.textContent || '';
-            while (endOffset < endText.length && /\w/.test(endText[endOffset])) {
-              endOffset++;
-            }
-            
-            expandedRange.setStart(startContainer, startOffset);
-            expandedRange.setEnd(endContainer, endOffset);
-          }
-        }
-      } catch (e) {
-        // If expansion fails, use original range
-        console.warn('Could not expand selection to word boundaries:', e);
-      }
-    }
-    
-    // Get the expanded text - extract only text content, excluding symbols and HTML
-    // Clone the range and extract text from text nodes only
-    let expandedText = '';
-    
-    if (!expandedRange.collapsed) {
-      // Create a temporary container to extract text content
-      const clone = expandedRange.cloneContents();
-      // Get textContent which strips HTML but keeps text (excludes symbols in spans)
-      expandedText = clone.textContent || '';
-      
-      // If textContent is empty or includes symbols, try a different approach
-      // Extract text by walking text nodes
-      if (!expandedText || expandedText.trim().length === 0) {
-        const textParts: string[] = [];
-        const walker = document.createTreeWalker(
-          clone,
-          NodeFilter.SHOW_TEXT,
-          null
-        );
-        
-        for (let textNode = walker.nextNode(); textNode; textNode = walker.nextNode()) {
-          if (textNode.textContent) {
-            textParts.push(textNode.textContent);
-          }
-        }
-        expandedText = textParts.join('');
-      }
-    }
-    
-    // Clean up: remove extra whitespace and trim
-    expandedText = expandedText.replace(/\s+/g, ' ').trim();
-    
-    // Trim leading/trailing punctuation, whitespace, but keep internal punctuation
-    // Remove common punctuation and whitespace from edges
-    expandedText = expandedText.replace(/^[\s.,;:!?'"()[\]+{}—–-]+|[\s.,;:!?'"()[\]+{}—–-]+$/g, '');
-    
-    return { expandedRange, text: expandedText };
-  };
-
-  // Handle text selection - detect which translation and capture selection
-  const handleMouseUp = useCallback(() => {
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) {
-      return;
-    }
-
-    const originalRange = sel.getRangeAt(0);
-    
-    // Expand to word boundaries and get clean text
-    const { expandedRange, text } = expandToWordBoundaries(originalRange);
-    
-    if (!text || text.length === 0) return;
-    
-    // Update the browser selection to match expanded range
-    sel.removeAllRanges();
-    sel.addRange(expandedRange);
-
-    // Find which translation column the selection is in by finding the verse element
-    const startContainer = expandedRange.startContainer.parentElement;
-    const verseElement = startContainer?.closest('[data-verse]');
-    if (!verseElement) return;
-
-    // Find the verse row (grid container)
-    const verseRow = verseElement.closest('.grid[data-verse]') || verseElement.closest('.grid');
-    if (!verseRow || !activeView) return;
-
-    // Find which cell in the grid contains the selection
-    const verseCell = verseElement.closest('.verse-cell');
-    if (!verseCell) return;
-
-    const cells = Array.from(verseRow.children);
-    const cellIndex = cells.indexOf(verseCell);
-    
-    if (cellIndex === -1 || cellIndex >= activeView.translationIds.length) return;
-    
-    // Get the translation ID for this column
-    const translationId = activeView.translationIds[cellIndex];
-    if (!translationId) return;
-
-    // Find verse number from the verse element
-    const verseNum = parseInt(verseElement.getAttribute('data-verse') || '0', 10);
-    if (!verseNum) return;
-
-    // Try to get verse content element for offset calculation
-    const verseContent = verseElement.querySelector('.verse-content');
-    const originalText = verseContent?.getAttribute('data-original-text') || '';
-    
-    // Calculate character offsets within the verse
-    let startOffset: number | undefined;
-    let endOffset: number | undefined;
-    
-    if (verseContent && originalText && text.trim()) {
-      try {
-        const selectedText = text.trim();
-        const domTextContent = verseContent.textContent || '';
-        
-        // Strategy: Use DOM selection position directly, then map to original text
-        // This is more accurate than trying to match normalized text positions
-        
-        // Calculate DOM offsets (textContent strips HTML but preserves text structure)
-        const startRange = document.createRange();
-        startRange.selectNodeContents(verseContent);
-        startRange.setEnd(expandedRange.startContainer, expandedRange.startOffset);
-        const domTextBefore = startRange.toString();
-        const domStartOffset = domTextBefore.length;
-        
-        const endRange = document.createRange();
-        endRange.selectNodeContents(verseContent);
-        endRange.setEnd(expandedRange.endContainer, expandedRange.endOffset);
-        const domTextUpToEnd = endRange.toString();
-        const domEndOffset = domTextUpToEnd.length;
-        
-        // If DOM text matches original text exactly, use DOM offsets directly
-        if (domTextContent === originalText) {
-          startOffset = domStartOffset;
-          endOffset = domEndOffset;
-        } else {
-          // DOM text differs (might have different whitespace or entity encoding)
-          // Find the selected text starting from the DOM position
-          const lowerOriginal = originalText.toLowerCase();
-          const lowerSelected = selectedText.toLowerCase();
-          
-          // Find all whole-word occurrences first (prevents matching "he" inside "the"/"When")
-          const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const occurrences: number[] = [];
-          const wordBoundaryRegex = new RegExp(`\\b${escapeRegex(lowerSelected)}\\b`, 'g');
-          let regexMatch;
-          while ((regexMatch = wordBoundaryRegex.exec(lowerOriginal)) !== null) {
-            occurrences.push(regexMatch.index);
-          }
-          
-          // Fall back to substring search if no word-boundary matches
-          if (occurrences.length === 0) {
-            let searchIdx = 0;
-            while ((searchIdx = lowerOriginal.indexOf(lowerSelected, searchIdx)) !== -1) {
-              occurrences.push(searchIdx);
-              searchIdx++;
-            }
-          }
-          
-          if (occurrences.length === 0) {
-            console.warn('[MultiTranslationView] Selected text not found:', selectedText.substring(0, 50));
-            return;
-          }
-          
-          // If only one occurrence, use it
-          if (occurrences.length === 1) {
-            startOffset = occurrences[0];
-            endOffset = occurrences[0] + selectedText.length;
-          } else {
-            // Multiple occurrences - use DOM position to pick the right one
-            // Map DOM offset to approximate original text position
-            // Since DOM textContent might differ, we'll search near the estimated position
-            
-            // Estimate position in original text based on DOM offset
-            // Use a ratio if lengths differ significantly
-            let estimatedPos = domStartOffset;
-            if (domTextContent.length > 0 && originalText.length > 0 && domTextContent.length !== originalText.length) {
-              const ratio = originalText.length / domTextContent.length;
-              estimatedPos = Math.floor(domStartOffset * ratio);
-            }
-            
-            // Search window: look within a reasonable range around estimated position
-            const searchWindow = Math.max(selectedText.length * 3, 50);
-            const searchStart = Math.max(0, estimatedPos - searchWindow);
-            const searchEnd = Math.min(originalText.length, estimatedPos + searchWindow);
-            
-            // Find occurrences within the search window
-            const nearbyOccurrences = occurrences.filter(occ => occ >= searchStart && occ <= searchEnd);
-            
-            if (nearbyOccurrences.length > 0) {
-              // Use the occurrence closest to estimated position
-              let bestOccurrence = nearbyOccurrences[0];
-              let minDist = Math.abs(nearbyOccurrences[0] - estimatedPos);
-              
-              for (const occ of nearbyOccurrences.slice(1)) {
-                const dist = Math.abs(occ - estimatedPos);
-                if (dist < minDist) {
-                  minDist = dist;
-                  bestOccurrence = occ;
-                }
-              }
-              
-              startOffset = bestOccurrence;
-              endOffset = bestOccurrence + selectedText.length;
-            } else {
-              // No occurrences in window - use closest overall
-              let bestOccurrence = occurrences[0];
-              let minDist = Math.abs(occurrences[0] - estimatedPos);
-              
-              for (const occ of occurrences.slice(1)) {
-                const dist = Math.abs(occ - estimatedPos);
-                if (dist < minDist) {
-                  minDist = dist;
-                  bestOccurrence = occ;
-                }
-              }
-              
-              startOffset = bestOccurrence;
-              endOffset = bestOccurrence + selectedText.length;
-            }
-          }
-        }
-        
-        // Validate offsets
-        if (startOffset !== undefined && endOffset !== undefined) {
-          startOffset = Math.max(0, Math.min(startOffset, originalText.length));
-          endOffset = Math.max(startOffset, Math.min(endOffset, originalText.length));
-          
-          // Verify the selected text matches
-          const actualSelected = originalText.substring(startOffset, endOffset).trim();
-          const normalizeForMatch = (t: string) => t.replace(/\s+/g, ' ').trim().toLowerCase();
-          if (normalizeForMatch(actualSelected) !== normalizeForMatch(selectedText)) {
-            console.warn('[MultiTranslationView] Offset mismatch:', {
-              selectedText,
-              actualSelected,
-              startOffset,
-              endOffset,
-              originalText: originalText.substring(Math.max(0, startOffset - 30), Math.min(originalText.length, endOffset + 30)),
-              domStartOffset,
-              domTextContent: domTextContent.substring(Math.max(0, domStartOffset - 30), Math.min(domTextContent.length, domStartOffset + selectedText.length + 30))
-            });
-          }
-        } else {
-          console.warn('[MultiTranslationView] Failed to calculate offsets for:', selectedText);
-          return;
-        }
-        
-      } catch (e) {
-        console.warn('[MultiTranslationView] Error calculating offsets:', e);
-        return;
-      }
-    }
-
-    // Capture menu position from selection rect (viewport coords) so the menu appears next to the selection
-    const selRect = expandedRange.getBoundingClientRect();
-    const menuAnchor = {
-      x: selRect.left + selRect.width / 2,
-      y: selRect.top,
-    };
-
-    // Look up Strong's numbers for the selected word(s)
-    let strongsNumbers: string[] | undefined;
-    const tc = translationChapters.get(translationId);
-    const verseData = tc?.chapter?.verses.find((v) => v.ref.verse === verseNum);
-    if (verseData?.words) {
-      const selectedLower = text.trim().toLowerCase();
-      const matched = new Set<string>();
-      for (const w of verseData.words) {
-        if (selectedLower.includes(w.word.toLowerCase()) || w.word.toLowerCase().includes(selectedLower)) {
-          for (const s of w.strongs) matched.add(s);
-        }
-      }
-      if (matched.size > 0) strongsNumbers = [...matched];
-    }
-
-    // Set selection with translation ID as moduleId
-    setSelection({
-      moduleId: translationId,
-      book: currentBook,
-      chapter: currentChapter,
-      startVerse: verseNum,
-      endVerse: verseNum,
-      text,
-      startOffset,
-      endOffset,
-      startVerseText: originalText || undefined,
-      endVerseText: originalText || undefined,
-      menuAnchor,
-      strongsNumbers,
-    });
-    setIsSelecting(true);
-  }, [activeView, currentBook, currentChapter, translationChapters, setSelection, setIsSelecting]);
 
   const loadTranslations = async () => {
     const all = await getAllTranslations();
@@ -1046,6 +607,10 @@ export function MultiTranslationView() {
                                 primaryTranslationId
                                   ? (verseNum) => {
                                       setVerseMenuAt({ verseNum, translationId: translation.id });
+                                      requestAnimationFrame(() => {
+                                        const verseEl = verseContainerRef.current?.querySelector(`[data-verse="${verseNum}"]`);
+                                        if (verseEl) verseEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                      });
                                     }
                                   : undefined
                               }
@@ -1077,6 +642,11 @@ export function MultiTranslationView() {
                               }
                               onRemoveAnnotation={removeAnnotation}
                               onKeywordTap={handleKeywordTap}
+                              selectionRange={
+                                selection?.moduleId === translation.id && selection?.startVerse === verseNum && selection?.startOffset != null && selection?.endOffset != null
+                                  ? { startOffset: selection.startOffset, endOffset: selection.endOffset }
+                                  : undefined
+                              }
                             />
                           </div>
                         ) : (

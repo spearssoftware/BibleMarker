@@ -436,6 +436,38 @@ select:focus-visible {
   }
 }
 
+/* ── Active selection highlight (shown while bottom sheet is open) ───── */
+
+mark.selection-active-highlight {
+  background: transparent;
+  color: inherit;
+  border-radius: 3px;
+  outline: 2px solid var(--scripture-accent);
+  outline-offset: 1px;
+  animation: selectionPulse 0.6s ease-out;
+}
+
+@keyframes selectionPulse {
+  0% {
+    outline-color: var(--scripture-accent);
+    outline-width: 4px;
+    outline-offset: 2px;
+    background: color-mix(in srgb, var(--scripture-accent) 25%, transparent);
+  }
+  100% {
+    outline-color: var(--scripture-accent);
+    outline-width: 2px;
+    outline-offset: 1px;
+    background: transparent;
+  }
+}
+
+/* Scroll margins so selected verse clears the header and bottom sheet */
+[data-verse] {
+  scroll-margin-top: 80px;
+  scroll-margin-bottom: 45vh;
+}
+
 /* ── MapLibre popup overrides ──────────────────────────────────────────── */
 
 .place-map-popup .maplibregl-popup-content {
