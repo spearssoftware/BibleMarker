@@ -12,7 +12,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
 import { getAllTranslations, type ApiTranslation, fetchChapter } from '@/lib/bible-api';
-import { getChapterAnnotations, getChapterHeadings, getChapterTitle, getChapterNotes, saveSectionHeading, deleteSectionHeading, saveChapterTitle, deleteChapterTitle, saveNote, deleteNote } from '@/lib/database';
+import { getChapterAnnotations, getChapterHeadings, getChapterTitle, getChapterNotes } from '@/lib/database';
 import { filterAnnotationsByStudy } from '@/lib/studyFilter';
 import { VerseText } from './VerseText';
 import { SectionHeadingEditor } from './SectionHeadingEditor';
@@ -62,7 +62,18 @@ export function MultiTranslationView() {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- translationIdsJoin captures activeView?.translationIds
   }, [translationIdsJoin, currentModuleId]);
   
-  const { removeAnnotation } = useAnnotations();
+  const {
+    removeAnnotation,
+    createSectionHeading,
+    updateSectionHeading,
+    removeSectionHeading,
+    createChapterTitle,
+    updateChapterTitle,
+    removeChapterTitle,
+    createNote,
+    updateNote,
+    removeNote,
+  } = useAnnotations();
   const { presets } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
 
@@ -197,77 +208,6 @@ export function MultiTranslationView() {
     setAnnotationsByTranslation(newAnnotations);
   }, [activeView, currentBook, currentChapter]);
 
-  // Create/update/delete functions (translation-agnostic)
-  const createSectionHeading = useCallback(async (verseNum: number, title: string) => {
-    if (!title.trim()) return null;
-    
-    const heading: SectionHeading = {
-      id: globalThis.crypto.randomUUID(),
-      beforeRef: {
-        book: currentBook,
-        chapter: currentChapter,
-        verse: verseNum,
-      },
-      title: title.trim(),
-      studyId: activeStudyId ?? undefined,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    
-    await saveSectionHeading(heading);
-    await loadSectionHeadings();
-    return heading;
-  }, [currentBook, currentChapter, activeStudyId, loadSectionHeadings]);
-  
-  const updateSectionHeading = useCallback(async (heading: SectionHeading) => {
-    const updated = {
-      ...heading,
-      updatedAt: new Date(),
-    };
-    await saveSectionHeading(updated);
-    await loadSectionHeadings();
-  }, [loadSectionHeadings]);
-  
-  const removeSectionHeading = useCallback(async (id: string) => {
-    await deleteSectionHeading(id);
-    await loadSectionHeadings();
-  }, [loadSectionHeadings]);
-  
-  const createChapterTitle = useCallback(async (title: string) => {
-    if (!title.trim()) return null;
-    
-    const chapterTitleData = {
-      id: globalThis.crypto.randomUUID(),
-      book: currentBook,
-      chapter: currentChapter,
-      title: title.trim(),
-      studyId: activeStudyId ?? undefined,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    
-    await saveChapterTitle(chapterTitleData);
-    await loadChapterTitle();
-    return chapterTitleData;
-  }, [currentBook, currentChapter, activeStudyId, loadChapterTitle]);
-  
-  const updateChapterTitle = useCallback(async (title: ChapterTitle) => {
-    // Ensure we use the current book and chapter, not the title's (which might be stale)
-    const updated = {
-      ...title,
-      book: currentBook,
-      chapter: currentChapter,
-      updatedAt: new Date(),
-    };
-    await saveChapterTitle(updated);
-    await loadChapterTitle();
-  }, [currentBook, currentChapter, loadChapterTitle]);
-  
-  const removeChapterTitle = useCallback(async (id: string) => {
-    await deleteChapterTitle(id);
-    await loadChapterTitle();
-  }, [loadChapterTitle]);
-
   const handleKeywordTap = useCallback((presetId: string, verseRef: VerseRef) => {
     const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
     useListStore.getState().getOrCreateListForKeyword(presetId, activeStudyId, verseRef.book).then(list => {
@@ -277,45 +217,6 @@ export function MultiTranslationView() {
     });
   }, []);
 
-  const createNote = useCallback(async (verseNum: number, content: string, range?: { startVerse: number; endVerse: number }) => {
-    if (!primaryTranslationId || !content.trim()) return null;
-    
-    const note: Note = {
-      id: globalThis.crypto.randomUUID(),
-      moduleId: primaryTranslationId,
-      ref: {
-        book: currentBook,
-        chapter: currentChapter,
-        verse: verseNum,
-      },
-      range: range ? {
-        start: { book: currentBook, chapter: currentChapter, verse: range.startVerse },
-        end: { book: currentBook, chapter: currentChapter, verse: range.endVerse },
-      } : undefined,
-      content: content.trim(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    
-    await saveNote(note);
-    await loadNotes();
-    return note;
-  }, [primaryTranslationId, currentBook, currentChapter, loadNotes]);
-  
-  const updateNote = useCallback(async (note: Note) => {
-    const updated = {
-      ...note,
-      updatedAt: new Date(),
-    };
-    await saveNote(updated);
-    await loadNotes();
-  }, [loadNotes]);
-  
-  const removeNote = useCallback(async (id: string) => {
-    await deleteNote(id);
-    await loadNotes();
-  }, [loadNotes]);
-  
   // Helper functions
   function getHeadingBefore(verseNum: number): SectionHeading | undefined {
     return sectionHeadings.find(h => h.beforeRef.verse === verseNum);
