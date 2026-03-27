@@ -625,10 +625,10 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
       boundaries.add(range.end);
     }
 
-    // Add selection range boundaries
+    // Add selection range boundaries (clamped values reused later for segment matching)
+    const selStart = selectionRange ? Math.max(0, Math.min(selectionRange.startOffset, plainText.length)) : -1;
+    const selEnd = selectionRange ? Math.max(selStart, Math.min(selectionRange.endOffset, plainText.length)) : -1;
     if (selectionRange) {
-      const selStart = Math.max(0, Math.min(selectionRange.startOffset, plainText.length));
-      const selEnd = Math.max(selStart, Math.min(selectionRange.endOffset, plainText.length));
       boundaries.add(selStart);
       boundaries.add(selEnd);
     }
@@ -671,15 +671,10 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     // Render each segment with its combined styles
     const htmlSegments: string[] = [];
 
-    // Check if a segment falls within the active selection range
-    const isInSelection = (seg: TextSegment) =>
-      selectionRange &&
-      seg.start >= Math.max(0, Math.min(selectionRange.startOffset, plainText.length)) &&
-      seg.end <= Math.max(0, Math.min(selectionRange.endOffset, plainText.length));
-
     for (const segment of segments) {
-      const selOpen = isInSelection(segment) ? '<mark class="selection-active-highlight">' : '';
-      const selClose = isInSelection(segment) ? '</mark>' : '';
+      const inSelection = selectionRange && segment.start >= selStart && segment.end <= selEnd;
+      const selOpen = inSelection ? '<mark class="selection-active-highlight">' : '';
+      const selClose = inSelection ? '</mark>' : '';
 
       if (segment.annotations.length === 0 && segment.symbols.length === 0) {
         // No annotations - output plain text (maybe with selection highlight)

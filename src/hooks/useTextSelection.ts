@@ -310,7 +310,8 @@ export function useTextSelection({
     });
 
     sel.removeAllRanges();
-  }, [activeView, currentBook, currentChapter, translationChapters, setSelection, setIsSelecting, verseContainerRef]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- verseContainerRef is a stable ref
+  }, [activeView, currentBook, currentChapter, translationChapters, setSelection, setIsSelecting]);
 
   return { handleMouseUp };
 }

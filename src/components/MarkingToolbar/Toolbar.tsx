@@ -82,36 +82,12 @@ export function Toolbar() {
   const [, setShowAddAsVariantPicker] = useState(false);
   const [, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [selectionMenuPosition, setSelectionMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [strongsPopup, setStrongsPopup] = useState<{ numbers: string[]; position: { x: number; y: number }; word?: string } | null>(null);
 
   // Load marking presets on mount
   useEffect(() => {
     loadPresets();
   }, [loadPresets]);
-
-  // Use selection menu position: prefer anchor captured when selection was made (next to selection/mouse)
-  useEffect(() => {
-    if (!selection) {
-      queueMicrotask(() => setSelectionMenuPosition(null));
-      return;
-    }
-    // Use menuAnchor from the selection (captured at selection time in the reader) so menu appears next to the selection
-    if (selection.menuAnchor) {
-      queueMicrotask(() => setSelectionMenuPosition(selection.menuAnchor ?? null));
-      return;
-    }
-    // Fallback: get selection bounds from DOM (may be stale or wrong in some layouts)
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) {
-      queueMicrotask(() => setSelectionMenuPosition(null));
-      return;
-    }
-    const range = sel.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-    const position = { x: rect.left + rect.width / 2, y: rect.top };
-    queueMicrotask(() => setSelectionMenuPosition(position));
-  }, [selection]);
 
   // Listen for custom events to open ObservationToolsPanel
   useEffect(() => {
@@ -382,7 +358,7 @@ export function Toolbar() {
         data-marking-toolbar
         onWheel={(e) => e.stopPropagation()}>
       {/* Selection Menu */}
-      {selection && selectionMenuPosition && (
+      {selection && (
         <SelectionMenu
           selection={selection}
           presets={filterPresetsByStudy(presets, activeStudyId)}
@@ -403,7 +379,7 @@ export function Toolbar() {
           onStrongsLookup={selection.strongsNumbers ? () => {
             setStrongsPopup({
               numbers: selection.strongsNumbers!,
-              position: selectionMenuPosition,
+              position: selection.menuAnchor ?? { x: 0, y: 0 },
               word: selection.text?.trim(),
             });
           } : undefined}
@@ -412,7 +388,7 @@ export function Toolbar() {
             clearSelection();
           }}
           onClose={() => {
-            setSelectionMenuPosition(null);
+            // Bottom sheet dismissal — selection cleared via onCancel
           }}
         />
       )}
