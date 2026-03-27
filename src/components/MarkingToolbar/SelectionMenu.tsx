@@ -5,7 +5,7 @@
  * Provides all marking and observation options in a compact menu.
  */
 
-import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { TextSelection } from '@/stores/annotationStore';
 import type { MarkingPreset } from '@/types';
 import { SYMBOLS, getHighlightColorHex } from '@/types';
@@ -73,58 +73,12 @@ export function SelectionMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const submenuOpen = showApplyKeyWordSubmenu || showAddVariantSubmenu;
-
-  // Check if we're on a small screen (mobile)
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
-  
+  // Notify scripture container to scroll selection into view above the bottom sheet
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 640);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Calculate menu position to avoid going off-screen and respect safe areas (desktop only)
-  const [menuPosition, setMenuPosition] = useState(position);
-  useLayoutEffect(() => {
-    if (!menuRef.current || isMobile) return;
-    
-    const el = menuRef.current;
-    if (!el) return;
-    
-    const rect = el.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    
-    // Get safe area insets from computed styles
-    const computedStyle = getComputedStyle(document.documentElement);
-    const safeTop = parseInt(computedStyle.getPropertyValue('env(safe-area-inset-top)') || '0', 10) || 
-                    (/iPhone/.test(navigator.userAgent) ? 59 : 0);
-    const safeBottom = parseInt(computedStyle.getPropertyValue('env(safe-area-inset-bottom)') || '0', 10) || 
-                       (/iPhone/.test(navigator.userAgent) ? 34 : 0);
-    const safeLeft = parseInt(computedStyle.getPropertyValue('env(safe-area-inset-left)') || '0', 10) || 0;
-    const safeRight = parseInt(computedStyle.getPropertyValue('env(safe-area-inset-right)') || '0', 10) || 0;
-    
-    // Account for app header (nav bar ~56px) on desktop so menu isn't hidden behind it
-    const headerOffset = /iPhone|iPad|Android/.test(navigator.userAgent) ? 0 : 56;
-    const minY = Math.max(safeTop + 10, headerOffset);
-    const minX = safeLeft + 10;
-    const maxX = viewportWidth - safeRight - 10;
-    const maxY = viewportHeight - safeBottom - 10;
-    
-    // Center menu horizontally on selection (position.x is selection center)
-    let x = position.x - rect.width / 2;
-    if (x + rect.width > maxX) x = maxX - rect.width;
-    if (x < minX) x = minX;
-    
-    // Prefer above selection; if not enough room, show below
-    const wouldShowAbove = position.y - rect.height - 5;
-    let y = wouldShowAbove < minY ? position.y + 20 : wouldShowAbove;
-    if (y + rect.height > maxY) y = maxY - rect.height;
-    if (y < minY) y = minY;
-    
-    requestAnimationFrame(() => setMenuPosition({ x, y }));
-  }, [position, isMobile, submenuOpen]);
+    window.dispatchEvent(new CustomEvent('selection-menu-opened', {
+      detail: { selectionY: position.y },
+    }));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const keywordPresets = presets.filter((p) => p.word);
   const sortedPresets = useMemo(
@@ -156,7 +110,7 @@ export function SelectionMenu({
     return { global, book, chapter };
   }, [filteredPresets]);
 
-  const submenuAction = showApplyKeyWordSubmenu ? 'apply' : 'variant';
+
 
   const renderPresetButton = (p: MarkingPreset, action: 'apply' | 'variant') => (
     <button
@@ -242,33 +196,23 @@ export function SelectionMenu({
         aria-hidden="true"
       />
       
-      {/* Menu - bottom sheet on mobile, positioned on desktop; flex row when submenu open */}
-      <div 
+      {/* Menu - unified bottom sheet on all devices */}
+      <div
         ref={menuRef}
-        className={`fixed z-50 bg-scripture-surface shadow-2xl overflow-visible
-          ${isMobile 
-            ? 'bottom-0 left-0 right-0 rounded-t-2xl animate-slide-up pb-safe-bottom' 
-            : `rounded-xl border border-scripture-border/50 animate-scale-in-dropdown w-max min-w-[200px] flex
-               ${submenuOpen ? 'max-w-none' : ''}`
-          }`}
-        style={isMobile ? undefined : {
-          left: `${menuPosition.x}px`,
-          top: `${menuPosition.y}px`,
-          ...(submenuOpen && { width: 'auto' }),
-        }}
+        className="fixed z-50 bottom-0 left-0 right-0 bg-scripture-surface shadow-2xl overflow-visible
+                   rounded-t-2xl animate-slide-up-sheet pb-safe-bottom
+                   sm:left-1/2 sm:-translate-x-1/2 sm:max-w-[400px]"
         role="menu"
         aria-label="Text selection options"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Drag handle for mobile */}
-        {isMobile && (
-          <div className="flex justify-center py-2">
-            <div className="w-10 h-1 bg-scripture-border/50 rounded-full" />
-          </div>
-        )}
-        <div className={`flex ${isMobile ? 'flex-col' : ''} min-w-0`}>
+        {/* Drag handle */}
+        <div className="flex justify-center py-2">
+          <div className="w-10 h-1 bg-scripture-border/50 rounded-full" />
+        </div>
+        <div className="flex flex-col min-w-0">
           {/* Main menu buttons */}
-          <div className={`p-2 space-y-1 overflow-y-auto custom-scrollbar flex-shrink-0 ${isMobile ? 'max-h-[70vh] px-4 pb-4' : ''}`}>
+          <div className="p-2 space-y-1 overflow-y-auto custom-scrollbar flex-shrink-0 max-h-[70vh] px-4 pb-4">
           {/* Key Word */}
           <button
             onClick={(e) => {
@@ -314,7 +258,7 @@ export function SelectionMenu({
                   </div>
                   <span className="text-xs opacity-70 ml-2">▶</span>
                 </button>
-                {showAddVariantSubmenu && isMobile && (
+                {showAddVariantSubmenu && (
                   <div className="mt-1">{renderKeywordList('variant', true)}</div>
                 )}
               </div>
@@ -347,7 +291,7 @@ export function SelectionMenu({
                   </div>
                   <span className="text-xs opacity-70 ml-2">▶</span>
                 </button>
-                {showApplyKeyWordSubmenu && isMobile && (
+                {showApplyKeyWordSubmenu && (
                   <div className="mt-1">{renderKeywordList('apply', true)}</div>
                 )}
               </div>
@@ -448,15 +392,6 @@ export function SelectionMenu({
           </button>
         </div>
 
-        {/* Desktop: keyword list flyout to the right */}
-        {!isMobile && submenuOpen && (
-          <div className="pl-2 pr-2 py-2 border-l border-scripture-border/30 flex-shrink-0">
-            <div className="text-xs font-ui font-semibold text-scripture-muted uppercase tracking-wider mb-2">
-              {submenuAction === 'apply' ? 'Apply Key Word' : 'Add as Variant'}
-            </div>
-            {renderKeywordList(submenuAction)}
-          </div>
-        )}
         </div>
       </div>
     </>

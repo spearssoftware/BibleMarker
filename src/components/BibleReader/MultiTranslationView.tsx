@@ -104,6 +104,22 @@ export function MultiTranslationView() {
     onSwipeRight: previousChapter,
   });
 
+  // Scroll the selected word into view when the selection menu (bottom sheet) opens
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const container = verseContainerRef.current;
+      if (!container) return;
+      const { selectionY } = (e as CustomEvent<{ selectionY: number }>).detail;
+      const sheetHeight = window.innerHeight * 0.4;
+      const safeBottom = window.innerHeight - sheetHeight - 20;
+      if (selectionY > safeBottom) {
+        container.scrollBy({ top: selectionY - safeBottom + 60, behavior: 'smooth' });
+      }
+    };
+    window.addEventListener('selection-menu-opened', handler);
+    return () => window.removeEventListener('selection-menu-opened', handler);
+  }, []);
+
   // Force WebKit to recalculate layout on resize (works around emoji line-box bug)
   useEffect(() => {
     const el = verseContainerRef.current;
