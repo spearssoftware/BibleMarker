@@ -28,6 +28,7 @@ import { useUndoToastStore } from '@/stores/undoToastStore';
 import { UndoToast } from '@/components/shared';
 import { initializeSync, shutdownSync } from '@/lib/sync';
 import { checkForUpdateIfDue, fetchWhatsNew, fetchWhatsNewForced } from '@/lib/updateCheck';
+import { isCapacitor } from '@/lib/platform';
 import { UpdateBanner, WhatsNewModal } from '@/components/shared';
 
 function GlobalUndoToast() {
@@ -118,11 +119,13 @@ export default function App() {
         console.error('[App] Failed to initialize sync:', err);
       });
 
-      checkForUpdateIfDue().then(result => {
-        if (result) {
-          setUpdateAvailable({ version: result.version, url: result.url });
-        }
-      });
+      if (!isCapacitor()) {
+        checkForUpdateIfDue().then(result => {
+          if (result) {
+            setUpdateAvailable({ version: result.version, url: result.url });
+          }
+        });
+      }
 
       fetchWhatsNew().then(result => {
         if (result) setWhatsNew(result);
