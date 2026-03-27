@@ -300,13 +300,17 @@ export function useTextSelection({
     });
     setIsSelecting(true);
 
-    // Scroll the selected verse into view above the bottom sheet
+    // Scroll the selected verse to the top of the container so it's above the bottom sheet
     requestAnimationFrame(() => {
-      const verseEl = verseContainerRef.current?.querySelector(
-        `[data-verse="${verseNum}"]`
-      );
-      if (verseEl) {
-        (verseEl as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      const container = verseContainerRef.current;
+      const verseEl = container?.querySelector(`[data-verse="${verseNum}"]`);
+      if (verseEl && container) {
+        const verseRect = verseEl.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const scrollDelta = verseRect.top - containerRect.top;
+        if (scrollDelta > 0) {
+          container.scrollBy({ top: scrollDelta, behavior: 'smooth' });
+        }
       }
     });
 
