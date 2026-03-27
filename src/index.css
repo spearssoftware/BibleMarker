@@ -436,6 +436,16 @@ select:focus-visible {
   }
 }
 
+/* ── Active selection highlight (shown while bottom sheet is open) ───── */
+
+.selection-active-highlight {
+  background: var(--scripture-accent);
+  color: var(--scripture-bg);
+  border-radius: 3px;
+  padding: 0 2px;
+  box-shadow: 0 0 0 2px var(--scripture-accent);
+}
+
 /* ── MapLibre popup overrides ──────────────────────────────────────────── */
 
 .place-map-popup .maplibregl-popup-content {

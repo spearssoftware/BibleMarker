@@ -73,11 +73,39 @@ export function SelectionMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Notify scripture container to scroll selection into view above the bottom sheet
+  // Scroll selection into view and highlight the selected word in scripture
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('selection-menu-opened', {
       detail: { selectionY: position.y },
     }));
+
+    // Wrap the current browser selection in a highlight mark
+    const sel = window.getSelection();
+    let highlightEl: HTMLElement | null = null;
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+      try {
+        const range = sel.getRangeAt(0);
+        highlightEl = document.createElement('mark');
+        highlightEl.className = 'selection-active-highlight';
+        range.surroundContents(highlightEl);
+        sel.removeAllRanges();
+      } catch {
+        // surroundContents fails on partial node selections — ignore
+        highlightEl = null;
+      }
+    }
+
+    return () => {
+      // Unwrap the highlight mark on close
+      if (highlightEl?.parentNode) {
+        const parent = highlightEl.parentNode;
+        while (highlightEl.firstChild) {
+          parent.insertBefore(highlightEl.firstChild, highlightEl);
+        }
+        parent.removeChild(highlightEl);
+        parent.normalize();
+      }
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const keywordPresets = presets.filter((p) => p.word);
@@ -210,6 +238,14 @@ export function SelectionMenu({
         <div className="flex justify-center py-2">
           <div className="w-10 h-1 bg-scripture-border/50 rounded-full" />
         </div>
+        {/* Selected word chip */}
+        {selection.text && (
+          <div className="px-4 pb-2 flex items-center gap-2">
+            <span className="inline-block px-3 py-1 rounded-full bg-scripture-accent/15 text-scripture-accent text-sm font-ui font-semibold truncate max-w-full">
+              &ldquo;{selection.text.trim()}&rdquo;
+            </span>
+          </div>
+        )}
         <div className="flex flex-col min-w-0">
           {/* Main menu buttons */}
           <div className="p-2 space-y-1 overflow-y-auto custom-scrollbar flex-shrink-0 max-h-[70vh] px-4 pb-4">
