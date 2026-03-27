@@ -104,20 +104,14 @@ export function MultiTranslationView() {
     onSwipeRight: previousChapter,
   });
 
-  // Track the active highlight mark so we can clean it up when selection clears
-  const highlightRef = useRef<HTMLElement | null>(null);
+  // Track highlight overlay elements so we can clean them up
+  const highlightOverlaysRef = useRef<HTMLElement[]>([]);
 
-  // Clean up highlight when selection is cleared
+  // Clean up highlight overlays when selection is cleared
   useEffect(() => {
-    if (!selection && highlightRef.current?.parentNode) {
-      const el = highlightRef.current;
-      const parent = el.parentNode!;
-      while (el.firstChild) {
-        parent.insertBefore(el.firstChild, el);
-      }
-      parent.removeChild(el);
-      parent.normalize();
-      highlightRef.current = null;
+    if (!selection && highlightOverlaysRef.current.length > 0) {
+      for (const el of highlightOverlaysRef.current) el.remove();
+      highlightOverlaysRef.current = [];
     }
   }, [selection]);
 
@@ -749,28 +743,40 @@ export function MultiTranslationView() {
     });
     setIsSelecting(true);
 
-    // Highlight the selected word in scripture
-    try {
-      sel.removeAllRanges();
-      sel.addRange(expandedRange.cloneRange());
-      const mark = document.createElement('mark');
-      mark.className = 'selection-active-highlight';
-      expandedRange.surroundContents(mark);
-      highlightRef.current = mark;
-      sel.removeAllRanges();
-    } catch {
-      // surroundContents fails on partial node selections — ignore
-    }
-
-    // Scroll the selected word into view above the bottom sheet
+    // Highlight the selected word with overlay divs (works even when range crosses element boundaries)
     const container = verseContainerRef.current;
     if (container) {
-      const sheetHeight = window.innerHeight * 0.4;
-      const safeBottom = window.innerHeight - sheetHeight - 20;
-      if (menuAnchor.y > safeBottom) {
-        container.scrollBy({ top: menuAnchor.y - safeBottom + 60, behavior: 'smooth' });
+      // Clean up any previous overlays
+      for (const el of highlightOverlaysRef.current) el.remove();
+      highlightOverlaysRef.current = [];
+
+      const rects = expandedRange.getClientRects();
+      const containerRect = container.getBoundingClientRect();
+      for (const rect of rects) {
+        const overlay = document.createElement('div');
+        overlay.className = 'selection-active-highlight';
+        overlay.style.position = 'absolute';
+        overlay.style.left = `${rect.left - containerRect.left + container.scrollLeft}px`;
+        overlay.style.top = `${rect.top - containerRect.top + container.scrollTop}px`;
+        overlay.style.width = `${rect.width}px`;
+        overlay.style.height = `${rect.height}px`;
+        overlay.style.pointerEvents = 'none';
+        container.appendChild(overlay);
+        highlightOverlaysRef.current.push(overlay);
       }
+
+      // Scroll the selected word into view above the bottom sheet
+      // Use rAF to let the sheet render first so we know the real visible area
+      requestAnimationFrame(() => {
+        const sheetHeight = window.innerHeight * 0.4;
+        const safeBottom = window.innerHeight - sheetHeight - 20;
+        if (menuAnchor.y > safeBottom) {
+          container.scrollBy({ top: menuAnchor.y - safeBottom + 60, behavior: 'smooth' });
+        }
+      });
     }
+
+    sel.removeAllRanges();
   }, [activeView, currentBook, currentChapter, translationChapters, setSelection, setIsSelecting]);
 
   const loadTranslations = async () => {
@@ -1020,7 +1026,7 @@ export function MultiTranslationView() {
       </div>
 
       {/* Verse rows - scrollable container */}
-      <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchStart={swipeTouchStart} onTouchEnd={(e) => { swipeTouchEnd(e); setTimeout(handleMouseUp, 50); }}>
+      <div ref={verseContainerRef} className="relative flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchStart={swipeTouchStart} onTouchEnd={(e) => { swipeTouchEnd(e); setTimeout(handleMouseUp, 50); }}>
           <div className={`px-4 py-4 space-y-1.5`}>
             {sortedVerseNumbers.map(verseNum => (
               <div key={verseNum}>

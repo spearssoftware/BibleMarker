@@ -440,10 +440,9 @@ select:focus-visible {
 
 .selection-active-highlight {
   background: var(--scripture-accent);
-  color: var(--scripture-bg);
+  opacity: 0.3;
   border-radius: 3px;
-  padding: 0 2px;
-  box-shadow: 0 0 0 2px var(--scripture-accent);
+  z-index: 1;
 }
 
 /* ── MapLibre popup overrides ──────────────────────────────────────────── */
