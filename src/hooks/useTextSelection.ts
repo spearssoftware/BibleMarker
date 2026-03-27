@@ -308,7 +308,7 @@ export function useTextSelection({
         const verseRect = verseEl.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
         const scrollDelta = verseRect.top - containerRect.top;
-        if (scrollDelta > 0) {
+        if (Math.abs(scrollDelta) > 10) {
           container.scrollBy({ top: scrollDelta, behavior: 'smooth' });
         }
       }
