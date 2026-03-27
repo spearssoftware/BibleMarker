@@ -29,9 +29,10 @@ interface VerseTextProps {
   onNavigate?: (ref: VerseRef) => void;
   onShowVerse?: (ref: VerseRef) => void; // Show verse in overlay
   onKeywordTap?: (presetId: string, verseRef: VerseRef) => void;
+  selectionRange?: { startOffset: number; endOffset: number };
 }
 
-export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAnnotation, onVerseNumberClick, verseMenu, onNavigate, onShowVerse, onKeywordTap }: VerseTextProps) {
+export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAnnotation, onVerseNumberClick, verseMenu, onNavigate, onShowVerse, onKeywordTap, selectionRange }: VerseTextProps) {
   const [crossRefState, setCrossRefState] = useState<{ refs: string[]; position: { x: number; y: number } } | null>(null);
   const [overlayVerse, setOverlayVerse] = useState<VerseRef | null>(null);
   const verseContentRef = useRef<HTMLSpanElement>(null);
@@ -381,8 +382,8 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
              (sym.endRef === undefined || sym.endRef.verse === verseNum);
     });
 
-    // If no annotations, return as-is
-    if (verseAnnotations.length === 0 && verseCenterSymbols.length === 0) {
+    // If no annotations and no selection, return as-is
+    if (verseAnnotations.length === 0 && verseCenterSymbols.length === 0 && !selectionRange) {
       return sourceText;
     }
 
@@ -624,6 +625,14 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
       boundaries.add(range.end);
     }
 
+    // Add selection range boundaries
+    if (selectionRange) {
+      const selStart = Math.max(0, Math.min(selectionRange.startOffset, plainText.length));
+      const selEnd = Math.max(selStart, Math.min(selectionRange.endOffset, plainText.length));
+      boundaries.add(selStart);
+      boundaries.add(selEnd);
+    }
+
     const sortedBoundaries = Array.from(boundaries).sort((a, b) => a - b);
 
     // Create segments between boundaries
@@ -662,10 +671,19 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     // Render each segment with its combined styles
     const htmlSegments: string[] = [];
 
+    // Check if a segment falls within the active selection range
+    const isInSelection = (seg: TextSegment) =>
+      selectionRange &&
+      seg.start >= Math.max(0, Math.min(selectionRange.startOffset, plainText.length)) &&
+      seg.end <= Math.max(0, Math.min(selectionRange.endOffset, plainText.length));
+
     for (const segment of segments) {
+      const selOpen = isInSelection(segment) ? '<mark class="selection-active-highlight">' : '';
+      const selClose = isInSelection(segment) ? '</mark>' : '';
+
       if (segment.annotations.length === 0 && segment.symbols.length === 0) {
-        // No annotations - output plain text
-        htmlSegments.push(escapeHtml(segment.text));
+        // No annotations - output plain text (maybe with selection highlight)
+        htmlSegments.push(`${selOpen}${escapeHtml(segment.text)}${selClose}`);
       } else {
         // Combine styles from all annotations
         const combinedStyles: string[] = [];
@@ -711,7 +729,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const overlayTextStyles = symbolColor
             ? `text-decoration: underline; text-decoration-color: ${symbolColor}; text-decoration-thickness: 2px; text-underline-offset: 3px;`
             : '';
-          htmlSegments.push(`<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}"><span style="display: inline-grid; vertical-align: bottom; min-width: 2.2em; text-align: center;"><span class="symbol-overlay" style="grid-area: 1/1; place-self: center; font-size: 2.2em; line-height: 0; height: 0; opacity: 0.4; pointer-events: none; ${symbolColor ? `color: ${symbolColor};` : 'color: currentColor;'}">${symbolText}</span><span class="annotation-text" style="grid-area: 1/1; ${overlayTextStyles}">${escapeHtml(wordContent)}</span></span>${escapeHtml(trailingPunct)}${removeButton}</span>`);
+          htmlSegments.push(`${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}"><span style="display: inline-grid; vertical-align: bottom; min-width: 2.2em; text-align: center;"><span class="symbol-overlay" style="grid-area: 1/1; place-self: center; font-size: 2.2em; line-height: 0; height: 0; opacity: 0.4; pointer-events: none; ${symbolColor ? `color: ${symbolColor};` : 'color: currentColor;'}">${symbolText}</span><span class="annotation-text" style="grid-area: 1/1; ${overlayTextStyles}">${escapeHtml(wordContent)}</span></span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`);
         } else {
           // Only text annotations
           const styleAttr = combinedStyles.length ? ` style="${combinedStyles.join('; ')}"` : '';
@@ -722,10 +740,10 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
                 title="Remove annotation"
                 aria-label="Remove annotation"
               >×</button>`;
-          htmlSegments.push(`<span${styleAttr} class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">
+          htmlSegments.push(`${selOpen}<span${styleAttr} class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">
             <span class="annotation-text">${escapeHtml(segment.text)}</span>
             ${removeButton}
-          </span>`);
+          </span>${selClose}`);
         }
       }
     }

@@ -638,6 +638,11 @@ export function MultiTranslationView() {
                               }
                               onRemoveAnnotation={removeAnnotation}
                               onKeywordTap={handleKeywordTap}
+                              selectionRange={
+                                selection?.moduleId === translation.id && selection?.startVerse === verseNum && selection?.startOffset != null && selection?.endOffset != null
+                                  ? { startOffset: selection.startOffset, endOffset: selection.endOffset }
+                                  : undefined
+                              }
                             />
                           </div>
                         ) : (
