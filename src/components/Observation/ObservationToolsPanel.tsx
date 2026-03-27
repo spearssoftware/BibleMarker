@@ -628,19 +628,18 @@ export function ObservationToolsPanel({
                       {isExpanded && (
                         <div className="border-t border-scripture-muted/20 p-4 bg-scripture-bg/50">
                           {/* Quick add buttons */}
-                          {currentBook && currentChapter && (!addingToVerse || addingToVerse.listId !== list.id) && (
+                          {currentBook && currentChapter && (!addingToVerse || addingToVerse.listId !== list.id) && (() => {
+                            const targetRef = verseRef ?? { book: currentBook, chapter: currentChapter, verse: navSelectedVerse ?? 1 };
+                            return (
                             <div className="mb-3 flex flex-wrap gap-2">
                               <button
                                 onClick={() => {
                                   setShowCustomVerse(null);
-                                  setAddingToVerse({
-                                    listId: list.id,
-                                    verseRef: { book: currentBook, chapter: currentChapter, verse: navSelectedVerse ?? 1 }
-                                  });
+                                  setAddingToVerse({ listId: list.id, verseRef: targetRef });
                                 }}
                                 className="text-xs text-scripture-accent hover:text-scripture-accent/80 transition-colors px-2 py-1 rounded hover:bg-scripture-elevated border border-scripture-accent/30"
                               >
-                                + Add for {formatVerseRef(currentBook, currentChapter, navSelectedVerse ?? 1)}
+                                + Add for {formatVerseRef(targetRef.book, targetRef.chapter, targetRef.verse)}
                               </button>
                               <button
                                 onClick={() => {
@@ -653,7 +652,8 @@ export function ObservationToolsPanel({
                                 + Other verse...
                               </button>
                             </div>
-                          )}
+                            );
+                          })()}
                           {/* Custom verse input */}
                           {showCustomVerse === list.id && currentBook && (
                             <div className="mb-3 flex items-center gap-2">
