@@ -269,7 +269,7 @@ checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
 name = "biblemarker"
-version = "1.4.2"
+version = "1.4.3"
 dependencies = [
  "objc2",
  "objc2-foundation",
