@@ -204,7 +204,7 @@ export function SelectionMenu({
         </div>
         {/* Selected word chip */}
         {selection.text && (
-          <div className="px-4 pb-2 flex items-center gap-2">
+          <div className="px-4 pb-2 flex justify-center">
             <span className="inline-block px-3 py-1 rounded-full bg-scripture-accent/15 text-scripture-accent text-sm font-ui font-semibold truncate max-w-full">
               &ldquo;{selection.text.trim()}&rdquo;
             </span>

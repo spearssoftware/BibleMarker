@@ -300,17 +300,12 @@ export function useTextSelection({
     });
     setIsSelecting(true);
 
-    // Scroll the selected verse to the top of the container so it's above the bottom sheet
+    // Scroll the selected verse to the top of the visible area
+    // CSS scroll-margin-top on [data-verse] keeps it below the header
     requestAnimationFrame(() => {
-      const container = verseContainerRef.current;
-      const verseEl = container?.querySelector(`[data-verse="${verseNum}"]`);
-      if (verseEl && container) {
-        const verseRect = verseEl.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-        const scrollDelta = verseRect.top - containerRect.top;
-        if (Math.abs(scrollDelta) > 10) {
-          container.scrollBy({ top: scrollDelta, behavior: 'smooth' });
-        }
+      const verseEl = verseContainerRef.current?.querySelector(`[data-verse="${verseNum}"]`);
+      if (verseEl) {
+        verseEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     });
 
