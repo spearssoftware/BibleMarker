@@ -88,6 +88,8 @@ export const SYMBOL_CATEGORY_MAP: Record<SymbolKey, KeyWordCategory> = {
   circle: 'custom', square: 'custom', diamond: 'custom', hexagon: 'custom', plus: 'custom', minus: 'custom',
   sin: 'themes', vine: 'themes', bread: 'themes', trumpet: 'themes', rock: 'themes', door: 'themes', olive: 'themes', harvest: 'themes',
   question: 'custom', exclamation: 'custom', asterisk: 'custom',
+  letterA: 'custom', letterB: 'custom', letterC: 'custom', letterD: 'custom', letterE: 'custom', letterF: 'custom', letterG: 'custom', letterH: 'custom', letterI: 'custom', letterJ: 'custom', letterK: 'custom', letterL: 'custom', letterM: 'custom', letterN: 'custom', letterO: 'custom', letterP: 'custom', letterQ: 'custom', letterR: 'custom', letterS: 'custom', letterT: 'custom', letterU: 'custom', letterV: 'custom', letterW: 'custom', letterX: 'custom', letterY: 'custom', letterZ: 'custom',
+  number0: 'custom', number1: 'custom', number2: 'custom', number3: 'custom', number4: 'custom', number5: 'custom', number6: 'custom', number7: 'custom', number8: 'custom', number9: 'custom',
 };
 
 /** Get KeyWordCategory for a symbol; use when pre-setting category from symbol selection */

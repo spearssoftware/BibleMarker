@@ -4,7 +4,7 @@
  * UI for creating, editing, and managing key word definitions.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
@@ -812,62 +812,22 @@ function KeyWordEditor({
                 ))}
               </div>
             )}
-            <div className="flex flex-wrap gap-2 mt-1.5">
-              <button
-                type="button"
-                onClick={() => {
+            <SymbolGrid
+              symbol={symbol}
+              onSelect={(key) => {
+                if (key === undefined) {
                   setSymbol(undefined);
-                }}
-                className={`w-9 h-9 rounded-lg text-sm flex items-center justify-center font-medium transition-all
-                  ${!symbol ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-muted hover:bg-scripture-border'}`}
-                title="None"
-              >
-                —
-              </button>
-              {(Object.entries(SYMBOLS) as [SymbolKey, string][]).map(([key, sym]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => {
-                    setSymbol(key);
-                    setCategory(getCategoryForSymbol(key));
-                    if (!color) setColor(getRandomHighlightColor());
-                  }}
-                  className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition-all
-                    ${symbol === key ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border'}`}
-                  title={key}
-                >
-                  {sym}
-                </button>
-              ))}
-            </div>
+                } else {
+                  setSymbol(key);
+                  setCategory(getCategoryForSymbol(key));
+                  if (!color) setColor(getRandomHighlightColor());
+                }
+              }}
+            />
           </div>
 
           <div>
-            <Label>Color</Label>
-            <div className="flex flex-wrap gap-2 mt-1.5">
-              <button
-                type="button"
-                onClick={() => setColor(undefined)}
-                className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-medium transition-all border border-scripture-border/50
-                  ${!color ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-muted hover:bg-scripture-border'}`}
-                title="Default"
-              >
-                —
-              </button>
-              {(Object.entries(HIGHLIGHT_COLORS) as [HighlightColor, string][]).map(([key, hex]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setColor(key)}
-                  className={`w-9 h-9 rounded-lg border-2 transition-all flex-shrink-0
-                    ${color === key ? 'ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface scale-110' : 'border-transparent hover:scale-105'}`}
-                  style={{ backgroundColor: hex }}
-                  title={key}
-                  aria-label={key}
-                />
-              ))}
-            </div>
+            <ColorAccordion color={color} onSelect={setColor} />
           </div>
         </div>
 
@@ -1248,6 +1208,133 @@ function DismissedMatches({ presetId }: { presetId: string }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+const LETTER_NUMBER_KEYS = new Set<SymbolKey>([
+  'letterA', 'letterB', 'letterC', 'letterD', 'letterE', 'letterF',
+  'letterG', 'letterH', 'letterI', 'letterJ', 'letterK', 'letterL',
+  'letterM', 'letterN', 'letterO', 'letterP', 'letterQ', 'letterR',
+  'letterS', 'letterT', 'letterU', 'letterV', 'letterW', 'letterX',
+  'letterY', 'letterZ',
+  'number0', 'number1', 'number2', 'number3', 'number4',
+  'number5', 'number6', 'number7', 'number8', 'number9',
+]);
+
+function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSelect: (key: SymbolKey | undefined) => void }) {
+  const [showLetters, setShowLetters] = useState(false);
+
+  const allEntries = Object.entries(SYMBOLS) as [SymbolKey, string][];
+  const symbolEntries = allEntries.filter(([key]) => !LETTER_NUMBER_KEYS.has(key));
+  const letterEntries = allEntries.filter(([key]) => key.startsWith('letter'));
+  const numberEntries = allEntries.filter(([key]) => key.startsWith('number'));
+
+  const renderButton = useCallback((key: SymbolKey, sym: string) => (
+    <button
+      key={key}
+      type="button"
+      onClick={() => onSelect(key)}
+      className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition-all
+        ${symbol === key ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border'}`}
+      title={key}
+    >
+      {sym}
+    </button>
+  ), [symbol, onSelect]);
+
+  return (
+    <div className="space-y-3 mt-1.5">
+      {/* Symbols section */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowLetters(false)}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-ui text-scripture-text uppercase tracking-wider font-semibold bg-scripture-elevated hover:bg-scripture-border transition-colors"
+        >
+          <span>Symbols</span>
+          <span className={`text-scripture-muted transition-transform duration-200 text-[10px] ${!showLetters ? '' : '-rotate-90'}`}>▶</span>
+        </button>
+        {!showLetters && (
+          <div className="flex flex-wrap gap-2 mt-1.5">
+            <button
+              type="button"
+              onClick={() => onSelect(undefined)}
+              className={`w-9 h-9 rounded-lg text-sm flex items-center justify-center font-medium transition-all
+                ${!symbol ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-muted hover:bg-scripture-border'}`}
+              title="None"
+            >
+              —
+            </button>
+            {symbolEntries.map(([key, sym]) => renderButton(key, sym))}
+          </div>
+        )}
+      </div>
+
+      {/* Letters & Numbers section */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowLetters(true)}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-ui text-scripture-text uppercase tracking-wider font-semibold bg-scripture-elevated hover:bg-scripture-border transition-colors"
+        >
+          <span>Letters & Numbers</span>
+          <span className={`text-scripture-muted transition-transform duration-200 text-[10px] ${showLetters ? '' : '-rotate-90'}`}>▶</span>
+        </button>
+        {showLetters && (
+          <div className="flex flex-wrap gap-2 mt-1.5">
+            {letterEntries.map(([key, sym]) => renderButton(key, sym))}
+            {numberEntries.map(([key, sym]) => renderButton(key, sym))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ColorAccordion({ color, onSelect }: { color: HighlightColor | undefined; onSelect: (c: HighlightColor | undefined) => void }) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-ui text-scripture-text uppercase tracking-wider font-semibold bg-scripture-elevated hover:bg-scripture-border transition-colors"
+      >
+        <span className="flex items-center gap-2">
+          Color
+          {!open && color && (
+            <span className="w-4 h-4 rounded" style={{ backgroundColor: getHighlightColorHex(color) }} />
+          )}
+        </span>
+        <span className={`text-scripture-muted transition-transform duration-200 text-[10px] ${open ? '' : '-rotate-90'}`}>▶</span>
+      </button>
+      {open && (
+        <div className="flex flex-wrap gap-2 mt-1.5">
+          <button
+            type="button"
+            onClick={() => onSelect(undefined)}
+            className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-medium transition-all border border-scripture-border/50
+              ${!color ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-muted hover:bg-scripture-border'}`}
+            title="Default"
+          >
+            —
+          </button>
+          {(Object.entries(HIGHLIGHT_COLORS) as [HighlightColor, string][]).map(([key, hex]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onSelect(key)}
+              className={`w-9 h-9 rounded-lg border-2 transition-all flex-shrink-0
+                ${color === key ? 'ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface scale-110' : 'border-transparent hover:scale-105'}`}
+              style={{ backgroundColor: hex }}
+              title={key}
+              aria-label={key}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
