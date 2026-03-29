@@ -100,7 +100,6 @@ export const SYMBOLS = {
   star: '★',         // Promise / Covenant
   starOutline: '☆',  // Promise (lighter)
   heart: '❤',        // Love / Compassion
-  heartRed: '❤️',    // Love / Compassion (filled)
   heartSparkle: '💖', // Love / Devotion (sparkling)
   lightning: '⚡',   // Judgment / Power / Conflict
   skull: '💀',       // Death
