@@ -9,6 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useAnnotationStore, type TextSelection } from '@/stores/annotationStore';
+import { DEFAULT_MARKING_PREFERENCES } from '@/types';
 
 // --- Mock all heavy dependencies ---
 
@@ -107,12 +108,6 @@ vi.mock('@/components/shared', () => ({
 // Now import Toolbar after all mocks are registered
 import { Toolbar } from '../Toolbar';
 
-const DEFAULT_MARKING_PREFERENCES = {
-  recentColors: [],
-  recentSymbols: [],
-  colorStyle: 'highlight' as const,
-  favoriteSymbols: [],
-};
 
 function makeSelection(text: string): TextSelection {
   return {
