@@ -18,6 +18,9 @@
           "path": "$APPDATA/**"
         },
         {
+          "path": "$RESOURCE/**"
+        },
+        {
           "path": "$DOCUMENT/**"
         },
         {
