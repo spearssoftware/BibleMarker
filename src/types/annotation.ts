@@ -100,7 +100,6 @@ export const SYMBOLS = {
   star: '★',         // Promise / Covenant
   starOutline: '☆',  // Promise (lighter)
   heart: '❤',        // Love / Compassion
-  heartRed: '❤️',    // Love / Compassion (filled)
   heartSparkle: '💖', // Love / Devotion (sparkling)
   lightning: '⚡',   // Judgment / Power / Conflict
   skull: '💀',       // Death
@@ -169,6 +168,46 @@ export const SYMBOLS = {
   question: '?',
   exclamation: '!',
   asterisk: '✱',    // Emphasis / Footnote
+
+  // Letters
+  letterA: 'A',
+  letterB: 'B',
+  letterC: 'C',
+  letterD: 'D',
+  letterE: 'E',
+  letterF: 'F',
+  letterG: 'G',
+  letterH: 'H',
+  letterI: 'I',
+  letterJ: 'J',
+  letterK: 'K',
+  letterL: 'L',
+  letterM: 'M',
+  letterN: 'N',
+  letterO: 'O',
+  letterP: 'P',
+  letterQ: 'Q',
+  letterR: 'R',
+  letterS: 'S',
+  letterT: 'T',
+  letterU: 'U',
+  letterV: 'V',
+  letterW: 'W',
+  letterX: 'X',
+  letterY: 'Y',
+  letterZ: 'Z',
+
+  // Numbers
+  number0: '0',
+  number1: '1',
+  number2: '2',
+  number3: '3',
+  number4: '4',
+  number5: '5',
+  number6: '6',
+  number7: '7',
+  number8: '8',
+  number9: '9',
 } as const;
 
 export type SymbolKey = keyof typeof SYMBOLS;
