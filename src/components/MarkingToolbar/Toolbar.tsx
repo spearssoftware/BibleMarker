@@ -69,6 +69,7 @@ export function Toolbar() {
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [, _setShowModuleManager] = useState(false);
   const [showKeyWordManager, setShowKeyWordManager] = useState(false);
+  const [keyWordInitialWord, setKeyWordInitialWord] = useState<string | undefined>();
   const [showAnalyzeToolsPanel, setShowAnalyzeToolsPanel] = useState(false);
   const [analyzePanelInitialTab, setAnalyzePanelInitialTab] = useState<AnalyzeTab>('chapter');
   const [analyzeThemeSearchTerm, setAnalyzeThemeSearchTerm] = useState<string | undefined>();
@@ -366,6 +367,7 @@ export function Toolbar() {
           onApplyPreset={applyPresetToSelection}
           onAddAsVariant={addToVariantsAndApply}
           onOpenKeyWordManager={() => {
+            setKeyWordInitialWord(selection?.text?.trim() || undefined);
             setShowKeyWordManager(true);
             setShowColorPicker(false);
             setShowSymbolPicker(false);
@@ -585,10 +587,10 @@ export function Toolbar() {
 
       {/* Key Words - bottom overlay (unified with Color / Symbol) */}
       {showKeyWordManager && (
-        <ToolbarOverlay onClose={() => setShowKeyWordManager(false)}>
-          <KeyWordManager 
-            onClose={() => setShowKeyWordManager(false)} 
-            initialWord={selection?.text?.trim() || undefined}
+        <ToolbarOverlay onClose={() => { setShowKeyWordManager(false); setKeyWordInitialWord(undefined); }}>
+          <KeyWordManager
+            onClose={() => { setShowKeyWordManager(false); setKeyWordInitialWord(undefined); }}
+            initialWord={keyWordInitialWord}
             initialSymbol={activeSymbol}
             initialColor={activeColor}
             onPresetCreated={async () => {

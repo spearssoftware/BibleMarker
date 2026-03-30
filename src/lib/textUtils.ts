@@ -13,9 +13,9 @@ import { SYMBOLS } from '@/types';
 export function stripSymbols(text: string): string {
   if (!text) return text;
   
-  // Get all symbol characters
-  const symbolChars = Object.values(SYMBOLS);
-  
+  // Exclude single ASCII characters (letters, digits, punctuation) that appear in normal text
+  const symbolChars = Object.values(SYMBOLS).filter(s => s.length > 1 || s.charCodeAt(0) > 127);
+
   // Remove all symbol characters from the text
   // Use split/join for reliable Unicode handling
   let cleaned = text;
