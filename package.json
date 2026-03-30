@@ -19,7 +19,9 @@
     "tauri:dev": "bash scripts/tauri-dev.sh",
     "tauri:build": "bash scripts/tauri-build.sh",
     "ios:dev": "tauri ios dev",
-    "ios:build": "tauri ios build"
+    "ios:build": "tauri ios build",
+    "android:dev": "tauri android dev",
+    "android:build": "tauri android build"
   },
   "dependencies": {
     "@protomaps/basemaps": "^5.7.2",
