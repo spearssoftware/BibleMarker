@@ -436,7 +436,7 @@ jobs:
           APPLE_API_KEY_PATH: ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
 
       - name: Upload IPA artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: BibleMarker-iOS
           path: src-tauri/gen/apple/build/**/*.ipa
