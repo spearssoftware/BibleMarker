@@ -41,6 +41,11 @@ jobs:
       image: ghcr.io/spearssoftware/biblemarker/ci-full:latest
     steps:
       - uses: actions/checkout@v4
+      - name: Download SWORD modules
+        run: |
+          gh release download v1.0.0 --repo spearssoftware/biblemarker-assets --dir src-tauri/resources --pattern "sword-*.zip"
+        env:
+          GH_TOKEN: ${{ secrets.BIBLEMARKER_ASSETS_TOKEN }}
       - name: Check
         run: cargo check
         working-directory: src-tauri
