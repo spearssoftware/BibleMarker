@@ -89,6 +89,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Download SWORD modules
+        run: |
+          gh release download v1.0.0 --repo spearssoftware/biblemarker-assets --dir src-tauri/resources --pattern "sword-*.zip"
+        env:
+          GH_TOKEN: ${{ secrets.ASSETS_TOKEN }}
+
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
@@ -295,6 +301,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Download SWORD modules
+        run: |
+          gh release download v1.0.0 --repo spearssoftware/biblemarker-assets --dir src-tauri/resources --pattern "sword-*.zip"
+        env:
+          GH_TOKEN: ${{ secrets.ASSETS_TOKEN }}
 
       - name: Select Xcode 26.2
         run: sudo xcode-select -s /Applications/Xcode_26.2.app

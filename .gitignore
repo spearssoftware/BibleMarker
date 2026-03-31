@@ -57,3 +57,6 @@ Thumbs.db
 src-tauri/target/
 src-tauri/gen/
 .pnpm-store/
+
+# Licensed SWORD modules (hosted in private repo: spearssoftware/biblemarker-assets)
+src-tauri/resources/sword-*.zip
