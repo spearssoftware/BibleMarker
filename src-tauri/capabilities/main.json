@@ -42,6 +42,7 @@
     "fs:allow-exists",
     "fs:allow-appdata-write-recursive",
     "fs:allow-appdata-read-recursive",
+    "fs:allow-resource-read-recursive",
     "sql:allow-load",
     "sql:allow-execute",
     "sql:allow-select",

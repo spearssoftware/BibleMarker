@@ -212,18 +212,11 @@ async function installBundledIfNeeded(moduleId: string): Promise<void> {
 
   const destPath = await getModulePath(moduleId);
   try {
-    const { exists, copyFile, mkdir } = await import('@tauri-apps/plugin-fs');
-    if (await exists(destPath)) return;
-
-    // Ensure destination directory exists
-    const dir = await getSwordDir();
-    await mkdir(dir, { recursive: true }).catch(() => {});
-
-    // On Android, BaseDirectory.Resource resolves to asset:// URIs inside the APK.
-    // The FS plugin's copyFile handles these correctly; std::fs::copy does not.
-    const { resolveResource } = await import('@tauri-apps/api/path');
-    const resourcePath = await resolveResource(`resources/${info.bundledResource}`);
-    await copyFile(resourcePath, destPath);
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('install_bundled_module', {
+      resourceName: info.bundledResource,
+      destPath,
+    });
   } catch (e) {
     console.warn(`[SWORD] Failed to install bundled module ${moduleId}:`, e);
   }
