@@ -488,7 +488,7 @@ export function ObservationToolsPanel({
                 `}
               >
                 <span className="text-base" aria-hidden="true">{tab.icon}</span>
-                <span className={`text-xs ${activeTab === tab.id ? 'inline' : 'hidden sm:inline'}`}>{tab.label}</span>
+                <span className={`text-xs ${activeTab === tab.id ? 'inline' : 'hidden'}`}>{tab.label}</span>
               </button>
             ))}
           </div>
