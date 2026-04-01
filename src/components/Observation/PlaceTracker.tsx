@@ -222,17 +222,26 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
     };
   }, [autoImportFromAnnotations, loadPlaces, removeDuplicates, removeOrphaned, presets]);
 
-  // Auto-populate from chapter when chapter or translation changes
+  // Stable key representing current place presets — changes when presets are added/removed/recategorized
+  const placePresetKey = useMemo(() => {
+    return presets
+      .filter(p => p.category === 'places' && p.word)
+      .map(p => p.id)
+      .sort()
+      .join(',');
+  }, [presets]);
+
+  // Auto-populate from chapter when chapter, translation, or place presets change
   useEffect(() => {
     if (!currentBook || !currentChapter || !primaryModuleId) return;
-    const key = `${currentBook}:${currentChapter}:${primaryModuleId}`;
+    const key = `${currentBook}:${currentChapter}:${primaryModuleId}:${placePresetKey}`;
     if (lastPopulatedChapter.current === key) return;
     lastPopulatedChapter.current = key;
     (async () => {
       await autoPopulateFromChapter(currentBook, currentChapter, primaryModuleId);
       loadPlaces();
     })();
-  }, [currentBook, currentChapter, primaryModuleId, autoPopulateFromChapter, loadPlaces]);
+  }, [currentBook, currentChapter, primaryModuleId, placePresetKey, autoPopulateFromChapter, loadPlaces]);
 
   // Pre-fill form if selectedText is provided
   useEffect(() => {
