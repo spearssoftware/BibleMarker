@@ -116,36 +116,23 @@ export function MultiTranslationView() {
     onSwipeRight: previousChapter,
   });
 
-  // Force React to recreate verse DOM when the container width changes.
-  // WebKit doesn't recalculate inline-grid annotation block heights on reflow.
-  // Incrementing layoutGen re-keys the content wrapper, forcing fresh DOM creation.
-  const [layoutGen, setLayoutGen] = useState(0);
+  // Force WebKit to recalculate layout on window resize (emoji line-box bug)
   useEffect(() => {
     const el = verseContainerRef.current;
     if (!el) return;
-    let prevWidth = 0;
-    let timeoutId: ReturnType<typeof setTimeout>;
-    const observer = new ResizeObserver((entries) => {
-      const newWidth = Math.round(entries[0]?.contentRect.width ?? 0);
-      if (prevWidth > 0 && newWidth !== prevWidth) {
-        prevWidth = newWidth;
-        clearTimeout(timeoutId);
-        // Re-key to force fresh DOM with correct layout at new width
-        timeoutId = setTimeout(() => {
-          const scrollTop = el.scrollTop;
-          setLayoutGen(g => g + 1);
-          requestAnimationFrame(() => {
-            el.scrollTop = scrollTop;
-          });
-        }, 100);
-      } else {
-        prevWidth = newWidth;
-      }
-    });
-    observer.observe(el);
+    let rafId: number;
+    const handleResize = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        el.style.display = 'none';
+        void el.offsetHeight;
+        el.style.display = '';
+      });
+    };
+    window.addEventListener('resize', handleResize);
     return () => {
-      observer.disconnect();
-      clearTimeout(timeoutId);
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(rafId);
     };
   }, []);
 
@@ -555,7 +542,7 @@ export function MultiTranslationView() {
 
       {/* Verse rows - scrollable container */}
       <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchStart={swipeTouchStart} onTouchEnd={(e) => { swipeTouchEnd(e); setTimeout(handleMouseUp, 50); }}>
-          <div key={layoutGen} className={`px-4 py-4 space-y-1.5`}>
+          <div className={`px-4 py-4 space-y-1.5`}>
             {sortedVerseNumbers.map(verseNum => (
               <div key={verseNum}>
                 {/* Section heading if exists - show once per verse row, not per translation */}

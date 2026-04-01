@@ -212,9 +212,10 @@ select:focus-visible {
     color: var(--scripture-text);
   }
 
-  /* Verse content styling - line-height inherited from text-scripture-* on parent */
+  /* Verse content styling */
   .verse-content {
     color: var(--scripture-text);
+    line-height: 2.2;
     -webkit-touch-callout: none;
   }
 
@@ -461,9 +462,7 @@ mark.selection-active-highlight {
   }
 }
 
-/* Scroll margins so selected verse clears the header and tab bar.
-   overflow:hidden forces a block formatting context per verse so WebKit
-   correctly recalculates block height when inline-grid content reflows. */
+/* Scroll margins so selected verse clears the header and tab bar */
 [data-verse] {
   scroll-margin-top: 80px;
   scroll-margin-bottom: 80px;
