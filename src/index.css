@@ -464,10 +464,14 @@ mark.selection-active-highlight {
 /* Scroll margins so selected verse clears the header and tab bar.
    overflow:hidden forces a block formatting context per verse so WebKit
    correctly recalculates block height when inline-grid content reflows. */
-/* min-width:0 allows grid items to shrink below content width */
+/* overflow:hidden creates a BFC per verse for correct height on narrowing.
+   overflow-wrap prevents text clipping. min-width:0 allows grid shrinking.
+   Re-key in MultiTranslationView handles stale heights on widening. */
 [data-verse] {
   scroll-margin-top: 80px;
   scroll-margin-bottom: 80px;
+  overflow: hidden;
+  overflow-wrap: break-word;
   min-width: 0;
 }
 
