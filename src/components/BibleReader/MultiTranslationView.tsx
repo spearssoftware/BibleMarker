@@ -116,9 +116,10 @@ export function MultiTranslationView() {
     onSwipeRight: previousChapter,
   });
 
-  // Force WebKit to recalculate verse block heights after container width stabilizes.
-  // WebKit doesn't recalc block heights inside absolutely-positioned containers on
-  // width change. A debounced React re-key forces fresh layout after drag/transition.
+  // Force WebKit to recalculate verse block heights after pane width changes.
+  // WebKit doesn't recalc block heights inside absolutely-positioned containers.
+  // Re-keying the verse content div forces React to recreate the DOM, giving
+  // WebKit a fresh layout pass at the correct width.
   const [layoutKey, setLayoutKey] = useState(0);
   useEffect(() => {
     const el = verseContainerRef.current;
@@ -128,9 +129,13 @@ export function MultiTranslationView() {
 
     const observer = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect?.width ?? 0;
+      console.log('[MTV] ResizeObserver fired, width:', width, 'lastWidth:', lastWidth);
       if (lastWidth !== 0 && Math.abs(width - lastWidth) > 1) {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => setLayoutKey(k => k + 1), 350);
+        debounceTimer = setTimeout(() => {
+          console.log('[MTV] Bumping layoutKey');
+          setLayoutKey(k => k + 1);
+        }, 350);
       }
       lastWidth = width;
     });
