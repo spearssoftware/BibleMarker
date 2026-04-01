@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react';
+import { useRef, useState, useEffect, type ReactNode } from 'react';
 import { usePanelStore } from '@/stores/panelStore';
 import { SplitDivider } from './SplitDivider';
 
@@ -10,20 +10,51 @@ interface SplitLayoutProps {
 export function SplitLayout({ children, panel }: SplitLayoutProps) {
   const { activePanel, isCollapsed, splitRatio, orientation, isDragging } = usePanelStore();
   const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState(0);
 
   const showPanel = activePanel && !isCollapsed && panel;
   const isHorizontal = orientation === 'horizontal';
+
+  // Measure container with ResizeObserver to compute pixel widths.
+  // Flex-based widths don't trigger WebKit inline reflow — pixel widths do.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (rect) {
+        setContainerSize(isHorizontal ? rect.width : rect.height);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isHorizontal]);
+
+  // Compute pixel sizes for the divider gap
+  const dividerSize = 16; // 4px bar + 6px padding each side
+  const availableSize = containerSize - (showPanel ? dividerSize : 0);
+  const scriptureSize = showPanel ? Math.round(availableSize * splitRatio) : availableSize;
+  const panelSize = showPanel ? availableSize - scriptureSize : 0;
+
+  const scriptureSizeStyle = containerSize > 0 && showPanel
+    ? isHorizontal ? { width: scriptureSize } : { height: scriptureSize }
+    : undefined;
+
+  const panelSizeStyle = containerSize > 0
+    ? isHorizontal ? { width: panelSize } : { height: panelSize }
+    : undefined;
 
   return (
     <div
       ref={containerRef}
       className={`flex-1 min-h-0 flex ${isHorizontal ? 'flex-row' : 'flex-col'}`}
     >
-      {/* Scripture pane */}
+      {/* Scripture pane — explicit pixel width triggers WebKit reflow */}
       <div
-        className="relative min-h-0 min-w-0"
+        className="relative min-h-0 min-w-0 shrink-0"
         style={{
-          flex: showPanel ? `${splitRatio} 0 0%` : '1 0 0%',
+          ...scriptureSizeStyle,
+          flex: scriptureSizeStyle ? undefined : '1 0 0%',
         }}
       >
         <div
@@ -42,10 +73,10 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
 
           {/* Panel pane */}
           <div
-            className="relative min-h-0 min-w-0"
+            className="relative min-h-0 min-w-0 shrink-0"
             style={{
-              flex: `${1 - splitRatio} 0 0%`,
-              transition: isDragging ? undefined : 'flex 300ms ease-out',
+              ...panelSizeStyle,
+              transition: isDragging ? undefined : isHorizontal ? 'width 300ms ease-out' : 'height 300ms ease-out',
             }}
           >
             <div
