@@ -29,6 +29,7 @@ interface PanelState {
   isCollapsed: boolean;
   splitRatio: number;
   orientation: 'horizontal' | 'vertical';
+  isDragging: boolean;
 
   // Panel-specific init props
   keywordInitialWord: string | undefined;
@@ -49,6 +50,7 @@ interface PanelState {
   setCollapsed: (collapsed: boolean) => void;
   setSplitRatio: (ratio: number) => void;
   setOrientation: (orientation: 'horizontal' | 'vertical') => void;
+  setDragging: (dragging: boolean) => void;
   notifyActionComplete: () => void;
 }
 
@@ -63,6 +65,7 @@ export const usePanelStore = create<PanelState>()(
       isCollapsed: false,
       splitRatio: 0.6,
       orientation: 'horizontal',
+      isDragging: false,
 
       keywordInitialWord: undefined,
       observeInitialTab: DEFAULT_OBSERVE_TAB,
@@ -125,6 +128,8 @@ export const usePanelStore = create<PanelState>()(
       setSplitRatio: (ratio) => set({ splitRatio: ratio }),
 
       setOrientation: (orientation) => set({ orientation }),
+
+      setDragging: (dragging) => set({ isDragging: dragging }),
 
       notifyActionComplete: () => {
         if (!get().isPinned) {

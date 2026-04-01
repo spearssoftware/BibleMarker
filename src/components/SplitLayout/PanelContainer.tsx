@@ -57,7 +57,7 @@ export function PanelContainer() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-scripture-surface">
+    <div className="flex flex-col flex-1 min-h-0 bg-scripture-surface">
       {/* Header */}
       <div className="flex-shrink-0 flex items-center justify-between px-3 py-2 bg-scripture-surface border-b border-scripture-border/30">
         <span className="text-sm font-medium text-scripture-text">{title}</span>

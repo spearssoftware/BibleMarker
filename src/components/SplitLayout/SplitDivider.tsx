@@ -6,7 +6,7 @@ interface SplitDividerProps {
 }
 
 export function SplitDivider({ containerRef }: SplitDividerProps) {
-  const { orientation, splitRatio, setSplitRatio } = usePanelStore();
+  const { orientation, splitRatio, setSplitRatio, setDragging } = usePanelStore();
   const [isDragging, setIsDragging] = useState(false);
   const prevRatioRef = useRef<number | null>(null);
   const isHorizontal = orientation === 'horizontal';
@@ -17,6 +17,7 @@ export function SplitDivider({ containerRef }: SplitDividerProps) {
     const startRatio = splitRatio;
 
     setIsDragging(true);
+    setDragging(true);
     document.body.style.userSelect = 'none';
 
     const onPointerMove = (moveEvent: PointerEvent) => {
@@ -36,6 +37,7 @@ export function SplitDivider({ containerRef }: SplitDividerProps) {
 
     const onPointerUp = () => {
       setIsDragging(false);
+      setDragging(false);
       document.body.style.userSelect = '';
       document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerup', onPointerUp);
@@ -43,7 +45,7 @@ export function SplitDivider({ containerRef }: SplitDividerProps) {
 
     document.addEventListener('pointermove', onPointerMove);
     document.addEventListener('pointerup', onPointerUp);
-  }, [isHorizontal, splitRatio, setSplitRatio, containerRef]);
+  }, [isHorizontal, splitRatio, setSplitRatio, setDragging, containerRef]);
 
   const handleDoubleClick = useCallback(() => {
     if (prevRatioRef.current !== null) {

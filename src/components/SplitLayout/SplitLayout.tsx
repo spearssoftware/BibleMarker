@@ -8,11 +8,12 @@ interface SplitLayoutProps {
 }
 
 export function SplitLayout({ children, panel }: SplitLayoutProps) {
-  const { activePanel, isCollapsed, splitRatio, orientation } = usePanelStore();
+  const { activePanel, isCollapsed, splitRatio, orientation, isDragging } = usePanelStore();
   const containerRef = useRef<HTMLDivElement>(null);
 
   const showPanel = activePanel && !isCollapsed && panel;
   const isHorizontal = orientation === 'horizontal';
+  const transition = isDragging ? undefined : 'flex 300ms ease-out';
 
   return (
     <div
@@ -23,7 +24,7 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
         className="min-h-0 min-w-0 overflow-hidden pl-safe-left pr-safe-right"
         style={{
           flex: showPanel ? `${splitRatio} 0 0%` : '1 0 0%',
-          transition: 'flex 300ms ease-out',
+          transition,
           paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
         }}
         role="main"
@@ -35,10 +36,10 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
         <>
           <SplitDivider containerRef={containerRef} />
           <div
-            className="min-h-0 min-w-0 overflow-hidden"
+            className="min-h-0 min-w-0 overflow-hidden flex flex-col"
             style={{
               flex: `${1 - splitRatio} 0 0%`,
-              transition: 'flex 300ms ease-out',
+              transition,
               paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
             }}
           >
