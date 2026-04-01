@@ -11,7 +11,6 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
-import { getPreferences } from '@/lib/database';
 import { fetchChapter } from '@/lib/bible-api';
 import { getBookById, formatVerseRef } from '@/types';
 import type { ObservationList, ObservationItem } from '@/types';
@@ -123,19 +122,12 @@ export function ObservationToolsPanel({
   const [verseTexts, setVerseTexts] = useState<Map<string, string>>(new Map());
   const { activeView } = useMultiTranslationStore();
   const primaryModuleId = activeView?.translationIds[0] || '';
-  const [disabledTools, setDisabledTools] = useState<string[]>([]);
   const [filterByChapter, setFilterByChapter] = useState(true);
   const [trackerIsCreating, setTrackerIsCreating] = useState(false);
   const [trackerIsEditing, setTrackerIsEditing] = useState(false);
   const [showCustomVerse, setShowCustomVerse] = useState<string | null>(null); // listId when open
   const [customChapter, setCustomChapter] = useState('');
   const [customVerse, setCustomVerse] = useState('');
-
-  useEffect(() => {
-    getPreferences().then(prefs => {
-      setDisabledTools(prefs.disabledTools || []);
-    });
-  }, []);
 
   // Show lists scoped to current study and book (no chapter filter)
   const displayLists = lists.filter(l => {
@@ -241,7 +233,7 @@ export function ObservationToolsPanel({
     { id: 'people', label: 'People', icon: '👤' },
   ];
 
-  const tabs = allTabs.filter(tab => !disabledTools.includes(tab.id));
+  const tabs = allTabs;
 
   const toggleList = (listId: string) => {
     const newExpanded = new Set(expandedLists);

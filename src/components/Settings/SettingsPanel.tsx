@@ -112,9 +112,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [showSyncDiagnostics, setShowSyncDiagnostics] = useState(false);
   const [syncDirListing, setSyncDirListing] = useState<string | null>(null);
 
-  // Disabled tools state
-  const [disabledTools, setDisabledTools] = useState<string[]>([]);
-
   // Studies state
   const { studies, activeStudyId, loadStudies, createStudy, updateStudy, deleteStudy, setActiveStudy } = useStudyStore();
   const [newStudyName, setNewStudyName] = useState('');
@@ -155,7 +152,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         if (prefs.checkForUpdates !== undefined) {
           setCheckForUpdates(prefs.checkForUpdates);
         }
-        setDisabledTools(prefs.disabledTools || []);
         // Initialize debug flags cache so getDebugFlagsSync() works
         await getDebugFlags();
         applyTheme(prefs.theme || 'auto', prefs.highContrast || false);
@@ -760,90 +756,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </div>
               </div>
 
-              <div className="border-t border-scripture-border/30 my-4"></div>
-
-              <div className="p-4">
-                <h3 className="text-base font-ui font-semibold text-scripture-text mb-2">Tools</h3>
-                <p className="text-xs text-scripture-muted mb-4">
-                  Hide tools you don't use. Disabled tools won't appear in their panel tabs.
-                </p>
-
-                <div className="space-y-4">
-                  <div>
-                    <div className="text-sm font-ui font-medium text-scripture-text mb-2">Observe</div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                      {[
-                        { id: 'lists', label: 'Lists' },
-                        { id: 'people', label: 'People' },
-                        { id: 'places', label: 'Places' },
-                        { id: 'time', label: 'Time' },
-                      ].map(tool => (
-                        <Checkbox
-                          key={tool.id}
-                          label={tool.label}
-                          checked={!disabledTools.includes(tool.id)}
-                          onChange={async (e) => {
-                            const next = e.target.checked
-                              ? disabledTools.filter(t => t !== tool.id)
-                              : [...disabledTools, tool.id];
-                            setDisabledTools(next);
-                            await updatePreferences({ disabledTools: next });
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-sm font-ui font-medium text-scripture-text mb-2">Analyze</div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                      {[
-                        { id: 'chapter', label: 'Chapter' },
-                        { id: 'conclusions', label: 'Conclusions' },
-                        { id: 'overview', label: 'Overview' },
-                        { id: 'themes', label: 'Themes' },
-                        { id: 'timeline', label: 'Timeline' },
-                      ].map(tool => (
-                        <Checkbox
-                          key={tool.id}
-                          label={tool.label}
-                          checked={!disabledTools.includes(tool.id)}
-                          onChange={async (e) => {
-                            const next = e.target.checked
-                              ? disabledTools.filter(t => t !== tool.id)
-                              : [...disabledTools, tool.id];
-                            setDisabledTools(next);
-                            await updatePreferences({ disabledTools: next });
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-sm font-ui font-medium text-scripture-text mb-2">Study</div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                      {[
-                        { id: 'interpretation', label: 'Interpretation' },
-                        { id: 'application', label: 'Application' },
-                      ].map(tool => (
-                        <Checkbox
-                          key={tool.id}
-                          label={tool.label}
-                          checked={!disabledTools.includes(tool.id)}
-                          onChange={async (e) => {
-                            const next = e.target.checked
-                              ? disabledTools.filter(t => t !== tool.id)
-                              : [...disabledTools, tool.id];
-                            setDisabledTools(next);
-                            await updatePreferences({ disabledTools: next });
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
             </div>
           )}

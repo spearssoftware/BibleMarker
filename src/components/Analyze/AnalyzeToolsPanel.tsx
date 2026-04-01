@@ -5,7 +5,6 @@
  */
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getPreferences } from '@/lib/database';
 import { useBibleStore } from '@/stores/bibleStore';
 import { ConclusionTracker } from '@/components/Observation/ConclusionTracker';
 import { BookOverview } from '@/components/Summary/BookOverview';
@@ -38,7 +37,6 @@ export function AnalyzeToolsPanel({
   themeSearchTerm,
 }: AnalyzeToolsPanelProps) {
   const [activeTab, setActiveTabRaw] = useState<AnalyzeTab>(initialTab);
-  const [disabledTools, setDisabledTools] = useState<string[]>([]);
   const [filterByChapter, setFilterByChapter] = useState(true);
   const [filterByBook, setFilterByBook] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -58,12 +56,6 @@ export function AnalyzeToolsPanel({
     setActiveTabRaw(initialTab);
   }, [initialTab]);
 
-  useEffect(() => {
-    getPreferences().then((prefs) => {
-      setDisabledTools(prefs.disabledTools || []);
-    });
-  }, []);
-
   const allTabs: { id: AnalyzeTab; label: string; icon: string }[] = [
     { id: 'chapter', label: 'Chapter', icon: '📄' },
     { id: 'overview', label: 'Overview', icon: '📚' },
@@ -75,14 +67,7 @@ export function AnalyzeToolsPanel({
     { id: 'conclusions', label: 'Conclusions', icon: '→' },
   ];
 
-  const tabs = allTabs.filter(tab => !disabledTools.includes(tab.id));
-
-  // If active tab got disabled, switch to first available
-  useEffect(() => {
-    if (tabs.length > 0 && !tabs.some(t => t.id === activeTab)) {
-      setActiveTab(tabs[0].id);
-    }
-  }, [tabs, activeTab]);
+  const tabs = allTabs;
 
   const handleNavigateToVerse = (ref: VerseRef) => {
     if (ref.book !== currentBook || ref.chapter !== currentChapter) {
