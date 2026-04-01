@@ -116,36 +116,27 @@ export function MultiTranslationView() {
     onSwipeRight: previousChapter,
   });
 
-  // Force WebKit to recalculate layout when container width changes
-  // (split divider drag, panel open/close, or window resize)
+  // Force WebKit to recalculate inline text layout when container width changes
+  // (split divider drag, panel open/close, or window resize).
+  // Toggling word-spacing by a sub-pixel amount is invisible but forces
+  // WebKit to re-run line breaking and update block heights.
   useEffect(() => {
     const el = verseContainerRef.current;
     if (!el) return;
-    let rafId: number;
     let lastWidth = 0;
-
-    const forceReflow = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        el.style.display = 'none';
-        void el.offsetHeight;
-        el.style.display = '';
-      });
-    };
+    let toggle = false;
 
     const observer = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect?.width ?? 0;
       if (lastWidth !== 0 && Math.abs(width - lastWidth) > 1) {
-        forceReflow();
+        toggle = !toggle;
+        el.style.wordSpacing = toggle ? '0.01px' : '0px';
       }
       lastWidth = width;
     });
     observer.observe(el);
 
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(rafId);
-    };
+    return () => observer.disconnect();
   }, []);
 
   // Track the last book/chapter we loaded to prevent duplicate calls
