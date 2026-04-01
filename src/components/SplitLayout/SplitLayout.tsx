@@ -19,29 +19,41 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
       ref={containerRef}
       className={`flex-1 min-h-0 flex ${isHorizontal ? 'flex-row' : 'flex-col'}`}
     >
+      {/* Scripture pane */}
       <div
-        className="min-h-0 min-w-0 overflow-hidden pl-safe-left pr-safe-right flex flex-col"
+        className="relative min-h-0 min-w-0"
         style={{
           flex: showPanel ? `${splitRatio} 0 0%` : '1 0 0%',
-          paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
         }}
-        role="main"
-        aria-label="Bible reading area"
       >
-        {children}
+        <div
+          className="absolute inset-0 overflow-hidden flex flex-col pl-safe-left pr-safe-right"
+          style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
+          role="main"
+          aria-label="Bible reading area"
+        >
+          {children}
+        </div>
       </div>
+
       {showPanel && (
         <>
           <SplitDivider containerRef={containerRef} />
+
+          {/* Panel pane */}
           <div
-            className="min-h-0 min-w-0 overflow-hidden flex flex-col"
+            className="relative min-h-0 min-w-0"
             style={{
               flex: `${1 - splitRatio} 0 0%`,
               transition: isDragging ? undefined : 'flex 300ms ease-out',
-              paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
             }}
           >
-            {panel}
+            <div
+              className="absolute inset-0 overflow-hidden flex flex-col"
+              style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
+            >
+              {panel}
+            </div>
           </div>
         </>
       )}

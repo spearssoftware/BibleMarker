@@ -484,7 +484,7 @@ export function MultiTranslationView() {
   const sortedVerseNumbers = Array.from(allVerseNumbers).sort((a, b) => a - b);
   
   return (
-    <div className="multi-translation-view h-full flex flex-col" onClick={handleClick} data-bible-reader>
+    <div className="multi-translation-view flex-1 min-h-0 flex flex-col" onClick={handleClick} data-bible-reader>
       {/* Chapter title section */}
       {(chapterTitle || creatingChapterTitle) && (
         <div className="px-4 py-3 text-center flex-shrink-0 bg-transparent" data-chapter-title={currentChapter} style={{ scrollMarginTop: '80px' }}>
