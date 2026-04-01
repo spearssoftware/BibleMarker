@@ -116,23 +116,35 @@ export function MultiTranslationView() {
     onSwipeRight: previousChapter,
   });
 
-  // Force WebKit to recalculate layout on window resize (emoji line-box bug)
+  // Force WebKit to recalculate text layout when the container width changes.
+  // Without this, inline annotation elements cause stale block heights after reflow.
   useEffect(() => {
     const el = verseContainerRef.current;
     if (!el) return;
-    let rafId: number;
-    const handleResize = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        el.style.display = 'none';
-        void el.offsetHeight;
-        el.style.display = '';
-      });
-    };
-    window.addEventListener('resize', handleResize);
+    let prevWidth = 0;
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const observer = new ResizeObserver((entries) => {
+      const newWidth = entries[0]?.contentRect.width ?? 0;
+      if (prevWidth > 0 && Math.abs(newWidth - prevWidth) > 1) {
+        prevWidth = newWidth;
+        clearTimeout(timeoutId);
+        // Escape ResizeObserver callback, then force reflow by toggling padding
+        timeoutId = setTimeout(() => {
+          const inner = el.firstElementChild as HTMLElement | null;
+          if (inner) {
+            inner.style.paddingRight = '0.1px';
+            void inner.offsetHeight;
+            inner.style.paddingRight = '';
+          }
+        }, 50);
+      } else {
+        prevWidth = newWidth;
+      }
+    });
+    observer.observe(el);
     return () => {
-      window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(rafId);
+      observer.disconnect();
+      clearTimeout(timeoutId);
     };
   }, []);
 
