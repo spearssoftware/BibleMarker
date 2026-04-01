@@ -583,7 +583,7 @@ export function MultiTranslationView() {
                     return (
                       <div
                         key={`${translation.id}-${verseNum}`}
-                        className="verse-cell min-h-[1.5rem]"
+                        className="verse-cell min-h-[1.5rem] min-w-0"
                       >
                         {isColumnLoading ? (
                           // Elegant skeleton loader - subtle placeholder that doesn't clutter
