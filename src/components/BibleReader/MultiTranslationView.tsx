@@ -116,30 +116,28 @@ export function MultiTranslationView() {
     onSwipeRight: previousChapter,
   });
 
-  // Force WebKit to recalculate verse layout when the container width changes.
-  // The overflow:hidden BFC on [data-verse] fixes height calculation but can
-  // cache stale heights. A brief width toggle forces fresh inline layout.
+  // Force React to recreate verse DOM when the container width changes.
+  // WebKit doesn't recalculate inline-grid annotation block heights on reflow.
+  // Incrementing layoutGen re-keys the content wrapper, forcing fresh DOM creation.
+  const [layoutGen, setLayoutGen] = useState(0);
   useEffect(() => {
     const el = verseContainerRef.current;
     if (!el) return;
     let prevWidth = 0;
-    let rafId: number;
+    let timeoutId: ReturnType<typeof setTimeout>;
     const observer = new ResizeObserver((entries) => {
       const newWidth = Math.round(entries[0]?.contentRect.width ?? 0);
       if (prevWidth > 0 && newWidth !== prevWidth) {
         prevWidth = newWidth;
-        cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(() => {
-          const inner = el.firstElementChild as HTMLElement | null;
-          if (!inner) return;
+        clearTimeout(timeoutId);
+        // Small debounce for drag resize, preserve scroll position
+        timeoutId = setTimeout(() => {
           const scrollTop = el.scrollTop;
-          // Briefly change width to force inline content reflow
-          inner.style.width = '99.999%';
-          rafId = requestAnimationFrame(() => {
-            inner.style.width = '';
+          setLayoutGen(g => g + 1);
+          requestAnimationFrame(() => {
             el.scrollTop = scrollTop;
           });
-        });
+        }, 150);
       } else {
         prevWidth = newWidth;
       }
@@ -147,7 +145,7 @@ export function MultiTranslationView() {
     observer.observe(el);
     return () => {
       observer.disconnect();
-      cancelAnimationFrame(rafId);
+      clearTimeout(timeoutId);
     };
   }, []);
 
@@ -557,7 +555,7 @@ export function MultiTranslationView() {
 
       {/* Verse rows - scrollable container */}
       <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchStart={swipeTouchStart} onTouchEnd={(e) => { swipeTouchEnd(e); setTimeout(handleMouseUp, 50); }}>
-          <div className={`px-4 py-4 space-y-1.5`}>
+          <div key={layoutGen} className={`px-4 py-4 space-y-1.5`}>
             {sortedVerseNumbers.map(verseNum => (
               <div key={verseNum}>
                 {/* Section heading if exists - show once per verse row, not per translation */}
