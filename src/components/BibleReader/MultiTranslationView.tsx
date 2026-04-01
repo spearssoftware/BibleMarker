@@ -117,7 +117,7 @@ export function MultiTranslationView() {
   });
 
   // Force WebKit to recalculate text layout when the container width changes.
-  // Without this, inline annotation elements cause stale block heights after reflow.
+  // The inline-grid annotation elements cause stale block heights during reflow.
   useEffect(() => {
     const el = verseContainerRef.current;
     if (!el) return;
@@ -128,15 +128,14 @@ export function MultiTranslationView() {
       if (prevWidth > 0 && Math.abs(newWidth - prevWidth) > 1) {
         prevWidth = newWidth;
         clearTimeout(timeoutId);
-        // Escape ResizeObserver callback, then force reflow by toggling padding
+        // Escape ResizeObserver callback to avoid feedback loops
         timeoutId = setTimeout(() => {
-          const inner = el.firstElementChild as HTMLElement | null;
-          if (inner) {
-            inner.style.paddingRight = '0.1px';
-            void inner.offsetHeight;
-            inner.style.paddingRight = '';
-          }
-        }, 50);
+          const scrollTop = el.scrollTop;
+          el.style.display = 'none';
+          void el.offsetHeight;
+          el.style.display = '';
+          el.scrollTop = scrollTop;
+        }, 0);
       } else {
         prevWidth = newWidth;
       }

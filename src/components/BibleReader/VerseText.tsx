@@ -724,7 +724,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const overlayTextStyles = symbolColor
             ? `text-decoration: underline; text-decoration-color: ${symbolColor}; text-decoration-thickness: 2px; text-underline-offset: 3px;`
             : '';
-          htmlSegments.push(`${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}"><span style="position: relative; display: inline-block; min-width: 2.2em; text-align: center;"><span class="symbol-overlay" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 2.2em; opacity: 0.4; pointer-events: none; ${symbolColor ? `color: ${symbolColor};` : 'color: currentColor;'}">${symbolText}</span><span class="annotation-text" style="${overlayTextStyles}">${escapeHtml(wordContent)}</span></span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`);
+          htmlSegments.push(`${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}"><span style="display: inline-grid; vertical-align: bottom; min-width: 2.2em; text-align: center;"><span class="symbol-overlay" style="grid-area: 1/1; place-self: center; font-size: 2.2em; line-height: 0; height: 0; opacity: 0.4; pointer-events: none; ${symbolColor ? `color: ${symbolColor};` : 'color: currentColor;'}">${symbolText}</span><span class="annotation-text" style="grid-area: 1/1; ${overlayTextStyles}">${escapeHtml(wordContent)}</span></span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`);
         } else {
           // Only text annotations
           const styleAttr = combinedStyles.length ? ` style="${combinedStyles.join('; ')}"` : '';
