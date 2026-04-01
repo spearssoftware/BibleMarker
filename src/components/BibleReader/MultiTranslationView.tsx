@@ -128,19 +128,16 @@ export function MultiTranslationView() {
     const observer = new ResizeObserver((entries) => {
       const newWidth = Math.round(entries[0]?.contentRect.width ?? 0);
       if (prevWidth > 0 && newWidth !== prevWidth) {
-        // Only re-key when WIDENING (BFC handles narrowing in real time)
-        const isWidening = newWidth > prevWidth;
         prevWidth = newWidth;
-        if (isWidening) {
-          clearTimeout(timeoutId);
-          timeoutId = setTimeout(() => {
-            const scrollTop = el.scrollTop;
-            setLayoutGen(g => g + 1);
-            requestAnimationFrame(() => {
-              el.scrollTop = scrollTop;
-            });
-          }, 100);
-        }
+        clearTimeout(timeoutId);
+        // Re-key to force fresh DOM with correct layout at new width
+        timeoutId = setTimeout(() => {
+          const scrollTop = el.scrollTop;
+          setLayoutGen(g => g + 1);
+          requestAnimationFrame(() => {
+            el.scrollTop = scrollTop;
+          });
+        }, 100);
       } else {
         prevWidth = newWidth;
       }
