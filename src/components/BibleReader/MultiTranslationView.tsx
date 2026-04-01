@@ -116,22 +116,37 @@ export function MultiTranslationView() {
     onSwipeRight: previousChapter,
   });
 
-  // Force WebKit to recalculate layout on window resize (emoji line-box bug)
+  // Force WebKit to recalculate verse layout when the container width changes.
+  // The overflow:hidden BFC on [data-verse] fixes height calculation but can
+  // cache stale heights. A brief width toggle forces fresh inline layout.
   useEffect(() => {
     const el = verseContainerRef.current;
     if (!el) return;
+    let prevWidth = 0;
     let rafId: number;
-    const handleResize = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        el.style.display = 'none';
-        void el.offsetHeight;
-        el.style.display = '';
-      });
-    };
-    window.addEventListener('resize', handleResize);
+    const observer = new ResizeObserver((entries) => {
+      const newWidth = Math.round(entries[0]?.contentRect.width ?? 0);
+      if (prevWidth > 0 && newWidth !== prevWidth) {
+        prevWidth = newWidth;
+        cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+          const inner = el.firstElementChild as HTMLElement | null;
+          if (!inner) return;
+          const scrollTop = el.scrollTop;
+          // Briefly change width to force inline content reflow
+          inner.style.width = '99.999%';
+          rafId = requestAnimationFrame(() => {
+            inner.style.width = '';
+            el.scrollTop = scrollTop;
+          });
+        });
+      } else {
+        prevWidth = newWidth;
+      }
+    });
+    observer.observe(el);
     return () => {
-      window.removeEventListener('resize', handleResize);
+      observer.disconnect();
       cancelAnimationFrame(rafId);
     };
   }, []);
