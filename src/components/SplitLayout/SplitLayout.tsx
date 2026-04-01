@@ -19,28 +19,24 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
       ref={containerRef}
       className={`flex-1 min-h-0 flex ${isHorizontal ? 'flex-row' : 'flex-col'}`}
     >
-      {/* Scripture pane */}
+      {/* Scripture pane — NO overflow:hidden (breaks WebKit inline-grid reflow) */}
       <div
-        className="relative min-h-0 min-w-0"
+        className="min-h-0 min-w-0 flex flex-col pl-safe-left pr-safe-right"
         style={{
           flex: showPanel ? `${splitRatio} 0 0%` : '1 0 0%',
+          paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
         }}
+        role="main"
+        aria-label="Bible reading area"
       >
-        <div
-          className="absolute inset-0 overflow-hidden flex flex-col pl-safe-left pr-safe-right"
-          style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
-          role="main"
-          aria-label="Bible reading area"
-        >
-          {children}
-        </div>
+        {children}
       </div>
 
       {showPanel && (
         <>
           <SplitDivider containerRef={containerRef} />
 
-          {/* Panel pane */}
+          {/* Panel pane — absolute positioning works fine here */}
           <div
             className="relative min-h-0 min-w-0"
             style={{

@@ -212,10 +212,9 @@ select:focus-visible {
     color: var(--scripture-text);
   }
 
-  /* Verse content styling - ensure text color is set explicitly */
+  /* Verse content styling - line-height inherited from text-scripture-* on parent */
   .verse-content {
     color: var(--scripture-text);
-    line-height: 2.2;
     -webkit-touch-callout: none;
   }
 
