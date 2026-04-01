@@ -2,13 +2,14 @@
  * @vitest-environment jsdom
  *
  * Integration test for the Toolbar component.
- * Verifies that data flows correctly between selection, menus, and forms.
+ * Verifies that data flows correctly between selection, menus, and the panel store.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useAnnotationStore, type TextSelection } from '@/stores/annotationStore';
+import { usePanelStore } from '@/stores/panelStore';
 import { DEFAULT_MARKING_PREFERENCES } from '@/types';
 
 // --- Mock all heavy dependencies ---
@@ -54,8 +55,7 @@ vi.mock('@/stores/placeStore', () => ({
   usePlaceStore: () => ({ places: [], loadPlaces: vi.fn() }),
 }));
 
-// Mock child components as simple stubs that expose their props for assertion.
-// SelectionMenu: render its buttons so we can click "Key Word"
+// Mock child components as simple stubs
 vi.mock('../SelectionMenu', () => ({
   SelectionMenu: (props: {
     onOpenKeyWordManager: () => void;
@@ -75,34 +75,10 @@ vi.mock('../SelectionMenu', () => ({
   ),
 }));
 
-// KeyWordManager: render with data attributes so we can read initialWord
-vi.mock('@/components/KeyWords', () => ({
-  KeyWordManager: (props: { initialWord?: string }) => (
-    <div data-testid="keyword-manager" data-initial-word={props.initialWord || ''}>
-      KeyWordManager
-    </div>
-  ),
-}));
-
-// Stub out remaining child components that Toolbar imports
-vi.mock('../ColorPicker', () => ({ ColorPicker: () => null }));
-vi.mock('../SymbolPicker', () => ({ SymbolPicker: () => null }));
-vi.mock('../ToolbarOverlay', () => ({
-  ToolbarOverlay: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
 vi.mock('@/components/BibleReader/StrongsPopup', () => ({ StrongsPopup: () => null }));
-vi.mock('@/components/Lists', () => ({ AddToList: () => null }));
 vi.mock('@/components/Settings', () => ({ SettingsPanel: () => null }));
-vi.mock('@/components/Observation', () => ({
-  ObservationToolsPanel: () => null,
-  type: { ObservationTab: {} },
-}));
-vi.mock('@/components/Analyze', () => ({
-  AnalyzeToolsPanel: () => null,
-  type: { AnalyzeTab: {} },
-}));
 vi.mock('@/components/shared', () => ({
-  ConfirmationDialog: () => null,
+  Modal: () => null,
 }));
 
 // Now import Toolbar after all mocks are registered
@@ -142,10 +118,16 @@ describe('Toolbar', () => {
       toolbarVisible: true,
       toolbarExpanded: false,
     });
+    // Reset panel store
+    usePanelStore.setState({
+      activePanel: null,
+      isPinned: false,
+      isCollapsed: false,
+    });
   });
 
   describe('keyword creation from selection', () => {
-    it('passes selected word to KeyWordManager even after selection is cleared', async () => {
+    it('opens keywords panel with selected word via panelStore', async () => {
       const user = userEvent.setup();
 
       // Set a selection in the store
@@ -159,13 +141,12 @@ describe('Toolbar', () => {
       expect(screen.getByTestId('selection-menu')).toBeTruthy();
 
       // Click "Key Word" — this calls onOpenKeyWordManager() then onClose()
-      // onClose() clears the selection from the store
       await user.click(screen.getByTestId('keyword-button'));
 
-      // KeyWordManager should now be rendered with the captured word
-      const manager = screen.getByTestId('keyword-manager');
-      expect(manager).toBeTruthy();
-      expect(manager.getAttribute('data-initial-word')).toBe('God');
+      // Panel store should have been updated with the keyword panel open
+      const panelState = usePanelStore.getState();
+      expect(panelState.activePanel).toBe('keywords');
+      expect(panelState.keywordInitialWord).toBe('God');
     });
 
     it('trims whitespace from the selected word', async () => {
@@ -178,8 +159,8 @@ describe('Toolbar', () => {
       render(<Toolbar />);
       await user.click(screen.getByTestId('keyword-button'));
 
-      const manager = screen.getByTestId('keyword-manager');
-      expect(manager.getAttribute('data-initial-word')).toBe('love');
+      const panelState = usePanelStore.getState();
+      expect(panelState.keywordInitialWord).toBe('love');
     });
   });
 });

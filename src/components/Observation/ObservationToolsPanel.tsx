@@ -11,7 +11,6 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
-import { getPreferences } from '@/lib/database';
 import { fetchChapter } from '@/lib/bible-api';
 import { getBookById, formatVerseRef } from '@/types';
 import type { ObservationList, ObservationItem } from '@/types';
@@ -66,36 +65,14 @@ const sortVerseGroups = (groups: Map<string, ObservationItem[]>): Array<[string,
   });
 };
 
-// Sort lists by earliest verse in each list (canonical order)
-const sortListsByVerse = (lists: ObservationList[]): ObservationList[] => {
+// Sort lists: favorites first, then alphabetical within each group
+const sortLists = (lists: ObservationList[], favoriteIds: string[]): ObservationList[] => {
+  const favSet = new Set(favoriteIds);
   return [...lists].sort((a, b) => {
-    const itemsA = a.items.length > 0 ? a.items : [];
-    const itemsB = b.items.length > 0 ? b.items : [];
-    if (itemsA.length === 0 && itemsB.length === 0) return 0;
-    if (itemsA.length === 0) return 1;
-    if (itemsB.length === 0) return -1;
-    const minKey = (items: ObservationItem[]) => {
-      const keys = items.map(item => getVerseKey(item.verseRef));
-      keys.sort((keyA, keyB) => {
-        const [bookA, chapterA, verseA] = keyA.split(':');
-        const [bookB, chapterB, verseB] = keyB.split(':');
-        const orderA = getBookById(bookA)?.order ?? 999;
-        const orderB = getBookById(bookB)?.order ?? 999;
-        if (orderA !== orderB) return orderA - orderB;
-        if (parseInt(chapterA, 10) !== parseInt(chapterB, 10)) return parseInt(chapterA, 10) - parseInt(chapterB, 10);
-        return parseInt(verseA, 10) - parseInt(verseB, 10);
-      });
-      return keys[0];
-    };
-    const keyA = minKey(itemsA);
-    const keyB = minKey(itemsB);
-    const [bookA, chapterA, verseA] = keyA.split(':');
-    const [bookB, chapterB, verseB] = keyB.split(':');
-    const orderA = getBookById(bookA)?.order ?? 999;
-    const orderB = getBookById(bookB)?.order ?? 999;
-    if (orderA !== orderB) return orderA - orderB;
-    if (parseInt(chapterA, 10) !== parseInt(chapterB, 10)) return parseInt(chapterA, 10) - parseInt(chapterB, 10);
-    return parseInt(verseA, 10) - parseInt(verseB, 10);
+    const aFav = favSet.has(a.id);
+    const bFav = favSet.has(b.id);
+    if (aFav !== bFav) return aFav ? -1 : 1;
+    return a.title.localeCompare(b.title);
   });
 };
 
@@ -128,7 +105,7 @@ export function ObservationToolsPanel({
   autoCreate
 }: ObservationToolsPanelProps) {
   const [activeTab, setActiveTab] = useState<ObservationTab>(initialTab);
-  const { lists, loadLists, deleteList, addItemToList, updateItem, deleteItem } = useListStore();
+  const { lists, loadLists, deleteList, addItemToList, updateItem, deleteItem, toggleFavorite, favoriteListIds } = useListStore();
   const { presets } = useMarkingPresetStore();
   const { studies, activeStudyId } = useStudyStore();
   const { currentBook, currentChapter, navSelectedVerse, setLocation, setNavSelectedVerse } = useBibleStore();
@@ -145,19 +122,12 @@ export function ObservationToolsPanel({
   const [verseTexts, setVerseTexts] = useState<Map<string, string>>(new Map());
   const { activeView } = useMultiTranslationStore();
   const primaryModuleId = activeView?.translationIds[0] || '';
-  const [disabledTools, setDisabledTools] = useState<string[]>([]);
   const [filterByChapter, setFilterByChapter] = useState(true);
   const [trackerIsCreating, setTrackerIsCreating] = useState(false);
   const [trackerIsEditing, setTrackerIsEditing] = useState(false);
   const [showCustomVerse, setShowCustomVerse] = useState<string | null>(null); // listId when open
   const [customChapter, setCustomChapter] = useState('');
   const [customVerse, setCustomVerse] = useState('');
-
-  useEffect(() => {
-    getPreferences().then(prefs => {
-      setDisabledTools(prefs.disabledTools || []);
-    });
-  }, []);
 
   // Show lists scoped to current study and book (no chapter filter)
   const displayLists = lists.filter(l => {
@@ -197,11 +167,20 @@ export function ObservationToolsPanel({
     }
   }, [initialListId, lists]);
 
+  // Auto-open the add-observation form when launched from Observe action
+  useEffect(() => {
+    if (autoCreate && initialListId && verseRef && lists.length > 0) {
+      queueMicrotask(() => {
+        setAddingToVerse({ listId: initialListId, verseRef });
+      });
+    }
+  }, [autoCreate, initialListId, verseRef, lists]);
+
   // Load full verse texts for list items
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!primaryModuleId || displayLists.length === 0) return;
+      if (!primaryModuleId) return;
       const chapterCache = new Map<string, Map<number, string>>();
       const newTexts = new Map<string, string>();
       for (const list of displayLists) {
@@ -223,10 +202,29 @@ export function ObservationToolsPanel({
           }
         }
       }
+      // Also fetch verse text for addingToVerse if it's a new verse not yet in any list
+      if (addingToVerse) {
+        const addKey = getVerseKey(addingToVerse.verseRef);
+        if (!newTexts.has(addKey)) {
+          const cacheKey = `${addingToVerse.verseRef.book}:${addingToVerse.verseRef.chapter}`;
+          if (!chapterCache.has(cacheKey)) {
+            try {
+              const ch = await fetchChapter(primaryModuleId, addingToVerse.verseRef.book, addingToVerse.verseRef.chapter);
+              const verseMap = new Map<number, string>();
+              for (const v of ch.verses) verseMap.set(v.ref.verse, v.text);
+              chapterCache.set(cacheKey, verseMap);
+            } catch { /* skip */ }
+          }
+          const verses = chapterCache.get(cacheKey);
+          if (verses) {
+            newTexts.set(addKey, verses.get(addingToVerse.verseRef.verse) || '');
+          }
+        }
+      }
       if (!cancelled) setVerseTexts(newTexts);
     })();
     return () => { cancelled = true; };
-  }, [displayLists, primaryModuleId]);
+  }, [displayLists, primaryModuleId, addingToVerse]);
 
   const allTabs: { id: ObservationTab; label: string; icon: string }[] = [
     { id: 'lists', label: 'Lists', icon: '📝' },
@@ -235,7 +233,7 @@ export function ObservationToolsPanel({
     { id: 'people', label: 'People', icon: '👤' },
   ];
 
-  const tabs = allTabs.filter(tab => !disabledTools.includes(tab.id));
+  const tabs = allTabs;
 
   const toggleList = (listId: string) => {
     const newExpanded = new Set(expandedLists);
@@ -461,8 +459,8 @@ export function ObservationToolsPanel({
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative" role="dialog" aria-label="Observation Tools" aria-modal="true">
       {/* Header with tabs */}
       <div className="flex items-center justify-between px-4 py-2 flex-shrink-0 border-b border-scripture-border/30">
-        <div role="tablist" aria-label="Observation tools sections">
-          <div className="flex gap-1 sm:gap-2">
+        <div role="tablist" aria-label="Observation tools sections" className="min-w-0">
+          <div className="flex gap-1 sm:gap-2 overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -482,7 +480,7 @@ export function ObservationToolsPanel({
                 `}
               >
                 <span className="text-base" aria-hidden="true">{tab.icon}</span>
-                <span className={`text-xs ${activeTab === tab.id ? 'inline' : 'hidden sm:inline'}`}>{tab.label}</span>
+                <span className={`text-xs ${activeTab === tab.id ? 'inline' : 'hidden'}`}>{tab.label}</span>
               </button>
             ))}
           </div>
@@ -550,7 +548,7 @@ export function ObservationToolsPanel({
               </div>
             ) : (
               <div className="space-y-3">
-                {sortListsByVerse(chapFilteredLists).map(list => {
+                {sortLists(chapFilteredLists, favoriteListIds).map(list => {
                   const isExpanded = expandedLists.has(list.id);
                   const keywordName = getKeywordName(list.keyWordId);
                   const studyName = getStudyName(list.studyId);
@@ -599,6 +597,13 @@ export function ObservationToolsPanel({
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => toggleFavorite(list.id)}
+                              className="px-2 py-1 text-xs transition-colors"
+                              title={favoriteListIds.includes(list.id) ? 'Remove from favorites' : 'Add to favorites'}
+                            >
+                              {favoriteListIds.includes(list.id) ? '⭐' : '☆'}
+                            </button>
                             <button
                               onClick={() => handleExport(list)}
                               className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-text transition-colors"
@@ -858,6 +863,11 @@ export function ObservationToolsPanel({
                               <p className="text-xs text-scripture-muted mb-2">
                                 Adding to {formatVerseRef(addingToVerse.verseRef.book, addingToVerse.verseRef.chapter, addingToVerse.verseRef.verse)}
                               </p>
+                              {verseTexts.get(getVerseKey(addingToVerse.verseRef)) && (
+                                <div className="text-xs text-scripture-text italic pl-3 border-l-2 border-scripture-border/30 mb-2">
+                                  {highlightWords(verseTexts.get(getVerseKey(addingToVerse.verseRef))!, [getKeywordName(list.keyWordId) || ''])}
+                                </div>
+                              )}
                               <Textarea
                                 value={newObservationText}
                                 onChange={(e) => setNewObservationText(e.target.value)}

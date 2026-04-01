@@ -14,6 +14,8 @@ import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
 import { NavigationBar } from '@/components/BibleReader';
 import { MultiTranslationView } from '@/components/BibleReader/MultiTranslationView';
 import { Toolbar } from '@/components/MarkingToolbar';
+import { SplitLayout, PanelContainer } from '@/components/SplitLayout';
+import { useLayoutOrientation } from '@/hooks/useLayoutOrientation';
 import { ErrorDisplay } from '@/components/ErrorDisplay';
 import { WelcomeScreen, OnboardingTour } from '@/components/Onboarding';
 import { loadSampleData } from '@/lib/sampleData';
@@ -77,6 +79,9 @@ export default function App() {
 
   // Handle iOS virtual keyboard avoidance
   useVirtualKeyboard();
+
+  // Detect layout orientation for split-view panel
+  useLayoutOrientation();
 
   // Critical path: DB init + preferences + active view (needed for first render)
   useEffect(() => {
@@ -269,12 +274,12 @@ export default function App() {
         />
       )}
 
-      {/* Main reading area - always use MultiTranslationView */}
-      <main className="flex-1 pb-32 pl-safe-left pr-safe-right" role="main" aria-label="Bible reading area">
+      {/* Main reading area with split panel */}
+      <SplitLayout panel={<PanelContainer />}>
         <MultiTranslationView />
-      </main>
+      </SplitLayout>
 
-      {/* Bottom marking toolbar */}
+      {/* Bottom tab bar */}
       <Toolbar />
 
       {/* Undo toast */}

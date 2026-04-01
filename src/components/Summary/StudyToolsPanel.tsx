@@ -10,8 +10,6 @@ import { getBookById, BIBLE_BOOKS } from '@/types';
 import { Button, ConfirmationDialog, DropdownSelect, Input } from '@/components/shared';
 import { InterpretationWorksheet } from '@/components/Interpretation';
 import { ApplicationWorksheet } from '@/components/Application';
-import { getPreferences } from '@/lib/database';
-
 type StudyToolTab = 'interpretation' | 'application' | 'studies';
 
 interface StudyToolsPanelProps {
@@ -25,7 +23,6 @@ export function StudyToolsPanel({ onClose: _onClose, initialTab = 'interpretatio
   const resolvedInitial = VALID_TABS.includes(initialTab) ? initialTab : 'interpretation';
   const [activeTab, setActiveTabRaw] = useState<StudyToolTab>(resolvedInitial);
   const { studies, activeStudyId, loadStudies, createStudy, updateStudy, deleteStudy, setActiveStudy } = useStudyStore();
-  const [disabledTools, setDisabledTools] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const setActiveTab = (tab: StudyToolTab) => {
@@ -44,19 +41,13 @@ export function StudyToolsPanel({ onClose: _onClose, initialTab = 'interpretatio
     loadStudies();
   }, [loadStudies]);
 
-  useEffect(() => {
-    getPreferences().then(prefs => {
-      setDisabledTools(prefs.disabledTools || []);
-    });
-  }, []);
-
   const allTabs: { id: StudyToolTab; label: string; icon: string }[] = [
     { id: 'interpretation', label: 'Interpretation', icon: '💭' },
     { id: 'application', label: 'Application', icon: '✍️' },
     { id: 'studies', label: 'Studies', icon: '📖' },
   ];
 
-  const tabs = allTabs.filter(tab => !disabledTools.includes(tab.id));
+  const tabs = allTabs;
 
   // Study management handlers
   const handleCreateStudy = async () => {
@@ -117,8 +108,8 @@ export function StudyToolsPanel({ onClose: _onClose, initialTab = 'interpretatio
       {/* Header with tabs and close button */}
       <div className="flex items-center justify-between px-4 py-2 flex-shrink-0 border-b border-scripture-border/30">
         {/* Tabs */}
-        <div role="tablist" aria-label="Study tools sections">
-          <div className="flex gap-1 sm:gap-2">
+        <div role="tablist" aria-label="Study tools sections" className="min-w-0">
+          <div className="flex gap-1 sm:gap-2 overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -138,7 +129,7 @@ export function StudyToolsPanel({ onClose: _onClose, initialTab = 'interpretatio
                 `}
               >
                 <span className="text-base" aria-hidden="true">{tab.icon}</span>
-                <span className={`text-xs ${activeTab === tab.id ? 'inline' : 'hidden sm:inline'}`}>{tab.label}</span>
+                <span className={`text-xs ${activeTab === tab.id ? 'inline' : 'hidden'}`}>{tab.label}</span>
               </button>
             ))}
           </div>

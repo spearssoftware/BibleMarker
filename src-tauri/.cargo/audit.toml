@@ -1,0 +1,10 @@
+# Ignored advisories for upstream dependencies we can't fix directly.
+# Review periodically — remove once upstream releases patched versions.
+
+[advisories]
+ignore = [
+    # rsa 0.9.x — Marvin attack. Pinned by tauri-plugin-sql transitive dep.
+    "RUSTSEC-2023-0071",
+    # sqlx 0.8.x — binary protocol misuse. Pinned by tauri-plugin-sql.
+    "RUSTSEC-2024-0363",
+]

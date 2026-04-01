@@ -212,7 +212,7 @@ select:focus-visible {
     color: var(--scripture-text);
   }
 
-  /* Verse content styling - ensure text color is set explicitly */
+  /* Verse content styling */
   .verse-content {
     color: var(--scripture-text);
     line-height: 2.2;
@@ -462,10 +462,11 @@ mark.selection-active-highlight {
   }
 }
 
-/* Scroll margins so selected verse clears the header and bottom sheet */
+/* Scroll margins so selected verse clears the header and tab bar */
 [data-verse] {
   scroll-margin-top: 80px;
-  scroll-margin-bottom: 45vh;
+  scroll-margin-bottom: 80px;
+  min-width: 0;
 }
 
 /* ── MapLibre popup overrides ──────────────────────────────────────────── */

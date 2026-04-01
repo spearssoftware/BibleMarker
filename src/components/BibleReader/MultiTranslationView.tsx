@@ -30,6 +30,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { useListStore } from '@/stores/listStore';
 import { getBookById } from '@/types';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
+import { usePanelStore } from '@/stores/panelStore';
 import { useTextSelection, type TranslationChapter } from '@/hooks/useTextSelection';
 import type { Annotation, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
 
@@ -116,25 +117,30 @@ export function MultiTranslationView() {
     onSwipeRight: previousChapter,
   });
 
-  // Force WebKit to recalculate layout on resize (works around emoji line-box bug)
+  // Force WebKit to recalculate verse block heights after pane width changes.
+  // WebKit doesn't recalc block heights inside absolutely-positioned containers.
+  // Re-keying the verse content div forces React to recreate the DOM, giving
+  // WebKit a fresh layout pass at the correct width.
+  const [layoutKey, setLayoutKey] = useState(0);
+  const panelActive = usePanelStore(s => s.activePanel);
+  const panelCollapsed = usePanelStore(s => s.isCollapsed);
+  const panelDragging = usePanelStore(s => s.isDragging);
+  const prevDraggingRef = useRef(false);
+
+  // Re-key after panel open/close/collapse (wait for 300ms CSS transition)
   useEffect(() => {
-    const el = verseContainerRef.current;
-    if (!el) return;
-    let rafId: number;
-    const handleResize = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        el.style.display = 'none';
-        void el.offsetHeight;
-        el.style.display = '';
-      });
-    };
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(rafId);
-    };
-  }, []);
+    const timer = setTimeout(() => setLayoutKey(k => k + 1), 350);
+    return () => clearTimeout(timer);
+  }, [panelActive, panelCollapsed]);
+
+  // Re-key after drag ends (isDragging transitions true → false)
+  useEffect(() => {
+    if (prevDraggingRef.current && !panelDragging) {
+      const timer = setTimeout(() => setLayoutKey(k => k + 1), 50);
+      return () => clearTimeout(timer);
+    }
+    prevDraggingRef.current = panelDragging;
+  }, [panelDragging]);
 
   // Track the last book/chapter we loaded to prevent duplicate calls
   const lastLoadedRef = useRef<{ book: string; chapter: number } | null>(null);
@@ -482,9 +488,10 @@ export function MultiTranslationView() {
   }
   
   const sortedVerseNumbers = Array.from(allVerseNumbers).sort((a, b) => a - b);
-  
+  const gridColsClass = translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3';
+
   return (
-    <div className="multi-translation-view h-full flex flex-col" onClick={handleClick} data-bible-reader>
+    <div className="multi-translation-view flex-1 min-h-0 flex flex-col" onClick={handleClick} data-bible-reader>
       {/* Chapter title section */}
       {(chapterTitle || creatingChapterTitle) && (
         <div className="px-4 py-3 text-center flex-shrink-0 bg-transparent" data-chapter-title={currentChapter} style={{ scrollMarginTop: '80px' }}>
@@ -523,7 +530,7 @@ export function MultiTranslationView() {
 
       {/* Translation headers - sticky */}
       <div 
-        className={`grid gap-4 px-4 py-2 bg-scripture-elevated flex-shrink-0 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}
+        className={`grid gap-4 px-4 py-2 bg-scripture-elevated flex-shrink-0 ${gridColsClass}`}
       >
         {translationList.map(({ translation, isLoading, error }) => (
           <div key={translation.id} className="flex flex-col">
@@ -542,14 +549,16 @@ export function MultiTranslationView() {
 
       {/* Verse rows - scrollable container */}
       <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchStart={swipeTouchStart} onTouchEnd={(e) => { swipeTouchEnd(e); setTimeout(handleMouseUp, 50); }}>
-          <div className={`px-4 py-4 space-y-1.5`}>
-            {sortedVerseNumbers.map(verseNum => (
+          <div key={layoutKey} className={`px-4 py-4 space-y-1.5`}>
+            {sortedVerseNumbers.map(verseNum => {
+              const heading = getHeadingBefore(verseNum);
+              const verseNotes = getVerseNotes(verseNum);
+              return (
               <div key={verseNum}>
-                {/* Section heading if exists - show once per verse row, not per translation */}
-                {getHeadingBefore(verseNum) && (
-                  <div className="mb-2" data-section-heading={getHeadingBefore(verseNum)!.id} style={{ scrollMarginTop: '80px' }}>
+                {heading && (
+                  <div className="mb-2" data-section-heading={heading.id} style={{ scrollMarginTop: '80px' }}>
                     <SectionHeadingEditor
-                      heading={getHeadingBefore(verseNum)!}
+                      heading={heading}
                       verseNum={verseNum}
                       onSave={updateSectionHeading}
                       onDelete={removeSectionHeading}
@@ -573,7 +582,7 @@ export function MultiTranslationView() {
 
                 {/* Verse row */}
                 <div
-                  className={`grid gap-4 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} transition-colors duration-200 ${navSelectedVerse === verseNum ? 'bg-scripture-accent/10 dark:bg-scripture-accent/30 rounded-lg px-2 py-1' : ''}`}
+                  className={`grid gap-4 ${gridColsClass} transition-colors duration-200 ${navSelectedVerse === verseNum ? 'bg-scripture-accent/10 dark:bg-scripture-accent/30 rounded-lg px-2 py-1' : ''}`}
                   data-verse={verseNum}
                 >
                   {translationList.map(({ translation, chapter, isLoading, error }) => {
@@ -583,7 +592,7 @@ export function MultiTranslationView() {
                     return (
                       <div
                         key={`${translation.id}-${verseNum}`}
-                        className="verse-cell min-h-[1.5rem]"
+                        className="verse-cell min-h-[1.5rem] min-w-0"
                       >
                         {isColumnLoading ? (
                           // Elegant skeleton loader - subtle placeholder that doesn't clutter
@@ -667,9 +676,9 @@ export function MultiTranslationView() {
                 </div>
 
               {/* Notes for this verse - show once per verse row, only for primary translation */}
-              {primaryTranslationId && getVerseNotes(verseNum).length > 0 && (
+              {primaryTranslationId && verseNotes.length > 0 && (
                 <div className="mt-2 mb-2">
-                  {getVerseNotes(verseNum).map((note) => (
+                  {verseNotes.map((note) => (
                     <NoteEditor
                       key={note.id}
                       note={note}
@@ -709,11 +718,12 @@ export function MultiTranslationView() {
                 </div>
               )}
             </div>
-          ))}
-          
+          );
+          })}
+
           {/* Copyright notices */}
           {translationList.some(({ translation }) => translation.copyright) && (
-            <div className={`grid gap-4 px-4 py-3 border-t border-scripture-muted/20 bg-scripture-surface/50 flex-shrink-0 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            <div className={`grid gap-4 px-4 py-3 border-t border-scripture-muted/20 bg-scripture-surface/50 flex-shrink-0 ${gridColsClass}`}>
               {translationList.map(({ translation }) => (
                 <CopyrightNotice key={`copyright-${translation.id}`} translation={translation} />
               ))}

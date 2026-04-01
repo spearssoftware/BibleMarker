@@ -56,8 +56,6 @@ export interface UserPreferences {
   lastUpdateCheck?: string;
   /** Last app version the user has seen the What's New popup for */
   lastSeenVersion?: string;
-  /** Tool IDs that should be hidden from their respective panels */
-  disabledTools?: string[];
   debug?: {
     keywordMatching?: boolean;
     verseText?: boolean;
