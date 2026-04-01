@@ -37,6 +37,8 @@ interface ModalProps {
   initialFocusRef?: React.RefObject<HTMLElement | null>;
   /** Additional className for the modal container */
   className?: string;
+  /** Override className for the content area (default: scrollable with padding) */
+  contentClassName?: string;
 }
 
 const SIZE_CLASSES = {
@@ -61,6 +63,7 @@ export function Modal({
   handleEscape = true,
   initialFocusRef,
   className = '',
+  contentClassName,
 }: ModalProps) {
   const { handleBackdropClick } = useModal({
     isOpen,
@@ -119,7 +122,7 @@ export function Modal({
           )}
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+          <div className={contentClassName ?? "flex-1 overflow-y-auto p-6 custom-scrollbar"}>
             {children}
           </div>
 

@@ -215,6 +215,7 @@ export function Toolbar() {
         size="full"
         title="Settings"
         showCloseButton={true}
+        contentClassName="flex-1 min-h-0 flex flex-col"
       >
         <SettingsPanel onClose={() => setShowSettingsModal(false)} />
       </Modal>
