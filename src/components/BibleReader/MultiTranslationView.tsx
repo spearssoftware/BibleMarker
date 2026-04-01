@@ -30,6 +30,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { useListStore } from '@/stores/listStore';
 import { getBookById } from '@/types';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
+import { usePanelStore } from '@/stores/panelStore';
 import { useTextSelection, type TranslationChapter } from '@/hooks/useTextSelection';
 import type { Annotation, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
 
@@ -121,31 +122,26 @@ export function MultiTranslationView() {
   // Re-keying the verse content div forces React to recreate the DOM, giving
   // WebKit a fresh layout pass at the correct width.
   const [layoutKey, setLayoutKey] = useState(0);
+  const panelActive = usePanelStore(s => s.activePanel);
+  const panelCollapsed = usePanelStore(s => s.isCollapsed);
+  const panelDragging = usePanelStore(s => s.isDragging);
+  const panelRatio = usePanelStore(s => s.splitRatio);
+  const prevDraggingRef = useRef(false);
+
+  // Re-key after panel open/close/collapse (wait for 300ms CSS transition)
   useEffect(() => {
-    const el = verseContainerRef.current;
-    if (!el) return;
-    let lastWidth = 0;
-    let debounceTimer: ReturnType<typeof setTimeout>;
+    const timer = setTimeout(() => setLayoutKey(k => k + 1), 350);
+    return () => clearTimeout(timer);
+  }, [panelActive, panelCollapsed]);
 
-    const observer = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect?.width ?? 0;
-      console.log('[MTV] ResizeObserver fired, width:', width, 'lastWidth:', lastWidth);
-      if (lastWidth !== 0 && Math.abs(width - lastWidth) > 1) {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-          console.log('[MTV] Bumping layoutKey');
-          setLayoutKey(k => k + 1);
-        }, 350);
-      }
-      lastWidth = width;
-    });
-    observer.observe(el);
-
-    return () => {
-      observer.disconnect();
-      clearTimeout(debounceTimer);
-    };
-  }, []);
+  // Re-key after drag ends (isDragging transitions true → false)
+  useEffect(() => {
+    if (prevDraggingRef.current && !panelDragging) {
+      const timer = setTimeout(() => setLayoutKey(k => k + 1), 50);
+      return () => clearTimeout(timer);
+    }
+    prevDraggingRef.current = panelDragging;
+  }, [panelDragging, panelRatio]);
 
   // Track the last book/chapter we loaded to prevent duplicate calls
   const lastLoadedRef = useRef<{ book: string; chapter: number } | null>(null);
