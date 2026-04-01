@@ -197,11 +197,20 @@ export function ObservationToolsPanel({
     }
   }, [initialListId, lists]);
 
+  // Auto-open the add-observation form when launched from Observe action
+  useEffect(() => {
+    if (autoCreate && initialListId && verseRef && lists.length > 0) {
+      queueMicrotask(() => {
+        setAddingToVerse({ listId: initialListId, verseRef });
+      });
+    }
+  }, [autoCreate, initialListId, verseRef, lists]);
+
   // Load full verse texts for list items
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!primaryModuleId || displayLists.length === 0) return;
+      if (!primaryModuleId) return;
       const chapterCache = new Map<string, Map<number, string>>();
       const newTexts = new Map<string, string>();
       for (const list of displayLists) {
@@ -223,10 +232,29 @@ export function ObservationToolsPanel({
           }
         }
       }
+      // Also fetch verse text for addingToVerse if it's a new verse not yet in any list
+      if (addingToVerse) {
+        const addKey = getVerseKey(addingToVerse.verseRef);
+        if (!newTexts.has(addKey)) {
+          const cacheKey = `${addingToVerse.verseRef.book}:${addingToVerse.verseRef.chapter}`;
+          if (!chapterCache.has(cacheKey)) {
+            try {
+              const ch = await fetchChapter(primaryModuleId, addingToVerse.verseRef.book, addingToVerse.verseRef.chapter);
+              const verseMap = new Map<number, string>();
+              for (const v of ch.verses) verseMap.set(v.ref.verse, v.text);
+              chapterCache.set(cacheKey, verseMap);
+            } catch { /* skip */ }
+          }
+          const verses = chapterCache.get(cacheKey);
+          if (verses) {
+            newTexts.set(addKey, verses.get(addingToVerse.verseRef.verse) || '');
+          }
+        }
+      }
       if (!cancelled) setVerseTexts(newTexts);
     })();
     return () => { cancelled = true; };
-  }, [displayLists, primaryModuleId]);
+  }, [displayLists, primaryModuleId, addingToVerse]);
 
   const allTabs: { id: ObservationTab; label: string; icon: string }[] = [
     { id: 'lists', label: 'Lists', icon: '📝' },
@@ -858,6 +886,11 @@ export function ObservationToolsPanel({
                               <p className="text-xs text-scripture-muted mb-2">
                                 Adding to {formatVerseRef(addingToVerse.verseRef.book, addingToVerse.verseRef.chapter, addingToVerse.verseRef.verse)}
                               </p>
+                              {verseTexts.get(getVerseKey(addingToVerse.verseRef)) && (
+                                <div className="text-xs text-scripture-text italic pl-3 border-l-2 border-scripture-border/30 mb-2">
+                                  {highlightWords(verseTexts.get(getVerseKey(addingToVerse.verseRef))!, [getKeywordName(list.keyWordId) || ''])}
+                                </div>
+                              )}
                               <Textarea
                                 value={newObservationText}
                                 onChange={(e) => setNewObservationText(e.target.value)}

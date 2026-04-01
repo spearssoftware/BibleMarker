@@ -15,7 +15,7 @@ import { ToolbarOverlay } from './ToolbarOverlay';
 import { SelectionMenu } from './SelectionMenu';
 import { StrongsPopup } from '@/components/BibleReader/StrongsPopup';
 import { KeyWordManager } from '@/components/KeyWords';
-import { AddToList } from '@/components/Lists';
+import { useListStore } from '@/stores/listStore';
 import { SettingsPanel } from '@/components/Settings';
 import { ObservationToolsPanel, type ObservationTab } from '@/components/Observation';
 import { AnalyzeToolsPanel, type AnalyzeTab } from '@/components/Analyze';
@@ -28,6 +28,7 @@ import type { MarkingPreset } from '@/types';
 import type { VerseRef } from '@/types';
 import { createMarkingPreset, getRandomHighlightColor } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
+import { stripSymbols } from '@/lib/textUtils';
 import { usePeopleStore } from '@/stores/peopleStore';
 import { usePlaceStore } from '@/stores/placeStore';
 
@@ -78,7 +79,7 @@ export function Toolbar() {
   const [observationPanelInitialListId, setObservationPanelInitialListId] = useState<string | undefined>(undefined);
   const [observationPanelVerseRef, setObservationPanelVerseRef] = useState<VerseRef | undefined>(undefined);
   const [observationPanelAutoCreate, setObservationPanelAutoCreate] = useState(false);
-  const [showAddToList, setShowAddToList] = useState(false);
+  const { getOrCreateListForKeyword } = useListStore();
   const [, setShowKeyWordApplyPicker] = useState(false);
   const [, setShowAddAsVariantPicker] = useState(false);
   const [, setIsClearing] = useState(false);
@@ -375,8 +376,41 @@ export function Toolbar() {
             if (selection) window.dispatchEvent(new CustomEvent('markingOverlayOpened'));
           }}
           onQuickAddKeyword={quickAddKeyword}
-          onAddToList={() => {
-            setShowAddToList(true);
+          onAddToList={async () => {
+            if (!selection) return;
+            const strippedText = stripSymbols(selection.text).toLowerCase().trim();
+            const matchingPreset = presets.find(p => {
+              if (p.word?.toLowerCase().trim() === strippedText) return true;
+              if (p.variants?.some(v => {
+                const variantText = typeof v === 'string' ? v : v.text;
+                return variantText.toLowerCase().trim() === strippedText;
+              })) return true;
+              return false;
+            });
+
+            const selectionVerseRef = {
+              book: selection.book,
+              chapter: selection.chapter,
+              verse: selection.startVerse,
+            };
+
+            if (matchingPreset) {
+              try {
+                const list = await getOrCreateListForKeyword(matchingPreset.id, activeStudyId ?? undefined, selection.book);
+                setObservationPanelInitialListId(list.id);
+                setObservationPanelVerseRef(selectionVerseRef);
+                setObservationPanelAutoCreate(true);
+              } catch (err) {
+                console.error('[Toolbar] Failed to get/create list for keyword:', err);
+              }
+            }
+
+            setObservationPanelInitialTab('lists');
+            setShowObservationToolsPanel(true);
+            setShowKeyWordManager(false);
+            setShowAnalyzeToolsPanel(false);
+            setShowSettingsPanel(false);
+            setActiveTool(null);
           }}
           onStrongsLookup={selection.strongsNumbers ? () => {
             setStrongsPopup({
@@ -565,24 +599,6 @@ export function Toolbar() {
         </ToolbarOverlay>
       )}
 
-      {/* Add to List */}
-      {showAddToList && selection && (
-        <AddToList
-          verseRef={{
-            book: selection.book,
-            chapter: selection.chapter,
-            verse: selection.startVerse,
-          }}
-          selectedText={selection.text}
-          onClose={() => {
-            setShowAddToList(false);
-            clearSelection();
-          }}
-          onAdded={() => {
-            // Optionally reload lists if needed
-          }}
-        />
-      )}
 
 
       {/* Key Words - bottom overlay (unified with Color / Symbol) */}
