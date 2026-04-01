@@ -17,7 +17,7 @@ interface OverlayProps {
   maxHeight?: string;
   /** Overlay content */
   children: ReactNode;
-  /** Z-index for the overlay (defaults to Z_INDEX.TOOLBAR_OVERLAY) */
+  /** Z-index for the overlay (defaults to Z_INDEX.BACKDROP) */
   zIndex?: number;
   /** Additional className */
   className?: string;
@@ -32,7 +32,7 @@ export function Overlay({
   onClose,
   maxHeight = '50vh',
   children,
-  zIndex = Z_INDEX.TOOLBAR_OVERLAY,
+  zIndex = Z_INDEX.BACKDROP,
   className = '',
   showBackdrop = false,
   onBackdropClick,

@@ -13,8 +13,6 @@
 export const Z_INDEX = {
   /** Backdrop for modals */
   BACKDROP: 40,
-  /** Toolbar overlays (below navbar) */
-  TOOLBAR_OVERLAY: 45,
   /** Standard modals and dropdowns */
   MODAL: 50,
   /** Important modals (settings, etc.) */
