@@ -444,7 +444,7 @@ function KeywordListByScope({
         <div className="border border-scripture-border/50 rounded-lg bg-scripture-surface/30 p-3">
           <div className="flex items-center gap-2 mb-3 pb-2 border-b border-scripture-border/30">
             <span className="text-lg">🌍</span>
-            <h3 className="text-sm font-semibold text-scripture-text">Global Keywords</h3>
+            <h3 className="text-sm font-semibold text-scripture-text">Global</h3>
             <span className="text-xs text-scripture-muted ml-auto">
               {grouped.global.length} {grouped.global.length === 1 ? 'keyword' : 'keywords'}
             </span>
