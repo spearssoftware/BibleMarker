@@ -49,22 +49,18 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
       ref={containerRef}
       className={`flex-1 min-h-0 flex ${isHorizontal ? 'flex-row' : 'flex-col'}`}
     >
-      {/* Scripture pane — explicit pixel width triggers WebKit reflow */}
+      {/* Scripture pane — no absolute positioning so WebKit propagates width changes as content reflow */}
       <div
-        className="relative min-h-0 min-w-0 shrink-0"
+        className="min-h-0 min-w-0 shrink-0 overflow-hidden flex flex-col pl-safe-left pr-safe-right"
         style={{
           ...scriptureSizeStyle,
           flex: scriptureSizeStyle ? undefined : '1 0 0%',
+          paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
         }}
+        role="main"
+        aria-label="Bible reading area"
       >
-        <div
-          className="absolute inset-0 overflow-hidden flex flex-col pl-safe-left pr-safe-right"
-          style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
-          role="main"
-          aria-label="Bible reading area"
-        >
-          {children}
-        </div>
+        {children}
       </div>
 
       {showPanel && (
@@ -73,18 +69,14 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
 
           {/* Panel pane */}
           <div
-            className="relative min-h-0 min-w-0 shrink-0"
+            className="min-h-0 min-w-0 shrink-0 overflow-hidden flex flex-col"
             style={{
               ...panelSizeStyle,
               transition: isDragging ? undefined : isHorizontal ? 'width 300ms ease-out' : 'height 300ms ease-out',
+              paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
             }}
           >
-            <div
-              className="absolute inset-0 overflow-hidden flex flex-col"
-              style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
-            >
-              {panel}
-            </div>
+            {panel}
           </div>
         </>
       )}
