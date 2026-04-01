@@ -205,9 +205,11 @@ select:focus-visible {
     border-color: rgb(var(--scripture-border));
   }
 
-  /* Scripture text styling */
+  /* Scripture text styling — flow-root creates a BFC so WebKit correctly
+     recalculates block height when inline-grid annotations reflow */
   .scripture-text {
     @apply font-scripture leading-relaxed;
+    display: flow-root;
     letter-spacing: 0.01em;
     color: var(--scripture-text);
   }
@@ -467,7 +469,6 @@ mark.selection-active-highlight {
 [data-verse] {
   scroll-margin-top: 80px;
   scroll-margin-bottom: 80px;
-  overflow: hidden;
   min-width: 0;
 }
 
