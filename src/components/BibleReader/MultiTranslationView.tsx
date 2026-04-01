@@ -116,12 +116,15 @@ export function MultiTranslationView() {
     onSwipeRight: previousChapter,
   });
 
-  // Force WebKit to recalculate layout on window resize (emoji line-box bug)
+  // Force WebKit to recalculate layout when container width changes
+  // (split divider drag, panel open/close, or window resize)
   useEffect(() => {
     const el = verseContainerRef.current;
     if (!el) return;
     let rafId: number;
-    const handleResize = () => {
+    let lastWidth = 0;
+
+    const forceReflow = () => {
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
         el.style.display = 'none';
@@ -129,9 +132,18 @@ export function MultiTranslationView() {
         el.style.display = '';
       });
     };
-    window.addEventListener('resize', handleResize);
+
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect?.width ?? 0;
+      if (lastWidth !== 0 && Math.abs(width - lastWidth) > 1) {
+        forceReflow();
+      }
+      lastWidth = width;
+    });
+    observer.observe(el);
+
     return () => {
-      window.removeEventListener('resize', handleResize);
+      observer.disconnect();
       cancelAnimationFrame(rafId);
     };
   }, []);
