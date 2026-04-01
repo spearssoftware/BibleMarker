@@ -125,7 +125,6 @@ export function MultiTranslationView() {
   const panelActive = usePanelStore(s => s.activePanel);
   const panelCollapsed = usePanelStore(s => s.isCollapsed);
   const panelDragging = usePanelStore(s => s.isDragging);
-  const panelRatio = usePanelStore(s => s.splitRatio);
   const prevDraggingRef = useRef(false);
 
   // Re-key after panel open/close/collapse (wait for 300ms CSS transition)
@@ -141,7 +140,7 @@ export function MultiTranslationView() {
       return () => clearTimeout(timer);
     }
     prevDraggingRef.current = panelDragging;
-  }, [panelDragging, panelRatio]);
+  }, [panelDragging]);
 
   // Track the last book/chapter we loaded to prevent duplicate calls
   const lastLoadedRef = useRef<{ book: string; chapter: number } | null>(null);
@@ -489,7 +488,8 @@ export function MultiTranslationView() {
   }
   
   const sortedVerseNumbers = Array.from(allVerseNumbers).sort((a, b) => a - b);
-  
+  const gridColsClass = translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3';
+
   return (
     <div className="multi-translation-view flex-1 min-h-0 flex flex-col" onClick={handleClick} data-bible-reader>
       {/* Chapter title section */}
@@ -530,7 +530,7 @@ export function MultiTranslationView() {
 
       {/* Translation headers - sticky */}
       <div 
-        className={`grid gap-4 px-4 py-2 bg-scripture-elevated flex-shrink-0 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}
+        className={`grid gap-4 px-4 py-2 bg-scripture-elevated flex-shrink-0 ${gridColsClass}`}
       >
         {translationList.map(({ translation, isLoading, error }) => (
           <div key={translation.id} className="flex flex-col">
@@ -550,13 +550,15 @@ export function MultiTranslationView() {
       {/* Verse rows - scrollable container */}
       <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchStart={swipeTouchStart} onTouchEnd={(e) => { swipeTouchEnd(e); setTimeout(handleMouseUp, 50); }}>
           <div key={layoutKey} className={`px-4 py-4 space-y-1.5`}>
-            {sortedVerseNumbers.map(verseNum => (
+            {sortedVerseNumbers.map(verseNum => {
+              const heading = getHeadingBefore(verseNum);
+              const verseNotes = getVerseNotes(verseNum);
+              return (
               <div key={verseNum}>
-                {/* Section heading if exists - show once per verse row, not per translation */}
-                {getHeadingBefore(verseNum) && (
-                  <div className="mb-2" data-section-heading={getHeadingBefore(verseNum)!.id} style={{ scrollMarginTop: '80px' }}>
+                {heading && (
+                  <div className="mb-2" data-section-heading={heading.id} style={{ scrollMarginTop: '80px' }}>
                     <SectionHeadingEditor
-                      heading={getHeadingBefore(verseNum)!}
+                      heading={heading}
                       verseNum={verseNum}
                       onSave={updateSectionHeading}
                       onDelete={removeSectionHeading}
@@ -580,7 +582,7 @@ export function MultiTranslationView() {
 
                 {/* Verse row */}
                 <div
-                  className={`grid gap-4 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} transition-colors duration-200 ${navSelectedVerse === verseNum ? 'bg-scripture-accent/10 dark:bg-scripture-accent/30 rounded-lg px-2 py-1' : ''}`}
+                  className={`grid gap-4 ${gridColsClass} transition-colors duration-200 ${navSelectedVerse === verseNum ? 'bg-scripture-accent/10 dark:bg-scripture-accent/30 rounded-lg px-2 py-1' : ''}`}
                   data-verse={verseNum}
                 >
                   {translationList.map(({ translation, chapter, isLoading, error }) => {
@@ -674,9 +676,9 @@ export function MultiTranslationView() {
                 </div>
 
               {/* Notes for this verse - show once per verse row, only for primary translation */}
-              {primaryTranslationId && getVerseNotes(verseNum).length > 0 && (
+              {primaryTranslationId && verseNotes.length > 0 && (
                 <div className="mt-2 mb-2">
-                  {getVerseNotes(verseNum).map((note) => (
+                  {verseNotes.map((note) => (
                     <NoteEditor
                       key={note.id}
                       note={note}
@@ -716,11 +718,12 @@ export function MultiTranslationView() {
                 </div>
               )}
             </div>
-          ))}
-          
+          );
+          })}
+
           {/* Copyright notices */}
           {translationList.some(({ translation }) => translation.copyright) && (
-            <div className={`grid gap-4 px-4 py-3 border-t border-scripture-muted/20 bg-scripture-surface/50 flex-shrink-0 ${translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            <div className={`grid gap-4 px-4 py-3 border-t border-scripture-muted/20 bg-scripture-surface/50 flex-shrink-0 ${gridColsClass}`}>
               {translationList.map(({ translation }) => (
                 <CopyrightNotice key={`copyright-${translation.id}`} translation={translation} />
               ))}

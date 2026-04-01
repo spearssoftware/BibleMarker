@@ -9,7 +9,10 @@ export function useLayoutOrientation() {
     const mql = window.matchMedia('(min-width: 768px) and (orientation: landscape)');
 
     const handler = (e: MediaQueryListEvent | MediaQueryList) => {
-      setOrientation(e.matches ? 'horizontal' : 'vertical');
+      const next = e.matches ? 'horizontal' : 'vertical';
+      if (usePanelStore.getState().orientation !== next) {
+        setOrientation(next);
+      }
     };
 
     // Set initial value

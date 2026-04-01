@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { usePanelStore } from '@/stores/panelStore';
 
 interface SplitDividerProps {
@@ -6,39 +6,40 @@ interface SplitDividerProps {
 }
 
 export function SplitDivider({ containerRef }: SplitDividerProps) {
-  const { orientation, splitRatio, setSplitRatio, setDragging } = usePanelStore();
-  const [isDragging, setIsDragging] = useState(false);
+  const { orientation, splitRatio, setSplitRatio, setDragging, isDragging } = usePanelStore();
   const prevRatioRef = useRef<number | null>(null);
   const isHorizontal = orientation === 'horizontal';
 
+  // Guard body user-select with lifecycle cleanup (safe if component unmounts mid-drag)
+  useEffect(() => {
+    if (!isDragging) return;
+    document.body.style.userSelect = 'none';
+    return () => { document.body.style.userSelect = ''; };
+  }, [isDragging]);
+
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const containerSize = isHorizontal ? rect.width : rect.height;
+    if (containerSize === 0) return;
+
     const startPos = isHorizontal ? e.clientX : e.clientY;
     const startRatio = splitRatio;
 
-    setIsDragging(true);
     setDragging(true);
-    document.body.style.userSelect = 'none';
 
     const onPointerMove = (moveEvent: PointerEvent) => {
-      const container = containerRef.current;
-      if (!container) return;
-
-      const rect = container.getBoundingClientRect();
-      const containerSize = isHorizontal ? rect.width : rect.height;
-      if (containerSize === 0) return;
-
       const currentPos = isHorizontal ? moveEvent.clientX : moveEvent.clientY;
       const delta = currentPos - startPos;
-      const deltaRatio = delta / containerSize;
-      const newRatio = Math.min(0.75, Math.max(0.25, startRatio + deltaRatio));
+      const newRatio = Math.min(0.75, Math.max(0.25, startRatio + delta / containerSize));
       setSplitRatio(newRatio);
     };
 
     const onPointerUp = () => {
-      setIsDragging(false);
       setDragging(false);
-      document.body.style.userSelect = '';
       document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerup', onPointerUp);
     };

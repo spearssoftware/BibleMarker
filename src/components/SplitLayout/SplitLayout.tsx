@@ -2,6 +2,8 @@ import { useRef, useState, useEffect, type ReactNode } from 'react';
 import { usePanelStore } from '@/stores/panelStore';
 import { SplitDivider } from './SplitDivider';
 
+const TOOLBAR_PADDING = 'calc(60px + env(safe-area-inset-bottom, 0px))';
+
 interface SplitLayoutProps {
   children: ReactNode;
   panel: ReactNode | null;
@@ -15,23 +17,22 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
   const showPanel = activePanel && !isCollapsed && panel;
   const isHorizontal = orientation === 'horizontal';
 
-  // Measure container with ResizeObserver to compute pixel widths.
-  // Flex-based widths don't trigger WebKit inline reflow — pixel widths do.
+  // Measure container — reads orientation from store directly so the observer is stable
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const observer = new ResizeObserver((entries) => {
       const rect = entries[0]?.contentRect;
       if (rect) {
-        setContainerSize(isHorizontal ? rect.width : rect.height);
+        const horizontal = usePanelStore.getState().orientation === 'horizontal';
+        setContainerSize(horizontal ? rect.width : rect.height);
       }
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [isHorizontal]);
+  }, []);
 
-  // Compute pixel sizes for the divider gap
-  const dividerSize = 16; // 4px bar + 6px padding each side
+  const dividerSize = 16;
   const availableSize = containerSize - (showPanel ? dividerSize : 0);
   const scriptureSize = showPanel ? Math.round(availableSize * splitRatio) : availableSize;
   const panelSize = showPanel ? availableSize - scriptureSize : 0;
@@ -49,7 +50,6 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
       ref={containerRef}
       className={`flex-1 min-h-0 flex ${isHorizontal ? 'flex-row' : 'flex-col'}`}
     >
-      {/* Scripture pane — explicit pixel width triggers WebKit reflow */}
       <div
         className="relative min-h-0 min-w-0 shrink-0"
         style={{
@@ -59,7 +59,7 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
       >
         <div
           className="absolute inset-0 overflow-hidden flex flex-col pl-safe-left pr-safe-right"
-          style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
+          style={{ paddingBottom: TOOLBAR_PADDING }}
           role="main"
           aria-label="Bible reading area"
         >
@@ -71,7 +71,6 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
         <>
           <SplitDivider containerRef={containerRef} />
 
-          {/* Panel pane */}
           <div
             className="relative min-h-0 min-w-0 shrink-0"
             style={{
@@ -81,7 +80,7 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
           >
             <div
               className="absolute inset-0 overflow-hidden flex flex-col"
-              style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
+              style={{ paddingBottom: TOOLBAR_PADDING }}
             >
               {panel}
             </div>

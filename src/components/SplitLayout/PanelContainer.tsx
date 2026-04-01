@@ -1,11 +1,9 @@
-import { usePanelStore } from '@/stores/panelStore';
+import { usePanelStore, type PanelType } from '@/stores/panelStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { KeyWordManager } from '@/components/KeyWords';
 import { ObservationToolsPanel } from '@/components/Observation';
 import { AnalyzeToolsPanel } from '@/components/Analyze';
 import type { VerseRef } from '@/types';
-
-type PanelType = 'keywords' | 'observe' | 'analyze';
 
 const PANEL_TITLES: Record<PanelType, string> = {
   keywords: 'Mark',

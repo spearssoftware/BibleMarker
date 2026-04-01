@@ -4,7 +4,7 @@ import type { VerseRef } from '@/types';
 import type { ObservationTab } from '@/components/Observation';
 import type { AnalyzeTab } from '@/components/Analyze';
 
-type PanelType = 'keywords' | 'observe' | 'analyze';
+export type PanelType = 'keywords' | 'observe' | 'analyze';
 
 interface PanelOpenOptions {
   // Keywords
