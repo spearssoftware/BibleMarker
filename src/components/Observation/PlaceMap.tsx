@@ -164,9 +164,9 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
   const activeStyle = styles[tileLayer];
 
   return (
-    <div className="flex h-full gap-2">
-      {/* Sidebar list */}
-      <div className="w-44 flex-shrink-0 flex flex-col bg-scripture-surface rounded-xl border border-scripture-border/50 overflow-hidden">
+    <div className="flex flex-col h-full gap-2">
+      {/* Place list */}
+      <div className="max-h-48 flex-shrink-0 flex flex-col bg-scripture-surface rounded-xl border border-scripture-border/50 overflow-hidden">
         <div className="px-3 py-2 border-b border-scripture-border/30 flex-shrink-0">
           <span className="text-xs font-medium text-scripture-muted uppercase tracking-wide">
             Places ({groups.length})
