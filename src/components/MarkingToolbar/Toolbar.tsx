@@ -213,7 +213,8 @@ export function Toolbar() {
         isOpen={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
         size="full"
-        showCloseButton={false}
+        title="Settings"
+        showCloseButton={true}
       >
         <SettingsPanel onClose={() => setShowSettingsModal(false)} />
       </Modal>
