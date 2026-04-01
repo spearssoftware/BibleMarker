@@ -467,8 +467,8 @@ export function ObservationToolsPanel({
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative" role="dialog" aria-label="Observation Tools" aria-modal="true">
       {/* Header with tabs */}
       <div className="flex items-center justify-between px-4 py-2 flex-shrink-0 border-b border-scripture-border/30">
-        <div role="tablist" aria-label="Observation tools sections">
-          <div className="flex gap-1 sm:gap-2">
+        <div role="tablist" aria-label="Observation tools sections" className="min-w-0">
+          <div className="flex gap-1 sm:gap-2 overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}

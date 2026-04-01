@@ -105,7 +105,7 @@ export function AnalyzeToolsPanel({
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative" role="dialog" aria-label="Analyze Tools" aria-modal="true">
       {/* Header with tabs */}
       <div className="flex items-center justify-between px-4 py-2 flex-shrink-0 border-b border-scripture-border/30">
-        <div role="tablist" aria-label="Analyze tools sections">
+        <div role="tablist" aria-label="Analyze tools sections" className="min-w-0">
           <div className="flex gap-1 sm:gap-2 overflow-x-auto">
             {tabs.map((tab) => (
               <button

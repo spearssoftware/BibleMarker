@@ -618,8 +618,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         aria-modal="true"
       >
         {/* Tabs */}
-        <div className="flex items-center justify-between px-4 py-2 flex-shrink-0 border-b border-scripture-border/30" role="tablist" aria-label="Settings sections">
-          <div className="flex gap-1 sm:gap-2">
+        <div className="flex items-center justify-between px-4 py-2 flex-shrink-0 border-b border-scripture-border/30 min-w-0" role="tablist" aria-label="Settings sections">
+          <div className="flex gap-1 sm:gap-2 overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}

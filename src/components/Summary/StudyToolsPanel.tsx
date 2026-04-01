@@ -117,8 +117,8 @@ export function StudyToolsPanel({ onClose: _onClose, initialTab = 'interpretatio
       {/* Header with tabs and close button */}
       <div className="flex items-center justify-between px-4 py-2 flex-shrink-0 border-b border-scripture-border/30">
         {/* Tabs */}
-        <div role="tablist" aria-label="Study tools sections">
-          <div className="flex gap-1 sm:gap-2">
+        <div role="tablist" aria-label="Study tools sections" className="min-w-0">
+          <div className="flex gap-1 sm:gap-2 overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
