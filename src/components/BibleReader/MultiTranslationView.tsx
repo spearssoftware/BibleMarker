@@ -116,27 +116,30 @@ export function MultiTranslationView() {
     onSwipeRight: previousChapter,
   });
 
-  // Force WebKit to recalculate inline text layout when container width changes
-  // (split divider drag, panel open/close, or window resize).
-  // Toggling word-spacing by a sub-pixel amount is invisible but forces
-  // WebKit to re-run line breaking and update block heights.
+  // Force WebKit to recalculate verse block heights after container width stabilizes.
+  // WebKit doesn't recalc block heights inside absolutely-positioned containers on
+  // width change. A debounced React re-key forces fresh layout after drag/transition.
+  const [layoutKey, setLayoutKey] = useState(0);
   useEffect(() => {
     const el = verseContainerRef.current;
     if (!el) return;
     let lastWidth = 0;
-    let toggle = false;
+    let debounceTimer: ReturnType<typeof setTimeout>;
 
     const observer = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect?.width ?? 0;
       if (lastWidth !== 0 && Math.abs(width - lastWidth) > 1) {
-        toggle = !toggle;
-        el.style.wordSpacing = toggle ? '0.01px' : '0px';
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => setLayoutKey(k => k + 1), 350);
       }
       lastWidth = width;
     });
     observer.observe(el);
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      clearTimeout(debounceTimer);
+    };
   }, []);
 
   // Track the last book/chapter we loaded to prevent duplicate calls
@@ -545,7 +548,7 @@ export function MultiTranslationView() {
 
       {/* Verse rows - scrollable container */}
       <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchStart={swipeTouchStart} onTouchEnd={(e) => { swipeTouchEnd(e); setTimeout(handleMouseUp, 50); }}>
-          <div className={`px-4 py-4 space-y-1.5`}>
+          <div key={layoutKey} className={`px-4 py-4 space-y-1.5`}>
             {sortedVerseNumbers.map(verseNum => (
               <div key={verseNum}>
                 {/* Section heading if exists - show once per verse row, not per translation */}
