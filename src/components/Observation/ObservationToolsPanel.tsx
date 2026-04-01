@@ -66,37 +66,9 @@ const sortVerseGroups = (groups: Map<string, ObservationItem[]>): Array<[string,
   });
 };
 
-// Sort lists by earliest verse in each list (canonical order)
-const sortListsByVerse = (lists: ObservationList[]): ObservationList[] => {
-  return [...lists].sort((a, b) => {
-    const itemsA = a.items.length > 0 ? a.items : [];
-    const itemsB = b.items.length > 0 ? b.items : [];
-    if (itemsA.length === 0 && itemsB.length === 0) return 0;
-    if (itemsA.length === 0) return 1;
-    if (itemsB.length === 0) return -1;
-    const minKey = (items: ObservationItem[]) => {
-      const keys = items.map(item => getVerseKey(item.verseRef));
-      keys.sort((keyA, keyB) => {
-        const [bookA, chapterA, verseA] = keyA.split(':');
-        const [bookB, chapterB, verseB] = keyB.split(':');
-        const orderA = getBookById(bookA)?.order ?? 999;
-        const orderB = getBookById(bookB)?.order ?? 999;
-        if (orderA !== orderB) return orderA - orderB;
-        if (parseInt(chapterA, 10) !== parseInt(chapterB, 10)) return parseInt(chapterA, 10) - parseInt(chapterB, 10);
-        return parseInt(verseA, 10) - parseInt(verseB, 10);
-      });
-      return keys[0];
-    };
-    const keyA = minKey(itemsA);
-    const keyB = minKey(itemsB);
-    const [bookA, chapterA, verseA] = keyA.split(':');
-    const [bookB, chapterB, verseB] = keyB.split(':');
-    const orderA = getBookById(bookA)?.order ?? 999;
-    const orderB = getBookById(bookB)?.order ?? 999;
-    if (orderA !== orderB) return orderA - orderB;
-    if (parseInt(chapterA, 10) !== parseInt(chapterB, 10)) return parseInt(chapterA, 10) - parseInt(chapterB, 10);
-    return parseInt(verseA, 10) - parseInt(verseB, 10);
-  });
+// Sort lists alphabetically by title
+const sortListsAlphabetically = (lists: ObservationList[]): ObservationList[] => {
+  return [...lists].sort((a, b) => a.title.localeCompare(b.title));
 };
 
 function highlightWords(text: string, words: string[]): React.ReactNode {
@@ -578,7 +550,7 @@ export function ObservationToolsPanel({
               </div>
             ) : (
               <div className="space-y-3">
-                {sortListsByVerse(chapFilteredLists).map(list => {
+                {sortListsAlphabetically(chapFilteredLists).map(list => {
                   const isExpanded = expandedLists.has(list.id);
                   const keywordName = getKeywordName(list.keyWordId);
                   const studyName = getStudyName(list.studyId);
