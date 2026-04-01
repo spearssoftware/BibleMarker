@@ -66,9 +66,15 @@ const sortVerseGroups = (groups: Map<string, ObservationItem[]>): Array<[string,
   });
 };
 
-// Sort lists alphabetically by title
-const sortListsAlphabetically = (lists: ObservationList[]): ObservationList[] => {
-  return [...lists].sort((a, b) => a.title.localeCompare(b.title));
+// Sort lists: favorites first, then alphabetical within each group
+const sortLists = (lists: ObservationList[], favoriteIds: string[]): ObservationList[] => {
+  const favSet = new Set(favoriteIds);
+  return [...lists].sort((a, b) => {
+    const aFav = favSet.has(a.id);
+    const bFav = favSet.has(b.id);
+    if (aFav !== bFav) return aFav ? -1 : 1;
+    return a.title.localeCompare(b.title);
+  });
 };
 
 function highlightWords(text: string, words: string[]): React.ReactNode {
@@ -100,7 +106,7 @@ export function ObservationToolsPanel({
   autoCreate
 }: ObservationToolsPanelProps) {
   const [activeTab, setActiveTab] = useState<ObservationTab>(initialTab);
-  const { lists, loadLists, deleteList, addItemToList, updateItem, deleteItem } = useListStore();
+  const { lists, loadLists, deleteList, addItemToList, updateItem, deleteItem, toggleFavorite, favoriteListIds } = useListStore();
   const { presets } = useMarkingPresetStore();
   const { studies, activeStudyId } = useStudyStore();
   const { currentBook, currentChapter, navSelectedVerse, setLocation, setNavSelectedVerse } = useBibleStore();
@@ -550,7 +556,7 @@ export function ObservationToolsPanel({
               </div>
             ) : (
               <div className="space-y-3">
-                {sortListsAlphabetically(chapFilteredLists).map(list => {
+                {sortLists(chapFilteredLists, favoriteListIds).map(list => {
                   const isExpanded = expandedLists.has(list.id);
                   const keywordName = getKeywordName(list.keyWordId);
                   const studyName = getStudyName(list.studyId);
@@ -599,6 +605,13 @@ export function ObservationToolsPanel({
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => toggleFavorite(list.id)}
+                              className="px-2 py-1 text-xs transition-colors"
+                              title={favoriteListIds.includes(list.id) ? 'Remove from favorites' : 'Add to favorites'}
+                            >
+                              {favoriteListIds.includes(list.id) ? '⭐' : '☆'}
+                            </button>
                             <button
                               onClick={() => handleExport(list)}
                               className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-text transition-colors"

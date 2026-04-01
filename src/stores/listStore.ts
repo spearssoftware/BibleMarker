@@ -16,8 +16,11 @@ interface ListState {
   // Lists (cached)
   lists: ObservationList[];
   lastUsedListId: string | null; // Track most recently used list
-  
+  favoriteListIds: string[]; // Persisted favorite list IDs
+
   // Actions
+  toggleFavorite: (listId: string) => void;
+  isFavorite: (listId: string) => boolean;
   loadLists: () => Promise<void>;
   createList: (title: string, keyWordId: string, scope?: { book?: string; chapters?: number[] }, studyId?: string) => Promise<ObservationList>;
   updateList: (list: ObservationList) => Promise<void>;
@@ -42,6 +45,20 @@ export const useListStore = create<ListState>()(
     (set, get) => ({
       lists: [],
       lastUsedListId: null,
+      favoriteListIds: [],
+
+      toggleFavorite: (listId) => {
+        const { favoriteListIds } = get();
+        if (favoriteListIds.includes(listId)) {
+          set({ favoriteListIds: favoriteListIds.filter(id => id !== listId) });
+        } else {
+          set({ favoriteListIds: [...favoriteListIds, listId] });
+        }
+      },
+
+      isFavorite: (listId) => {
+        return get().favoriteListIds.includes(listId);
+      },
       
       loadLists: async () => {
         const allLists = await dbGetAllLists();
@@ -367,6 +384,7 @@ export const useListStore = create<ListState>()(
       name: 'list-store',
       partialize: (state) => ({
         lastUsedListId: state.lastUsedListId,
+        favoriteListIds: state.favoriteListIds,
       }),
     }
   )
