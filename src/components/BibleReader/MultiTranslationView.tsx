@@ -116,28 +116,22 @@ export function MultiTranslationView() {
     onSwipeRight: previousChapter,
   });
 
-  // Force WebKit to recalculate layout when the container resizes
-  // (works around inline-grid annotation elements not reflowing properly)
+  // Force WebKit to recalculate layout on window resize (emoji line-box bug)
   useEffect(() => {
     const el = verseContainerRef.current;
     if (!el) return;
     let rafId: number;
-    let prevWidth = el.offsetWidth;
-    const observer = new ResizeObserver((entries) => {
-      const newWidth = entries[0]?.contentRect.width;
-      if (newWidth !== undefined && Math.abs(newWidth - prevWidth) > 1) {
-        prevWidth = newWidth;
-        cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(() => {
-          el.style.display = 'none';
-          void el.offsetHeight;
-          el.style.display = '';
-        });
-      }
-    });
-    observer.observe(el);
+    const handleResize = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        el.style.display = 'none';
+        void el.offsetHeight;
+        el.style.display = '';
+      });
+    };
+    window.addEventListener('resize', handleResize);
     return () => {
-      observer.disconnect();
+      window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(rafId);
     };
   }, []);
