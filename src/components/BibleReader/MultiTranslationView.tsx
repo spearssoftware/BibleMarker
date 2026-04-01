@@ -130,12 +130,13 @@ export function MultiTranslationView() {
         clearTimeout(timeoutId);
         // Escape ResizeObserver callback to avoid feedback loops
         timeoutId = setTimeout(() => {
-          const scrollTop = el.scrollTop;
-          el.style.display = 'none';
-          void el.offsetHeight;
-          el.style.display = '';
-          el.scrollTop = scrollTop;
-        }, 0);
+          const inner = el.firstElementChild as HTMLElement | null;
+          if (inner) {
+            inner.style.paddingRight = '0.1px';
+            void inner.offsetHeight;
+            inner.style.paddingRight = '';
+          }
+        }, 50);
       } else {
         prevWidth = newWidth;
       }
