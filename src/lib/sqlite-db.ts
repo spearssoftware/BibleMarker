@@ -1068,6 +1068,97 @@ export async function sqliteDeleteStudy(id: string): Promise<void> {
   await db.execute(`DELETE FROM studies WHERE id = ?`, [id]);
 }
 
+/**
+ * Find IDs of all records scoped to a study, across all relevant tables.
+ * Used to log sync changes before cascade-deleting.
+ */
+export async function sqliteFindStudyScopedIds(studyId: string): Promise<{ table: string; ids: string[] }[]> {
+  const db = await getSqliteDb();
+  const results: { table: string; ids: string[] }[] = [];
+
+  // Tables with a direct study_id column
+  const directTables = [
+    'marking_presets',
+    'section_headings',
+    'chapter_titles',
+    'observation_lists',
+    'interpretations',
+    'applications',
+  ];
+  for (const table of directTables) {
+    const rows = await db.select<{ id: string }[]>(
+      `SELECT id FROM ${table} WHERE study_id = ?`, [studyId]
+    );
+    if (rows.length > 0) {
+      results.push({ table, ids: rows.map(r => r.id) });
+    }
+  }
+
+  // Tables with studyId inside JSON data column
+  const jsonTables = ['places', 'people', 'time_expressions', 'conclusions'];
+  for (const table of jsonTables) {
+    const rows = await db.select<{ id: string }[]>(
+      `SELECT id FROM ${table} WHERE json_extract(data, '$.studyId') = ?`, [studyId]
+    );
+    if (rows.length > 0) {
+      results.push({ table, ids: rows.map(r => r.id) });
+    }
+  }
+
+  // keyword_exclusions with studyId in JSON data
+  const exclusionRows = await db.select<{ id: string }[]>(
+    `SELECT id FROM keyword_exclusions WHERE json_extract(data, '$.studyId') = ?`, [studyId]
+  );
+  if (exclusionRows.length > 0) {
+    const existing = results.find(r => r.table === 'keyword_exclusions');
+    if (existing) {
+      const idSet = new Set([...existing.ids, ...exclusionRows.map(r => r.id)]);
+      existing.ids = [...idSet];
+    } else {
+      results.push({ table: 'keyword_exclusions', ids: exclusionRows.map(r => r.id) });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Delete all records scoped to a study across all relevant tables.
+ */
+export async function sqliteCascadeDeleteStudy(studyId: string): Promise<void> {
+  const db = await getSqliteDb();
+
+  // Delete keyword_exclusions first (references presets; studyId is in JSON data)
+  await db.execute(
+    `DELETE FROM keyword_exclusions WHERE json_extract(data, '$.studyId') = ?`,
+    [studyId]
+  );
+
+  // Tables with a direct study_id column
+  const directTables = [
+    'marking_presets',
+    'section_headings',
+    'chapter_titles',
+    'observation_lists',
+    'interpretations',
+    'applications',
+  ];
+  for (const table of directTables) {
+    await db.execute(`DELETE FROM ${table} WHERE study_id = ?`, [studyId]);
+  }
+
+  // Tables with studyId inside JSON data column
+  const jsonTables = ['places', 'people', 'time_expressions', 'conclusions'];
+  for (const table of jsonTables) {
+    await db.execute(
+      `DELETE FROM ${table} WHERE json_extract(data, '$.studyId') = ?`,
+      [studyId]
+    );
+  }
+
+  await db.execute(`DELETE FROM studies WHERE id = ?`, [studyId]);
+}
+
 // ============================================================================
 // Preferences Operations
 // ============================================================================
