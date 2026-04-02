@@ -86,17 +86,6 @@ export const usePlaceStore = create<PlaceState>()(
         });
         
         if (existingPlace) {
-          // If the caller provides a presetId that differs from the existing place,
-          // update the existing place so it's linked to the current preset.
-          // This happens when a keyword preset is deleted and re-created with a new ID —
-          // the old place entry has a stale presetId that won't pass the filter.
-          if (presetId && existingPlace.presetId !== presetId) {
-            const patched = { ...existingPlace, presetId, updatedAt: new Date() };
-            await dbSavePlace(patched);
-            const { places } = get();
-            set({ places: places.map(p => p.id === patched.id ? patched : p) });
-            return patched;
-          }
           return existingPlace;
         }
         
@@ -269,7 +258,7 @@ export const usePlaceStore = create<PlaceState>()(
       },
 
       autoPopulateFromChapter: async (book, chapter, moduleId) => {
-        const { createPlace } = get();
+        const { createPlace, updatePlace } = get();
 
         // Get active study for scoping
         const { useStudyStore } = await import('@/stores/studyStore');
@@ -285,6 +274,7 @@ export const usePlaceStore = create<PlaceState>()(
         // Get all keyword presets with 'places' category
         const { useMarkingPresetStore } = await import('@/stores/markingPresetStore');
         const { presets } = useMarkingPresetStore.getState();
+        const validPresetIds = new Set(presets.map(p => p.id));
         const placePresets = presets.filter(p =>
           p.word &&
           p.category === 'places' &&
@@ -297,13 +287,15 @@ export const usePlaceStore = create<PlaceState>()(
 
         // Read existing places from DB (not Zustand) to avoid stale snapshot issues
         const existingPlaces = await dbGetAllPlaces();
-        const existingKeys = new Set(
-          existingPlaces
-            .filter(p => p.presetId)
-            .map(p => `${p.presetId}:${p.verseRef.book}:${p.verseRef.chapter}:${p.verseRef.verse}`)
-        );
 
-        let totalAdded = 0;
+        // Build lookup by name+verse (the real dedup key, matching createPlace behavior)
+        const existingByNameVerse = new Map<string, Place>();
+        for (const p of existingPlaces) {
+          const nk = `${p.name.toLowerCase().trim()}:${p.verseRef.book}:${p.verseRef.chapter}:${p.verseRef.verse}`;
+          if (!existingByNameVerse.has(nk)) existingByNameVerse.set(nk, p);
+        }
+
+        let totalChanged = 0;
 
         const { findKeywordMatches } = await import('@/lib/keywordMatching');
 
@@ -323,31 +315,39 @@ export const usePlaceStore = create<PlaceState>()(
             const matches = findKeywordMatches(text, verseRef, [preset], moduleId);
             if (matches.length === 0) continue;
 
-            // Check if this place already exists for this preset+verse (using DB snapshot)
-            const key = `${preset.id}:${verseRef.book}:${verseRef.chapter}:${verseRef.verse}`;
-            if (existingKeys.has(key)) continue;
-
-            // Use preset word as place name
             const placeName = preset.word || 'Place';
+            const nameKey = `${placeName.toLowerCase().trim()}:${verseRef.book}:${verseRef.chapter}:${verseRef.verse}`;
+            const existing = existingByNameVerse.get(nameKey);
 
+            if (existing) {
+              // Place already exists for this name+verse. Fix stale presetId if needed.
+              if (existing.presetId && !validPresetIds.has(existing.presetId)) {
+                await updatePlace({ ...existing, presetId: preset.id });
+                existingByNameVerse.set(nameKey, { ...existing, presetId: preset.id });
+                totalChanged++;
+              }
+              continue;
+            }
+
+            // No existing place — create one
             try {
-              await createPlace(
+              const created = await createPlace(
                 placeName,
                 verseRef,
-                undefined, // notes - user can add later
+                undefined,
                 preset.id,
-                undefined, // annotationId - no specific annotation, just keyword match
+                undefined,
                 activeStudyId
               );
-              existingKeys.add(key); // Track so we don't try to re-create within this run
-              totalAdded++;
+              existingByNameVerse.set(nameKey, created);
+              totalChanged++;
             } catch (error) {
               console.error(`[autoPopulateFromChapter] Failed to add place "${placeName}":`, error);
             }
           }
         }
 
-        return totalAdded;
+        return totalChanged;
       },
 
       removeDuplicates: async () => {
