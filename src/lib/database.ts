@@ -65,6 +65,7 @@ export async function initDatabase(): Promise<void> {
   await waitForTauriInternals();
   const mod = await sqlite();
   await mod.getSqliteDb();
+  await mod.sqliteCleanupOrphanedStudyRecords();
 }
 
 export async function closeDatabase(): Promise<void> {
@@ -350,7 +351,19 @@ export async function saveStudy(study: Study): Promise<string> {
 
 export async function deleteStudy(id: string): Promise<void> {
   const mod = await sqlite();
-  await mod.sqliteDeleteStudy(id);
+
+  // Find all scoped records so we can log sync changes before deleting
+  const scopedRecords = await mod.sqliteFindStudyScopedIds(id);
+
+  // Cascade-delete all scoped records + the study itself
+  await mod.sqliteCascadeDeleteStudy(id);
+
+  // Log sync changes for all deleted records
+  for (const { table, ids } of scopedRecords) {
+    for (const rowId of ids) {
+      await logChange(table, 'delete', rowId);
+    }
+  }
   await logChange('studies', 'delete', id);
 }
 
