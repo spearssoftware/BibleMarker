@@ -238,8 +238,8 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
     if (lastPopulatedChapter.current === key) return;
     lastPopulatedChapter.current = key;
     (async () => {
-      await autoPopulateFromChapter(currentBook, currentChapter, primaryModuleId);
-      loadPlaces();
+      const added = await autoPopulateFromChapter(currentBook, currentChapter, primaryModuleId);
+      if (added > 0) await loadPlaces();
     })();
   }, [currentBook, currentChapter, primaryModuleId, placePresetKey, autoPopulateFromChapter, loadPlaces]);
 
