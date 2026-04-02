@@ -15,6 +15,7 @@ import { PlaceMap } from '@/components/Observation/PlaceMap';
 import { InterpretationWorksheet } from '@/components/Interpretation';
 import { ApplicationWorksheet } from '@/components/Application';
 import { usePlaceStore } from '@/stores/placeStore';
+import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { Checkbox } from '@/components/shared';
 import type { Place, VerseRef } from '@/types';
@@ -254,6 +255,16 @@ function PlacesMapPanel({
   onNavigate,
 }: PlacesMapPanelProps) {
   const lastPopulatedChapter = useRef('');
+  const { presets } = useMarkingPresetStore();
+
+  // Stable key representing current place presets — changes when presets are added/removed/recategorized
+  const placePresetKey = useMemo(() => {
+    return presets
+      .filter(p => p.category === 'places' && p.word)
+      .map(p => p.id)
+      .sort()
+      .join(',');
+  }, [presets]);
 
   useEffect(() => {
     void loadPlaces();
@@ -261,13 +272,13 @@ function PlacesMapPanel({
 
   useEffect(() => {
     if (!currentBook || !currentChapter || !primaryModuleId) return;
-    const key = `${currentBook}:${currentChapter}:${primaryModuleId}`;
+    const key = `${currentBook}:${currentChapter}:${primaryModuleId}:${placePresetKey}`;
     if (lastPopulatedChapter.current === key) return;
     lastPopulatedChapter.current = key;
     void autoPopulateFromChapter(currentBook, currentChapter, primaryModuleId).then(count => {
       if (count > 0) void loadPlaces();
     });
-  }, [currentBook, currentChapter, primaryModuleId, autoPopulateFromChapter, loadPlaces]);
+  }, [currentBook, currentChapter, primaryModuleId, placePresetKey, autoPopulateFromChapter, loadPlaces]);
 
   const filtered = useMemo(() => {
     let result = places;
