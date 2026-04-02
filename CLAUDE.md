@@ -212,16 +212,16 @@ Example:
 pnpm run release -- patch   # or major / minor
 ```
 
-The script bumps the version in `package.json`, syncs it to `Cargo.toml` and iOS files, commits `release: vX.Y.Z`, creates the tag `app-vX.Y.Z`, and pushes both. Pushing the tag triggers the CI build and creates a draft GitHub Release with auto-generated notes.
+The script creates a `release/vX.Y.Z` branch with the version bump, pushes it, and opens a PR. When the PR is merged, the `release-tag` workflow automatically creates the `app-vX.Y.Z` tag, which triggers the publish workflow and creates a draft GitHub Release.
 
 Retagging (e.g. to add a hotfix):
 ```bash
 gh release delete app-vX.Y.Z --yes
-git push origin :refs/tags/app-vX.Y.Z && git tag -d app-vX.Y.Z
-git tag app-vX.Y.Z && git push origin app-vX.Y.Z
+git push origin :refs/tags/app-vX.Y.Z
 ```
+Then re-merge or manually create the tag on the desired commit.
 
-After tagging, monitor at:
+After merging a release PR, monitor at:
 - https://github.com/spearssoftware/BibleMarker/actions
 - https://github.com/spearssoftware/BibleMarker/releases
 

@@ -37,6 +37,13 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   exit 1
 fi
 
+# Must be on main
+CURRENT_BRANCH=$(git branch --show-current)
+if [ "$CURRENT_BRANCH" != "main" ]; then
+  echo "Error: must be on main branch (currently on $CURRENT_BRANCH)"
+  exit 1
+fi
+
 CURRENT_VERSION=$(node -p "require('./package.json').version")
 IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
 
@@ -47,8 +54,12 @@ case "$BUMP_TYPE" in
 esac
 
 NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+BRANCH_NAME="release/v${NEW_VERSION}"
 
 echo "Bumping: $CURRENT_VERSION → $NEW_VERSION"
+
+# Create release branch
+git checkout -b "$BRANCH_NAME"
 
 node -e "
 const fs = require('fs');
@@ -60,33 +71,25 @@ fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 pnpm run version:sync
 
 git add package.json src-tauri/Cargo.toml
+# Also stage iOS/Xcode files if they were modified
+git add src-tauri/gen/apple/biblemarker_iOS/Info.plist 2>/dev/null || true
+git add src-tauri/gen/apple/project.yml 2>/dev/null || true
 git commit -m "release: v${NEW_VERSION}"
-git tag "app-v${NEW_VERSION}"
 
 echo ""
-echo "Pushing commit and tag app-v${NEW_VERSION}..."
-git push && git push origin "app-v${NEW_VERSION}"
-echo ""
-echo "Release v${NEW_VERSION} triggered!"
-echo "Monitor at: https://github.com/spearssoftware/BibleMarker/actions"
+echo "Pushing branch and opening PR..."
+git push -u origin "$BRANCH_NAME"
 
-# If --notes provided, wait for CI to create the draft release then prepend What's New
+PR_BODY="Version bump to v${NEW_VERSION}. Merging this PR will automatically create the \`app-v${NEW_VERSION}\` tag and trigger the release build."
 if [ -n "$WHATS_NEW" ]; then
-  echo ""
-  echo "Waiting for CI to create draft release..."
-  for i in $(seq 1 24); do
-    sleep 10
-    if gh release view "app-v${NEW_VERSION}" &>/dev/null; then
-      echo "Draft release found. Adding What's New section..."
-      EXISTING_NOTES=$(gh release view "app-v${NEW_VERSION}" --json body -q .body)
-      NEW_BODY="## What's New
-${WHATS_NEW}
+  PR_BODY="${PR_BODY}
 
-${EXISTING_NOTES}"
-      gh release edit "app-v${NEW_VERSION}" --notes "$NEW_BODY"
-      echo "What's New section added to release notes."
-      break
-    fi
-    echo "  Still waiting... (${i}/24)"
-  done
+## What's New
+${WHATS_NEW}"
 fi
+
+PR_URL=$(gh pr create --title "release: v${NEW_VERSION}" --body "$PR_BODY")
+
+echo ""
+echo "Release PR created: $PR_URL"
+echo "After CI passes, merge the PR to trigger the release build."
