@@ -1094,12 +1094,22 @@ export async function sqliteFindStudyScopedIds(studyId: string): Promise<{ table
     }
   }
 
-  // Tables with studyId inside JSON data column
-  const jsonTables = ['places', 'people', 'time_expressions', 'conclusions'];
-  for (const table of jsonTables) {
-    const rows = await db.select<{ id: string }[]>(
-      `SELECT id FROM ${table} WHERE json_extract(data, '$.studyId') = ?`, [studyId]
-    );
+  // Collect preset IDs that belong to this study (for presetId-based orphan lookup)
+  const studyPresetIds = results.find(r => r.table === 'marking_presets')?.ids ?? [];
+
+  // Observation tables: match by studyId OR presetId linked to this study's presets
+  const observationTables = ['places', 'people', 'time_expressions', 'conclusions'];
+  for (const table of observationTables) {
+    let query = `SELECT id FROM ${table} WHERE json_extract(data, '$.studyId') = ?`;
+    const params: string[] = [studyId];
+
+    if (studyPresetIds.length > 0) {
+      const placeholders = studyPresetIds.map(() => '?').join(',');
+      query += ` OR json_extract(data, '$.presetId') IN (${placeholders})`;
+      params.push(...studyPresetIds);
+    }
+
+    const rows = await db.select<{ id: string }[]>(query, params);
     if (rows.length > 0) {
       results.push({ table, ids: rows.map(r => r.id) });
     }
@@ -1147,11 +1157,12 @@ export async function sqliteCascadeDeleteStudy(studyId: string): Promise<void> {
     await db.execute(`DELETE FROM ${table} WHERE study_id = ?`, [studyId]);
   }
 
-  // Tables with studyId inside JSON data column
-  const jsonTables = ['places', 'people', 'time_expressions', 'conclusions'];
-  for (const table of jsonTables) {
+  // Observation tables with studyId or presetId in JSON data
+  // Delete if studyId matches OR if presetId pointed to one of the study's (now-deleted) presets
+  const observationTables = ['places', 'people', 'time_expressions', 'conclusions'];
+  for (const table of observationTables) {
     await db.execute(
-      `DELETE FROM ${table} WHERE json_extract(data, '$.studyId') = ?`,
+      `DELETE FROM ${table} WHERE json_extract(data, '$.studyId') = ? OR (json_extract(data, '$.presetId') IS NOT NULL AND json_extract(data, '$.presetId') NOT IN (SELECT id FROM marking_presets))`,
       [studyId]
     );
   }
@@ -1189,6 +1200,16 @@ export async function sqliteCleanupOrphanedStudyRecords(): Promise<number> {
   for (const table of jsonTables) {
     const result = await db.execute(
       `DELETE FROM ${table} WHERE json_extract(data, '$.studyId') IS NOT NULL AND json_extract(data, '$.studyId') NOT IN (SELECT id FROM studies)`,
+      []
+    );
+    totalDeleted += result.rowsAffected;
+  }
+
+  // Observation tables with presetId in JSON data — delete if preset no longer exists
+  const presetLinkedTables = ['places', 'people', 'time_expressions', 'conclusions'];
+  for (const table of presetLinkedTables) {
+    const result = await db.execute(
+      `DELETE FROM ${table} WHERE json_extract(data, '$.presetId') IS NOT NULL AND json_extract(data, '$.presetId') NOT IN (SELECT id FROM marking_presets)`,
       []
     );
     totalDeleted += result.rowsAffected;
