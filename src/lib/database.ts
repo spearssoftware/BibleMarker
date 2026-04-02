@@ -65,6 +65,7 @@ export async function initDatabase(): Promise<void> {
   await waitForTauriInternals();
   const mod = await sqlite();
   await mod.getSqliteDb();
+  await mod.sqliteCleanupOrphanedStudyRecords();
 }
 
 export async function closeDatabase(): Promise<void> {

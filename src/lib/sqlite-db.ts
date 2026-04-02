@@ -1159,6 +1159,49 @@ export async function sqliteCascadeDeleteStudy(studyId: string): Promise<void> {
   await db.execute(`DELETE FROM studies WHERE id = ?`, [studyId]);
 }
 
+/**
+ * Delete orphaned records whose study no longer exists.
+ * Runs at startup to clean up after past deletions that didn't cascade.
+ */
+export async function sqliteCleanupOrphanedStudyRecords(): Promise<number> {
+  const db = await getSqliteDb();
+  let totalDeleted = 0;
+
+  // Tables with a direct study_id column
+  const directTables = [
+    'keyword_exclusions',
+    'marking_presets',
+    'section_headings',
+    'chapter_titles',
+    'observation_lists',
+    'interpretations',
+    'applications',
+  ];
+  for (const table of directTables) {
+    const result = await db.execute(
+      `DELETE FROM ${table} WHERE study_id IS NOT NULL AND study_id NOT IN (SELECT id FROM studies)`,
+      []
+    );
+    totalDeleted += result.rowsAffected;
+  }
+
+  // Tables with studyId inside JSON data column
+  const jsonTables = ['places', 'people', 'time_expressions', 'conclusions', 'keyword_exclusions'];
+  for (const table of jsonTables) {
+    const result = await db.execute(
+      `DELETE FROM ${table} WHERE json_extract(data, '$.studyId') IS NOT NULL AND json_extract(data, '$.studyId') NOT IN (SELECT id FROM studies)`,
+      []
+    );
+    totalDeleted += result.rowsAffected;
+  }
+
+  if (totalDeleted > 0) {
+    console.log(`[SQLite] Cleaned up ${totalDeleted} orphaned record(s) from deleted studies`);
+  }
+
+  return totalDeleted;
+}
+
 // ============================================================================
 // Preferences Operations
 // ============================================================================
