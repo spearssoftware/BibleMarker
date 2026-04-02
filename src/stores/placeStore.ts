@@ -86,7 +86,17 @@ export const usePlaceStore = create<PlaceState>()(
         });
         
         if (existingPlace) {
-          // Return existing place instead of creating duplicate
+          // If the caller provides a presetId that differs from the existing place,
+          // update the existing place so it's linked to the current preset.
+          // This happens when a keyword preset is deleted and re-created with a new ID —
+          // the old place entry has a stale presetId that won't pass the filter.
+          if (presetId && existingPlace.presetId !== presetId) {
+            const patched = { ...existingPlace, presetId, updatedAt: new Date() };
+            await dbSavePlace(patched);
+            const { places } = get();
+            set({ places: places.map(p => p.id === patched.id ? patched : p) });
+            return patched;
+          }
           return existingPlace;
         }
         
