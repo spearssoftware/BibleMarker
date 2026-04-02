@@ -1169,7 +1169,6 @@ export async function sqliteCleanupOrphanedStudyRecords(): Promise<number> {
 
   // Tables with a direct study_id column
   const directTables = [
-    'keyword_exclusions',
     'marking_presets',
     'section_headings',
     'chapter_titles',
