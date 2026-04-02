@@ -260,7 +260,6 @@ export const usePlaceStore = create<PlaceState>()(
       autoPopulateFromChapter: async (book, chapter, moduleId) => {
         const { createPlace, updatePlace } = get();
 
-        // Get active study for scoping
         const { useStudyStore } = await import('@/stores/studyStore');
         const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
 
@@ -320,10 +319,17 @@ export const usePlaceStore = create<PlaceState>()(
             const existing = existingByNameVerse.get(nameKey);
 
             if (existing) {
-              // Place already exists for this name+verse. Fix stale presetId if needed.
-              if (existing.presetId && !validPresetIds.has(existing.presetId)) {
-                await updatePlace({ ...existing, presetId: preset.id });
-                existingByNameVerse.set(nameKey, { ...existing, presetId: preset.id });
+              // Place already exists for this name+verse. Fix stale presetId or studyId if needed.
+              const stalePreset = existing.presetId && !validPresetIds.has(existing.presetId);
+              const staleStudy = activeStudyId && existing.studyId !== activeStudyId;
+              if (stalePreset || staleStudy) {
+                const patched = {
+                  ...existing,
+                  ...(stalePreset && { presetId: preset.id }),
+                  ...(staleStudy && { studyId: activeStudyId }),
+                };
+                await updatePlace(patched);
+                existingByNameVerse.set(nameKey, patched);
                 totalChanged++;
               }
               continue;
