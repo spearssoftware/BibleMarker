@@ -16,6 +16,7 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
 
   const showPanel = activePanel && !isCollapsed && panel;
   const isHorizontal = orientation === 'horizontal';
+  const isVerticalSplit = !isHorizontal && showPanel;
 
   // Measure container — reads orientation from store directly so the observer is stable
   useEffect(() => {
@@ -59,7 +60,7 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
       >
         <div
           className="absolute inset-0 overflow-hidden flex flex-col pl-safe-left pr-safe-right"
-          style={{ paddingBottom: TOOLBAR_PADDING }}
+          style={{ paddingBottom: isVerticalSplit ? undefined : TOOLBAR_PADDING }}
           role="main"
           aria-label="Bible reading area"
         >
