@@ -12,3 +12,4 @@ export * from './place';
 export * from './preferences';
 export * from './study';
 export * from './timeExpression';
+export * from './gnosis';
