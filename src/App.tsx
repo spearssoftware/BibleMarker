@@ -192,6 +192,14 @@ export default function App() {
           loadApiConfigs(),
           loadSampleData(),
         ]);
+
+        // Initialize gnosis in local mode if no API key was configured
+        const { isGnosisAvailable, initGnosis } = await import('@/lib/gnosis');
+        if (!isGnosisAvailable()) {
+          await initGnosis({ mode: 'local' }).catch(err => {
+            console.warn('[App] Gnosis local init failed (expected in dev):', err);
+          });
+        }
         
         // Check if current module ID is valid, if not reset to default
         // Don't load chapter here - let the second useEffect handle it
