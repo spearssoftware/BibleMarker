@@ -48,7 +48,8 @@ export function useChapterEntities(book: string | undefined, chapter: number | u
         const result = await provider.getChapterEntities(book, chapter);
         if (!cancelled) setEntities(result);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load chapter entities');
+        console.error('[Gnosis] Chapter entities error:', e);
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -89,7 +90,8 @@ export function useGnosisEntity<T>(
         const result = await fetcherRef.current(provider);
         if (!cancelled) setData(result);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load data');
+        console.error('[Gnosis] Entity fetch error:', e);
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -139,7 +141,8 @@ export function useGnosisSearch<T>(
           setTotal(resp.meta.total);
         }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Search failed');
+        console.error('[Gnosis] Search error:', e);
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       } finally {
         if (!cancelled) setIsLoading(false);
       }

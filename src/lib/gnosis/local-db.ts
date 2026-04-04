@@ -53,11 +53,15 @@ async function initGnosisDb(): Promise<Database> {
       resourceName: 'gnosis-lite.db',
       destPath,
     });
+    console.log('[Gnosis] Bundled DB installed at:', destPath);
   } catch (e) {
     console.warn('[Gnosis] Failed to install bundled gnosis-lite.db:', e);
   }
 
-  return Database.load(`sqlite:${destPath}`);
+  // Use just the filename — Tauri SQL plugin resolves relative to app data dir
+  const db = await Database.load('sqlite:gnosis-lite.db');
+  console.log('[Gnosis] Database loaded successfully');
+  return db;
 }
 
 function limitOffset(opts?: PaginationOpts): { limit: number; offset: number } {
