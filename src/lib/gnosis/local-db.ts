@@ -34,7 +34,6 @@ import type {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-let gnosisDb: Database | null = null;
 let dbInitPromise: Promise<Database> | null = null;
 
 async function getGnosisDb(): Promise<Database> {
@@ -58,9 +57,7 @@ async function initGnosisDb(): Promise<Database> {
     console.warn('[Gnosis] Failed to install bundled gnosis-lite.db:', e);
   }
 
-  const db = await Database.load(`sqlite:${destPath}`);
-  gnosisDb = db;
-  return db;
+  return Database.load(`sqlite:${destPath}`);
 }
 
 function limitOffset(opts?: PaginationOpts): { limit: number; offset: number } {

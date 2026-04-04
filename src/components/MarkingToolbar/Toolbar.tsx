@@ -27,10 +27,11 @@ import { usePlaceStore } from '@/stores/placeStore';
 import type { ObservationTab } from '@/components/Observation';
 import type { AnalyzeTab } from '@/components/Analyze';
 
-const TOOLS: { type: 'keywords' | 'observe' | 'analyze'; icon: string; label: string }[] = [
+const TOOLS: { type: 'keywords' | 'observe' | 'analyze' | 'reference'; icon: string; label: string }[] = [
   { type: 'keywords', icon: '✏️', label: 'Mark' },
   { type: 'observe', icon: '🔍', label: 'Observe' },
   { type: 'analyze', icon: '📊', label: 'Analyze' },
+  { type: 'reference', icon: '📖', label: 'Reference' },
 ];
 
 export function Toolbar() {
@@ -189,7 +190,7 @@ export function Toolbar() {
     }
   };
 
-  const handleToolClick = (toolType: 'keywords' | 'observe' | 'analyze') => {
+  const handleToolClick = (toolType: 'keywords' | 'observe' | 'analyze' | 'reference') => {
     togglePanel(toolType);
     setActiveTool(null);
   };

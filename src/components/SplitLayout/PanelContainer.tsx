@@ -3,12 +3,14 @@ import { useAnnotationStore } from '@/stores/annotationStore';
 import { KeyWordManager } from '@/components/KeyWords';
 import { ObservationToolsPanel } from '@/components/Observation';
 import { AnalyzeToolsPanel } from '@/components/Analyze';
+import { ReferenceToolsPanel } from '@/components/Reference';
 import type { VerseRef } from '@/types';
 
 const PANEL_TITLES: Record<PanelType, string> = {
   keywords: 'Mark',
   observe: 'Observe',
   analyze: 'Analyze',
+  reference: 'Reference',
 };
 
 export function PanelContainer() {
@@ -24,6 +26,8 @@ export function PanelContainer() {
     observeAutoCreate,
     analyzeInitialTab,
     analyzeThemeSearchTerm,
+    referenceInitialTab,
+    referenceEntitySlug,
     panelSelectedText,
     panelVerseRef,
     setPinned,
@@ -134,6 +138,13 @@ export function PanelContainer() {
             selectedText={selectedText}
             verseRef={verseRef}
             themeSearchTerm={analyzeThemeSearchTerm}
+          />
+        )}
+        {activePanel === 'reference' && (
+          <ReferenceToolsPanel
+            onClose={handleClose}
+            initialTab={referenceInitialTab}
+            entitySlug={referenceEntitySlug}
           />
         )}
       </div>
