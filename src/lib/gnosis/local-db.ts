@@ -143,7 +143,7 @@ export class GnosisLocalDb implements GnosisDataProvider {
       [...params, limit, offset]
     );
 
-    const data = await Promise.all(rows.map((r) => this.buildPerson(db, r)));
+    const data = rows.map((r) => mapLocalPersonSummary(r));
     return { data, meta: { total, limit, offset } };
   }
 
@@ -275,7 +275,13 @@ export class GnosisLocalDb implements GnosisDataProvider {
       [...params, limit, offset]
     );
 
-    const data = await Promise.all(rows.map((r) => this.buildEvent(db, r)));
+    const data = rows.map((r): GnosisEvent => ({
+      slug: r.slug, uuid: r.uuid, title: r.title,
+      startYear: r.start_year ?? null, startYearDisplay: r.start_year_display ?? null,
+      duration: r.duration ?? null, sortKey: r.sort_key ?? null,
+      participants: [], locations: [], verses: [],
+      parentEvent: null, predecessor: null,
+    }));
     return { data, meta: { total, limit, offset } };
   }
 
@@ -339,7 +345,10 @@ export class GnosisLocalDb implements GnosisDataProvider {
       [...params, limit, offset]
     );
 
-    const data = await Promise.all(rows.map((r) => this.buildTopic(db, r)));
+    const data = rows.map((r): GnosisTopic => ({
+      slug: r.slug, uuid: r.uuid, name: r.name,
+      aspects: [], seeAlso: [],
+    }));
     return { data, meta: { total, limit, offset } };
   }
 
@@ -401,15 +410,9 @@ export class GnosisLocalDb implements GnosisDataProvider {
       [...params, limit, offset]
     );
 
-    const data = await Promise.all(
-      rows.map(async (r): Promise<GnosisPeopleGroup> => {
-        const members: any[] = await db.select(
-          'SELECT p.slug FROM person p JOIN person_group pg ON p.id = pg.person_id WHERE pg.group_id = ?',
-          [r.id]
-        );
-        return { slug: r.slug, uuid: r.uuid, name: r.name, members: members.map((m) => m.slug) };
-      })
-    );
+    const data = rows.map((r): GnosisPeopleGroup => ({
+      slug: r.slug, uuid: r.uuid, name: r.name, members: [],
+    }));
 
     return { data, meta: { total, limit, offset } };
   }
@@ -595,7 +598,10 @@ export class GnosisLocalDb implements GnosisDataProvider {
       [...params, limit, offset]
     );
 
-    const data = await Promise.all(rows.map((r) => this.buildDictionaryEntry(db, r)));
+    const data = rows.map((r): GnosisDictionaryEntry => ({
+      slug: r.slug, uuid: r.uuid, name: r.name,
+      definitions: [], scriptureRefs: [],
+    }));
     return { data, meta: { total, limit, offset } };
   }
 
@@ -681,7 +687,37 @@ export class GnosisLocalDb implements GnosisDataProvider {
   }
 }
 
-// --- Helper ---
+// --- Helpers ---
+
+/** Lightweight person mapping for list views — no sub-queries */
+function mapLocalPersonSummary(r: any): GnosisPerson {
+  return {
+    slug: r.slug,
+    uuid: r.uuid,
+    name: r.name,
+    gender: r.gender ?? null,
+    birthYear: r.birth_year ?? null,
+    deathYear: r.death_year ?? null,
+    birthYearDisplay: r.birth_year_display ?? null,
+    deathYearDisplay: r.death_year_display ?? null,
+    earliestYearMentioned: null,
+    latestYearMentioned: null,
+    earliestYearMentionedDisplay: null,
+    latestYearMentionedDisplay: null,
+    birthPlace: null,
+    deathPlace: null,
+    father: null,
+    mother: null,
+    siblings: [],
+    children: [],
+    partners: [],
+    verseCount: r.verse_count ?? 0,
+    verses: [],
+    firstMention: r.first_mention ?? null,
+    nameMeaning: r.name_meaning ?? null,
+    peopleGroups: [],
+  };
+}
 
 function mapLocalPlace(r: any): GnosisPlace {
   return {
