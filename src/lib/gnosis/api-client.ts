@@ -12,7 +12,6 @@ import type {
   ChapterEntities,
   GnosisCrossReference,
   GnosisDictionaryEntry,
-  GnosisDictionaryDefinition,
   GnosisEvent,
   GnosisGreekLexiconEntry,
   GnosisGreekWord,
@@ -25,7 +24,6 @@ import type {
   GnosisSearchResult,
   GnosisStrongsEntry,
   GnosisTopic,
-  GnosisTopicAspect,
   PaginatedResponse,
   PaginationOpts,
   VerseEntities,
@@ -43,187 +41,6 @@ export class GnosisApiError extends Error {
     this.name = 'GnosisApiError';
   }
 }
-
-// --- Snake-to-camel mappers ---
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function mapPerson(r: any): GnosisPerson {
-  return {
-    slug: r.slug,
-    uuid: r.uuid,
-    name: r.name,
-    gender: r.gender ?? null,
-    birthYear: r.birth_year ?? null,
-    deathYear: r.death_year ?? null,
-    birthYearDisplay: r.birth_year_display ?? null,
-    deathYearDisplay: r.death_year_display ?? null,
-    earliestYearMentioned: r.earliest_year_mentioned ?? null,
-    latestYearMentioned: r.latest_year_mentioned ?? null,
-    earliestYearMentionedDisplay: r.earliest_year_mentioned_display ?? null,
-    latestYearMentionedDisplay: r.latest_year_mentioned_display ?? null,
-    birthPlace: r.birth_place ?? null,
-    deathPlace: r.death_place ?? null,
-    father: r.father ?? null,
-    mother: r.mother ?? null,
-    siblings: r.siblings ?? [],
-    children: r.children ?? [],
-    partners: r.partners ?? [],
-    verseCount: r.verse_count ?? 0,
-    verses: r.verses ?? [],
-    firstMention: r.first_mention ?? null,
-    nameMeaning: r.name_meaning ?? null,
-    peopleGroups: r.people_groups ?? [],
-  };
-}
-
-function mapPlace(r: any): GnosisPlace {
-  return {
-    slug: r.slug,
-    uuid: r.uuid,
-    name: r.name,
-    kjvName: r.kjv_name ?? null,
-    esvName: r.esv_name ?? null,
-    latitude: r.latitude ?? null,
-    longitude: r.longitude ?? null,
-    coordinateSource: r.coordinate_source ?? null,
-    featureType: r.feature_type ?? null,
-    featureSubType: r.feature_sub_type ?? null,
-    modernName: r.modern_name ?? null,
-  };
-}
-
-function mapEvent(r: any): GnosisEvent {
-  return {
-    slug: r.slug,
-    uuid: r.uuid,
-    title: r.title,
-    startYear: r.start_year ?? null,
-    startYearDisplay: r.start_year_display ?? null,
-    duration: r.duration ?? null,
-    sortKey: r.sort_key ?? null,
-    participants: r.participants ?? [],
-    locations: r.locations ?? [],
-    verses: r.verses ?? [],
-    parentEvent: r.parent_event ?? null,
-    predecessor: r.predecessor ?? null,
-  };
-}
-
-function mapTopic(r: any): GnosisTopic {
-  return {
-    slug: r.slug,
-    uuid: r.uuid,
-    name: r.name,
-    aspects: (r.aspects ?? []).map((a: any): GnosisTopicAspect => ({
-      label: a.label ?? null,
-      source: a.source ?? null,
-      verses: a.verses ?? [],
-    })),
-    seeAlso: r.see_also ?? [],
-  };
-}
-
-function mapGroup(r: any): GnosisPeopleGroup {
-  return {
-    slug: r.slug,
-    uuid: r.uuid,
-    name: r.name,
-    members: r.members ?? [],
-  };
-}
-
-function mapCrossRef(r: any): GnosisCrossReference {
-  return {
-    fromVerse: r.from_verse,
-    toVerseStart: r.to_verse_start,
-    toVerseEnd: r.to_verse_end ?? null,
-    votes: r.votes ?? 0,
-  };
-}
-
-function mapStrongs(r: any): GnosisStrongsEntry {
-  return {
-    number: r.number,
-    uuid: r.uuid,
-    language: r.language,
-    lemma: r.lemma ?? null,
-    transliteration: r.transliteration ?? null,
-    pronunciation: r.pronunciation ?? null,
-    definition: r.definition ?? null,
-    kjvUsage: r.kjv_usage ?? null,
-  };
-}
-
-function mapDictionary(r: any): GnosisDictionaryEntry {
-  return {
-    slug: r.slug,
-    uuid: r.uuid,
-    name: r.name,
-    definitions: (r.definitions ?? []).map((d: any): GnosisDictionaryDefinition => ({
-      source: d.source,
-      text: d.text,
-    })),
-    scriptureRefs: r.scripture_refs ?? [],
-  };
-}
-
-function mapHebrewWord(r: any): GnosisHebrewWord {
-  return {
-    wordId: r.word_id,
-    position: r.position,
-    text: r.text,
-    lemmaRaw: r.lemma_raw,
-    strongsNumber: r.strongs_number ?? null,
-    morph: r.morph,
-  };
-}
-
-function mapGreekWord(r: any): GnosisGreekWord {
-  return {
-    wordId: r.word_id,
-    position: r.position,
-    text: r.text,
-    lemma: r.lemma,
-    strongsNumber: r.strongs_number ?? null,
-    morph: r.morph,
-  };
-}
-
-function mapLexicon(r: any): GnosisLexiconEntry {
-  return {
-    lexicalId: r.lexical_id,
-    uuid: r.uuid,
-    hebrew: r.hebrew,
-    transliteration: r.transliteration ?? null,
-    partOfSpeech: r.part_of_speech ?? null,
-    gloss: r.gloss ?? null,
-    strongsNumber: r.strongs_number ?? null,
-    twotNumber: r.twot_number ?? null,
-  };
-}
-
-function mapGreekLexicon(r: any): GnosisGreekLexiconEntry {
-  return {
-    strongsNumber: r.strongs_number,
-    uuid: r.uuid,
-    greek: r.greek,
-    transliteration: r.transliteration ?? null,
-    partOfSpeech: r.part_of_speech ?? null,
-    shortGloss: r.short_gloss ?? null,
-    longGloss: r.long_gloss ?? null,
-    gkNumber: r.gk_number ?? null,
-  };
-}
-
-function mapSearchResult(r: any): GnosisSearchResult {
-  return {
-    slug: r.slug,
-    name: r.name,
-    entityType: r.entity_type,
-    uuid: r.uuid,
-  };
-}
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export class GnosisApiClient implements GnosisDataProvider {
   readonly mode = 'api' as const;
@@ -287,9 +104,7 @@ export class GnosisApiClient implements GnosisDataProvider {
 
   async getChapterEntities(book: string, chapter: number): Promise<ChapterEntities> {
     return this.cachedFetch(`chapter:${book}:${chapter}`, CACHE_TTL.chapter, async () => {
-      const resp = await this.fetch<{ data: { book: string; chapter: number; people: string[]; places: string[]; events: string[]; topics: string[] } }>(
-        `/chapters/${book}/${chapter}`
-      );
+      const resp = await this.fetch<{ data: ChapterEntities }>(`/chapters/${book}/${chapter}`);
       return resp.data;
     });
   }
@@ -303,15 +118,15 @@ export class GnosisApiClient implements GnosisDataProvider {
 
     const cacheKey = `people:search:${JSON.stringify(params)}`;
     return this.cachedFetch(cacheKey, CACHE_TTL.list, async () => {
-      const resp = await this.fetch<{ data: unknown[]; meta: { total: number; limit: number; offset: number } }>('/people', params);
-      return { data: resp.data.map(mapPerson), meta: resp.meta };
+      const resp = await this.fetch<{ data: GnosisPerson[]; meta: { total: number; limit: number; offset: number } }>('/people', params);
+      return { data: resp.data, meta: resp.meta };
     });
   }
 
   async getPerson(slug: string): Promise<GnosisPerson> {
     return this.cachedFetch(`person:${slug}`, CACHE_TTL.entity, async () => {
-      const resp = await this.fetch<{ data: unknown }>(`/people/${slug}`);
-      return mapPerson(resp.data);
+      const resp = await this.fetch<{ data: GnosisPerson }>(`/people/${slug}`);
+      return resp.data;
     });
   }
 
@@ -325,15 +140,15 @@ export class GnosisApiClient implements GnosisDataProvider {
 
     const cacheKey = `places:search:${JSON.stringify(params)}`;
     return this.cachedFetch(cacheKey, CACHE_TTL.list, async () => {
-      const resp = await this.fetch<{ data: unknown[]; meta: { total: number; limit: number; offset: number } }>('/places', params);
-      return { data: resp.data.map(mapPlace), meta: resp.meta };
+      const resp = await this.fetch<{ data: GnosisPlace[]; meta: { total: number; limit: number; offset: number } }>('/places', params);
+      return { data: resp.data, meta: resp.meta };
     });
   }
 
   async getPlace(slug: string): Promise<GnosisPlace> {
     return this.cachedFetch(`place:${slug}`, CACHE_TTL.entity, async () => {
-      const resp = await this.fetch<{ data: unknown }>(`/places/${slug}`);
-      return mapPlace(resp.data);
+      const resp = await this.fetch<{ data: GnosisPlace }>(`/places/${slug}`);
+      return resp.data;
     });
   }
 
@@ -345,15 +160,15 @@ export class GnosisApiClient implements GnosisDataProvider {
 
     const cacheKey = `events:search:${JSON.stringify(params)}`;
     return this.cachedFetch(cacheKey, CACHE_TTL.list, async () => {
-      const resp = await this.fetch<{ data: unknown[]; meta: { total: number; limit: number; offset: number } }>('/events', params);
-      return { data: resp.data.map(mapEvent), meta: resp.meta };
+      const resp = await this.fetch<{ data: GnosisEvent[]; meta: { total: number; limit: number; offset: number } }>('/events', params);
+      return { data: resp.data, meta: resp.meta };
     });
   }
 
   async getEvent(slug: string): Promise<GnosisEvent> {
     return this.cachedFetch(`event:${slug}`, CACHE_TTL.entity, async () => {
-      const resp = await this.fetch<{ data: unknown }>(`/events/${slug}`);
-      return mapEvent(resp.data);
+      const resp = await this.fetch<{ data: GnosisEvent }>(`/events/${slug}`);
+      return resp.data;
     });
   }
 
@@ -365,15 +180,15 @@ export class GnosisApiClient implements GnosisDataProvider {
 
     const cacheKey = `topics:search:${JSON.stringify(params)}`;
     return this.cachedFetch(cacheKey, CACHE_TTL.list, async () => {
-      const resp = await this.fetch<{ data: unknown[]; meta: { total: number; limit: number; offset: number } }>('/topics', params);
-      return { data: resp.data.map(mapTopic), meta: resp.meta };
+      const resp = await this.fetch<{ data: GnosisTopic[]; meta: { total: number; limit: number; offset: number } }>('/topics', params);
+      return { data: resp.data, meta: resp.meta };
     });
   }
 
   async getTopic(slug: string): Promise<GnosisTopic> {
     return this.cachedFetch(`topic:${slug}`, CACHE_TTL.entity, async () => {
-      const resp = await this.fetch<{ data: unknown }>(`/topics/${slug}`);
-      return mapTopic(resp.data);
+      const resp = await this.fetch<{ data: GnosisTopic }>(`/topics/${slug}`);
+      return resp.data;
     });
   }
 
@@ -385,15 +200,15 @@ export class GnosisApiClient implements GnosisDataProvider {
 
     const cacheKey = `groups:search:${JSON.stringify(params)}`;
     return this.cachedFetch(cacheKey, CACHE_TTL.list, async () => {
-      const resp = await this.fetch<{ data: unknown[]; meta: { total: number; limit: number; offset: number } }>('/groups', params);
-      return { data: resp.data.map(mapGroup), meta: resp.meta };
+      const resp = await this.fetch<{ data: GnosisPeopleGroup[]; meta: { total: number; limit: number; offset: number } }>('/groups', params);
+      return { data: resp.data, meta: resp.meta };
     });
   }
 
   async getGroup(slug: string): Promise<GnosisPeopleGroup> {
     return this.cachedFetch(`group:${slug}`, CACHE_TTL.entity, async () => {
-      const resp = await this.fetch<{ data: unknown }>(`/groups/${slug}`);
-      return mapGroup(resp.data);
+      const resp = await this.fetch<{ data: GnosisPeopleGroup }>(`/groups/${slug}`);
+      return resp.data;
     });
   }
 
@@ -401,20 +216,17 @@ export class GnosisApiClient implements GnosisDataProvider {
 
   async getVerseEntities(osisRef: string): Promise<VerseEntities> {
     return this.cachedFetch(`verse:${osisRef}`, CACHE_TTL.entity, async () => {
-      const resp = await this.fetch<{ data: { osis_ref: string; people: string[]; places: string[]; events: string[]; topics: string[] } }>(
-        `/verses/${osisRef}`
-      );
-      const d = resp.data;
-      return { osisRef: d.osis_ref, people: d.people, places: d.places, events: d.events, topics: d.topics };
+      const resp = await this.fetch<{ data: VerseEntities }>(`/verses/${osisRef}`);
+      return resp.data;
     });
   }
 
   async getCrossReferences(osisRef: string): Promise<PaginatedResponse<GnosisCrossReference>> {
     return this.cachedFetch(`crossref:${osisRef}`, CACHE_TTL.entity, async () => {
-      const resp = await this.fetch<{ data: unknown[]; meta: { total: number; limit: number; offset: number } }>(
+      const resp = await this.fetch<{ data: GnosisCrossReference[]; meta: { total: number; limit: number; offset: number } }>(
         `/verses/${osisRef}/cross-references`
       );
-      return { data: resp.data.map(mapCrossRef), meta: resp.meta };
+      return { data: resp.data, meta: resp.meta };
     });
   }
 
@@ -422,29 +234,29 @@ export class GnosisApiClient implements GnosisDataProvider {
 
   async getHebrewWords(osisRef: string): Promise<GnosisHebrewWord[]> {
     return this.cachedFetch(`hebrew:${osisRef}`, CACHE_TTL.entity, async () => {
-      const resp = await this.fetch<{ data: unknown[] }>(`/hebrew/${osisRef}`);
-      return resp.data.map(mapHebrewWord);
+      const resp = await this.fetch<{ data: GnosisHebrewWord[] }>(`/hebrew/${osisRef}`);
+      return resp.data;
     });
   }
 
   async getGreekWords(osisRef: string): Promise<GnosisGreekWord[]> {
     return this.cachedFetch(`greek:${osisRef}`, CACHE_TTL.entity, async () => {
-      const resp = await this.fetch<{ data: unknown[] }>(`/greek/${osisRef}`);
-      return resp.data.map(mapGreekWord);
+      const resp = await this.fetch<{ data: GnosisGreekWord[] }>(`/greek/${osisRef}`);
+      return resp.data;
     });
   }
 
   async getLexiconEntry(lexicalId: string): Promise<GnosisLexiconEntry> {
     return this.cachedFetch(`lexicon:${lexicalId}`, CACHE_TTL.entity, async () => {
-      const resp = await this.fetch<{ data: unknown }>(`/lexicon/${lexicalId}`);
-      return mapLexicon(resp.data);
+      const resp = await this.fetch<{ data: GnosisLexiconEntry }>(`/lexicon/${lexicalId}`);
+      return resp.data;
     });
   }
 
   async getGreekLexiconEntry(strongsNumber: string): Promise<GnosisGreekLexiconEntry> {
     return this.cachedFetch(`greeklex:${strongsNumber}`, CACHE_TTL.entity, async () => {
-      const resp = await this.fetch<{ data: unknown }>(`/greek-lexicon/${strongsNumber}`);
-      return mapGreekLexicon(resp.data);
+      const resp = await this.fetch<{ data: GnosisGreekLexiconEntry }>(`/greek-lexicon/${strongsNumber}`);
+      return resp.data;
     });
   }
 
@@ -452,8 +264,8 @@ export class GnosisApiClient implements GnosisDataProvider {
 
   async getStrongsEntry(number: string): Promise<GnosisStrongsEntry> {
     return this.cachedFetch(`strongs:${number}`, CACHE_TTL.entity, async () => {
-      const resp = await this.fetch<{ data: unknown }>(`/strongs/${number}`);
-      return mapStrongs(resp.data);
+      const resp = await this.fetch<{ data: GnosisStrongsEntry }>(`/strongs/${number}`);
+      return resp.data;
     });
   }
 
@@ -463,15 +275,15 @@ export class GnosisApiClient implements GnosisDataProvider {
 
     const cacheKey = `dict:search:${JSON.stringify(params)}`;
     return this.cachedFetch(cacheKey, CACHE_TTL.list, async () => {
-      const resp = await this.fetch<{ data: unknown[]; meta: { total: number; limit: number; offset: number } }>('/dictionary', params);
-      return { data: resp.data.map(mapDictionary), meta: resp.meta };
+      const resp = await this.fetch<{ data: GnosisDictionaryEntry[]; meta: { total: number; limit: number; offset: number } }>('/dictionary', params);
+      return { data: resp.data, meta: resp.meta };
     });
   }
 
   async getDictionaryEntry(slug: string): Promise<GnosisDictionaryEntry> {
     return this.cachedFetch(`dict:${slug}`, CACHE_TTL.entity, async () => {
-      const resp = await this.fetch<{ data: unknown }>(`/dictionary/${slug}`);
-      return mapDictionary(resp.data);
+      const resp = await this.fetch<{ data: GnosisDictionaryEntry }>(`/dictionary/${slug}`);
+      return resp.data;
     });
   }
 
@@ -482,8 +294,8 @@ export class GnosisApiClient implements GnosisDataProvider {
 
     const cacheKey = `search:${JSON.stringify(params)}`;
     return this.cachedFetch(cacheKey, CACHE_TTL.list, async () => {
-      const resp = await this.fetch<{ data: unknown[]; meta: { total: number; limit: number; offset: number } }>('/search', params);
-      return { data: resp.data.map(mapSearchResult), meta: resp.meta };
+      const resp = await this.fetch<{ data: GnosisSearchResult[]; meta: { total: number; limit: number; offset: number } }>('/search', params);
+      return { data: resp.data, meta: resp.meta };
     });
   }
 
@@ -491,8 +303,8 @@ export class GnosisApiClient implements GnosisDataProvider {
 
   async getMeta(): Promise<GnosisMeta> {
     return this.cachedFetch('meta', CACHE_TTL.meta, async () => {
-      const resp = await this.fetch<{ data: { version: string | null; build_date: string | null; counts: Record<string, number> } }>('/meta');
-      return { version: resp.data.version, buildDate: resp.data.build_date, counts: resp.data.counts };
+      const resp = await this.fetch<{ data: GnosisMeta }>('/meta');
+      return resp.data;
     });
   }
 }
