@@ -166,7 +166,7 @@ export class GnosisLocalDb implements GnosisDataProvider {
       [r.id, r.id]
     );
     const children: any[] = await db.select(
-      'SELECT p.slug FROM person p JOIN person_child pc ON p.id = pc.child_id WHERE pc.person_id = ?',
+      'SELECT p.slug FROM person p JOIN person_child pc ON p.id = pc.child_id WHERE pc.parent_id = ?',
       [r.id]
     );
     const partners: any[] = await db.select(
