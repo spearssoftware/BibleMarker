@@ -1,7 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getGnosisProvider, isGnosisAvailable, getGnosisMode } from '@/lib/gnosis';
+import { getGnosisProvider, isGnosisAvailable, getGnosisMode, initGnosis } from '@/lib/gnosis';
 import type { GnosisDataProvider } from '@/lib/gnosis';
 import type { ChapterEntities, PaginatedResponse, PaginationOpts } from '@/types';
+
+/** Get or lazily initialize the gnosis provider */
+async function ensureProvider(): Promise<GnosisDataProvider> {
+  if (!isGnosisAvailable()) {
+    await initGnosis({ mode: 'local' });
+  }
+  return getGnosisProvider();
+}
 
 export function useGnosis(): {
   provider: GnosisDataProvider | null;
@@ -36,7 +44,7 @@ export function useChapterEntities(book: string | undefined, chapter: number | u
 
     (async () => {
       try {
-        const provider = getGnosisProvider();
+        const provider = await ensureProvider();
         const result = await provider.getChapterEntities(book, chapter);
         if (!cancelled) setEntities(result);
       } catch (e) {
@@ -77,7 +85,7 @@ export function useGnosisEntity<T>(
 
     (async () => {
       try {
-        const provider = getGnosisProvider();
+        const provider = await ensureProvider();
         const result = await fetcherRef.current(provider);
         if (!cancelled) setData(result);
       } catch (e) {
@@ -124,7 +132,7 @@ export function useGnosisSearch<T>(
       setIsLoading(true);
       setError(null);
       try {
-        const provider = getGnosisProvider();
+        const provider = await ensureProvider();
         const resp = await searcherRef.current(provider, query, opts);
         if (!cancelled) {
           setResults(resp.data);
