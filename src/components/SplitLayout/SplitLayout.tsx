@@ -80,7 +80,7 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
             }}
           >
             <div
-              className="absolute inset-0 overflow-hidden flex flex-col"
+              className="absolute inset-0 overflow-hidden flex flex-col pr-safe-right"
               style={{ paddingBottom: TOOLBAR_PADDING }}
             >
               {panel}

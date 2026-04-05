@@ -1,0 +1,11 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.biblemarker" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Render into display cutout areas; CSS safe-area-inset handles avoidance -->
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="p">shortEdges</item>
+        <!-- Transparent navigation bar so gesture indicator blends with app -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

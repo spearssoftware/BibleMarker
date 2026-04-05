@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use tauri::Manager;
+#[cfg(target_os = "android")]
 use tauri_plugin_fs::FsExt;
 
 /// Download a file from `url` and save it to `dest_path`.
@@ -57,25 +58,44 @@ pub async fn install_bundled_module(
         )
         .map_err(|e| format!("Failed to resolve resource path: {e}"))?;
 
-    // Use the FS plugin to read the resource. On Android, this routes through
-    // the Kotlin AssetManager to read from the APK. On desktop/iOS, it uses std::fs.
-    let bytes = match app.fs().read(&resource_path) {
-        Ok(b) => b,
-        Err(_) => {
-            // Dev mode fallback: read from src-tauri/resources/ directly
+    // On Android, resources live inside the APK and require the FS plugin
+    // (routes through Kotlin AssetManager). On desktop/iOS, use direct fs::copy
+    // to avoid buffering the entire file in memory.
+    #[cfg(target_os = "android")]
+    {
+        let bytes = match app.fs().read(&resource_path) {
+            Ok(b) => b,
+            Err(e) => {
+                return Err(format!(
+                    "Failed to read bundled resource {}: {e}",
+                    resource_name
+                ));
+            }
+        };
+        std::fs::write(&dest, &bytes)
+            .map_err(|e| format!("Failed to write bundled module: {e}"))?;
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        let source = if resource_path.exists() {
+            resource_path
+        } else {
+            // Dev mode fallback
             let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("resources")
                 .join(&resource_name);
-            std::fs::read(&dev_path).map_err(|e| {
-                format!(
-                    "Bundled resource not found: {} (tried {:?} and {:?}): {e}",
+            if !dev_path.exists() {
+                return Err(format!(
+                    "Bundled resource not found: {} (tried {:?} and {:?})",
                     resource_name, resource_path, dev_path
-                )
-            })?
-        }
-    };
-
-    std::fs::write(&dest, &bytes).map_err(|e| format!("Failed to write bundled module: {e}"))?;
+                ));
+            }
+            dev_path
+        };
+        std::fs::copy(&source, &dest)
+            .map_err(|e| format!("Failed to copy bundled module: {e}"))?;
+    }
 
     Ok(())
 }

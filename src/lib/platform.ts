@@ -88,7 +88,8 @@ export function isIOS(): boolean {
  */
 export function isAndroid(): boolean {
   if (typeof navigator === 'undefined') return false;
-  return /Android/i.test(navigator.userAgent);
+  const ua = navigator.userAgent;
+  return /Android/i.test(ua);
 }
 
 /**
