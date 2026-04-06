@@ -14,11 +14,15 @@ on:
       - 'LICENSE'
       - '.gitignore'
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
-  lint-and-test:
+  lint-and-typecheck:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/spearssoftware/biblemarker/ci-node:latest
@@ -30,10 +34,29 @@ jobs:
         run: pnpm run lint
       - name: Type check
         run: pnpm tsc --noEmit
+
+  test-and-build:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/spearssoftware/biblemarker/ci-node:latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install dependencies
+        run: pnpm install
       - name: Test
         run: pnpm test
       - name: Build
         run: pnpm build
+
+  rust-format:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/spearssoftware/biblemarker/ci-full:latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Format
+        run: cargo fmt --check
+        working-directory: src-tauri
 
   rust-checks:
     runs-on: ubuntu-latest
@@ -51,7 +74,4 @@ jobs:
         working-directory: src-tauri
       - name: Clippy
         run: cargo clippy -- -D warnings
-        working-directory: src-tauri
-      - name: Format
-        run: cargo fmt --check
         working-directory: src-tauri

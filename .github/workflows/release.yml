@@ -12,15 +12,10 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/spearssoftware/biblemarker/ci-node:latest
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v5
-        with:
-          version: 10
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "lts/*"
-          cache: "pnpm"
       - name: Install dependencies
         run: pnpm install
       - name: Lint
