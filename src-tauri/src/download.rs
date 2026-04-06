@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 use tauri::Manager;
+#[cfg(target_os = "android")]
+use tauri_plugin_fs::FsExt;
 
 /// Download a file from `url` and save it to `dest_path`.
 /// Creates parent directories if needed.
@@ -47,8 +49,7 @@ pub async fn install_bundled_module(
         std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {e}"))?;
     }
 
-    // Try the production resource path first
-    // Bundle config preserves the "resources/" subdirectory, so we must include it
+    // Resolve the resource path — on Android this returns asset://localhost/...
     let resource_path = app
         .path()
         .resolve(
@@ -57,23 +58,43 @@ pub async fn install_bundled_module(
         )
         .map_err(|e| format!("Failed to resolve resource path: {e}"))?;
 
-    let source = if resource_path.exists() {
-        resource_path
-    } else {
-        // Dev mode fallback: read from src-tauri/resources/
-        let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("resources")
-            .join(&resource_name);
-        if !dev_path.exists() {
-            return Err(format!(
-                "Bundled resource not found: {} (tried {:?} and {:?})",
-                resource_name, resource_path, dev_path
-            ));
-        }
-        dev_path
-    };
+    // On Android, resources live inside the APK and require the FS plugin
+    // (routes through Kotlin AssetManager). On desktop/iOS, use direct fs::copy
+    // to avoid buffering the entire file in memory.
+    #[cfg(target_os = "android")]
+    {
+        let bytes = match app.fs().read(&resource_path) {
+            Ok(b) => b,
+            Err(e) => {
+                return Err(format!(
+                    "Failed to read bundled resource {}: {e}",
+                    resource_name
+                ));
+            }
+        };
+        std::fs::write(&dest, &bytes)
+            .map_err(|e| format!("Failed to write bundled module: {e}"))?;
+    }
 
-    std::fs::copy(&source, &dest).map_err(|e| format!("Failed to copy bundled module: {e}"))?;
+    #[cfg(not(target_os = "android"))]
+    {
+        let source = if resource_path.exists() {
+            resource_path
+        } else {
+            // Dev mode fallback
+            let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("resources")
+                .join(&resource_name);
+            if !dev_path.exists() {
+                return Err(format!(
+                    "Bundled resource not found: {} (tried {:?} and {:?})",
+                    resource_name, resource_path, dev_path
+                ));
+            }
+            dev_path
+        };
+        std::fs::copy(&source, &dest).map_err(|e| format!("Failed to copy bundled module: {e}"))?;
+    }
 
     Ok(())
 }

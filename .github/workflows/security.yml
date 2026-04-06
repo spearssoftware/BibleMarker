@@ -14,6 +14,10 @@ on:
       - 'LICENSE'
       - '.gitignore'
 
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

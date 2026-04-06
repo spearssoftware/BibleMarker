@@ -84,6 +84,15 @@ export function isIOS(): boolean {
 }
 
 /**
+ * Check if running on Android
+ */
+export function isAndroid(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  return /Android/i.test(ua);
+}
+
+/**
  * Check if running on macOS
  */
 export function isMacOS(): boolean {
