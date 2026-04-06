@@ -93,8 +93,7 @@ pub async fn install_bundled_module(
             }
             dev_path
         };
-        std::fs::copy(&source, &dest)
-            .map_err(|e| format!("Failed to copy bundled module: {e}"))?;
+        std::fs::copy(&source, &dest).map_err(|e| format!("Failed to copy bundled module: {e}"))?;
     }
 
     Ok(())
