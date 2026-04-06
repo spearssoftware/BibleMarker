@@ -523,33 +523,7 @@ jobs:
       # tauri android init generates app/build.gradle.kts without signing config.
       # Patch it to add a signingConfigs block that reads credentials from env vars.
       - name: Configure Android signing
-        run: |
-          python3 << 'PATCH'
-          with open("src-tauri/gen/android/app/build.gradle.kts") as f:
-              content = f.read()
-
-          signing_config = '''
-    signingConfigs {
-        create("release") {
-            storeFile = file(System.getenv("ANDROID_KEYSTORE_PATH") ?: "/dev/null")
-            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""
-            keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: ""
-            keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: ""
-        }
-    }
-'''
-          content = content.replace(
-              '    buildTypes {',
-              signing_config + '    buildTypes {'
-          )
-          content = content.replace(
-              'getByName("release") {',
-              'getByName("release") {\n            signingConfig = signingConfigs.getByName("release")'
-          )
-
-          with open("src-tauri/gen/android/app/build.gradle.kts", "w") as f:
-              f.write(content)
-          PATCH
+        run: python3 scripts/patch-android-signing.py
 
       - name: Build Android AAB
         run: pnpm tauri android build --aab --target aarch64
