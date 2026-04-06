@@ -458,8 +458,142 @@ jobs:
             --apiKey "$API_KEY_ID" \
             --apiIssuer "$API_ISSUER_ID"
 
+  build-android:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Download SWORD modules
+        run: |
+          gh release download v1.0.0 --repo spearssoftware/biblemarker-assets --dir src-tauri/resources --pattern "sword-*.zip"
+        env:
+          GH_TOKEN: ${{ secrets.BIBLEMARKER_ASSETS_TOKEN }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        run: |
+          sdkmanager "ndk;27.2.12479018"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> $GITHUB_ENV
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        continue-on-error: true
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Initialize Android project
+        run: pnpm tauri android init
+        env:
+          CI: true
+
+      # Generate icons AFTER android init so they land in gen/android/app/src/main/res/
+      - name: Generate icons
+        run: pnpm tauri icon public/icon.svg
+
+      - name: Decode Android keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > $RUNNER_TEMP/upload-keystore.jks
+
+      # tauri android init generates app/build.gradle.kts without signing config.
+      # Patch it to add a signingConfigs block that reads credentials from env vars.
+      - name: Configure Android signing
+        run: |
+          python3 << 'PATCH'
+          with open("src-tauri/gen/android/app/build.gradle.kts") as f:
+              content = f.read()
+
+          signing_config = '''
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("ANDROID_KEYSTORE_PATH") ?: "/dev/null")
+            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""
+            keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: ""
+            keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: ""
+        }
+    }
+'''
+          content = content.replace(
+              '    buildTypes {',
+              signing_config + '    buildTypes {'
+          )
+          content = content.replace(
+              'getByName("release") {',
+              'getByName("release") {\n            signingConfig = signingConfigs.getByName("release")'
+          )
+
+          with open("src-tauri/gen/android/app/build.gradle.kts", "w") as f:
+              f.write(content)
+          PATCH
+
+      - name: Build Android AAB
+        run: pnpm tauri android build --aab --target aarch64
+        env:
+          CI: true
+          NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/upload-keystore.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Locate and rename AAB
+        run: |
+          AAB=$(find src-tauri/gen/android/app/build/outputs/bundle -name "*.aab" | head -1)
+          echo "Found AAB: $AAB"
+          cp "$AAB" BibleMarker-android.aab
+
+      - name: Upload AAB to release
+        uses: softprops/action-gh-release@v2.6.1
+        with:
+          tag_name: app-v${{ needs.prepare.outputs.version }}
+          name: BibleMarker v${{ needs.prepare.outputs.version }}
+          draft: true
+          files: BibleMarker-android.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Google Play
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: app.biblemarker
+          releaseFiles: BibleMarker-android.aab
+          track: internal
+          status: draft
+
   publish-release:
-    needs: [prepare, create-latest-json, build-ios, rename-artifacts]
+    needs: [prepare, create-latest-json, build-ios, build-android, rename-artifacts]
     if: always() && needs.create-latest-json.result == 'success' && needs.rename-artifacts.result == 'success'
     runs-on: ubuntu-latest
     permissions:
