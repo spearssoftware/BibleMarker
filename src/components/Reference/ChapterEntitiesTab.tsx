@@ -6,10 +6,10 @@ interface ChapterEntitiesTabProps {
   navigateToDetail: (type: string, slug: string) => void;
 }
 
-/** Convert a slug like "jesus-son-of-joseph" to "Jesus Son of Joseph" */
+/** Convert a slug like "jesus-son-of-joseph" or "holy_spirit" to "Jesus Son Of Joseph" */
 function formatSlug(slug: string): string {
   return slug
-    .split('-')
+    .split(/[-_]/)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
 }
