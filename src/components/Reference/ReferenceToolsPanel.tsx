@@ -9,6 +9,8 @@ import { EventsTab } from './EventsTab';
 import { EventDetail } from './EventDetail';
 import { TopicsTab } from './TopicsTab';
 import { TopicDetail } from './TopicDetail';
+import { CrossRefsTab } from './CrossRefsTab';
+import { OriginalLanguageTab } from './OriginalLanguageTab';
 import { StrongsTab } from './StrongsTab';
 import { DictionaryTab } from './DictionaryTab';
 import { SearchTab } from './SearchTab';
@@ -25,6 +27,8 @@ const TABS: { id: ReferenceTab; label: string; icon: string }[] = [
   { id: 'places', label: 'Places', icon: '📍' },
   { id: 'events', label: 'Events', icon: '📅' },
   { id: 'topics', label: 'Topics', icon: '💡' },
+  { id: 'cross-refs', label: 'Cross-Refs', icon: '🔗' },
+  { id: 'original-lang', label: 'Hebrew/Greek', icon: 'א' },
   { id: 'strongs', label: "Strong's", icon: '🔤' },
   { id: 'dictionary', label: 'Dictionary', icon: '📕' },
   { id: 'search', label: 'Search', icon: '🔎' },
@@ -96,6 +100,10 @@ export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter',
         return <EventsTab navigateToDetail={navigateToDetail} />;
       case 'topics':
         return <TopicsTab navigateToDetail={navigateToDetail} />;
+      case 'cross-refs':
+        return <CrossRefsTab />;
+      case 'original-lang':
+        return <OriginalLanguageTab />;
       case 'strongs':
         return <StrongsTab />;
       case 'dictionary':

@@ -8,6 +8,8 @@ export { EventsTab } from './EventsTab';
 export { EventDetail } from './EventDetail';
 export { TopicsTab } from './TopicsTab';
 export { TopicDetail } from './TopicDetail';
+export { CrossRefsTab } from './CrossRefsTab';
+export { OriginalLanguageTab } from './OriginalLanguageTab';
 export { StrongsTab } from './StrongsTab';
 export { DictionaryTab } from './DictionaryTab';
 export { SearchTab } from './SearchTab';

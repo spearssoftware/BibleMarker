@@ -6,7 +6,7 @@ import type { AnalyzeTab } from '@/components/Analyze';
 
 export type PanelType = 'keywords' | 'observe' | 'analyze' | 'reference';
 
-export type ReferenceTab = 'chapter' | 'people' | 'places' | 'events' | 'topics' | 'strongs' | 'dictionary' | 'search';
+export type ReferenceTab = 'chapter' | 'people' | 'places' | 'events' | 'topics' | 'cross-refs' | 'original-lang' | 'strongs' | 'dictionary' | 'search';
 
 interface PanelOpenOptions {
   // Keywords
