@@ -6,6 +6,7 @@ import type { GnosisSearchResult } from '@/types';
 
 interface SearchTabProps {
   navigateToDetail: (type: string, slug: string) => void;
+  initialQuery?: string;
 }
 
 const ENTITY_TYPE_MAP: Record<string, string> = {
@@ -17,8 +18,8 @@ const ENTITY_TYPE_MAP: Record<string, string> = {
   dictionary: 'dictionary',
 };
 
-export function SearchTab({ navigateToDetail }: SearchTabProps) {
-  const [query, setQuery] = useState('');
+export function SearchTab({ navigateToDetail, initialQuery }: SearchTabProps) {
+  const [query, setQuery] = useState(initialQuery ?? '');
 
   const { results, total, isLoading, error } = useGnosisSearch<GnosisSearchResult>(
     (p, q, opts) => p.search(q, opts),

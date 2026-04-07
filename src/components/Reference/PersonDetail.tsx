@@ -1,5 +1,6 @@
 import { useGnosisEntity } from '@/hooks/useGnosis';
 import { VerseRefList } from './VerseRefList';
+import { GnosisText } from './GnosisText';
 import { EntityNotes } from './EntityNotes';
 
 interface PersonDetailProps {
@@ -52,7 +53,12 @@ export function PersonDetail({ slug, onNavigate, onBack }: PersonDetailProps) {
           </p>
         )}
         {person.nameMeaning && (
-          <p className="text-sm text-scripture-muted italic">"{person.nameMeaning}"</p>
+          <div className="mt-2 p-3 rounded-lg bg-scripture-elevated border border-scripture-border/30">
+            <h3 className="text-xs font-medium text-scripture-muted uppercase tracking-wide mb-1">About</h3>
+            <p className="text-sm text-scripture-text leading-relaxed">
+              <GnosisText text={person.nameMeaning} />
+            </p>
+          </div>
         )}
       </div>
 

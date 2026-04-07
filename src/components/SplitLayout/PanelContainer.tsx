@@ -28,6 +28,7 @@ export function PanelContainer() {
     analyzeThemeSearchTerm,
     referenceInitialTab,
     referenceEntitySlug,
+    referenceSearchQuery,
     panelSelectedText,
     panelVerseRef,
     setPinned,
@@ -145,6 +146,7 @@ export function PanelContainer() {
             onClose={handleClose}
             initialTab={referenceInitialTab}
             entitySlug={referenceEntitySlug}
+            searchQuery={referenceSearchQuery}
           />
         )}
       </div>

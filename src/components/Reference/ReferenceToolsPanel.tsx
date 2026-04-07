@@ -19,6 +19,7 @@ interface ReferenceToolsPanelProps {
   onClose: () => void;
   initialTab?: ReferenceTab;
   entitySlug?: string;
+  searchQuery?: string;
 }
 
 const TABS: { id: ReferenceTab; label: string; icon: string }[] = [
@@ -39,7 +40,7 @@ interface DetailView {
   slug: string;
 }
 
-export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter', entitySlug }: ReferenceToolsPanelProps) {
+export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter', entitySlug, searchQuery }: ReferenceToolsPanelProps) {
   const [activeTab, setActiveTab] = useState<ReferenceTab>(initialTab);
   const [detailView, setDetailView] = useState<DetailView | null>(null);
 
@@ -109,7 +110,7 @@ export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter',
       case 'dictionary':
         return <DictionaryTab />;
       case 'search':
-        return <SearchTab navigateToDetail={navigateToDetail} />;
+        return <SearchTab navigateToDetail={navigateToDetail} initialQuery={searchQuery} />;
     }
   };
 

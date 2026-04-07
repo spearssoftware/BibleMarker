@@ -22,6 +22,7 @@ interface SelectionMenuProps {
   onQuickAddKeyword: (type: 'person' | 'place') => void;
   onAddToList: () => void;
   onStrongsLookup?: () => void;
+  onReferenceLookup: () => void;
   onCancel: () => void;
   onClose: () => void;
 }
@@ -36,6 +37,7 @@ export function SelectionMenu({
   onQuickAddKeyword,
   onAddToList,
   onStrongsLookup,
+  onReferenceLookup,
   onCancel,
   onClose,
 }: SelectionMenuProps) {
@@ -349,6 +351,24 @@ export function SelectionMenu({
           >
             <span className="text-lg" aria-hidden="true">🔍</span>
             <span>Observe</span>
+          </button>
+
+          {/* Reference Lookup */}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onReferenceLookup();
+              onClose();
+            }}
+            className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                     transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                     hover:shadow-sm text-scripture-text"
+            role="menuitem"
+            aria-label="Look up in reference"
+          >
+            <span className="text-lg" aria-hidden="true">📖</span>
+            <span>Reference</span>
           </button>
 
           {/* Strong's Lookup */}

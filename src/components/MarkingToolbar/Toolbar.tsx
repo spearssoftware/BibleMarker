@@ -285,6 +285,13 @@ export function Toolbar() {
               }
               setActiveTool(null);
             }}
+            onReferenceLookup={() => {
+              openPanel('reference', {
+                referenceInitialTab: 'search',
+                referenceSearchQuery: selection?.text?.trim() || undefined,
+              });
+              setActiveTool(null);
+            }}
             onStrongsLookup={selection.strongsNumbers ? () => {
               setStrongsPopup({
                 numbers: selection.strongsNumbers!,

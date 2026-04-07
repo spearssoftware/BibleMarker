@@ -15,4 +15,5 @@ export { DictionaryTab } from './DictionaryTab';
 export { SearchTab } from './SearchTab';
 export { VerseRefList } from './VerseRefList';
 export { EntityBadge } from './EntityBadge';
+export { GnosisText } from './GnosisText';
 export { EntityNotes } from './EntityNotes';
