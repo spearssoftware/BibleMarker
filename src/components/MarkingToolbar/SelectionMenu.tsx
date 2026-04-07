@@ -15,13 +15,11 @@ import { getBookById } from '@/types';
 interface SelectionMenuProps {
   selection: TextSelection;
   presets: MarkingPreset[];
-  strongsNumbers?: string[];
   onApplyPreset: (preset: MarkingPreset) => void;
   onAddAsVariant: (preset: MarkingPreset) => void;
   onOpenKeyWordManager: () => void;
   onQuickAddKeyword: (type: 'person' | 'place') => void;
   onAddToList: () => void;
-  onStrongsLookup?: () => void;
   onReferenceLookup: () => void;
   onCancel: () => void;
   onClose: () => void;
@@ -30,13 +28,11 @@ interface SelectionMenuProps {
 export function SelectionMenu({
   selection,
   presets,
-  strongsNumbers,
   onApplyPreset,
   onAddAsVariant,
   onOpenKeyWordManager,
   onQuickAddKeyword,
   onAddToList,
-  onStrongsLookup,
   onReferenceLookup,
   onCancel,
   onClose,
@@ -370,26 +366,6 @@ export function SelectionMenu({
             <span className="text-lg" aria-hidden="true">📖</span>
             <span>Reference</span>
           </button>
-
-          {/* Strong's Lookup */}
-          {strongsNumbers && strongsNumbers.length > 0 && onStrongsLookup && (
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onStrongsLookup();
-                onClose();
-              }}
-              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                       hover:shadow-sm text-scripture-text"
-              role="menuitem"
-              aria-label="Strong's lookup"
-            >
-              <span className="text-lg" aria-hidden="true">&#x1F4D6;</span>
-              <span>Strong&apos;s Lookup</span>
-            </button>
-          )}
 
           {/* Divider */}
           <div className="border-t border-scripture-border/30 my-1" />

@@ -233,7 +233,6 @@ export function Toolbar() {
           <SelectionMenu
             selection={selection}
             presets={filterPresetsByStudy(presets, activeStudyId)}
-            strongsNumbers={selection.strongsNumbers}
             onApplyPreset={applyPresetToSelection}
             onAddAsVariant={addToVariantsAndApply}
             onOpenKeyWordManager={() => {
@@ -292,13 +291,6 @@ export function Toolbar() {
               });
               setActiveTool(null);
             }}
-            onStrongsLookup={selection.strongsNumbers ? () => {
-              openPanel('reference', {
-                referenceInitialTab: 'strongs',
-                referenceStrongsNumber: selection.strongsNumbers![0],
-              });
-              setActiveTool(null);
-            } : undefined}
             onCancel={() => {
               window.getSelection()?.removeAllRanges();
               clearSelection();
