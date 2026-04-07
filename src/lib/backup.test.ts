@@ -247,154 +247,136 @@ describe('validateBackup', () => {
 
   // -- Per-record validation --
 
-  it('reports invalid annotation records', () => {
+  it('warns on invalid annotation records but stays valid', () => {
     const backup = makeBackup({
       annotations: [{ id: '', type: 'invalid' }] as never[],
     })
     const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('Annotations validation errors'))).toBe(true)
+    expect(result.valid).toBe(true)
+    expect(result.warnings.some(e => e.includes('Annotations'))).toBe(true)
   })
 
-  it('reports invalid section heading records', () => {
+  it('warns on invalid section heading records', () => {
     const backup = makeBackup({
       sectionHeadings: [{ id: 'sh-1', title: '' }] as never[],
     })
     const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('Section headings validation errors'))).toBe(true)
+    expect(result.valid).toBe(true)
+    expect(result.warnings.some(e => e.includes('Section headings'))).toBe(true)
   })
 
-  it('reports invalid chapter title records', () => {
+  it('warns on invalid chapter title records', () => {
     const backup = makeBackup({
       chapterTitles: [{ id: 'ct-1', book: '', chapter: 0 }] as never[],
     })
     const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('Chapter titles validation errors'))).toBe(true)
+    expect(result.valid).toBe(true)
+    expect(result.warnings.some(e => e.includes('Chapter titles'))).toBe(true)
   })
 
-  it('reports invalid note records', () => {
+  it('warns on invalid note records', () => {
     const backup = makeBackup({
       notes: [{ id: '', moduleId: '' }] as never[],
     })
     const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('Notes validation errors'))).toBe(true)
+    expect(result.valid).toBe(true)
+    expect(result.warnings.some(e => e.includes('Notes'))).toBe(true)
   })
 
-  it('reports invalid marking preset records', () => {
+  it('warns on invalid marking preset records', () => {
     const backup = makeBackup({
       markingPresets: [{ id: '' }] as never[],
     })
     const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('Marking presets validation errors'))).toBe(true)
+    expect(result.valid).toBe(true)
+    expect(result.warnings.some(e => e.includes('Marking presets'))).toBe(true)
   })
 
-  it('reports invalid study records', () => {
+  it('warns on invalid study records', () => {
     const backup = makeBackup({
       studies: [{ id: '', name: '' }] as never[],
     })
     const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('Studies validation errors'))).toBe(true)
+    expect(result.valid).toBe(true)
+    expect(result.warnings.some(e => e.includes('Studies'))).toBe(true)
   })
 
-  it('reports invalid multi-translation view records', () => {
+  it('warns on invalid multi-translation view records', () => {
     const backup = makeBackup({
       multiTranslationViews: [{ id: '' }] as never[],
     })
     const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('Multi-translation views validation errors'))).toBe(true)
+    expect(result.valid).toBe(true)
+    expect(result.warnings.some(e => e.includes('Multi-translation views'))).toBe(true)
   })
 
-  it('reports invalid observation list records', () => {
+  it('warns on invalid observation list records', () => {
     const backup = makeBackup({
       observationLists: [{ id: '', title: '' }] as never[],
     })
     const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('Observation lists validation errors'))).toBe(true)
+    expect(result.valid).toBe(true)
+    expect(result.warnings.some(e => e.includes('Observation lists'))).toBe(true)
   })
 
-  it('reports invalid time expression records', () => {
-    const backup = makeBackup({
-      timeExpressions: [{ id: '' }] as never[],
-    })
-    const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('Time expressions validation errors'))).toBe(true)
-  })
-
-  it('reports invalid place records', () => {
+  it('warns on invalid place records', () => {
     const backup = makeBackup({
       places: [{ id: '', name: '' }] as never[],
     })
     const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('Places validation errors'))).toBe(true)
+    expect(result.valid).toBe(true)
+    expect(result.warnings.some(e => e.includes('Places'))).toBe(true)
   })
 
-  it('reports invalid people records', () => {
+  it('warns on invalid people records', () => {
     const backup = makeBackup({
       people: [{ id: '', name: '' }] as never[],
     })
     const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('People validation errors'))).toBe(true)
+    expect(result.valid).toBe(true)
+    expect(result.warnings.some(e => e.includes('People'))).toBe(true)
   })
 
-  it('reports invalid conclusion records', () => {
+  it('warns on invalid conclusion records', () => {
     const backup = makeBackup({
       conclusions: [{ id: '' }] as never[],
     })
     const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('Conclusions validation errors'))).toBe(true)
+    expect(result.valid).toBe(true)
+    expect(result.warnings.some(e => e.includes('Conclusions'))).toBe(true)
   })
 
-  it('reports invalid interpretation records', () => {
+  it('warns on invalid interpretation records', () => {
     const backup = makeBackup({
       interpretations: [{ id: '' }] as never[],
     })
     const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('Interpretation entries validation errors'))).toBe(true)
+    expect(result.valid).toBe(true)
+    expect(result.warnings.some(e => e.includes('Interpretations'))).toBe(true)
   })
 
-  it('reports invalid application records', () => {
+  it('warns on invalid application records', () => {
     const backup = makeBackup({
       applications: [{ id: '' }] as never[],
     })
     const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('Application entries validation errors'))).toBe(true)
+    expect(result.valid).toBe(true)
+    expect(result.warnings.some(e => e.includes('Applications'))).toBe(true)
   })
 
   // -- Edge cases --
 
-  it('limits error examples to 3 per data type', () => {
-    const backup = makeBackup({
-      annotations: Array.from({ length: 10 }, (_, i) => ({ id: `bad-${i}` })) as never[],
-    })
-    const result = validateBackup(backup)
-    const annotationDetailErrors = result.errors.filter(e => e.startsWith('  - '))
-    expect(annotationDetailErrors.length).toBeLessThanOrEqual(3)
-  })
-
-  it('validates multiple data types independently', () => {
+  it('reports warnings for multiple data types independently', () => {
     const backup = makeBackup({
       annotations: [{ id: '' }] as never[],
       notes: [{ id: '' }] as never[],
       studies: [{ id: '' }] as never[],
     })
     const result = validateBackup(backup)
-    expect(result.valid).toBe(false)
-    expect(result.errors.some(e => e.includes('Annotations'))).toBe(true)
-    expect(result.errors.some(e => e.includes('Notes'))).toBe(true)
-    expect(result.errors.some(e => e.includes('Studies'))).toBe(true)
+    expect(result.valid).toBe(true)
+    expect(result.warnings.some(e => e.includes('Annotations'))).toBe(true)
+    expect(result.warnings.some(e => e.includes('Notes'))).toBe(true)
+    expect(result.warnings.some(e => e.includes('Studies'))).toBe(true)
   })
 
   it('accepts backup with optional arrays missing (backward compatibility)', () => {

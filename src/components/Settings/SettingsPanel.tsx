@@ -86,6 +86,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [backupPreview, setBackupPreview] = useState<BackupData | null>(null);
   const [previewCounts, setPreviewCounts] = useState<Record<string, number> | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [restoreSuccess, setRestoreSuccess] = useState(false);
   
   // API Configuration state
@@ -537,6 +538,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         throw new Error(errorMsg);
       }
 
+      setImportWarnings(validation.warnings);
       const counts = getBackupPreview(backup);
       setBackupPreview(backup);
       setPreviewCounts(counts);
@@ -1278,6 +1280,15 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                         ))}
                       </div>
                     </div>
+
+                    {importWarnings.length > 0 && (
+                      <div className="p-3 bg-scripture-warning/10 border border-scripture-warning/30 rounded-xl text-sm">
+                        <div className="font-medium text-scripture-warning mb-1">Some records will be skipped:</div>
+                        <ul className="text-scripture-muted list-disc list-inside">
+                          {importWarnings.map((w, i) => <li key={i}>{w}</li>)}
+                        </ul>
+                      </div>
+                    )}
 
                     <div className="bg-scripture-surface border border-scripture-border/50 shadow-sm rounded-xl p-4">
                       <div className="mb-4">
