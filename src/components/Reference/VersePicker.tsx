@@ -8,7 +8,7 @@ interface VersePickerProps {
 }
 
 export function VersePicker({ selectedVerse, onSelect }: VersePickerProps) {
-  const { currentBook, currentChapter } = useBibleStore();
+  const { currentBook, currentChapter, setNavSelectedVerse } = useBibleStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef<HTMLButtonElement>(null);
 
@@ -37,7 +37,13 @@ export function VersePicker({ selectedVerse, onSelect }: VersePickerProps) {
           <button
             key={v}
             ref={isSelected ? selectedRef : undefined}
-            onClick={() => onSelect(v)}
+            onClick={() => {
+              onSelect(v);
+              setNavSelectedVerse(v);
+              const el = document.querySelector(`[data-verse="${v}"]`);
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              setTimeout(() => setNavSelectedVerse(null), 3000);
+            }}
             className={`flex-shrink-0 w-8 h-8 rounded-full text-xs font-ui font-medium transition-all
               ${isSelected
                 ? 'bg-scripture-accent text-scripture-bg shadow-sm'
