@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useGnosisEntity } from '@/hooks/useGnosis';
 import { VersePicker } from './VersePicker';
-import type { GnosisHebrewWord, GnosisGreekWord, GnosisLexiconEntry, GnosisGreekLexiconEntry } from '@/types';
+import type { GnosisLexiconEntry, GnosisGreekLexiconEntry, WordStrongs } from '@/types';
 
 const NT_BOOKS = new Set([
   'Matt', 'Mark', 'Luke', 'John', 'Acts', 'Rom', '1Cor', '2Cor', 'Gal', 'Eph',
@@ -14,8 +14,8 @@ function isNTBook(book: string): boolean {
   return NT_BOOKS.has(book);
 }
 
-/** Fetches and displays the English gloss for a single word inline */
-function WordGloss({ strongsNumber, isGreek }: { strongsNumber: string; isGreek: boolean }) {
+/** Shows Strong's definition and lexicon gloss for an expanded word */
+function WordDetail({ strongsNumber, isGreek }: { strongsNumber: string; isGreek: boolean }) {
   const { data: strongs } = useGnosisEntity(
     (p) => p.getStrongsEntry(strongsNumber),
     [strongsNumber]
@@ -27,33 +27,13 @@ function WordGloss({ strongsNumber, isGreek }: { strongsNumber: string; isGreek:
     [strongsNumber, isGreek]
   );
 
-  // Prefer short gloss from lexicon, fall back to Strong's definition
+  if (!strongs) return null;
+
   const gloss = lexicon && 'shortGloss' in lexicon
     ? (lexicon as GnosisGreekLexiconEntry).shortGloss
     : lexicon && 'gloss' in lexicon
       ? (lexicon as GnosisLexiconEntry).gloss
       : null;
-
-  const transliteration = strongs?.transliteration;
-
-  return (
-    <span className="text-sm font-medium text-scripture-text">
-      {gloss || strongs?.definition?.split(';')[0]?.split(',')[0]?.trim() || '…'}
-      {transliteration && (
-        <span className="text-scripture-muted font-normal italic ml-1.5">({transliteration})</span>
-      )}
-    </span>
-  );
-}
-
-/** Expanded detail for a word — full definition, usage */
-function WordDetail({ strongsNumber, isGreek }: { strongsNumber: string; isGreek: boolean }) {
-  const { data: strongs } = useGnosisEntity(
-    (p) => p.getStrongsEntry(strongsNumber),
-    [strongsNumber]
-  );
-
-  if (!strongs) return null;
 
   return (
     <div className="mt-1 ml-3 p-2.5 rounded bg-scripture-bg border border-scripture-border/30 text-xs space-y-1.5">
@@ -62,7 +42,13 @@ function WordDetail({ strongsNumber, isGreek }: { strongsNumber: string; isGreek
         {strongs.lemma && (
           <span className="text-base" dir={isGreek ? 'ltr' : 'rtl'}>{strongs.lemma}</span>
         )}
+        {strongs.transliteration && (
+          <span className="text-scripture-muted italic">({strongs.transliteration})</span>
+        )}
       </div>
+      {gloss && (
+        <p className="text-scripture-text font-medium">{gloss}</p>
+      )}
       {strongs.definition && (
         <p className="text-scripture-text leading-relaxed">{strongs.definition}</p>
       )}
@@ -81,33 +67,24 @@ interface OriginalLanguageTabProps {
 }
 
 export function OriginalLanguageTab({ initialVerse }: OriginalLanguageTabProps) {
-  const { currentBook, currentChapter, navSelectedVerse } = useBibleStore();
+  const { currentBook, currentChapter, navSelectedVerse, chapter } = useBibleStore();
   const [pickedVerse, setPickedVerse] = useState<number | null>(initialVerse ?? null);
-  const [expandedWord, setExpandedWord] = useState<string | null>(null);
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   const targetVerse = pickedVerse ?? navSelectedVerse;
-
-  const osisRef = targetVerse && currentBook && currentChapter
-    ? `${currentBook}.${currentChapter}.${targetVerse}`
-    : null;
-
   const isGreek = currentBook ? isNTBook(currentBook) : false;
 
-  const { data: hebrewWords, isLoading: loadingHeb } = useGnosisEntity(
-    (p) => osisRef && !isGreek ? p.getHebrewWords(osisRef) : Promise.resolve([] as GnosisHebrewWord[]),
-    [osisRef, isGreek]
-  );
+  // Get NASB word-level Strong's data from the loaded chapter
+  const verseWords: WordStrongs[] | undefined = useMemo(() => {
+    if (!chapter || !targetVerse) return undefined;
+    const verse = chapter.verses.find((v) => v.ref.verse === targetVerse);
+    return verse?.words;
+  }, [chapter, targetVerse]);
 
-  const { data: greekWords, isLoading: loadingGrk } = useGnosisEntity(
-    (p) => osisRef && isGreek ? p.getGreekWords(osisRef) : Promise.resolve([] as GnosisGreekWord[]),
-    [osisRef, isGreek]
-  );
+  const hasStrongsData = verseWords && verseWords.length > 0;
 
-  const words = isGreek ? greekWords : hebrewWords;
-  const isLoading = isGreek ? loadingGrk : loadingHeb;
-
-  const toggleWord = (wordId: string) => {
-    setExpandedWord((prev) => (prev === wordId ? null : wordId));
+  const toggleWord = (idx: number) => {
+    setExpandedIdx((prev) => (prev === idx ? null : idx));
   };
 
   return (
@@ -116,58 +93,46 @@ export function OriginalLanguageTab({ initialVerse }: OriginalLanguageTabProps) 
         <p className="text-xs text-scripture-muted">
           {currentBook} {currentChapter} — {isGreek ? 'Greek' : 'Hebrew'}
         </p>
-        <VersePicker selectedVerse={targetVerse} onSelect={setPickedVerse} />
+        <VersePicker selectedVerse={targetVerse} onSelect={(v) => { setPickedVerse(v); setExpandedIdx(null); }} />
       </div>
 
-      {!osisRef && (
+      {!targetVerse && (
         <p className="text-sm text-scripture-muted">Tap a verse number to see the interlinear.</p>
       )}
 
-      {isLoading && <p className="text-sm text-scripture-muted">Loading...</p>}
-
-      {osisRef && !isLoading && (!words || words.length === 0) && (
-        <p className="text-sm text-scripture-muted">No {isGreek ? 'Greek' : 'Hebrew'} words found.</p>
+      {targetVerse && !hasStrongsData && (
+        <p className="text-sm text-scripture-muted">
+          No Strong's data available for this verse. Use a translation with Strong's tagging (e.g. NASB).
+        </p>
       )}
 
-      {words && words.length > 0 && (
+      {hasStrongsData && (
         <div className="space-y-0.5">
-          {words.map((word) => {
-            const wordId = word.wordId;
-            const isExpanded = expandedWord === wordId;
-            const originalText = 'lemmaRaw' in word ? (word as GnosisHebrewWord).text : (word as GnosisGreekWord).text;
+          {verseWords.map((ws, idx) => {
+            const isExpanded = expandedIdx === idx;
+            const strongsNum = ws.strongs[0];
 
             return (
-              <div key={wordId}>
+              <div key={idx}>
                 <button
-                  onClick={() => word.strongsNumber ? toggleWord(wordId) : undefined}
+                  onClick={() => strongsNum ? toggleWord(idx) : undefined}
                   className={`w-full text-left px-3 py-1.5 rounded transition-colors ${
                     isExpanded
                       ? 'bg-scripture-accent/10 border border-scripture-accent/30'
-                      : 'hover:bg-scripture-elevated'
+                      : strongsNum ? 'hover:bg-scripture-elevated' : ''
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      {word.strongsNumber ? (
-                        <WordGloss strongsNumber={word.strongsNumber} isGreek={isGreek} />
-                      ) : (
-                        <span className="text-sm text-scripture-muted">{originalText}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-xs text-scripture-muted" dir={isGreek ? 'ltr' : 'rtl'}>
-                        {originalText}
+                    <span className="text-sm font-medium text-scripture-text">{ws.word}</span>
+                    {strongsNum && (
+                      <span className="text-[10px] text-scripture-muted/60 font-mono">
+                        {strongsNum}
                       </span>
-                      {word.strongsNumber && (
-                        <span className="text-[10px] text-scripture-muted/60 font-mono w-12 text-right">
-                          {word.strongsNumber}
-                        </span>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </button>
-                {isExpanded && word.strongsNumber && (
-                  <WordDetail strongsNumber={word.strongsNumber} isGreek={isGreek} />
+                {isExpanded && strongsNum && (
+                  <WordDetail strongsNumber={strongsNum} isGreek={isGreek} />
                 )}
               </div>
             );
