@@ -28,7 +28,7 @@ interface BibleState {
 
   // Actions
   setCurrentModule: (moduleId: string) => void;
-  setLocation: (book: string, chapter: number) => void;
+  setLocation: (book: string, chapter: number, pushHistory?: boolean) => void;
   setChapter: (chapter: Chapter | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -68,19 +68,18 @@ export const useBibleStore = create<BibleState>()(
         });
       },
       
-      setLocation: (book, chapter) => {
+      setLocation: (book, chapter, pushHistory) => {
         const { currentBook, currentChapter, locationHistory } = get();
-        // Only push to history if actually changing location
-        if (book !== currentBook || chapter !== currentChapter) {
-          const newHistory = [...locationHistory, { book: currentBook, chapter: currentChapter }].slice(-20);
-          set({
-            currentBook: book,
-            currentChapter: chapter,
-            chapter: null,
-            navSelectedVerse: null,
-            locationHistory: newHistory,
-          });
-        }
+        if (book === currentBook && chapter === currentChapter) return;
+        set({
+          currentBook: book,
+          currentChapter: chapter,
+          chapter: null,
+          navSelectedVerse: null,
+          ...(pushHistory
+            ? { locationHistory: [...locationHistory, { book: currentBook, chapter: currentChapter }].slice(-20) }
+            : {}),
+        });
       },
       
       setChapter: (chapter) => set({ chapter, isLoading: false }),

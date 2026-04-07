@@ -21,7 +21,7 @@ export function GnosisText({ text }: GnosisTextProps) {
   const handleRefClick = (osisRef: string) => {
     const parsed = parseOsis(osisRef);
     if (!parsed) return;
-    setLocation(parsed.book, parsed.chapter);
+    setLocation(parsed.book, parsed.chapter, true);
     if (parsed.verse) {
       setTimeout(() => {
         setNavSelectedVerse(parsed.verse!);

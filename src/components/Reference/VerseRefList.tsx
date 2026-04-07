@@ -25,7 +25,7 @@ export function VerseRefList({ refs, maxVisible = 10 }: VerseRefListProps) {
   const handleClick = (ref: string) => {
     const parsed = parseOsis(ref);
     if (!parsed) return;
-    setLocation(parsed.book, parsed.chapter);
+    setLocation(parsed.book, parsed.chapter, true);
     setTimeout(() => {
       setNavSelectedVerse(parsed.verse);
       const el = document.querySelector(`[data-verse="${parsed.verse}"]`);
