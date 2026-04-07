@@ -1,18 +1,13 @@
 import { useState, useEffect } from 'react';
 import type { ReferenceTab } from '@/stores/panelStore';
 import { ChapterEntitiesTab } from './ChapterEntitiesTab';
-import { PeopleTab } from './PeopleTab';
 import { PersonDetail } from './PersonDetail';
-import { PlacesTab } from './PlacesTab';
 import { PlaceDetail } from './PlaceDetail';
-import { EventsTab } from './EventsTab';
 import { EventDetail } from './EventDetail';
-import { TopicsTab } from './TopicsTab';
 import { TopicDetail } from './TopicDetail';
 import { CrossRefsTab } from './CrossRefsTab';
 import { OriginalLanguageTab } from './OriginalLanguageTab';
 import { StrongsTab } from './StrongsTab';
-import { DictionaryTab } from './DictionaryTab';
 import { SearchTab } from './SearchTab';
 
 interface ReferenceToolsPanelProps {
@@ -24,15 +19,10 @@ interface ReferenceToolsPanelProps {
 
 const TABS: { id: ReferenceTab; label: string; icon: string }[] = [
   { id: 'chapter', label: 'Chapter', icon: '📖' },
-  { id: 'people', label: 'People', icon: '👤' },
-  { id: 'places', label: 'Places', icon: '📍' },
-  { id: 'events', label: 'Events', icon: '📅' },
-  { id: 'topics', label: 'Topics', icon: '💡' },
+  { id: 'search', label: 'Search', icon: '🔎' },
   { id: 'cross-refs', label: 'Cross-Refs', icon: '🔗' },
   { id: 'original-lang', label: 'Hebrew/Greek', icon: 'א' },
   { id: 'strongs', label: "Strong's", icon: '🔤' },
-  { id: 'dictionary', label: 'Dictionary', icon: '📕' },
-  { id: 'search', label: 'Search', icon: '🔎' },
 ];
 
 interface DetailView {
@@ -93,24 +83,14 @@ export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter',
     switch (activeTab) {
       case 'chapter':
         return <ChapterEntitiesTab navigateToDetail={navigateToDetail} />;
-      case 'people':
-        return <PeopleTab navigateToDetail={navigateToDetail} />;
-      case 'places':
-        return <PlacesTab navigateToDetail={navigateToDetail} />;
-      case 'events':
-        return <EventsTab navigateToDetail={navigateToDetail} />;
-      case 'topics':
-        return <TopicsTab navigateToDetail={navigateToDetail} />;
+      case 'search':
+        return <SearchTab navigateToDetail={navigateToDetail} initialQuery={searchQuery} />;
       case 'cross-refs':
         return <CrossRefsTab />;
       case 'original-lang':
         return <OriginalLanguageTab />;
       case 'strongs':
         return <StrongsTab />;
-      case 'dictionary':
-        return <DictionaryTab />;
-      case 'search':
-        return <SearchTab navigateToDetail={navigateToDetail} initialQuery={searchQuery} />;
     }
   };
 
