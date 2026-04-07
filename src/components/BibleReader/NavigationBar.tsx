@@ -21,8 +21,10 @@ export function NavigationBar() {
     setCurrentModule,
     nextChapter,
     previousChapter,
+    goBack,
     canGoNext,
     canGoPrevious,
+    canGoBack,
   } = useBibleStore();
 
   const [showBookPicker, setShowBookPicker] = useState(false);
@@ -198,6 +200,28 @@ export function NavigationBar() {
         <div className="max-w-4xl mx-auto px-2 sm:px-4 py-2.5 flex items-center justify-between gap-1 sm:gap-2 relative">
         {/* Left side: Previous button and Translation selector */}
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          {/* Back button (visible when there's navigation history) */}
+          {canGoBack() && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                goBack();
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              className="p-2 rounded-lg hover:bg-scripture-elevated transition-all duration-200 touch-target
+                         select-none text-scripture-accent"
+              aria-label="Go back"
+              title="Go back"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+              </svg>
+            </button>
+          )}
           {/* Previous button */}
           <button
             onClick={(e) => {
