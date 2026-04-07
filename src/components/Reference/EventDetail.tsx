@@ -1,5 +1,6 @@
 import { useGnosisEntity } from '@/hooks/useGnosis';
 import { VerseRefList } from './VerseRefList';
+import { EntityNotes } from './EntityNotes';
 
 interface EventDetailProps {
   slug: string;
@@ -90,6 +91,8 @@ export function EventDetail({ slug, onNavigate, onBack }: EventDetailProps) {
           <VerseRefList refs={event.verses} />
         </div>
       )}
+
+      <EntityNotes entityType="event" entitySlug={slug} entityName={event.title} />
     </div>
   );
 }

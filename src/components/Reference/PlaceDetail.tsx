@@ -1,4 +1,5 @@
 import { useGnosisEntity } from '@/hooks/useGnosis';
+import { EntityNotes } from './EntityNotes';
 
 interface PlaceDetailProps {
   slug: string;
@@ -66,6 +67,8 @@ export function PlaceDetail({ slug, onBack }: PlaceDetailProps) {
           </dl>
         </div>
       )}
+
+      <EntityNotes entityType="place" entitySlug={slug} entityName={place.name} />
     </div>
   );
 }

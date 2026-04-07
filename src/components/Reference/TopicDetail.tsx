@@ -1,5 +1,6 @@
 import { useGnosisEntity } from '@/hooks/useGnosis';
 import { VerseRefList } from './VerseRefList';
+import { EntityNotes } from './EntityNotes';
 
 interface TopicDetailProps {
   slug: string;
@@ -64,6 +65,8 @@ export function TopicDetail({ slug, onNavigate, onBack }: TopicDetailProps) {
           </div>
         </div>
       )}
+
+      <EntityNotes entityType="topic" entitySlug={slug} entityName={topic.name} />
     </div>
   );
 }

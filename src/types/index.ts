@@ -12,4 +12,5 @@ export * from './place';
 export * from './preferences';
 export * from './study';
 export * from './timeExpression';
+export * from './entityNote';
 export * from './gnosis';

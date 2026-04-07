@@ -1,5 +1,6 @@
 import { useGnosisEntity } from '@/hooks/useGnosis';
 import { VerseRefList } from './VerseRefList';
+import { EntityNotes } from './EntityNotes';
 
 interface PersonDetailProps {
   slug: string;
@@ -120,6 +121,8 @@ export function PersonDetail({ slug, onNavigate, onBack }: PersonDetailProps) {
           <VerseRefList refs={person.verses} />
         </div>
       )}
+
+      <EntityNotes entityType="person" entitySlug={slug} entityName={person.name} />
     </div>
   );
 }

@@ -13,3 +13,4 @@ export { DictionaryTab } from './DictionaryTab';
 export { SearchTab } from './SearchTab';
 export { VerseRefList } from './VerseRefList';
 export { EntityBadge } from './EntityBadge';
+export { EntityNotes } from './EntityNotes';

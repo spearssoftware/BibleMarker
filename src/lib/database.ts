@@ -23,6 +23,7 @@ import type { InterpretationEntry } from '@/types';
 import type { ApplicationEntry } from '@/types';
 import type { UserPreferences } from '@/types';
 import type { KeywordExclusion } from '@/types';
+import type { EntityNote } from '@/types';
 
 export type { UserPreferences, ApiConfigRecord, OnboardingState, AutoBackupConfig } from '@/types';
 
@@ -597,6 +598,36 @@ export async function deleteApplication(id: string): Promise<void> {
   const mod = await sqlite();
   await mod.sqliteDeleteFromTable('applications', id);
   await logChange('applications', 'delete', id);
+}
+
+// ============================================================================
+// Entity Notes (gnosis entity annotations)
+// ============================================================================
+
+export async function getAllEntityNotes(): Promise<EntityNote[]> {
+  const mod = await sqlite();
+  return mod.sqliteGetAllFromTable<EntityNote>('entity_notes');
+}
+
+export async function getEntityNotes(entitySlug: string, studyId?: string): Promise<EntityNote[]> {
+  const all = await getAllEntityNotes();
+  return all.filter(n =>
+    n.entitySlug === entitySlug &&
+    (!studyId || n.studyId === studyId)
+  );
+}
+
+export async function saveEntityNote(note: EntityNote): Promise<string> {
+  const mod = await sqlite();
+  const result = await mod.sqliteSaveToTableWithStudyId('entity_notes', note, note.studyId);
+  await logChange('entity_notes', 'upsert', note.id, note);
+  return result;
+}
+
+export async function deleteEntityNote(id: string): Promise<void> {
+  const mod = await sqlite();
+  await mod.sqliteDeleteFromTable('entity_notes', id);
+  await logChange('entity_notes', 'delete', id);
 }
 
 // ============================================================================

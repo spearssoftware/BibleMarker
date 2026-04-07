@@ -1,12 +1,11 @@
 /**
  * Analyze Tools Panel
  *
- * Panel for analysis phase tools: Theme, Conclusions, Overview, Chapter, Timeline.
+ * Panel for analysis phase tools: Theme, Overview, Chapter, Timeline, Interpretation, Application.
  */
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
-import { ConclusionTracker } from '@/components/Observation/ConclusionTracker';
 import { BookOverview } from '@/components/Summary/BookOverview';
 import { ChapterAtAGlance } from '@/components/Summary/ChapterAtAGlance';
 import { ThemeTracker } from '@/components/Summary/ThemeTracker';
@@ -20,7 +19,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { Checkbox } from '@/components/shared';
 import type { Place, VerseRef } from '@/types';
 
-export type AnalyzeTab = 'conclusions' | 'overview' | 'chapter' | 'themes' | 'timeline' | 'places-map' | 'interpretation' | 'application';
+export type AnalyzeTab = 'overview' | 'chapter' | 'themes' | 'timeline' | 'places-map' | 'interpretation' | 'application';
 
 interface AnalyzeToolsPanelProps {
   onClose: () => void;
@@ -33,8 +32,8 @@ interface AnalyzeToolsPanelProps {
 export function AnalyzeToolsPanel({
   onClose: _onClose,
   initialTab = 'chapter',
-  selectedText,
-  verseRef,
+  selectedText: _selectedText,
+  verseRef: _verseRef,
   themeSearchTerm,
 }: AnalyzeToolsPanelProps) {
   const [activeTab, setActiveTabRaw] = useState<AnalyzeTab>(initialTab);
@@ -65,7 +64,6 @@ export function AnalyzeToolsPanel({
     { id: 'themes', label: 'Themes', icon: '🔍' },
     { id: 'interpretation', label: 'Interpret', icon: '💭' },
     { id: 'application', label: 'Apply', icon: '✍️' },
-    { id: 'conclusions', label: 'Conclusions', icon: '→' },
   ];
 
   const tabs = allTabs;
@@ -120,17 +118,8 @@ export function AnalyzeToolsPanel({
       </div>
 
       {/* Action bar */}
-      {(activeTab === 'conclusions' || activeTab === 'places-map' || activeTab === 'timeline' || activeTab === 'interpretation' || activeTab === 'application') && (
+      {(activeTab === 'places-map' || activeTab === 'timeline' || activeTab === 'interpretation' || activeTab === 'application') && (
         <div className="flex items-center gap-3 px-4 py-2 flex-shrink-0 border-b border-scripture-border/30">
-          {activeTab === 'conclusions' && (
-            <button
-              onClick={() => setIsCreating(true)}
-              disabled={isCreating}
-              className="px-3 py-1.5 text-sm bg-scripture-accent text-scripture-bg rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              + New Conclusion
-            </button>
-          )}
           {(activeTab === 'interpretation' || activeTab === 'application') && (
             <button
               onClick={() => setIsCreating(true)}
@@ -173,18 +162,6 @@ export function AnalyzeToolsPanel({
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-          {activeTab === 'conclusions' && (
-            <div role="tabpanel" id="analyze-tabpanel-conclusions" aria-labelledby="analyze-tab-conclusions">
-              <ConclusionTracker
-                selectedText={selectedText}
-                verseRef={verseRef}
-                filterByChapter={filterByChapter}
-                isCreating={isCreating}
-                setIsCreating={setIsCreating}
-                onNavigate={handleNavigateToVerse}
-              />
-            </div>
-          )}
           {activeTab === 'overview' && (
             <div role="tabpanel" id="analyze-tabpanel-overview" aria-labelledby="analyze-tab-overview">
               <BookOverview onChapterClick={() => setActiveTab('chapter')} />
