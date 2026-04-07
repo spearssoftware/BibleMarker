@@ -6,12 +6,17 @@ interface ChapterEntitiesTabProps {
   navigateToDetail: (type: string, slug: string) => void;
 }
 
-/** Convert a slug like "jesus-son-of-joseph" or "holy_spirit" to "Jesus Son Of Joseph" */
+/** Convert a slug like "jesus-son-of-joseph" or "baptism__water" to readable text */
 function formatSlug(slug: string): string {
   return slug
-    .split(/[-_]/)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
+    .split('__')
+    .map((part) =>
+      part
+        .split(/[-_]/)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ')
+    )
+    .join(': ');
 }
 
 interface SectionProps {
