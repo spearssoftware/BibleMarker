@@ -1,4 +1,5 @@
 import { useBibleStore } from '@/stores/bibleStore';
+import { parseOsisRef } from '@/types';
 
 interface GnosisTextProps {
   text: string;
@@ -6,29 +7,16 @@ interface GnosisTextProps {
 
 const LINK_REGEX = /\[([^\]]+)\]\(\/[^#]*#([^)]+)\)/g;
 
-function parseOsis(ref: string): { book: string; chapter: number; verse?: number } | null {
-  const parts = ref.split('.');
-  if (parts.length < 2) return null;
-  const chapter = parseInt(parts[1], 10);
-  if (isNaN(chapter)) return null;
-  const verse = parts.length >= 3 ? parseInt(parts[2], 10) : undefined;
-  return { book: parts[0], chapter, verse: isNaN(verse as number) ? undefined : verse };
-}
-
 export function GnosisText({ text }: GnosisTextProps) {
-  const { setLocation, setNavSelectedVerse } = useBibleStore();
+  const { navigateToVerse, setLocation } = useBibleStore();
 
   const handleRefClick = (osisRef: string) => {
-    const parsed = parseOsis(osisRef);
+    const parsed = parseOsisRef(osisRef);
     if (!parsed) return;
-    setLocation(parsed.book, parsed.chapter, true);
     if (parsed.verse) {
-      setTimeout(() => {
-        setNavSelectedVerse(parsed.verse!);
-        const el = document.querySelector(`[data-verse="${parsed.verse}"]`);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        setTimeout(() => setNavSelectedVerse(null), 3000);
-      }, 100);
+      navigateToVerse(parsed.book, parsed.chapter, parsed.verse, true);
+    } else {
+      setLocation(parsed.book, parsed.chapter, true);
     }
   };
 

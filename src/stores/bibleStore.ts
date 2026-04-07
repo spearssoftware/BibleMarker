@@ -33,7 +33,11 @@ interface BibleState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setNavSelectedVerse: (verse: number | null) => void;
-  
+  /** Navigate to a verse, highlight it, and scroll it into view */
+  navigateToVerse: (book: string, chapter: number, verse: number, pushHistory?: boolean) => void;
+  /** Highlight a verse in the current chapter and scroll it into view */
+  highlightVerse: (verse: number) => void;
+
   // Navigation
   nextChapter: () => void;
   previousChapter: () => void;
@@ -89,7 +93,24 @@ export const useBibleStore = create<BibleState>()(
       setError: (error) => set({ error, isLoading: false }),
       
       setNavSelectedVerse: (verse) => set({ navSelectedVerse: verse }),
-      
+
+      navigateToVerse: (book, chapter, verse, pushHistory) => {
+        const { currentBook, currentChapter, highlightVerse } = get();
+        if (book !== currentBook || chapter !== currentChapter) {
+          get().setLocation(book, chapter, pushHistory);
+          setTimeout(() => highlightVerse(verse), 100);
+        } else {
+          highlightVerse(verse);
+        }
+      },
+
+      highlightVerse: (verse) => {
+        set({ navSelectedVerse: verse });
+        const el = document.querySelector(`[data-verse="${verse}"]`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => set({ navSelectedVerse: null }), 3000);
+      },
+
       nextChapter: () => {
         const { currentBook, currentChapter } = get();
         const bookInfo = getBookById(currentBook);

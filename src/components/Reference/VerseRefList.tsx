@@ -1,37 +1,23 @@
 import { useState } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
+import { parseOsisRef } from '@/types';
 
 interface VerseRefListProps {
   refs: string[];
   maxVisible?: number;
 }
 
-function parseOsis(ref: string): { book: string; chapter: number; verse: number } | null {
-  const parts = ref.split('.');
-  if (parts.length < 3) return null;
-  const chapter = parseInt(parts[1], 10);
-  const verse = parseInt(parts[2], 10);
-  if (isNaN(chapter) || isNaN(verse)) return null;
-  return { book: parts[0], chapter, verse };
-}
-
 export function VerseRefList({ refs, maxVisible = 10 }: VerseRefListProps) {
   const [showAll, setShowAll] = useState(false);
-  const { setLocation, setNavSelectedVerse } = useBibleStore();
+  const { navigateToVerse } = useBibleStore();
 
   const visible = showAll ? refs : refs.slice(0, maxVisible);
   const hasMore = refs.length > maxVisible;
 
   const handleClick = (ref: string) => {
-    const parsed = parseOsis(ref);
-    if (!parsed) return;
-    setLocation(parsed.book, parsed.chapter, true);
-    setTimeout(() => {
-      setNavSelectedVerse(parsed.verse);
-      const el = document.querySelector(`[data-verse="${parsed.verse}"]`);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(() => setNavSelectedVerse(null), 3000);
-    }, 100);
+    const parsed = parseOsisRef(ref);
+    if (!parsed || !parsed.verse) return;
+    navigateToVerse(parsed.book, parsed.chapter, parsed.verse, true);
   };
 
   if (refs.length === 0) return null;

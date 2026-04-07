@@ -42,7 +42,7 @@ export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter',
 
   useEffect(() => {
     if (entitySlug) {
-      setDetailView({ type: 'person', slug: entitySlug });
+      setDetailView({ type: 'search', slug: entitySlug });
     }
   }, [entitySlug]);
 
