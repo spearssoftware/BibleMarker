@@ -22,9 +22,9 @@ interface ReferenceToolsPanelProps {
 const TABS: { id: ReferenceTab; label: string; icon: string }[] = [
   { id: 'chapter', label: 'Chapter', icon: '📖' },
   { id: 'search', label: 'Search', icon: '🔎' },
-  { id: 'cross-refs', label: 'Cross-Refs', icon: '🔗' },
-  { id: 'original-lang', label: 'Hebrew/Greek', icon: 'א' },
   { id: 'strongs', label: "Strong's", icon: '🔤' },
+  { id: 'original-lang', label: 'Hebrew/Greek', icon: 'א' },
+  { id: 'cross-refs', label: 'Cross-Refs', icon: '🔗' },
 ];
 
 interface DetailView {
