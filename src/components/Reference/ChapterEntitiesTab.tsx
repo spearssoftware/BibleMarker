@@ -6,6 +6,14 @@ interface ChapterEntitiesTabProps {
   navigateToDetail: (type: string, slug: string) => void;
 }
 
+/** Convert a slug like "jesus-son-of-joseph" to "Jesus Son of Joseph" */
+function formatSlug(slug: string): string {
+  return slug
+    .split('-')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 interface SectionProps {
   title: string;
   items: string[];
@@ -41,7 +49,7 @@ function Section({ title, items, type, onSelect }: SectionProps) {
                 onClick={() => onSelect(type, slug)}
                 className="w-full text-left px-2 py-1 rounded text-sm text-scripture-text hover:bg-scripture-elevated transition-colors"
               >
-                {slug}
+                {formatSlug(slug)}
               </button>
             ))
           )}
