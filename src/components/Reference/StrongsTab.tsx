@@ -2,9 +2,13 @@ import { useState } from 'react';
 import { useGnosisEntity } from '@/hooks/useGnosis';
 import { Input, Button } from '@/components/shared';
 
-export function StrongsTab() {
-  const [inputValue, setInputValue] = useState('');
-  const [number, setNumber] = useState('');
+interface StrongsTabProps {
+  initialNumber?: string;
+}
+
+export function StrongsTab({ initialNumber }: StrongsTabProps) {
+  const [inputValue, setInputValue] = useState(initialNumber ?? '');
+  const [number, setNumber] = useState(initialNumber ?? '');
 
   const { data: entry, isLoading, error } = useGnosisEntity(
     (p) => number ? p.getStrongsEntry(number) : Promise.resolve(null),

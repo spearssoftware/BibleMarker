@@ -29,6 +29,7 @@ export function PanelContainer() {
     referenceInitialTab,
     referenceEntitySlug,
     referenceSearchQuery,
+    referenceStrongsNumber,
     panelSelectedText,
     panelVerseRef,
     setPinned,
@@ -147,6 +148,7 @@ export function PanelContainer() {
             initialTab={referenceInitialTab}
             entitySlug={referenceEntitySlug}
             searchQuery={referenceSearchQuery}
+            strongsNumber={referenceStrongsNumber}
           />
         )}
       </div>

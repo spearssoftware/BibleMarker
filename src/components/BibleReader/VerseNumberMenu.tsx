@@ -13,6 +13,8 @@ interface VerseNumberMenuProps {
   onAddNote: () => void;
   onAddObservation: () => void;
   onAddTimeExpression: () => void;
+  onCrossRefs: () => void;
+  onOriginalLanguage: () => void;
   onClose: () => void;
 }
 
@@ -22,6 +24,8 @@ export function VerseNumberMenu({
   onAddNote,
   onAddObservation,
   onAddTimeExpression,
+  onCrossRefs,
+  onOriginalLanguage,
   onClose
 }: VerseNumberMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -125,6 +129,41 @@ export function VerseNumberMenu({
             >
               <span className="text-lg" aria-hidden="true">🕐</span>
               <span>Add Time Expression</span>
+            </button>
+
+            {/* Reference tools */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onCrossRefs();
+                onClose();
+              }}
+              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                       hover:shadow-sm text-scripture-text"
+              role="menuitem"
+              aria-label={`Cross-references for verse ${verseNum}`}
+            >
+              <span className="text-lg" aria-hidden="true">🔗</span>
+              <span>Cross-References</span>
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onOriginalLanguage();
+                onClose();
+              }}
+              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                       hover:shadow-sm text-scripture-text"
+              role="menuitem"
+              aria-label={`Hebrew/Greek for verse ${verseNum}`}
+            >
+              <span className="text-lg" aria-hidden="true">א</span>
+              <span>Hebrew/Greek</span>
             </button>
 
             {/* Divider */}

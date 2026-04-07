@@ -11,7 +11,6 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { SelectionMenu } from './SelectionMenu';
-import { StrongsPopup } from '@/components/BibleReader/StrongsPopup';
 import { useListStore } from '@/stores/listStore';
 import { SettingsPanel } from '@/components/Settings';
 import { Modal } from '@/components/shared';
@@ -51,7 +50,6 @@ export function Toolbar() {
   const { activePanel, togglePanel, openPanel, isCollapsed } = usePanelStore();
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [strongsPopup, setStrongsPopup] = useState<{ numbers: string[]; position: { x: number; y: number }; word?: string } | null>(null);
 
   // Load marking presets on mount
   useEffect(() => {
@@ -293,11 +291,11 @@ export function Toolbar() {
               setActiveTool(null);
             }}
             onStrongsLookup={selection.strongsNumbers ? () => {
-              setStrongsPopup({
-                numbers: selection.strongsNumbers!,
-                position: selection.menuAnchor ?? { x: 0, y: 0 },
-                word: selection.text?.trim(),
+              openPanel('reference', {
+                referenceInitialTab: 'strongs',
+                referenceStrongsNumber: selection.strongsNumbers![0],
               });
+              setActiveTool(null);
             } : undefined}
             onCancel={() => {
               window.getSelection()?.removeAllRanges();
@@ -306,16 +304,6 @@ export function Toolbar() {
             onClose={() => {
               clearSelection();
             }}
-          />
-        )}
-
-        {/* Strong's Popup */}
-        {strongsPopup && (
-          <StrongsPopup
-            strongsNumbers={strongsPopup.numbers}
-            position={strongsPopup.position}
-            word={strongsPopup.word}
-            onClose={() => setStrongsPopup(null)}
           />
         )}
 

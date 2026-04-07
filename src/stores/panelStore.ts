@@ -23,6 +23,7 @@ interface PanelOpenOptions {
   referenceInitialTab?: ReferenceTab;
   referenceEntitySlug?: string;
   referenceSearchQuery?: string;
+  referenceStrongsNumber?: string;
   // Shared
   selectedText?: string;
   verseRef?: VerseRef;
@@ -48,6 +49,7 @@ interface PanelState {
   referenceInitialTab: ReferenceTab;
   referenceEntitySlug: string | undefined;
   referenceSearchQuery: string | undefined;
+  referenceStrongsNumber: string | undefined;
   panelSelectedText: string | undefined;
   panelVerseRef: VerseRef | undefined;
 
@@ -87,6 +89,7 @@ export const usePanelStore = create<PanelState>()(
       referenceInitialTab: DEFAULT_REFERENCE_TAB,
       referenceEntitySlug: undefined,
       referenceSearchQuery: undefined,
+      referenceStrongsNumber: undefined,
       panelSelectedText: undefined,
       panelVerseRef: undefined,
 
@@ -104,6 +107,7 @@ export const usePanelStore = create<PanelState>()(
           referenceInitialTab: opts?.referenceInitialTab ?? DEFAULT_REFERENCE_TAB,
           referenceEntitySlug: opts?.referenceEntitySlug,
           referenceSearchQuery: opts?.referenceSearchQuery,
+          referenceStrongsNumber: opts?.referenceStrongsNumber,
           panelSelectedText: opts?.selectedText,
           panelVerseRef: opts?.verseRef,
         });
@@ -122,6 +126,7 @@ export const usePanelStore = create<PanelState>()(
           referenceInitialTab: DEFAULT_REFERENCE_TAB,
           referenceEntitySlug: undefined,
           referenceSearchQuery: undefined,
+          referenceStrongsNumber: undefined,
           panelSelectedText: undefined,
           panelVerseRef: undefined,
         });
