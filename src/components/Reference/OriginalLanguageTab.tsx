@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useGnosisEntity } from '@/hooks/useGnosis';
-import { Input } from '@/components/shared';
+import { VersePicker } from './VersePicker';
 import type { GnosisHebrewWord, GnosisGreekWord, GnosisLexiconEntry, GnosisGreekLexiconEntry, GnosisStrongsEntry } from '@/types';
 
 // OT books use Hebrew, NT books use Greek
@@ -68,12 +68,10 @@ function WordDetail({ strongsNumber, isGreek }: WordDetailProps) {
 
 export function OriginalLanguageTab() {
   const { currentBook, currentChapter, navSelectedVerse } = useBibleStore();
-  const [verseInput, setVerseInput] = useState('');
+  const [pickedVerse, setPickedVerse] = useState<number | null>(null);
   const [expandedWord, setExpandedWord] = useState<string | null>(null);
 
-  const targetVerse = verseInput.trim()
-    ? parseInt(verseInput, 10)
-    : navSelectedVerse;
+  const targetVerse = pickedVerse ?? navSelectedVerse;
 
   const osisRef = targetVerse && currentBook && currentChapter
     ? `${currentBook}.${currentChapter}.${targetVerse}`
@@ -102,19 +100,13 @@ export function OriginalLanguageTab() {
     <div className="space-y-4">
       <div className="space-y-2">
         <p className="text-xs text-scripture-muted">
-          {currentBook} {currentChapter} ({isGreek ? 'Greek' : 'Hebrew'}) — enter a verse number or select one in the reader
+          {currentBook} {currentChapter} — {isGreek ? 'Greek' : 'Hebrew'}
         </p>
-        <Input
-          placeholder="Verse number..."
-          value={verseInput}
-          onChange={(e) => setVerseInput(e.target.value)}
-          type="number"
-          min={1}
-        />
+        <VersePicker selectedVerse={targetVerse} onSelect={setPickedVerse} />
       </div>
 
       {!osisRef && (
-        <p className="text-sm text-scripture-muted">Select or enter a verse to see original language words.</p>
+        <p className="text-sm text-scripture-muted">Tap a verse number to see original language words.</p>
       )}
 
       {isLoading && <p className="text-sm text-scripture-muted">Loading...</p>}

@@ -1,20 +1,18 @@
 import { useState, useMemo } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useGnosisEntity } from '@/hooks/useGnosis';
-import { Input } from '@/components/shared';
 import { VerseRefList } from './VerseRefList';
+import { VersePicker } from './VersePicker';
 import type { GnosisCrossReference } from '@/types';
 
 const TOP_REFS_LIMIT = 12;
 
 export function CrossRefsTab() {
   const { currentBook, currentChapter, navSelectedVerse } = useBibleStore();
-  const [verseInput, setVerseInput] = useState('');
+  const [pickedVerse, setPickedVerse] = useState<number | null>(null);
   const [showAll, setShowAll] = useState(false);
 
-  const targetVerse = verseInput.trim()
-    ? parseInt(verseInput, 10)
-    : navSelectedVerse;
+  const targetVerse = pickedVerse ?? navSelectedVerse;
 
   const osisRef = targetVerse && currentBook && currentChapter
     ? `${currentBook}.${currentChapter}.${targetVerse}`
@@ -55,21 +53,10 @@ export function CrossRefsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <p className="text-xs text-scripture-muted">
-          {currentBook} {currentChapter} — enter a verse number or select one in the reader
-        </p>
-        <Input
-          placeholder="Verse number..."
-          value={verseInput}
-          onChange={(e) => setVerseInput(e.target.value)}
-          type="number"
-          min={1}
-        />
-      </div>
+      <VersePicker selectedVerse={targetVerse} onSelect={setPickedVerse} />
 
       {!osisRef && (
-        <p className="text-sm text-scripture-muted">Select or enter a verse to see cross-references.</p>
+        <p className="text-sm text-scripture-muted">Tap a verse number to see cross-references.</p>
       )}
 
       {isLoading && <p className="text-sm text-scripture-muted">Loading...</p>}
