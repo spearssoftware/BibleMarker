@@ -93,11 +93,14 @@ export function SearchTab({ navigateToDetail, initialQuery }: SearchTabProps) {
       {error && <p className="text-sm text-scripture-error px-1">{error}</p>}
 
       {query.trim() && !isLoading && filtered.length === 0 && !error && (
-        <p className="text-sm text-scripture-muted px-1">
-          {activeFilter !== 'all' && results.length > 0
-            ? `No ${FILTERS.find((f) => f.id === activeFilter)?.label.toLowerCase()} results — ${results.length} in other categories`
-            : 'No results found'}
-        </p>
+        <div className="text-sm text-scripture-muted px-1 space-y-2">
+          <p>
+            {activeFilter !== 'all' && results.length > 0
+              ? `No ${FILTERS.find((f) => f.id === activeFilter)?.label.toLowerCase()} results — ${results.length} in other categories`
+              : 'No matching people, places, events, topics, or dictionary entries.'}
+          </p>
+          <p className="text-xs">Try the Hebrew/Greek tab for word-level analysis, or try a root word (e.g. "confession" instead of "confessed").</p>
+        </div>
       )}
 
       {filtered.length > 0 && (
