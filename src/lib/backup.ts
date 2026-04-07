@@ -8,6 +8,8 @@
  */
 
 import { exportAllData, importAllData, clearDatabase as clearAllDatabases, type UserPreferences } from './database';
+import { open, save } from '@tauri-apps/plugin-dialog';
+import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { isTauri, isIOS } from './platform';
 import type { Annotation, SectionHeading, ChapterTitle, Note } from '@/types';
 import type { MarkingPreset } from '@/types';
@@ -194,9 +196,6 @@ export async function exportBackup(includeCache: boolean = false): Promise<strin
     // Desktop: use native file dialog
     if (isTauri()) {
       try {
-        const { save } = await import('@tauri-apps/plugin-dialog');
-        const { writeTextFile } = await import('@tauri-apps/plugin-fs');
-
         const filePath = await save({
           defaultPath: generateBackupFilename(),
           filters: [{
@@ -267,11 +266,12 @@ interface BackupDataShape {
   data?: Record<string, unknown>;
 }
 
-export function validateBackup(data: unknown): { valid: boolean; errors: string[] } {
+export function validateBackup(data: unknown): { valid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
+  const warnings: string[] = [];
 
   if (!data || typeof data !== 'object') {
-    return { valid: false, errors: ['Backup data must be an object'] };
+    return { valid: false, errors: ['Backup data must be an object'], warnings: [] };
   }
   const d = data as BackupDataShape;
 
@@ -284,7 +284,7 @@ export function validateBackup(data: unknown): { valid: boolean; errors: string[
   }
 
   if (!d.data || typeof d.data !== 'object') {
-    return { valid: false, errors: ['Backup must have a data object'] };
+    return { valid: false, errors: ['Backup must have a data object'], warnings: [] };
   }
 
   // Check required data fields
@@ -313,131 +313,45 @@ export function validateBackup(data: unknown): { valid: boolean; errors: string[
     }
   }
 
-  // Validate individual records if arrays exist
-  if (Array.isArray(d.data.annotations)) {
-    const { errors: annErrors } = validateArray(d.data.annotations, validateAnnotation, 'annotation');
-    if (annErrors.length > 0) {
-      errors.push(`Annotations validation errors: ${annErrors.length} invalid records`);
-      // Include first few errors as examples
-      errors.push(...annErrors.slice(0, 3).map(e => `  - ${e.message}`));
-    }
-  }
-
-  if (Array.isArray(d.data.sectionHeadings)) {
-    const { errors: headingErrors } = validateArray(d.data.sectionHeadings, validateSectionHeading, 'section heading');
-    if (headingErrors.length > 0) {
-      errors.push(`Section headings validation errors: ${headingErrors.length} invalid records`);
-      errors.push(...headingErrors.slice(0, 3).map(e => `  - ${e.message}`));
-    }
-  }
-
-  if (Array.isArray(d.data.chapterTitles)) {
-    const { errors: titleErrors } = validateArray(d.data.chapterTitles, validateChapterTitle, 'chapter title');
-    if (titleErrors.length > 0) {
-      errors.push(`Chapter titles validation errors: ${titleErrors.length} invalid records`);
-      errors.push(...titleErrors.slice(0, 3).map(e => `  - ${e.message}`));
-    }
-  }
-
-  if (Array.isArray(d.data.notes)) {
-    const { errors: noteErrors } = validateArray(d.data.notes, validateNote, 'note');
-    if (noteErrors.length > 0) {
-      errors.push(`Notes validation errors: ${noteErrors.length} invalid records`);
-      errors.push(...noteErrors.slice(0, 3).map(e => `  - ${e.message}`));
-    }
-  }
-
-  if (Array.isArray(d.data.markingPresets)) {
-    const { errors: presetErrors } = validateArray(d.data.markingPresets, validateMarkingPreset, 'marking preset');
-    if (presetErrors.length > 0) {
-      errors.push(`Marking presets validation errors: ${presetErrors.length} invalid records`);
-      errors.push(...presetErrors.slice(0, 3).map(e => `  - ${e.message}`));
-    }
-  }
-
-  if (Array.isArray(d.data.studies)) {
-    const { errors: studyErrors } = validateArray(d.data.studies, validateStudy, 'study');
-    if (studyErrors.length > 0) {
-      errors.push(`Studies validation errors: ${studyErrors.length} invalid records`);
-      errors.push(...studyErrors.slice(0, 3).map(e => `  - ${e.message}`));
-    }
-  }
-
-  if (Array.isArray(d.data.multiTranslationViews)) {
-    const { errors: viewErrors } = validateArray(d.data.multiTranslationViews, validateMultiTranslationView, 'multi-translation view');
-    if (viewErrors.length > 0) {
-      errors.push(`Multi-translation views validation errors: ${viewErrors.length} invalid records`);
-      errors.push(...viewErrors.slice(0, 3).map(e => `  - ${e.message}`));
-    }
-  }
-
-  if (Array.isArray(d.data.observationLists)) {
-    const { errors: listErrors } = validateArray(d.data.observationLists, validateObservationList, 'observation list');
-    if (listErrors.length > 0) {
-      errors.push(`Observation lists validation errors: ${listErrors.length} invalid records`);
-      errors.push(...listErrors.slice(0, 3).map(e => `  - ${e.message}`));
-    }
-  }
-
-  if (Array.isArray(d.data.timeExpressions)) {
-    const { errors: timeErrors } = validateArray(d.data.timeExpressions, (entry: unknown) => {
+  // Validate individual records — invalid records are warnings, not errors.
+  // The import step filters them out gracefully; we just report what will be skipped.
+  const recordValidations: Array<{ label: string; data: unknown[]; validator: (entry: unknown) => unknown }> = [
+    { label: 'Annotations', data: d.data.annotations as unknown[] ?? [], validator: validateAnnotation },
+    { label: 'Section headings', data: d.data.sectionHeadings as unknown[] ?? [], validator: validateSectionHeading },
+    { label: 'Chapter titles', data: d.data.chapterTitles as unknown[] ?? [], validator: validateChapterTitle },
+    { label: 'Notes', data: d.data.notes as unknown[] ?? [], validator: validateNote },
+    { label: 'Marking presets', data: d.data.markingPresets as unknown[] ?? [], validator: validateMarkingPreset },
+    { label: 'Studies', data: d.data.studies as unknown[] ?? [], validator: validateStudy },
+    { label: 'Multi-translation views', data: d.data.multiTranslationViews as unknown[] ?? [], validator: validateMultiTranslationView },
+    { label: 'Observation lists', data: d.data.observationLists as unknown[] ?? [], validator: validateObservationList },
+    { label: 'Time expressions', data: d.data.timeExpressions as unknown[] ?? [], validator: (entry: unknown) => {
       if (!entry || typeof entry !== 'object') throw new ValidationError('Time expression must be an object');
       const e = entry as { id: string };
       if (typeof e.id !== 'string' || e.id.trim() === '') throw new ValidationError('Time expression must have valid id');
       return entry;
-    }, 'time expression');
-    if (timeErrors.length > 0) {
-      errors.push(`Time expressions validation errors: ${timeErrors.length} invalid records`);
-      errors.push(...timeErrors.slice(0, 3).map(e => `  - ${e.message}`));
-    }
-  }
-
-  if (Array.isArray(d.data.places)) {
-    const { errors: placeErrors } = validateArray(d.data.places, validatePlace, 'place');
-    if (placeErrors.length > 0) {
-      errors.push(`Places validation errors: ${placeErrors.length} invalid records`);
-      errors.push(...placeErrors.slice(0, 3).map(e => `  - ${e.message}`));
-    }
-  }
-
-  if (Array.isArray(d.data.people)) {
-    const { errors: peopleErrors } = validateArray(d.data.people, validatePerson, 'person');
-    if (peopleErrors.length > 0) {
-      errors.push(`People validation errors: ${peopleErrors.length} invalid records`);
-      errors.push(...peopleErrors.slice(0, 3).map(e => `  - ${e.message}`));
-    }
-  }
-
-  if (Array.isArray(d.data.conclusions)) {
-    const { errors: conclusionErrors } = validateArray(d.data.conclusions, (entry: unknown) => {
+    }},
+    { label: 'Places', data: d.data.places as unknown[] ?? [], validator: validatePlace },
+    { label: 'People', data: d.data.people as unknown[] ?? [], validator: validatePerson },
+    { label: 'Conclusions', data: d.data.conclusions as unknown[] ?? [], validator: (entry: unknown) => {
       if (!entry || typeof entry !== 'object') throw new ValidationError('Conclusion must be an object');
       const e = entry as { id: string };
       if (typeof e.id !== 'string' || e.id.trim() === '') throw new ValidationError('Conclusion must have valid id');
       return entry;
-    }, 'conclusion');
-    if (conclusionErrors.length > 0) {
-      errors.push(`Conclusions validation errors: ${conclusionErrors.length} invalid records`);
-      errors.push(...conclusionErrors.slice(0, 3).map(e => `  - ${e.message}`));
+    }},
+    { label: 'Interpretations', data: d.data.interpretations as unknown[] ?? [], validator: validateInterpretation },
+    { label: 'Applications', data: d.data.applications as unknown[] ?? [], validator: validateApplication },
+  ];
+
+  for (const { label, data, validator } of recordValidations) {
+    if (Array.isArray(data) && data.length > 0) {
+      const { errors: recordErrors } = validateArray(data, validator, label.toLowerCase());
+      if (recordErrors.length > 0) {
+        warnings.push(`${label}: ${recordErrors.length} invalid record(s) will be skipped`);
+      }
     }
   }
 
-  if (Array.isArray(d.data.interpretations)) {
-    const { errors: interpErrors } = validateArray(d.data.interpretations, validateInterpretation, 'interpretation entry');
-    if (interpErrors.length > 0) {
-      errors.push(`Interpretation entries validation errors: ${interpErrors.length} invalid records`);
-      errors.push(...interpErrors.slice(0, 3).map(e => `  - ${e.message}`));
-    }
-  }
-
-  if (Array.isArray(d.data.applications)) {
-    const { errors: appErrors } = validateArray(d.data.applications, validateApplication, 'application entry');
-    if (appErrors.length > 0) {
-      errors.push(`Application entries validation errors: ${appErrors.length} invalid records`);
-      errors.push(...appErrors.slice(0, 3).map(e => `  - ${e.message}`));
-    }
-  }
-
-  return { valid: errors.length === 0, errors };
+  return { valid: errors.length === 0, errors, warnings };
 }
 
 /**
@@ -476,9 +390,6 @@ export async function importBackup(): Promise<BackupData> {
     // Use Tauri native file dialog if running in Tauri (iOS read access works via security-scoped URLs)
     if (isTauri()) {
       try {
-        const { open } = await import('@tauri-apps/plugin-dialog');
-        const { readTextFile } = await import('@tauri-apps/plugin-fs');
-        
         const filePath = await open({
           multiple: false,
           filters: [{

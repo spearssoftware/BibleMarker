@@ -21,6 +21,7 @@ import type { InterpretationEntry } from '@/types';
 import type { ApplicationEntry } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
+import { save } from '@tauri-apps/plugin-dialog';
 import { isTauri, isIOS } from './platform';
 
 /**
@@ -405,7 +406,6 @@ export async function exportStudyData(): Promise<string | void> {
     // Desktop: use native file dialog
     if (isTauri()) {
       try {
-        const { save } = await import('@tauri-apps/plugin-dialog');
         const filePath = await save({
           defaultPath: filename,
           filters: [{
