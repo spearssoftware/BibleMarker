@@ -1,5 +1,6 @@
 import { usePanelStore, type PanelType } from '@/stores/panelStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
+import { useBibleStore } from '@/stores/bibleStore';
 import { KeyWordManager } from '@/components/KeyWords';
 import { ObservationToolsPanel } from '@/components/Observation';
 import { AnalyzeToolsPanel } from '@/components/Analyze';
@@ -52,6 +53,21 @@ export function PanelContainer() {
   const title = PANEL_TITLES[activePanel];
 
   const handleClose = () => {
+    // When closing the Reference panel, jump back to original location
+    if (activePanel === 'reference') {
+      const { locationHistory } = useBibleStore.getState();
+      if (locationHistory.length > 0) {
+        // Jump to the bottom of the stack (original location)
+        const origin = locationHistory[0];
+        useBibleStore.setState({
+          currentBook: origin.book,
+          currentChapter: origin.chapter,
+          chapter: null,
+          navSelectedVerse: null,
+          locationHistory: [],
+        });
+      }
+    }
     clearSelection();
     closePanel();
   };

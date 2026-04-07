@@ -86,13 +86,13 @@ export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter',
       case 'chapter':
         return <ChapterEntitiesTab navigateToDetail={navigateToDetail} />;
       case 'search':
-        return <SearchTab navigateToDetail={navigateToDetail} initialQuery={searchQuery} />;
+        return <SearchTab key={searchQuery} navigateToDetail={navigateToDetail} initialQuery={searchQuery} />;
       case 'cross-refs':
-        return <CrossRefsTab initialVerse={verse} />;
+        return <CrossRefsTab key={verse} initialVerse={verse} />;
       case 'original-lang':
-        return <OriginalLanguageTab initialVerse={verse} />;
+        return <OriginalLanguageTab key={verse} initialVerse={verse} />;
       case 'strongs':
-        return <StrongsTab initialNumber={strongsNumber} />;
+        return <StrongsTab key={strongsNumber} initialNumber={strongsNumber} />;
     }
   };
 
