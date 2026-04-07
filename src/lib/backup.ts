@@ -8,6 +8,8 @@
  */
 
 import { exportAllData, importAllData, clearDatabase as clearAllDatabases, type UserPreferences } from './database';
+import { open, save } from '@tauri-apps/plugin-dialog';
+import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { isTauri, isIOS } from './platform';
 import type { Annotation, SectionHeading, ChapterTitle, Note } from '@/types';
 import type { MarkingPreset } from '@/types';
@@ -194,9 +196,6 @@ export async function exportBackup(includeCache: boolean = false): Promise<strin
     // Desktop: use native file dialog
     if (isTauri()) {
       try {
-        const { save } = await import('@tauri-apps/plugin-dialog');
-        const { writeTextFile } = await import('@tauri-apps/plugin-fs');
-
         const filePath = await save({
           defaultPath: generateBackupFilename(),
           filters: [{
@@ -476,9 +475,6 @@ export async function importBackup(): Promise<BackupData> {
     // Use Tauri native file dialog if running in Tauri (iOS read access works via security-scoped URLs)
     if (isTauri()) {
       try {
-        const { open } = await import('@tauri-apps/plugin-dialog');
-        const { readTextFile } = await import('@tauri-apps/plugin-fs');
-        
         const filePath = await open({
           multiple: false,
           filters: [{
