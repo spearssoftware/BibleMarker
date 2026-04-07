@@ -24,6 +24,7 @@ interface PanelOpenOptions {
   referenceEntitySlug?: string;
   referenceSearchQuery?: string;
   referenceStrongsNumber?: string;
+  referenceVerse?: number;
   // Shared
   selectedText?: string;
   verseRef?: VerseRef;
@@ -50,6 +51,7 @@ interface PanelState {
   referenceEntitySlug: string | undefined;
   referenceSearchQuery: string | undefined;
   referenceStrongsNumber: string | undefined;
+  referenceVerse: number | undefined;
   panelSelectedText: string | undefined;
   panelVerseRef: VerseRef | undefined;
 
@@ -90,6 +92,7 @@ export const usePanelStore = create<PanelState>()(
       referenceEntitySlug: undefined,
       referenceSearchQuery: undefined,
       referenceStrongsNumber: undefined,
+      referenceVerse: undefined,
       panelSelectedText: undefined,
       panelVerseRef: undefined,
 
@@ -108,6 +111,7 @@ export const usePanelStore = create<PanelState>()(
           referenceEntitySlug: opts?.referenceEntitySlug,
           referenceSearchQuery: opts?.referenceSearchQuery,
           referenceStrongsNumber: opts?.referenceStrongsNumber,
+          referenceVerse: opts?.referenceVerse,
           panelSelectedText: opts?.selectedText,
           panelVerseRef: opts?.verseRef,
         });
@@ -127,6 +131,7 @@ export const usePanelStore = create<PanelState>()(
           referenceEntitySlug: undefined,
           referenceSearchQuery: undefined,
           referenceStrongsNumber: undefined,
+          referenceVerse: undefined,
           panelSelectedText: undefined,
           panelVerseRef: undefined,
         });

@@ -76,9 +76,13 @@ function WordDetail({ strongsNumber, isGreek }: { strongsNumber: string; isGreek
   );
 }
 
-export function OriginalLanguageTab() {
+interface OriginalLanguageTabProps {
+  initialVerse?: number;
+}
+
+export function OriginalLanguageTab({ initialVerse }: OriginalLanguageTabProps) {
   const { currentBook, currentChapter, navSelectedVerse } = useBibleStore();
-  const [pickedVerse, setPickedVerse] = useState<number | null>(null);
+  const [pickedVerse, setPickedVerse] = useState<number | null>(initialVerse ?? null);
   const [expandedWord, setExpandedWord] = useState<string | null>(null);
 
   const targetVerse = pickedVerse ?? navSelectedVerse;

@@ -287,6 +287,8 @@ export function Toolbar() {
               openPanel('reference', {
                 referenceInitialTab: 'search',
                 referenceSearchQuery: selection?.text?.trim() || undefined,
+                referenceStrongsNumber: selection?.strongsNumbers?.[0],
+                referenceVerse: selection?.startVerse,
               });
               setActiveTool(null);
             }}

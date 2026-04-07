@@ -7,9 +7,13 @@ import type { GnosisCrossReference } from '@/types';
 
 const TOP_REFS_LIMIT = 12;
 
-export function CrossRefsTab() {
+interface CrossRefsTabProps {
+  initialVerse?: number;
+}
+
+export function CrossRefsTab({ initialVerse }: CrossRefsTabProps) {
   const { currentBook, currentChapter, navSelectedVerse } = useBibleStore();
-  const [pickedVerse, setPickedVerse] = useState<number | null>(null);
+  const [pickedVerse, setPickedVerse] = useState<number | null>(initialVerse ?? null);
   const [showAll, setShowAll] = useState(false);
 
   const targetVerse = pickedVerse ?? navSelectedVerse;

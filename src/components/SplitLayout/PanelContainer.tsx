@@ -30,6 +30,7 @@ export function PanelContainer() {
     referenceEntitySlug,
     referenceSearchQuery,
     referenceStrongsNumber,
+    referenceVerse,
     panelSelectedText,
     panelVerseRef,
     setPinned,
@@ -149,6 +150,7 @@ export function PanelContainer() {
             entitySlug={referenceEntitySlug}
             searchQuery={referenceSearchQuery}
             strongsNumber={referenceStrongsNumber}
+            verse={referenceVerse}
           />
         )}
       </div>
