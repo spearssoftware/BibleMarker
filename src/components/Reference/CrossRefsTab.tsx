@@ -5,9 +5,12 @@ import { Input } from '@/components/shared';
 import { VerseRefList } from './VerseRefList';
 import type { GnosisCrossReference } from '@/types';
 
+const TOP_REFS_LIMIT = 12;
+
 export function CrossRefsTab() {
   const { currentBook, currentChapter, navSelectedVerse } = useBibleStore();
   const [verseInput, setVerseInput] = useState('');
+  const [showAll, setShowAll] = useState(false);
 
   const targetVerse = verseInput.trim()
     ? parseInt(verseInput, 10)
@@ -22,7 +25,16 @@ export function CrossRefsTab() {
     [osisRef]
   );
 
-  const crossRefs = useMemo(() => data?.data ?? [], [data]);
+  const allRefs = useMemo(() => data?.data ?? [], [data]);
+
+  // "Top" mode: only show refs with votes > 0, capped at TOP_REFS_LIMIT
+  const crossRefs = useMemo(() => {
+    if (showAll) return allRefs;
+    const highQuality = allRefs.filter((r) => r.votes > 0);
+    return highQuality.length > 0
+      ? highQuality.slice(0, TOP_REFS_LIMIT)
+      : allRefs.slice(0, TOP_REFS_LIMIT);
+  }, [allRefs, showAll]);
 
   const grouped = useMemo(() => {
     const groups = new Map<string, GnosisCrossReference[]>();
@@ -64,13 +76,42 @@ export function CrossRefsTab() {
 
       {error && <p className="text-sm text-scripture-error">{error}</p>}
 
-      {osisRef && !isLoading && crossRefs.length === 0 && !error && (
+      {osisRef && !isLoading && allRefs.length === 0 && !error && (
         <p className="text-sm text-scripture-muted">No cross-references found for {osisRef}.</p>
       )}
 
-      {crossRefs.length > 0 && (
+      {allRefs.length > 0 && (
         <div className="space-y-3">
-          <p className="text-xs text-scripture-muted">{crossRefs.length} cross-reference{crossRefs.length !== 1 ? 's' : ''} for {osisRef}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-scripture-muted">
+              {showAll ? allRefs.length : crossRefs.length} cross-ref{crossRefs.length !== 1 ? 's' : ''}
+              {!showAll && allRefs.length > crossRefs.length && (
+                <span className="text-scripture-muted/60"> of {allRefs.length}</span>
+              )}
+            </p>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setShowAll(false)}
+                className={`px-2 py-0.5 rounded text-xs font-ui font-medium transition-all ${
+                  !showAll
+                    ? 'bg-scripture-accent text-scripture-bg'
+                    : 'bg-scripture-elevated text-scripture-muted hover:text-scripture-text'
+                }`}
+              >
+                Top
+              </button>
+              <button
+                onClick={() => setShowAll(true)}
+                className={`px-2 py-0.5 rounded text-xs font-ui font-medium transition-all ${
+                  showAll
+                    ? 'bg-scripture-accent text-scripture-bg'
+                    : 'bg-scripture-elevated text-scripture-muted hover:text-scripture-text'
+                }`}
+              >
+                All
+              </button>
+            </div>
+          </div>
           {Array.from(grouped.entries()).map(([book, refs]) => (
             <div key={book}>
               <h4 className="text-xs font-medium text-scripture-muted uppercase tracking-wide mb-1">{book}</h4>
