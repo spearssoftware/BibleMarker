@@ -164,10 +164,23 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
       });
     }
 
-    // Sort by start year, then by duration (longer bars first)
-    result.sort((a, b) => a.startNum - b.startNum || (b.endNum - b.startNum) - (a.endNum - a.startNum));
+    // Determine focus window from entries that have a range (not point-in-time)
+    const rangedEntries = result.filter(e => e.endNum !== e.startNum);
+    const allStarts = (rangedEntries.length > 0 ? rangedEntries : result).map(e => e.startNum);
+    const allEnds = (rangedEntries.length > 0 ? rangedEntries : result).map(e => e.endNum);
+    const focusMin = Math.min(...allStarts);
+    const focusMax = Math.max(...allEnds);
 
-    return result;
+    // Drop point-in-time entries that fall entirely outside the focus window
+    const filtered = result.filter(e => {
+      if (e.startNum !== e.endNum) return true; // has a range — keep
+      return e.startNum >= focusMin && e.startNum <= focusMax;
+    });
+
+    // Sort by start year, then by duration (longer bars first)
+    filtered.sort((a, b) => a.startNum - b.startNum || (b.endNum - b.startNum) - (a.endNum - a.startNum));
+
+    return filtered;
   }, [timeExpressions, people, gnosisEvents, gnosisPeople, activeStudyId, currentBook, currentChapter, filterByBook]);
 
   // Compute the horizontal scale, excluding outliers that would blow up the axis
