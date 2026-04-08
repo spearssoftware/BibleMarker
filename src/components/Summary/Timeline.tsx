@@ -262,9 +262,20 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
 
     const firstTick = Math.ceil(rawMin / interval) * interval;
     const lastTick = Math.floor(rawMax / interval) * interval;
-    const tickList: { num: number; label: string }[] = [];
+    const allTicks: { num: number; label: string }[] = [];
     for (let n = firstTick; n <= lastTick; n += interval) {
-      tickList.push({ num: n, label: formatYearNum(n) });
+      allTicks.push({ num: n, label: formatYearNum(n) });
+    }
+    // Filter ticks that are too close together in pixel space
+    const MIN_TICK_GAP = 40;
+    const tickList: { num: number; label: string }[] = [];
+    let lastTickPx = -Infinity;
+    for (const tick of allTicks) {
+      const px = toPixel(tick.num);
+      if (px - lastTickPx >= MIN_TICK_GAP) {
+        tickList.push(tick);
+        lastTickPx = px;
+      }
     }
 
     return { lanedEntries: laned, ticks: tickList, chartHeight: chartH, yearToPixel: toPixel, numLanes: nLanes, timeLaneCount: numTimeLanes };
