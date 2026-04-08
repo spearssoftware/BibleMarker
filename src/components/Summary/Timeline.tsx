@@ -159,9 +159,11 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     const rawEventEntries = (gnosisEvents ?? [])
       .filter(e => e.startYear !== null)
       .map(e => {
-        const firstVerse = e.verses[0] ? parseOsisRef(e.verses[0]) : null;
-        const verseRef: VerseRef = firstVerse
-          ? { book: firstVerse.book, chapter: firstVerse.chapter, verse: firstVerse.verse ?? 1 }
+        const chapterPrefix = `${currentBook}.${currentChapter}.`;
+        const chapterVerse = e.verses.find(v => v.startsWith(chapterPrefix));
+        const parsed = chapterVerse ? parseOsisRef(chapterVerse) : null;
+        const verseRef: VerseRef = parsed
+          ? { book: parsed.book, chapter: parsed.chapter, verse: parsed.verse ?? 1 }
           : { book: currentBook, chapter: currentChapter, verse: 1 };
         return {
           type: 'event' as const,
@@ -181,9 +183,11 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
       .map(p => {
         const s = p.birthYear ?? p.earliestYearMentioned ?? p.deathYear ?? p.latestYearMentioned!;
         const e = p.deathYear ?? p.latestYearMentioned ?? s;
-        const firstVerse = p.verses[0] ? parseOsisRef(p.verses[0]) : null;
-        const verseRef: VerseRef = firstVerse
-          ? { book: firstVerse.book, chapter: firstVerse.chapter, verse: firstVerse.verse ?? 1 }
+        const chapterPrefix = `${currentBook}.${currentChapter}.`;
+        const chapterVerse = p.verses.find(v => v.startsWith(chapterPrefix));
+        const parsed = chapterVerse ? parseOsisRef(chapterVerse) : null;
+        const verseRef: VerseRef = parsed
+          ? { book: parsed.book, chapter: parsed.chapter, verse: parsed.verse ?? 1 }
           : { book: currentBook, chapter: currentChapter, verse: 1 };
         const yearLabel = [p.birthYearDisplay, p.deathYearDisplay].filter(Boolean).join(' — ') || undefined;
         return {
