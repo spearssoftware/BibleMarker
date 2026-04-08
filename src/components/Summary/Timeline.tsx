@@ -170,14 +170,24 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     return result;
   }, [timeExpressions, people, gnosisEvents, gnosisPeople, activeStudyId, currentBook, currentChapter, filterByBook]);
 
-  // Compute the horizontal scale for the Gantt bars
+  // Compute the horizontal scale, excluding outliers that would blow up the axis
   const { minYear, maxYear, yearToPercent } = useMemo(() => {
     if (entries.length === 0) return { minYear: 0, maxYear: 0, yearToPercent: () => 0 };
-    const allNums = entries.flatMap(e => [e.startNum, e.endNum]);
+
+    // Use start/end nums but filter out extreme outliers via IQR
+    const spans = entries.map(e => ({ start: e.startNum, end: e.endNum, range: e.endNum - e.startNum }));
+    const sortedRanges = spans.map(s => s.range).sort((a, b) => a - b);
+    const q3 = sortedRanges[Math.floor(sortedRanges.length * 0.75)];
+    const outlierThreshold = Math.max(q3 * 5, 200); // generous threshold
+
+    const nonOutliers = spans.filter(s => s.range <= outlierThreshold);
+    const scaleEntries = nonOutliers.length > 0 ? nonOutliers : spans;
+
+    const allNums = scaleEntries.flatMap(s => [s.start, s.end]);
     const min = Math.min(...allNums);
     const max = Math.max(...allNums);
     const range = Math.max(max - min, 1);
-    const pad = range * 0.05;
+    const pad = range * 0.1;
     const pMin = min - pad;
     const pMax = max + pad;
     const pRange = pMax - pMin;
