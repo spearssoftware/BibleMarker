@@ -25,6 +25,7 @@ export interface GnosisDataProvider {
 
   // Chapter
   getChapterEntities(book: string, chapter: number): Promise<ChapterEntities>;
+  getChapterYear(book: string, chapter: number): Promise<{ year: number; yearDisplay: string } | null>;
 
   // People
   searchPeople(query: string, opts?: PaginationOpts & { gender?: string }): Promise<PaginatedResponse<GnosisPerson>>;

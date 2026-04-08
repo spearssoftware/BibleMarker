@@ -28,7 +28,7 @@ function formatYearNum(num: number): string {
 
 const ROW_HEIGHT = 32;
 const ROW_GAP = 4;
-const YEAR_COL_WIDTH = 80;
+const YEAR_COL_WIDTH = 110;
 
 interface TimelineProps {
   filterByBook?: boolean;
@@ -87,6 +87,14 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
       );
     },
     [peopleSlugs.join(',')]
+  );
+
+  // Fetch the historical year for the current chapter
+  const { data: chapterYear } = useGnosisEntity(
+    (provider) => currentBook && currentChapter
+      ? provider.getChapterYear(currentBook, currentChapter)
+      : Promise.resolve(null),
+    [currentBook, currentChapter]
   );
 
   const handleNavigateToVerse = (verseRef: VerseRef) => {
@@ -185,19 +193,36 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
   const { minYear, maxYear, yearToPercent } = useMemo(() => {
     if (entries.length === 0) return { minYear: 0, maxYear: 0, yearToPercent: () => 0 };
 
-    // Use IQR on all year values to find the main cluster
-    const allNums = entries.flatMap(e => [e.startNum, e.endNum]).sort((a, b) => a - b);
-    const q1 = allNums[Math.floor(allNums.length * 0.25)];
-    const q3 = allNums[Math.floor(allNums.length * 0.75)];
-    const iqr = Math.max(q3 - q1, 10);
-    const clusterMin = q1 - iqr * 1.5;
-    const clusterMax = q3 + iqr * 1.5;
+    // If we have a chapter year, center the scale around it
+    // Include entries whose ranges overlap a window around the chapter year
+    const allNums = entries.flatMap(e => [e.startNum, e.endNum]);
+    let min: number;
+    let max: number;
 
-    // Scale focuses on the cluster range
-    const min = Math.max(Math.min(...allNums), clusterMin);
-    const max = Math.min(Math.max(...allNums), clusterMax);
+    if (chapterYear) {
+      // Build scale from entries that are "near" the chapter year
+      const cy = chapterYear.year;
+      const nearby = entries.filter(e => {
+        const dist = Math.min(Math.abs(e.startNum - cy), Math.abs(e.endNum - cy));
+        return dist < 200 || (e.startNum <= cy && e.endNum >= cy);
+      });
+      const nearNums = nearby.length > 0
+        ? nearby.flatMap(e => [e.startNum, e.endNum])
+        : [cy];
+      min = Math.min(...nearNums);
+      max = Math.max(...nearNums);
+    } else {
+      // Fallback: IQR-based
+      const sorted = [...allNums].sort((a, b) => a - b);
+      const q1 = sorted[Math.floor(sorted.length * 0.25)];
+      const q3 = sorted[Math.floor(sorted.length * 0.75)];
+      const iqr = Math.max(q3 - q1, 10);
+      min = Math.max(Math.min(...allNums), q1 - iqr * 0.5);
+      max = Math.min(Math.max(...allNums), q3 + iqr * 0.5);
+    }
+
     const range = Math.max(max - min, 1);
-    const pad = range * 0.1;
+    const pad = range * 0.15;
     const pMin = min - pad;
     const pMax = max + pad;
     const pRange = pMax - pMin;
@@ -206,7 +231,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
       maxYear: max,
       yearToPercent: (year: number) => ((year - pMin) / pRange) * 100,
     };
-  }, [entries]);
+  }, [entries, chapterYear]);
 
   // Year axis ticks
   const ticks = useMemo(() => {
@@ -239,6 +264,13 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
         </div>
       ) : (
         <div className="space-y-3">
+          {/* Chapter date header */}
+          {chapterYear && (
+            <p className="text-xs text-scripture-muted px-1">
+              {currentBook} {currentChapter} — <span className="font-medium text-scripture-text">{chapterYear.yearDisplay}</span>
+            </p>
+          )}
+
           {/* Horizontal year axis */}
           <div className="relative h-6" style={{ marginLeft: YEAR_COL_WIDTH }}>
             {ticks.map((tick) => (
@@ -265,6 +297,16 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
               ))}
             </div>
 
+            {/* Chapter year marker line */}
+            {chapterYear && (
+              <div className="absolute inset-0" style={{ left: YEAR_COL_WIDTH }}>
+                <div
+                  className="absolute top-0 bottom-0 w-0.5 bg-scripture-accent/40"
+                  style={{ left: `${yearToPercent(chapterYear.year)}%` }}
+                />
+              </div>
+            )}
+
             {/* Rows */}
             {entries.map((entry, idx) => {
               const y = idx * (ROW_HEIGHT + ROW_GAP);
@@ -272,18 +314,24 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
               const rawRightPct = yearToPercent(entry.endNum);
               const leftPct = Math.max(rawLeftPct, 0);
               const rightPct = Math.min(rawRightPct, 100);
-              const widthPct = Math.max(rightPct - leftPct, 1); // min 1% for point-in-time
+              const isRange = entry.startNum !== entry.endNum;
               const yearLabel = entry.yearLabel || (
                 formatYearNum(entry.startNum) +
-                (entry.endNum !== entry.startNum ? ` — ${formatYearNum(entry.endNum)}` : '')
+                (isRange ? ` — ${formatYearNum(entry.endNum)}` : '')
               );
               const tooltip = `${entry.label}\n${yearLabel}\n${formatVerseRef(entry.verseRef.book, entry.verseRef.chapter, entry.verseRef.verse)}`;
 
-              const colorClasses = entry.type === 'event'
-                ? 'bg-scripture-warning/30 hover:bg-scripture-warning/40 border-scripture-warning/60 text-scripture-text'
+              const barColorClasses = entry.type === 'event'
+                ? 'bg-scripture-warning/30 hover:bg-scripture-warning/40 border-scripture-warning/60'
                 : entry.type === 'person'
-                  ? 'bg-scripture-accent/70 hover:bg-scripture-accent border-scripture-accent text-white'
-                  : 'bg-scripture-elevated hover:bg-scripture-border border-scripture-border/40 text-scripture-text';
+                  ? 'bg-scripture-accent/70 hover:bg-scripture-accent border-scripture-accent'
+                  : 'bg-scripture-elevated hover:bg-scripture-border border-scripture-border/40';
+
+              const dotColorClasses = entry.type === 'event'
+                ? 'bg-scripture-warning/60 border-scripture-warning'
+                : entry.type === 'person'
+                  ? 'bg-scripture-accent border-scripture-accent'
+                  : 'bg-scripture-border border-scripture-border';
 
               return (
                 <div key={`${entry.type}-${entry.id}`} className="absolute left-0 right-0" style={{ top: y, height: ROW_HEIGHT }}>
@@ -296,22 +344,35 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
                     <span className="truncate">{entry.label}</span>
                   </div>
 
-                  {/* Bar */}
+                  {/* Bar or dot */}
                   <div className="absolute top-0 bottom-0" style={{ left: YEAR_COL_WIDTH, right: 0 }}>
-                    <button
-                      onClick={() => handleNavigateToVerse(entry.verseRef)}
-                      className={`absolute top-0.5 bottom-0.5 rounded-md border transition-colors cursor-pointer overflow-hidden flex items-center px-2 ${colorClasses}`}
-                      style={{
-                        left: `${leftPct}%`,
-                        width: `${widthPct}%`,
-                        minWidth: 24,
-                      }}
-                      title={tooltip}
-                    >
-                      <span className="text-[10px] font-medium truncate">
-                        {yearLabel}
-                      </span>
-                    </button>
+                    {isRange ? (
+                      <button
+                        onClick={() => handleNavigateToVerse(entry.verseRef)}
+                        className={`absolute top-0.5 bottom-0.5 rounded-md border transition-colors cursor-pointer overflow-hidden flex items-center px-2 text-white ${barColorClasses}`}
+                        style={{
+                          left: `${leftPct}%`,
+                          width: `${Math.max(rightPct - leftPct, 2)}%`,
+                        }}
+                        title={tooltip}
+                      >
+                        <span className="text-[10px] font-medium truncate">
+                          {yearLabel}
+                        </span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleNavigateToVerse(entry.verseRef)}
+                        className="absolute top-1/2 -translate-y-1/2 flex items-center gap-1.5 cursor-pointer transition-opacity hover:opacity-80"
+                        style={{ left: `${leftPct}%` }}
+                        title={tooltip}
+                      >
+                        <div className={`w-2.5 h-2.5 rounded-full border shrink-0 ${dotColorClasses}`} />
+                        <span className="text-[10px] text-scripture-muted whitespace-nowrap">
+                          {formatYearNum(entry.startNum)}
+                        </span>
+                      </button>
+                    )}
                   </div>
                 </div>
               );

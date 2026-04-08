@@ -102,6 +102,10 @@ export class GnosisApiClient implements GnosisDataProvider {
 
   // --- Chapter ---
 
+  async getChapterYear(_book: string, _chapter: number): Promise<{ year: number; yearDisplay: string } | null> {
+    return null; // Not available via API yet
+  }
+
   async getChapterEntities(book: string, chapter: number): Promise<ChapterEntities> {
     return this.cachedFetch(`chapter:${book}:${chapter}`, CACHE_TTL.chapter, async () => {
       const resp = await this.fetch<{ data: ChapterEntities }>(`/chapters/${book}/${chapter}`);

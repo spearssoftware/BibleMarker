@@ -92,6 +92,17 @@ export class GnosisLocalDb implements GnosisDataProvider {
 
   // --- Chapter ---
 
+  async getChapterYear(book: string, chapter: number): Promise<{ year: number; yearDisplay: string } | null> {
+    const db = await this.db();
+    const osisRef = `${book}.${chapter}`;
+    const rows: any[] = await db.select(
+      'SELECT year, year_display FROM chapter_timeline WHERE osis_ref = ?',
+      [osisRef]
+    );
+    if (!rows.length) return null;
+    return { year: rows[0].year, yearDisplay: rows[0].year_display };
+  }
+
   async getChapterEntities(book: string, chapter: number): Promise<ChapterEntities> {
     const db = await this.db();
     const prefix = `${book}.${chapter}.%`;
