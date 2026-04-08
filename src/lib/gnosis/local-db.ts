@@ -60,7 +60,18 @@ async function initGnosisDb(): Promise<Database> {
 
   // Use just the filename — Tauri SQL plugin resolves relative to app data dir
   const db = await Database.load('sqlite:gnosis-lite.db');
-  console.log('[Gnosis] Database loaded successfully');
+
+  try {
+    const meta = await db.select<{ build_date: string; version: string }[]>('SELECT build_date, version FROM gnosis_meta LIMIT 1');
+    if (meta.length > 0) {
+      console.log(`[Gnosis] Loaded v${meta[0].version} (built ${meta[0].build_date}) from ${destPath}`);
+    } else {
+      console.log(`[Gnosis] Loaded (no version info) from ${destPath}`);
+    }
+  } catch {
+    console.log(`[Gnosis] Loaded (no meta table) from ${destPath}`);
+  }
+
   return db;
 }
 
