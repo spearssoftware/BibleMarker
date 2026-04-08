@@ -200,15 +200,20 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     let max: number;
 
     if (chapterYear) {
-      // Build scale from entries that are "near" the chapter year
+      // Build scale from entries within ~50 years of the chapter year
       const cy = chapterYear.year;
-      const nearby = entries.filter(e => {
-        const dist = Math.min(Math.abs(e.startNum - cy), Math.abs(e.endNum - cy));
-        return dist < 200 || (e.startNum <= cy && e.endNum >= cy);
-      });
+      const window = 50;
+      const nearby = entries.filter(e =>
+        (e.startNum >= cy - window && e.startNum <= cy + window) ||
+        (e.endNum >= cy - window && e.endNum <= cy + window) ||
+        (e.startNum <= cy && e.endNum >= cy)
+      );
       const nearNums = nearby.length > 0
-        ? nearby.flatMap(e => [e.startNum, e.endNum])
-        : [cy];
+        ? nearby.flatMap(e => [
+            Math.max(e.startNum, cy - window),
+            Math.min(e.endNum, cy + window),
+          ])
+        : [cy - 10, cy + 10];
       min = Math.min(...nearNums);
       max = Math.max(...nearNums);
     } else {
