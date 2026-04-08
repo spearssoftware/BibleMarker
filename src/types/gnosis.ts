@@ -70,6 +70,7 @@ export interface GnosisEvent {
   uuid: string;
   title: string;
   startYear: number | null;
+  endYear: number | null;
   startYearDisplay: string | null;
   duration: string | null;
   sortKey: number | null;

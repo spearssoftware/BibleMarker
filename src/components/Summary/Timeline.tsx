@@ -148,10 +148,11 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
       const verseRef: VerseRef = parsed
         ? { book: parsed.book, chapter: parsed.chapter, verse: parsed.verse ?? 1 }
         : { book: currentBook, chapter: currentChapter, verse: 1 };
+      const endNum = e.endYear ?? e.startYear;
       result.push({
         type: 'event', id: e.slug, label: e.title,
         yearLabel: e.startYearDisplay ?? undefined,
-        startNum: e.startYear, endNum: e.startYear, verseRef,
+        startNum: e.startYear, endNum, verseRef,
       });
     }
 

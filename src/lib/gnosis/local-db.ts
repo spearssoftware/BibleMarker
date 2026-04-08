@@ -317,7 +317,7 @@ export class GnosisLocalDb implements GnosisDataProvider {
 
     const data = rows.map((r): GnosisEvent => ({
       slug: r.slug, uuid: r.uuid, title: r.title,
-      startYear: r.start_year ?? null, startYearDisplay: r.start_year_display ?? null,
+      startYear: r.start_year ?? null, endYear: r.end_year ?? null, startYearDisplay: r.start_year_display ?? null,
       duration: r.duration ?? null, sortKey: r.sort_key ?? null,
       participants: [], locations: [], verses: [],
       parentEvent: null, predecessor: null,
@@ -353,6 +353,7 @@ export class GnosisLocalDb implements GnosisDataProvider {
       uuid: r.uuid,
       title: r.title,
       startYear: r.start_year ?? null,
+      endYear: r.end_year ?? null,
       startYearDisplay: r.start_year_display ?? null,
       duration: r.duration ?? null,
       sortKey: r.sort_key ?? null,
