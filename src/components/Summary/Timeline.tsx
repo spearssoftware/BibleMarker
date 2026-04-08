@@ -5,7 +5,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useChapterEntities, useGnosisEntity } from '@/hooks/useGnosis';
 import { formatVerseRef, parseOsisRef } from '@/types';
-import type { VerseRef, GnosisEvent } from '@/types';
+import type { VerseRef, GnosisEvent, GnosisPerson } from '@/types';
 
 interface SwimLaneEntry {
   type: 'time' | 'person' | 'event';
@@ -86,8 +86,9 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     });
   }, [currentBook, currentChapter, currentModuleId, autoPopulateFromChapter, autoPopulatePeople, loadTimeExpressions, loadPeople]);
 
-  // Fetch gnosis events for the current chapter
+  // Fetch gnosis entities for the current chapter
   const { entities: chapterEntities } = useChapterEntities(currentBook, currentChapter);
+
   const eventSlugs = chapterEntities?.events ?? [];
   const { data: gnosisEvents } = useGnosisEntity(
     async (provider) => {
@@ -98,6 +99,21 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
       return results.filter((e): e is GnosisEvent => e !== null && e.startYear !== null);
     },
     [eventSlugs.join(',')]
+  );
+
+  const peopleSlugs = chapterEntities?.people ?? [];
+  const { data: gnosisPeople } = useGnosisEntity(
+    async (provider) => {
+      if (peopleSlugs.length === 0) return [] as GnosisPerson[];
+      const results = await Promise.all(
+        peopleSlugs.map((slug) => provider.getPerson(slug).catch(() => null))
+      );
+      // Only include people who have some year data
+      return results.filter((p): p is GnosisPerson =>
+        p !== null && (p.birthYear !== null || p.deathYear !== null || p.earliestYearMentioned !== null)
+      );
+    },
+    [peopleSlugs.join(',')]
   );
 
   const handleNavigateToVerse = (verseRef: VerseRef) => {
@@ -171,11 +187,36 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
         };
       });
 
-    if (rawTimeEntries.length === 0 && rawPersonEntries.length === 0 && rawEventEntries.length === 0) return empty;
+    // Gnosis people — use birth/death years, fall back to earliest/latest mentioned
+    const userPersonNames = new Set(rawPersonEntries.map(p => p.label.toLowerCase().trim()));
+    const rawGnosisPersonEntries = (gnosisPeople ?? [])
+      .filter(p => !userPersonNames.has(p.name.toLowerCase().trim()))
+      .map(p => {
+        const s = p.birthYear ?? p.earliestYearMentioned ?? p.deathYear ?? p.latestYearMentioned!;
+        const e = p.deathYear ?? p.latestYearMentioned ?? s;
+        const firstVerse = p.verses[0] ? parseOsisRef(p.verses[0]) : null;
+        const verseRef: VerseRef = firstVerse
+          ? { book: firstVerse.book, chapter: firstVerse.chapter, verse: firstVerse.verse ?? 1 }
+          : { book: currentBook, chapter: currentChapter, verse: 1 };
+        const yearLabel = [p.birthYearDisplay, p.deathYearDisplay].filter(Boolean).join(' — ') || undefined;
+        return {
+          type: 'person' as const,
+          id: `gnosis-${p.slug}`,
+          label: p.name,
+          yearLabel,
+          startNum: Math.min(s, e),
+          endNum: Math.max(s, e),
+          verseRef,
+        };
+      });
+
+    const allPersonEntries = [...rawPersonEntries, ...rawGnosisPersonEntries];
+
+    if (rawTimeEntries.length === 0 && allPersonEntries.length === 0 && rawEventEntries.length === 0) return empty;
 
     // Build ordinal scale: each unique data year gets one SLOT_PX slot.
     // Years that fall between data points (e.g. axis ticks) are interpolated.
-    const allNums = [...rawTimeEntries, ...rawPersonEntries, ...rawEventEntries].flatMap(e => [e.startNum, e.endNum]);
+    const allNums = [...rawTimeEntries, ...allPersonEntries, ...rawEventEntries].flatMap(e => [e.startNum, e.endNum]);
     const rawMin = Math.min(...allNums);
     const rawMax = Math.max(...allNums);
     const range = Math.max(rawMax - rawMin, 1);
@@ -211,7 +252,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     const numEventLanes = rawLanedEvents.length > 0 ? Math.max(...rawLanedEvents.map(e => e.lane + 1)) : 0;
     const lanedEvents = rawLanedEvents.map(e => ({ ...e, lane: e.lane + numTimeLanes }));
 
-    const rawLanedPeople = assignLanes(rawPersonEntries);
+    const rawLanedPeople = assignLanes(allPersonEntries);
     const numPeopleLanes = rawLanedPeople.length > 0 ? Math.max(...rawLanedPeople.map(e => e.lane + 1)) : 0;
     const lanedPeople = rawLanedPeople.map(e => ({ ...e, lane: e.lane + numTimeLanes + numEventLanes }));
 
@@ -226,7 +267,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     }
 
     return { lanedEntries: laned, ticks: tickList, chartHeight: chartH, yearToPixel: toPixel, numLanes: nLanes, timeLaneCount: numTimeLanes };
-  }, [timeExpressions, people, gnosisEvents, activeStudyId, currentBook, currentChapter, filterByBook]);
+  }, [timeExpressions, people, gnosisEvents, gnosisPeople, activeStudyId, currentBook, currentChapter, filterByBook]);
 
   const getTop = yearToPixel;
 
@@ -320,6 +361,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
 
                 if (entry.type === 'person') {
                   const barHeight = Math.max(naturalHeight, MIN_BAR_PX);
+                  const displayYear = entry.yearLabel || yearLabel;
                   return (
                     <button
                       key={`person-${entry.id}`}
@@ -338,7 +380,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
                       </span>
                       {barHeight >= 36 && (
                         <span className="text-[9px] text-white/70 truncate block leading-tight">
-                          {yearLabel}
+                          {displayYear}
                         </span>
                       )}
                     </button>
