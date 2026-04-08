@@ -69,11 +69,9 @@ jobs:
           gh release download v1.0.0 --repo spearssoftware/biblemarker-assets --dir src-tauri/resources --pattern "sword-*.zip"
         env:
           GH_TOKEN: ${{ secrets.BIBLEMARKER_ASSETS_TOKEN }}
-      - name: Download and build gnosis-lite.db
+      - name: Download gnosis-lite.db
         run: |
-          gh release download v0.4.2 --repo spearssoftware/gnosis --dir /tmp --pattern "gnosis.db"
-          sqlite3 /tmp/gnosis.db "DROP TABLE IF EXISTS vector_meta; DROP TABLE IF EXISTS verse_similarity; VACUUM;"
-          mv /tmp/gnosis.db src-tauri/resources/gnosis-lite.db
+          gh release download v0.5.0 --repo spearssoftware/gnosis --dir src-tauri/resources --pattern "gnosis-lite.db"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Check
