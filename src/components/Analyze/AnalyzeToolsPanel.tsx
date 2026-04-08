@@ -131,7 +131,7 @@ export function AnalyzeToolsPanel({
           )}
           {activeTab === 'timeline' ? (
             <Checkbox
-              label="Current Book Only"
+              label="Current Chapter Only"
               checked={filterByBook}
               onChange={(e) => setFilterByBook(e.target.checked)}
             />

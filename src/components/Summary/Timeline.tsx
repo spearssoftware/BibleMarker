@@ -105,13 +105,14 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
   const entries = useMemo(() => {
     const matchesStudy = (studyId: string | undefined) =>
       !activeStudyId || !studyId || studyId === activeStudyId;
-    const matchesBook = (book: string) => !currentBook || !filterByBook || book === currentBook;
+    const matchesChapter = (ref: VerseRef) =>
+      !currentBook || !filterByBook || (ref.book === currentBook && ref.chapter === currentChapter);
 
     const result: TimelineEntry[] = [];
 
     // User time expressions
     for (const t of timeExpressions) {
-      if (t.year == null || !t.yearEra || !matchesStudy(t.studyId) || !matchesBook(t.verseRef.book)) continue;
+      if (t.year == null || !t.yearEra || !matchesStudy(t.studyId) || !matchesChapter(t.verseRef)) continue;
       const num = toNum(t.year, t.yearEra);
       result.push({
         type: 'time', id: t.id,
@@ -123,7 +124,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     // User people
     const seenPeople = new Set<string>();
     for (const p of people) {
-      if (!matchesStudy(p.studyId) || !matchesBook(p.verseRef.book)) continue;
+      if (!matchesStudy(p.studyId) || !matchesChapter(p.verseRef)) continue;
       if (!((p.yearStart != null && p.yearStartEra) || (p.yearEnd != null && p.yearEndEra))) continue;
       const groupKey = p.presetId || `manual:${p.name.toLowerCase().trim()}`;
       if (seenPeople.has(groupKey)) continue;
