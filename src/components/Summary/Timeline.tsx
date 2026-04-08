@@ -11,6 +11,7 @@ interface SwimLaneEntry {
   type: 'time' | 'person' | 'event';
   id: string;
   label: string;
+  yearLabel?: string;
   startNum: number;
   endNum: number;
   verseRef: VerseRef;
@@ -163,6 +164,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
           type: 'event' as const,
           id: e.slug,
           label: e.title,
+          yearLabel: e.startYearDisplay ?? undefined,
           startNum: e.startYear!,
           endNum: e.startYear!,
           verseRef,
@@ -290,23 +292,28 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
                 const tooltip = `${entry.label}\n${yearLabel}\n${formatVerseRef(entry.verseRef.book, entry.verseRef.chapter, entry.verseRef.verse)}`;
 
                 if (entry.type === 'event') {
+                  const barHeight = Math.max(naturalHeight, MIN_BAR_PX);
                   return (
                     <button
                       key={`event-${entry.id}`}
                       onClick={() => handleNavigateToVerse(entry.verseRef)}
-                      className="absolute flex items-center gap-1.5 cursor-pointer rounded-md bg-scripture-warning/20 hover:bg-scripture-warning/30 border border-scripture-warning/50 px-1.5 overflow-hidden transition-colors"
+                      className="absolute rounded-md bg-scripture-warning/30 hover:bg-scripture-warning/40 border border-scripture-warning/60 transition-colors cursor-pointer overflow-hidden flex flex-col justify-center px-1.5"
                       style={{
-                        top: top - 10,
+                        top: top + 1,
+                        height: barHeight - 2,
                         left: `calc(${leftPct}% + 2px)`,
                         width: `calc(${widthPct}% - 4px)`,
-                        height: 20,
                       }}
                       title={tooltip}
                     >
-                      <span className="text-[10px] text-scripture-warning shrink-0">📅</span>
-                      <span className="text-[10px] text-scripture-text font-medium truncate leading-none">
+                      <span className="text-[10px] text-scripture-text font-medium truncate block leading-tight">
                         {entry.label}
                       </span>
+                      {entry.yearLabel && barHeight >= 36 && (
+                        <span className="text-[9px] text-scripture-muted truncate block leading-tight">
+                          {entry.yearLabel}
+                        </span>
+                      )}
                     </button>
                   );
                 }
