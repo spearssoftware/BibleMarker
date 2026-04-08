@@ -181,13 +181,21 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     return filtered;
   }, [timeExpressions, people, gnosisEvents, gnosisPeople, activeStudyId, currentBook, currentChapter, filterByBook]);
 
-  // Compute the horizontal scale from filtered entries
+  // Compute the horizontal scale focused on the majority cluster
   const { minYear, maxYear, yearToPercent } = useMemo(() => {
     if (entries.length === 0) return { minYear: 0, maxYear: 0, yearToPercent: () => 0 };
 
-    const allNums = entries.flatMap(e => [e.startNum, e.endNum]);
-    const min = Math.min(...allNums);
-    const max = Math.max(...allNums);
+    // Use IQR on all year values to find the main cluster
+    const allNums = entries.flatMap(e => [e.startNum, e.endNum]).sort((a, b) => a - b);
+    const q1 = allNums[Math.floor(allNums.length * 0.25)];
+    const q3 = allNums[Math.floor(allNums.length * 0.75)];
+    const iqr = Math.max(q3 - q1, 10);
+    const clusterMin = q1 - iqr * 1.5;
+    const clusterMax = q3 + iqr * 1.5;
+
+    // Scale focuses on the cluster range
+    const min = Math.max(Math.min(...allNums), clusterMin);
+    const max = Math.min(Math.max(...allNums), clusterMax);
     const range = Math.max(max - min, 1);
     const pad = range * 0.1;
     const pMin = min - pad;
