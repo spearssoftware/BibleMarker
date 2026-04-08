@@ -3,11 +3,12 @@ import { useTimeStore } from '@/stores/timeStore';
 import { usePeopleStore } from '@/stores/peopleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import { formatVerseRef } from '@/types';
-import type { VerseRef } from '@/types';
+import { useChapterEntities, useGnosisEntity } from '@/hooks/useGnosis';
+import { formatVerseRef, parseOsisRef } from '@/types';
+import type { VerseRef, GnosisEvent } from '@/types';
 
 interface SwimLaneEntry {
-  type: 'time' | 'person';
+  type: 'time' | 'person' | 'event';
   id: string;
   label: string;
   startNum: number;
@@ -84,6 +85,20 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     });
   }, [currentBook, currentChapter, currentModuleId, autoPopulateFromChapter, autoPopulatePeople, loadTimeExpressions, loadPeople]);
 
+  // Fetch gnosis events for the current chapter
+  const { entities: chapterEntities } = useChapterEntities(currentBook, currentChapter);
+  const eventSlugs = chapterEntities?.events ?? [];
+  const { data: gnosisEvents } = useGnosisEntity(
+    async (provider) => {
+      if (eventSlugs.length === 0) return [] as GnosisEvent[];
+      const results = await Promise.all(
+        eventSlugs.map((slug) => provider.getEvent(slug).catch(() => null))
+      );
+      return results.filter((e): e is GnosisEvent => e !== null && e.startYear !== null);
+    },
+    [eventSlugs.join(',')]
+  );
+
   const handleNavigateToVerse = (verseRef: VerseRef) => {
     const highlight = (verse: number) => {
       window.dispatchEvent(new CustomEvent('toolbar-overlay-minimize'));
@@ -136,11 +151,29 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
         return { type: 'person' as const, id: p.id, label: p.name, startNum: Math.min(s, e), endNum: Math.max(s, e), verseRef: p.verseRef };
       });
 
-    if (rawTimeEntries.length === 0 && rawPersonEntries.length === 0) return empty;
+    // Gnosis events — already have startYear as signed integer
+    const rawEventEntries = (gnosisEvents ?? [])
+      .filter(e => e.startYear !== null)
+      .map(e => {
+        const firstVerse = e.verses[0] ? parseOsisRef(e.verses[0]) : null;
+        const verseRef: VerseRef = firstVerse
+          ? { book: firstVerse.book, chapter: firstVerse.chapter, verse: firstVerse.verse ?? 1 }
+          : { book: currentBook, chapter: currentChapter, verse: 1 };
+        return {
+          type: 'event' as const,
+          id: e.slug,
+          label: e.title,
+          startNum: e.startYear!,
+          endNum: e.startYear!,
+          verseRef,
+        };
+      });
+
+    if (rawTimeEntries.length === 0 && rawPersonEntries.length === 0 && rawEventEntries.length === 0) return empty;
 
     // Build ordinal scale: each unique data year gets one SLOT_PX slot.
     // Years that fall between data points (e.g. axis ticks) are interpolated.
-    const allNums = [...rawTimeEntries, ...rawPersonEntries].flatMap(e => [e.startNum, e.endNum]);
+    const allNums = [...rawTimeEntries, ...rawPersonEntries, ...rawEventEntries].flatMap(e => [e.startNum, e.endNum]);
     const rawMin = Math.min(...allNums);
     const rawMax = Math.max(...allNums);
     const range = Math.max(rawMax - rawMin, 1);
@@ -172,11 +205,16 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     const lanedTime = assignLanes(rawTimeEntries);
     const numTimeLanes = lanedTime.length > 0 ? Math.max(...lanedTime.map(e => e.lane + 1)) : 0;
 
+    const rawLanedEvents = assignLanes(rawEventEntries);
+    const numEventLanes = rawLanedEvents.length > 0 ? Math.max(...rawLanedEvents.map(e => e.lane + 1)) : 0;
+    const lanedEvents = rawLanedEvents.map(e => ({ ...e, lane: e.lane + numTimeLanes }));
+
     const rawLanedPeople = assignLanes(rawPersonEntries);
     const numPeopleLanes = rawLanedPeople.length > 0 ? Math.max(...rawLanedPeople.map(e => e.lane + 1)) : 0;
-    const lanedPeople = rawLanedPeople.map(e => ({ ...e, lane: e.lane + numTimeLanes }));
-    const laned = [...lanedTime, ...lanedPeople];
-    const nLanes = Math.max(1, numTimeLanes + numPeopleLanes);
+    const lanedPeople = rawLanedPeople.map(e => ({ ...e, lane: e.lane + numTimeLanes + numEventLanes }));
+
+    const laned = [...lanedTime, ...lanedEvents, ...lanedPeople];
+    const nLanes = Math.max(1, numTimeLanes + numEventLanes + numPeopleLanes);
 
     const firstTick = Math.ceil(rawMin / interval) * interval;
     const lastTick = Math.floor(rawMax / interval) * interval;
@@ -186,7 +224,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     }
 
     return { lanedEntries: laned, ticks: tickList, chartHeight: chartH, yearToPixel: toPixel, numLanes: nLanes, timeLaneCount: numTimeLanes };
-  }, [timeExpressions, people, activeStudyId, currentBook, filterByBook]);
+  }, [timeExpressions, people, gnosisEvents, activeStudyId, currentBook, currentChapter, filterByBook]);
 
   const getTop = yearToPixel;
 
@@ -194,9 +232,9 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     <div>
       {lanedEntries.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-scripture-muted text-sm mb-2">No timeline entries yet.</p>
+          <p className="text-scripture-muted text-sm mb-2">No timeline entries for this chapter.</p>
           <p className="text-scripture-muted text-xs">
-            Add years to time expressions or people in the Observation tools to see them here.
+            Historical events from the reference library and user-added time expressions will appear here.
           </p>
         </div>
       ) : (
@@ -250,6 +288,28 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
                 const yearLabel = formatYearNum(entry.startNum) +
                   (entry.endNum !== entry.startNum ? ` — ${formatYearNum(entry.endNum)}` : '');
                 const tooltip = `${entry.label}\n${yearLabel}\n${formatVerseRef(entry.verseRef.book, entry.verseRef.chapter, entry.verseRef.verse)}`;
+
+                if (entry.type === 'event') {
+                  return (
+                    <button
+                      key={`event-${entry.id}`}
+                      onClick={() => handleNavigateToVerse(entry.verseRef)}
+                      className="absolute flex items-center gap-1.5 cursor-pointer rounded-md bg-scripture-warning/20 hover:bg-scripture-warning/30 border border-scripture-warning/50 px-1.5 overflow-hidden transition-colors"
+                      style={{
+                        top: top - 10,
+                        left: `calc(${leftPct}% + 2px)`,
+                        width: `calc(${widthPct}% - 4px)`,
+                        height: 20,
+                      }}
+                      title={tooltip}
+                    >
+                      <span className="text-[10px] text-scripture-warning shrink-0">📅</span>
+                      <span className="text-[10px] text-scripture-text font-medium truncate leading-none">
+                        {entry.label}
+                      </span>
+                    </button>
+                  );
+                }
 
                 if (entry.type === 'person') {
                   const barHeight = Math.max(naturalHeight, MIN_BAR_PX);
