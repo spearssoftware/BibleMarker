@@ -258,8 +258,10 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
             {/* Rows */}
             {entries.map((entry, idx) => {
               const y = idx * (ROW_HEIGHT + ROW_GAP);
-              const leftPct = yearToPercent(entry.startNum);
-              const rightPct = yearToPercent(entry.endNum);
+              const rawLeftPct = yearToPercent(entry.startNum);
+              const rawRightPct = yearToPercent(entry.endNum);
+              const leftPct = Math.max(rawLeftPct, 0);
+              const rightPct = Math.min(rawRightPct, 100);
               const widthPct = Math.max(rightPct - leftPct, 1); // min 1% for point-in-time
               const yearLabel = entry.yearLabel || (
                 formatYearNum(entry.startNum) +
