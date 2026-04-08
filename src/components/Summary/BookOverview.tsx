@@ -17,6 +17,8 @@ import {
 import { fetchChapter } from '@/lib/bible-api';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
+import { useGnosisEntity } from '@/hooks/useGnosis';
+import { Checkbox } from '@/components/shared';
 import type { ChapterTitle } from '@/types';
 import { getBookById } from '@/types';
 
@@ -33,6 +35,8 @@ interface ChapterSummaryData {
   keywordCount: number;
   observationCount: number;
   theme: string | null;
+  year?: number;
+  yearDisplay?: string;
 }
 
 interface BookOverviewProps {
@@ -49,8 +53,23 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
 
   const [summaries, setSummaries] = useState<ChapterSummaryData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [chronological, setChronological] = useState(false);
 
   const bookInfo = useMemo(() => getBookById(currentBook), [currentBook]);
+
+  // Fetch chapter years for the whole book
+  const { data: chapterYears } = useGnosisEntity(
+    async (provider) => {
+      if (!bookInfo) return new Map<number, { year: number; yearDisplay: string }>();
+      const results = new Map<number, { year: number; yearDisplay: string }>();
+      for (let ch = 1; ch <= bookInfo.chapters; ch++) {
+        const y = await provider.getChapterYear(currentBook, ch);
+        if (y) results.set(ch, y);
+      }
+      return results;
+    },
+    [currentBook, bookInfo?.chapters]
+  );
   const chapterCount = bookInfo?.chapters || 0;
 
   const relevantPresets = useMemo(() => {
@@ -127,6 +146,17 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
           });
         }
 
+        // Merge in chapter year data if available
+        if (chapterYears && chapterYears.size > 0) {
+          for (const s of chapterSummaries) {
+            const y = chapterYears.get(s.chapter);
+            if (y) {
+              s.year = y.year;
+              s.yearDisplay = y.yearDisplay;
+            }
+          }
+        }
+
         setSummaries(chapterSummaries);
       } catch (error) {
         console.error('Error loading book summary:', error);
@@ -137,6 +167,13 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
 
     loadBookSummary();
   }, [primaryTranslationId, currentBook, bookInfo, activeStudyId, relevantPresets]);
+
+  const hasYearData = summaries.some(s => s.year !== undefined);
+
+  const displaySummaries = useMemo(() => {
+    if (!chronological || !hasYearData) return summaries;
+    return [...summaries].sort((a, b) => (a.year ?? 0) - (b.year ?? 0));
+  }, [summaries, chronological, hasYearData]);
 
   if (isLoading) {
     return (
@@ -161,12 +198,21 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
     <div>
       <div className="flex items-center justify-between mb-4 px-4 pt-4 flex-shrink-0">
         <h2 className="text-lg font-semibold text-scripture-text">{bookInfo.name} Overview</h2>
-        <div className="text-sm text-scripture-muted">{chapterCount} chapters</div>
+        <div className="flex items-center gap-3">
+          {hasYearData && (
+            <Checkbox
+              label="Chronological"
+              checked={chronological}
+              onChange={(e) => setChronological(e.target.checked)}
+            />
+          )}
+          <div className="text-sm text-scripture-muted">{chapterCount} ch.</div>
+        </div>
       </div>
 
       <div className="px-4 pb-4">
         <div className="divide-y divide-scripture-border/30 rounded-xl overflow-hidden border border-scripture-border/50">
-          {summaries.map(summary => {
+          {displaySummaries.map(summary => {
             const hasData = summary.title || summary.headingCount > 0 || summary.keywordCount > 0 || summary.observationCount > 0;
 
             return (
@@ -190,6 +236,9 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
                   )}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-scripture-muted shrink-0">
+                  {summary.yearDisplay && (
+                    <span className="text-scripture-accent font-medium">{summary.yearDisplay}</span>
+                  )}
                   {summary.headingCount > 0 && <span>📑 {summary.headingCount}</span>}
                   {summary.keywordCount > 0 && <span>🔑 {summary.keywordCount}</span>}
                   {summary.observationCount > 0 && <span>📝 {summary.observationCount}</span>}
