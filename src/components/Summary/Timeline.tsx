@@ -266,6 +266,16 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     for (let n = firstTick; n <= lastTick; n += interval) {
       allTicks.push({ num: n, label: formatYearNum(n) });
     }
+    // Add data-point ticks for events and people so their years show on the axis
+    const tickNums = new Set(allTicks.map(t => t.num));
+    for (const entry of [...rawEventEntries, ...allPersonEntries]) {
+      if (!tickNums.has(entry.startNum)) {
+        allTicks.push({ num: entry.startNum, label: formatYearNum(entry.startNum) });
+        tickNums.add(entry.startNum);
+      }
+    }
+    allTicks.sort((a, b) => a.num - b.num);
+
     // Filter ticks that are too close together in pixel space
     const MIN_TICK_GAP = 40;
     const tickList: { num: number; label: string }[] = [];
