@@ -40,7 +40,8 @@ function assignLanes(entries: Omit<SwimLaneEntry, 'lane'>[]): SwimLaneEntry[] {
   const laneEnds: number[] = [];
 
   return sorted.map(entry => {
-    let lane = laneEnds.findIndex(end => end <= entry.startNum);
+    // Use strict < so point-in-time entries at the same year get separate lanes
+    let lane = laneEnds.findIndex(end => end < entry.startNum);
     if (lane === -1) {
       lane = laneEnds.length;
       laneEnds.push(entry.endNum);
