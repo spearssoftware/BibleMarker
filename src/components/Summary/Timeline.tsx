@@ -164,18 +164,16 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
       });
     }
 
-    // Determine focus window from entries that have a range (not point-in-time)
-    const rangedEntries = result.filter(e => e.endNum !== e.startNum);
-    const allStarts = (rangedEntries.length > 0 ? rangedEntries : result).map(e => e.startNum);
-    const allEnds = (rangedEntries.length > 0 ? rangedEntries : result).map(e => e.endNum);
-    const focusMin = Math.min(...allStarts);
-    const focusMax = Math.max(...allEnds);
+    // Compute focus window using IQR on all year values to exclude outlier eras
+    const allYears = result.flatMap(e => [e.startNum, e.endNum]).sort((a, b) => a - b);
+    const q1 = allYears[Math.floor(allYears.length * 0.25)];
+    const q3 = allYears[Math.floor(allYears.length * 0.75)];
+    const iqr = Math.max(q3 - q1, 10);
+    const focusMin = q1 - iqr * 1.5;
+    const focusMax = q3 + iqr * 1.5;
 
-    // Drop point-in-time entries that fall entirely outside the focus window
-    const filtered = result.filter(e => {
-      if (e.startNum !== e.endNum) return true; // has a range — keep
-      return e.startNum >= focusMin && e.startNum <= focusMax;
-    });
+    // Drop entries that don't overlap the focus window at all
+    const filtered = result.filter(e => e.endNum >= focusMin && e.startNum <= focusMax);
 
     // Sort by start year, then by duration (longer bars first)
     filtered.sort((a, b) => a.startNum - b.startNum || (b.endNum - b.startNum) - (a.endNum - a.startNum));
@@ -183,20 +181,11 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     return filtered;
   }, [timeExpressions, people, gnosisEvents, gnosisPeople, activeStudyId, currentBook, currentChapter, filterByBook]);
 
-  // Compute the horizontal scale, excluding outliers that would blow up the axis
+  // Compute the horizontal scale from filtered entries
   const { minYear, maxYear, yearToPercent } = useMemo(() => {
     if (entries.length === 0) return { minYear: 0, maxYear: 0, yearToPercent: () => 0 };
 
-    // Use start/end nums but filter out extreme outliers via IQR
-    const spans = entries.map(e => ({ start: e.startNum, end: e.endNum, range: e.endNum - e.startNum }));
-    const sortedRanges = spans.map(s => s.range).sort((a, b) => a - b);
-    const q3 = sortedRanges[Math.floor(sortedRanges.length * 0.75)];
-    const outlierThreshold = Math.max(q3 * 5, 200); // generous threshold
-
-    const nonOutliers = spans.filter(s => s.range <= outlierThreshold);
-    const scaleEntries = nonOutliers.length > 0 ? nonOutliers : spans;
-
-    const allNums = scaleEntries.flatMap(s => [s.start, s.end]);
+    const allNums = entries.flatMap(e => [e.startNum, e.endNum]);
     const min = Math.min(...allNums);
     const max = Math.max(...allNums);
     const range = Math.max(max - min, 1);
