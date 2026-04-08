@@ -102,6 +102,10 @@ export class GnosisApiClient implements GnosisDataProvider {
 
   // --- Chapter ---
 
+  async getBookChapterYears(_book: string): Promise<Map<number, { year: number; yearDisplay: string }>> {
+    return new Map(); // Not available via API yet
+  }
+
   async getChapterYear(_book: string, _chapter: number): Promise<{ year: number; yearDisplay: string } | null> {
     return null; // Not available via API yet
   }

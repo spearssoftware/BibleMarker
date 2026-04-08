@@ -92,6 +92,20 @@ export class GnosisLocalDb implements GnosisDataProvider {
 
   // --- Chapter ---
 
+  async getBookChapterYears(book: string): Promise<Map<number, { year: number; yearDisplay: string }>> {
+    const db = await this.db();
+    const rows: any[] = await db.select(
+      'SELECT osis_ref, year, year_display FROM chapter_timeline WHERE osis_ref LIKE ?',
+      [`${book}.%`]
+    );
+    const result = new Map<number, { year: number; yearDisplay: string }>();
+    for (const r of rows) {
+      const ch = parseInt(r.osis_ref.split('.')[1], 10);
+      if (!isNaN(ch)) result.set(ch, { year: r.year, yearDisplay: r.year_display });
+    }
+    return result;
+  }
+
   async getChapterYear(book: string, chapter: number): Promise<{ year: number; yearDisplay: string } | null> {
     const db = await this.db();
     const osisRef = `${book}.${chapter}`;

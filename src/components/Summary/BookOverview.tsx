@@ -57,18 +57,10 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
 
   const bookInfo = useMemo(() => getBookById(currentBook), [currentBook]);
 
-  // Fetch chapter years for the whole book
+  // Fetch chapter years for the whole book in one query
   const { data: chapterYears } = useGnosisEntity(
-    async (provider) => {
-      if (!bookInfo) return new Map<number, { year: number; yearDisplay: string }>();
-      const results = new Map<number, { year: number; yearDisplay: string }>();
-      for (let ch = 1; ch <= bookInfo.chapters; ch++) {
-        const y = await provider.getChapterYear(currentBook, ch);
-        if (y) results.set(ch, y);
-      }
-      return results;
-    },
-    [currentBook, bookInfo?.chapters]
+    (provider) => provider.getBookChapterYears(currentBook),
+    [currentBook]
   );
   const chapterCount = bookInfo?.chapters || 0;
 

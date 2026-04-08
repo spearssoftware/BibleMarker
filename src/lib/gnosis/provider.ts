@@ -24,6 +24,7 @@ export interface GnosisDataProvider {
   isAvailable(): boolean;
 
   // Chapter
+  getBookChapterYears(book: string): Promise<Map<number, { year: number; yearDisplay: string }>>;
   getChapterEntities(book: string, chapter: number): Promise<ChapterEntities>;
   getChapterYear(book: string, chapter: number): Promise<{ year: number; yearDisplay: string } | null>;
 
