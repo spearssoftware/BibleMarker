@@ -146,17 +146,6 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
           });
         }
 
-        // Merge in chapter year data if available
-        if (chapterYears && chapterYears.size > 0) {
-          for (const s of chapterSummaries) {
-            const y = chapterYears.get(s.chapter);
-            if (y) {
-              s.year = y.year;
-              s.yearDisplay = y.yearDisplay;
-            }
-          }
-        }
-
         setSummaries(chapterSummaries);
       } catch (error) {
         console.error('Error loading book summary:', error);
@@ -168,12 +157,21 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
     loadBookSummary();
   }, [primaryTranslationId, currentBook, bookInfo, activeStudyId, relevantPresets]);
 
-  const hasYearData = summaries.some(s => s.year !== undefined);
+  // Merge chapter year data into summaries
+  const enrichedSummaries = useMemo(() => {
+    if (!chapterYears || chapterYears.size === 0) return summaries;
+    return summaries.map(s => {
+      const y = chapterYears.get(s.chapter);
+      return y ? { ...s, year: y.year, yearDisplay: y.yearDisplay } : s;
+    });
+  }, [summaries, chapterYears]);
+
+  const hasYearData = enrichedSummaries.some(s => s.year !== undefined);
 
   const displaySummaries = useMemo(() => {
-    if (!chronological || !hasYearData) return summaries;
-    return [...summaries].sort((a, b) => (a.year ?? 0) - (b.year ?? 0));
-  }, [summaries, chronological, hasYearData]);
+    if (!chronological || !hasYearData) return enrichedSummaries;
+    return [...enrichedSummaries].sort((a, b) => (a.year ?? 0) - (b.year ?? 0));
+  }, [enrichedSummaries, chronological, hasYearData]);
 
   if (isLoading) {
     return (
