@@ -65,7 +65,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
   const { timeExpressions, loadTimeExpressions, autoPopulateFromChapter } = useTimeStore();
   const { people, loadPeople, autoPopulateFromChapter: autoPopulatePeople } = usePeopleStore();
   const { activeStudyId } = useStudyStore();
-  const { currentBook, currentChapter, currentModuleId, setLocation, setNavSelectedVerse } = useBibleStore();
+  const { currentBook, currentChapter, currentModuleId, navigateToVerse } = useBibleStore();
   const lastPopulatedChapter = useRef('');
 
   useEffect(() => {
@@ -118,22 +118,8 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
   );
 
   const handleNavigateToVerse = (verseRef: VerseRef) => {
-    const highlight = (verse: number) => {
-      window.dispatchEvent(new CustomEvent('toolbar-overlay-minimize'));
-      setNavSelectedVerse(verse);
-      setTimeout(() => setNavSelectedVerse(null), 3000);
-      setTimeout(() => {
-        const el = document.querySelector(`[data-verse="${verse}"]`);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
-    };
-
-    if (verseRef.book !== currentBook || verseRef.chapter !== currentChapter) {
-      setLocation(verseRef.book, verseRef.chapter);
-      setTimeout(() => highlight(verseRef.verse), 300);
-    } else {
-      highlight(verseRef.verse);
-    }
+    window.dispatchEvent(new CustomEvent('toolbar-overlay-minimize'));
+    navigateToVerse(verseRef.book, verseRef.chapter, verseRef.verse, true);
   };
 
   const { lanedEntries, ticks, chartHeight, yearToPixel, numLanes, timeLaneCount } = useMemo(() => {
