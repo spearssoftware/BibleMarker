@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { useGnosisSearch } from '@/hooks/useGnosis';
+import { useGnosisSearch, useGnosisEntity } from '@/hooks/useGnosis';
 import { Input } from '@/components/shared';
 import { EntityBadge } from './EntityBadge';
+import { VerseRefList } from './VerseRefList';
 import type { GnosisSearchResult } from '@/types';
 
 interface SearchTabProps {
@@ -26,12 +27,40 @@ const ENTITY_TYPE_MAP: Record<string, string> = {
   event: 'event',
   topic: 'topic',
   group: 'group',
-  dictionary: 'dictionary',
 };
+
+/** Inline dictionary definition expand */
+function DictionaryDetail({ slug }: { slug: string }) {
+  const { data, isLoading, error } = useGnosisEntity((p) => p.getDictionaryEntry(slug), [slug]);
+
+  if (isLoading) return <p className="text-sm text-scripture-muted py-2 px-3">Loading...</p>;
+  if (error) return <p className="text-sm text-scripture-error py-2 px-3">{error}</p>;
+  if (!data) return null;
+
+  return (
+    <div className="mx-1 mb-1 p-3 rounded-lg bg-scripture-surface border border-scripture-border/30 space-y-2">
+      {data.definitions.map((def, i) => (
+        <div key={i} className="space-y-1">
+          {def.source && (
+            <p className="text-xs text-scripture-muted uppercase tracking-wide">{def.source}</p>
+          )}
+          <p className="text-sm text-scripture-text leading-relaxed">{def.text}</p>
+        </div>
+      ))}
+      {data.scriptureRefs.length > 0 && (
+        <div>
+          <p className="text-xs text-scripture-muted uppercase tracking-wide mb-1.5">Scripture Refs</p>
+          <VerseRefList refs={data.scriptureRefs} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function SearchTab({ navigateToDetail, initialQuery }: SearchTabProps) {
   const [query, setQuery] = useState(initialQuery ?? '');
   const [activeFilter, setActiveFilter] = useState<EntityFilter>('all');
+  const [expandedDictSlug, setExpandedDictSlug] = useState<string | null>(null);
 
   const { results, total, isLoading, error } = useGnosisSearch<GnosisSearchResult>(
     (p, q, opts) => p.search(q, opts),
@@ -44,6 +73,10 @@ export function SearchTab({ navigateToDetail, initialQuery }: SearchTabProps) {
   }, [results, activeFilter]);
 
   const handleSelect = (result: GnosisSearchResult) => {
+    if (result.entityType === 'dictionary') {
+      setExpandedDictSlug((prev) => (prev === result.slug ? null : result.slug));
+      return;
+    }
     const type = ENTITY_TYPE_MAP[result.entityType] ?? result.entityType;
     navigateToDetail(type, result.slug);
   };
@@ -53,7 +86,7 @@ export function SearchTab({ navigateToDetail, initialQuery }: SearchTabProps) {
       <Input
         placeholder="Search people, places, events, topics..."
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => { setQuery(e.target.value); setExpandedDictSlug(null); }}
         autoFocus
       />
 
@@ -111,14 +144,22 @@ export function SearchTab({ navigateToDetail, initialQuery }: SearchTabProps) {
 
       <div className="space-y-1">
         {filtered.map((result) => (
-          <button
-            key={result.uuid}
-            onClick={() => handleSelect(result)}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-scripture-elevated hover:bg-scripture-border/30 transition-colors text-left"
-          >
-            <EntityBadge type={result.entityType} />
-            <span className="text-sm text-scripture-text">{result.name}</span>
-          </button>
+          <div key={result.uuid}>
+            <button
+              onClick={() => handleSelect(result)}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-left ${
+                expandedDictSlug === result.slug
+                  ? 'bg-scripture-border/50'
+                  : 'bg-scripture-elevated hover:bg-scripture-border/30'
+              }`}
+            >
+              <EntityBadge type={result.entityType} />
+              <span className="text-sm text-scripture-text">{result.name}</span>
+            </button>
+            {expandedDictSlug === result.slug && (
+              <DictionaryDetail slug={result.slug} />
+            )}
+          </div>
         ))}
       </div>
     </div>
