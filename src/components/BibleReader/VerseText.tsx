@@ -777,12 +777,12 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         if (virtualId) {
           const match = virtualId.match(/^virtual-([0-9a-f-]{36})-(.+?)-(\d+)-(\d+)-(\d+)-/);
           if (match) {
-            const [, presetId, book, chapterStr, verseStr] = match;
+            const [, presetId, book, chapterStr, verseStr, startOffsetStr] = match;
             const ann = virtualAnnotations.find(a => a.id === virtualId);
             const matchedText = ann && 'selectedText' in ann ? ann.selectedText || '' : '';
             if (matchedText) {
               useKeywordExclusionStore.getState().addExclusion(
-                presetId, book, parseInt(chapterStr), parseInt(verseStr), matchedText
+                presetId, book, parseInt(chapterStr), parseInt(verseStr), matchedText, parseInt(startOffsetStr)
               ).then((exclusion) => {
                 useUndoToastStore.getState().show(
                   `"${matchedText}" dismissed`,

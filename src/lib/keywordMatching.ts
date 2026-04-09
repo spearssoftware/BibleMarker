@@ -203,12 +203,13 @@ export function findKeywordMatches(
   
   if (!verseText || presets.length === 0) return annotations;
 
-  // Build exclusion lookup set: "presetId|book|chapter|verse|lowercaseText"
+  // Build exclusion lookup set: "presetId|verse|text|offset" for per-instance exclusions
   const exclusionKeys = new Set<string>();
   if (exclusions) {
     for (const ex of exclusions) {
       if (ex.book === verseRef.book && ex.chapter === verseRef.chapter) {
-        exclusionKeys.add(`${ex.presetId}|${ex.verse}|${ex.matchedText}`);
+        const offsetKey = ex.startOffset !== undefined ? `|${ex.startOffset}` : '';
+        exclusionKeys.add(`${ex.presetId}|${ex.verse}|${ex.matchedText}${offsetKey}`);
       }
     }
   }
@@ -406,8 +407,9 @@ export function findKeywordMatches(
       if (!hasOverlap) {
         // Check if this match is excluded
         if (exclusionKeys.size > 0) {
-          const exKey = `${preset.id}|${verseRef.verse}|${match.matchedText.toLowerCase()}`;
-          if (exclusionKeys.has(exKey)) continue;
+          const exKey = `${preset.id}|${verseRef.verse}|${match.matchedText.toLowerCase()}|${match.startIndex}`;
+          const exKeyLegacy = `${preset.id}|${verseRef.verse}|${match.matchedText.toLowerCase()}`;
+          if (exclusionKeys.has(exKey) || exclusionKeys.has(exKeyLegacy)) continue;
         }
 
         // Mark this range as matched BEFORE creating annotations
