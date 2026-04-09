@@ -498,23 +498,14 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           range = ranges.find(r => {
             // Check if ranges overlap
             const overlaps = !(charOffsets!.end <= r.start || charOffsets!.start >= r.end);
-            
-            // Check if they refer to the same word by comparing normalized text
-            const rangeText = plainText.substring(r.start, r.end).trim().toLowerCase();
-            const rangeTextNormalized = rangeText.replace(/[^\w]/g, '');
-            const sameWord = symText === rangeText || 
-                            (symTextNormalized.length > 0 && rangeTextNormalized.length > 0 && 
-                             symTextNormalized === rangeTextNormalized);
-            
-            // Also check if they're very close (within 10 characters) - likely same word with different punctuation handling
-            const isClose = Math.abs(charOffsets!.start - r.start) <= 10 && 
+
+            // Check if they're very close (within 10 characters) - likely same word with different punctuation handling
+            const isClose = Math.abs(charOffsets!.start - r.start) <= 10 &&
                           Math.abs(charOffsets!.end - r.end) <= 10;
-            
-            // Also check if the normalized word content matches (handles punctuation differences)
-            const wordContentMatches = sameWord || (symTextNormalized && rangeTextNormalized && 
-                              symTextNormalized === rangeTextNormalized);
-            
-            return overlaps || wordContentMatches || isClose;
+
+            // Only merge if ranges overlap or are close in position
+            // (never merge by text content alone — "fruit" at offset 38 is not the same as "fruit" at offset 88)
+            return overlaps || isClose;
           });
         }
         
