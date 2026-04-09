@@ -32,17 +32,39 @@ pub async fn download_file(url: String, dest_path: String) -> Result<(), String>
 
 /// Copy a bundled resource file to `dest_path` if it doesn't already exist.
 /// `resource_name` is the filename relative to the resources directory (e.g. "sword-NASB.zip").
+/// If `force` is true, always overwrite even if the file exists.
 #[tauri::command]
 pub async fn install_bundled_module(
     app: tauri::AppHandle,
     resource_name: String,
     dest_path: String,
+    force: Option<bool>,
 ) -> Result<(), String> {
     let dest = PathBuf::from(&dest_path);
 
-    // Skip if already installed
-    if dest.exists() {
+    // Skip if already installed (unless force is set)
+    if dest.exists() && !force.unwrap_or(false) {
         return Ok(());
+    }
+
+    // If force mode, check if file sizes match — skip the copy if identical
+    if dest.exists() {
+        if let Ok(dest_meta) = std::fs::metadata(&dest) {
+            let source_path = app
+                .path()
+                .resolve(
+                    format!("resources/{}", resource_name),
+                    tauri::path::BaseDirectory::Resource,
+                )
+                .ok();
+            if let Some(ref sp) = source_path {
+                if let Ok(src_meta) = std::fs::metadata(sp) {
+                    if dest_meta.len() == src_meta.len() {
+                        return Ok(());
+                    }
+                }
+            }
+        }
     }
 
     if let Some(parent) = dest.parent() {
