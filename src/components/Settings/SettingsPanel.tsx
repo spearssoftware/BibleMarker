@@ -62,6 +62,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [debugKeywordMatching, setDebugKeywordMatching] = useState(false);
   const [debugVerseText, setDebugVerseText] = useState(false);
   const [checkForUpdates, setCheckForUpdates] = useState(true);
+  const [updateChannel, setUpdateChannel] = useState<'stable' | 'beta'>('stable');
   const [isClearing, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showClearBookConfirm, setShowClearBookConfirm] = useState(false);
@@ -152,6 +153,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         }
         if (prefs.checkForUpdates !== undefined) {
           setCheckForUpdates(prefs.checkForUpdates);
+        }
+        if (prefs.updateChannel) {
+          setUpdateChannel(prefs.updateChannel);
         }
         // Initialize debug flags cache so getDebugFlagsSync() works
         await getDebugFlags();
@@ -409,6 +413,15 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       await updatePreferences({ checkForUpdates: enabled });
     } catch (error) {
       console.error('Error updating check for updates preference:', error);
+    }
+  };
+
+  const handleUpdateChannelChange = async (channel: 'stable' | 'beta') => {
+    setUpdateChannel(channel);
+    try {
+      await updatePreferences({ updateChannel: channel });
+    } catch (error) {
+      console.error('Error updating update channel preference:', error);
     }
   };
 
@@ -1834,7 +1847,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             <div role="tabpanel" id="settings-tabpanel-help" aria-labelledby="settings-tab-help">
             <div className="space-y-0">
               <div className="p-4">
-                <AboutSection checkForUpdates={checkForUpdates} onCheckForUpdatesChange={handleCheckForUpdatesChange} />
+                <AboutSection
+                  checkForUpdates={checkForUpdates}
+                  onCheckForUpdatesChange={handleCheckForUpdatesChange}
+                  updateChannel={updateChannel}
+                  onUpdateChannelChange={handleUpdateChannelChange}
+                />
               </div>
 
               <div className="border-t border-scripture-border/30 my-4"></div>

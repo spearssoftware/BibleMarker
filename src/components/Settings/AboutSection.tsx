@@ -7,16 +7,23 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { checkForUpdateIfDue, checkForUpdateNow, type UpdateCheckResult } from '@/lib/updateCheck';
+import { checkForUpdateIfDue, checkForUpdateNow, type UpdateCheckResult, type UpdateChannel } from '@/lib/updateCheck';
 import { UpdateBanner } from '@/components/shared';
 
 interface AboutSectionProps {
   /** When false, no automatic update check is run on mount */
   checkForUpdates?: boolean;
   onCheckForUpdatesChange?: (value: boolean) => void;
+  updateChannel?: UpdateChannel;
+  onUpdateChannelChange?: (channel: UpdateChannel) => void;
 }
 
-export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true, onCheckForUpdatesChange }: AboutSectionProps) {
+export function AboutSection({
+  checkForUpdates: checkForUpdatesEnabled = true,
+  onCheckForUpdatesChange,
+  updateChannel = 'stable',
+  onUpdateChannelChange,
+}: AboutSectionProps) {
   const version = __APP_VERSION__;
   const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null | 'checking'>(
     checkForUpdatesEnabled ? 'checking' : null
@@ -104,6 +111,7 @@ export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true, o
         <UpdateBanner
           version={updateResult.version}
           url={updateResult.url}
+          isPrerelease={updateResult.isPrerelease}
           onDismiss={() => setShowUpdateBanner(false)}
         />
       )}
@@ -131,6 +139,35 @@ export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true, o
               }`}
             />
           </button>
+        </div>
+      )}
+
+      {onUpdateChannelChange && checkForUpdatesEnabled && (
+        <div className="pt-2">
+          <div className="text-sm font-medium text-scripture-text mb-2">Update channel</div>
+          <div className="flex gap-3">
+            {(['stable', 'beta'] as const).map((ch) => (
+              <button
+                key={ch}
+                onClick={() => onUpdateChannelChange(ch)}
+                className={`flex-1 px-3 py-2 rounded-lg text-sm font-ui font-medium border transition-all ${
+                  updateChannel === ch
+                    ? 'bg-scripture-accent/15 border-scripture-accent text-scripture-accent'
+                    : 'bg-scripture-elevated border-scripture-border/30 text-scripture-muted hover:text-scripture-text'
+                }`}
+              >
+                <div>{ch === 'stable' ? 'Stable' : 'Beta'}</div>
+                <div className="text-[10px] font-normal mt-0.5 opacity-70">
+                  {ch === 'stable' ? 'Tested releases' : 'Early access'}
+                </div>
+              </button>
+            ))}
+          </div>
+          {updateChannel === 'beta' && (
+            <p className="text-[10px] text-scripture-warning mt-1.5">
+              Beta versions may be unstable. You can switch back anytime, but you'll stay on the beta until a newer stable version is available.
+            </p>
+          )}
         </div>
       )}
     </div>
