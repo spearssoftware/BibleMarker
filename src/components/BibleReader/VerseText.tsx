@@ -720,11 +720,11 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const trailingPunct = trailingPunctMatch ? trailingPunctMatch[1] : '';
           const wordContent = trailingPunct ? segmentText.slice(0, -trailingPunct.length) : segmentText;
           
-          // Symbol overlay: render symbol behind the word with colored underline
+          // Symbol overlay: render symbol centered behind the word with colored underline
           const overlayTextStyles = symbolColor
             ? `text-decoration: underline; text-decoration-color: ${symbolColor}; text-decoration-thickness: 2px; text-underline-offset: 3px;`
             : '';
-          htmlSegments.push(`${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}"><span style="display: inline-grid; vertical-align: bottom; min-width: 2.2em; text-align: center; position: relative;"><span class="symbol-overlay" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 2.2em; opacity: 0.4; pointer-events: none; ${symbolColor ? `color: ${symbolColor};` : 'color: currentColor;'}">${symbolText}</span><span class="annotation-text" style="grid-area: 1/1; ${overlayTextStyles}">${escapeHtml(wordContent)}</span></span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`);
+          htmlSegments.push(`${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}"><span style="position: relative; display: inline;"><span class="symbol-overlay" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 2em; opacity: 0.4; pointer-events: none; line-height: 1; ${symbolColor ? `color: ${symbolColor};` : 'color: currentColor;'}">${symbolText}</span><span class="annotation-text" style="${overlayTextStyles}">${escapeHtml(wordContent)}</span></span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`);
         } else {
           // Only text annotations
           const styleAttr = combinedStyles.length ? ` style="${combinedStyles.join('; ')}"` : '';
