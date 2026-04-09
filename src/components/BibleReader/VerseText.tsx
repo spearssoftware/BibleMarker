@@ -708,7 +708,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const classNames = `symbol-inline annotation-group ${annotationIds.map(id => `annotation-${id}`).join(' ')}`;
           const removeButton = `<button
                 class="annotation-remove"
-                data-annotation-id="${annotationIds[0]}"
+                data-annotation-ids="${annotationIds.join(',')}"
                 title="Remove annotation"
                 aria-label="Remove annotation"
               >×</button>`;
@@ -731,7 +731,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const classNames = `annotation-group ${annotationIds.map(id => `annotation-${id}`).join(' ')}`;
           const removeButton = `<button
                 class="annotation-remove"
-                data-annotation-id="${annotationIds[0]}"
+                data-annotation-ids="${annotationIds.join(',')}"
                 title="Remove annotation"
                 aria-label="Remove annotation"
               >×</button>`;
@@ -765,20 +765,22 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     const target = e.target as HTMLElement;
     
     // Check for remove button clicks
-    const removeButton = target.closest('.annotation-remove') as HTMLElement;
-    if (removeButton) {
-      const annotationId = removeButton.getAttribute('data-annotation-id');
-      if (annotationId) {
+    const removeBtn = target.closest('.annotation-remove') as HTMLElement;
+    if (removeBtn) {
+      const idsAttr = removeBtn.getAttribute('data-annotation-ids');
+      if (idsAttr) {
         e.preventDefault();
         e.stopPropagation();
 
-        // Virtual annotation: create an exclusion instead of deleting
-        if (annotationId.startsWith('virtual-')) {
-          // Format: virtual-{presetId(36)}-{book}-{chapter}-{verse}-{startOffset}-{type}
-          const match = annotationId.match(/^virtual-([0-9a-f-]{36})-(.+?)-(\d+)-(\d+)-(\d+)-/);
+        const ids = idsAttr.split(',').filter(Boolean);
+
+        // Virtual annotations: create an exclusion (only need one — they share the same preset/verse)
+        const virtualId = ids.find(id => id.startsWith('virtual-'));
+        if (virtualId) {
+          const match = virtualId.match(/^virtual-([0-9a-f-]{36})-(.+?)-(\d+)-(\d+)-(\d+)-/);
           if (match) {
             const [, presetId, book, chapterStr, verseStr] = match;
-            const ann = virtualAnnotations.find(a => a.id === annotationId);
+            const ann = virtualAnnotations.find(a => a.id === virtualId);
             const matchedText = ann && 'selectedText' in ann ? ann.selectedText || '' : '';
             if (matchedText) {
               useKeywordExclusionStore.getState().addExclusion(
@@ -796,9 +798,11 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           return;
         }
 
-        // Real annotation: delete it
+        // Real annotations: delete all in the group at once
         if (onRemoveAnnotation) {
-          onRemoveAnnotation(annotationId);
+          for (const id of ids) {
+            onRemoveAnnotation(id);
+          }
         }
       }
       return;
