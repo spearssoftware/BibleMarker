@@ -24,6 +24,7 @@ interface VerseTextProps {
   moduleId?: string; // Current translation moduleId for module-scoped keywords
   isSelected?: boolean;
   onRemoveAnnotation?: (id: string) => void;
+  onRemoveAnnotations?: (ids: string[]) => void;
   onVerseNumberClick?: (verseNum: number) => void;
   verseMenu?: React.ReactNode;
   onNavigate?: (ref: VerseRef) => void;
@@ -32,7 +33,7 @@ interface VerseTextProps {
   selectionRange?: { startOffset: number; endOffset: number };
 }
 
-export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAnnotation, onVerseNumberClick, verseMenu, onNavigate, onShowVerse, onKeywordTap, selectionRange }: VerseTextProps) {
+export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAnnotation, onRemoveAnnotations, onVerseNumberClick, verseMenu, onNavigate, onShowVerse, onKeywordTap, selectionRange }: VerseTextProps) {
   const [crossRefState, setCrossRefState] = useState<{ refs: string[]; position: { x: number; y: number } } | null>(null);
   const [overlayVerse, setOverlayVerse] = useState<VerseRef | null>(null);
   const verseContentRef = useRef<HTMLSpanElement>(null);
@@ -491,17 +492,14 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         // If no exact match, try to find an overlapping range or a range that refers to the same word
         // We merge symbols on overlapping ranges to prevent duplicates
         if (!range) {
-          // Get the text for this symbol's range to compare
-          const symText = plainText.substring(charOffsets.start, charOffsets.end).trim().toLowerCase();
-          const symTextNormalized = symText.replace(/[^\w]/g, '');
-          
           range = ranges.find(r => {
             // Check if ranges overlap
             const overlaps = !(charOffsets!.end <= r.start || charOffsets!.start >= r.end);
 
-            // Check if they're very close (within 10 characters) - likely same word with different punctuation handling
-            const isClose = Math.abs(charOffsets!.start - r.start) <= 10 &&
-                          Math.abs(charOffsets!.end - r.end) <= 10;
+            // Tolerance for offset drift from punctuation stripping between translations
+            const PUNCTUATION_DRIFT_TOLERANCE = 10;
+            const isClose = Math.abs(charOffsets!.start - r.start) <= PUNCTUATION_DRIFT_TOLERANCE &&
+                          Math.abs(charOffsets!.end - r.end) <= PUNCTUATION_DRIFT_TOLERANCE;
 
             // Only merge if ranges overlap or are close in position
             // (never merge by text content alone — "fruit" at offset 38 is not the same as "fruit" at offset 88)
@@ -715,7 +713,16 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const overlayTextStyles = symbolColor
             ? `text-decoration: underline; text-decoration-color: ${symbolColor}; text-decoration-thickness: 2px; text-underline-offset: 3px;`
             : '';
-          htmlSegments.push(`${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}"><span style="position: relative; display: inline-block; vertical-align: baseline;"><span class="symbol-overlay" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 2em; opacity: 0.4; pointer-events: none; line-height: 1; ${symbolColor ? `color: ${symbolColor};` : 'color: currentColor;'}">${symbolText}</span><span class="annotation-text" style="${overlayTextStyles}">${escapeHtml(wordContent)}</span></span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`);
+          const symbolColorStyle = symbolColor ? `color: ${symbolColor};` : 'color: currentColor;';
+          const overlayStyle = `position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 2em; opacity: 0.4; pointer-events: none; line-height: 1; ${symbolColorStyle}`;
+          const wrapperStyle = 'position: relative; display: inline-block; vertical-align: baseline;';
+          htmlSegments.push(
+            `${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">` +
+            `<span style="${wrapperStyle}">` +
+            `<span class="symbol-overlay" style="${overlayStyle}">${symbolText}</span>` +
+            `<span class="annotation-text" style="${overlayTextStyles}">${escapeHtml(wordContent)}</span>` +
+            `</span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`
+          );
         } else {
           // Only text annotations
           const styleAttr = combinedStyles.length ? ` style="${combinedStyles.join('; ')}"` : '';
@@ -790,7 +797,9 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         }
 
         // Real annotations: delete all in the group at once
-        if (onRemoveAnnotation) {
+        if (onRemoveAnnotations) {
+          onRemoveAnnotations(ids);
+        } else if (onRemoveAnnotation) {
           for (const id of ids) {
             onRemoveAnnotation(id);
           }

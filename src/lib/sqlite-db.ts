@@ -1010,8 +1010,13 @@ export async function sqliteSaveMarkingPreset(preset: MarkingPreset): Promise<st
 
 export async function sqliteDeleteMarkingPreset(id: string): Promise<void> {
   const db = await getSqliteDb();
-  // Cascade-delete annotations that reference this preset
+  // Cascade-delete all entities linked to this preset
   await db.execute(`DELETE FROM annotations WHERE preset_id = ?`, [id]);
+  await db.execute(`DELETE FROM keyword_exclusions WHERE json_extract(data, '$.presetId') = ?`, [id]);
+  await db.execute(`DELETE FROM places WHERE json_extract(data, '$.presetId') = ?`, [id]);
+  await db.execute(`DELETE FROM people WHERE json_extract(data, '$.presetId') = ?`, [id]);
+  await db.execute(`DELETE FROM time_expressions WHERE json_extract(data, '$.presetId') = ?`, [id]);
+  await db.execute(`DELETE FROM conclusions WHERE json_extract(data, '$.presetId') = ?`, [id]);
   await db.execute(`DELETE FROM marking_presets WHERE id = ?`, [id]);
 }
 

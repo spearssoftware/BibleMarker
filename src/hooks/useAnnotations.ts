@@ -223,8 +223,14 @@ export function useAnnotations() {
   const removeAnnotation = useCallback(async (id: string) => {
     await deleteAnnotation(id);
     await loadAnnotations();
-    
+
     // Dispatch event to notify other components (like MultiTranslationView) to reload
+    window.dispatchEvent(new CustomEvent('annotationsUpdated'));
+  }, [loadAnnotations]);
+
+  const removeAnnotations = useCallback(async (ids: string[]) => {
+    await Promise.all(ids.map(id => deleteAnnotation(id)));
+    await loadAnnotations();
     window.dispatchEvent(new CustomEvent('annotationsUpdated'));
   }, [loadAnnotations]);
 
@@ -402,6 +408,7 @@ export function useAnnotations() {
     createTextAnnotation,
     createSymbolAnnotation,
     removeAnnotation,
+    removeAnnotations,
     quickHighlight,
     createSectionHeading,
     updateSectionHeading,

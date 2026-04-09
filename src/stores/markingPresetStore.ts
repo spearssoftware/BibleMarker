@@ -14,14 +14,6 @@ import {
   deleteMarkingPreset,
   searchMarkingPresets,
   incrementMarkingPresetUsage,
-  getAllPlaces,
-  deletePlace,
-  getAllPeople,
-  deletePerson,
-  getAllTimeExpressions,
-  deleteTimeExpression,
-  getAllConclusions,
-  deleteConclusion,
 } from '@/lib/database';
 
 interface MarkingPresetState {
@@ -92,26 +84,6 @@ export const useMarkingPresetStore = create<MarkingPresetState>((set, get) => ({
   removePreset: async (id) => {
     try {
       await deleteMarkingPreset(id);
-      // Cascade-delete places and people linked to this preset
-      const places = (await getAllPlaces()) ?? [];
-      const linkedPlaces = places.filter(p => p.presetId === id);
-      await Promise.all(linkedPlaces.map(p => deletePlace(p.id)));
-      const people = (await getAllPeople()) ?? [];
-      const linkedPeople = people.filter(p => p.presetId === id);
-      await Promise.all(linkedPeople.map(p => deletePerson(p.id)));
-      const timeExpressions = (await getAllTimeExpressions()) ?? [];
-      const linkedTimes = timeExpressions.filter(t => t.presetId === id);
-      await Promise.all(linkedTimes.map(t => deleteTimeExpression(t.id)));
-      const conclusions = (await getAllConclusions()) ?? [];
-      const linkedConclusions = conclusions.filter(c => c.presetId === id);
-      await Promise.all(linkedConclusions.map(c => deleteConclusion(c.id)));
-      // Cascade-delete keyword exclusions for this preset (non-blocking)
-      try {
-        const { deleteKeywordExclusionsByPreset } = await import('@/lib/database');
-        await deleteKeywordExclusionsByPreset(id);
-      } catch (e) {
-        console.warn('Failed to cascade-delete exclusions for preset:', e);
-      }
       await get().loadPresets();
       const { selectedPreset } = get();
       if (selectedPreset?.id === id) set({ selectedPreset: null });
