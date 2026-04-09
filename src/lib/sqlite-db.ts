@@ -1010,6 +1010,8 @@ export async function sqliteSaveMarkingPreset(preset: MarkingPreset): Promise<st
 
 export async function sqliteDeleteMarkingPreset(id: string): Promise<void> {
   const db = await getSqliteDb();
+  // Cascade-delete annotations that reference this preset
+  await db.execute(`DELETE FROM annotations WHERE preset_id = ?`, [id]);
   await db.execute(`DELETE FROM marking_presets WHERE id = ?`, [id]);
 }
 
