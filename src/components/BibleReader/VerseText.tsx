@@ -724,7 +724,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const overlayTextStyles = symbolColor
             ? `text-decoration: underline; text-decoration-color: ${symbolColor}; text-decoration-thickness: 2px; text-underline-offset: 3px;`
             : '';
-          htmlSegments.push(`${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}"><span style="position: relative; display: inline;"><span class="symbol-overlay" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 2em; opacity: 0.4; pointer-events: none; line-height: 1; ${symbolColor ? `color: ${symbolColor};` : 'color: currentColor;'}">${symbolText}</span><span class="annotation-text" style="${overlayTextStyles}">${escapeHtml(wordContent)}</span></span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`);
+          htmlSegments.push(`${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}"><span style="position: relative; display: inline-block; vertical-align: baseline;"><span class="symbol-overlay" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 2em; opacity: 0.4; pointer-events: none; line-height: 1; ${symbolColor ? `color: ${symbolColor};` : 'color: currentColor;'}">${symbolText}</span><span class="annotation-text" style="${overlayTextStyles}">${escapeHtml(wordContent)}</span></span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`);
         } else {
           // Only text annotations
           const styleAttr = combinedStyles.length ? ` style="${combinedStyles.join('; ')}"` : '';
