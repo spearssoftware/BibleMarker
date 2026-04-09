@@ -24,6 +24,7 @@ interface VerseTextProps {
   moduleId?: string; // Current translation moduleId for module-scoped keywords
   isSelected?: boolean;
   onRemoveAnnotation?: (id: string) => void;
+  onRemoveAnnotations?: (ids: string[]) => void;
   onVerseNumberClick?: (verseNum: number) => void;
   verseMenu?: React.ReactNode;
   onNavigate?: (ref: VerseRef) => void;
@@ -32,7 +33,7 @@ interface VerseTextProps {
   selectionRange?: { startOffset: number; endOffset: number };
 }
 
-export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAnnotation, onVerseNumberClick, verseMenu, onNavigate, onShowVerse, onKeywordTap, selectionRange }: VerseTextProps) {
+export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAnnotation, onRemoveAnnotations, onVerseNumberClick, verseMenu, onNavigate, onShowVerse, onKeywordTap, selectionRange }: VerseTextProps) {
   const [crossRefState, setCrossRefState] = useState<{ refs: string[]; position: { x: number; y: number } } | null>(null);
   const [overlayVerse, setOverlayVerse] = useState<VerseRef | null>(null);
   const verseContentRef = useRef<HTMLSpanElement>(null);
@@ -491,30 +492,18 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         // If no exact match, try to find an overlapping range or a range that refers to the same word
         // We merge symbols on overlapping ranges to prevent duplicates
         if (!range) {
-          // Get the text for this symbol's range to compare
-          const symText = plainText.substring(charOffsets.start, charOffsets.end).trim().toLowerCase();
-          const symTextNormalized = symText.replace(/[^\w]/g, '');
-          
           range = ranges.find(r => {
             // Check if ranges overlap
             const overlaps = !(charOffsets!.end <= r.start || charOffsets!.start >= r.end);
-            
-            // Check if they refer to the same word by comparing normalized text
-            const rangeText = plainText.substring(r.start, r.end).trim().toLowerCase();
-            const rangeTextNormalized = rangeText.replace(/[^\w]/g, '');
-            const sameWord = symText === rangeText || 
-                            (symTextNormalized.length > 0 && rangeTextNormalized.length > 0 && 
-                             symTextNormalized === rangeTextNormalized);
-            
-            // Also check if they're very close (within 10 characters) - likely same word with different punctuation handling
-            const isClose = Math.abs(charOffsets!.start - r.start) <= 10 && 
-                          Math.abs(charOffsets!.end - r.end) <= 10;
-            
-            // Also check if the normalized word content matches (handles punctuation differences)
-            const wordContentMatches = sameWord || (symTextNormalized && rangeTextNormalized && 
-                              symTextNormalized === rangeTextNormalized);
-            
-            return overlaps || wordContentMatches || isClose;
+
+            // Tolerance for offset drift from punctuation stripping between translations
+            const PUNCTUATION_DRIFT_TOLERANCE = 10;
+            const isClose = Math.abs(charOffsets!.start - r.start) <= PUNCTUATION_DRIFT_TOLERANCE &&
+                          Math.abs(charOffsets!.end - r.end) <= PUNCTUATION_DRIFT_TOLERANCE;
+
+            // Only merge if ranges overlap or are close in position
+            // (never merge by text content alone — "fruit" at offset 38 is not the same as "fruit" at offset 88)
+            return overlaps || isClose;
           });
         }
         
@@ -708,7 +697,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const classNames = `symbol-inline annotation-group ${annotationIds.map(id => `annotation-${id}`).join(' ')}`;
           const removeButton = `<button
                 class="annotation-remove"
-                data-annotation-id="${annotationIds[0]}"
+                data-annotation-ids="${annotationIds.join(',')}"
                 title="Remove annotation"
                 aria-label="Remove annotation"
               >×</button>`;
@@ -720,18 +709,27 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const trailingPunct = trailingPunctMatch ? trailingPunctMatch[1] : '';
           const wordContent = trailingPunct ? segmentText.slice(0, -trailingPunct.length) : segmentText;
           
-          // Symbol overlay: render symbol behind the word with colored underline
+          // Symbol overlay: render symbol centered behind the word with colored underline
           const overlayTextStyles = symbolColor
             ? `text-decoration: underline; text-decoration-color: ${symbolColor}; text-decoration-thickness: 2px; text-underline-offset: 3px;`
             : '';
-          htmlSegments.push(`${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}"><span style="display: inline-grid; vertical-align: bottom; min-width: 2.2em; text-align: center; position: relative;"><span class="symbol-overlay" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 2.2em; opacity: 0.4; pointer-events: none; ${symbolColor ? `color: ${symbolColor};` : 'color: currentColor;'}">${symbolText}</span><span class="annotation-text" style="grid-area: 1/1; ${overlayTextStyles}">${escapeHtml(wordContent)}</span></span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`);
+          const symbolColorStyle = symbolColor ? `color: ${symbolColor};` : 'color: currentColor;';
+          const overlayStyle = `position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 2em; opacity: 0.4; pointer-events: none; line-height: 1; ${symbolColorStyle}`;
+          const wrapperStyle = 'position: relative; display: inline-block; vertical-align: baseline;';
+          htmlSegments.push(
+            `${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">` +
+            `<span style="${wrapperStyle}">` +
+            `<span class="symbol-overlay" style="${overlayStyle}">${symbolText}</span>` +
+            `<span class="annotation-text" style="${overlayTextStyles}">${escapeHtml(wordContent)}</span>` +
+            `</span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`
+          );
         } else {
           // Only text annotations
           const styleAttr = combinedStyles.length ? ` style="${combinedStyles.join('; ')}"` : '';
           const classNames = `annotation-group ${annotationIds.map(id => `annotation-${id}`).join(' ')}`;
           const removeButton = `<button
                 class="annotation-remove"
-                data-annotation-id="${annotationIds[0]}"
+                data-annotation-ids="${annotationIds.join(',')}"
                 title="Remove annotation"
                 aria-label="Remove annotation"
               >×</button>`;
@@ -765,20 +763,22 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     const target = e.target as HTMLElement;
     
     // Check for remove button clicks
-    const removeButton = target.closest('.annotation-remove') as HTMLElement;
-    if (removeButton) {
-      const annotationId = removeButton.getAttribute('data-annotation-id');
-      if (annotationId) {
+    const removeBtn = target.closest('.annotation-remove') as HTMLElement;
+    if (removeBtn) {
+      const idsAttr = removeBtn.getAttribute('data-annotation-ids');
+      if (idsAttr) {
         e.preventDefault();
         e.stopPropagation();
 
-        // Virtual annotation: create an exclusion instead of deleting
-        if (annotationId.startsWith('virtual-')) {
-          // Format: virtual-{presetId(36)}-{book}-{chapter}-{verse}-{startOffset}-{type}
-          const match = annotationId.match(/^virtual-([0-9a-f-]{36})-(.+?)-(\d+)-(\d+)-(\d+)-/);
+        const ids = idsAttr.split(',').filter(Boolean);
+
+        // Virtual annotations: create an exclusion (only need one — they share the same preset/verse)
+        const virtualId = ids.find(id => id.startsWith('virtual-'));
+        if (virtualId) {
+          const match = virtualId.match(/^virtual-([0-9a-f-]{36})-(.+?)-(\d+)-(\d+)-(\d+)-/);
           if (match) {
             const [, presetId, book, chapterStr, verseStr] = match;
-            const ann = virtualAnnotations.find(a => a.id === annotationId);
+            const ann = virtualAnnotations.find(a => a.id === virtualId);
             const matchedText = ann && 'selectedText' in ann ? ann.selectedText || '' : '';
             if (matchedText) {
               useKeywordExclusionStore.getState().addExclusion(
@@ -796,9 +796,13 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           return;
         }
 
-        // Real annotation: delete it
-        if (onRemoveAnnotation) {
-          onRemoveAnnotation(annotationId);
+        // Real annotations: delete all in the group at once
+        if (onRemoveAnnotations) {
+          onRemoveAnnotations(ids);
+        } else if (onRemoveAnnotation) {
+          for (const id of ids) {
+            onRemoveAnnotation(id);
+          }
         }
       }
       return;

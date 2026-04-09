@@ -6,8 +6,6 @@ import {
   deleteMarkingPreset,
   searchMarkingPresets,
   incrementMarkingPresetUsage,
-  getAllPlaces,
-  deletePlace,
 } from '@/lib/database';
 import { makeMarkingPreset } from '@/lib/__test__/factories';
 
@@ -100,25 +98,21 @@ describe('markingPresetStore', () => {
     it('deletes from DB and reloads', async () => {
       vi.mocked(deleteMarkingPreset).mockResolvedValue(undefined);
       vi.mocked(getAllMarkingPresets).mockResolvedValue([]);
-      vi.mocked(getAllPlaces).mockResolvedValue([]);
 
       await useMarkingPresetStore.getState().removePreset('p1');
 
       expect(deleteMarkingPreset).toHaveBeenCalledWith('p1');
     });
 
-    it('cascade-deletes linked places', async () => {
-      const place1 = { id: 'pl1', presetId: 'p1', name: 'Nations', verseRef: { book: 'GEN', chapter: 1, verse: 1 }, createdAt: new Date(), updatedAt: new Date() };
-      const place2 = { id: 'pl2', presetId: 'p2', name: 'Egypt', verseRef: { book: 'GEN', chapter: 1, verse: 2 }, createdAt: new Date(), updatedAt: new Date() };
+    it('cascade-deletes linked entities via SQL (deleteMarkingPreset handles it)', async () => {
       vi.mocked(deleteMarkingPreset).mockResolvedValue(undefined);
       vi.mocked(getAllMarkingPresets).mockResolvedValue([]);
-      vi.mocked(getAllPlaces).mockResolvedValue([place1, place2]);
-      vi.mocked(deletePlace).mockResolvedValue(undefined);
 
       await useMarkingPresetStore.getState().removePreset('p1');
 
-      expect(deletePlace).toHaveBeenCalledWith('pl1');
-      expect(deletePlace).not.toHaveBeenCalledWith('pl2');
+      // Cascade deletes (places, people, time_expressions, conclusions, keyword_exclusions, annotations)
+      // are handled by sqliteDeleteMarkingPreset via json_extract SQL — not in JS
+      expect(deleteMarkingPreset).toHaveBeenCalledWith('p1');
     });
 
     it('clears selectedPreset if matching', async () => {
@@ -126,7 +120,6 @@ describe('markingPresetStore', () => {
       useMarkingPresetStore.setState({ selectedPreset: preset });
       vi.mocked(deleteMarkingPreset).mockResolvedValue(undefined);
       vi.mocked(getAllMarkingPresets).mockResolvedValue([]);
-      vi.mocked(getAllPlaces).mockResolvedValue([]);
 
       await useMarkingPresetStore.getState().removePreset('p1');
 
@@ -138,7 +131,6 @@ describe('markingPresetStore', () => {
       useMarkingPresetStore.setState({ selectedPreset: preset });
       vi.mocked(deleteMarkingPreset).mockResolvedValue(undefined);
       vi.mocked(getAllMarkingPresets).mockResolvedValue([preset]);
-      vi.mocked(getAllPlaces).mockResolvedValue([]);
 
       await useMarkingPresetStore.getState().removePreset('p2');
 

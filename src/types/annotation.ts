@@ -119,6 +119,7 @@ export const SYMBOLS = {
   door: '🚪',        // Door / Gate / Access
   olive: '🫒',       // Anointing / Oil / Holy Spirit
   harvest: '🌾',     // Harvest / Grain / Sowing
+  fruit: '🍎',       // Fruit / Bearing fruit / Produce
 
   // Scripture & Teaching
   scroll: '📜',      // Law / Commandment / Scripture

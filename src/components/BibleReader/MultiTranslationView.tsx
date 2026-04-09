@@ -58,6 +58,7 @@ export function MultiTranslationView() {
   
   const {
     removeAnnotation,
+    removeAnnotations,
     createSectionHeading,
     updateSectionHeading,
     removeSectionHeading,
@@ -659,6 +660,7 @@ export function MultiTranslationView() {
                                 ) : undefined
                               }
                               onRemoveAnnotation={removeAnnotation}
+                              onRemoveAnnotations={removeAnnotations}
                               onKeywordTap={handleKeywordTap}
                               selectionRange={
                                 selection?.moduleId === translation.id && selection?.startVerse === verseNum && selection?.startOffset != null && selection?.endOffset != null
