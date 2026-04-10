@@ -61,14 +61,14 @@ export const HIGHLIGHT_COLORS = {
 
 export type HighlightColor = keyof typeof HIGHLIGHT_COLORS;
 
-/** Colors organized by hue for picker UIs */
-export const HIGHLIGHT_COLOR_GROUPS: Array<{ label: string; colors: HighlightColor[] }> = [
-  { label: 'Reds & Pinks', colors: ['red', 'crimson', 'rose', 'coral', 'tomato', 'salmon', 'pink', 'hotPink'] },
-  { label: 'Purples', colors: ['fuchsia', 'magenta', 'orchid', 'purple', 'violet', 'plum', 'lavender', 'indigo'] },
-  { label: 'Blues', colors: ['blue', 'azure', 'sky', 'cyan', 'aqua'] },
-  { label: 'Greens', colors: ['teal', 'emerald', 'jade', 'green', 'mint', 'lime'] },
-  { label: 'Yellows & Oranges', colors: ['yellow', 'gold', 'amber', 'orange', 'peach'] },
-  { label: 'Browns & Neutrals', colors: ['brown', 'bronze', 'tan', 'beige', 'gray', 'slate', 'silver'] },
+/** Colors sorted by hue for picker UIs — flows naturally from reds → purples → blues → greens → yellows → neutrals */
+export const HIGHLIGHT_COLORS_SORTED: HighlightColor[] = [
+  'red', 'crimson', 'rose', 'coral', 'tomato', 'salmon', 'pink', 'hotPink',
+  'fuchsia', 'magenta', 'orchid', 'purple', 'violet', 'plum', 'lavender', 'indigo',
+  'blue', 'azure', 'sky', 'cyan', 'aqua',
+  'teal', 'emerald', 'jade', 'green', 'mint', 'lime',
+  'yellow', 'gold', 'amber', 'orange', 'peach',
+  'brown', 'bronze', 'tan', 'beige', 'gray', 'slate', 'silver',
 ];
 
 /** Get hex for a color; falls back to gray for legacy annotations that used removed colors */

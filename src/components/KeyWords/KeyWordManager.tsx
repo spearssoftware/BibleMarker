@@ -10,7 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, scopeLabel, type KeyWordCategory, type MarkingPreset, type PresetScope, type Variant } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
-import { SYMBOLS, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLOR_GROUPS, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
+import { SYMBOLS, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { Input, Textarea, Label, DropdownSelect, Checkbox, Button } from '@/components/shared';
 import { getBookById, BIBLE_BOOKS } from '@/types';
@@ -1276,36 +1276,27 @@ function ColorAccordion({ color, onSelect }: { color: HighlightColor | undefined
         <span className={`text-scripture-muted transition-transform duration-200 text-[10px] ${open ? '' : '-rotate-90'}`}>▶</span>
       </button>
       {open && (
-        <div className="mt-1.5 space-y-2">
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 mt-1.5">
+          <button
+            type="button"
+            onClick={() => onSelect(undefined)}
+            className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-medium transition-all border border-scripture-border/50
+              ${!color ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-muted hover:bg-scripture-border'}`}
+            title="No color"
+          >
+            —
+          </button>
+          {HIGHLIGHT_COLORS_SORTED.map((key) => (
             <button
+              key={key}
               type="button"
-              onClick={() => onSelect(undefined)}
-              className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-medium transition-all border border-scripture-border/50
-                ${!color ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-muted hover:bg-scripture-border'}`}
-              title="No color"
-            >
-              —
-            </button>
-          </div>
-          {HIGHLIGHT_COLOR_GROUPS.map((group) => (
-            <div key={group.label}>
-              <span className="text-[10px] font-ui text-scripture-muted uppercase tracking-wider">{group.label}</span>
-              <div className="flex flex-wrap gap-2 mt-0.5">
-                {group.colors.map((key) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => onSelect(key)}
-                    className={`w-9 h-9 rounded-lg border-2 transition-all flex-shrink-0
-                      ${color === key ? 'ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface scale-110' : 'border-transparent hover:scale-105'}`}
-                    style={{ backgroundColor: HIGHLIGHT_COLORS[key] }}
-                    title={key}
-                    aria-label={key}
-                  />
-                ))}
-              </div>
-            </div>
+              onClick={() => onSelect(key)}
+              className={`w-9 h-9 rounded-lg border-2 transition-all flex-shrink-0
+                ${color === key ? 'ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface scale-110' : 'border-transparent hover:scale-105'}`}
+              style={{ backgroundColor: HIGHLIGHT_COLORS[key] }}
+              title={key}
+              aria-label={key}
+            />
           ))}
         </div>
       )}
