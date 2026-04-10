@@ -345,7 +345,12 @@ async function migrateSchema(
 
   // Version 8: Add scopes column to marking_presets (multi-scope support)
   if (fromVersion < 8) {
-    await db.execute(`ALTER TABLE marking_presets ADD COLUMN scopes TEXT`);
+    // Use try/catch since ALTER TABLE ADD COLUMN fails if column already exists (no IF NOT EXISTS in SQLite)
+    try {
+      await db.execute(`ALTER TABLE marking_presets ADD COLUMN scopes TEXT`);
+    } catch {
+      // Column may already exist from a partial prior migration
+    }
     await db.execute(`
       UPDATE marking_presets
       SET scopes = CASE
