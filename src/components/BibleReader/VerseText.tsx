@@ -731,10 +731,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
                 title="Remove annotation"
                 aria-label="Remove annotation"
               >×</button>`;
-          htmlSegments.push(`${selOpen}<span${styleAttr} class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">
-            <span class="annotation-text">${escapeHtml(segment.text)}</span>
-            ${removeButton}
-          </span>${selClose}`);
+          htmlSegments.push(`${selOpen}<span${styleAttr} class="${classNames}" data-annotation-ids="${annotationIds.join(',')}"><span class="annotation-text">${escapeHtml(segment.text)}</span>${removeButton}</span>${selClose}`);
         }
       }
     }

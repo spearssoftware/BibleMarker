@@ -34,9 +34,9 @@ export function splitIntoWords(text: string): Array<{ word: string; startIndex: 
  * Returns the trimmed text and the number of characters trimmed from start and end
  */
 function trimPunctuation(text: string): { trimmed: string; startOffset: number; endOffset: number } {
-  // Characters to trim: punctuation except apostrophes
-  const startMatch = text.match(/^[^\w']*/);
-  const endMatch = text.match(/[^\w']*$/);
+  // Characters to trim: punctuation and whitespace, except apostrophes
+  const startMatch = text.match(/^[^\w']*/u);
+  const endMatch = text.match(/[^\w']*$/u);
   
   const startOffset = startMatch ? startMatch[0].length : 0;
   const endOffset = endMatch ? endMatch[0].length : 0;
