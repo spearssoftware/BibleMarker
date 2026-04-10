@@ -241,8 +241,12 @@ export function validateMarkingPreset(preset: unknown): MarkingPreset {
     throw new ValidationError('Marking preset must have a valid usageCount (>= 0)', 'usageCount', p.usageCount);
   }
   // Validate scope constraints
-  if (p.chapterScope !== undefined && !p.bookScope) {
-    throw new ValidationError('Marking preset chapterScope requires bookScope', 'chapterScope', p.chapterScope);
+  if (p.scopes) {
+    for (const scope of p.scopes) {
+      if (!scope.book) {
+        throw new ValidationError('Marking preset scope must have a book', 'scopes', p.scopes);
+      }
+    }
   }
   validateDate(p.createdAt, 'createdAt');
   validateDate(p.updatedAt, 'updatedAt');

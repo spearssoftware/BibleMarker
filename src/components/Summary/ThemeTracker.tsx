@@ -10,7 +10,7 @@ import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { fetchChapter } from '@/lib/bible-api';
-import { getBookById } from '@/types';
+import { getBookById, presetMatchesBook } from '@/types';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { SYMBOLS, getHighlightColorHex } from '@/types';
@@ -53,8 +53,7 @@ export function ThemeTracker({ initialSearchTerm }: ThemeTrackerProps = {}) {
   const relevantPresets = useMemo(() => {
     return filterPresetsByStudy(presets, activeStudyId).filter((preset) => {
       if (!preset.word) return false;
-      if (preset.bookScope && preset.bookScope !== currentBook) return false;
-      return true;
+      return presetMatchesBook(preset, currentBook);
     });
   }, [presets, currentBook, activeStudyId]);
   

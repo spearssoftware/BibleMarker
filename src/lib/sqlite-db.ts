@@ -110,7 +110,7 @@ export async function closeSqliteDb(): Promise<void> {
 // Schema Initialization
 // ============================================================================
 
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 
 /**
  * Safety net: ensure all expected tables exist.
@@ -343,6 +343,28 @@ async function migrateSchema(
     console.log('[SQLite] v7 migration: dropped five_w_and_h and contrasts tables');
   }
 
+  // Version 8: Add scopes column to marking_presets (multi-scope support)
+  if (fromVersion < 8) {
+    // Use try/catch since ALTER TABLE ADD COLUMN fails if column already exists (no IF NOT EXISTS in SQLite)
+    try {
+      await db.execute(`ALTER TABLE marking_presets ADD COLUMN scopes TEXT`);
+    } catch {
+      // Column may already exist from a partial prior migration
+    }
+    await db.execute(`
+      UPDATE marking_presets
+      SET scopes = CASE
+        WHEN book_scope IS NOT NULL AND chapter_scope IS NOT NULL
+          THEN json_array(json_object('book', book_scope, 'chapter', chapter_scope))
+        WHEN book_scope IS NOT NULL
+          THEN json_array(json_object('book', book_scope))
+        ELSE NULL
+      END
+      WHERE book_scope IS NOT NULL
+    `);
+    console.log('[SQLite] v8 migration: added scopes column to marking_presets');
+  }
+
   // Update schema version
   await db.execute(
     `INSERT OR REPLACE INTO schema_version (id, version, updated_at) VALUES (1, ?, ?)`,
@@ -433,6 +455,7 @@ async function createInitialSchema(db: Database): Promise<void> {
       usage_count INTEGER NOT NULL DEFAULT 0,
       book_scope TEXT,
       chapter_scope INTEGER,
+      scopes TEXT,
       module_scope TEXT,
       study_id TEXT,
       created_at TEXT NOT NULL,
@@ -949,6 +972,7 @@ export async function sqliteGetAllMarkingPresets(): Promise<MarkingPreset[]> {
       usage_count: number;
       book_scope: string | null;
       chapter_scope: number | null;
+      scopes: string | null;
       module_scope: string | null;
       study_id: string | null;
       created_at: string;
@@ -966,8 +990,7 @@ export async function sqliteGetAllMarkingPresets(): Promise<MarkingPreset[]> {
     description: row.description ?? undefined,
     autoSuggest: row.auto_suggest === 1,
     usageCount: row.usage_count,
-    bookScope: row.book_scope ?? undefined,
-    chapterScope: row.chapter_scope ?? undefined,
+    scopes: row.scopes ? JSON.parse(row.scopes) : undefined,
     moduleScope: row.module_scope ?? undefined,
     studyId: row.study_id ?? undefined,
     createdAt: new Date(row.created_at),
@@ -980,11 +1003,12 @@ export async function sqliteSaveMarkingPreset(preset: MarkingPreset): Promise<st
   const now = toISOString(new Date());
   const deviceId = getDeviceId();
 
+  const firstScope = preset.scopes?.[0];
   await db.execute(
-    `INSERT OR REPLACE INTO marking_presets 
+    `INSERT OR REPLACE INTO marking_presets
      (id, word, variants, symbol, highlight, category, description, auto_suggest, usage_count,
-      book_scope, chapter_scope, module_scope, study_id, created_at, updated_at, sync_status, device_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      book_scope, chapter_scope, scopes, module_scope, study_id, created_at, updated_at, sync_status, device_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
     [
       preset.id,
       preset.word ?? null,
@@ -995,8 +1019,9 @@ export async function sqliteSaveMarkingPreset(preset: MarkingPreset): Promise<st
       preset.description ?? null,
       preset.autoSuggest ? 1 : 0,
       preset.usageCount,
-      preset.bookScope ?? null,
-      preset.chapterScope ?? null,
+      firstScope?.book ?? null,
+      firstScope?.chapter ?? null,
+      preset.scopes ? JSON.stringify(preset.scopes) : null,
       preset.moduleScope ?? null,
       preset.studyId ?? null,
       toISOString(preset.createdAt),
@@ -1816,23 +1841,29 @@ async function applyStructuredUpsert(
         ]
       );
       break;
-    case 'marking_presets':
+    case 'marking_presets': {
+      const scopes = parsed.scopes ?? (parsed.bookScope
+        ? [{ book: parsed.bookScope, ...(parsed.chapterScope !== undefined ? { chapter: parsed.chapterScope } : {}) }]
+        : undefined);
+      const firstSyncScope = scopes?.[0];
       await db.execute(
         `INSERT OR REPLACE INTO marking_presets
          (id, word, variants, symbol, highlight, category, description, auto_suggest, usage_count,
-          book_scope, chapter_scope, module_scope, study_id, created_at, updated_at, sync_status, device_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?)`,
+          book_scope, chapter_scope, scopes, module_scope, study_id, created_at, updated_at, sync_status, device_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?)`,
         [
           parsed.id, parsed.word ?? null, JSON.stringify(parsed.variants),
           parsed.symbol ?? null, parsed.highlight ? JSON.stringify(parsed.highlight) : null,
           parsed.category ?? null, parsed.description ?? null,
           parsed.autoSuggest ? 1 : 0, parsed.usageCount ?? 0,
-          parsed.bookScope ?? null, parsed.chapterScope ?? null,
+          firstSyncScope?.book ?? null, firstSyncScope?.chapter ?? null,
+          scopes ? JSON.stringify(scopes) : null,
           parsed.moduleScope ?? null, parsed.studyId ?? null,
           toISOString(parsed.createdAt), updatedAt, deviceId,
         ]
       );
       break;
+    }
     case 'studies':
       await db.execute(
         `INSERT OR REPLACE INTO studies
