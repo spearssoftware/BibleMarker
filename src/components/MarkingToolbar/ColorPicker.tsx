@@ -4,7 +4,7 @@
  * Shows favorites, recents, and full color palette.
  */
 
-import { HIGHLIGHT_COLORS, type HighlightColor } from '@/types';
+import { HIGHLIGHT_COLORS, HIGHLIGHT_COLOR_GROUPS, type HighlightColor } from '@/types';
 
 interface ColorPickerProps {
   selectedColor: HighlightColor;
@@ -17,8 +17,6 @@ export function ColorPicker({
   onSelect, 
   recents 
 }: ColorPickerProps) {
-  const allColors = Object.keys(HIGHLIGHT_COLORS) as HighlightColor[];
-
   return (
     <div className="space-y-6">
       {/* Recents */}
@@ -40,22 +38,24 @@ export function ColorPicker({
         </div>
       )}
 
-      {/* All colors - always show all colors */}
-      <div>
-        <h4 className="text-xs font-ui text-scripture-text uppercase tracking-wider mb-3 font-semibold">
-          All Colors
-        </h4>
-        <div className="flex flex-wrap gap-2.5">
-          {allColors.map((color) => (
-            <ColorButton
-              key={color}
-              color={color}
-              isSelected={selectedColor === color}
-              onSelect={onSelect}
-            />
-          ))}
+      {/* All colors - grouped by hue */}
+      {HIGHLIGHT_COLOR_GROUPS.map((group) => (
+        <div key={group.label}>
+          <h4 className="text-xs font-ui text-scripture-text uppercase tracking-wider mb-3 font-semibold">
+            {group.label}
+          </h4>
+          <div className="flex flex-wrap gap-2.5">
+            {group.colors.map((color) => (
+              <ColorButton
+                key={color}
+                color={color}
+                isSelected={selectedColor === color}
+                onSelect={onSelect}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      ))}
     </div>
   );
 }
