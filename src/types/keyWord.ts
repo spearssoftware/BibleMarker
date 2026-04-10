@@ -190,6 +190,8 @@ export interface KeywordExclusion {
   verse: number;
   /** Lowercase matched text for comparison */
   matchedText: string;
+  /** Character offset in verse text — distinguishes multiple instances of the same word */
+  startOffset?: number;
   studyId?: string;
   createdAt: Date;
   updatedAt: Date;
