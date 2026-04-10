@@ -77,8 +77,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
             id: p.id,
             word: p.word,
             moduleScope: p.moduleScope,
-            bookScope: p.bookScope,
-            chapterScope: p.chapterScope,
+            scopes: p.scopes,
             hasSymbol: !!p.symbol,
             hasHighlight: !!p.highlight
           }))
@@ -118,11 +117,10 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           totalMatches: matches.length,
           verseText: verseText.substring(0, 150),
           jeremiahPresets: jeremiahPresets.map(p => ({ 
-            id: p.id, 
-            word: p.word, 
+            id: p.id,
+            word: p.word,
             studyId: p.studyId,
-            bookScope: p.bookScope,
-            chapterScope: p.chapterScope,
+            scopes: p.scopes,
             moduleScope: p.moduleScope,
             hasSymbol: !!p.symbol,
             hasHighlight: !!p.highlight

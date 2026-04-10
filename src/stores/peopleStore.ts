@@ -7,6 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Person } from '@/types';
+import { presetMatchesVerse } from '@/types';
 import { getAllPeople as dbGetAllPeople, savePerson as dbSavePerson, deletePerson as dbDeletePerson, getMarkingPreset } from '@/lib/database';
 import type { VerseRef } from '@/types';
 import { validatePerson, sanitizeData, ValidationError } from '@/lib/validation';
@@ -195,8 +196,7 @@ export const usePeopleStore = create<PeopleState>()(
           const text = verse.text;
           const verseRef = verse.ref;
           for (const preset of peoplePresets) {
-            if (preset.bookScope && preset.bookScope !== book) continue;
-            if (preset.chapterScope !== undefined && preset.chapterScope !== chapter) continue;
+            if (!presetMatchesVerse(preset, book, chapter)) continue;
             if (preset.moduleScope && preset.moduleScope !== moduleId) continue;
             const { findKeywordMatches } = await import('@/lib/keywordMatching');
             const matches = findKeywordMatches(text, verseRef, [preset], moduleId);

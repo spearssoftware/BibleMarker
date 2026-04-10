@@ -82,7 +82,7 @@ describe('findKeywordMatches', () => {
 
   it('returns empty when preset is book-scoped to a different book', () => {
     const presets = [
-      preset({ id: 'p1', word: 'Moses', bookScope: 'Exod' }),
+      preset({ id: 'p1', word: 'Moses', scopes: [{ book: 'Exod' }] }),
     ]
     const result = findKeywordMatches('In the beginning God created', verseRef, presets)
     expect(result).toEqual([])
@@ -90,7 +90,7 @@ describe('findKeywordMatches', () => {
 
   it('returns match when preset is book-scoped to same book', () => {
     const presets = [
-      preset({ id: 'p1', word: 'beginning', bookScope: 'Gen' }),
+      preset({ id: 'p1', word: 'beginning', scopes: [{ book: 'Gen' }] }),
     ]
     const result = findKeywordMatches('In the beginning God created', verseRef, presets)
     expect(result.length).toBeGreaterThanOrEqual(1)
@@ -114,7 +114,7 @@ describe('findKeywordMatches', () => {
   // --- Chapter-scoped presets ---
   it('returns match only for matching chapter', () => {
     const presets = [
-      preset({ id: 'p1', word: 'God', bookScope: 'Gen', chapterScope: 1 }),
+      preset({ id: 'p1', word: 'God', scopes: [{ book: 'Gen', chapter: 1 }] }),
     ]
     const ch1 = findKeywordMatches('God is good', verseRef, presets)
     expect(ch1.length).toBeGreaterThanOrEqual(1)

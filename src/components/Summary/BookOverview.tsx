@@ -18,7 +18,7 @@ import { fetchChapter } from '@/lib/bible-api';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import type { ChapterTitle } from '@/types';
-import { getBookById } from '@/types';
+import { getBookById, presetMatchesBook } from '@/types';
 
 
 function extractPlainText(html: string): string {
@@ -56,8 +56,7 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
   const relevantPresets = useMemo(() => {
     return filterPresetsByStudy(presets, activeStudyId).filter(p => {
       if (!p.word) return false;
-      if (p.bookScope && p.bookScope !== currentBook) return false;
-      return true;
+      return presetMatchesBook(p, currentBook);
     });
   }, [presets, activeStudyId, currentBook]);
 

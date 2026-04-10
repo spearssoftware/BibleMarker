@@ -175,7 +175,7 @@ export function Toolbar() {
       highlight: { style: 'highlight', color },
       category: config.category,
       studyId: activeStudyId || undefined,
-      bookScope: selection.book,
+      scopes: [{ book: selection.book }],
     });
 
     await addPreset(preset);

@@ -170,7 +170,7 @@ export async function searchKeywords(
 
       results.push({
         type: 'keyword',
-        book: preset.bookScope || '',
+        book: preset.scopes?.[0]?.book || '',
         chapter: 0,
         verse: 0,
         text: parts.join(' '),

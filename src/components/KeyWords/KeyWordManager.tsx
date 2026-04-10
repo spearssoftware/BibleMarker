@@ -8,7 +8,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, type KeyWordCategory, type MarkingPreset, type Variant } from '@/types';
+import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, scopeLabel, type KeyWordCategory, type MarkingPreset, type PresetScope, type Variant } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { SYMBOLS, getHighlightColorHex, HIGHLIGHT_COLORS, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
 import { useAnnotationStore } from '@/stores/annotationStore';
@@ -71,11 +71,11 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
     if (filterScope !== 'all') {
       filtered = filtered.filter(preset => {
         if (filterScope === 'global') {
-          return !preset.bookScope && !preset.chapterScope;
+          return !preset.scopes || preset.scopes.length === 0;
         } else if (filterScope === 'book') {
-          return preset.bookScope && !preset.chapterScope;
+          return preset.scopes && preset.scopes.length > 0 && preset.scopes.every(s => s.chapter === undefined);
         } else if (filterScope === 'chapter') {
-          return preset.chapterScope !== undefined;
+          return preset.scopes?.some(s => s.chapter !== undefined) ?? false;
         }
         return true;
       });
@@ -85,9 +85,9 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
     return filtered.sort((a, b) => {
       // Determine scope order: global = 0, book = 1, chapter = 2
       const getScopeOrder = (preset: MarkingPreset) => {
-        if (preset.chapterScope !== undefined) return 2;
-        if (preset.bookScope) return 1;
-        return 0;
+        if (!preset.scopes || preset.scopes.length === 0) return 0; // global first
+        if (preset.scopes.some(s => s.chapter !== undefined)) return 2; // chapter-scoped last
+        return 1; // book-scoped middle
       };
       
       const scopeA = getScopeOrder(a);
@@ -129,13 +129,13 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
     category: KeyWordCategory;
     description: string;
     autoSuggest: boolean;
-    bookScope?: string;
-    chapterScope?: number;
+    scopes?: PresetScope[];
     studyId?: string;
     caseSensitive?: boolean;
   }) {
     try {
       const highlight = formData.color ? { style: 'highlight' as const, color: formData.color } : undefined;
+      const scopes = formData.scopes;
       if (editingId) {
         const existing = presets.find((p) => p.id === editingId);
         if (existing) {
@@ -148,8 +148,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
             category: formData.category,
             description: formData.description,
             autoSuggest: formData.autoSuggest,
-            bookScope: formData.bookScope,
-            chapterScope: formData.chapterScope,
+            scopes,
             studyId: formData.studyId,
             caseSensitive: formData.caseSensitive,
             updatedAt: new Date(),
@@ -168,8 +167,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
           category: formData.category,
           description: formData.description,
           autoSuggest: formData.autoSuggest,
-          bookScope: formData.bookScope,
-          chapterScope: formData.chapterScope,
+          scopes,
           studyId: formData.studyId,
           caseSensitive: formData.caseSensitive,
         });
@@ -422,15 +420,19 @@ function KeywordListByScope({
     };
 
     presets.forEach(preset => {
-      if (preset.chapterScope !== undefined) {
-        const key = `${preset.bookScope}:${preset.chapterScope}`;
+      if (!preset.scopes || preset.scopes.length === 0) {
+        groups.global.push(preset);
+      } else if (preset.scopes.some(s => s.chapter !== undefined)) {
+        // Chapter-scoped: group by first scope with a chapter
+        const firstChapterScope = preset.scopes.find(s => s.chapter !== undefined)!;
+        const key = `${firstChapterScope.book}:${firstChapterScope.chapter}`;
         if (!groups.chapter[key]) groups.chapter[key] = [];
         groups.chapter[key].push(preset);
-      } else if (preset.bookScope) {
-        if (!groups.book[preset.bookScope]) groups.book[preset.bookScope] = [];
-        groups.book[preset.bookScope].push(preset);
       } else {
-        groups.global.push(preset);
+        // Book-scoped: group by first scope's book
+        const firstBook = preset.scopes[0].book;
+        if (!groups.book[firstBook]) groups.book[firstBook] = [];
+        groups.book[firstBook].push(preset);
       }
     });
 
@@ -574,16 +576,11 @@ function KeyWordCard({
             <span className="text-xs px-2 py-0.5 bg-scripture-surface rounded">
               {categoryInfo.label}
             </span>
-            {preset.bookScope && (() => {
-              const bookInfo = getBookById(preset.bookScope);
-              const bookName = bookInfo?.name || preset.bookScope;
-              return (
-                <span className="text-xs px-2 py-0.5 bg-scripture-infoBg text-scripture-infoText rounded">
-                  📖 {bookName}{preset.chapterScope ? ` ${preset.chapterScope}` : ''}
-                </span>
-              );
-            })()}
-            {!preset.bookScope && (
+            {preset.scopes && preset.scopes.length > 0 ? (
+              <span className="text-xs px-2 py-0.5 bg-scripture-infoBg text-scripture-infoText rounded" title={scopeLabel(preset.scopes)}>
+                📖 {scopeLabel(preset.scopes)}
+              </span>
+            ) : (
               <span className="text-xs px-2 py-0.5 bg-scripture-elevated text-scripture-muted rounded">
                 🌐 Global
               </span>
@@ -660,8 +657,7 @@ function KeyWordEditor({
     category: KeyWordCategory;
     description: string;
     autoSuggest: boolean;
-    bookScope?: string;
-    chapterScope?: number;
+    scopes?: PresetScope[];
     studyId?: string;
     caseSensitive?: boolean;
   }) => void;
@@ -705,17 +701,12 @@ function KeyWordEditor({
     preset?.studyId || (preset ? undefined : activeStudyId || undefined)
   );
   
-  // If creating new keyword and active study has a book scope, default to that book
-  const defaultBookScope = preset?.bookScope || 
-    (!preset && activeStudy?.book ? activeStudy.book : currentBook || '');
-  const defaultScopeType: 'global' | 'book' | 'chapter' = 
-    preset?.chapterScope !== undefined ? 'chapter' :
-    preset?.bookScope ? 'book' :
-    (!preset && activeStudy?.book ? 'book' : 'global');
-  
-  const [scopeType, setScopeType] = useState<'global' | 'book' | 'chapter'>(defaultScopeType);
-  const [bookScope, setBookScope] = useState(defaultBookScope);
-  const [chapterScope, setChapterScope] = useState(preset?.chapterScope || currentChapter || 1);
+  const [scopes, setScopes] = useState<PresetScope[]>(() => {
+    if (preset?.scopes && preset.scopes.length > 0) return [...preset.scopes];
+    // New keyword: default to current book scope
+    if (!preset && currentBook) return [{ book: currentBook }];
+    return [];
+  });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -739,8 +730,7 @@ function KeyWordEditor({
       category,
       description: description.trim(),
       autoSuggest,
-      bookScope: scopeType === 'book' || scopeType === 'chapter' ? bookScope : undefined,
-      chapterScope: scopeType === 'chapter' ? chapterScope : undefined,
+      scopes: scopes.length > 0 ? scopes : undefined,
       studyId: studyId || undefined,
       caseSensitive: caseSensitive || undefined,
     });
@@ -883,112 +873,87 @@ function KeyWordEditor({
           <label className="block text-sm font-ui text-scripture-text mb-2">
             Scope
           </label>
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <input
-                type="radio"
-                id="scope-global"
-                name="scope"
-                value="global"
-                checked={scopeType === 'global'}
-                onChange={(e) => setScopeType(e.target.value as 'global')}
-                className="w-4 h-4"
-              />
-              <label htmlFor="scope-global" className="text-sm text-scripture-text">
-                Global (applies to all books and chapters)
-              </label>
+          {scopes.length === 0 ? (
+            <p className="text-sm text-scripture-muted mb-2">Global — matches in all books</p>
+          ) : (
+            <div className="space-y-2 mb-2">
+              {scopes.map((scope, index) => {
+                const bookInfo = scope.book ? getBookById(scope.book) : null;
+                const maxChapter = bookInfo?.chapters;
+                return (
+                  <div key={index} className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <DropdownSelect
+                        label={index === 0 ? 'Book' : undefined}
+                        value={scope.book}
+                        onChange={(val) => {
+                          const updated = [...scopes];
+                          updated[index] = { book: val };
+                          setScopes(updated);
+                        }}
+                        options={[
+                          { value: '', label: 'Select a book...' },
+                          ...BIBLE_BOOKS.map(book => ({
+                            value: book.id,
+                            label: book.name,
+                          }))
+                        ]}
+                        placeholder="Select a book..."
+                      />
+                    </div>
+                    <div className="w-20">
+                      <Input
+                        type="number"
+                        label={index === 0 ? 'Ch.' : undefined}
+                        value={scope.chapter ?? ''}
+                        onChange={(e) => {
+                          const updated = [...scopes];
+                          const val = e.target.value ? parseInt(e.target.value) : undefined;
+                          if (val !== undefined && maxChapter) {
+                            updated[index] = { ...scope, chapter: Math.min(Math.max(1, val), maxChapter) };
+                          } else if (val !== undefined) {
+                            updated[index] = { ...scope, chapter: Math.max(1, val) };
+                          } else {
+                            updated[index] = { book: scope.book };
+                          }
+                          setScopes(updated);
+                        }}
+                        min={1}
+                        max={maxChapter}
+                        placeholder="All"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setScopes(scopes.filter((_, i) => i !== index))}
+                      className="p-1.5 text-scripture-muted hover:text-scripture-error shrink-0 mb-0.5"
+                      aria-label="Remove scope"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="radio"
-                id="scope-book"
-                name="scope"
-                value="book"
-                checked={scopeType === 'book'}
-                onChange={(e) => setScopeType(e.target.value as 'book')}
-                className="w-4 h-4"
-              />
-              <label htmlFor="scope-book" className="text-sm text-scripture-text">
-                Book (applies to all chapters in a specific book)
-              </label>
-            </div>
-            {scopeType === 'book' && (
-              <div className="ml-6">
-                <DropdownSelect
-                  label="Book"
-                  value={bookScope}
-                  onChange={(val) => setBookScope(val)}
-                  options={[
-                    { value: '', label: 'Select a book...' },
-                    ...BIBLE_BOOKS.map(book => ({
-                      value: book.id,
-                      label: book.name
-                    }))
-                  ]}
-                  placeholder="Select a book..."
-                />
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <input
-                type="radio"
-                id="scope-chapter"
-                name="scope"
-                value="chapter"
-                checked={scopeType === 'chapter'}
-                onChange={(e) => setScopeType(e.target.value as 'chapter')}
-                className="w-4 h-4"
-              />
-              <label htmlFor="scope-chapter" className="text-sm text-scripture-text">
-                Chapter (applies to a specific chapter in a book)
-              </label>
-            </div>
-            {scopeType === 'chapter' && (
-              <div className="ml-6 grid grid-cols-2 gap-3">
-                <DropdownSelect
-                  label="Book"
-                  value={bookScope}
-                  onChange={(val) => {
-                    setBookScope(val);
-                    // Reset chapter when book changes
-                    if (val) {
-                      const bookInfo = getBookById(val);
-                      if (bookInfo && chapterScope > bookInfo.chapters) {
-                        setChapterScope(1);
-                      }
-                    }
-                  }}
-                  options={[
-                    { value: '', label: 'Select a book...' },
-                    ...BIBLE_BOOKS.map(book => ({
-                      value: book.id,
-                      label: book.name
-                    }))
-                  ]}
-                  placeholder="Select a book..."
-                />
-                <Input
-                  type="number"
-                  label="Chapter"
-                  value={chapterScope}
-                  onChange={(e) => {
-                    const newChapter = parseInt(e.target.value) || 1;
-                    if (bookScope) {
-                      const bookInfo = getBookById(bookScope);
-                      if (bookInfo) {
-                        const maxChapter = bookInfo.chapters;
-                        setChapterScope(Math.min(Math.max(1, newChapter), maxChapter));
-                      } else {
-                        setChapterScope(newChapter);
-                      }
-                    } else {
-                      setChapterScope(newChapter);
-                    }
-                  }}
-                  min="1"
-                  max={bookScope ? getBookById(bookScope)?.chapters : undefined}
-                />
-              </div>
+          )}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setScopes([...scopes, { book: currentBook || '' }])}
+            >
+              + Add Scope
+            </Button>
+            {scopes.length > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setScopes([])}
+              >
+                Make Global
+              </Button>
             )}
           </div>
         </div>
