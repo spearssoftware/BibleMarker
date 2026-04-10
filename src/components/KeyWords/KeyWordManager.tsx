@@ -848,13 +848,6 @@ function KeyWordEditor({
           />
         </div>
 
-        <Textarea
-          label="Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={2}
-        />
-
         <Checkbox
           id="autoSuggest"
           label="Auto-suggest when selecting matching text"
@@ -957,6 +950,13 @@ function KeyWordEditor({
             )}
           </div>
         </div>
+
+        <Textarea
+          label="Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+        />
 
         {/* Dismissed matches (only show when editing existing preset) */}
         {preset && <DismissedMatches presetId={preset.id} />}
