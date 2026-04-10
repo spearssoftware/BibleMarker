@@ -688,8 +688,7 @@ function KeyWordEditor({
   }, [initialSymbol, preset]);
 
   // Don't sync initialColor for new presets — we use a random color instead
-  const { studies, activeStudyId, getActiveStudy } = useStudyStore();
-  const activeStudy = getActiveStudy();
+  const { studies, activeStudyId } = useStudyStore();
   
   const [category, setCategory] = useState<KeyWordCategory>(preset?.category || 'custom');
   const [description, setDescription] = useState(preset?.description || '');
