@@ -135,6 +135,9 @@ const loadedModules = new Map<string, SwordModuleFiles>();
 /** Per-module decompression buffer caches */
 const bufferCaches = new Map<string, Map<string, Uint8Array>>();
 
+/** Modules verified installed this session — skips repeat install checks. */
+const verifiedInstalled = new Set<string>();
+
 /** Strip OSIS XML to plain verse text (removes notes, titles, divs, keeps word content) */
 export function stripOsis(text: string): string {
   let result = text
@@ -210,6 +213,8 @@ async function getModulePath(moduleId: string): Promise<string> {
  * Throws a BibleApiError on failure so the caller can surface the reason.
  */
 async function installBundledIfNeeded(moduleId: string): Promise<void> {
+  if (verifiedInstalled.has(moduleId)) return;
+
   const info = MODULE_REGISTRY.find((m) => m.id === moduleId);
   if (!info?.bundledResource) return;
 
@@ -220,6 +225,7 @@ async function installBundledIfNeeded(moduleId: string): Promise<void> {
       resourceName: info.bundledResource,
       destPath,
     });
+    verifiedInstalled.add(moduleId);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[SWORD] Failed to install bundled module ${moduleId}:`, msg);
@@ -299,6 +305,7 @@ export async function downloadModule(
   // Clear in-memory cache so next read loads fresh
   loadedModules.delete(moduleId);
   bufferCaches.delete(moduleId);
+  verifiedInstalled.delete(moduleId);
 }
 
 /** Delete a module zip from disk */
@@ -312,6 +319,7 @@ export async function deleteModule(moduleId: string): Promise<void> {
   }
   loadedModules.delete(moduleId);
   bufferCaches.delete(moduleId);
+  verifiedInstalled.delete(moduleId);
 }
 
 /** Load module files into memory (cached) */

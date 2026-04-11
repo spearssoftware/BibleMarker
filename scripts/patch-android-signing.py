@@ -67,10 +67,6 @@ else:
 with open(gradle_file, "w") as f:
     f.write(content)
 
-# ---------------------------------------------------------------------------
-# MainActivity.kt — suppress native selection ActionMode
-# ---------------------------------------------------------------------------
-
 with open(main_activity_file) as f:
     activity = f.read()
 

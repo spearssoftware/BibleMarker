@@ -34,6 +34,8 @@ import { usePanelStore } from '@/stores/panelStore';
 import { useTextSelection, type TranslationChapter } from '@/hooks/useTextSelection';
 import type { Annotation, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
 
+const KJV_FALLBACK_ERROR_PREFIX = 'Showing KJV';
+
 export function MultiTranslationView() {
   const { activeView, loadActiveView, addTranslation } = useMultiTranslationStore();
   const setActiveChapterVerses = useActiveChapterStore(state => state.setActiveChapterVerses);
@@ -394,7 +396,7 @@ export function MultiTranslationView() {
               translation,
               chapter: fallbackChapter,
               isLoading: false,
-              error: `Showing KJV — ${translation.name || translationId} failed to load`,
+              error: `${KJV_FALLBACK_ERROR_PREFIX} — ${translation.name || translationId} failed to load`,
             });
             setTranslationChapters(new Map(newChapters));
           } catch {
@@ -534,7 +536,7 @@ export function MultiTranslationView() {
         className={`grid gap-4 px-4 py-2 bg-scripture-elevated flex-shrink-0 ${gridColsClass}`}
       >
         {translationList.map(({ translation, isLoading, error }) => {
-          const isFallback = error?.startsWith('Showing KJV');
+          const isFallback = error?.startsWith(KJV_FALLBACK_ERROR_PREFIX);
           return (
             <div key={translation.id} className="flex flex-col">
               <div className="font-medium text-scripture-text flex items-center gap-2">
