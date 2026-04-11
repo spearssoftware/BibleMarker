@@ -13,6 +13,8 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { isApplePlatform, isIOS } from './platform';
+import { getPreferences } from './database';
+import { parseVersion } from './updateCheck';
 import {
   initSyncEngine,
   stopSyncEngine,
@@ -104,8 +106,48 @@ export function onSyncStatusChange(listener: SyncStatusListener): () => void {
  * Initialize the sync system.
  * On Apple platforms, auto-detects iCloud Drive as the default sync folder.
  */
+/**
+ * Determine whether sync should run. Dev and beta builds are gated off by
+ * default so experimental code can't corrupt stable users' iCloud journals.
+ * Users can override with the `forceSyncEnabled` debug flag in Settings.
+ */
+async function isSyncAllowed(): Promise<{ allowed: boolean; reason?: string }> {
+  const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
+  const isDev = import.meta.env.DEV;
+  const isBeta = parseVersion(version).prerelease !== null;
+
+  if (!isDev && !isBeta) return { allowed: true };
+
+  try {
+    const prefs = await getPreferences();
+    if (prefs.debug?.forceSyncEnabled) {
+      return { allowed: true, reason: 'force-enabled via debug flag' };
+    }
+  } catch (err) {
+    console.warn('[Sync] Failed to read forceSyncEnabled flag:', err);
+  }
+
+  const label = isDev ? 'dev build' : 'beta build';
+  return { allowed: false, reason: label };
+}
+
 export async function initializeSync(): Promise<void> {
+  const gate = await isSyncAllowed();
+  if (!gate.allowed) {
+    console.log(`[Sync] Disabled for ${gate.reason} — set debug.forceSyncEnabled to override`);
+    notifySyncStatusChange({
+      state: 'disabled',
+      last_sync: null,
+      pending_changes: 0,
+      error: null,
+      sync_folder: null,
+      connected_devices: [],
+    });
+    return;
+  }
+
   console.log('[Sync] Initializing sync system...');
+  if (gate.reason) console.log(`[Sync] ${gate.reason}`);
 
   // Bridge engine status changes to our listeners
   onSyncEngineStatusChange(es => {

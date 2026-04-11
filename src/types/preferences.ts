@@ -61,6 +61,8 @@ export interface UserPreferences {
   debug?: {
     keywordMatching?: boolean;
     verseText?: boolean;
+    /** Force-enable sync on dev/beta builds (normally gated off for safety) */
+    forceSyncEnabled?: boolean;
   };
 }
 
