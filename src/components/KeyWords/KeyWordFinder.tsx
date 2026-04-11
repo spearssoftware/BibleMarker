@@ -9,6 +9,15 @@ import { useBibleStore } from '@/stores/bibleStore';
 import type { MarkingPreset } from '@/types';
 import { getAllCachedChapters } from '@/lib/database';
 import { getBookById } from '@/types';
+import { SegmentedControl } from '@/components/shared';
+
+type SearchScope = 'chapter' | 'book' | 'all';
+
+const SCOPE_OPTIONS = [
+  { value: 'chapter', label: 'This Chapter' },
+  { value: 'book', label: 'This Book' },
+  { value: 'all', label: 'All Books' },
+] as const;
 
 interface KeyWordFinderProps {
   preset: MarkingPreset;
@@ -25,7 +34,7 @@ export function KeyWordFinder({ preset, onClose }: KeyWordFinderProps) {
     context: string;
   }>>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [searchScope, setSearchScope] = useState<'chapter' | 'book' | 'all'>('chapter');
+  const [searchScope, setSearchScope] = useState<SearchScope>('chapter');
 
   useEffect(() => {
     searchOccurrences();
@@ -159,18 +168,13 @@ export function KeyWordFinder({ preset, onClose }: KeyWordFinderProps) {
       <div className="p-4 border-b border-scripture-border/50">
         <div className="flex items-center gap-2">
           <span className="text-sm text-scripture-text">Search in:</span>
-          {(['chapter', 'book', 'all'] as const).map((scope) => (
-            <button
-              key={scope}
-              onClick={() => setSearchScope(scope)}
-              className={`px-3 py-1 text-xs font-ui rounded-lg transition-colors
-                        ${searchScope === scope
-                          ? 'bg-scripture-accent text-scripture-bg'
-                          : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
-            >
-              {scope === 'chapter' ? 'This Chapter' : scope === 'book' ? 'This Book' : 'All Books'}
-            </button>
-          ))}
+          <SegmentedControl<SearchScope>
+            size="sm"
+            ariaLabel="Search scope"
+            value={searchScope}
+            onChange={setSearchScope}
+            options={SCOPE_OPTIONS}
+          />
         </div>
       </div>
 
