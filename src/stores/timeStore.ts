@@ -9,7 +9,7 @@ import { persist } from 'zustand/middleware';
 import type { TimeExpression } from '@/types';
 import { getAllTimeExpressions as dbGetAllTimeExpressions, saveTimeExpression as dbSaveTimeExpression, deleteTimeExpression as dbDeleteTimeExpression } from '@/lib/database';
 import type { VerseRef } from '@/types';
-import { getBookById } from '@/types';
+import { getBookById, presetMatchesVerse } from '@/types';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 import { getSymbolsForTracker } from '@/lib/observationSymbols';
 
@@ -245,8 +245,7 @@ export const useTimeStore = create<TimeState>()(
           // Find which time keywords appear in this verse
           for (const preset of timePresets) {
             // Check if preset applies to this verse (scope check)
-            if (preset.bookScope && preset.bookScope !== book) continue;
-            if (preset.chapterScope !== undefined && preset.chapterScope !== chapter) continue;
+            if (!presetMatchesVerse(preset, book, chapter)) continue;
             if (preset.moduleScope && preset.moduleScope !== moduleId) continue;
             
             // Check if keyword appears in this verse

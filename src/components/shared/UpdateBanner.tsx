@@ -17,12 +17,13 @@ import { Z_INDEX } from '@/lib/modalConstants';
 interface UpdateBannerProps {
   version: string;
   url: string;
+  isPrerelease?: boolean;
   onDismiss: () => void;
 }
 
 type UpdatePhase = 'prompt' | 'downloading' | 'installing' | 'error';
 
-export function UpdateBanner({ version, url, onDismiss }: UpdateBannerProps) {
+export function UpdateBanner({ version, url, isPrerelease, onDismiss }: UpdateBannerProps) {
   const capacitor = isCapacitor();
   const tauri = isTauri();
 
@@ -37,6 +38,12 @@ export function UpdateBanner({ version, url, onDismiss }: UpdateBannerProps) {
   };
 
   const handleUpdate = async () => {
+    // Beta prereleases: open the release page for manual download
+    if (isPrerelease) {
+      openUrl(url);
+      handleDismiss();
+      return;
+    }
     setPhase('downloading');
     const result = await installUpdate((percent) => {
       setProgress(percent);
@@ -71,14 +78,16 @@ export function UpdateBanner({ version, url, onDismiss }: UpdateBannerProps) {
         {phase === 'prompt' && (
           <>
             <p className="text-scripture-text">
-              Version {version} is ready to install. The app will restart after updating.
+              {isPrerelease
+                ? `Beta version ${version} is available. Download from the releases page.`
+                : `Version ${version} is ready to install. The app will restart after updating.`}
             </p>
             <div className="mt-4 flex gap-2 justify-end">
               <Button variant="secondary" onClick={handleDismiss}>
                 Later
               </Button>
               <Button variant="primary" onClick={handleUpdate}>
-                Update now
+                {isPrerelease ? 'Download' : 'Update now'}
               </Button>
             </div>
           </>

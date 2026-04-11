@@ -52,6 +52,8 @@ export interface UserPreferences {
   autoBackup?: AutoBackupConfig;
   /** When false, app will not check GitHub for new releases (default true) */
   checkForUpdates?: boolean;
+  /** Update channel: 'stable' (default) or 'beta' for early access */
+  updateChannel?: 'stable' | 'beta';
   /** ISO date string of last update check (used to throttle to once per 24h) */
   lastUpdateCheck?: string;
   /** Last app version the user has seen the What's New popup for */

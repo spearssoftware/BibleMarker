@@ -7,6 +7,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Place } from '@/types';
+import { presetMatchesVerse } from '@/types';
 import { getAllPlaces as dbGetAllPlaces, savePlace as dbSavePlace, deletePlace as dbDeletePlace, getMarkingPreset } from '@/lib/database';
 import type { VerseRef } from '@/types';
 import { validatePlace, sanitizeData, ValidationError } from '@/lib/validation';
@@ -306,8 +307,7 @@ export const usePlaceStore = create<PlaceState>()(
           // Find which place keywords appear in this verse
           for (const preset of placePresets) {
             // Check if preset applies to this verse (scope check)
-            if (preset.bookScope && preset.bookScope !== book) continue;
-            if (preset.chapterScope !== undefined && preset.chapterScope !== chapter) continue;
+            if (!presetMatchesVerse(preset, book, chapter)) continue;
             if (preset.moduleScope && preset.moduleScope !== moduleId) continue;
 
             // Check if keyword appears in this verse

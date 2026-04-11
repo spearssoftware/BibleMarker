@@ -12,6 +12,7 @@ const root = join(__dirname, '..');
 
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8'));
 const version = pkg.version;
+const iosVersion = version.replace(/-.*$/, '');
 
 // Sync to Cargo.toml
 const cargoPath = join(root, 'src-tauri', 'Cargo.toml');
@@ -26,14 +27,14 @@ if (existsSync(iosInfoPath)) {
   let plist = readFileSync(iosInfoPath, 'utf-8');
   plist = plist.replace(
     /(<key>CFBundleShortVersionString<\/key>\s*<string>)[^<]*(<\/string>)/,
-    `$1${version}$2`
+    `$1${iosVersion}$2`
   );
   plist = plist.replace(
     /(<key>CFBundleVersion<\/key>\s*<string>)[^<]*(<\/string>)/,
-    `$1${version}$2`
+    `$1${iosVersion}$2`
   );
   writeFileSync(iosInfoPath, plist);
-  console.log(`Synced version ${version} to iOS Info.plist`);
+  console.log(`Synced version ${iosVersion} to iOS Info.plist`);
 }
 
 // Sync to Xcode project.yml
@@ -42,12 +43,12 @@ if (existsSync(projectYmlPath)) {
   let yml = readFileSync(projectYmlPath, 'utf-8');
   yml = yml.replace(
     /CFBundleShortVersionString:\s*.+/,
-    `CFBundleShortVersionString: ${version}`
+    `CFBundleShortVersionString: ${iosVersion}`
   );
   yml = yml.replace(
     /CFBundleVersion:\s*".+"/,
-    `CFBundleVersion: "${version}"`
+    `CFBundleVersion: "${iosVersion}"`
   );
   writeFileSync(projectYmlPath, yml);
-  console.log(`Synced version ${version} to project.yml`);
+  console.log(`Synced version ${iosVersion} to project.yml`);
 }

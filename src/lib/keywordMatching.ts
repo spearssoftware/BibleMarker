@@ -34,9 +34,9 @@ export function splitIntoWords(text: string): Array<{ word: string; startIndex: 
  * Returns the trimmed text and the number of characters trimmed from start and end
  */
 function trimPunctuation(text: string): { trimmed: string; startOffset: number; endOffset: number } {
-  // Characters to trim: punctuation except apostrophes
-  const startMatch = text.match(/^[^\w']*/);
-  const endMatch = text.match(/[^\w']*$/);
+  // Characters to trim: punctuation and whitespace, except apostrophes
+  const startMatch = text.match(/^[^\w']*/u);
+  const endMatch = text.match(/[^\w']*$/u);
   
   const startOffset = startMatch ? startMatch[0].length : 0;
   const endOffset = endMatch ? endMatch[0].length : 0;
@@ -168,24 +168,16 @@ function findPhraseMatches(text: string, phrase: string, caseSensitive = false):
 
 /**
  * Check if a preset applies to the given verse based on scope
- * - Global (no bookScope): applies everywhere
- * - Book-scoped (bookScope set, no chapterScope): applies to that book
- * - Chapter-scoped (bookScope and chapterScope set): applies to that specific chapter
+ * - Global (no scopes): applies everywhere
+ * - Multiple scopes: applies if any scope matches (book and optional chapter)
  */
 function presetAppliesToVerse(preset: MarkingPreset, verseRef: VerseRef): boolean {
-  // Global preset (no bookScope) - applies everywhere
-  if (!preset.bookScope) return true;
-  
-  // Book-scoped - check if book matches
-  if (preset.bookScope !== verseRef.book) return false;
-  
-  // If chapter-scoped, check chapter matches
-  if (preset.chapterScope !== undefined) {
-    return preset.chapterScope === verseRef.chapter;
-  }
-  
-  // Book-scoped but not chapter-scoped - applies to all chapters in that book
-  return true;
+  if (!preset.scopes || preset.scopes.length === 0) return true;
+  return preset.scopes.some(scope => {
+    if (scope.book !== verseRef.book) return false;
+    if (scope.chapter !== undefined) return scope.chapter === verseRef.chapter;
+    return true;
+  });
 }
 
 /**
@@ -203,12 +195,13 @@ export function findKeywordMatches(
   
   if (!verseText || presets.length === 0) return annotations;
 
-  // Build exclusion lookup set: "presetId|book|chapter|verse|lowercaseText"
+  // Build exclusion lookup set: "presetId|verse|text|offset" for per-instance exclusions
   const exclusionKeys = new Set<string>();
   if (exclusions) {
     for (const ex of exclusions) {
       if (ex.book === verseRef.book && ex.chapter === verseRef.chapter) {
-        exclusionKeys.add(`${ex.presetId}|${ex.verse}|${ex.matchedText}`);
+        const offsetKey = ex.startOffset !== undefined ? `|${ex.startOffset}` : '';
+        exclusionKeys.add(`${ex.presetId}|${ex.verse}|${ex.matchedText}${offsetKey}`);
       }
     }
   }
@@ -238,8 +231,7 @@ export function findKeywordMatches(
       if (isESVDebug && (p.word?.toLowerCase().includes('jeremiah') || p.word?.toLowerCase().includes('lord') || p.word === 'LORD')) {
         console.log(`[KeywordMatching] Filtered out preset "${p.word}" - doesn't apply to verse:`, {
           word: p.word,
-          bookScope: p.bookScope,
-          chapterScope: p.chapterScope,
+          scopes: p.scopes,
           verseRef
         });
       }
@@ -314,8 +306,7 @@ export function findKeywordMatches(
         id: p.id,
         word: p.word,
         moduleScope: p.moduleScope,
-        bookScope: p.bookScope,
-        chapterScope: p.chapterScope
+        scopes: p.scopes
       }))
     });
   }
@@ -406,8 +397,9 @@ export function findKeywordMatches(
       if (!hasOverlap) {
         // Check if this match is excluded
         if (exclusionKeys.size > 0) {
-          const exKey = `${preset.id}|${verseRef.verse}|${match.matchedText.toLowerCase()}`;
-          if (exclusionKeys.has(exKey)) continue;
+          const exKey = `${preset.id}|${verseRef.verse}|${match.matchedText.toLowerCase()}|${match.startIndex}`;
+          const exKeyLegacy = `${preset.id}|${verseRef.verse}|${match.matchedText.toLowerCase()}`;
+          if (exclusionKeys.has(exKey) || exclusionKeys.has(exKeyLegacy)) continue;
         }
 
         // Mark this range as matched BEFORE creating annotations

@@ -28,7 +28,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { AboutSection } from './AboutSection';
 import { GettingStartedSection } from './GettingStartedSection';
-import { Button, ConfirmationDialog, Input, DropdownSelect, Checkbox } from '@/components/shared';
+import { Button, ConfirmationDialog, Input, DropdownSelect, Checkbox, SegmentedControl } from '@/components/shared';
 import { resetAllStores } from '@/lib/storeReset';
 import { useStudyStore } from '@/stores/studyStore';
 import { onSyncStatusChange, getSyncStatusMessage, triggerSync, type SyncStatus } from '@/lib/sync';
@@ -62,6 +62,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [debugKeywordMatching, setDebugKeywordMatching] = useState(false);
   const [debugVerseText, setDebugVerseText] = useState(false);
   const [checkForUpdates, setCheckForUpdates] = useState(true);
+  const [updateChannel, setUpdateChannel] = useState<'stable' | 'beta'>('stable');
   const [isClearing, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showClearBookConfirm, setShowClearBookConfirm] = useState(false);
@@ -152,6 +153,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         }
         if (prefs.checkForUpdates !== undefined) {
           setCheckForUpdates(prefs.checkForUpdates);
+        }
+        if (prefs.updateChannel) {
+          setUpdateChannel(prefs.updateChannel);
         }
         // Initialize debug flags cache so getDebugFlagsSync() works
         await getDebugFlags();
@@ -344,14 +348,16 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     { id: 'help', label: 'Help', icon: '❓' },
   ];
 
-  const fontSizes: Array<{ size: 'sm' | 'base' | 'lg' | 'xl'; label: string }> = [
-    { size: 'sm', label: 'Small' },
-    { size: 'base', label: 'Medium' },
-    { size: 'lg', label: 'Large' },
-    { size: 'xl', label: 'Extra Large' },
+  type FontSizeValue = 'sm' | 'base' | 'lg' | 'xl';
+  const fontSizeOptions: ReadonlyArray<{ value: FontSizeValue; label: string }> = [
+    { value: 'sm', label: 'Small' },
+    { value: 'base', label: 'Medium' },
+    { value: 'lg', label: 'Large' },
+    { value: 'xl', label: 'Extra Large' },
   ];
 
-  const themes: Array<{ value: 'dark' | 'light' | 'auto'; label: string }> = [
+  type ThemeValue = 'dark' | 'light' | 'auto';
+  const themeOptions: ReadonlyArray<{ value: ThemeValue; label: string }> = [
     { value: 'dark', label: 'Dark' },
     { value: 'light', label: 'Light' },
     { value: 'auto', label: 'Auto' },
@@ -409,6 +415,15 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       await updatePreferences({ checkForUpdates: enabled });
     } catch (error) {
       console.error('Error updating check for updates preference:', error);
+    }
+  };
+
+  const handleUpdateChannelChange = async (channel: 'stable' | 'beta') => {
+    setUpdateChannel(channel);
+    try {
+      await updatePreferences({ updateChannel: channel });
+    } catch (error) {
+      console.error('Error updating update channel preference:', error);
     }
   };
 
@@ -660,21 +675,13 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             <div className="space-y-0">
               <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Font Size</h3>
-                <div className="grid grid-cols-4 gap-2">
-                  {fontSizes.map((fs) => (
-                    <button
-                      key={fs.size}
-                      onClick={() => handleFontSizeChange(fs.size)}
-                      className={`px-3 py-2 rounded-lg font-ui text-sm transition-all duration-200 text-center
-                                ${fontSize === fs.size
-                                  ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                                  : 'bg-scripture-elevated hover:bg-scripture-border/50 border border-scripture-border/50'
-                                }`}
-                    >
-                      {fs.label}
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl<FontSizeValue>
+                  columns={4}
+                  ariaLabel="Font size"
+                  value={fontSize}
+                  onChange={handleFontSizeChange}
+                  options={fontSizeOptions}
+                />
                 <p className="text-xs text-scripture-muted mt-2">
                   Adjust the text size for Bible reading
                 </p>
@@ -709,21 +716,13 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
               <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Theme</h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {themes.map((t) => (
-                    <button
-                      key={t.value}
-                      onClick={() => handleThemeChange(t.value)}
-                      className={`px-3 py-2 rounded-lg font-ui text-sm transition-all duration-200 text-center
-                                ${theme === t.value
-                                  ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                                  : 'bg-scripture-elevated hover:bg-scripture-border/50 border border-scripture-border/50 text-scripture-text'
-                                }`}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl<ThemeValue>
+                  columns={3}
+                  ariaLabel="Theme"
+                  value={theme}
+                  onChange={handleThemeChange}
+                  options={themeOptions}
+                />
                 <p className="text-xs text-scripture-muted mt-2">
                   Choose your preferred theme. Auto mode follows your system preference.
                 </p>
@@ -1834,7 +1833,12 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             <div role="tabpanel" id="settings-tabpanel-help" aria-labelledby="settings-tab-help">
             <div className="space-y-0">
               <div className="p-4">
-                <AboutSection checkForUpdates={checkForUpdates} onCheckForUpdatesChange={handleCheckForUpdatesChange} />
+                <AboutSection
+                  checkForUpdates={checkForUpdates}
+                  onCheckForUpdatesChange={handleCheckForUpdatesChange}
+                  updateChannel={updateChannel}
+                  onUpdateChannelChange={handleUpdateChannelChange}
+                />
               </div>
 
               <div className="border-t border-scripture-border/30 my-4"></div>

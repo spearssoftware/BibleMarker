@@ -10,7 +10,7 @@ import type { TextSelection } from '@/stores/annotationStore';
 import type { MarkingPreset } from '@/types';
 import { SYMBOLS, getHighlightColorHex } from '@/types';
 import { isCommonPronoun } from '@/types';
-import { getBookById } from '@/types';
+import { scopeLabel } from '@/types';
 
 interface SelectionMenuProps {
   selection: TextSelection;
@@ -93,8 +93,8 @@ export function SelectionMenu({
     const book: MarkingPreset[] = [];
     const chapter: MarkingPreset[] = [];
     for (const p of filteredPresets) {
-      if (p.chapterScope !== undefined) chapter.push(p);
-      else if (p.bookScope) book.push(p);
+      if (p.scopes?.some(s => s.chapter !== undefined)) chapter.push(p);
+      else if (p.scopes && p.scopes.length > 0) book.push(p);
       else global.push(p);
     }
     return { global, book, chapter };
@@ -133,10 +133,9 @@ export function SelectionMenu({
       )}
       <span className="truncate flex-1">
         {p.word}
-        {p.bookScope && (
+        {p.scopes && p.scopes.length > 0 && (
           <span className="text-scripture-muted text-xs ml-1">
-            ({getBookById(p.bookScope)?.name || p.bookScope}
-            {p.chapterScope !== undefined ? ` ${p.chapterScope}` : ''})
+            ({scopeLabel(p.scopes)})
           </span>
         )}
       </span>

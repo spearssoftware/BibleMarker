@@ -14,3 +14,5 @@ export { SyncStatusIndicator } from './SyncStatusIndicator';
 export { UpdateBanner } from './UpdateBanner';
 export { WhatsNewModal } from './WhatsNewModal';
 export { UndoToast } from './UndoToast';
+export { SegmentedControl } from './SegmentedControl';
+export type { SegmentedSize, SegmentedColumns, SegmentedOption } from './SegmentedControl';

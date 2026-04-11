@@ -7,16 +7,23 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { checkForUpdateIfDue, checkForUpdateNow, type UpdateCheckResult } from '@/lib/updateCheck';
-import { UpdateBanner } from '@/components/shared';
+import { checkForUpdateIfDue, checkForUpdateNow, type UpdateCheckResult, type UpdateChannel } from '@/lib/updateCheck';
+import { UpdateBanner, SegmentedControl } from '@/components/shared';
 
 interface AboutSectionProps {
   /** When false, no automatic update check is run on mount */
   checkForUpdates?: boolean;
   onCheckForUpdatesChange?: (value: boolean) => void;
+  updateChannel?: UpdateChannel;
+  onUpdateChannelChange?: (channel: UpdateChannel) => void;
 }
 
-export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true, onCheckForUpdatesChange }: AboutSectionProps) {
+export function AboutSection({
+  checkForUpdates: checkForUpdatesEnabled = true,
+  onCheckForUpdatesChange,
+  updateChannel = 'stable',
+  onUpdateChannelChange,
+}: AboutSectionProps) {
   const version = __APP_VERSION__;
   const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null | 'checking'>(
     checkForUpdatesEnabled ? 'checking' : null
@@ -104,6 +111,7 @@ export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true, o
         <UpdateBanner
           version={updateResult.version}
           url={updateResult.url}
+          isPrerelease={updateResult.isPrerelease}
           onDismiss={() => setShowUpdateBanner(false)}
         />
       )}
@@ -131,6 +139,27 @@ export function AboutSection({ checkForUpdates: checkForUpdatesEnabled = true, o
               }`}
             />
           </button>
+        </div>
+      )}
+
+      {onUpdateChannelChange && checkForUpdatesEnabled && (
+        <div className="pt-2">
+          <div className="text-sm font-medium text-scripture-text mb-2">Update channel</div>
+          <SegmentedControl<UpdateChannel>
+            columns={2}
+            ariaLabel="Update channel"
+            value={updateChannel}
+            onChange={onUpdateChannelChange}
+            options={[
+              { value: 'stable', label: 'Stable' },
+              { value: 'beta', label: 'Beta' },
+            ]}
+          />
+          {updateChannel === 'beta' && (
+            <p className="text-[10px] text-scripture-warning mt-1.5">
+              Beta versions may be unstable. You can switch back anytime, but you'll stay on the beta until a newer stable version is available.
+            </p>
+          )}
         </div>
       )}
     </div>

@@ -17,7 +17,7 @@ import {
 interface KeywordExclusionState {
   exclusions: KeywordExclusion[];
   loadExclusions: () => Promise<void>;
-  addExclusion: (presetId: string, book: string, chapter: number, verse: number, matchedText: string, studyId?: string) => Promise<KeywordExclusion>;
+  addExclusion: (presetId: string, book: string, chapter: number, verse: number, matchedText: string, startOffset?: number, studyId?: string) => Promise<KeywordExclusion>;
   removeExclusion: (id: string) => Promise<void>;
   removeByPreset: (presetId: string) => Promise<void>;
 }
@@ -32,8 +32,8 @@ export const useKeywordExclusionStore = create<KeywordExclusionState>()(
         set({ exclusions: all });
       },
 
-      addExclusion: async (presetId, book, chapter, verse, matchedText, studyId) => {
-        // Check for existing exclusion with same key
+      addExclusion: async (presetId, book, chapter, verse, matchedText, startOffset, studyId) => {
+        // Check for existing exclusion with same key (including offset for per-instance uniqueness)
         const { exclusions } = get();
         const normalizedText = matchedText.toLowerCase();
         const existing = exclusions.find(e =>
@@ -41,7 +41,8 @@ export const useKeywordExclusionStore = create<KeywordExclusionState>()(
           e.book === book &&
           e.chapter === chapter &&
           e.verse === verse &&
-          e.matchedText === normalizedText
+          e.matchedText === normalizedText &&
+          e.startOffset === startOffset
         );
         if (existing) return existing;
 
@@ -52,6 +53,7 @@ export const useKeywordExclusionStore = create<KeywordExclusionState>()(
           chapter,
           verse,
           matchedText: normalizedText,
+          startOffset,
           studyId,
           createdAt: new Date(),
           updatedAt: new Date(),

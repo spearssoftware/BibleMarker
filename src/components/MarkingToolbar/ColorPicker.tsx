@@ -4,7 +4,7 @@
  * Shows favorites, recents, and full color palette.
  */
 
-import { HIGHLIGHT_COLORS, type HighlightColor } from '@/types';
+import { HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, type HighlightColor } from '@/types';
 
 interface ColorPickerProps {
   selectedColor: HighlightColor;
@@ -17,8 +17,6 @@ export function ColorPicker({
   onSelect, 
   recents 
 }: ColorPickerProps) {
-  const allColors = Object.keys(HIGHLIGHT_COLORS) as HighlightColor[];
-
   return (
     <div className="space-y-6">
       {/* Recents */}
@@ -40,13 +38,13 @@ export function ColorPicker({
         </div>
       )}
 
-      {/* All colors - always show all colors */}
+      {/* All colors - sorted by hue */}
       <div>
         <h4 className="text-xs font-ui text-scripture-text uppercase tracking-wider mb-3 font-semibold">
           All Colors
         </h4>
         <div className="flex flex-wrap gap-2.5">
-          {allColors.map((color) => (
+          {HIGHLIGHT_COLORS_SORTED.map((color) => (
             <ColorButton
               key={color}
               color={color}

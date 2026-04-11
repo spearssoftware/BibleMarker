@@ -33,6 +33,7 @@ jobs:
     outputs:
       release_id: ${{ steps.get-release-id.outputs.id }}
       version: ${{ steps.version.outputs.version }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -44,13 +45,25 @@ jobs:
         with:
           node-version: "lts/*"
       - id: version
-        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          if [[ "$VERSION" == *-* ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          fi
       - name: Create draft release for tag
         run: |
+          PRERELEASE_FLAG=""
+          if [ "${{ steps.version.outputs.is_prerelease }}" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
           gh release create "app-v${{ steps.version.outputs.version }}" \
             --title "BibleMarker v${{ steps.version.outputs.version }}" \
             --generate-notes \
-            --draft
+            --draft \
+            $PRERELEASE_FLAG
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true

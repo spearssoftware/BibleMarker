@@ -20,7 +20,7 @@ import type { ChapterTitle, SectionHeading } from '@/types';
 import { SYMBOLS } from '@/types';
 import type { MarkingPreset } from '@/types';
 import type { ObservationList } from '@/types';
-import { getBookById } from '@/types';
+import { getBookById, presetMatchesVerse } from '@/types';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 
@@ -108,10 +108,9 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
   const relevantPresets = useMemo(() => {
     return filterPresetsByStudy(presets, activeStudyId).filter((preset) => {
       if (!preset.word) return false;
-      if (preset.bookScope && preset.bookScope !== currentBook) return false;
-      return true;
+      return presetMatchesVerse(preset, currentBook, currentChapter);
     });
-  }, [presets, currentBook, activeStudyId]);
+  }, [presets, currentBook, currentChapter, activeStudyId]);
   
   useEffect(() => {
     async function loadSummary() {

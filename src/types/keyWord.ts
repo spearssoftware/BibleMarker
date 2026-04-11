@@ -6,6 +6,7 @@
  */
 
 import type { HighlightColor, SymbolKey } from './annotation';
+import { getBookById } from './bible';
 
 /** Variant with optional scope - allows variants to be scoped to specific books/chapters */
 export interface Variant {
@@ -14,6 +15,12 @@ export interface Variant {
   bookScope?: string;
   /** Optional: scope to a specific chapter within a book (requires bookScope) */
   chapterScope?: number;
+}
+
+/** A scope entry — restricts keyword matching to a specific book or chapter */
+export interface PresetScope {
+  book: string;
+  chapter?: number;
 }
 
 /** Unified marking preset: symbol and/or highlight/textColor/underline. Key words = presets with `word`. */
@@ -31,10 +38,8 @@ export interface MarkingPreset {
   description?: string;
   autoSuggest: boolean;
   usageCount: number;
-  /** Optional: scope to a specific book (if null/undefined, applies globally to all books) */
-  bookScope?: string;
-  /** Optional: scope to a specific chapter within a book (requires bookScope) */
-  chapterScope?: number;
+  /** Scopes restrict where keyword matches. Empty/undefined = global (matches everywhere). */
+  scopes?: PresetScope[];
   /** Optional: scope to a single translation (moduleId). When set, keyword only applies to that translation. */
   moduleScope?: string;
   /** Optional: link to a study (if null/undefined, keyword is global and always visible) */
@@ -86,7 +91,7 @@ export const SYMBOL_CATEGORY_MAP: Record<SymbolKey, KeyWordCategory> = {
   water: 'actions', fire: 'actions', check: 'actions', x: 'actions', hand: 'actions', eye: 'actions', mouth: 'actions', foot: 'actions',
   ear: 'actions', megaphone: 'actions',
   circle: 'custom', square: 'custom', diamond: 'custom', hexagon: 'custom', plus: 'custom', minus: 'custom',
-  sin: 'themes', vine: 'themes', bread: 'themes', trumpet: 'themes', rock: 'themes', door: 'themes', olive: 'themes', harvest: 'themes',
+  sin: 'themes', vine: 'themes', bread: 'themes', trumpet: 'themes', rock: 'themes', door: 'themes', olive: 'themes', harvest: 'themes', fruit: 'themes',
   question: 'custom', exclamation: 'custom', asterisk: 'custom',
   letterA: 'custom', letterB: 'custom', letterC: 'custom', letterD: 'custom', letterE: 'custom', letterF: 'custom', letterG: 'custom', letterH: 'custom', letterI: 'custom', letterJ: 'custom', letterK: 'custom', letterL: 'custom', letterM: 'custom', letterN: 'custom', letterO: 'custom', letterP: 'custom', letterQ: 'custom', letterR: 'custom', letterS: 'custom', letterT: 'custom', letterU: 'custom', letterV: 'custom', letterW: 'custom', letterX: 'custom', letterY: 'custom', letterZ: 'custom',
   number0: 'custom', number1: 'custom', number2: 'custom', number3: 'custom', number4: 'custom', number5: 'custom', number6: 'custom', number7: 'custom', number8: 'custom', number9: 'custom',
@@ -95,6 +100,32 @@ export const SYMBOL_CATEGORY_MAP: Record<SymbolKey, KeyWordCategory> = {
 /** Get KeyWordCategory for a symbol; use when pre-setting category from symbol selection */
 export function getCategoryForSymbol(symbol: SymbolKey): KeyWordCategory {
   return SYMBOL_CATEGORY_MAP[symbol] ?? 'custom';
+}
+
+/** Check if a preset matches a specific book (global presets match all books) */
+export function presetMatchesBook(preset: MarkingPreset, book: string): boolean {
+  if (!preset.scopes || preset.scopes.length === 0) return true;
+  return preset.scopes.some(s => s.book === book);
+}
+
+/** Check if a preset matches a specific book + chapter (global presets match everywhere) */
+export function presetMatchesVerse(preset: MarkingPreset, book: string, chapter: number): boolean {
+  if (!preset.scopes || preset.scopes.length === 0) return true;
+  return preset.scopes.some(s => {
+    if (s.book !== book) return false;
+    if (s.chapter !== undefined) return s.chapter === chapter;
+    return true;
+  });
+}
+
+/** Human-readable scope label: "John 15, Gal 5" or "Global" */
+export function scopeLabel(scopes?: PresetScope[]): string {
+  if (!scopes || scopes.length === 0) return 'Global';
+  return scopes.map(s => {
+    const bookInfo = getBookById(s.book);
+    const name = bookInfo?.name || s.book;
+    return s.chapter !== undefined ? `${name} ${s.chapter}` : name;
+  }).join(', ');
 }
 
 /** Common pronouns we avoid adding as variants (they’d match everywhere). Use "Apply key word" for that occurrence instead. */
@@ -190,6 +221,8 @@ export interface KeywordExclusion {
   verse: number;
   /** Lowercase matched text for comparison */
   matchedText: string;
+  /** Character offset in verse text — distinguishes multiple instances of the same word */
+  startOffset?: number;
   studyId?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -207,11 +240,10 @@ export interface KeyWordOccurrence {
 
 /** Create a new marking preset (or key word when `word` is set) */
 export function createMarkingPreset(
-  options: { word?: string; variants?: string[] | Variant[]; symbol?: SymbolKey; highlight?: { style: 'highlight' | 'textColor' | 'underline'; color: HighlightColor }; category?: KeyWordCategory; description?: string; autoSuggest?: boolean; usageCount?: number; bookScope?: string; chapterScope?: number; moduleScope?: string; studyId?: string; caseSensitive?: boolean }
+  options: { word?: string; variants?: string[] | Variant[]; symbol?: SymbolKey; highlight?: { style: 'highlight' | 'textColor' | 'underline'; color: HighlightColor }; category?: KeyWordCategory; description?: string; autoSuggest?: boolean; usageCount?: number; scopes?: PresetScope[]; moduleScope?: string; studyId?: string; caseSensitive?: boolean }
 ): MarkingPreset {
-  const { word, variants = [], symbol, highlight, category = 'custom', description = '', autoSuggest = true, usageCount = 0, bookScope, chapterScope, moduleScope, studyId, caseSensitive } = options;
+  const { word, variants = [], symbol, highlight, category = 'custom', description = '', autoSuggest = true, usageCount = 0, scopes, moduleScope, studyId, caseSensitive } = options;
   if (!symbol && !highlight) throw new Error('MarkingPreset must have at least one of symbol or highlight');
-  if (chapterScope !== undefined && !bookScope) throw new Error('chapterScope requires bookScope');
   return {
     id: crypto.randomUUID(),
     word,
@@ -222,8 +254,7 @@ export function createMarkingPreset(
     description,
     autoSuggest,
     usageCount,
-    bookScope,
-    chapterScope,
+    scopes,
     moduleScope,
     studyId,
     caseSensitive,
