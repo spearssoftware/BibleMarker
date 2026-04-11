@@ -533,19 +533,24 @@ export function MultiTranslationView() {
       <div 
         className={`grid gap-4 px-4 py-2 bg-scripture-elevated flex-shrink-0 ${gridColsClass}`}
       >
-        {translationList.map(({ translation, isLoading, error }) => (
-          <div key={translation.id} className="flex flex-col">
-            <div className="font-medium text-scripture-text flex items-center gap-2">
-              {translation.name}
-              {isLoading && (
-                <div className="w-4 h-4 border-2 border-scripture-border border-t-scripture-accent rounded-full animate-spin"></div>
+        {translationList.map(({ translation, isLoading, error }) => {
+          const isFallback = error?.startsWith('Showing KJV');
+          return (
+            <div key={translation.id} className="flex flex-col">
+              <div className="font-medium text-scripture-text flex items-center gap-2">
+                {translation.name}
+                {isLoading && (
+                  <div className="w-4 h-4 border-2 border-scripture-border border-t-scripture-accent rounded-full animate-spin"></div>
+                )}
+              </div>
+              {error && (
+                <div className={`text-xs mt-0.5 ${isFallback ? 'text-scripture-warning' : 'text-scripture-error'}`}>
+                  {error}
+                </div>
               )}
             </div>
-            {error?.startsWith('Showing KJV') && (
-              <div className="text-xs text-scripture-warning mt-0.5">{error}</div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Verse rows - scrollable container */}
