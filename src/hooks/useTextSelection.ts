@@ -9,7 +9,7 @@
  * - Updates the annotation store with selection data
  */
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import type { Chapter } from '@/types';
 import type { ApiTranslation } from '@/lib/bible-api';
@@ -312,6 +312,38 @@ export function useTextSelection({
     sel.removeAllRanges();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- verseContainerRef is a stable ref
   }, [activeView, currentBook, currentChapter, translationChapters, setSelection, setIsSelecting]);
+
+  // Android WebView captures long-press gestures at the native layer and does
+  // not deliver onTouchEnd to JS while the selection gesture is active, so the
+  // onMouseUp/onTouchEnd path above never fires. Fall back to a `selectionchange`
+  // listener that runs the same capture logic once the selection settles.
+  // Debounced so desktop drag-select doesn't fire on every mouse-move.
+  const handleSelectionRef = useRef(handleMouseUp);
+  handleSelectionRef.current = handleMouseUp;
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const onSelectionChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) return;
+      // Only react if the selection anchor is inside a verse element.
+      const anchor = sel.anchorNode?.parentElement;
+      if (!anchor?.closest('[data-verse]')) return;
+
+      if (timer !== null) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        handleSelectionRef.current();
+      }, 200);
+    };
+
+    document.addEventListener('selectionchange', onSelectionChange);
+    return () => {
+      document.removeEventListener('selectionchange', onSelectionChange);
+      if (timer !== null) clearTimeout(timer);
+    };
+  }, []);
 
   return { handleMouseUp };
 }
