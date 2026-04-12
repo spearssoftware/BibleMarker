@@ -1,6 +1,6 @@
 [package]
 name = "biblemarker"
-version = "1.6.1"
+version = "1.6.2"
 description = "A focused Bible study app with rich annotation tools"
 authors = ["you"]
 license = ""
