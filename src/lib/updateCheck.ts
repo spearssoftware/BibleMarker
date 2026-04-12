@@ -5,6 +5,7 @@
  */
 
 import { getPreferences, updatePreferences } from '@/lib/database';
+import { isAndroid, isIOS } from '@/lib/platform';
 
 const GITHUB_RELEASES_URL = 'https://api.github.com/repos/spearssoftware/BibleMarker/releases';
 const RELEASES_PAGE_URL = 'https://github.com/spearssoftware/BibleMarker/releases';
@@ -209,6 +210,7 @@ async function fetchAndCompareVersion(channel: UpdateChannel): Promise<UpdateChe
  * Respects the checkForUpdates and updateChannel preferences.
  */
 export async function checkForUpdateIfDue(): Promise<UpdateCheckResult | null> {
+  if (isAndroid() || isIOS()) return null;
   const prefs = await getPreferences();
   if (prefs.checkForUpdates === false) {
     return null;
@@ -264,6 +266,7 @@ export async function fetchWhatsNewForced(): Promise<WhatsNewResult | null> {
  * Returns the newer version and releases URL if one exists, otherwise null.
  */
 export async function checkForUpdateNow(): Promise<UpdateCheckResult | null> {
+  if (isAndroid() || isIOS()) return null;
   const prefs = await getPreferences();
   const channel: UpdateChannel = prefs.updateChannel ?? 'stable';
 
