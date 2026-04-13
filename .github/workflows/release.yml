@@ -229,7 +229,7 @@ jobs:
       # TODO: Pinned to v2.4.2 to avoid "Too many retries" in v2.5.0 (issue #704). Check for fixed version later.
       - name: Upload macOS artifact to release
         if: matrix.platform == 'macos-latest'
-        uses: softprops/action-gh-release@v2.6.1
+        uses: softprops/action-gh-release@v3.0.0
         with:
           tag_name: app-v${{ needs.prepare.outputs.version }}
           name: BibleMarker v${{ needs.prepare.outputs.version }}
@@ -242,7 +242,7 @@ jobs:
       # Same action pin as above (v2.5.0 retry bug)
       - name: Upload macOS updater artifacts to release
         if: matrix.platform == 'macos-latest' && steps.create-updater.outcome == 'success'
-        uses: softprops/action-gh-release@v2.6.1
+        uses: softprops/action-gh-release@v3.0.0
         with:
           tag_name: app-v${{ needs.prepare.outputs.version }}
           name: BibleMarker v${{ needs.prepare.outputs.version }}
@@ -556,7 +556,7 @@ jobs:
           cp "$AAB" BibleMarker-android.aab
 
       - name: Upload AAB to release
-        uses: softprops/action-gh-release@v2.6.1
+        uses: softprops/action-gh-release@v3.0.0
         with:
           tag_name: app-v${{ needs.prepare.outputs.version }}
           name: BibleMarker v${{ needs.prepare.outputs.version }}
