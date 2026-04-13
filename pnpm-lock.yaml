@@ -106,8 +106,8 @@ importers:
         specifier: ^29.0.1
         version: 29.0.1
       postcss:
-        specifier: ^8.5.6
-        version: 8.5.6
+        specifier: ^8.5.9
+        version: 8.5.9
       sharp:
         specifier: ^0.34.5
         version: 0.34.5
@@ -1927,8 +1927,8 @@ packages:
   pmtiles@4.4.0:
     resolution: {integrity: sha512-tCLI1C5134MR54i8izUWhse0QUtO/EC33n9yWp1N5dYLLvyc197U0fkF5gAJhq1TdWO9Tvl+9hgvFvM0fR27Zg==}
 
-  postcss@8.5.6:
-    resolution: {integrity: sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg==}
+  postcss@8.5.9:
+    resolution: {integrity: sha512-7a70Nsot+EMX9fFU3064K/kdHWZqGVY+BADLyXc8Dfv+mTLLVl6JzJpPaCZ2kQL9gIJvKXSLMHhqdRRjwQeFtw==}
     engines: {node: ^10 || ^12 || >=14}
 
   potpack@2.1.0:
@@ -3061,7 +3061,7 @@ snapshots:
       '@alloc/quick-lru': 5.2.0
       '@tailwindcss/node': 4.2.2
       '@tailwindcss/oxide': 4.2.2
-      postcss: 8.5.6
+      postcss: 8.5.9
       tailwindcss: 4.2.2
 
   '@tanstack/query-core@5.96.0': {}
@@ -4049,7 +4049,7 @@ snapshots:
     dependencies:
       fflate: 0.8.2
 
-  postcss@8.5.6:
+  postcss@8.5.9:
     dependencies:
       nanoid: 3.3.11
       picocolors: 1.1.1
@@ -4363,7 +4363,7 @@ snapshots:
       esbuild: 0.27.7
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
-      postcss: 8.5.6
+      postcss: 8.5.9
       rollup: 4.60.1
       tinyglobby: 0.2.16
     optionalDependencies:
