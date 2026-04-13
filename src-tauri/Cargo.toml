@@ -19,7 +19,7 @@ tauri-build = { version = "2.5", features = [] }
 [dependencies]
 tauri = { version = "2.10", features = [] }
 tauri-plugin-dialog = { version = "2.0", features = [] }
-tauri-plugin-fs = { version = "2.0", features = [] }
+tauri-plugin-fs = { version = "2.5", features = [] }
 tauri-plugin-sql = { version = "2.4", features = ["sqlite"] }
 tauri-plugin-opener = { version = "2.0", features = [] }
 serde = { version = "1.0", features = ["derive"] }
