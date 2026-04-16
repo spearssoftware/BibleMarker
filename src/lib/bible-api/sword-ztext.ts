@@ -317,7 +317,7 @@ function zipPathToKey(path: string): string {
 }
 
 export async function loadFromZip(zipBlob: Blob): Promise<LoadedSwordModule> {
-  const zip = await JSZip.loadAsync(zipBlob);
+  let zip = await JSZip.loadAsync(await zipBlob.arrayBuffer());
   const files: SwordModuleFiles = {};
   const addEntry = async (path: string, entry: JSZip.JSZipObject) => {
     if (entry.dir) return;
@@ -331,7 +331,44 @@ export async function loadFromZip(zipBlob: Blob): Promise<LoadedSwordModule> {
     await addEntry(path, entry);
   }
   if (!Object.keys(files).some((k) => k.toLowerCase().endsWith('.conf'))) {
-    throw new Error('SWORD zip: no .conf file found');
+    // Android AGP can wrap the zip inside a .jar container, producing a
+    // valid zip whose entries are the original zip rather than SWORD files.
+    // Detect a nested zip (entry with .zip extension or PK\x03\x04 magic)
+    // and unwrap it.
+    const outerKeys = Object.keys(files);
+    console.warn(
+      `[SWORD] No .conf in zip — outer entries: ${outerKeys.join(', ')} (sizes: ${outerKeys.map((k) => `${k}=${files[k].byteLength}`).join(', ')})`
+    );
+    const nestedEntry = Object.entries(files).find(([key, buf]) => {
+      if (buf.byteLength < 4) return false;
+      const magic = new Uint8Array(buf, 0, 4);
+      return key.toLowerCase().endsWith('.zip') ||
+        (magic[0] === 0x50 && magic[1] === 0x4B && magic[2] === 0x03 && magic[3] === 0x04);
+    });
+    if (nestedEntry) {
+      console.warn(
+        `[SWORD] Found nested zip entry "${nestedEntry[0]}" (${nestedEntry[1].byteLength} bytes), unwrapping`
+      );
+      try {
+        zip = await JSZip.loadAsync(nestedEntry[1]);
+        for (const key of Object.keys(files)) delete files[key];
+        const innerEntries: [string, JSZip.JSZipObject][] = [];
+        zip.forEach((path, entry) => innerEntries.push([path, entry]));
+        for (const [path, entry] of innerEntries) {
+          await addEntry(path, entry);
+        }
+        console.warn(
+          `[SWORD] Inner zip entries: ${Object.keys(files).join(', ')}`
+        );
+      } catch (innerErr) {
+        console.error('[SWORD] Failed to parse nested zip entry:', innerErr);
+        // Fall through to the error below
+      }
+    }
+    if (!Object.keys(files).some((k) => k.toLowerCase().endsWith('.conf'))) {
+      const keys = Object.keys(files).join(', ');
+      throw new Error(`SWORD zip: no .conf file found (entries: ${keys})`);
+    }
   }
   if (!discoverFiles(files)) {
     const keys = Object.keys(files).join(', ');
