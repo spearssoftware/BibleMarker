@@ -83,8 +83,27 @@ pub async fn install_bundled_module(
             ));
         }
 
+        // Log first 4 bytes (expect PK\x03\x04 for zip) to aid diagnosis
+        let magic: Vec<u8> = bytes.iter().take(4).copied().collect();
+        println!(
+            "[install_bundled_module] {} magic bytes: {:02X?}",
+            resource_name, magic
+        );
+
         if let Ok(meta) = std::fs::metadata(&dest) {
-            if meta.len() == bytes.len() as u64 {
+            // Also check that the on-disk file starts with a zip magic header.
+            // AGP can wrap assets in a .jar container, producing a valid zip that
+            // doesn't contain the expected SWORD contents. In that case, overwrite.
+            let on_disk_ok = (|| -> Result<bool, std::io::Error> {
+                use std::io::Read;
+                let mut f = std::fs::File::open(&dest)?;
+                let mut magic = [0u8; 4];
+                f.read_exact(&mut magic)?;
+                Ok(magic[0] == 0x50 && magic[1] == 0x4B)
+            })()
+            .unwrap_or(false);
+
+            if meta.len() == bytes.len() as u64 && on_disk_ok {
                 println!(
                     "[install_bundled_module] {} already installed ({} bytes), skipping",
                     resource_name,

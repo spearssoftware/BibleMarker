@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
+import JSZip from 'jszip';
 import {
   getTestamentIndex,
   parseConf,
   discoverFiles,
   readVerseIndex,
   readBufferSizes,
+  loadFromZip,
 } from './sword-ztext';
 import type { SwordModuleFiles, TestamentFiles } from './sword-ztext';
 
@@ -224,5 +226,71 @@ describe('readBufferSizes', () => {
     const tf: TestamentFiles = { verseIndex: 'ot.bzv', bufferIndex: 'ot.bzs', data: 'ot.bzz' };
     const result = readBufferSizes(files, tf, 0);
     expect(result).toEqual({ offset: 0, compSize: 0, uncompSize: 0 });
+  });
+});
+
+describe('loadFromZip', () => {
+  const CONF_TEXT = '[NASB]\nDescription=Test Module\nAbbreviation=TEST\nLang=en\n';
+
+  /** Build a minimal valid SWORD zip with .conf and dummy data files */
+  async function makeSwordZip(): Promise<Blob> {
+    const zip = new JSZip();
+    zip.file('mods.d/nasb.conf', CONF_TEXT);
+    zip.file('modules/texts/ztext/nasb/ot.bzv', new Uint8Array(10));
+    zip.file('modules/texts/ztext/nasb/ot.bzs', new Uint8Array(12));
+    zip.file('modules/texts/ztext/nasb/ot.bzz', new Uint8Array(8));
+    zip.file('modules/texts/ztext/nasb/nt.bzv', new Uint8Array(10));
+    zip.file('modules/texts/ztext/nasb/nt.bzs', new Uint8Array(12));
+    zip.file('modules/texts/ztext/nasb/nt.bzz', new Uint8Array(8));
+    return zip.generateAsync({ type: 'blob' });
+  }
+
+  /** Wrap a blob inside an outer zip as a single entry (simulates AGP .jar wrapping) */
+  async function wrapInJar(inner: Blob, entryName: string): Promise<Blob> {
+    const innerBuf = await inner.arrayBuffer();
+    const jar = new JSZip();
+    jar.file(entryName, new Uint8Array(innerBuf));
+    return jar.generateAsync({ type: 'blob' });
+  }
+
+  it('loads a normal SWORD zip', async () => {
+    const blob = await makeSwordZip();
+    const { meta, files } = await loadFromZip(blob);
+    expect(meta.abbreviation).toBe('TEST');
+    expect(Object.keys(files)).toContain('nasb.conf');
+    expect(Object.keys(files)).toContain('ot.bzv');
+    expect(Object.keys(files)).toContain('nt.bzz');
+  });
+
+  it('unwraps a jar-wrapped SWORD zip (entry named .zip)', async () => {
+    const inner = await makeSwordZip();
+    const jar = await wrapInJar(inner, 'sword-NASB.zip');
+    const { meta, files } = await loadFromZip(jar);
+    expect(meta.abbreviation).toBe('TEST');
+    expect(Object.keys(files)).toContain('nasb.conf');
+    expect(Object.keys(files)).toContain('ot.bzv');
+  });
+
+  it('unwraps a jar-wrapped SWORD zip (entry without .zip extension)', async () => {
+    const inner = await makeSwordZip();
+    // AGP might use a generic entry name — detection falls back to PK magic
+    const jar = await wrapInJar(inner, 'resources/sword-NASB');
+    const { meta, files } = await loadFromZip(jar);
+    expect(meta.abbreviation).toBe('TEST');
+    expect(Object.keys(files)).toContain('nasb.conf');
+  });
+
+  it('throws with entry names when zip has no .conf and no nested zip', async () => {
+    const zip = new JSZip();
+    zip.file('random.txt', 'hello');
+    zip.file('other.dat', new Uint8Array(4));
+    const blob = await zip.generateAsync({ type: 'blob' });
+    await expect(loadFromZip(blob)).rejects.toThrow(/no .conf file found.*entries:.*random\.txt/);
+  });
+
+  it('throws when zip is completely empty', async () => {
+    const zip = new JSZip();
+    const blob = await zip.generateAsync({ type: 'blob' });
+    await expect(loadFromZip(blob)).rejects.toThrow(/no .conf file found/);
   });
 });

@@ -329,20 +329,48 @@ async function ensureLoaded(moduleId: string): Promise<SwordModuleFiles> {
 
   const { readFile } = await import('@tauri-apps/plugin-fs');
   const path = await getModulePath(moduleId);
-  console.log(`[SWORD] Loading module from ${path}`);
-  const bytes = await readFile(path);
-  console.log(`[SWORD] Read ${bytes.byteLength} bytes`);
-  const blob = new Blob([bytes as BlobPart]);
-  try {
+
+  const tryLoad = async (): Promise<SwordModuleFiles> => {
+    console.log(`[SWORD] Loading module from ${path}`);
+    const bytes = await readFile(path);
+    console.log(`[SWORD] Read ${bytes.byteLength} bytes`);
+    const blob = new Blob([bytes as BlobPart]);
     const { files, meta } = await loadFromZip(blob);
     console.log(`[SWORD] Loaded module: ${meta.name} (${meta.abbreviation}), files: ${Object.keys(files).join(', ')}`);
+    return files;
+  };
+
+  try {
+    const files = await tryLoad();
     loadedModules.set(moduleId, files);
     return files;
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+  } catch (firstErr) {
+    // If load failed (e.g. corrupt on-disk file from AGP wrapping), delete
+    // the file, force re-install from bundled resources, and retry once.
     const info = MODULE_REGISTRY.find((m) => m.id === moduleId);
+    if (info?.bundledResource) {
+      console.warn(
+        `[SWORD] First load of ${moduleId} failed, deleting and re-installing:`,
+        firstErr instanceof Error ? firstErr.message : firstErr
+      );
+      try {
+        const { remove } = await import('@tauri-apps/plugin-fs');
+        await remove(path).catch(() => {});
+        verifiedInstalled.delete(moduleId);
+        await installBundledIfNeeded(moduleId);
+        const files = await tryLoad();
+        loadedModules.set(moduleId, files);
+        return files;
+      } catch (retryErr) {
+        console.error(
+          `[SWORD] Retry also failed for ${moduleId}:`,
+          retryErr instanceof Error ? retryErr.message : retryErr
+        );
+      }
+    }
+    const msg = firstErr instanceof Error ? firstErr.message : String(firstErr);
     throw new BibleApiError(
-      `Failed to load ${info?.name ?? moduleId} (${bytes.byteLength} bytes on disk): ${msg}`,
+      `Failed to load ${info?.name ?? moduleId}: ${msg}`,
       'sword'
     );
   }
