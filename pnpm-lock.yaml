@@ -62,7 +62,7 @@ importers:
         version: 9.39.4
       '@tailwindcss/vite':
         specifier: ^4.2.2
-        version: 4.2.2(vite@7.3.2(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.0))
+        version: 4.2.2(vite@8.0.8(esbuild@0.27.7)(jiti@2.6.1)(terser@5.46.0))
       '@tauri-apps/api':
         specifier: ^2.10.1
         version: 2.10.1
@@ -2060,8 +2060,8 @@ packages:
   process-nextick-args@2.0.1:
     resolution: {integrity: sha512-3ouUOpQhtgrbOa17J7+uxOTpITYWaGP7/AhoR3+A+/1e9skrzelGi/dXzEYyvbxubEF6Wn2ypscTKiKJFFn1ag==}
 
-  protocol-buffers-schema@3.6.0:
-    resolution: {integrity: sha512-TdDRD+/QNdrCGCE7v8340QyuXd4kIWIgapsE2+n/SaGiSSbomYl4TjHlvIoCWRpE7wFt02EpB35VVA2ImcBVqw==}
+  protocol-buffers-schema@3.6.1:
+    resolution: {integrity: sha512-VG2K63Igkiv9p76tk1lilczEK1cT+kCjKtkdhw1dQZV3k3IXJbd3o6Ho8b9zJZaHSnT2hKe4I+ObmX9w6m5SmQ==}
 
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
@@ -3295,12 +3295,12 @@ snapshots:
       '@tailwindcss/oxide-win32-arm64-msvc': 4.2.2
       '@tailwindcss/oxide-win32-x64-msvc': 4.2.2
 
-  '@tailwindcss/vite@4.2.2(vite@7.3.2(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.0))':
+  '@tailwindcss/vite@4.2.2(vite@8.0.8(esbuild@0.27.7)(jiti@2.6.1)(terser@5.46.0))':
     dependencies:
       '@tailwindcss/node': 4.2.2
       '@tailwindcss/oxide': 4.2.2
       tailwindcss: 4.2.2
-      vite: 7.3.2(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.0)
+      vite: 8.0.8(esbuild@0.27.7)(jiti@2.6.1)(terser@5.46.0)
 
   '@tanstack/query-core@5.99.0': {}
 
@@ -4310,7 +4310,7 @@ snapshots:
 
   process-nextick-args@2.0.1: {}
 
-  protocol-buffers-schema@3.6.0: {}
+  protocol-buffers-schema@3.6.1: {}
 
   punycode@2.3.1: {}
 
@@ -4357,7 +4357,7 @@ snapshots:
 
   resolve-protobuf-schema@2.1.0:
     dependencies:
-      protocol-buffers-schema: 3.6.0
+      protocol-buffers-schema: 3.6.1
 
   rolldown@1.0.0-rc.15:
     dependencies:
