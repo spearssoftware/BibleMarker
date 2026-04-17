@@ -693,44 +693,31 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const symbolColor = symAnn.color ? getHighlightColorHex(symAnn.color) : undefined;
           annotationIds.push(symAnn.id);
           const classNames = `symbol-inline annotation-group ${annotationIds.map(id => `annotation-${id}`).join(' ')}`;
-          const removeButton = `<button
-                class="annotation-remove"
-                data-annotation-ids="${annotationIds.join(',')}"
-                title="Remove annotation"
-                aria-label="Remove annotation"
-              >×</button>`;
-          
+          const removeButton = `<button class="annotation-remove" data-annotation-ids="${annotationIds.join(',')}" title="Remove annotation" aria-label="Remove annotation"></button>`;
+
           // Split segment text into word content and trailing punctuation
           // This prevents symbols from appearing next to periods, commas, etc.
           const segmentText = segment.text;
           const trailingPunctMatch = segmentText.match(/([.,;:!?)\]}\s]*)$/);
           const trailingPunct = trailingPunctMatch ? trailingPunctMatch[1] : '';
           const wordContent = trailingPunct ? segmentText.slice(0, -trailingPunct.length) : segmentText;
-          
-          // Symbol overlay: render symbol centered behind the word with colored underline
+
           const overlayTextStyles = symbolColor
             ? `text-decoration: underline; text-decoration-color: ${symbolColor}; text-decoration-thickness: 2px; text-underline-offset: 3px;`
             : '';
-          const symbolColorStyle = symbolColor ? `color: ${symbolColor};` : 'color: currentColor;';
-          const overlayStyle = `position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 2em; opacity: 0.4; pointer-events: none; line-height: 1; ${symbolColorStyle}`;
-          const wrapperStyle = 'position: relative; display: inline-block; vertical-align: baseline;';
+          const symbolColorStyle = symbolColor ? `color: ${symbolColor};` : '';
           htmlSegments.push(
             `${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">` +
-            `<span style="${wrapperStyle}">` +
-            `<span class="symbol-overlay" style="${overlayStyle}">${symbolText}</span>` +
-            `<span class="annotation-text" style="${overlayTextStyles}">${escapeHtml(wordContent)}</span>` +
+            `<span class="symbol-wrapper">` +
+            `<span class="symbol-overlay"${symbolColorStyle ? ` style="${symbolColorStyle}"` : ''}>${symbolText}</span>` +
+            `<span class="annotation-text"${overlayTextStyles ? ` style="${overlayTextStyles}"` : ''}>${escapeHtml(wordContent)}</span>` +
             `</span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`
           );
         } else {
           // Only text annotations
           const styleAttr = combinedStyles.length ? ` style="${combinedStyles.join('; ')}"` : '';
           const classNames = `annotation-group ${annotationIds.map(id => `annotation-${id}`).join(' ')}`;
-          const removeButton = `<button
-                class="annotation-remove"
-                data-annotation-ids="${annotationIds.join(',')}"
-                title="Remove annotation"
-                aria-label="Remove annotation"
-              >×</button>`;
+          const removeButton = `<button class="annotation-remove" data-annotation-ids="${annotationIds.join(',')}" title="Remove annotation" aria-label="Remove annotation"></button>`;
           htmlSegments.push(`${selOpen}<span${styleAttr} class="${classNames}" data-annotation-ids="${annotationIds.join(',')}"><span class="annotation-text">${escapeHtml(segment.text)}</span>${removeButton}</span>${selClose}`);
         }
       }
