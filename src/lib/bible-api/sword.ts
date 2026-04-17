@@ -137,6 +137,7 @@ const bufferCaches = new Map<string, Map<string, Uint8Array>>();
 
 /** Modules verified installed this session — skips repeat install checks. */
 const verifiedInstalled = new Set<string>();
+const inFlightInstalls = new Map<string, Promise<void>>();
 
 /** Strip OSIS XML to plain verse text (removes notes, titles, divs, keeps word content) */
 export function stripOsis(text: string): string {
@@ -215,25 +216,35 @@ async function getModulePath(moduleId: string): Promise<string> {
 async function installBundledIfNeeded(moduleId: string): Promise<void> {
   if (verifiedInstalled.has(moduleId)) return;
 
+  const existing = inFlightInstalls.get(moduleId);
+  if (existing) return existing;
+
   const info = MODULE_REGISTRY.find((m) => m.id === moduleId);
   if (!info?.bundledResource) return;
 
-  const destPath = await getModulePath(moduleId);
-  const { invoke } = await import('@tauri-apps/api/core');
-  try {
-    await invoke('install_bundled_module', {
-      resourceName: info.bundledResource,
-      destPath,
-    });
-    verifiedInstalled.add(moduleId);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error(`[SWORD] Failed to install bundled module ${moduleId}:`, msg);
-    throw new BibleApiError(
-      `Could not install bundled ${info.name}: ${msg}`,
-      'sword'
-    );
-  }
+  const promise = (async () => {
+    const destPath = await getModulePath(moduleId);
+    const { invoke } = await import('@tauri-apps/api/core');
+    try {
+      await invoke('install_bundled_module', {
+        resourceName: info.bundledResource,
+        destPath,
+      });
+      verifiedInstalled.add(moduleId);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`[SWORD] Failed to install bundled module ${moduleId}:`, msg);
+      throw new BibleApiError(
+        `Could not install bundled ${info.name}: ${msg}`,
+        'sword'
+      );
+    } finally {
+      inFlightInstalls.delete(moduleId);
+    }
+  })();
+
+  inFlightInstalls.set(moduleId, promise);
+  return promise;
 }
 
 /**
