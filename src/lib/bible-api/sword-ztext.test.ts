@@ -242,8 +242,7 @@ describe('loadFromZip', () => {
     zip.file('modules/texts/ztext/nasb/nt.bzv', new Uint8Array(10));
     zip.file('modules/texts/ztext/nasb/nt.bzs', new Uint8Array(12));
     zip.file('modules/texts/ztext/nasb/nt.bzz', new Uint8Array(8));
-    const buf = await zip.generateAsync({ type: 'uint8array' });
-    return new Blob([buf]);
+    return zip.generateAsync({ type: 'blob' });
   }
 
   /** Wrap a blob inside an outer zip as a single entry (simulates AGP .jar wrapping) */
@@ -251,8 +250,7 @@ describe('loadFromZip', () => {
     const innerBuf = await inner.arrayBuffer();
     const jar = new JSZip();
     jar.file(entryName, new Uint8Array(innerBuf));
-    const buf = await jar.generateAsync({ type: 'uint8array' });
-    return new Blob([buf]);
+    return jar.generateAsync({ type: 'blob' });
   }
 
   it('loads a normal SWORD zip', async () => {
@@ -286,15 +284,13 @@ describe('loadFromZip', () => {
     const zip = new JSZip();
     zip.file('random.txt', 'hello');
     zip.file('other.dat', new Uint8Array(4));
-    const buf = await zip.generateAsync({ type: 'uint8array' });
-    const blob = new Blob([buf]);
+    const blob = await zip.generateAsync({ type: 'blob' });
     await expect(loadFromZip(blob)).rejects.toThrow(/no .conf file found.*entries:.*random\.txt/);
   });
 
   it('throws when zip is completely empty', async () => {
     const zip = new JSZip();
-    const buf = await zip.generateAsync({ type: 'uint8array' });
-    const blob = new Blob([buf]);
+    const blob = await zip.generateAsync({ type: 'blob' });
     await expect(loadFromZip(blob)).rejects.toThrow(/no .conf file found/);
   });
 });
