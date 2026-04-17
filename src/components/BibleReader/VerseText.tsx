@@ -487,22 +487,15 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         // First try exact match
         let range = ranges.find(r => r.start === charOffsets!.start && r.end === charOffsets!.end);
         
-        // If no exact match, try to find an overlapping range or a range that refers to the same word
-        // We merge symbols on overlapping ranges to prevent duplicates
+        // If no exact match, merge into any range that actually overlaps this one.
+        // A previous tolerance-based check ("close in position, within 10 chars")
+        // was removed because it incorrectly merged annotations on adjacent words
+        // — e.g. marking "Me" in "branch in Me" (offsets 16-18) would get pulled
+        // into the existing "branch" range (offsets 6-12) because the end offsets
+        // differed by only 6. True same-word drift between a preset's paired text
+        // and symbol annotations is handled by the exact-offset match above.
         if (!range) {
-          range = ranges.find(r => {
-            // Check if ranges overlap
-            const overlaps = !(charOffsets!.end <= r.start || charOffsets!.start >= r.end);
-
-            // Tolerance for offset drift from punctuation stripping between translations
-            const PUNCTUATION_DRIFT_TOLERANCE = 10;
-            const isClose = Math.abs(charOffsets!.start - r.start) <= PUNCTUATION_DRIFT_TOLERANCE &&
-                          Math.abs(charOffsets!.end - r.end) <= PUNCTUATION_DRIFT_TOLERANCE;
-
-            // Only merge if ranges overlap or are close in position
-            // (never merge by text content alone — "fruit" at offset 38 is not the same as "fruit" at offset 88)
-            return overlaps || isClose;
-          });
+          range = ranges.find(r => !(charOffsets!.end <= r.start || charOffsets!.start >= r.end));
         }
         
         if (!range) {
