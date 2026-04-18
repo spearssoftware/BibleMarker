@@ -35,7 +35,10 @@ describe('findAlignedMatch', () => {
       expect(result.startWordIndex).toBe(3);
     });
 
-    it('returns the first occurrence when the same Strong\'s appears twice (polysemy)', () => {
+    it('prefers the surface form that matches the source, even if it\'s not the first Strong\'s hit', () => {
+      // Multiple tokens share the same Strong's. The user selected "love",
+      // so we should mark "love" (exact surface match), not "loves" (earlier
+      // in the verse but a different surface form).
       const target = verse(
         'He who loves his love is loved by God',
         [
@@ -51,8 +54,59 @@ describe('findAlignedMatch', () => {
       });
       expect(result.found).toBe(true);
       expect(result.method).toBe('strongs');
-      expect(target.text.substring(result.startOffset!, result.endOffset!)).toBe('loves');
-      expect(result.startWordIndex).toBe(0);
+      expect(target.text.substring(result.startOffset!, result.endOffset!)).toBe('love');
+      expect(result.startWordIndex).toBe(1);
+    });
+
+    it('skips verb tokens tagged with the pronoun\'s Strong\'s when a real pronoun token exists', () => {
+      // Regression for John 15:10: "keep" is tagged with G3450 in some
+      // modules' compound lemmas alongside G5083, but the user selected
+      // the possessive "My" (G3450). Prefer the "my" token over "keep".
+      const target = verse(
+        'If you keep my commandments, you will abide in my love',
+        [
+          { word: 'If', strongs: [] },
+          { word: 'you', strongs: [] },
+          { word: 'keep', strongs: ['G5083', 'G3450'] },
+          { word: 'my', strongs: ['G3450'] },
+          { word: 'commandments', strongs: ['G1785'] },
+          { word: 'abide', strongs: ['G3306'] },
+          { word: 'my', strongs: ['G3450'] },
+          { word: 'love', strongs: ['G26'] },
+        ],
+      );
+      const result = findAlignedMatch({
+        targetVerse: target,
+        sourceSelectedText: 'My',
+        sourceStrongsNumbers: ['G3450'],
+      });
+      expect(result.found).toBe(true);
+      expect(result.method).toBe('strongs');
+      expect(target.text.substring(result.startOffset!, result.endOffset!)).toBe('my');
+      expect(result.startWordIndex).toBe(3);
+    });
+
+    it('falls back to a Strong\'s-only match when no target token shares a surface form', () => {
+      // When every Strong's hit has a different surface form (e.g. "Myself"
+      // or a Greek compound), pick the first hit and rely on the caller's
+      // UX to show the match, rather than silently missing.
+      const target = verse(
+        'It is Myself who abides in Him',
+        [
+          { word: 'Myself', strongs: ['G3450'] },
+          { word: 'abides', strongs: ['G3306'] },
+          { word: 'Him', strongs: ['G846'] },
+        ],
+      );
+      const result = findAlignedMatch({
+        targetVerse: target,
+        sourceSelectedText: 'my',
+        sourceStrongsNumbers: ['G3450'],
+      });
+      expect(result.found).toBe(true);
+      expect(result.method).toBe('strongs');
+      // "Myself" contains "my" (score 2) — preferred over no match.
+      expect(target.text.substring(result.startOffset!, result.endOffset!)).toBe('Myself');
     });
 
     it('falls through to text path when target has no matching Strong\'s', () => {

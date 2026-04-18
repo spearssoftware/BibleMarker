@@ -56,34 +56,64 @@ function computeWordOffsets(verseText: string, words: Array<{ word: string }>): 
 }
 
 /**
- * Try to match by intersecting Strong's numbers. Returns the first
- * target token whose Strong's array shares any number with the source.
+ * Try to match by intersecting Strong's numbers. Returns the target
+ * token whose Strong's array shares any number with the source AND
+ * whose surface form most closely resembles the source selection.
+ *
+ * Some modules tag compound constructions (e.g. a verb inflected with a
+ * possessive pronoun) with multiple Strong's numbers, so a selection on
+ * the possessive "My" (G3450) can also intersect a verb token. Prefer
+ * the token whose surface form actually matches the selection — exact
+ * case-insensitive equality first, then substring overlap, then the
+ * first Strong's hit by position as a last resort.
  */
 function findByStrongs(
   targetVerse: Verse,
   sourceStrongsNumbers: string[],
+  sourceSelectedText: string,
 ): AlignmentMatch {
   if (!targetVerse.words || targetVerse.words.length === 0) return MISS;
   const sourceSet = new Set(sourceStrongsNumbers);
   const offsets = computeWordOffsets(targetVerse.text, targetVerse.words);
+  const sourceLower = sourceSelectedText.trim().toLowerCase();
+
+  // Collect every token whose Strong's intersects the source, scored by
+  // how well its surface form matches the source selection text.
+  //   3 = case-insensitive exact match
+  //   2 = target word contains the source (e.g. "my's" for "my")
+  //   1 = source contains the target word (e.g. "my" for "m")
+  //   0 = no surface overlap — only Strong's
+  let best: { index: number; score: number; offset: number } | null = null;
 
   for (let i = 0; i < targetVerse.words.length; i++) {
     const token = targetVerse.words[i];
     if (!token.strongs?.some((s) => sourceSet.has(s))) continue;
     const start = offsets[i];
     if (start < 0) continue;
-    const end = start + token.word.length;
-    return {
-      found: true,
-      method: 'strongs',
-      startOffset: start,
-      endOffset: end,
-      matchedText: token.word,
-      startWordIndex: i,
-      endWordIndex: i,
-    };
+
+    const targetLower = token.word.toLowerCase();
+    let score = 0;
+    if (targetLower === sourceLower) score = 3;
+    else if (sourceLower && targetLower.includes(sourceLower)) score = 2;
+    else if (sourceLower && sourceLower.includes(targetLower)) score = 1;
+
+    // Prefer higher scores. On a tie, prefer the earlier occurrence.
+    if (!best || score > best.score) {
+      best = { index: i, score, offset: start };
+    }
   }
-  return MISS;
+
+  if (!best) return MISS;
+  const token = targetVerse.words[best.index];
+  return {
+    found: true,
+    method: 'strongs',
+    startOffset: best.offset,
+    endOffset: best.offset + token.word.length,
+    matchedText: token.word,
+    startWordIndex: best.index,
+    endWordIndex: best.index,
+  };
 }
 
 /**
@@ -146,7 +176,7 @@ export function findAlignedMatch(params: FindAlignedMatchParams): AlignmentMatch
   if (!targetVerse?.text) return MISS;
 
   if (sourceStrongsNumbers && sourceStrongsNumbers.length > 0) {
-    const strongs = findByStrongs(targetVerse, sourceStrongsNumbers);
+    const strongs = findByStrongs(targetVerse, sourceStrongsNumbers, sourceSelectedText);
     if (strongs.found) return strongs;
   }
 
