@@ -207,7 +207,7 @@ export function Toolbar() {
       if (verse) loadedVerses.set(tId, verse);
     }
 
-    const { createdIds, successes, misses } = await createAnnotationsAcrossTranslations(
+    const { createdIds } = await createAnnotationsAcrossTranslations(
       preset,
       targetIds,
       loadedVerses,
@@ -215,28 +215,14 @@ export function Toolbar() {
 
     useAnnotationStore.getState().clearSelection();
 
-    const nameFor = (id: string) => {
-      const match = allTranslations.find(t => t.id === id);
-      return match?.abbreviation || id.replace(/^sword-/, '').toUpperCase();
-    };
+    const label = preset.word ? `${preset.word} keyword applied` : 'Keyword applied';
 
     if (createdIds.length > 0) {
-      const successNames = successes.map(nameFor);
-      const missNames = misses.map(nameFor);
-      const message = missNames.length === 0
-        ? `Applied to ${successNames.join(', ')}`
-        : `Applied to ${successNames.join(', ')} — no match in ${missNames.join(', ')}`;
-      useUndoToastStore.getState().show(message, async () => {
+      useUndoToastStore.getState().show(label, async () => {
         await Promise.all(createdIds.map(id => deleteAnnotation(id)));
         await loadAnnotations();
         window.dispatchEvent(new CustomEvent('annotationsUpdated'));
       });
-    } else if (misses.length > 0) {
-      const missNames = misses.map(nameFor);
-      useUndoToastStore.getState().show(
-        `No cross-translation match in ${missNames.join(', ')}`,
-        () => { /* nothing to undo */ },
-      );
     }
   };
 
