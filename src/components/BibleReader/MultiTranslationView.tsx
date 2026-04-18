@@ -32,12 +32,12 @@ import { getBookById } from '@/types';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { usePanelStore } from '@/stores/panelStore';
 import { useTextSelection, type TranslationChapter } from '@/hooks/useTextSelection';
-import type { Annotation, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
+import type { Annotation, Chapter, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
 
 const KJV_FALLBACK_ERROR_PREFIX = 'Showing KJV';
 
 export function MultiTranslationView() {
-  const { activeView, loadActiveView, addTranslation } = useMultiTranslationStore();
+  const { activeView, loadActiveView, addTranslation, setChaptersByTranslation } = useMultiTranslationStore();
   const setActiveChapterVerses = useActiveChapterStore(state => state.setActiveChapterVerses);
   const { currentBook, currentChapter, currentModuleId, navSelectedVerse, nextChapter, previousChapter } = useBibleStore();
   const { fontSize, selection } = useAnnotationStore();
@@ -79,6 +79,18 @@ export function MultiTranslationView() {
     () => new Map(presets.map((p) => [p.id, p])),
     [presets]
   );
+
+  // Mirror the loaded chapters into the multi-translation store so
+  // cross-translation features (e.g. annotation propagation from the
+  // selection menu) can reach them without prop-drilling through the
+  // app-level Toolbar.
+  useEffect(() => {
+    const entries: Record<string, Chapter | null> = {};
+    translationChapters.forEach((tc, id) => {
+      entries[id] = tc.chapter;
+    });
+    setChaptersByTranslation(entries);
+  }, [translationChapters, setChaptersByTranslation]);
 
   // Filter annotations by active study (passed to VerseText)
   const filteredAnnotationsByTranslation = useMemo(() => {
