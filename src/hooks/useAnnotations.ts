@@ -9,9 +9,11 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { saveAnnotation, deleteAnnotation, getChapterAnnotations, getChapterHeadings, saveSectionHeading, deleteSectionHeading, getChapterTitle, saveChapterTitle, deleteChapterTitle, getChapterNotes, saveNote, deleteNote, getMarkingPreset } from '@/lib/database';
-import type { Annotation, TextAnnotation, SymbolAnnotation, HighlightColor, SymbolKey, SectionHeading, ChapterTitle, Note } from '@/types';
+import type { Annotation, TextAnnotation, SymbolAnnotation, HighlightColor, SymbolKey, SectionHeading, ChapterTitle, Note, MarkingPreset, Verse } from '@/types';
 import { autoAddToObservationTracker } from '@/lib/observationAutoAdd';
 import { getAnnotationVerseRef } from '@/lib/annotationQueries';
+import { fetchChapter } from '@/lib/bible-api';
+import { findAlignedMatch } from '@/lib/translationAlignment';
 
 export function useAnnotations() {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
@@ -215,6 +217,150 @@ export function useAnnotations() {
     return annotation;
   }, [selection, currentModuleId, addRecentSymbol, loadAnnotations, clearSelection]);
 
+  /**
+   * Propagate an annotation created in one translation to every other
+   * installed translation.
+   *
+   * For each target translation (ids excluding the source module), locate
+   * the equivalent word via Strong's (if both sides have tagging) or a
+   * case-insensitive word-boundary text search, and persist a new
+   * annotation there with that translation's moduleId.
+   *
+   * Target chapter data is taken from `loadedVerses` if present; any
+   * target translation not already loaded is fetched via `fetchChapter`
+   * (uses the existing cache for non-SWORD modules). Fetch failures are
+   * recorded as misses, not thrown, so one offline translation can't
+   * break propagation to the others.
+   *
+   * Returns the list of annotation IDs created (including paired text +
+   * symbol annotations) so the caller can offer an undo.
+   */
+  const createAnnotationsAcrossTranslations = useCallback(async (
+    preset: MarkingPreset,
+    source: {
+      moduleId: string;
+      book: string;
+      chapter: number;
+      verse: number;
+      selectedText: string;
+      strongsNumbers?: string[];
+    },
+    targetTranslationIds: string[],
+    loadedVerses: Map<string, Verse>,
+  ): Promise<{ createdIds: string[]; successes: string[]; misses: string[] }> => {
+    const createdIds: string[] = [];
+    const successes: string[] = [];
+    const misses: string[] = [];
+
+    const { moduleId: sourceModuleId, book: sourceBook, chapter: sourceChapter, verse: sourceVerseNum, selectedText: sourceSelectedText, strongsNumbers: sourceStrongsNumbers } = source;
+
+    // Resolve a target verse, fetching the chapter if it isn't already
+    // loaded. Returns null on any error.
+    async function resolveTargetVerse(targetId: string): Promise<Verse | null> {
+      const preloaded = loadedVerses.get(targetId);
+      if (preloaded) return preloaded;
+      try {
+        const chapter = await fetchChapter(targetId, sourceBook, sourceChapter);
+        return chapter.verses.find(v => v.ref.verse === sourceVerseNum) || null;
+      } catch (err) {
+        console.warn(`[propagate] failed to fetch ${targetId} ${sourceBook} ${sourceChapter}:`, err);
+        return null;
+      }
+    }
+
+    // Resolve all target verses in parallel so slow translations (e.g.
+    // ESV network) don't serialize the local SWORD lookups.
+    const resolvedTargets = await Promise.all(
+      targetTranslationIds
+        .filter(id => id !== sourceModuleId)
+        .map(async id => ({ id, verse: await resolveTargetVerse(id) })),
+    );
+
+    for (const { id: targetId, verse: targetVerse } of resolvedTargets) {
+      if (!targetVerse) {
+        misses.push(targetId);
+        continue;
+      }
+
+      const match = findAlignedMatch({
+        targetVerse,
+        sourceSelectedText,
+        sourceStrongsNumbers,
+      });
+      if (!match.found) {
+        misses.push(targetId);
+        continue;
+      }
+
+      const now = new Date();
+      const verseRef = {
+        book: sourceBook,
+        chapter: sourceChapter,
+        verse: targetVerse.ref.verse,
+      };
+
+      if (preset.symbol) {
+        const symAnnotation: SymbolAnnotation = {
+          id: crypto.randomUUID(),
+          moduleId: targetId,
+          type: 'symbol',
+          ref: verseRef,
+          wordIndex: match.startWordIndex,
+          position: 'before',
+          selectedText: match.matchedText,
+          startWordIndex: match.startWordIndex,
+          endWordIndex: match.endWordIndex,
+          startOffset: match.startOffset,
+          endOffset: match.endOffset,
+          symbol: preset.symbol,
+          color: preset.highlight?.color,
+          createdAt: now,
+          updatedAt: now,
+          presetId: preset.id,
+        };
+        await saveAnnotation(symAnnotation);
+        createdIds.push(symAnnotation.id);
+      }
+
+      if (preset.highlight) {
+        const textAnnotation: TextAnnotation = {
+          id: crypto.randomUUID(),
+          moduleId: targetId,
+          type: preset.highlight.style,
+          startRef: verseRef,
+          endRef: verseRef,
+          startWordIndex: match.startWordIndex,
+          endWordIndex: match.endWordIndex,
+          selectedText: match.matchedText,
+          startOffset: match.startOffset,
+          endOffset: match.endOffset,
+          color: preset.highlight.color,
+          createdAt: now,
+          updatedAt: now,
+          presetId: preset.id,
+        };
+        await saveAnnotation(textAnnotation);
+        createdIds.push(textAnnotation.id);
+      }
+
+      // Only count as success if we actually created an annotation (preset
+      // with neither symbol nor highlight would otherwise count as a
+      // silent success).
+      if (preset.symbol || preset.highlight) {
+        successes.push(targetId);
+      } else {
+        misses.push(targetId);
+      }
+    }
+
+    if (createdIds.length > 0) {
+      await loadAnnotations();
+      window.dispatchEvent(new CustomEvent('annotationsUpdated'));
+    }
+
+    return { createdIds, successes, misses };
+  }, [loadAnnotations]);
+
   // applyCurrentTool removed - all annotations must use keywords/presets (no manual annotations)
 
   /**
@@ -407,6 +553,7 @@ export function useAnnotations() {
     loadNotes,
     createTextAnnotation,
     createSymbolAnnotation,
+    createAnnotationsAcrossTranslations,
     removeAnnotation,
     removeAnnotations,
     quickHighlight,

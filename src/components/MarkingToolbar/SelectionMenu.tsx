@@ -12,11 +12,17 @@ import { SYMBOLS, getHighlightColorHex } from '@/types';
 import { isCommonPronoun } from '@/types';
 import { scopeLabel } from '@/types';
 
+export type ApplyScope = 'here' | 'all';
+
 interface SelectionMenuProps {
   selection: TextSelection;
   presets: MarkingPreset[];
   strongsNumbers?: string[];
-  onApplyPreset: (preset: MarkingPreset) => void;
+  /** Whether cross-translation propagation is available (i.e. at least
+   * one other installed translation exists). When false, the scope
+   * toggle is hidden since there's nothing to propagate to. */
+  canPropagate?: boolean;
+  onApplyPreset: (preset: MarkingPreset, scope: ApplyScope) => void;
   onAddAsVariant: (preset: MarkingPreset) => void;
   onOpenKeyWordManager: () => void;
   onQuickAddKeyword: (type: 'person' | 'place') => void;
@@ -30,6 +36,7 @@ export function SelectionMenu({
   selection,
   presets,
   strongsNumbers,
+  canPropagate = false,
   onApplyPreset,
   onAddAsVariant,
   onOpenKeyWordManager,
@@ -42,6 +49,9 @@ export function SelectionMenu({
   const [showApplyKeyWordSubmenu, setShowApplyKeyWordSubmenu] = useState(false);
   const [showAddVariantSubmenu, setShowAddVariantSubmenu] = useState(false);
   const [keywordSearch, setKeywordSearch] = useState('');
+  // Apply propagates to every other installed translation by default.
+  // User can opt out for a single action via this toggle.
+  const [thisTranslationOnly, setThisTranslationOnly] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const applyKeyWordRef = useRef<HTMLButtonElement>(null);
   const addVariantRef = useRef<HTMLButtonElement>(null);
@@ -110,8 +120,12 @@ export function SelectionMenu({
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (action === 'apply') onApplyPreset(p);
-        else onAddAsVariant(p);
+        if (action === 'apply') {
+          const scope: ApplyScope = canPropagate && !thisTranslationOnly ? 'all' : 'here';
+          onApplyPreset(p, scope);
+        } else {
+          onAddAsVariant(p);
+        }
         onClose();
       }}
       className="w-full px-3 py-2 text-left text-sm font-ui text-scripture-text
@@ -162,6 +176,17 @@ export function SelectionMenu({
                   ${inline ? 'w-full max-h-64' : 'w-[280px]'}`}
       onClick={(e) => e.stopPropagation()}
     >
+      {action === 'apply' && canPropagate && (
+        <label className="mx-2 mt-2 flex items-center gap-2 px-2 py-1.5 text-xs font-ui text-scripture-muted cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={thisTranslationOnly}
+            onChange={(e) => setThisTranslationOnly(e.target.checked)}
+            className="accent-scripture-accent"
+          />
+          <span>This translation only</span>
+        </label>
+      )}
       <input
         type="search"
         placeholder="Search keywords..."

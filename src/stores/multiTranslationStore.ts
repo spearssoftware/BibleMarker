@@ -6,13 +6,19 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { MultiTranslationView } from '@/types';
+import type { Chapter, MultiTranslationView } from '@/types';
 import { getMultiTranslationView as dbGetView, saveMultiTranslationView as dbSaveView, deleteMultiTranslationView as dbDeleteView } from '@/lib/database';
 
 interface MultiTranslationState {
   // Active multi-translation view
   activeView: MultiTranslationView | null;
-  
+
+  // Transient: currently loaded chapters per translation, mirrored from
+  // MultiTranslationView so cross-translation features (annotation
+  // propagation, etc.) can read verse data without prop-drilling.
+  // Not persisted; repopulated on each chapter load.
+  chaptersByTranslation: Record<string, Chapter | null>;
+
   // Actions
   setActiveView: (view: MultiTranslationView | null) => Promise<void>;
   loadActiveView: () => Promise<void>;
@@ -20,6 +26,7 @@ interface MultiTranslationState {
   removeTranslation: (translationId: string) => Promise<void>;
   setSyncScrolling: (sync: boolean) => Promise<void>;
   clearView: () => Promise<void>;
+  setChaptersByTranslation: (chapters: Record<string, Chapter | null>) => void;
 }
 
 const DEFAULT_VIEW: MultiTranslationView = {
@@ -32,7 +39,12 @@ export const useMultiTranslationStore = create<MultiTranslationState>()(
   persist(
     (set, get) => ({
       activeView: null,
-      
+      chaptersByTranslation: {},
+
+      setChaptersByTranslation: (chapters) => {
+        set({ chaptersByTranslation: chapters });
+      },
+
       setActiveView: async (view) => {
         if (view) {
           await dbSaveView(view);
