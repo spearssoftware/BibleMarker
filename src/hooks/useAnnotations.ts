@@ -12,6 +12,7 @@ import { saveAnnotation, deleteAnnotation, getChapterAnnotations, getChapterHead
 import type { Annotation, TextAnnotation, SymbolAnnotation, HighlightColor, SymbolKey, SectionHeading, ChapterTitle, Note, MarkingPreset, Verse } from '@/types';
 import { autoAddToObservationTracker } from '@/lib/observationAutoAdd';
 import { getAnnotationVerseRef } from '@/lib/annotationQueries';
+import { fetchChapter } from '@/lib/bible-api';
 import { findAlignedMatch } from '@/lib/translationAlignment';
 
 export function useAnnotations() {
@@ -218,20 +219,26 @@ export function useAnnotations() {
 
   /**
    * Propagate an annotation created in one translation to every other
-   * translation visible in the multi-translation view.
+   * installed translation.
    *
    * For each target translation (ids excluding the source module), locate
    * the equivalent word via Strong's (if both sides have tagging) or a
    * case-insensitive word-boundary text search, and persist a new
    * annotation there with that translation's moduleId.
    *
+   * Target chapter data is taken from `loadedVerses` if present; any
+   * target translation not already loaded is fetched via `fetchChapter`
+   * (uses the existing cache for non-SWORD modules). Fetch failures are
+   * recorded as misses, not thrown, so one offline translation can't
+   * break propagation to the others.
+   *
    * Returns the list of annotation IDs created (including paired text +
    * symbol annotations) so the caller can offer an undo.
    */
   const createAnnotationsAcrossTranslations = useCallback(async (
     preset: MarkingPreset,
-    verseByTranslation: Map<string, Verse>,
     targetTranslationIds: string[],
+    loadedVerses: Map<string, Verse>,
   ): Promise<{ createdIds: string[]; successes: string[]; misses: string[] }> => {
     const createdIds: string[] = [];
     const successes: string[] = [];
@@ -242,10 +249,33 @@ export function useAnnotations() {
     const sourceModuleId = selection.moduleId;
     const sourceSelectedText = selection.text;
     const sourceStrongsNumbers = selection.strongsNumbers;
+    const sourceBook = selection.book;
+    const sourceChapter = selection.chapter;
+    const sourceVerseNum = selection.startVerse;
 
-    for (const targetId of targetTranslationIds) {
-      if (targetId === sourceModuleId) continue;
-      const targetVerse = verseByTranslation.get(targetId);
+    // Resolve a target verse, fetching the chapter if it isn't already
+    // loaded. Returns null on any error.
+    async function resolveTargetVerse(targetId: string): Promise<Verse | null> {
+      const preloaded = loadedVerses.get(targetId);
+      if (preloaded) return preloaded;
+      try {
+        const chapter = await fetchChapter(targetId, sourceBook, sourceChapter);
+        return chapter.verses.find(v => v.ref.verse === sourceVerseNum) || null;
+      } catch (err) {
+        console.warn(`[propagate] failed to fetch ${targetId} ${sourceBook} ${sourceChapter}:`, err);
+        return null;
+      }
+    }
+
+    // Resolve all target verses in parallel so slow translations (e.g.
+    // ESV network) don't serialize the local SWORD lookups.
+    const resolvedTargets = await Promise.all(
+      targetTranslationIds
+        .filter(id => id !== sourceModuleId)
+        .map(async id => ({ id, verse: await resolveTargetVerse(id) })),
+    );
+
+    for (const { id: targetId, verse: targetVerse } of resolvedTargets) {
       if (!targetVerse) {
         misses.push(targetId);
         continue;

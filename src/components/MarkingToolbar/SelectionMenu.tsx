@@ -18,8 +18,10 @@ interface SelectionMenuProps {
   selection: TextSelection;
   presets: MarkingPreset[];
   strongsNumbers?: string[];
-  /** True when a multi-translation view with 2+ columns is active. */
-  isMultiTranslation?: boolean;
+  /** Whether cross-translation propagation is available (i.e. at least
+   * one other installed translation exists). When false, the scope
+   * toggle is hidden since there's nothing to propagate to. */
+  canPropagate?: boolean;
   onApplyPreset: (preset: MarkingPreset, scope: ApplyScope) => void;
   onAddAsVariant: (preset: MarkingPreset) => void;
   onOpenKeyWordManager: () => void;
@@ -34,7 +36,7 @@ export function SelectionMenu({
   selection,
   presets,
   strongsNumbers,
-  isMultiTranslation = false,
+  canPropagate = false,
   onApplyPreset,
   onAddAsVariant,
   onOpenKeyWordManager,
@@ -47,8 +49,8 @@ export function SelectionMenu({
   const [showApplyKeyWordSubmenu, setShowApplyKeyWordSubmenu] = useState(false);
   const [showAddVariantSubmenu, setShowAddVariantSubmenu] = useState(false);
   const [keywordSearch, setKeywordSearch] = useState('');
-  // In multi-translation view, apply propagates to all visible columns by
-  // default. User can scope back to a single column for this action only.
+  // Apply propagates to every other installed translation by default.
+  // User can opt out for a single action via this toggle.
   const [thisTranslationOnly, setThisTranslationOnly] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const applyKeyWordRef = useRef<HTMLButtonElement>(null);
@@ -119,7 +121,7 @@ export function SelectionMenu({
         e.preventDefault();
         e.stopPropagation();
         if (action === 'apply') {
-          const scope: ApplyScope = isMultiTranslation && !thisTranslationOnly ? 'all' : 'here';
+          const scope: ApplyScope = canPropagate && !thisTranslationOnly ? 'all' : 'here';
           onApplyPreset(p, scope);
         } else {
           onAddAsVariant(p);
@@ -174,7 +176,7 @@ export function SelectionMenu({
                   ${inline ? 'w-full max-h-64' : 'w-[280px]'}`}
       onClick={(e) => e.stopPropagation()}
     >
-      {action === 'apply' && isMultiTranslation && (
+      {action === 'apply' && canPropagate && (
         <label className="mx-2 mt-2 flex items-center gap-2 px-2 py-1.5 text-xs font-ui text-scripture-muted cursor-pointer select-none">
           <input
             type="checkbox"

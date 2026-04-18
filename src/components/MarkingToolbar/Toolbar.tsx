@@ -21,6 +21,7 @@ import { usePanelStore } from '@/stores/panelStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
 import { deleteAnnotation } from '@/lib/database';
+import { getAllTranslations } from '@/lib/bible-api';
 import type { MarkingPreset, Verse } from '@/types';
 import { createMarkingPreset, getRandomHighlightColor } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
@@ -51,8 +52,8 @@ export function Toolbar() {
   const { activeStudyId } = useStudyStore();
   const { getOrCreateListForKeyword } = useListStore();
   const { activePanel, togglePanel, openPanel, isCollapsed } = usePanelStore();
-  const activeView = useMultiTranslationStore(s => s.activeView);
   const chaptersByTranslation = useMultiTranslationStore(s => s.chaptersByTranslation);
+  const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [strongsPopup, setStrongsPopup] = useState<{ numbers: string[]; position: { x: number; y: number }; word?: string } | null>(null);
@@ -61,6 +62,28 @@ export function Toolbar() {
   useEffect(() => {
     loadPresets();
   }, [loadPresets]);
+
+  // Track the number of installed translations so the selection menu can
+  // show the "This translation only" toggle only when there's actually
+  // somewhere to propagate to. Refresh when translations are added/removed.
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const translations = await getAllTranslations();
+        if (!cancelled) setInstalledTranslationCount(translations.length);
+      } catch {
+        if (!cancelled) setInstalledTranslationCount(0);
+      }
+    };
+    load();
+    const onChange = () => load();
+    window.addEventListener('translationsUpdated', onChange);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('translationsUpdated', onChange);
+    };
+  }, []);
 
   // Listen for custom events to open panels
   useEffect(() => {
@@ -148,51 +171,72 @@ export function Toolbar() {
     }
     setActiveTool(null);
 
-    // Propagate to other translations when in multi-translation view.
-    if (scope === 'all' && activeView && activeView.translationIds.length > 1) {
-      // Re-seed selection so createAnnotationsAcrossTranslations can read it.
-      // createTextAnnotation/createSymbolAnnotation call clearSelection(),
-      // so we must restore the pre-clear context for the propagation pass.
-      useAnnotationStore.setState({ selection: sourceSelection });
+    // Propagate to every other installed translation unless scoped out.
+    if (scope !== 'all') return;
 
-      const verseByTranslation = new Map<string, Verse>();
-      for (const tId of activeView.translationIds) {
-        if (tId === sourceSelection.moduleId) continue;
-        const chapter = chaptersByTranslation[tId];
-        if (!chapter) continue;
-        const verse = chapter.verses.find(v => v.ref.verse === sourceSelection.startVerse);
-        if (verse) verseByTranslation.set(tId, verse);
-      }
+    // Re-seed selection so createAnnotationsAcrossTranslations can read it.
+    // createTextAnnotation/createSymbolAnnotation call clearSelection(),
+    // so we must restore the pre-clear context for the propagation pass.
+    useAnnotationStore.setState({ selection: sourceSelection });
 
-      const { createdIds, successes, misses } = await createAnnotationsAcrossTranslations(
-        preset,
-        verseByTranslation,
-        activeView.translationIds,
-      );
-
-      // Clear the re-seeded selection now that we're done with it.
+    let allTranslations: Awaited<ReturnType<typeof getAllTranslations>> = [];
+    try {
+      allTranslations = await getAllTranslations();
+    } catch (err) {
+      console.warn('[propagate] getAllTranslations failed:', err);
       useAnnotationStore.getState().clearSelection();
+      return;
+    }
 
-      if (createdIds.length > 0) {
-        const nameFor = (id: string) => id.replace(/^sword-/, '').toUpperCase();
-        const successNames = successes.map(nameFor);
-        const missNames = misses.map(nameFor);
-        const message = missNames.length === 0
-          ? `Applied to ${successNames.join(', ')}`
-          : `Applied to ${successNames.join(', ')} — no match in ${missNames.join(', ')}`;
-        useUndoToastStore.getState().show(message, async () => {
-          await Promise.all(createdIds.map(id => deleteAnnotation(id)));
-          await loadAnnotations();
-          window.dispatchEvent(new CustomEvent('annotationsUpdated'));
-        });
-      } else if (misses.length > 0) {
-        const nameFor = (id: string) => id.replace(/^sword-/, '').toUpperCase();
-        const missNames = misses.map(nameFor);
-        useUndoToastStore.getState().show(
-          `No cross-translation match in ${missNames.join(', ')}`,
-          () => { /* nothing to undo */ },
-        );
-      }
+    const targetIds = allTranslations
+      .map(t => t.id)
+      .filter(id => id !== sourceSelection.moduleId);
+
+    if (targetIds.length === 0) {
+      useAnnotationStore.getState().clearSelection();
+      return;
+    }
+
+    // Pre-populate with already-loaded chapters from the multi-translation
+    // view so we don't refetch what's already on screen.
+    const loadedVerses = new Map<string, Verse>();
+    for (const tId of targetIds) {
+      const chapter = chaptersByTranslation[tId];
+      if (!chapter) continue;
+      const verse = chapter.verses.find(v => v.ref.verse === sourceSelection.startVerse);
+      if (verse) loadedVerses.set(tId, verse);
+    }
+
+    const { createdIds, successes, misses } = await createAnnotationsAcrossTranslations(
+      preset,
+      targetIds,
+      loadedVerses,
+    );
+
+    useAnnotationStore.getState().clearSelection();
+
+    const nameFor = (id: string) => {
+      const match = allTranslations.find(t => t.id === id);
+      return match?.abbreviation || id.replace(/^sword-/, '').toUpperCase();
+    };
+
+    if (createdIds.length > 0) {
+      const successNames = successes.map(nameFor);
+      const missNames = misses.map(nameFor);
+      const message = missNames.length === 0
+        ? `Applied to ${successNames.join(', ')}`
+        : `Applied to ${successNames.join(', ')} — no match in ${missNames.join(', ')}`;
+      useUndoToastStore.getState().show(message, async () => {
+        await Promise.all(createdIds.map(id => deleteAnnotation(id)));
+        await loadAnnotations();
+        window.dispatchEvent(new CustomEvent('annotationsUpdated'));
+      });
+    } else if (misses.length > 0) {
+      const missNames = misses.map(nameFor);
+      useUndoToastStore.getState().show(
+        `No cross-translation match in ${missNames.join(', ')}`,
+        () => { /* nothing to undo */ },
+      );
     }
   };
 
@@ -292,7 +336,7 @@ export function Toolbar() {
             selection={selection}
             presets={filterPresetsByStudy(presets, activeStudyId)}
             strongsNumbers={selection.strongsNumbers}
-            isMultiTranslation={!!activeView && activeView.translationIds.length > 1}
+            canPropagate={installedTranslationCount > 1}
             onApplyPreset={applyPresetToSelection}
             onAddAsVariant={addToVariantsAndApply}
             onOpenKeyWordManager={() => {
