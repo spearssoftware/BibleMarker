@@ -174,17 +174,11 @@ export function Toolbar() {
     // Propagate to every other installed translation unless scoped out.
     if (scope !== 'all') return;
 
-    // Re-seed selection so createAnnotationsAcrossTranslations can read it.
-    // createTextAnnotation/createSymbolAnnotation call clearSelection(),
-    // so we must restore the pre-clear context for the propagation pass.
-    useAnnotationStore.setState({ selection: sourceSelection });
-
     let allTranslations: Awaited<ReturnType<typeof getAllTranslations>> = [];
     try {
       allTranslations = await getAllTranslations();
     } catch (err) {
       console.warn('[propagate] getAllTranslations failed:', err);
-      useAnnotationStore.getState().clearSelection();
       return;
     }
 
@@ -192,10 +186,7 @@ export function Toolbar() {
       .map(t => t.id)
       .filter(id => id !== sourceSelection.moduleId);
 
-    if (targetIds.length === 0) {
-      useAnnotationStore.getState().clearSelection();
-      return;
-    }
+    if (targetIds.length === 0) return;
 
     // Pre-populate with already-loaded chapters from the multi-translation
     // view so we don't refetch what's already on screen.
@@ -209,11 +200,17 @@ export function Toolbar() {
 
     const { createdIds } = await createAnnotationsAcrossTranslations(
       preset,
+      {
+        moduleId: sourceSelection.moduleId,
+        book: sourceSelection.book,
+        chapter: sourceSelection.chapter,
+        verse: sourceSelection.startVerse,
+        selectedText: sourceSelection.text,
+        strongsNumbers: sourceSelection.strongsNumbers,
+      },
       targetIds,
       loadedVerses,
     );
-
-    useAnnotationStore.getState().clearSelection();
 
     const label = preset.word ? `${preset.word} keyword applied` : 'Keyword applied';
 

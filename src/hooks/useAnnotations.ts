@@ -237,6 +237,14 @@ export function useAnnotations() {
    */
   const createAnnotationsAcrossTranslations = useCallback(async (
     preset: MarkingPreset,
+    source: {
+      moduleId: string;
+      book: string;
+      chapter: number;
+      verse: number;
+      selectedText: string;
+      strongsNumbers?: string[];
+    },
     targetTranslationIds: string[],
     loadedVerses: Map<string, Verse>,
   ): Promise<{ createdIds: string[]; successes: string[]; misses: string[] }> => {
@@ -244,14 +252,7 @@ export function useAnnotations() {
     const successes: string[] = [];
     const misses: string[] = [];
 
-    if (!selection) return { createdIds, successes, misses };
-
-    const sourceModuleId = selection.moduleId;
-    const sourceSelectedText = selection.text;
-    const sourceStrongsNumbers = selection.strongsNumbers;
-    const sourceBook = selection.book;
-    const sourceChapter = selection.chapter;
-    const sourceVerseNum = selection.startVerse;
+    const { moduleId: sourceModuleId, book: sourceBook, chapter: sourceChapter, verse: sourceVerseNum, selectedText: sourceSelectedText, strongsNumbers: sourceStrongsNumbers } = source;
 
     // Resolve a target verse, fetching the chapter if it isn't already
     // loaded. Returns null on any error.
@@ -293,8 +294,8 @@ export function useAnnotations() {
 
       const now = new Date();
       const verseRef = {
-        book: selection.book,
-        chapter: selection.chapter,
+        book: sourceBook,
+        chapter: sourceChapter,
         verse: targetVerse.ref.verse,
       };
 
@@ -358,7 +359,7 @@ export function useAnnotations() {
     }
 
     return { createdIds, successes, misses };
-  }, [selection, loadAnnotations]);
+  }, [loadAnnotations]);
 
   // applyCurrentTool removed - all annotations must use keywords/presets (no manual annotations)
 
