@@ -195,7 +195,8 @@ export function getSymbolMarkup(symbol: SymbolKey | string, color?: string): str
   let svg = svgCache.get(resolved);
   if (svg === undefined) {
     const { Icon, weight } = spec;
-    svg = renderToStaticMarkup(<Icon size="1em" weight={weight ?? 'fill'} />);
+    // Render at 1.4em so the glyph reads clearly behind scripture words.
+    svg = renderToStaticMarkup(<Icon size="1.4em" weight={weight ?? 'fill'} />);
     svgCache.set(resolved, svg);
   }
   if (color) {
