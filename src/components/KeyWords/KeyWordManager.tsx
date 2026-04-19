@@ -1021,13 +1021,14 @@ function VariantEditor({
   return (
     <div className="p-2 bg-scripture-elevated border border-scripture-border/30 rounded-lg space-y-1.5">
       <div className="flex items-center gap-2">
-        <Input
-          type="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Variant text"
-          className="flex-1"
-        />
+        <div className="flex-1 min-w-0">
+          <Input
+            type="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Variant text"
+          />
+        </div>
         <div className="flex items-center gap-3 text-xs">
           {(['global', 'book', 'chapter'] as const).map(opt => (
             <label key={opt} className="flex items-center gap-1 text-scripture-text cursor-pointer">
