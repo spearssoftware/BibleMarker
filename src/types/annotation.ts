@@ -128,6 +128,7 @@ export const SYMBOLS = {
   harvest: '🌾',     // Harvest / Grain / Sowing
   fruit: '🍎',       // Fruit / Bearing fruit / Produce
   warning: '⚠',     // Warning / Caution
+  joy: '😊',         // Joy / Rejoicing / Delight
 
   // Scripture & Teaching
   scroll: '📜',      // Law / Commandment / Scripture

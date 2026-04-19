@@ -7,7 +7,7 @@ import {
   HandsPraying, Heart, Hexagon, Hourglass, House, Key, Lamp, Lightning, Link, LinkBreak,
   type IconProps, MapPin, MapTrifold, Megaphone, Minus, Moon, Mountains, PersonArmsSpread,
   Person, PintGlass, Plant, Plus, Question, Scales, Scroll, Shield, Skull, SpeakerHigh,
-  Square, Star, Sun, Sword, Synagogue, ThumbsUp, Tree, Triangle, UsersThree, Warning, Waves, X,
+  Smiley, Square, Star, Sun, Sword, Synagogue, ThumbsUp, Tree, Triangle, UsersThree, Warning, Waves, X,
 } from '@phosphor-icons/react';
 import type { SymbolKey } from '@/types/annotation';
 
@@ -62,6 +62,7 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   harvest: { Icon: Farm, weight: 'fill' },
   fruit: { Icon: Cherries, weight: 'fill' },
   warning: { Icon: Warning, weight: 'fill' },
+  joy: { Icon: Smiley, weight: 'fill' },
 
   // Scripture & teaching
   scroll: { Icon: Scroll, weight: 'fill' },
