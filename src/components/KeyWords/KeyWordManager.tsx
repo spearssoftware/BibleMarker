@@ -1011,8 +1011,14 @@ function VariantEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, scopeType, bookScope, chapterScope]);
 
+  const scopeName = `variant-scope-${variant.text}`;
+  const bookOptions = [
+    { value: '', label: 'Select a book...' },
+    ...BIBLE_BOOKS.map(book => ({ value: book.id, label: book.name })),
+  ];
+
   return (
-    <div className="p-3 bg-scripture-elevated border border-scripture-border/30 rounded-lg space-y-2">
+    <div className="p-2 bg-scripture-elevated border border-scripture-border/30 rounded-lg space-y-1.5">
       <div className="flex items-center gap-2">
         <Input
           type="text"
@@ -1021,122 +1027,70 @@ function VariantEditor({
           placeholder="Variant text"
           className="flex-1"
         />
+        <div className="flex items-center gap-3 text-xs">
+          {(['global', 'book', 'chapter'] as const).map(opt => (
+            <label key={opt} className="flex items-center gap-1 text-scripture-text cursor-pointer">
+              <input
+                type="radio"
+                name={scopeName}
+                value={opt}
+                checked={scopeType === opt}
+                onChange={() => setScopeType(opt)}
+                className="w-3 h-3"
+              />
+              <span className="capitalize">{opt}</span>
+            </label>
+          ))}
+        </div>
         <button
           type="button"
           onClick={onRemove}
-          className="px-2 py-1.5 text-sm text-scripture-error hover:bg-scripture-errorBg rounded transition-colors"
+          className="px-1 text-sm text-scripture-error hover:bg-scripture-errorBg rounded transition-colors"
+          aria-label="Remove variant"
         >
           ✕
         </button>
       </div>
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-xs">
-          <input
-            type="radio"
-            id={`variant-global-${variant.text}`}
-            name={`variant-scope-${variant.text}`}
-            value="global"
-            checked={scopeType === 'global'}
-            onChange={() => setScopeType('global')}
-            className="w-3 h-3"
+      {scopeType === 'book' && (
+        <DropdownSelect
+          value={bookScope}
+          onChange={(val) => setBookScope(val)}
+          options={bookOptions}
+          placeholder="Select a book..."
+        />
+      )}
+      {scopeType === 'chapter' && (
+        <div className="grid grid-cols-[1fr_auto] gap-2">
+          <DropdownSelect
+            value={bookScope}
+            onChange={(val) => {
+              setBookScope(val);
+              if (val) {
+                const bookInfo = getBookById(val);
+                if (bookInfo && chapterScope > bookInfo.chapters) setChapterScope(1);
+              }
+            }}
+            options={bookOptions}
+            placeholder="Select a book..."
           />
-          <label htmlFor={`variant-global-${variant.text}`} className="text-scripture-text">
-            Global
-          </label>
-        </div>
-        <div className="flex items-center gap-2 text-xs">
-          <input
-            type="radio"
-            id={`variant-book-${variant.text}`}
-            name={`variant-scope-${variant.text}`}
-            value="book"
-            checked={scopeType === 'book'}
-            onChange={() => setScopeType('book')}
-            className="w-3 h-3"
+          <Input
+            type="number"
+            value={chapterScope}
+            onChange={(e) => {
+              const newChapter = parseInt(e.target.value) || 1;
+              const bookInfo = bookScope ? getBookById(bookScope) : undefined;
+              if (bookInfo) {
+                setChapterScope(Math.min(Math.max(1, newChapter), bookInfo.chapters));
+              } else {
+                setChapterScope(newChapter);
+              }
+            }}
+            min="1"
+            max={bookScope ? getBookById(bookScope)?.chapters : undefined}
+            className="w-20"
           />
-          <label htmlFor={`variant-book-${variant.text}`} className="text-scripture-text">
-            Book
-          </label>
         </div>
-        {scopeType === 'book' && (
-          <div className="ml-5">
-            <DropdownSelect
-              label="Book"
-              value={bookScope}
-              onChange={(val) => setBookScope(val)}
-              options={[
-                { value: '', label: 'Select a book...' },
-                ...BIBLE_BOOKS.map(book => ({
-                  value: book.id,
-                  label: book.name
-                }))
-              ]}
-              placeholder="Select a book..."
-            />
-          </div>
-        )}
-        <div className="flex items-center gap-2 text-xs">
-          <input
-            type="radio"
-            id={`variant-chapter-${variant.text}`}
-            name={`variant-scope-${variant.text}`}
-            value="chapter"
-            checked={scopeType === 'chapter'}
-            onChange={() => setScopeType('chapter')}
-            className="w-3 h-3"
-          />
-          <label htmlFor={`variant-chapter-${variant.text}`} className="text-scripture-text">
-            Chapter
-          </label>
-        </div>
-        {scopeType === 'chapter' && (
-          <div className="ml-5 grid grid-cols-2 gap-2">
-            <DropdownSelect
-              label="Book"
-              value={bookScope}
-              onChange={(val) => {
-                setBookScope(val);
-                // Reset chapter when book changes
-                if (val) {
-                  const bookInfo = getBookById(val);
-                  if (bookInfo && chapterScope > bookInfo.chapters) {
-                    setChapterScope(1);
-                  }
-                }
-              }}
-              options={[
-                { value: '', label: 'Select a book...' },
-                ...BIBLE_BOOKS.map(book => ({
-                  value: book.id,
-                  label: book.name
-                }))
-              ]}
-              placeholder="Select a book..."
-            />
-            <Input
-              type="number"
-              label="Chapter"
-              value={chapterScope}
-              onChange={(e) => {
-                const newChapter = parseInt(e.target.value) || 1;
-                if (bookScope) {
-                  const bookInfo = getBookById(bookScope);
-                  if (bookInfo) {
-                    const maxChapter = bookInfo.chapters;
-                    setChapterScope(Math.min(Math.max(1, newChapter), maxChapter));
-                  } else {
-                    setChapterScope(newChapter);
-                  }
-                } else {
-                  setChapterScope(newChapter);
-                }
-              }}
-              min="1"
-              max={bookScope ? getBookById(bookScope)?.chapters : undefined}
-            />
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
