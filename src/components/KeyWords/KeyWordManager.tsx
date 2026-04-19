@@ -779,6 +779,10 @@ function KeyWordEditor({
 
         <div className="space-y-4">
           <div>
+            <ColorAccordion color={color} onSelect={setColor} />
+          </div>
+
+          <div>
             <Label>Symbol</Label>
             {recentSymbols.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-1.5 mb-2">
@@ -796,13 +800,14 @@ function KeyWordEditor({
                       ${symbol === key ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border'}`}
                     title={key}
                   >
-                    <SymbolIcon symbol={key} size={18} />
+                    <SymbolIcon symbol={key} size={18} color={color ? getHighlightColorHex(color) : undefined} />
                   </button>
                 ))}
               </div>
             )}
             <SymbolGrid
               symbol={symbol}
+              previewColor={color ? getHighlightColorHex(color) : undefined}
               onSelect={(key) => {
                 if (key === undefined) {
                   setSymbol(undefined);
@@ -813,10 +818,6 @@ function KeyWordEditor({
                 }
               }}
             />
-          </div>
-
-          <div>
-            <ColorAccordion color={color} onSelect={setColor} />
           </div>
         </div>
 
@@ -1176,7 +1177,7 @@ function DismissedMatches({ presetId }: { presetId: string }) {
   );
 }
 
-function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSelect: (key: SymbolKey | undefined) => void }) {
+function SymbolGrid({ symbol, previewColor, onSelect }: { symbol: SymbolKey | undefined; previewColor?: string; onSelect: (key: SymbolKey | undefined) => void }) {
   const [showLetters, setShowLetters] = useState(false);
   const symbolsHeaderRef = useRef<HTMLButtonElement>(null);
   const lettersHeaderRef = useRef<HTMLButtonElement>(null);
@@ -1210,7 +1211,7 @@ function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSel
           ${symbol === key ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border'}`}
         title={SYMBOL_LABELS[key]}
       >
-        <SymbolIcon symbol={key} size={isLetterOrNumber ? 18 : 20} />
+        <SymbolIcon symbol={key} size={isLetterOrNumber ? 18 : 20} color={symbol === key ? undefined : previewColor} />
         {!isLetterOrNumber && (
           <span className="text-[10px] leading-tight font-ui">
             {SYMBOL_LABELS[key]}
@@ -1218,7 +1219,7 @@ function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSel
         )}
       </button>
     );
-  }, [symbol, onSelect]);
+  }, [symbol, onSelect, previewColor]);
 
   return (
     <div className="space-y-3 mt-1.5">
