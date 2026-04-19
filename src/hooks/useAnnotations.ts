@@ -287,6 +287,8 @@ export function useAnnotations() {
         sourceSelectedText,
         sourceStrongsNumbers,
       });
+      // TEMP DEBUG: log propagation decisions to diagnose cross-translation alignment
+      console.log('[propagate]', targetId, 'source:', sourceSelectedText, 'strongs:', sourceStrongsNumbers, '→ match:', match);
       if (!match.found) {
         misses.push(targetId);
         continue;
