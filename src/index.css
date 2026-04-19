@@ -427,17 +427,17 @@ select:focus-visible {
     color: currentColor;
   }
 
-  /* Phosphor SVG inside the overlay — absolutely centered so it renders
-     predictably even behind short words like "Me" where the wrapper is
-     narrower than the icon. */
+  /* Phosphor SVG inside the overlay — centered via inset + margin auto,
+     which works for oversized icons on narrow words like "Me" without
+     depending on flex or transform quirks. */
   .symbol-overlay svg {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    inset: 0;
+    margin: auto;
     width: 1.4em;
     height: 1.4em;
     fill: currentColor;
+    pointer-events: none;
   }
 
   /* Marked word text sits above its own symbol within the wrapper. */
