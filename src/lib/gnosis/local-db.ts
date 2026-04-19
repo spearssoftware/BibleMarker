@@ -52,7 +52,6 @@ async function initGnosisDb(): Promise<Database> {
     await invoke('install_bundled_module', {
       resourceName: 'gnosis-lite.db',
       destPath,
-      force: true,
     });
     console.log('[Gnosis] Bundled DB installed at:', destPath);
   } catch (e) {

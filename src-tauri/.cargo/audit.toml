@@ -7,4 +7,41 @@ ignore = [
     "RUSTSEC-2023-0071",
     # sqlx 0.8.x — binary protocol misuse. Pinned by tauri-plugin-sql.
     "RUSTSEC-2024-0363",
+
+    # rustls-webpki — name constraint verification bugs. Transitive via quinn → reqwest.
+    # Waiting for upstream bump through tauri's networking stack.
+    "RUSTSEC-2026-0098",
+    "RUSTSEC-2026-0099",
+
+    # rand 0.9.x — unsound only when a custom logger calls `rand::rng()` on a panicking thread.
+    # We don't use rand directly; transitive via quinn → reqwest.
+    "RUSTSEC-2026-0097",
+
+    # glib VariantStrIter unsoundness — transitive via Tauri's GTK3 stack (Linux only).
+    "RUSTSEC-2024-0429",
+
+    # gtk-rs GTK3 bindings — unmaintained. Tauri 2 still uses GTK3 on Linux; upgrade path
+    # is GTK4 via webkit2gtk, pending Tauri ecosystem migration.
+    "RUSTSEC-2024-0411", # gdkwayland-sys
+    "RUSTSEC-2024-0412", # gdk
+    "RUSTSEC-2024-0413", # atk
+    "RUSTSEC-2024-0414", # gdkx11-sys
+    "RUSTSEC-2024-0415", # gtk
+    "RUSTSEC-2024-0416", # atk-sys
+    "RUSTSEC-2024-0417", # gdkx11
+    "RUSTSEC-2024-0418", # gdk-sys
+    "RUSTSEC-2024-0419", # gtk3-macros
+    "RUSTSEC-2024-0420", # gtk-sys
+
+    # Unmaintained proc-macro / utility crates, transitive via Tauri's macro stack.
+    "RUSTSEC-2024-0370", # proc-macro-error
+    "RUSTSEC-2024-0436", # paste
+    "RUSTSEC-2025-0057", # fxhash
+
+    # Unmaintained unic-* unicode crates, transitive via idna / Tauri.
+    "RUSTSEC-2025-0075", # unic-char-range
+    "RUSTSEC-2025-0080", # unic-common
+    "RUSTSEC-2025-0081", # unic-char-property
+    "RUSTSEC-2025-0098", # unic-ucd-version
+    "RUSTSEC-2025-0100", # unic-ucd-ident
 ]

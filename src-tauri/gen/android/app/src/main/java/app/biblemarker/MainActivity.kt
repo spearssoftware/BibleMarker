@@ -13,4 +13,11 @@ class MainActivity : TauriActivity() {
     )
     super.onCreate(savedInstanceState)
   }
+
+  override fun onActionModeStarted(mode: android.view.ActionMode?) {
+    // Immediately dismiss the system text-selection toolbar so our custom
+    // BibleMarker marking menu (driven by JS handleMouseUp) can take over.
+    mode?.finish()
+    super.onActionModeStarted(mode)
+  }
 }

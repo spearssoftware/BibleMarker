@@ -7,8 +7,9 @@
  */
 
 import { useMemo } from 'react';
-import type { Annotation, TextAnnotation, SymbolAnnotation } from '@/types';
-import { getHighlightColorHex, SYMBOLS } from '@/types';
+import type { Annotation, TextAnnotation, SymbolAnnotation, SymbolKey } from '@/types';
+import { getHighlightColorHex } from '@/types';
+import { SymbolIcon } from '@/lib/symbolDisplay';
 
 interface AnnotationLegendProps {
   annotations: Annotation[];
@@ -19,7 +20,7 @@ interface WordEntry {
   highlights: { color: string }[];
   textColors: { color: string }[];
   underlines: { color: string; style?: string }[];
-  symbols: { symbol: string; color?: string }[];
+  symbols: { symbol: SymbolKey; color?: string }[];
 }
 
 export function AnnotationLegend({ annotations }: AnnotationLegendProps) {
@@ -44,7 +45,7 @@ export function AnnotationLegend({ annotations }: AnnotationLegendProps) {
           }
           const entry = wordMap.get(normalizedText)!;
           entry.symbols.push({
-            symbol: SYMBOLS[symAnn.symbol],
+            symbol: symAnn.symbol,
             color: symAnn.color,
           });
         }
@@ -179,7 +180,7 @@ export function AnnotationLegend({ annotations }: AnnotationLegendProps) {
                       }}
                       title={sym.color || 'No color'}
                     >
-                      {sym.symbol}
+                      <SymbolIcon symbol={sym.symbol} size={16} />
                     </span>
                   ))}
                 </div>

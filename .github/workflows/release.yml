@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v5
+      - uses: pnpm/action-setup@v6
         with:
           version: 10
       - uses: actions/setup-node@v6
@@ -115,7 +115,7 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
@@ -234,7 +234,7 @@ jobs:
       # TODO: Pinned to v2.4.2 to avoid "Too many retries" in v2.5.0 (issue #704). Check for fixed version later.
       - name: Upload macOS artifact to release
         if: matrix.platform == 'macos-latest'
-        uses: softprops/action-gh-release@v2.6.1
+        uses: softprops/action-gh-release@v3.0.0
         with:
           tag_name: app-v${{ needs.prepare.outputs.version }}
           name: BibleMarker v${{ needs.prepare.outputs.version }}
@@ -247,7 +247,7 @@ jobs:
       # Same action pin as above (v2.5.0 retry bug)
       - name: Upload macOS updater artifacts to release
         if: matrix.platform == 'macos-latest' && steps.create-updater.outcome == 'success'
-        uses: softprops/action-gh-release@v2.6.1
+        uses: softprops/action-gh-release@v3.0.0
         with:
           tag_name: app-v${{ needs.prepare.outputs.version }}
           name: BibleMarker v${{ needs.prepare.outputs.version }}
@@ -330,7 +330,7 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_26.2.app
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
@@ -497,13 +497,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install NDK
         run: |
@@ -511,7 +511,7 @@ jobs:
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> $GITHUB_ENV
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
@@ -571,7 +571,7 @@ jobs:
           cp "$AAB" BibleMarker-android.aab
 
       - name: Upload AAB to release
-        uses: softprops/action-gh-release@v2.6.1
+        uses: softprops/action-gh-release@v3.0.0
         with:
           tag_name: app-v${{ needs.prepare.outputs.version }}
           name: BibleMarker v${{ needs.prepare.outputs.version }}

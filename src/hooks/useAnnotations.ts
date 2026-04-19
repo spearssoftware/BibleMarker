@@ -8,10 +8,12 @@ import { useCallback } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { saveAnnotation, deleteAnnotation, getChapterAnnotations, getChapterHeadings, saveSectionHeading, deleteSectionHeading, getChapterTitle, saveChapterTitle, deleteChapterTitle, getChapterNotes, saveNote, deleteNote, getMarkingPreset } from '@/lib/database';
-import type { Annotation, TextAnnotation, SymbolAnnotation, HighlightColor, SymbolKey, SectionHeading, ChapterTitle, Note } from '@/types';
+import { saveAnnotation, deleteAnnotation, findSisterAnnotations, getAnnotationById, getChapterAnnotations, getChapterHeadings, saveSectionHeading, deleteSectionHeading, getChapterTitle, saveChapterTitle, deleteChapterTitle, getChapterNotes, saveNote, deleteNote, getMarkingPreset } from '@/lib/database';
+import type { Annotation, TextAnnotation, SymbolAnnotation, HighlightColor, SymbolKey, SectionHeading, ChapterTitle, Note, MarkingPreset, Verse } from '@/types';
 import { autoAddToObservationTracker } from '@/lib/observationAutoAdd';
 import { getAnnotationVerseRef } from '@/lib/annotationQueries';
+import { fetchChapter } from '@/lib/bible-api';
+import { findAlignedMatch } from '@/lib/translationAlignment';
 
 export function useAnnotations() {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
@@ -215,13 +217,165 @@ export function useAnnotations() {
     return annotation;
   }, [selection, currentModuleId, addRecentSymbol, loadAnnotations, clearSelection]);
 
+  /**
+   * Propagate an annotation created in one translation to every other
+   * installed translation.
+   *
+   * For each target translation (ids excluding the source module), locate
+   * the equivalent word via Strong's (if both sides have tagging) or a
+   * case-insensitive word-boundary text search, and persist a new
+   * annotation there with that translation's moduleId.
+   *
+   * Target chapter data is taken from `loadedVerses` if present; any
+   * target translation not already loaded is fetched via `fetchChapter`
+   * (uses the existing cache for non-SWORD modules). Fetch failures are
+   * recorded as misses, not thrown, so one offline translation can't
+   * break propagation to the others.
+   *
+   * Returns the list of annotation IDs created (including paired text +
+   * symbol annotations) so the caller can offer an undo.
+   */
+  const createAnnotationsAcrossTranslations = useCallback(async (
+    preset: MarkingPreset,
+    source: {
+      moduleId: string;
+      book: string;
+      chapter: number;
+      verse: number;
+      selectedText: string;
+      strongsNumbers?: string[];
+    },
+    targetTranslationIds: string[],
+    loadedVerses: Map<string, Verse>,
+  ): Promise<{ createdIds: string[]; successes: string[]; misses: string[] }> => {
+    const createdIds: string[] = [];
+    const successes: string[] = [];
+    const misses: string[] = [];
+
+    const { moduleId: sourceModuleId, book: sourceBook, chapter: sourceChapter, verse: sourceVerseNum, selectedText: sourceSelectedText, strongsNumbers: sourceStrongsNumbers } = source;
+
+    // Resolve a target verse, fetching the chapter if it isn't already
+    // loaded. Returns null on any error.
+    async function resolveTargetVerse(targetId: string): Promise<Verse | null> {
+      const preloaded = loadedVerses.get(targetId);
+      if (preloaded) return preloaded;
+      try {
+        const chapter = await fetchChapter(targetId, sourceBook, sourceChapter);
+        return chapter.verses.find(v => v.ref.verse === sourceVerseNum) || null;
+      } catch (err) {
+        console.warn(`[propagate] failed to fetch ${targetId} ${sourceBook} ${sourceChapter}:`, err);
+        return null;
+      }
+    }
+
+    // Resolve all target verses in parallel so slow translations (e.g.
+    // ESV network) don't serialize the local SWORD lookups.
+    const resolvedTargets = await Promise.all(
+      targetTranslationIds
+        .filter(id => id !== sourceModuleId)
+        .map(async id => ({ id, verse: await resolveTargetVerse(id) })),
+    );
+
+    // Build every annotation to save across all targets, then save them in
+    // parallel. Serializing across N translations × 2 writes was the biggest
+    // hot-path latency when propagating to a 5+ translation setup.
+    const toSave: Annotation[] = [];
+    for (const { id: targetId, verse: targetVerse } of resolvedTargets) {
+      if (!targetVerse) {
+        misses.push(targetId);
+        continue;
+      }
+
+      const match = findAlignedMatch({
+        targetVerse,
+        sourceSelectedText,
+        sourceStrongsNumbers,
+      });
+      if (!match.found) {
+        misses.push(targetId);
+        continue;
+      }
+
+      const now = new Date();
+      const verseRef = {
+        book: sourceBook,
+        chapter: sourceChapter,
+        verse: targetVerse.ref.verse,
+      };
+
+      if (preset.symbol) {
+        const symAnnotation: SymbolAnnotation = {
+          id: crypto.randomUUID(),
+          moduleId: targetId,
+          type: 'symbol',
+          ref: verseRef,
+          wordIndex: match.startWordIndex,
+          position: 'before',
+          selectedText: match.matchedText,
+          startWordIndex: match.startWordIndex,
+          endWordIndex: match.endWordIndex,
+          startOffset: match.startOffset,
+          endOffset: match.endOffset,
+          symbol: preset.symbol,
+          color: preset.highlight?.color,
+          createdAt: now,
+          updatedAt: now,
+          presetId: preset.id,
+        };
+        toSave.push(symAnnotation);
+        createdIds.push(symAnnotation.id);
+      }
+
+      if (preset.highlight) {
+        const textAnnotation: TextAnnotation = {
+          id: crypto.randomUUID(),
+          moduleId: targetId,
+          type: preset.highlight.style,
+          startRef: verseRef,
+          endRef: verseRef,
+          startWordIndex: match.startWordIndex,
+          endWordIndex: match.endWordIndex,
+          selectedText: match.matchedText,
+          startOffset: match.startOffset,
+          endOffset: match.endOffset,
+          color: preset.highlight.color,
+          createdAt: now,
+          updatedAt: now,
+          presetId: preset.id,
+        };
+        toSave.push(textAnnotation);
+        createdIds.push(textAnnotation.id);
+      }
+
+      if (preset.symbol || preset.highlight) {
+        successes.push(targetId);
+      } else {
+        misses.push(targetId);
+      }
+    }
+
+    await Promise.all(toSave.map(a => saveAnnotation(a)));
+
+    if (createdIds.length > 0) {
+      await loadAnnotations();
+      window.dispatchEvent(new CustomEvent('annotationsUpdated'));
+    }
+
+    return { createdIds, successes, misses };
+  }, [loadAnnotations]);
+
   // applyCurrentTool removed - all annotations must use keywords/presets (no manual annotations)
 
   /**
-   * Remove an annotation
+   * Remove an annotation, cascading to sister annotations (same presetId,
+   * same verse, same selectedText) in other translations so a single delete
+   * cleans up a propagated mark everywhere it landed.
    */
   const removeAnnotation = useCallback(async (id: string) => {
+    const ann = await getAnnotationById(id);
+    const sisterIds = ann ? await findSisterAnnotations(ann) : [];
     await deleteAnnotation(id);
+    await Promise.all(sisterIds.map(sid => deleteAnnotation(sid)));
     await loadAnnotations();
 
     // Dispatch event to notify other components (like MultiTranslationView) to reload
@@ -229,7 +383,14 @@ export function useAnnotations() {
   }, [loadAnnotations]);
 
   const removeAnnotations = useCallback(async (ids: string[]) => {
-    await Promise.all(ids.map(id => deleteAnnotation(id)));
+    const sisterIdSet = new Set<string>();
+    for (const id of ids) {
+      const ann = await getAnnotationById(id);
+      if (!ann) continue;
+      for (const sid of await findSisterAnnotations(ann)) sisterIdSet.add(sid);
+    }
+    const allIds = [...new Set([...ids, ...sisterIdSet])];
+    await Promise.all(allIds.map(id => deleteAnnotation(id)));
     await loadAnnotations();
     window.dispatchEvent(new CustomEvent('annotationsUpdated'));
   }, [loadAnnotations]);
@@ -407,6 +568,7 @@ export function useAnnotations() {
     loadNotes,
     createTextAnnotation,
     createSymbolAnnotation,
+    createAnnotationsAcrossTranslations,
     removeAnnotation,
     removeAnnotations,
     quickHighlight,

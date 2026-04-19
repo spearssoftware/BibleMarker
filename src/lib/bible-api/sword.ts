@@ -135,6 +135,10 @@ const loadedModules = new Map<string, SwordModuleFiles>();
 /** Per-module decompression buffer caches */
 const bufferCaches = new Map<string, Map<string, Uint8Array>>();
 
+/** Modules verified installed this session — skips repeat install checks. */
+const verifiedInstalled = new Set<string>();
+const inFlightInstalls = new Map<string, Promise<void>>();
+
 /** Strip OSIS XML to plain verse text (removes notes, titles, divs, keeps word content) */
 export function stripOsis(text: string): string {
   let result = text
@@ -205,34 +209,73 @@ async function getModulePath(moduleId: string): Promise<string> {
   return await join(dir, `${moduleId}.zip`);
 }
 
-/** Install a bundled module from app resources if not already on disk */
+/**
+ * Install a bundled module from app resources if not already on disk.
+ * Throws a BibleApiError on failure so the caller can surface the reason.
+ */
 async function installBundledIfNeeded(moduleId: string): Promise<void> {
+  if (verifiedInstalled.has(moduleId)) return;
+
+  const existing = inFlightInstalls.get(moduleId);
+  if (existing) return existing;
+
   const info = MODULE_REGISTRY.find((m) => m.id === moduleId);
   if (!info?.bundledResource) return;
 
-  const destPath = await getModulePath(moduleId);
-  try {
+  const promise = (async () => {
+    const destPath = await getModulePath(moduleId);
     const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('install_bundled_module', {
-      resourceName: info.bundledResource,
-      destPath,
-    });
-  } catch (e) {
-    console.warn(`[SWORD] Failed to install bundled module ${moduleId}:`, e);
-  }
+    try {
+      await invoke('install_bundled_module', {
+        resourceName: info.bundledResource,
+        destPath,
+      });
+      verifiedInstalled.add(moduleId);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`[SWORD] Failed to install bundled module ${moduleId}:`, msg);
+      throw new BibleApiError(
+        `Could not install bundled ${info.name}: ${msg}`,
+        'sword'
+      );
+    } finally {
+      inFlightInstalls.delete(moduleId);
+    }
+  })();
+
+  inFlightInstalls.set(moduleId, promise);
+  return promise;
 }
 
-/** Check if a module zip exists on disk (auto-installs bundled modules) */
+/**
+ * Check if a module zip exists on disk. Swallows install errors — use
+ * `ensureModuleReady` instead when you need the failure reason.
+ */
 export async function isModuleDownloaded(moduleId: string): Promise<boolean> {
   try {
-    // Auto-install bundled modules on first check
     await installBundledIfNeeded(moduleId);
-
     const { exists } = await import('@tauri-apps/plugin-fs');
     const path = await getModulePath(moduleId);
     return await exists(path);
   } catch {
     return false;
+  }
+}
+
+/**
+ * Ensure a module is installed and on disk, throwing a BibleApiError with
+ * the underlying reason if anything goes wrong. Use before loading verses.
+ */
+export async function ensureModuleReady(moduleId: string): Promise<void> {
+  await installBundledIfNeeded(moduleId);
+  const { exists } = await import('@tauri-apps/plugin-fs');
+  const path = await getModulePath(moduleId);
+  if (!(await exists(path))) {
+    const info = MODULE_REGISTRY.find((m) => m.id === moduleId);
+    throw new BibleApiError(
+      `Module ${info?.name ?? moduleId} is not installed. Install it in Settings.`,
+      'sword'
+    );
   }
 }
 
@@ -273,6 +316,7 @@ export async function downloadModule(
   // Clear in-memory cache so next read loads fresh
   loadedModules.delete(moduleId);
   bufferCaches.delete(moduleId);
+  verifiedInstalled.delete(moduleId);
 }
 
 /** Delete a module zip from disk */
@@ -286,6 +330,7 @@ export async function deleteModule(moduleId: string): Promise<void> {
   }
   loadedModules.delete(moduleId);
   bufferCaches.delete(moduleId);
+  verifiedInstalled.delete(moduleId);
 }
 
 /** Load module files into memory (cached) */
@@ -295,14 +340,51 @@ async function ensureLoaded(moduleId: string): Promise<SwordModuleFiles> {
 
   const { readFile } = await import('@tauri-apps/plugin-fs');
   const path = await getModulePath(moduleId);
-  console.log(`[SWORD] Loading module from ${path}`);
-  const bytes = await readFile(path);
-  console.log(`[SWORD] Read ${bytes.byteLength} bytes`);
-  const blob = new Blob([bytes]);
-  const { files, meta } = await loadFromZip(blob);
-  console.log(`[SWORD] Loaded module: ${meta.name} (${meta.abbreviation}), files: ${Object.keys(files).join(', ')}`);
-  loadedModules.set(moduleId, files);
-  return files;
+
+  const tryLoad = async (): Promise<SwordModuleFiles> => {
+    console.log(`[SWORD] Loading module from ${path}`);
+    const bytes = await readFile(path);
+    console.log(`[SWORD] Read ${bytes.byteLength} bytes`);
+    const blob = new Blob([bytes as BlobPart]);
+    const { files, meta } = await loadFromZip(blob);
+    console.log(`[SWORD] Loaded module: ${meta.name} (${meta.abbreviation}), files: ${Object.keys(files).join(', ')}`);
+    return files;
+  };
+
+  try {
+    const files = await tryLoad();
+    loadedModules.set(moduleId, files);
+    return files;
+  } catch (firstErr) {
+    // If load failed (e.g. corrupt on-disk file from AGP wrapping), delete
+    // the file, force re-install from bundled resources, and retry once.
+    const info = MODULE_REGISTRY.find((m) => m.id === moduleId);
+    if (info?.bundledResource) {
+      console.warn(
+        `[SWORD] First load of ${moduleId} failed, deleting and re-installing:`,
+        firstErr instanceof Error ? firstErr.message : firstErr
+      );
+      try {
+        const { remove } = await import('@tauri-apps/plugin-fs');
+        await remove(path).catch(() => {});
+        verifiedInstalled.delete(moduleId);
+        await installBundledIfNeeded(moduleId);
+        const files = await tryLoad();
+        loadedModules.set(moduleId, files);
+        return files;
+      } catch (retryErr) {
+        console.error(
+          `[SWORD] Retry also failed for ${moduleId}:`,
+          retryErr instanceof Error ? retryErr.message : retryErr
+        );
+      }
+    }
+    const msg = firstErr instanceof Error ? firstErr.message : String(firstErr);
+    throw new BibleApiError(
+      `Failed to load ${info?.name ?? moduleId}: ${msg}`,
+      'sword'
+    );
+  }
 }
 
 /** Get or create the buffer cache for a module */
@@ -442,13 +524,7 @@ class SwordClient implements BibleApiClient {
 
   async getChapter(translationId: string, book: string, chapter: number): Promise<ChapterResponse> {
     const moduleId = translationId.startsWith('sword-') ? translationId : `sword-${translationId}`;
-    const downloaded = await isModuleDownloaded(moduleId);
-    if (!downloaded) {
-      throw new BibleApiError(
-        `Module ${moduleId} is not downloaded. Download it in Settings.`,
-        'sword'
-      );
-    }
+    await ensureModuleReady(moduleId);
 
     const files = await ensureLoaded(moduleId);
     const bufCache = getBufferCache(moduleId);
@@ -469,6 +545,13 @@ class SwordClient implements BibleApiClient {
       }
     }
     console.log(`[SWORD] ${moduleId} ${book} ${chapter}: ${verses.length}/${verseCount} verses`);
+
+    if (verseCount > 0 && verses.length === 0) {
+      throw new BibleApiError(
+        `SWORD module ${moduleId} returned no verses for ${book} ${chapter} (expected ${verseCount}). The module data may be corrupt — try removing and re-downloading it.`,
+        'sword'
+      );
+    }
 
     const info = getModuleInfo(moduleId);
     return {

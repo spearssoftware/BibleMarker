@@ -32,10 +32,12 @@ import { getBookById } from '@/types';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { usePanelStore } from '@/stores/panelStore';
 import { useTextSelection, type TranslationChapter } from '@/hooks/useTextSelection';
-import type { Annotation, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
+import type { Annotation, Chapter, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
+
+const KJV_FALLBACK_ERROR_PREFIX = 'Showing KJV';
 
 export function MultiTranslationView() {
-  const { activeView, loadActiveView, addTranslation } = useMultiTranslationStore();
+  const { activeView, loadActiveView, addTranslation, setChaptersByTranslation } = useMultiTranslationStore();
   const setActiveChapterVerses = useActiveChapterStore(state => state.setActiveChapterVerses);
   const { currentBook, currentChapter, currentModuleId, navSelectedVerse, setNavSelectedVerse, nextChapter, previousChapter } = useBibleStore();
   const { fontSize, selection } = useAnnotationStore();
@@ -77,6 +79,18 @@ export function MultiTranslationView() {
     () => new Map(presets.map((p) => [p.id, p])),
     [presets]
   );
+
+  // Mirror the loaded chapters into the multi-translation store so
+  // cross-translation features (e.g. annotation propagation from the
+  // selection menu) can reach them without prop-drilling through the
+  // app-level Toolbar.
+  useEffect(() => {
+    const entries: Record<string, Chapter | null> = {};
+    translationChapters.forEach((tc, id) => {
+      entries[id] = tc.chapter;
+    });
+    setChaptersByTranslation(entries);
+  }, [translationChapters, setChaptersByTranslation]);
 
   // Filter annotations by active study (passed to VerseText)
   const filteredAnnotationsByTranslation = useMemo(() => {
@@ -395,7 +409,7 @@ export function MultiTranslationView() {
               translation,
               chapter: fallbackChapter,
               isLoading: false,
-              error: `Showing KJV — ${translation.name || translationId} failed to load`,
+              error: `${KJV_FALLBACK_ERROR_PREFIX} — ${translation.name || translationId} failed to load`,
             });
             setTranslationChapters(new Map(newChapters));
           } catch {
@@ -534,19 +548,24 @@ export function MultiTranslationView() {
       <div 
         className={`grid gap-4 px-4 py-2 bg-scripture-elevated flex-shrink-0 ${gridColsClass}`}
       >
-        {translationList.map(({ translation, isLoading, error }) => (
-          <div key={translation.id} className="flex flex-col">
-            <div className="font-medium text-scripture-text flex items-center gap-2">
-              {translation.name}
-              {isLoading && (
-                <div className="w-4 h-4 border-2 border-scripture-border border-t-scripture-accent rounded-full animate-spin"></div>
+        {translationList.map(({ translation, isLoading, error }) => {
+          const isFallback = error?.startsWith(KJV_FALLBACK_ERROR_PREFIX);
+          return (
+            <div key={translation.id} className="flex flex-col">
+              <div className="font-medium text-scripture-text flex items-center gap-2">
+                {translation.name}
+                {isLoading && (
+                  <div className="w-4 h-4 border-2 border-scripture-border border-t-scripture-accent rounded-full animate-spin"></div>
+                )}
+              </div>
+              {error && (
+                <div className={`text-xs mt-0.5 ${isFallback ? 'text-scripture-warning' : 'text-scripture-error'}`}>
+                  {error}
+                </div>
               )}
             </div>
-            {error?.startsWith('Showing KJV') && (
-              <div className="text-xs text-scripture-warning mt-0.5">{error}</div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Verse rows - scrollable container */}

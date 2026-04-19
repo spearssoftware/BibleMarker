@@ -4,13 +4,15 @@
  * UI for creating, editing, and managing key word definitions.
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, scopeLabel, type KeyWordCategory, type MarkingPreset, type PresetScope, type Variant } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
-import { SYMBOLS, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
+import { SYMBOLS, SYMBOL_LABELS, SYMBOL_CATEGORIES, isLetterOrNumberSymbol, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
+import { SymbolIcon } from '@/lib/symbolDisplay';
+import { Trash } from '@phosphor-icons/react';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { Input, Textarea, Label, DropdownSelect, Checkbox, Button } from '@/components/shared';
 import { getBookById, BIBLE_BOOKS } from '@/types';
@@ -558,7 +560,6 @@ function KeyWordCard({
 }) {
   const { studies } = useStudyStore();
   const categoryInfo = KEY_WORD_CATEGORIES[preset.category || 'custom'];
-  const symbol = preset.symbol ? SYMBOLS[preset.symbol] : undefined;
   const color = preset.highlight?.color ? getHighlightColorHex(preset.highlight.color) : undefined;
   const study = preset.studyId ? studies.find(s => s.id === preset.studyId) : null;
 
@@ -568,9 +569,9 @@ function KeyWordCard({
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             <span className="font-medium text-scripture-text">{preset.word}</span>
-            {symbol && (
+            {preset.symbol && (
               <span className="text-lg" style={{ color }}>
-                {symbol}
+                <SymbolIcon symbol={preset.symbol} size={18} />
               </span>
             )}
             <span className="text-xs px-2 py-0.5 bg-scripture-surface rounded">
@@ -779,6 +780,10 @@ function KeyWordEditor({
 
         <div className="space-y-4">
           <div>
+            <ColorAccordion color={color} onSelect={setColor} />
+          </div>
+
+          <div>
             <Label>Symbol</Label>
             {recentSymbols.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-1.5 mb-2">
@@ -796,13 +801,14 @@ function KeyWordEditor({
                       ${symbol === key ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border'}`}
                     title={key}
                   >
-                    {SYMBOLS[key]}
+                    <SymbolIcon symbol={key} size={18} color={color ? getHighlightColorHex(color) : undefined} />
                   </button>
                 ))}
               </div>
             )}
             <SymbolGrid
               symbol={symbol}
+              previewColor={color ? getHighlightColorHex(color) : undefined}
               onSelect={(key) => {
                 if (key === undefined) {
                   setSymbol(undefined);
@@ -813,10 +819,6 @@ function KeyWordEditor({
                 }
               }}
             />
-          </div>
-
-          <div>
-            <ColorAccordion color={color} onSelect={setColor} />
           </div>
         </div>
 
@@ -1010,132 +1012,87 @@ function VariantEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, scopeType, bookScope, chapterScope]);
 
+  const scopeName = `variant-scope-${variant.text}`;
+  const bookOptions = [
+    { value: '', label: 'Select a book...' },
+    ...BIBLE_BOOKS.map(book => ({ value: book.id, label: book.name })),
+  ];
+
   return (
-    <div className="p-3 bg-scripture-elevated border border-scripture-border/30 rounded-lg space-y-2">
+    <div className="p-2 bg-scripture-elevated border border-scripture-border/30 rounded-lg space-y-1.5">
       <div className="flex items-center gap-2">
-        <Input
-          type="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Variant text"
-          className="flex-1"
-        />
+        <div className="flex-1 min-w-0">
+          <Input
+            type="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Variant text"
+          />
+        </div>
+        <div className="flex items-center gap-3 text-xs">
+          {(['global', 'book', 'chapter'] as const).map(opt => (
+            <label key={opt} className="flex items-center gap-1 text-scripture-text cursor-pointer">
+              <input
+                type="radio"
+                name={scopeName}
+                value={opt}
+                checked={scopeType === opt}
+                onChange={() => setScopeType(opt)}
+                className="w-3 h-3"
+              />
+              <span className="capitalize">{opt}</span>
+            </label>
+          ))}
+        </div>
         <button
           type="button"
           onClick={onRemove}
-          className="px-2 py-1.5 text-sm text-scripture-error hover:bg-scripture-errorBg rounded transition-colors"
+          className="p-1.5 text-scripture-muted hover:text-scripture-error hover:bg-scripture-errorBg rounded transition-colors"
+          aria-label="Remove variant"
         >
-          ✕
+          <Trash size={16} weight="regular" />
         </button>
       </div>
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-xs">
-          <input
-            type="radio"
-            id={`variant-global-${variant.text}`}
-            name={`variant-scope-${variant.text}`}
-            value="global"
-            checked={scopeType === 'global'}
-            onChange={() => setScopeType('global')}
-            className="w-3 h-3"
+      {scopeType === 'book' && (
+        <DropdownSelect
+          value={bookScope}
+          onChange={(val) => setBookScope(val)}
+          options={bookOptions}
+          placeholder="Select a book..."
+        />
+      )}
+      {scopeType === 'chapter' && (
+        <div className="grid grid-cols-[1fr_auto] gap-2">
+          <DropdownSelect
+            value={bookScope}
+            onChange={(val) => {
+              setBookScope(val);
+              if (val) {
+                const bookInfo = getBookById(val);
+                if (bookInfo && chapterScope > bookInfo.chapters) setChapterScope(1);
+              }
+            }}
+            options={bookOptions}
+            placeholder="Select a book..."
           />
-          <label htmlFor={`variant-global-${variant.text}`} className="text-scripture-text">
-            Global
-          </label>
-        </div>
-        <div className="flex items-center gap-2 text-xs">
-          <input
-            type="radio"
-            id={`variant-book-${variant.text}`}
-            name={`variant-scope-${variant.text}`}
-            value="book"
-            checked={scopeType === 'book'}
-            onChange={() => setScopeType('book')}
-            className="w-3 h-3"
+          <Input
+            type="number"
+            value={chapterScope}
+            onChange={(e) => {
+              const newChapter = parseInt(e.target.value) || 1;
+              const bookInfo = bookScope ? getBookById(bookScope) : undefined;
+              if (bookInfo) {
+                setChapterScope(Math.min(Math.max(1, newChapter), bookInfo.chapters));
+              } else {
+                setChapterScope(newChapter);
+              }
+            }}
+            min="1"
+            max={bookScope ? getBookById(bookScope)?.chapters : undefined}
+            className="w-20"
           />
-          <label htmlFor={`variant-book-${variant.text}`} className="text-scripture-text">
-            Book
-          </label>
         </div>
-        {scopeType === 'book' && (
-          <div className="ml-5">
-            <DropdownSelect
-              label="Book"
-              value={bookScope}
-              onChange={(val) => setBookScope(val)}
-              options={[
-                { value: '', label: 'Select a book...' },
-                ...BIBLE_BOOKS.map(book => ({
-                  value: book.id,
-                  label: book.name
-                }))
-              ]}
-              placeholder="Select a book..."
-            />
-          </div>
-        )}
-        <div className="flex items-center gap-2 text-xs">
-          <input
-            type="radio"
-            id={`variant-chapter-${variant.text}`}
-            name={`variant-scope-${variant.text}`}
-            value="chapter"
-            checked={scopeType === 'chapter'}
-            onChange={() => setScopeType('chapter')}
-            className="w-3 h-3"
-          />
-          <label htmlFor={`variant-chapter-${variant.text}`} className="text-scripture-text">
-            Chapter
-          </label>
-        </div>
-        {scopeType === 'chapter' && (
-          <div className="ml-5 grid grid-cols-2 gap-2">
-            <DropdownSelect
-              label="Book"
-              value={bookScope}
-              onChange={(val) => {
-                setBookScope(val);
-                // Reset chapter when book changes
-                if (val) {
-                  const bookInfo = getBookById(val);
-                  if (bookInfo && chapterScope > bookInfo.chapters) {
-                    setChapterScope(1);
-                  }
-                }
-              }}
-              options={[
-                { value: '', label: 'Select a book...' },
-                ...BIBLE_BOOKS.map(book => ({
-                  value: book.id,
-                  label: book.name
-                }))
-              ]}
-              placeholder="Select a book..."
-            />
-            <Input
-              type="number"
-              label="Chapter"
-              value={chapterScope}
-              onChange={(e) => {
-                const newChapter = parseInt(e.target.value) || 1;
-                if (bookScope) {
-                  const bookInfo = getBookById(bookScope);
-                  if (bookInfo) {
-                    const maxChapter = bookInfo.chapters;
-                    setChapterScope(Math.min(Math.max(1, newChapter), maxChapter));
-                  } else {
-                    setChapterScope(newChapter);
-                  }
-                } else {
-                  setChapterScope(newChapter);
-                }
-              }}
-              min="1"
-              max={bookScope ? getBookById(bookScope)?.chapters : undefined}
-            />
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -1176,61 +1133,88 @@ function DismissedMatches({ presetId }: { presetId: string }) {
   );
 }
 
-const LETTER_NUMBER_KEYS = new Set<SymbolKey>([
-  'letterA', 'letterB', 'letterC', 'letterD', 'letterE', 'letterF',
-  'letterG', 'letterH', 'letterI', 'letterJ', 'letterK', 'letterL',
-  'letterM', 'letterN', 'letterO', 'letterP', 'letterQ', 'letterR',
-  'letterS', 'letterT', 'letterU', 'letterV', 'letterW', 'letterX',
-  'letterY', 'letterZ',
-  'number0', 'number1', 'number2', 'number3', 'number4',
-  'number5', 'number6', 'number7', 'number8', 'number9',
-]);
-
-function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSelect: (key: SymbolKey | undefined) => void }) {
+function SymbolGrid({ symbol, previewColor, onSelect }: { symbol: SymbolKey | undefined; previewColor?: string; onSelect: (key: SymbolKey | undefined) => void }) {
   const [showLetters, setShowLetters] = useState(false);
+  const symbolsHeaderRef = useRef<HTMLButtonElement>(null);
+  const lettersHeaderRef = useRef<HTMLButtonElement>(null);
 
-  const allEntries = Object.entries(SYMBOLS) as [SymbolKey, string][];
-  const symbolEntries = allEntries.filter(([key]) => !LETTER_NUMBER_KEYS.has(key));
-  const letterEntries = allEntries.filter(([key]) => key.startsWith('letter'));
-  const numberEntries = allEntries.filter(([key]) => key.startsWith('number'));
+  const toggleSection = useCallback(() => {
+    setShowLetters(prev => {
+      const next = !prev;
+      // After the section expands, bring its header to the top of the scroll
+      // container so the user doesn't have to scroll to find the reopened grid.
+      queueMicrotask(() => {
+        const target = next ? lettersHeaderRef.current : symbolsHeaderRef.current;
+        target?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      });
+      return next;
+    });
+  }, []);
 
-  const renderButton = useCallback((key: SymbolKey, sym: string) => (
-    <button
-      key={key}
-      type="button"
-      onClick={() => onSelect(key)}
-      className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition-all
-        ${symbol === key ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border'}`}
-      title={key}
-    >
-      {sym}
-    </button>
-  ), [symbol, onSelect]);
+  const allKeys = Object.keys(SYMBOLS) as SymbolKey[];
+  const letterEntries = allKeys.filter((key) => key.startsWith('letter'));
+  const numberEntries = allKeys.filter((key) => key.startsWith('number'));
+
+  const renderButton = useCallback((key: SymbolKey) => {
+    const isLetterOrNumber = isLetterOrNumberSymbol(key);
+    return (
+      <button
+        key={key}
+        type="button"
+        onClick={() => onSelect(key)}
+        className={`${isLetterOrNumber ? 'w-9 h-9' : 'w-20 h-11 px-1.5 flex-col gap-0'} rounded-lg flex items-center justify-center transition-all
+          ${symbol === key ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border'}`}
+        title={SYMBOL_LABELS[key]}
+      >
+        <SymbolIcon symbol={key} size={isLetterOrNumber ? 18 : 20} color={symbol === key ? undefined : previewColor} />
+        {!isLetterOrNumber && (
+          <span className="text-[10px] leading-tight font-ui">
+            {SYMBOL_LABELS[key]}
+          </span>
+        )}
+      </button>
+    );
+  }, [symbol, onSelect, previewColor]);
 
   return (
     <div className="space-y-3 mt-1.5">
       {/* Symbols section */}
       <div>
         <button
+          ref={symbolsHeaderRef}
           type="button"
-          onClick={() => setShowLetters(false)}
+          onClick={toggleSection}
           className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-ui text-scripture-text uppercase tracking-wider font-semibold bg-scripture-elevated hover:bg-scripture-border transition-colors"
         >
           <span>Symbols</span>
           <span className={`text-scripture-muted transition-transform duration-200 text-[10px] ${!showLetters ? '' : '-rotate-90'}`}>▶</span>
         </button>
         {!showLetters && (
-          <div className="flex flex-wrap gap-2 mt-1.5">
-            <button
-              type="button"
-              onClick={() => onSelect(undefined)}
-              className={`w-9 h-9 rounded-lg text-sm flex items-center justify-center font-medium transition-all
-                ${!symbol ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-muted hover:bg-scripture-border'}`}
-              title="None"
-            >
-              —
-            </button>
-            {symbolEntries.map(([key, sym]) => renderButton(key, sym))}
+          <div className="space-y-3 mt-1.5">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onSelect(undefined)}
+                className={`w-20 h-11 px-1.5 rounded-lg flex flex-col items-center justify-center gap-0 transition-all
+                  ${!symbol ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-muted hover:bg-scripture-border'}`}
+                title="None"
+              >
+                <span className="text-lg leading-none">—</span>
+                <span className="text-[10px] leading-tight font-ui">None</span>
+              </button>
+            </div>
+            {SYMBOL_CATEGORIES.map(category => (
+              <div key={category.name}>
+                <div className="text-[10px] font-ui font-semibold uppercase tracking-wider text-scripture-muted mb-1.5">
+                  {category.name}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {[...category.symbols]
+                    .sort((a, b) => SYMBOL_LABELS[a].localeCompare(SYMBOL_LABELS[b]))
+                    .map(key => renderButton(key))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -1238,8 +1222,9 @@ function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSel
       {/* Letters & Numbers section */}
       <div>
         <button
+          ref={lettersHeaderRef}
           type="button"
-          onClick={() => setShowLetters(true)}
+          onClick={toggleSection}
           className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-ui text-scripture-text uppercase tracking-wider font-semibold bg-scripture-elevated hover:bg-scripture-border transition-colors"
         >
           <span>Letters & Numbers</span>
@@ -1247,8 +1232,8 @@ function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSel
         </button>
         {showLetters && (
           <div className="flex flex-wrap gap-2 mt-1.5">
-            {letterEntries.map(([key, sym]) => renderButton(key, sym))}
-            {numberEntries.map(([key, sym]) => renderButton(key, sym))}
+            {letterEntries.map((key) => renderButton(key))}
+            {numberEntries.map((key) => renderButton(key))}
           </div>
         )}
       </div>

@@ -108,10 +108,9 @@ export const SYMBOLS = {
 
   // Concepts & Themes
   star: '★',         // Promise / Covenant
-  starOutline: '☆',  // Promise (lighter)
   heart: '❤',        // Love / Compassion
-  heartSparkle: '💖', // Love / Devotion (sparkling)
-  lightning: '⚡',   // Judgment / Power / Conflict
+  lightning: '⚡',   // Power / Conflict
+  gavel: '⚖',        // Judgment / Verdict
   skull: '💀',       // Death
   sin: '↓',         // Sin / Falling short / Missing the mark
   shield: '🛡',      // Protection / Faith
@@ -124,12 +123,18 @@ export const SYMBOLS = {
   sword: '⚔',        // Word of God / Battle / Judgment
   vine: '🌿',        // Vine / Branch / Abide
   bread: '🍞',       // Bread of Life / Communion / Manna
-  trumpet: '🎺',     // Prophecy / Judgment / End Times
   rock: '🪨',        // Rock / Cornerstone / Foundation
   door: '🚪',        // Door / Gate / Access
-  olive: '🫒',       // Anointing / Oil / Holy Spirit
   harvest: '🌾',     // Harvest / Grain / Sowing
   fruit: '🍎',       // Fruit / Bearing fruit / Produce
+  warning: '⚠',     // Warning / Caution
+  joy: '😊',         // Joy / Rejoicing / Delight
+  peace: '☮',        // Peace / Shalom
+  mercy: '💝',       // Mercy / Grace / Compassion
+  wisdom: '💡',      // Wisdom / Understanding / Insight
+  repentance: '↺',   // Repentance / Turning / Return
+  praise: '🎵',      // Praise / Worship / Song
+  glory: '✨',        // Glory / Radiance / Presence
 
   // Scripture & Teaching
   scroll: '📜',      // Law / Commandment / Scripture
@@ -152,7 +157,8 @@ export const SYMBOLS = {
   tree: '🌳',        // Tree / Growth / Life
   river: '〰',       // River / Stream / Water source
   house: '🏠',       // House / Dwelling
-  temple: '⛪',      // Church / Temple / Sanctuary / Holy Place
+  temple: '⛪',      // Temple / Sanctuary / Holy Place (Synagogue icon)
+  church: '⛪',      // Church / Sanctuary (Church icon)
   city: '🏙️',       // City / Urban / Civilization
 
   // Actions & States
@@ -222,6 +228,77 @@ export const SYMBOLS = {
 } as const;
 
 export type SymbolKey = keyof typeof SYMBOLS;
+
+/** Short, human-readable labels for each symbol — shown under the icon in the picker. */
+export const SYMBOL_LABELS: Record<SymbolKey, string> = {
+  triangle: 'God', cross: 'Jesus', dove: 'Spirit', flame: 'Flame', angel: 'Angel',
+  lamb: 'Lamb', anchor: 'Hope', cloud: 'Cloud',
+  person: 'Person', peopleGroup: 'People', crown: 'King', prayer: 'Prayer',
+  obey: 'Obey', chains: 'Bondage', liberty: 'Freedom',
+  star: 'Promise', heart: 'Love', lightning: 'Lightning', gavel: 'Judgment',
+  skull: 'Death', sin: 'Sin', shield: 'Faith', scales: 'Justice', key: 'Kingdom',
+  sun: 'Light', moon: 'Seasons', lamp: 'Truth', cup: 'Cup', sword: 'Sword',
+  vine: 'Vine', bread: 'Bread', rock: 'Rock', door: 'Door', harvest: 'Harvest',
+  fruit: 'Fruit', warning: 'Warning', joy: 'Joy', peace: 'Peace', mercy: 'Mercy',
+  wisdom: 'Wisdom', repentance: 'Repent', praise: 'Praise', glory: 'Glory',
+  scroll: 'Law', book: 'Book', tablet: 'Commands',
+  clock: 'Time', calendar: 'Date', hourglass: 'Waiting',
+  arrowRight: 'Therefore', arrowLeft: 'Because', doubleArrow: 'Contrast',
+  mapPin: 'Place', mountain: 'Mountain', nationLand: 'Nation', globe: 'World',
+  tree: 'Tree', river: 'River', house: 'House', temple: 'Temple', church: 'Church',
+  city: 'City',
+  water: 'Water', fire: 'Fire', check: 'Done', x: 'Reject', hand: 'Deed',
+  eye: 'See', mouth: 'Speak', ear: 'Hear', megaphone: 'Proclaim', foot: 'Walk',
+  circle: 'Circle', square: 'Square', diamond: 'Diamond', hexagon: 'Hexagon',
+  plus: 'Add', minus: 'Remove',
+  question: '?', exclamation: '!', asterisk: '*',
+  letterA: 'A', letterB: 'B', letterC: 'C', letterD: 'D', letterE: 'E', letterF: 'F',
+  letterG: 'G', letterH: 'H', letterI: 'I', letterJ: 'J', letterK: 'K', letterL: 'L',
+  letterM: 'M', letterN: 'N', letterO: 'O', letterP: 'P', letterQ: 'Q', letterR: 'R',
+  letterS: 'S', letterT: 'T', letterU: 'U', letterV: 'V', letterW: 'W', letterX: 'X',
+  letterY: 'Y', letterZ: 'Z',
+  number0: '0', number1: '1', number2: '2', number3: '3', number4: '4',
+  number5: '5', number6: '6', number7: '7', number8: '8', number9: '9',
+};
+
+export const LETTER_NUMBER_KEYS: ReadonlySet<SymbolKey> = new Set<SymbolKey>(
+  (Object.keys(SYMBOL_LABELS) as SymbolKey[]).filter(
+    (k) => k.startsWith('letter') || k.startsWith('number'),
+  ),
+);
+
+export function isLetterOrNumberSymbol(key: SymbolKey): boolean {
+  return LETTER_NUMBER_KEYS.has(key);
+}
+
+/** Symbol grouping for the picker, Precept-method ordering. Letters/numbers excluded. */
+export const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
+  { name: 'Identity', symbols: ['angel', 'anchor', 'cloud', 'cross', 'dove', 'flame', 'lamb', 'triangle'] },
+  { name: 'People & Relationships', symbols: ['chains', 'crown', 'liberty', 'obey', 'peopleGroup', 'person'] },
+  {
+    name: 'Virtues & Heart',
+    symbols: ['glory', 'heart', 'joy', 'mercy', 'peace', 'praise', 'prayer', 'repentance', 'sin', 'warning', 'wisdom'],
+  },
+  {
+    name: 'Power & Judgment',
+    symbols: ['gavel', 'key', 'lightning', 'scales', 'shield', 'skull', 'sword'],
+  },
+  {
+    name: 'Signs & Metaphors',
+    symbols: ['bread', 'cup', 'door', 'fruit', 'harvest', 'moon', 'rock', 'star', 'sun', 'tree', 'vine'],
+  },
+  { name: 'Scripture & Teaching', symbols: ['book', 'lamp', 'scroll', 'tablet'] },
+  { name: 'Time & Sequence', symbols: ['arrowLeft', 'arrowRight', 'calendar', 'clock', 'doubleArrow', 'hourglass'] },
+  {
+    name: 'Geography & Place',
+    symbols: ['church', 'city', 'globe', 'house', 'mapPin', 'mountain', 'nationLand', 'river', 'temple'],
+  },
+  {
+    name: 'Actions & Senses',
+    symbols: ['check', 'ear', 'eye', 'fire', 'foot', 'hand', 'megaphone', 'mouth', 'water', 'x'],
+  },
+  { name: 'Markers', symbols: ['asterisk', 'circle', 'diamond', 'exclamation', 'hexagon', 'minus', 'plus', 'question', 'square'] },
+];
 
 /** Annotation types */
 export type AnnotationType = 

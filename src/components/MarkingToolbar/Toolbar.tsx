@@ -10,14 +10,18 @@ import { useAnnotationStore } from '@/stores/annotationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { SelectionMenu } from './SelectionMenu';
+import { SelectionMenu, type ApplyScope } from './SelectionMenu';
 import { useListStore } from '@/stores/listStore';
 import { SettingsPanel } from '@/components/Settings';
 import { Modal } from '@/components/shared';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { usePanelStore } from '@/stores/panelStore';
-import type { MarkingPreset } from '@/types';
+import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
+import { useUndoToastStore } from '@/stores/undoToastStore';
+import { deleteAnnotation } from '@/lib/database';
+import { getAllTranslations } from '@/lib/bible-api';
+import type { MarkingPreset, Verse } from '@/types';
 import { createMarkingPreset, getRandomHighlightColor } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { stripSymbols } from '@/lib/textUtils';
@@ -43,11 +47,13 @@ export function Toolbar() {
   } = useAnnotationStore();
 
   useBibleStore();
-  const { createTextAnnotation, createSymbolAnnotation } = useAnnotations();
+  const { createTextAnnotation, createSymbolAnnotation, createAnnotationsAcrossTranslations, loadAnnotations } = useAnnotations();
   const { presets, loadPresets, addPreset, markPresetUsed, updatePreset } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
   const { getOrCreateListForKeyword } = useListStore();
   const { activePanel, togglePanel, openPanel, isCollapsed } = usePanelStore();
+  const chaptersByTranslation = useMultiTranslationStore(s => s.chaptersByTranslation);
+  const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
@@ -55,6 +61,28 @@ export function Toolbar() {
   useEffect(() => {
     loadPresets();
   }, [loadPresets]);
+
+  // Track the number of installed translations so the selection menu can
+  // show the "This translation only" toggle only when there's actually
+  // somewhere to propagate to. Refresh when translations are added/removed.
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const translations = await getAllTranslations();
+        if (!cancelled) setInstalledTranslationCount(translations.length);
+      } catch {
+        if (!cancelled) setInstalledTranslationCount(0);
+      }
+    };
+    load();
+    const onChange = () => load();
+    window.addEventListener('translationsUpdated', onChange);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('translationsUpdated', onChange);
+    };
+  }, []);
 
   // Listen for custom events to open panels
   useEffect(() => {
@@ -115,9 +143,14 @@ export function Toolbar() {
     return () => document.removeEventListener('mousedown', handleMouseDown);
   }, [clearSelection, setActiveTool]);
 
-  // Apply a key word (preset) to the current selection
-  const applyPresetToSelection = async (preset: MarkingPreset) => {
+  // Apply a key word (preset) to the current selection.
+  // In multi-translation view, scope='all' propagates the annotation to
+  // every other visible column via Strong's (where tagged) or fuzzy text.
+  const applyPresetToSelection = async (preset: MarkingPreset, scope: ApplyScope = 'here') => {
     if (!selection) return;
+
+    // Capture selection context before create* clears it.
+    const sourceSelection = selection;
 
     await markPresetUsed(preset.id);
     const pid = preset.id;
@@ -136,6 +169,57 @@ export function Toolbar() {
       await createTextAnnotation(preset.highlight.style, preset.highlight.color, pid);
     }
     setActiveTool(null);
+
+    // Propagate to every other installed translation unless scoped out.
+    if (scope !== 'all') return;
+
+    let allTranslations: Awaited<ReturnType<typeof getAllTranslations>> = [];
+    try {
+      allTranslations = await getAllTranslations();
+    } catch (err) {
+      console.warn('[propagate] getAllTranslations failed:', err);
+      return;
+    }
+
+    const targetIds = allTranslations
+      .map(t => t.id)
+      .filter(id => id !== sourceSelection.moduleId);
+
+    if (targetIds.length === 0) return;
+
+    // Pre-populate with already-loaded chapters from the multi-translation
+    // view so we don't refetch what's already on screen.
+    const loadedVerses = new Map<string, Verse>();
+    for (const tId of targetIds) {
+      const chapter = chaptersByTranslation[tId];
+      if (!chapter) continue;
+      const verse = chapter.verses.find(v => v.ref.verse === sourceSelection.startVerse);
+      if (verse) loadedVerses.set(tId, verse);
+    }
+
+    const { createdIds } = await createAnnotationsAcrossTranslations(
+      preset,
+      {
+        moduleId: sourceSelection.moduleId,
+        book: sourceSelection.book,
+        chapter: sourceSelection.chapter,
+        verse: sourceSelection.startVerse,
+        selectedText: sourceSelection.text,
+        strongsNumbers: sourceSelection.strongsNumbers,
+      },
+      targetIds,
+      loadedVerses,
+    );
+
+    const label = preset.word ? `${preset.word} keyword applied` : 'Keyword applied';
+
+    if (createdIds.length > 0) {
+      useUndoToastStore.getState().show(label, async () => {
+        await Promise.all(createdIds.map(id => deleteAnnotation(id)));
+        await loadAnnotations();
+        window.dispatchEvent(new CustomEvent('annotationsUpdated'));
+      });
+    }
   };
 
   // Add the selection as a variant to a key word and apply
@@ -233,6 +317,7 @@ export function Toolbar() {
           <SelectionMenu
             selection={selection}
             presets={filterPresetsByStudy(presets, activeStudyId)}
+            canPropagate={installedTranslationCount > 1}
             onApplyPreset={applyPresetToSelection}
             onAddAsVariant={addToVariantsAndApply}
             onOpenKeyWordManager={() => {
