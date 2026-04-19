@@ -8,7 +8,7 @@ import { useCallback } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { saveAnnotation, deleteAnnotation, getChapterAnnotations, getChapterHeadings, saveSectionHeading, deleteSectionHeading, getChapterTitle, saveChapterTitle, deleteChapterTitle, getChapterNotes, saveNote, deleteNote, getMarkingPreset } from '@/lib/database';
+import { saveAnnotation, deleteAnnotation, findSisterAnnotations, getAnnotationById, getChapterAnnotations, getChapterHeadings, saveSectionHeading, deleteSectionHeading, getChapterTitle, saveChapterTitle, deleteChapterTitle, getChapterNotes, saveNote, deleteNote, getMarkingPreset } from '@/lib/database';
 import type { Annotation, TextAnnotation, SymbolAnnotation, HighlightColor, SymbolKey, SectionHeading, ChapterTitle, Note, MarkingPreset, Verse } from '@/types';
 import { autoAddToObservationTracker } from '@/lib/observationAutoAdd';
 import { getAnnotationVerseRef } from '@/lib/annotationQueries';
@@ -276,6 +276,10 @@ export function useAnnotations() {
         .map(async id => ({ id, verse: await resolveTargetVerse(id) })),
     );
 
+    // Build every annotation to save across all targets, then save them in
+    // parallel. Serializing across N translations × 2 writes was the biggest
+    // hot-path latency when propagating to a 5+ translation setup.
+    const toSave: Annotation[] = [];
     for (const { id: targetId, verse: targetVerse } of resolvedTargets) {
       if (!targetVerse) {
         misses.push(targetId);
@@ -318,7 +322,7 @@ export function useAnnotations() {
           updatedAt: now,
           presetId: preset.id,
         };
-        await saveAnnotation(symAnnotation);
+        toSave.push(symAnnotation);
         createdIds.push(symAnnotation.id);
       }
 
@@ -339,19 +343,18 @@ export function useAnnotations() {
           updatedAt: now,
           presetId: preset.id,
         };
-        await saveAnnotation(textAnnotation);
+        toSave.push(textAnnotation);
         createdIds.push(textAnnotation.id);
       }
 
-      // Only count as success if we actually created an annotation (preset
-      // with neither symbol nor highlight would otherwise count as a
-      // silent success).
       if (preset.symbol || preset.highlight) {
         successes.push(targetId);
       } else {
         misses.push(targetId);
       }
     }
+
+    await Promise.all(toSave.map(a => saveAnnotation(a)));
 
     if (createdIds.length > 0) {
       await loadAnnotations();
@@ -364,10 +367,15 @@ export function useAnnotations() {
   // applyCurrentTool removed - all annotations must use keywords/presets (no manual annotations)
 
   /**
-   * Remove an annotation
+   * Remove an annotation, cascading to sister annotations (same presetId,
+   * same verse, same selectedText) in other translations so a single delete
+   * cleans up a propagated mark everywhere it landed.
    */
   const removeAnnotation = useCallback(async (id: string) => {
+    const ann = await getAnnotationById(id);
+    const sisterIds = ann ? await findSisterAnnotations(ann) : [];
     await deleteAnnotation(id);
+    await Promise.all(sisterIds.map(sid => deleteAnnotation(sid)));
     await loadAnnotations();
 
     // Dispatch event to notify other components (like MultiTranslationView) to reload
@@ -375,7 +383,14 @@ export function useAnnotations() {
   }, [loadAnnotations]);
 
   const removeAnnotations = useCallback(async (ids: string[]) => {
-    await Promise.all(ids.map(id => deleteAnnotation(id)));
+    const sisterIdSet = new Set<string>();
+    for (const id of ids) {
+      const ann = await getAnnotationById(id);
+      if (!ann) continue;
+      for (const sid of await findSisterAnnotations(ann)) sisterIdSet.add(sid);
+    }
+    const allIds = [...new Set([...ids, ...sisterIdSet])];
+    await Promise.all(allIds.map(id => deleteAnnotation(id)));
     await loadAnnotations();
     window.dispatchEvent(new CustomEvent('annotationsUpdated'));
   }, [loadAnnotations]);

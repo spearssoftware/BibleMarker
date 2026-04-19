@@ -7,7 +7,8 @@
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { KEY_WORD_CATEGORIES, type MarkingPreset } from '@/types';
-import { SYMBOLS, getHighlightColorHex } from '@/types';
+import { getHighlightColorHex } from '@/types';
+import { SymbolIcon } from '@/lib/symbolDisplay';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 
 export function KeyWordLegend() {
@@ -42,16 +43,15 @@ export function KeyWordLegend() {
             </h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {words.map((p) => {
-                const symbol = p.symbol ? SYMBOLS[p.symbol] : undefined;
                 const color = p.highlight?.color ? getHighlightColorHex(p.highlight.color) : undefined;
                 return (
                   <div
                     key={p.id}
                     className="flex items-center gap-2 p-2 rounded bg-scripture-elevated border border-scripture-border/30"
                   >
-                    {symbol && (
+                    {p.symbol && (
                       <span className="text-base" style={{ color }}>
-                        {symbol}
+                        <SymbolIcon symbol={p.symbol} size={16} />
                       </span>
                     )}
                     <span className="text-sm text-scripture-text flex-1 truncate">

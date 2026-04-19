@@ -11,7 +11,6 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import type { VerseRef } from '@/types';
 import { formatVerseRef } from '@/types';
-import { SYMBOLS } from '@/types';
 import { stripSymbols } from '@/lib/textUtils';
 import { useModal } from '@/hooks/useModal';
 import { Modal, Button, Textarea, DropdownSelect, ReadOnlyField, Input } from '@/components/shared';
@@ -269,7 +268,7 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
                       { value: '', label: 'Select a keyword...' },
                       ...keywordPresets.map(preset => ({
                         value: preset.id,
-                        label: `${preset.word}${preset.symbol ? ` (${SYMBOLS[preset.symbol]})` : ''}`
+                        label: preset.word ?? ''
                       }))
                     ]}
                   />

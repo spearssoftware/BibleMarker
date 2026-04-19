@@ -14,6 +14,7 @@ import {
   deleteMarkingPreset,
   searchMarkingPresets,
   incrementMarkingPresetUsage,
+  pruneTrackersForPreset,
 } from '@/lib/database';
 
 interface MarkingPresetState {
@@ -72,6 +73,7 @@ export const useMarkingPresetStore = create<MarkingPresetState>((set, get) => ({
     try {
       const updated = { ...preset, updatedAt: new Date() };
       await saveMarkingPreset(updated);
+      await pruneTrackersForPreset(preset.id, preset.category);
       await get().loadPresets();
       const { selectedPreset } = get();
       if (selectedPreset?.id === preset.id) set({ selectedPreset: updated });

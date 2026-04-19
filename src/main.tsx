@@ -4,6 +4,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import './index.css'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { clearVerseAnnotations } from '@/lib/database'
+
+// Dev console helper: wipe all annotations for a verse across every translation.
+// Call from devtools: __cleanVerse('John', 15, 2)
+if (import.meta.env.DEV) {
+  (window as unknown as { __cleanVerse: typeof clearVerseAnnotations }).__cleanVerse = clearVerseAnnotations;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {

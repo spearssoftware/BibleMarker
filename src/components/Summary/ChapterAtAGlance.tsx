@@ -17,10 +17,10 @@ import {
 } from '@/lib/database';
 import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import type { ChapterTitle, SectionHeading } from '@/types';
-import { SYMBOLS } from '@/types';
+import { SymbolIcon } from '@/lib/symbolDisplay';
 import type { MarkingPreset } from '@/types';
 import type { ObservationList } from '@/types';
-import { getBookById, presetMatchesVerse } from '@/types';
+import { getBookById, getHighlightColorHex, presetMatchesVerse } from '@/types';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 
@@ -333,20 +333,12 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
                         key={presetId}
                         className="inline-flex items-center gap-1.5 px-2 py-1 bg-scripture-elevated rounded text-xs"
                       >
-                        {preset.symbol && (
-                          <span className="text-sm">{SYMBOLS[preset.symbol]}</span>
-                        )}
-                        {preset.highlight && (
+                        {preset.symbol ? (
+                          <span className="text-sm"><SymbolIcon symbol={preset.symbol} size={14} color={preset.highlight ? getHighlightColorHex(preset.highlight.color) : undefined} /></span>
+                        ) : preset.highlight && (
                           <span
                             className="w-2.5 h-2.5 rounded"
-                            style={{
-                              backgroundColor: preset.highlight.color === 'yellow' ? '#eab308' :
-                                              preset.highlight.color === 'blue' ? '#3b82f6' :
-                                              preset.highlight.color === 'green' ? '#22c55e' :
-                                              preset.highlight.color === 'red' ? '#ef4444' :
-                                              preset.highlight.color === 'orange' ? '#f97316' :
-                                              '#eab308',
-                            }}
+                            style={{ backgroundColor: getHighlightColorHex(preset.highlight.color) }}
                           />
                         )}
                         <span className="text-scripture-text">{preset.word}</span>
@@ -408,20 +400,12 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
                 key={preset.id}
                 className="inline-flex items-center gap-1.5 px-2 py-1 bg-scripture-elevated rounded text-sm"
               >
-                {preset.symbol && (
-                  <span className="text-base">{SYMBOLS[preset.symbol]}</span>
-                )}
-                {preset.highlight && (
+                {preset.symbol ? (
+                  <span className="text-base"><SymbolIcon symbol={preset.symbol} size={16} color={preset.highlight ? getHighlightColorHex(preset.highlight.color) : undefined} /></span>
+                ) : preset.highlight && (
                   <span
                     className="w-3 h-3 rounded"
-                    style={{
-                      backgroundColor: preset.highlight.color === 'yellow' ? '#eab308' :
-                                      preset.highlight.color === 'blue' ? '#3b82f6' :
-                                      preset.highlight.color === 'green' ? '#22c55e' :
-                                      preset.highlight.color === 'red' ? '#ef4444' :
-                                      preset.highlight.color === 'orange' ? '#f97316' :
-                                      '#eab308',
-                    }}
+                    style={{ backgroundColor: getHighlightColorHex(preset.highlight.color) }}
                   />
                 )}
                 <span className="text-scripture-text">{preset.word}</span>

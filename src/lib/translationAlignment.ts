@@ -85,11 +85,20 @@ function findByStrongs(
   //   0 = no surface overlap — only Strong's
   let best: { index: number; score: number; offset: number } | null = null;
 
+  const sourceHasWhitespace = /\s/.test(sourceSelectedText);
+
   for (let i = 0; i < targetVerse.words.length; i++) {
     const token = targetVerse.words[i];
     if (!token.strongs?.some((s) => sourceSet.has(s))) continue;
     const start = offsets[i];
     if (start < 0) continue;
+
+    // Some SWORD modules tokenize multi-word phrases as a single <w> element
+    // with one Strong's number (e.g. "in Me that does not bear" → G5342). When
+    // the source is a single word, refuse to accept a compound target — the
+    // mark would overlay the entire phrase instead of the intended word.
+    // Fall back to text search, which respects word boundaries.
+    if (!sourceHasWhitespace && /\s/.test(token.word)) continue;
 
     const targetLower = token.word.toLowerCase();
     let score = 0;
@@ -103,7 +112,11 @@ function findByStrongs(
     }
   }
 
-  if (!best) return MISS;
+  // Reject Strong's-only matches with zero surface-form overlap — some modules
+  // tag adjacent words (e.g. a preposition) with the same lemma numbers as the
+  // pronoun, which would otherwise drop the mark on the wrong word. If no token
+  // has any textual similarity to the source selection, fall back to text search.
+  if (!best || best.score === 0) return MISS;
   const token = targetVerse.words[best.index];
   return {
     found: true,

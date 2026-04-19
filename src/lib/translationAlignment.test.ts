@@ -109,6 +109,55 @@ describe('findAlignedMatch', () => {
       expect(target.text.substring(result.startOffset!, result.endOffset!)).toBe('Myself');
     });
 
+    it('rejects score-0 Strong\'s-only matches and falls through to text search', () => {
+      // NASB95 sometimes tags the preposition before a pronoun with the
+      // pronoun's Strong's as a compound lemma. If source "Me" (G1473) only
+      // intersects "in" (also tagged G1473) and not the target "Me" token,
+      // a score-0 Strong's hit on "in" would incorrectly win. Reject it and
+      // let \bme\b fall through to find the real "Me".
+      const target = verse(
+        'Every branch in Me that does not bear fruit',
+        [
+          { word: 'Every', strongs: ['G3956'] },
+          { word: 'branch', strongs: ['G2814'] },
+          { word: 'in', strongs: ['G1722', 'G1473'] },
+          { word: 'Me', strongs: [] },
+        ],
+      );
+      const result = findAlignedMatch({
+        targetVerse: target,
+        sourceSelectedText: 'Me',
+        sourceStrongsNumbers: ['G1473'],
+      });
+      expect(result.found).toBe(true);
+      expect(result.method).toBe('text');
+      expect(target.text.substring(result.startOffset!, result.endOffset!)).toBe('Me');
+    });
+
+    it('rejects compound target tokens (whitespace) for single-word source selections', () => {
+      // Some SWORD modules tokenize multi-word phrases as a single <w> element
+      // with one Strong's number (NASB95 John 15:2 tags "in Me that does not bear"
+      // as a single token with G5342). A single-word source selection must not
+      // accept a compound target — fall back to text search.
+      const target = verse(
+        'Every branch in Me that does not bear fruit',
+        [
+          { word: 'Every', strongs: ['G3956'] },
+          { word: 'branch', strongs: ['G2814'] },
+          { word: 'in Me that does not bear', strongs: ['G5342'] },
+          { word: 'fruit', strongs: ['G2590'] },
+        ],
+      );
+      const result = findAlignedMatch({
+        targetVerse: target,
+        sourceSelectedText: 'Me',
+        sourceStrongsNumbers: ['G5342'],
+      });
+      expect(result.found).toBe(true);
+      expect(result.method).toBe('text');
+      expect(target.text.substring(result.startOffset!, result.endOffset!)).toBe('Me');
+    });
+
     it('falls through to text path when target has no matching Strong\'s', () => {
       const target = verse(
         'Every branch of mine that does not bear fruit',

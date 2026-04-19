@@ -421,10 +421,16 @@ select:focus-visible {
     justify-content: center;
     font-size: 1em;
     line-height: 1;
-    opacity: 0.4;
+    opacity: 0.6;
     pointer-events: none;
     z-index: 0;
     color: currentColor;
+  }
+
+  .symbol-overlay svg {
+    fill: currentColor;
+    pointer-events: none;
+    flex-shrink: 0;
   }
 
   /* Marked word text sits above its own symbol within the wrapper. */
