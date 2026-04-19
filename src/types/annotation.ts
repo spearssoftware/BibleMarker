@@ -274,13 +274,13 @@ export function isLetterOrNumberSymbol(key: SymbolKey): boolean {
 /** Symbol grouping for the picker, Precept-method ordering. Letters/numbers excluded. */
 export const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   { name: 'Identity', symbols: ['angel', 'anchor', 'cloud', 'cross', 'dove', 'flame', 'lamb', 'triangle'] },
-  { name: 'People', symbols: ['crown', 'peopleGroup', 'person', 'prayer'] },
+  { name: 'People', symbols: ['crown', 'peopleGroup', 'person'] },
   { name: 'Obedience & Freedom', symbols: ['chains', 'liberty', 'obey'] },
   {
     name: 'Concepts & Themes',
     symbols: [
       'bread', 'cup', 'door', 'fruit', 'glory', 'harvest', 'heart', 'joy', 'key',
-      'lightning', 'mercy', 'moon', 'peace', 'praise', 'repentance', 'rock',
+      'lightning', 'mercy', 'moon', 'peace', 'praise', 'prayer', 'repentance', 'rock',
       'scales', 'shield', 'sin', 'skull', 'star', 'starOutline', 'sun', 'sword',
       'vine', 'warning', 'wisdom',
     ],
