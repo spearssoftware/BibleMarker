@@ -1211,7 +1211,7 @@ function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSel
       <div>
         <button
           type="button"
-          onClick={() => setShowLetters(false)}
+          onClick={() => setShowLetters(prev => !prev)}
           className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-ui text-scripture-text uppercase tracking-wider font-semibold bg-scripture-elevated hover:bg-scripture-border transition-colors"
         >
           <span>Symbols</span>
@@ -1222,11 +1222,12 @@ function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSel
             <button
               type="button"
               onClick={() => onSelect(undefined)}
-              className={`w-9 h-9 rounded-lg text-sm flex items-center justify-center font-medium transition-all
+              className={`w-14 h-14 px-1 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all
                 ${!symbol ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-muted hover:bg-scripture-border'}`}
               title="None"
             >
-              —
+              <span className="text-lg leading-none">—</span>
+              <span className="text-[9px] leading-tight font-ui truncate max-w-full">None</span>
             </button>
             {symbolEntries.map((key) => renderButton(key))}
           </div>
@@ -1237,7 +1238,7 @@ function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSel
       <div>
         <button
           type="button"
-          onClick={() => setShowLetters(true)}
+          onClick={() => setShowLetters(prev => !prev)}
           className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-ui text-scripture-text uppercase tracking-wider font-semibold bg-scripture-elevated hover:bg-scripture-border transition-colors"
         >
           <span>Letters & Numbers</span>
