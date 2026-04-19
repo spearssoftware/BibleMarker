@@ -33,7 +33,7 @@ const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   },
   {
     name: 'Concepts & Themes',
-    symbols: ['star', 'starOutline', 'heart', 'joy', 'peace', 'mercy', 'wisdom', 'praise', 'repentance', 'glory', 'lightning', 'skull', 'sin', 'shield', 'scales', 'key', 'sun', 'moon', 'cup', 'sword', 'vine', 'bread', 'rock', 'door', 'harvest', 'warning'],
+    symbols: ['star', 'heart', 'joy', 'peace', 'mercy', 'wisdom', 'praise', 'repentance', 'glory', 'lightning', 'skull', 'sin', 'shield', 'scales', 'key', 'sun', 'moon', 'cup', 'sword', 'vine', 'bread', 'rock', 'door', 'harvest', 'warning'],
   },
   {
     name: 'Scripture & Teaching',

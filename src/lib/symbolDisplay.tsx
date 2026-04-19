@@ -43,7 +43,6 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
 
   // Concepts & themes
   star: { Icon: Star, weight: 'fill' },
-  starOutline: { Icon: Star, weight: 'regular' },
   heart: { Icon: Heart, weight: 'fill' },
   lightning: { Icon: Lightning, weight: 'fill' },
   skull: { Icon: Skull, weight: 'fill' },
@@ -135,6 +134,7 @@ const TEXT_FALLBACK: Partial<Record<SymbolKey, string>> = {
 // Back-compat: existing user data pointing to dropped keys renders as the closest surviving symbol.
 const LEGACY_ALIAS: Record<string, SymbolKey> = {
   heartSparkle: 'heart',
+  starOutline: 'star',
 };
 
 function resolveKey(key: SymbolKey | string): SymbolKey | null {

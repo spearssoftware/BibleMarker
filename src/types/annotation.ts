@@ -108,7 +108,6 @@ export const SYMBOLS = {
 
   // Concepts & Themes
   star: '★',         // Promise / Covenant
-  starOutline: '☆',  // Promise (lighter)
   heart: '❤',        // Love / Compassion
   lightning: '⚡',   // Judgment / Power / Conflict
   skull: '💀',       // Death
@@ -232,10 +231,10 @@ export type SymbolKey = keyof typeof SYMBOLS;
 /** Short, human-readable labels for each symbol — shown under the icon in the picker. */
 export const SYMBOL_LABELS: Record<SymbolKey, string> = {
   triangle: 'God', cross: 'Jesus', dove: 'Spirit', flame: 'Flame', angel: 'Angel',
-  lamb: 'Lamb', anchor: 'Hope', cloud: 'Glory',
+  lamb: 'Lamb', anchor: 'Hope', cloud: 'Cloud',
   person: 'Person', peopleGroup: 'People', crown: 'King', prayer: 'Prayer',
   obey: 'Obey', chains: 'Bondage', liberty: 'Freedom',
-  star: 'Promise', starOutline: 'Promise', heart: 'Love', lightning: 'Judgment',
+  star: 'Promise', heart: 'Love', lightning: 'Judgment',
   skull: 'Death', sin: 'Sin', shield: 'Faith', scales: 'Justice', key: 'Kingdom',
   sun: 'Light', moon: 'Seasons', lamp: 'Truth', cup: 'Cup', sword: 'Sword',
   vine: 'Vine', bread: 'Bread', rock: 'Rock', door: 'Door', harvest: 'Harvest',
@@ -281,7 +280,7 @@ export const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
     symbols: [
       'bread', 'cup', 'door', 'fruit', 'glory', 'harvest', 'heart', 'joy', 'key',
       'lightning', 'mercy', 'moon', 'peace', 'praise', 'prayer', 'repentance', 'rock',
-      'scales', 'shield', 'sin', 'skull', 'star', 'starOutline', 'sun', 'sword',
+      'scales', 'shield', 'sin', 'skull', 'star', 'sun', 'sword',
       'vine', 'warning', 'wisdom',
     ],
   },
