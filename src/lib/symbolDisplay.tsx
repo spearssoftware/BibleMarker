@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import {
   Anchor, ArrowFatDown, ArrowLeft, ArrowRight, ArrowsLeftRight, ArrowUUpLeft, Article, Asterisk,
   Bird, BookOpen, Bread, Buildings, Calendar, Cherries, Check, Church, Circle, Clock, Cloud,
-  Crown, Cross, Diamond, Door, Drop, Ear, Eye, Farm, Fire, Flame, Footprints, Globe, Hand,
+  Crown, Cross, Diamond, Door, Drop, Ear, Eye, Farm, Fire, Flame, Footprints, Gavel, Globe, Hand,
   HandHeart, HandsPraying, Heart, Hexagon, Hourglass, House, Key, Lamp, Lightbulb, Lightning,
   Link, LinkBreak, type IconProps, MapPin, MapTrifold, Megaphone, Minus, Moon, Mountains,
   MusicNotes, Peace, PersonArmsSpread, Person, PintGlass, Plant, Plus, Question, Scales, Scroll,
@@ -44,7 +44,7 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   // Concepts & themes
   star: { Icon: Star, weight: 'fill' },
   heart: { Icon: Heart, weight: 'fill' },
-  lightning: { Icon: Lightning, weight: 'fill' },
+  lightning: { Icon: Gavel, weight: 'fill' },
   skull: { Icon: Skull, weight: 'fill' },
   sin: { Icon: ArrowFatDown, weight: 'fill' },
   shield: { Icon: Shield, weight: 'fill' },
