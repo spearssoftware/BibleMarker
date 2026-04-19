@@ -427,9 +427,14 @@ select:focus-visible {
     color: currentColor;
   }
 
-  /* Phosphor SVG inside the overlay — scale larger than the word so the glyph
-     reads clearly behind short words without overflowing too far. */
+  /* Phosphor SVG inside the overlay — absolutely centered so it renders
+     predictably even behind short words like "Me" where the wrapper is
+     narrower than the icon. */
   .symbol-overlay svg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     width: 1.4em;
     height: 1.4em;
     fill: currentColor;
