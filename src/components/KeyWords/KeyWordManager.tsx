@@ -4,7 +4,7 @@
  * UI for creating, editing, and managing key word definitions.
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
@@ -1178,6 +1178,21 @@ function DismissedMatches({ presetId }: { presetId: string }) {
 
 function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSelect: (key: SymbolKey | undefined) => void }) {
   const [showLetters, setShowLetters] = useState(false);
+  const symbolsHeaderRef = useRef<HTMLButtonElement>(null);
+  const lettersHeaderRef = useRef<HTMLButtonElement>(null);
+
+  const toggleSection = useCallback(() => {
+    setShowLetters(prev => {
+      const next = !prev;
+      // After the section expands, bring its header to the top of the scroll
+      // container so the user doesn't have to scroll to find the reopened grid.
+      queueMicrotask(() => {
+        const target = next ? lettersHeaderRef.current : symbolsHeaderRef.current;
+        target?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      });
+      return next;
+    });
+  }, []);
 
   const allKeys = Object.keys(SYMBOLS) as SymbolKey[];
   const symbolEntries = allKeys.filter((key) => !LETTER_NUMBER_KEYS.has(key));
@@ -1210,8 +1225,9 @@ function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSel
       {/* Symbols section */}
       <div>
         <button
+          ref={symbolsHeaderRef}
           type="button"
-          onClick={() => setShowLetters(prev => !prev)}
+          onClick={toggleSection}
           className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-ui text-scripture-text uppercase tracking-wider font-semibold bg-scripture-elevated hover:bg-scripture-border transition-colors"
         >
           <span>Symbols</span>
@@ -1237,8 +1253,9 @@ function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSel
       {/* Letters & Numbers section */}
       <div>
         <button
+          ref={lettersHeaderRef}
           type="button"
-          onClick={() => setShowLetters(prev => !prev)}
+          onClick={toggleSection}
           className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-ui text-scripture-text uppercase tracking-wider font-semibold bg-scripture-elevated hover:bg-scripture-border transition-colors"
         >
           <span>Letters & Numbers</span>
