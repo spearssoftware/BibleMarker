@@ -106,6 +106,34 @@ export async function deleteAnnotation(id: string): Promise<void> {
   await logChange('annotations', 'delete', id);
 }
 
+/**
+ * Prune any tracker records (places/people/time/conclusions) linked to this
+ * preset whose tracker no longer matches the preset's current category. Used
+ * when a preset's category changes so stale entries don't linger in trackers
+ * the preset no longer belongs to.
+ */
+export async function pruneTrackersForPreset(presetId: string, currentCategory: string | undefined): Promise<void> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const trackers: Array<{ table: string; category: string }> = [
+    { table: 'places', category: 'places' },
+    { table: 'people', category: 'people' },
+    { table: 'time_expressions', category: 'time' },
+    { table: 'conclusions', category: 'conclusions' },
+  ];
+  for (const { table, category } of trackers) {
+    if (currentCategory === category) continue;
+    const rows = await db.select<{ id: string }[]>(
+      `SELECT id FROM ${table} WHERE json_extract(data, '$.presetId') = ?`,
+      [presetId],
+    );
+    for (const row of rows) {
+      await db.execute(`DELETE FROM ${table} WHERE id = ?`, [row.id]);
+      await logChange(table, 'delete', row.id);
+    }
+  }
+}
+
 /** Fetch a single annotation by id, or null if missing. */
 export async function getAnnotationById(id: string): Promise<Annotation | null> {
   const mod = await sqlite();
