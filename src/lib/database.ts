@@ -106,6 +106,31 @@ export async function deleteAnnotation(id: string): Promise<void> {
   await logChange('annotations', 'delete', id);
 }
 
+/**
+ * Delete all annotations (symbol + text) for a single verse across every module.
+ * Useful as a dev cleanup when a misaligned propagation has scattered bad marks
+ * across translations. Returns the number of rows deleted.
+ */
+export async function clearVerseAnnotations(book: string, chapter: number, verse: number): Promise<number> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const rows = await db.select<{ id: string; data: string }[]>(
+    `SELECT id, data FROM annotations`
+  );
+  const toDelete = rows.filter(row => {
+    const ann = JSON.parse(row.data) as Annotation;
+    if (ann.type === 'symbol') {
+      return ann.ref.book === book && ann.ref.chapter === chapter && ann.ref.verse === verse;
+    }
+    return ann.startRef.book === book && ann.startRef.chapter === chapter && ann.startRef.verse === verse;
+  });
+  for (const row of toDelete) {
+    await db.execute(`DELETE FROM annotations WHERE id = ?`, [row.id]);
+    await logChange('annotations', 'delete', row.id);
+  }
+  return toDelete.length;
+}
+
 export async function clearBookAnnotations(book: string, moduleId?: string): Promise<number> {
   const mod = await sqlite();
   const db = await mod.getSqliteDb();
