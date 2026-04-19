@@ -276,6 +276,10 @@ export function useAnnotations() {
         .map(async id => ({ id, verse: await resolveTargetVerse(id) })),
     );
 
+    // Build every annotation to save across all targets, then save them in
+    // parallel. Serializing across N translations × 2 writes was the biggest
+    // hot-path latency when propagating to a 5+ translation setup.
+    const toSave: Annotation[] = [];
     for (const { id: targetId, verse: targetVerse } of resolvedTargets) {
       if (!targetVerse) {
         misses.push(targetId);
@@ -318,7 +322,7 @@ export function useAnnotations() {
           updatedAt: now,
           presetId: preset.id,
         };
-        await saveAnnotation(symAnnotation);
+        toSave.push(symAnnotation);
         createdIds.push(symAnnotation.id);
       }
 
@@ -339,19 +343,18 @@ export function useAnnotations() {
           updatedAt: now,
           presetId: preset.id,
         };
-        await saveAnnotation(textAnnotation);
+        toSave.push(textAnnotation);
         createdIds.push(textAnnotation.id);
       }
 
-      // Only count as success if we actually created an annotation (preset
-      // with neither symbol nor highlight would otherwise count as a
-      // silent success).
       if (preset.symbol || preset.highlight) {
         successes.push(targetId);
       } else {
         misses.push(targetId);
       }
     }
+
+    await Promise.all(toSave.map(a => saveAnnotation(a)));
 
     if (createdIds.length > 0) {
       await loadAnnotations();

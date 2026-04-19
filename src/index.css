@@ -427,8 +427,6 @@ select:focus-visible {
     color: currentColor;
   }
 
-  /* Phosphor SVG inside the overlay — size set at render time via the
-     Phosphor size prop. Flex centers it in the overlay. */
   .symbol-overlay svg {
     fill: currentColor;
     pointer-events: none;

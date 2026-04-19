@@ -10,7 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, scopeLabel, type KeyWordCategory, type MarkingPreset, type PresetScope, type Variant } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
-import { SYMBOLS, SYMBOL_LABELS, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
+import { SYMBOLS, SYMBOL_LABELS, LETTER_NUMBER_KEYS, isLetterOrNumberSymbol, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
 import { SymbolIcon } from '@/lib/symbolDisplay';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { Input, Textarea, Label, DropdownSelect, Checkbox, Button } from '@/components/shared';
@@ -1176,16 +1176,6 @@ function DismissedMatches({ presetId }: { presetId: string }) {
   );
 }
 
-const LETTER_NUMBER_KEYS = new Set<SymbolKey>([
-  'letterA', 'letterB', 'letterC', 'letterD', 'letterE', 'letterF',
-  'letterG', 'letterH', 'letterI', 'letterJ', 'letterK', 'letterL',
-  'letterM', 'letterN', 'letterO', 'letterP', 'letterQ', 'letterR',
-  'letterS', 'letterT', 'letterU', 'letterV', 'letterW', 'letterX',
-  'letterY', 'letterZ',
-  'number0', 'number1', 'number2', 'number3', 'number4',
-  'number5', 'number6', 'number7', 'number8', 'number9',
-]);
-
 function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSelect: (key: SymbolKey | undefined) => void }) {
   const [showLetters, setShowLetters] = useState(false);
 
@@ -1195,7 +1185,7 @@ function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSel
   const numberEntries = allKeys.filter((key) => key.startsWith('number'));
 
   const renderButton = useCallback((key: SymbolKey) => {
-    const isLetterOrNumber = key.startsWith('letter') || key.startsWith('number');
+    const isLetterOrNumber = isLetterOrNumberSymbol(key);
     return (
       <button
         key={key}

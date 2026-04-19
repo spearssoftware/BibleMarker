@@ -260,6 +260,16 @@ export const SYMBOL_LABELS: Record<SymbolKey, string> = {
   number5: '5', number6: '6', number7: '7', number8: '8', number9: '9',
 };
 
+export const LETTER_NUMBER_KEYS: ReadonlySet<SymbolKey> = new Set<SymbolKey>(
+  (Object.keys(SYMBOL_LABELS) as SymbolKey[]).filter(
+    (k) => k.startsWith('letter') || k.startsWith('number'),
+  ),
+);
+
+export function isLetterOrNumberSymbol(key: SymbolKey): boolean {
+  return LETTER_NUMBER_KEYS.has(key);
+}
+
 /** Annotation types */
 export type AnnotationType = 
   | 'highlight'      // Background color on text

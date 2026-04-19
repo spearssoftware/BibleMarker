@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react';
-import { SYMBOL_LABELS, type SymbolKey } from '@/types';
+import { SYMBOL_LABELS, isLetterOrNumberSymbol, type SymbolKey } from '@/types';
 import { SymbolIcon } from '@/lib/symbolDisplay';
 
 interface SymbolPickerProps {
@@ -179,7 +179,7 @@ interface SymbolButtonProps {
 }
 
 function SymbolButton({ symbol, isSelected, onSelect }: SymbolButtonProps) {
-  const isLetterOrNumber = symbol.startsWith('letter') || symbol.startsWith('number');
+  const isLetterOrNumber = isLetterOrNumberSymbol(symbol);
   return (
     <button
       onClick={() => onSelect(symbol)}
