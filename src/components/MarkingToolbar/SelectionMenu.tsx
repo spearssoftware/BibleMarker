@@ -8,7 +8,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import type { TextSelection } from '@/stores/annotationStore';
 import type { MarkingPreset } from '@/types';
-import { SYMBOLS, getHighlightColorHex } from '@/types';
+import { getHighlightColorHex } from '@/types';
+import { SymbolIcon } from '@/lib/symbolDisplay';
 import { isCommonPronoun } from '@/types';
 import { scopeLabel } from '@/types';
 
@@ -138,7 +139,7 @@ export function SelectionMenu({
             color: p.highlight?.color ? getHighlightColorHex(p.highlight.color) : undefined,
           }}
         >
-          {SYMBOLS[p.symbol]}
+          <SymbolIcon symbol={p.symbol} size="1em" />
         </span>
       )}
       {p.highlight && (
@@ -335,7 +336,7 @@ export function SelectionMenu({
             role="menuitem"
             aria-label="Add person"
           >
-            <span className="text-lg" aria-hidden="true">{SYMBOLS.person}</span>
+            <span className="text-lg" aria-hidden="true"><SymbolIcon symbol="person" size={18} /></span>
             <span>Add Person</span>
           </button>
 
@@ -353,7 +354,7 @@ export function SelectionMenu({
             role="menuitem"
             aria-label="Add place"
           >
-            <span className="text-lg" aria-hidden="true">{SYMBOLS.mapPin}</span>
+            <span className="text-lg" aria-hidden="true"><SymbolIcon symbol="mapPin" size={18} /></span>
             <span>Add Place</span>
           </button>
 

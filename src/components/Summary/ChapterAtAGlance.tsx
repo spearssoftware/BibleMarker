@@ -17,7 +17,7 @@ import {
 } from '@/lib/database';
 import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import type { ChapterTitle, SectionHeading } from '@/types';
-import { SYMBOLS } from '@/types';
+import { SymbolIcon } from '@/lib/symbolDisplay';
 import type { MarkingPreset } from '@/types';
 import type { ObservationList } from '@/types';
 import { getBookById, presetMatchesVerse } from '@/types';
@@ -334,7 +334,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
                         className="inline-flex items-center gap-1.5 px-2 py-1 bg-scripture-elevated rounded text-xs"
                       >
                         {preset.symbol && (
-                          <span className="text-sm">{SYMBOLS[preset.symbol]}</span>
+                          <span className="text-sm"><SymbolIcon symbol={preset.symbol} size={14} /></span>
                         )}
                         {preset.highlight && (
                           <span
@@ -409,7 +409,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
                 className="inline-flex items-center gap-1.5 px-2 py-1 bg-scripture-elevated rounded text-sm"
               >
                 {preset.symbol && (
-                  <span className="text-base">{SYMBOLS[preset.symbol]}</span>
+                  <span className="text-base"><SymbolIcon symbol={preset.symbol} size={16} /></span>
                 )}
                 {preset.highlight && (
                   <span

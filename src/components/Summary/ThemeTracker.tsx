@@ -13,7 +13,8 @@ import { fetchChapter } from '@/lib/bible-api';
 import { getBookById, presetMatchesBook } from '@/types';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
-import { SYMBOLS, getHighlightColorHex } from '@/types';
+import { getHighlightColorHex } from '@/types';
+import { SymbolIcon } from '@/lib/symbolDisplay';
 // Helper to extract plain text from HTML (removes tags but keeps text)
 function extractPlainText(html: string): string {
   const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -199,7 +200,7 @@ export function ThemeTracker({ initialSearchTerm }: ThemeTrackerProps = {}) {
               return (
                 <div key={keywordId} className="h-7 flex items-center gap-1.5 min-w-0">
                   {keyword.symbol && (
-                    <span className="text-sm shrink-0">{SYMBOLS[keyword.symbol]}</span>
+                    <span className="text-sm shrink-0"><SymbolIcon symbol={keyword.symbol} size={14} /></span>
                   )}
                   {keyword.highlight && !keyword.symbol && (
                     <span

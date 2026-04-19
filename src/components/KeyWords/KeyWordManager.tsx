@@ -11,6 +11,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, scopeLabel, type KeyWordCategory, type MarkingPreset, type PresetScope, type Variant } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { SYMBOLS, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
+import { SymbolIcon } from '@/lib/symbolDisplay';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { Input, Textarea, Label, DropdownSelect, Checkbox, Button } from '@/components/shared';
 import { getBookById, BIBLE_BOOKS } from '@/types';
@@ -558,7 +559,6 @@ function KeyWordCard({
 }) {
   const { studies } = useStudyStore();
   const categoryInfo = KEY_WORD_CATEGORIES[preset.category || 'custom'];
-  const symbol = preset.symbol ? SYMBOLS[preset.symbol] : undefined;
   const color = preset.highlight?.color ? getHighlightColorHex(preset.highlight.color) : undefined;
   const study = preset.studyId ? studies.find(s => s.id === preset.studyId) : null;
 
@@ -568,9 +568,9 @@ function KeyWordCard({
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             <span className="font-medium text-scripture-text">{preset.word}</span>
-            {symbol && (
+            {preset.symbol && (
               <span className="text-lg" style={{ color }}>
-                {symbol}
+                <SymbolIcon symbol={preset.symbol} size={18} />
               </span>
             )}
             <span className="text-xs px-2 py-0.5 bg-scripture-surface rounded">
@@ -796,7 +796,7 @@ function KeyWordEditor({
                       ${symbol === key ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border'}`}
                     title={key}
                   >
-                    {SYMBOLS[key]}
+                    <SymbolIcon symbol={key} size={18} />
                   </button>
                 ))}
               </div>
@@ -1189,12 +1189,12 @@ const LETTER_NUMBER_KEYS = new Set<SymbolKey>([
 function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSelect: (key: SymbolKey | undefined) => void }) {
   const [showLetters, setShowLetters] = useState(false);
 
-  const allEntries = Object.entries(SYMBOLS) as [SymbolKey, string][];
-  const symbolEntries = allEntries.filter(([key]) => !LETTER_NUMBER_KEYS.has(key));
-  const letterEntries = allEntries.filter(([key]) => key.startsWith('letter'));
-  const numberEntries = allEntries.filter(([key]) => key.startsWith('number'));
+  const allKeys = Object.keys(SYMBOLS) as SymbolKey[];
+  const symbolEntries = allKeys.filter((key) => !LETTER_NUMBER_KEYS.has(key));
+  const letterEntries = allKeys.filter((key) => key.startsWith('letter'));
+  const numberEntries = allKeys.filter((key) => key.startsWith('number'));
 
-  const renderButton = useCallback((key: SymbolKey, sym: string) => (
+  const renderButton = useCallback((key: SymbolKey) => (
     <button
       key={key}
       type="button"
@@ -1203,7 +1203,7 @@ function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSel
         ${symbol === key ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border'}`}
       title={key}
     >
-      {sym}
+      <SymbolIcon symbol={key} size={18} />
     </button>
   ), [symbol, onSelect]);
 
@@ -1230,7 +1230,7 @@ function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSel
             >
               —
             </button>
-            {symbolEntries.map(([key, sym]) => renderButton(key, sym))}
+            {symbolEntries.map((key) => renderButton(key))}
           </div>
         )}
       </div>
@@ -1247,8 +1247,8 @@ function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSel
         </button>
         {showLetters && (
           <div className="flex flex-wrap gap-2 mt-1.5">
-            {letterEntries.map(([key, sym]) => renderButton(key, sym))}
-            {numberEntries.map(([key, sym]) => renderButton(key, sym))}
+            {letterEntries.map((key) => renderButton(key))}
+            {numberEntries.map((key) => renderButton(key))}
           </div>
         )}
       </div>

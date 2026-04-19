@@ -427,6 +427,13 @@ select:focus-visible {
     color: currentColor;
   }
 
+  /* Phosphor SVG inside the overlay — scale to match the word and inherit color. */
+  .symbol-overlay svg {
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+  }
+
   /* Marked word text sits above its own symbol within the wrapper. */
   .symbol-wrapper > .annotation-text {
     position: relative;

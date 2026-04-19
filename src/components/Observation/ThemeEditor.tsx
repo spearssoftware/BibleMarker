@@ -12,7 +12,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { getChapterTitle, saveChapterTitle } from '@/lib/database';
 import { analyzeKeywordFrequencyByChapter } from '@/lib/annotationQueries';
 import type { ChapterTitle } from '@/types';
-import { SYMBOLS } from '@/types';
+import { SymbolIcon } from '@/lib/symbolDisplay';
 import type { MarkingPreset } from '@/types';
 import { getBookById } from '@/types';
 import { Textarea, Checkbox } from '@/components/shared';
@@ -298,7 +298,7 @@ export function ThemeEditor({ verseRef }: ThemeEditorProps) {
                     `}
                   >
                     {preset?.symbol && (
-                      <span className="text-base">{SYMBOLS[preset.symbol]}</span>
+                      <span className="text-base"><SymbolIcon symbol={preset.symbol} size={16} /></span>
                     )}
                     {preset?.highlight && (
                       <span
@@ -342,7 +342,7 @@ export function ThemeEditor({ verseRef }: ThemeEditorProps) {
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-scripture-accent/20 text-scripture-text rounded-lg text-sm"
                   >
                     {preset.symbol && (
-                      <span className="text-base">{SYMBOLS[preset.symbol]}</span>
+                      <span className="text-base"><SymbolIcon symbol={preset.symbol} size={16} /></span>
                     )}
                     {preset.highlight && (
                       <span

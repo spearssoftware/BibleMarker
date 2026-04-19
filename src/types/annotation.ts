@@ -110,7 +110,6 @@ export const SYMBOLS = {
   star: '★',         // Promise / Covenant
   starOutline: '☆',  // Promise (lighter)
   heart: '❤',        // Love / Compassion
-  heartSparkle: '💖', // Love / Devotion (sparkling)
   lightning: '⚡',   // Judgment / Power / Conflict
   skull: '💀',       // Death
   sin: '↓',         // Sin / Falling short / Missing the mark
@@ -124,12 +123,11 @@ export const SYMBOLS = {
   sword: '⚔',        // Word of God / Battle / Judgment
   vine: '🌿',        // Vine / Branch / Abide
   bread: '🍞',       // Bread of Life / Communion / Manna
-  trumpet: '🎺',     // Prophecy / Judgment / End Times
   rock: '🪨',        // Rock / Cornerstone / Foundation
   door: '🚪',        // Door / Gate / Access
-  olive: '🫒',       // Anointing / Oil / Holy Spirit
   harvest: '🌾',     // Harvest / Grain / Sowing
   fruit: '🍎',       // Fruit / Bearing fruit / Produce
+  warning: '⚠',     // Warning / Caution
 
   // Scripture & Teaching
   scroll: '📜',      // Law / Commandment / Scripture
@@ -152,7 +150,8 @@ export const SYMBOLS = {
   tree: '🌳',        // Tree / Growth / Life
   river: '〰',       // River / Stream / Water source
   house: '🏠',       // House / Dwelling
-  temple: '⛪',      // Church / Temple / Sanctuary / Holy Place
+  temple: '⛪',      // Temple / Sanctuary / Holy Place (Synagogue icon)
+  church: '⛪',      // Church / Sanctuary (Church icon)
   city: '🏙️',       // City / Urban / Civilization
 
   // Actions & States

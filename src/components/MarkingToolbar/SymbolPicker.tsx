@@ -6,7 +6,8 @@
  */
 
 import { useState } from 'react';
-import { SYMBOLS, type SymbolKey } from '@/types';
+import { type SymbolKey } from '@/types';
+import { SymbolIcon } from '@/lib/symbolDisplay';
 
 interface SymbolPickerProps {
   selectedSymbol: SymbolKey;
@@ -32,7 +33,7 @@ const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   },
   {
     name: 'Concepts & Themes',
-    symbols: ['star', 'starOutline', 'heart', 'heartSparkle', 'lightning', 'skull', 'sin', 'shield', 'scales', 'key', 'sun', 'moon', 'cup', 'sword', 'vine', 'bread', 'trumpet', 'rock', 'door', 'olive', 'harvest'],
+    symbols: ['star', 'starOutline', 'heart', 'lightning', 'skull', 'sin', 'shield', 'scales', 'key', 'sun', 'moon', 'cup', 'sword', 'vine', 'bread', 'rock', 'door', 'harvest', 'warning'],
   },
   {
     name: 'Scripture & Teaching',
@@ -44,7 +45,7 @@ const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   },
   {
     name: 'Geography & Place',
-    symbols: ['mapPin', 'nationLand', 'mountain', 'globe', 'tree', 'river', 'house', 'temple', 'city'],
+    symbols: ['mapPin', 'nationLand', 'mountain', 'globe', 'tree', 'river', 'house', 'temple', 'church', 'city'],
   },
   {
     name: 'Actions & States',
@@ -189,7 +190,7 @@ function SymbolButton({ symbol, isSelected, onSelect }: SymbolButtonProps) {
       aria-label={`Select ${symbol}`}
       title={symbol}
     >
-      {SYMBOLS[symbol]}
+      <SymbolIcon symbol={symbol} size={24} />
     </button>
   );
 }

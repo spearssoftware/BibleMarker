@@ -7,7 +7,8 @@
 import { useState, useRef, useMemo } from 'react';
 import type { Verse, VerseRef } from '@/types';
 import type { Annotation, TextAnnotation, SymbolAnnotation, SymbolKey } from '@/types';
-import { getHighlightColorHex, SYMBOLS } from '@/types';
+import { getHighlightColorHex } from '@/types';
+import { SymbolIcon, getSymbolMarkup } from '@/lib/symbolDisplay';
 import { CrossReferencePopup } from './CrossReferencePopup';
 import { VerseOverlay } from './VerseOverlay';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
@@ -682,7 +683,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
         // Handle symbols: inline in front of the word so the word can also have highlight/underline/color
         if (segment.symbols.length > 0) {
           const symAnn = segment.symbols[0];
-          const symbolText = SYMBOLS[symAnn.symbol];
+          const symbolMarkup = getSymbolMarkup(symAnn.symbol);
           const symbolColor = symAnn.color ? getHighlightColorHex(symAnn.color) : undefined;
           annotationIds.push(symAnn.id);
           const classNames = `symbol-inline annotation-group ${annotationIds.map(id => `annotation-${id}`).join(' ')}`;
@@ -702,7 +703,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           htmlSegments.push(
             `${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">` +
             `<span class="symbol-wrapper">` +
-            `<span class="symbol-overlay"${symbolColorStyle ? ` style="${symbolColorStyle}"` : ''}>${symbolText}</span>` +
+            `<span class="symbol-overlay"${symbolColorStyle ? ` style="${symbolColorStyle}"` : ''}>${symbolMarkup}</span>` +
             `<span class="annotation-text"${overlayTextStyles ? ` style="${overlayTextStyles}"` : ''}>${escapeHtml(wordContent)}</span>` +
             `</span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`
           );
@@ -856,7 +857,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           className="symbol mr-1"
           style={{ color: sym.color ? getHighlightColorHex(sym.color) : undefined }}
         >
-          {SYMBOLS[sym.symbol]}
+          <SymbolIcon symbol={sym.symbol} />
         </span>
       ))}
 
@@ -894,7 +895,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           className="symbol ml-1"
           style={{ color: sym.color ? getHighlightColorHex(sym.color) : undefined }}
         >
-          {SYMBOLS[sym.symbol]}
+          <SymbolIcon symbol={sym.symbol} />
         </span>
       ))}
 
