@@ -12,6 +12,7 @@ import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, scopeLa
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { SYMBOLS, SYMBOL_LABELS, LETTER_NUMBER_KEYS, isLetterOrNumberSymbol, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
 import { SymbolIcon } from '@/lib/symbolDisplay';
+import { Trash } from '@phosphor-icons/react';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { Input, Textarea, Label, DropdownSelect, Checkbox, Button } from '@/components/shared';
 import { getBookById, BIBLE_BOOKS } from '@/types';
@@ -1045,10 +1046,10 @@ function VariantEditor({
         <button
           type="button"
           onClick={onRemove}
-          className="px-1 text-sm text-scripture-error hover:bg-scripture-errorBg rounded transition-colors"
+          className="p-1.5 text-scripture-muted hover:text-scripture-error hover:bg-scripture-errorBg rounded transition-colors"
           aria-label="Remove variant"
         >
-          ✕
+          <Trash size={16} weight="regular" />
         </button>
       </div>
       {scopeType === 'book' && (
