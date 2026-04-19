@@ -228,6 +228,38 @@ export const SYMBOLS = {
 
 export type SymbolKey = keyof typeof SYMBOLS;
 
+/** Short, human-readable labels for each symbol — shown under the icon in the picker. */
+export const SYMBOL_LABELS: Record<SymbolKey, string> = {
+  triangle: 'God', cross: 'Jesus', dove: 'Spirit', flame: 'Flame', angel: 'Angel',
+  lamb: 'Lamb', anchor: 'Hope', cloud: 'Glory',
+  person: 'Person', peopleGroup: 'People', crown: 'King', prayer: 'Prayer',
+  obey: 'Obey', chains: 'Bondage', liberty: 'Freedom',
+  star: 'Promise', starOutline: 'Promise', heart: 'Love', lightning: 'Judgment',
+  skull: 'Death', sin: 'Sin', shield: 'Faith', scales: 'Justice', key: 'Kingdom',
+  sun: 'Light', moon: 'Seasons', lamp: 'Truth', cup: 'Cup', sword: 'Sword',
+  vine: 'Vine', bread: 'Bread', rock: 'Rock', door: 'Door', harvest: 'Harvest',
+  fruit: 'Fruit', warning: 'Warning', joy: 'Joy', peace: 'Peace', mercy: 'Mercy',
+  wisdom: 'Wisdom', repentance: 'Repent', praise: 'Praise',
+  scroll: 'Law', book: 'Book', tablet: 'Commands',
+  clock: 'Time', calendar: 'Date', hourglass: 'Waiting',
+  arrowRight: 'Therefore', arrowLeft: 'Because', doubleArrow: 'Contrast',
+  mapPin: 'Place', mountain: 'Mountain', nationLand: 'Nation', globe: 'World',
+  tree: 'Tree', river: 'River', house: 'House', temple: 'Temple', church: 'Church',
+  city: 'City',
+  water: 'Water', fire: 'Fire', check: 'Done', x: 'Reject', hand: 'Deed',
+  eye: 'See', mouth: 'Speak', ear: 'Hear', megaphone: 'Proclaim', foot: 'Walk',
+  circle: 'Circle', square: 'Square', diamond: 'Diamond', hexagon: 'Hexagon',
+  plus: 'Add', minus: 'Remove',
+  question: '?', exclamation: '!', asterisk: '*',
+  letterA: 'A', letterB: 'B', letterC: 'C', letterD: 'D', letterE: 'E', letterF: 'F',
+  letterG: 'G', letterH: 'H', letterI: 'I', letterJ: 'J', letterK: 'K', letterL: 'L',
+  letterM: 'M', letterN: 'N', letterO: 'O', letterP: 'P', letterQ: 'Q', letterR: 'R',
+  letterS: 'S', letterT: 'T', letterU: 'U', letterV: 'V', letterW: 'W', letterX: 'X',
+  letterY: 'Y', letterZ: 'Z',
+  number0: '0', number1: '1', number2: '2', number3: '3', number4: '4',
+  number5: '5', number6: '6', number7: '7', number8: '8', number9: '9',
+};
+
 /** Annotation types */
 export type AnnotationType = 
   | 'highlight'      // Background color on text

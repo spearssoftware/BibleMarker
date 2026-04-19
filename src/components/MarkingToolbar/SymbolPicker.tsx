@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react';
-import { type SymbolKey } from '@/types';
+import { SYMBOL_LABELS, type SymbolKey } from '@/types';
 import { SymbolIcon } from '@/lib/symbolDisplay';
 
 interface SymbolPickerProps {
@@ -179,18 +179,24 @@ interface SymbolButtonProps {
 }
 
 function SymbolButton({ symbol, isSelected, onSelect }: SymbolButtonProps) {
+  const isLetterOrNumber = symbol.startsWith('letter') || symbol.startsWith('number');
   return (
     <button
       onClick={() => onSelect(symbol)}
-      className={`w-11 h-11 rounded-xl text-xl flex items-center justify-center
+      className={`w-16 h-16 rounded-xl flex flex-col items-center justify-center gap-0.5 px-1
                  transition-all duration-200 touch-target shadow-sm
                  ${isSelected
                    ? 'bg-scripture-accent text-scripture-bg scale-110 shadow-md ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface'
                    : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border hover:shadow-md'}`}
-      aria-label={`Select ${symbol}`}
-      title={symbol}
+      aria-label={`Select ${SYMBOL_LABELS[symbol]}`}
+      title={SYMBOL_LABELS[symbol]}
     >
-      <SymbolIcon symbol={symbol} size={24} />
+      <SymbolIcon symbol={symbol} size={isLetterOrNumber ? 22 : 24} />
+      {!isLetterOrNumber && (
+        <span className="text-[10px] leading-tight font-ui truncate max-w-full">
+          {SYMBOL_LABELS[symbol]}
+        </span>
+      )}
     </button>
   );
 }
