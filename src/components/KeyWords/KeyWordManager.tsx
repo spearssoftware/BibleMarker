@@ -10,7 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, scopeLabel, type KeyWordCategory, type MarkingPreset, type PresetScope, type Variant } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
-import { SYMBOLS, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
+import { SYMBOLS, SYMBOL_LABELS, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
 import { SymbolIcon } from '@/lib/symbolDisplay';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { Input, Textarea, Label, DropdownSelect, Checkbox, Button } from '@/components/shared';
@@ -1194,18 +1194,26 @@ function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSel
   const letterEntries = allKeys.filter((key) => key.startsWith('letter'));
   const numberEntries = allKeys.filter((key) => key.startsWith('number'));
 
-  const renderButton = useCallback((key: SymbolKey) => (
-    <button
-      key={key}
-      type="button"
-      onClick={() => onSelect(key)}
-      className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition-all
-        ${symbol === key ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border'}`}
-      title={key}
-    >
-      <SymbolIcon symbol={key} size={18} />
-    </button>
-  ), [symbol, onSelect]);
+  const renderButton = useCallback((key: SymbolKey) => {
+    const isLetterOrNumber = key.startsWith('letter') || key.startsWith('number');
+    return (
+      <button
+        key={key}
+        type="button"
+        onClick={() => onSelect(key)}
+        className={`${isLetterOrNumber ? 'w-9 h-9' : 'w-14 h-14 px-1 flex-col gap-0.5'} rounded-lg flex items-center justify-center transition-all
+          ${symbol === key ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border'}`}
+        title={SYMBOL_LABELS[key]}
+      >
+        <SymbolIcon symbol={key} size={isLetterOrNumber ? 18 : 20} />
+        {!isLetterOrNumber && (
+          <span className="text-[9px] leading-tight font-ui truncate max-w-full">
+            {SYMBOL_LABELS[key]}
+          </span>
+        )}
+      </button>
+    );
+  }, [symbol, onSelect]);
 
   return (
     <div className="space-y-3 mt-1.5">
