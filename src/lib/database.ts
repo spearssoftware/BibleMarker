@@ -106,6 +106,46 @@ export async function deleteAnnotation(id: string): Promise<void> {
   await logChange('annotations', 'delete', id);
 }
 
+/** Fetch a single annotation by id, or null if missing. */
+export async function getAnnotationById(id: string): Promise<Annotation | null> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const rows = await db.select<{ data: string }[]>(
+    `SELECT data FROM annotations WHERE id = ? LIMIT 1`,
+    [id],
+  );
+  if (rows.length === 0) return null;
+  return JSON.parse(rows[0].data) as Annotation;
+}
+
+/**
+ * Find sister annotations across other translations — same presetId, same verse,
+ * same selectedText (case-insensitive). Used by the cross-translation cascade
+ * delete so removing a propagated mark cleans up its twins in other modules.
+ */
+export async function findSisterAnnotations(annotation: Annotation): Promise<string[]> {
+  if (!annotation.presetId) return [];
+  const verseRef = annotation.type === 'symbol' ? annotation.ref : annotation.startRef;
+  const selectedText = (annotation.selectedText ?? '').trim().toLowerCase();
+  if (!selectedText) return [];
+
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const rows = await db.select<{ id: string; data: string; module_id: string }[]>(
+    `SELECT id, data, module_id FROM annotations WHERE preset_id = ? AND id != ?`,
+    [annotation.presetId, annotation.id],
+  );
+  return rows.filter(row => {
+    const ann = JSON.parse(row.data) as Annotation;
+    const ref = ann.type === 'symbol' ? ann.ref : ann.startRef;
+    if (ref.book !== verseRef.book || ref.chapter !== verseRef.chapter || ref.verse !== verseRef.verse) {
+      return false;
+    }
+    const sisterText = (ann.selectedText ?? '').trim().toLowerCase();
+    return sisterText === selectedText;
+  }).map(row => row.id);
+}
+
 /**
  * Delete all annotations (symbol + text) for a single verse across every module.
  * Useful as a dev cleanup when a misaligned propagation has scattered bad marks
