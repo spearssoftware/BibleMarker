@@ -407,6 +407,12 @@ select:focus-visible {
     display: inline-block;
     vertical-align: baseline;
     isolation: isolate;
+    /* DEBUG: remove when alignment bug is resolved */
+    outline: 1px dashed rgba(255, 0, 0, 0.4);
+  }
+  .symbol-overlay {
+    /* DEBUG */
+    outline: 1px dashed rgba(0, 128, 0, 0.4);
   }
 
   /* Symbol overlay: fills the wrapper and centers the glyph over the word.
@@ -427,12 +433,18 @@ select:focus-visible {
     color: currentColor;
   }
 
-  /* Phosphor SVG inside the overlay — the SVG's intrinsic width is set
-     at render time via the size prop. Overlay uses flex to center. */
+  /* Phosphor SVG inside the overlay — positioned absolutely on top of
+     the wrapper's center line. Size set at render time (1.4em) via the
+     Phosphor size prop. */
   .symbol-overlay svg {
+    position: absolute !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 1.4em !important;
+    height: 1.4em !important;
     fill: currentColor;
     pointer-events: none;
-    flex-shrink: 0;
   }
 
   /* Marked word text sits above its own symbol within the wrapper. */
