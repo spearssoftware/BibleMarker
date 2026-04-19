@@ -44,7 +44,8 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   // Concepts & themes
   star: { Icon: Star, weight: 'fill' },
   heart: { Icon: Heart, weight: 'fill' },
-  lightning: { Icon: Gavel, weight: 'fill' },
+  lightning: { Icon: Lightning, weight: 'fill' },
+  gavel: { Icon: Gavel, weight: 'fill' },
   skull: { Icon: Skull, weight: 'fill' },
   sin: { Icon: ArrowFatDown, weight: 'fill' },
   shield: { Icon: Shield, weight: 'fill' },

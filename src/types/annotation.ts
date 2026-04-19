@@ -109,7 +109,8 @@ export const SYMBOLS = {
   // Concepts & Themes
   star: '★',         // Promise / Covenant
   heart: '❤',        // Love / Compassion
-  lightning: '⚡',   // Judgment / Power / Conflict
+  lightning: '⚡',   // Power / Conflict
+  gavel: '⚖',        // Judgment / Verdict
   skull: '💀',       // Death
   sin: '↓',         // Sin / Falling short / Missing the mark
   shield: '🛡',      // Protection / Faith
@@ -234,7 +235,7 @@ export const SYMBOL_LABELS: Record<SymbolKey, string> = {
   lamb: 'Lamb', anchor: 'Hope', cloud: 'Cloud',
   person: 'Person', peopleGroup: 'People', crown: 'King', prayer: 'Prayer',
   obey: 'Obey', chains: 'Bondage', liberty: 'Freedom',
-  star: 'Promise', heart: 'Love', lightning: 'Judgment',
+  star: 'Promise', heart: 'Love', lightning: 'Lightning', gavel: 'Judgment',
   skull: 'Death', sin: 'Sin', shield: 'Faith', scales: 'Justice', key: 'Kingdom',
   sun: 'Light', moon: 'Seasons', lamp: 'Truth', cup: 'Cup', sword: 'Sword',
   vine: 'Vine', bread: 'Bread', rock: 'Rock', door: 'Door', harvest: 'Harvest',
@@ -278,7 +279,7 @@ export const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   {
     name: 'Concepts & Themes',
     symbols: [
-      'bread', 'cup', 'door', 'fruit', 'glory', 'harvest', 'heart', 'joy', 'key',
+      'bread', 'cup', 'door', 'fruit', 'gavel', 'glory', 'harvest', 'heart', 'joy', 'key',
       'lightning', 'mercy', 'moon', 'peace', 'praise', 'prayer', 'repentance', 'rock',
       'scales', 'shield', 'sin', 'skull', 'star', 'sun', 'sword',
       'vine', 'warning', 'wisdom',
