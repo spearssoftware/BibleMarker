@@ -1209,7 +1209,9 @@ function SymbolGrid({ symbol, previewColor, onSelect }: { symbol: SymbolKey | un
                   {category.name}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {category.symbols.map(key => renderButton(key))}
+                  {[...category.symbols]
+                    .sort((a, b) => SYMBOL_LABELS[a].localeCompare(SYMBOL_LABELS[b]))
+                    .map(key => renderButton(key))}
                 </div>
               </div>
             ))}
