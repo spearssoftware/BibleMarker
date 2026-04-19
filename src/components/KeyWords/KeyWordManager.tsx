@@ -10,7 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, scopeLabel, type KeyWordCategory, type MarkingPreset, type PresetScope, type Variant } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
-import { SYMBOLS, SYMBOL_LABELS, SYMBOL_CATEGORIES, LETTER_NUMBER_KEYS, isLetterOrNumberSymbol, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
+import { SYMBOLS, SYMBOL_LABELS, SYMBOL_CATEGORIES, isLetterOrNumberSymbol, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
 import { SymbolIcon } from '@/lib/symbolDisplay';
 import { Trash } from '@phosphor-icons/react';
 import { useAnnotationStore } from '@/stores/annotationStore';
