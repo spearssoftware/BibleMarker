@@ -271,6 +271,34 @@ export function isLetterOrNumberSymbol(key: SymbolKey): boolean {
   return LETTER_NUMBER_KEYS.has(key);
 }
 
+/** Symbol grouping for the picker, Precept-method ordering. Letters/numbers excluded. */
+export const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
+  { name: 'Identity', symbols: ['angel', 'anchor', 'cloud', 'cross', 'dove', 'flame', 'lamb', 'triangle'] },
+  { name: 'People', symbols: ['crown', 'peopleGroup', 'person', 'prayer'] },
+  { name: 'Obedience & Freedom', symbols: ['chains', 'liberty', 'obey'] },
+  {
+    name: 'Concepts & Themes',
+    symbols: [
+      'bread', 'cup', 'door', 'fruit', 'glory', 'harvest', 'heart', 'joy', 'key',
+      'lightning', 'mercy', 'moon', 'peace', 'praise', 'repentance', 'rock',
+      'scales', 'shield', 'sin', 'skull', 'star', 'starOutline', 'sun', 'sword',
+      'vine', 'warning', 'wisdom',
+    ],
+  },
+  { name: 'Scripture & Teaching', symbols: ['book', 'lamp', 'scroll', 'tablet'] },
+  { name: 'Time & Sequence', symbols: ['arrowLeft', 'arrowRight', 'calendar', 'clock', 'doubleArrow', 'hourglass'] },
+  {
+    name: 'Geography & Place',
+    symbols: ['church', 'city', 'globe', 'house', 'mapPin', 'mountain', 'nationLand', 'river', 'temple', 'tree'],
+  },
+  {
+    name: 'Actions & Senses',
+    symbols: ['check', 'ear', 'eye', 'fire', 'foot', 'hand', 'megaphone', 'mouth', 'water', 'x'],
+  },
+  { name: 'Shapes', symbols: ['circle', 'diamond', 'hexagon', 'minus', 'plus', 'square'] },
+  { name: 'Punctuation', symbols: ['asterisk', 'exclamation', 'question'] },
+];
+
 /** Annotation types */
 export type AnnotationType = 
   | 'highlight'      // Background color on text

@@ -10,7 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, scopeLabel, type KeyWordCategory, type MarkingPreset, type PresetScope, type Variant } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
-import { SYMBOLS, SYMBOL_LABELS, LETTER_NUMBER_KEYS, isLetterOrNumberSymbol, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
+import { SYMBOLS, SYMBOL_LABELS, SYMBOL_CATEGORIES, LETTER_NUMBER_KEYS, isLetterOrNumberSymbol, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
 import { SymbolIcon } from '@/lib/symbolDisplay';
 import { Trash } from '@phosphor-icons/react';
 import { useAnnotationStore } from '@/stores/annotationStore';
@@ -1152,7 +1152,6 @@ function SymbolGrid({ symbol, previewColor, onSelect }: { symbol: SymbolKey | un
   }, []);
 
   const allKeys = Object.keys(SYMBOLS) as SymbolKey[];
-  const symbolEntries = allKeys.filter((key) => !LETTER_NUMBER_KEYS.has(key));
   const letterEntries = allKeys.filter((key) => key.startsWith('letter'));
   const numberEntries = allKeys.filter((key) => key.startsWith('number'));
 
@@ -1191,18 +1190,29 @@ function SymbolGrid({ symbol, previewColor, onSelect }: { symbol: SymbolKey | un
           <span className={`text-scripture-muted transition-transform duration-200 text-[10px] ${!showLetters ? '' : '-rotate-90'}`}>▶</span>
         </button>
         {!showLetters && (
-          <div className="flex flex-wrap gap-2 mt-1.5">
-            <button
-              type="button"
-              onClick={() => onSelect(undefined)}
-              className={`w-20 h-11 px-1.5 rounded-lg flex flex-col items-center justify-center gap-0 transition-all
-                ${!symbol ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-muted hover:bg-scripture-border'}`}
-              title="None"
-            >
-              <span className="text-lg leading-none">—</span>
-              <span className="text-[10px] leading-tight font-ui">None</span>
-            </button>
-            {symbolEntries.map((key) => renderButton(key))}
+          <div className="space-y-3 mt-1.5">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onSelect(undefined)}
+                className={`w-20 h-11 px-1.5 rounded-lg flex flex-col items-center justify-center gap-0 transition-all
+                  ${!symbol ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-muted hover:bg-scripture-border'}`}
+                title="None"
+              >
+                <span className="text-lg leading-none">—</span>
+                <span className="text-[10px] leading-tight font-ui">None</span>
+              </button>
+            </div>
+            {SYMBOL_CATEGORIES.map(category => (
+              <div key={category.name}>
+                <div className="text-[10px] font-ui font-semibold uppercase tracking-wider text-scripture-muted mb-1.5">
+                  {category.name}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {category.symbols.map(key => renderButton(key))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
