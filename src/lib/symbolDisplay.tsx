@@ -1,13 +1,14 @@
 import { type ComponentType } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
-  Anchor, ArrowFatDown, ArrowLeft, ArrowRight, ArrowsLeftRight, Article, Asterisk,
+  Anchor, ArrowFatDown, ArrowLeft, ArrowRight, ArrowsLeftRight, ArrowUUpLeft, Article, Asterisk,
   Bird, BookOpen, Bread, Buildings, Calendar, Cherries, Check, Church, Circle, Clock, Cloud,
   Crown, Cross, Diamond, Door, Drop, Ear, Eye, Farm, Fire, Flame, Footprints, Globe, Hand,
-  HandsPraying, Heart, Hexagon, Hourglass, House, Key, Lamp, Lightning, Link, LinkBreak,
-  type IconProps, MapPin, MapTrifold, Megaphone, Minus, Moon, Mountains, PersonArmsSpread,
-  Person, PintGlass, Plant, Plus, Question, Scales, Scroll, Shield, Skull, SpeakerHigh,
-  Smiley, Square, Star, Sun, Sword, Synagogue, ThumbsUp, Tree, Triangle, UsersThree, Warning, Waves, X,
+  HandHeart, HandsPraying, Heart, Hexagon, Hourglass, House, Key, Lamp, Lightbulb, Lightning,
+  Link, LinkBreak, type IconProps, MapPin, MapTrifold, Megaphone, Minus, Moon, Mountains,
+  MusicNotes, Peace, PersonArmsSpread, Person, PintGlass, Plant, Plus, Question, Scales, Scroll,
+  Shield, Skull, SpeakerHigh, Smiley, Square, Star, Sun, Sword, Synagogue, ThumbsUp, Tree,
+  Triangle, UsersThree, Warning, Waves, X,
 } from '@phosphor-icons/react';
 import type { SymbolKey } from '@/types/annotation';
 
@@ -63,6 +64,11 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   fruit: { Icon: Cherries, weight: 'fill' },
   warning: { Icon: Warning, weight: 'fill' },
   joy: { Icon: Smiley, weight: 'fill' },
+  peace: { Icon: Peace, weight: 'fill' },
+  mercy: { Icon: HandHeart, weight: 'fill' },
+  wisdom: { Icon: Lightbulb, weight: 'fill' },
+  repentance: { Icon: ArrowUUpLeft, weight: 'bold' },
+  praise: { Icon: MusicNotes, weight: 'fill' },
 
   // Scripture & teaching
   scroll: { Icon: Scroll, weight: 'fill' },

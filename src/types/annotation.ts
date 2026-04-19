@@ -129,6 +129,11 @@ export const SYMBOLS = {
   fruit: '🍎',       // Fruit / Bearing fruit / Produce
   warning: '⚠',     // Warning / Caution
   joy: '😊',         // Joy / Rejoicing / Delight
+  peace: '☮',        // Peace / Shalom
+  mercy: '💝',       // Mercy / Grace / Compassion
+  wisdom: '💡',      // Wisdom / Understanding / Insight
+  repentance: '↺',   // Repentance / Turning / Return
+  praise: '🎵',      // Praise / Worship / Song
 
   // Scripture & Teaching
   scroll: '📜',      // Law / Commandment / Scripture
