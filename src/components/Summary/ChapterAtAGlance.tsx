@@ -333,20 +333,12 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
                         key={presetId}
                         className="inline-flex items-center gap-1.5 px-2 py-1 bg-scripture-elevated rounded text-xs"
                       >
-                        {preset.symbol && (
+                        {preset.symbol ? (
                           <span className="text-sm"><SymbolIcon symbol={preset.symbol} size={14} color={preset.highlight ? getHighlightColorHex(preset.highlight.color) : undefined} /></span>
-                        )}
-                        {preset.highlight && (
+                        ) : preset.highlight && (
                           <span
                             className="w-2.5 h-2.5 rounded"
-                            style={{
-                              backgroundColor: preset.highlight.color === 'yellow' ? '#eab308' :
-                                              preset.highlight.color === 'blue' ? '#3b82f6' :
-                                              preset.highlight.color === 'green' ? '#22c55e' :
-                                              preset.highlight.color === 'red' ? '#ef4444' :
-                                              preset.highlight.color === 'orange' ? '#f97316' :
-                                              '#eab308',
-                            }}
+                            style={{ backgroundColor: getHighlightColorHex(preset.highlight.color) }}
                           />
                         )}
                         <span className="text-scripture-text">{preset.word}</span>
@@ -408,20 +400,12 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
                 key={preset.id}
                 className="inline-flex items-center gap-1.5 px-2 py-1 bg-scripture-elevated rounded text-sm"
               >
-                {preset.symbol && (
+                {preset.symbol ? (
                   <span className="text-base"><SymbolIcon symbol={preset.symbol} size={16} color={preset.highlight ? getHighlightColorHex(preset.highlight.color) : undefined} /></span>
-                )}
-                {preset.highlight && (
+                ) : preset.highlight && (
                   <span
                     className="w-3 h-3 rounded"
-                    style={{
-                      backgroundColor: preset.highlight.color === 'yellow' ? '#eab308' :
-                                      preset.highlight.color === 'blue' ? '#3b82f6' :
-                                      preset.highlight.color === 'green' ? '#22c55e' :
-                                      preset.highlight.color === 'red' ? '#ef4444' :
-                                      preset.highlight.color === 'orange' ? '#f97316' :
-                                      '#eab308',
-                    }}
+                    style={{ backgroundColor: getHighlightColorHex(preset.highlight.color) }}
                   />
                 )}
                 <span className="text-scripture-text">{preset.word}</span>
