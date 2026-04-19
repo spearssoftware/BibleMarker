@@ -134,6 +134,7 @@ export const SYMBOLS = {
   wisdom: '💡',      // Wisdom / Understanding / Insight
   repentance: '↺',   // Repentance / Turning / Return
   praise: '🎵',      // Praise / Worship / Song
+  glory: '✨',        // Glory / Radiance / Presence
 
   // Scripture & Teaching
   scroll: '📜',      // Law / Commandment / Scripture
@@ -239,7 +240,7 @@ export const SYMBOL_LABELS: Record<SymbolKey, string> = {
   sun: 'Light', moon: 'Seasons', lamp: 'Truth', cup: 'Cup', sword: 'Sword',
   vine: 'Vine', bread: 'Bread', rock: 'Rock', door: 'Door', harvest: 'Harvest',
   fruit: 'Fruit', warning: 'Warning', joy: 'Joy', peace: 'Peace', mercy: 'Mercy',
-  wisdom: 'Wisdom', repentance: 'Repent', praise: 'Praise',
+  wisdom: 'Wisdom', repentance: 'Repent', praise: 'Praise', glory: 'Glory',
   scroll: 'Law', book: 'Book', tablet: 'Commands',
   clock: 'Time', calendar: 'Date', hourglass: 'Waiting',
   arrowRight: 'Therefore', arrowLeft: 'Because', doubleArrow: 'Contrast',

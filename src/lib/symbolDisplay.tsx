@@ -7,7 +7,7 @@ import {
   HandHeart, HandsPraying, Heart, Hexagon, Hourglass, House, Key, Lamp, Lightbulb, Lightning,
   Link, LinkBreak, type IconProps, MapPin, MapTrifold, Megaphone, Minus, Moon, Mountains,
   MusicNotes, Peace, PersonArmsSpread, Person, PintGlass, Plant, Plus, Question, Scales, Scroll,
-  Shield, Skull, SpeakerHigh, Smiley, Square, Star, Sun, Sword, Synagogue, ThumbsUp, Tree,
+  Shield, Skull, Sparkle, SpeakerHigh, Smiley, Square, Star, Sun, Sword, Synagogue, ThumbsUp, Tree,
   Triangle, UsersThree, Warning, Waves, X,
 } from '@phosphor-icons/react';
 import type { SymbolKey } from '@/types/annotation';
@@ -69,6 +69,7 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   wisdom: { Icon: Lightbulb, weight: 'fill' },
   repentance: { Icon: ArrowUUpLeft, weight: 'bold' },
   praise: { Icon: MusicNotes, weight: 'fill' },
+  glory: { Icon: Sparkle, weight: 'fill' },
 
   // Scripture & teaching
   scroll: { Icon: Scroll, weight: 'fill' },
