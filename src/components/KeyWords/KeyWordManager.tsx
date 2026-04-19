@@ -1206,7 +1206,7 @@ function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSel
         key={key}
         type="button"
         onClick={() => onSelect(key)}
-        className={`${isLetterOrNumber ? 'w-9 h-9' : 'w-14 h-14 px-1 flex-col gap-0.5'} rounded-lg flex items-center justify-center transition-all
+        className={`${isLetterOrNumber ? 'w-9 h-9' : 'w-14 h-11 px-1 flex-col gap-0'} rounded-lg flex items-center justify-center transition-all
           ${symbol === key ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border'}`}
         title={SYMBOL_LABELS[key]}
       >
@@ -1238,7 +1238,7 @@ function SymbolGrid({ symbol, onSelect }: { symbol: SymbolKey | undefined; onSel
             <button
               type="button"
               onClick={() => onSelect(undefined)}
-              className={`w-14 h-14 px-1 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all
+              className={`w-14 h-11 px-1 rounded-lg flex flex-col items-center justify-center gap-0 transition-all
                 ${!symbol ? 'bg-scripture-accent text-scripture-bg ring-2 ring-scripture-text ring-offset-2 ring-offset-scripture-surface' : 'bg-scripture-elevated text-scripture-muted hover:bg-scripture-border'}`}
               title="None"
             >
