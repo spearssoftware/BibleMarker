@@ -200,7 +200,7 @@ export function ThemeTracker({ initialSearchTerm }: ThemeTrackerProps = {}) {
               return (
                 <div key={keywordId} className="h-7 flex items-center gap-1.5 min-w-0">
                   {keyword.symbol && (
-                    <span className="text-sm shrink-0"><SymbolIcon symbol={keyword.symbol} size={14} /></span>
+                    <span className="text-sm shrink-0"><SymbolIcon symbol={keyword.symbol} size={14} color={highlightColor ?? undefined} /></span>
                   )}
                   {keyword.highlight && !keyword.symbol && (
                     <span

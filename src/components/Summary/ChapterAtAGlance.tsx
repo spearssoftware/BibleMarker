@@ -20,7 +20,7 @@ import type { ChapterTitle, SectionHeading } from '@/types';
 import { SymbolIcon } from '@/lib/symbolDisplay';
 import type { MarkingPreset } from '@/types';
 import type { ObservationList } from '@/types';
-import { getBookById, presetMatchesVerse } from '@/types';
+import { getBookById, getHighlightColorHex, presetMatchesVerse } from '@/types';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 
@@ -334,7 +334,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
                         className="inline-flex items-center gap-1.5 px-2 py-1 bg-scripture-elevated rounded text-xs"
                       >
                         {preset.symbol && (
-                          <span className="text-sm"><SymbolIcon symbol={preset.symbol} size={14} /></span>
+                          <span className="text-sm"><SymbolIcon symbol={preset.symbol} size={14} color={preset.highlight ? getHighlightColorHex(preset.highlight.color) : undefined} /></span>
                         )}
                         {preset.highlight && (
                           <span
@@ -409,7 +409,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
                 className="inline-flex items-center gap-1.5 px-2 py-1 bg-scripture-elevated rounded text-sm"
               >
                 {preset.symbol && (
-                  <span className="text-base"><SymbolIcon symbol={preset.symbol} size={16} /></span>
+                  <span className="text-base"><SymbolIcon symbol={preset.symbol} size={16} color={preset.highlight ? getHighlightColorHex(preset.highlight.color) : undefined} /></span>
                 )}
                 {preset.highlight && (
                   <span
