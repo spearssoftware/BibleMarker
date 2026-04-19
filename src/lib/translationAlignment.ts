@@ -103,7 +103,11 @@ function findByStrongs(
     }
   }
 
-  if (!best) return MISS;
+  // Reject Strong's-only matches with zero surface-form overlap — some modules
+  // tag adjacent words (e.g. a preposition) with the same lemma numbers as the
+  // pronoun, which would otherwise drop the mark on the wrong word. If no token
+  // has any textual similarity to the source selection, fall back to text search.
+  if (!best || best.score === 0) return MISS;
   const token = targetVerse.words[best.index];
   return {
     found: true,
