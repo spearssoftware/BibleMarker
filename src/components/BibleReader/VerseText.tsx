@@ -696,15 +696,12 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const trailingPunct = trailingPunctMatch ? trailingPunctMatch[1] : '';
           const wordContent = trailingPunct ? segmentText.slice(0, -trailingPunct.length) : segmentText;
 
-          const overlayTextStyles = symbolColor
-            ? `text-decoration: underline; text-decoration-color: ${symbolColor}; text-decoration-thickness: 2px; text-underline-offset: 3px;`
-            : '';
           const symbolColorStyle = symbolColor ? `color: ${symbolColor};` : '';
           htmlSegments.push(
             `${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">` +
             `<span class="symbol-wrapper">` +
             `<span class="symbol-overlay"${symbolColorStyle ? ` style="${symbolColorStyle}"` : ''}>${symbolMarkup}</span>` +
-            `<span class="annotation-text"${overlayTextStyles ? ` style="${overlayTextStyles}"` : ''}>${escapeHtml(wordContent)}</span>` +
+            `<span class="annotation-text">${escapeHtml(wordContent)}</span>` +
             `</span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`
           );
         } else {

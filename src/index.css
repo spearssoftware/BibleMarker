@@ -421,7 +421,7 @@ select:focus-visible {
     justify-content: center;
     font-size: 1em;
     line-height: 1;
-    opacity: 0.4;
+    opacity: 0.65;
     pointer-events: none;
     z-index: 0;
     color: currentColor;
