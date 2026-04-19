@@ -274,29 +274,30 @@ export function isLetterOrNumberSymbol(key: SymbolKey): boolean {
 /** Symbol grouping for the picker, Precept-method ordering. Letters/numbers excluded. */
 export const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   { name: 'Identity', symbols: ['angel', 'anchor', 'cloud', 'cross', 'dove', 'flame', 'lamb', 'triangle'] },
-  { name: 'People', symbols: ['crown', 'peopleGroup', 'person'] },
-  { name: 'Obedience & Freedom', symbols: ['chains', 'liberty', 'obey'] },
+  { name: 'People & Relationships', symbols: ['chains', 'crown', 'liberty', 'obey', 'peopleGroup', 'person'] },
   {
-    name: 'Concepts & Themes',
-    symbols: [
-      'bread', 'cup', 'door', 'fruit', 'gavel', 'glory', 'harvest', 'heart', 'joy', 'key',
-      'lightning', 'mercy', 'moon', 'peace', 'praise', 'prayer', 'repentance', 'rock',
-      'scales', 'shield', 'sin', 'skull', 'star', 'sun', 'sword',
-      'vine', 'warning', 'wisdom',
-    ],
+    name: 'Virtues & Heart',
+    symbols: ['glory', 'heart', 'joy', 'mercy', 'peace', 'praise', 'prayer', 'repentance', 'sin', 'warning', 'wisdom'],
+  },
+  {
+    name: 'Power & Judgment',
+    symbols: ['gavel', 'key', 'lightning', 'scales', 'shield', 'skull', 'sword'],
+  },
+  {
+    name: 'Signs & Metaphors',
+    symbols: ['bread', 'cup', 'door', 'fruit', 'harvest', 'moon', 'rock', 'star', 'sun', 'tree', 'vine'],
   },
   { name: 'Scripture & Teaching', symbols: ['book', 'lamp', 'scroll', 'tablet'] },
   { name: 'Time & Sequence', symbols: ['arrowLeft', 'arrowRight', 'calendar', 'clock', 'doubleArrow', 'hourglass'] },
   {
     name: 'Geography & Place',
-    symbols: ['church', 'city', 'globe', 'house', 'mapPin', 'mountain', 'nationLand', 'river', 'temple', 'tree'],
+    symbols: ['church', 'city', 'globe', 'house', 'mapPin', 'mountain', 'nationLand', 'river', 'temple'],
   },
   {
     name: 'Actions & Senses',
     symbols: ['check', 'ear', 'eye', 'fire', 'foot', 'hand', 'megaphone', 'mouth', 'water', 'x'],
   },
-  { name: 'Shapes', symbols: ['circle', 'diamond', 'hexagon', 'minus', 'plus', 'square'] },
-  { name: 'Punctuation', symbols: ['asterisk', 'exclamation', 'question'] },
+  { name: 'Markers', symbols: ['asterisk', 'circle', 'diamond', 'exclamation', 'hexagon', 'minus', 'plus', 'question', 'square'] },
 ];
 
 /** Annotation types */
