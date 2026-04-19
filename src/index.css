@@ -421,16 +421,17 @@ select:focus-visible {
     justify-content: center;
     font-size: 1em;
     line-height: 1;
-    opacity: 0.65;
+    opacity: 0.5;
     pointer-events: none;
     z-index: 0;
     color: currentColor;
   }
 
-  /* Phosphor SVG inside the overlay — scale to match the word and inherit color. */
+  /* Phosphor SVG inside the overlay — scale larger than the word so the glyph
+     reads clearly behind short words without overflowing too far. */
   .symbol-overlay svg {
-    width: 1em;
-    height: 1em;
+    width: 1.4em;
+    height: 1.4em;
     fill: currentColor;
   }
 
