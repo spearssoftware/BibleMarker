@@ -71,7 +71,7 @@ jobs:
           GH_TOKEN: ${{ secrets.BIBLEMARKER_ASSETS_TOKEN }}
       - name: Download gnosis-lite.db
         run: |
-          gh release download v0.9.0 --repo spearssoftware/gnosis --dir src-tauri/resources --pattern "gnosis-lite.db"
+          gh release download v0.9.1 --repo spearssoftware/gnosis --dir src-tauri/resources --pattern "gnosis-lite.db"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Check
