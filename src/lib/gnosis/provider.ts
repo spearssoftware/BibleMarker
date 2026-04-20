@@ -4,8 +4,6 @@ import type {
   GnosisDictionaryEntry,
   GnosisEvent,
   GnosisGreekLexiconEntry,
-  GnosisGreekWord,
-  GnosisHebrewWord,
   GnosisLexiconEntry,
   GnosisMeta,
   GnosisPeopleGroup,
@@ -53,8 +51,6 @@ export interface GnosisDataProvider {
   getCrossReferences(osisRef: string): Promise<PaginatedResponse<GnosisCrossReference>>;
 
   // Language
-  getHebrewWords(osisRef: string): Promise<GnosisHebrewWord[]>;
-  getGreekWords(osisRef: string): Promise<GnosisGreekWord[]>;
   getLexiconEntry(lexicalId: string): Promise<GnosisLexiconEntry>;
   getGreekLexiconEntry(strongsNumber: string): Promise<GnosisGreekLexiconEntry>;
 

@@ -16,8 +16,6 @@ import type {
   GnosisDictionaryDefinition,
   GnosisEvent,
   GnosisGreekLexiconEntry,
-  GnosisGreekWord,
-  GnosisHebrewWord,
   GnosisLexiconEntry,
   GnosisMeta,
   GnosisPeopleGroup,
@@ -62,12 +60,11 @@ async function initGnosisDb(): Promise<Database> {
   const db = await Database.load('sqlite:gnosis-lite.db');
 
   try {
-    const meta = await db.select<{ build_date: string; version: string }[]>('SELECT build_date, version FROM gnosis_meta LIMIT 1');
-    if (meta.length > 0) {
-      console.log(`[Gnosis] Loaded v${meta[0].version} (built ${meta[0].build_date}) from ${destPath}`);
-    } else {
-      console.log(`[Gnosis] Loaded (no version info) from ${destPath}`);
-    }
+    const meta = await db.select<{ key: string; value: string }[]>('SELECT key, value FROM gnosis_meta');
+    const metaMap = new Map(meta.map(m => [m.key, m.value]));
+    const version = metaMap.get('version') ?? 'unknown';
+    const buildDate = metaMap.get('build_date') ?? 'unknown';
+    console.log(`[Gnosis] Loaded v${version} (built ${buildDate}) from ${destPath}`);
   } catch {
     console.log(`[Gnosis] Loaded (no meta table) from ${destPath}`);
   }
@@ -250,6 +247,7 @@ export class GnosisLocalDb implements GnosisDataProvider {
       firstMention: r.first_mention ?? null,
       nameMeaning: r.name_meaning ?? null,
       peopleGroups: groups.map((g) => g.slug),
+      datesConfidence: r.dates_confidence ?? null,
     };
   }
 
@@ -321,6 +319,8 @@ export class GnosisLocalDb implements GnosisDataProvider {
       duration: r.duration ?? null, sortKey: r.sort_key ?? null,
       participants: [], locations: [], verses: [],
       parentEvent: null, predecessor: null,
+      datesConfidence: r.dates_confidence ?? null,
+      datesSource: r.dates_source ?? null,
     }));
     return { data, meta: { total, limit, offset } };
   }
@@ -362,6 +362,8 @@ export class GnosisLocalDb implements GnosisDataProvider {
       verses: verses.map((v) => v.osis_ref),
       parentEvent: parentSlug,
       predecessor: predecessorSlug,
+      datesConfidence: r.dates_confidence ?? null,
+      datesSource: r.dates_source ?? null,
     };
   }
 
@@ -527,46 +529,6 @@ export class GnosisLocalDb implements GnosisDataProvider {
 
   // --- Language ---
 
-  async getHebrewWords(osisRef: string): Promise<GnosisHebrewWord[]> {
-    const db = await this.db();
-    const vRows: any[] = await db.select('SELECT id FROM verse WHERE osis_ref = ?', [osisRef]);
-    if (!vRows.length) return [];
-
-    const rows: any[] = await db.select(
-      'SELECT * FROM hebrew_word WHERE verse_id = ? ORDER BY position',
-      [vRows[0].id]
-    );
-
-    return rows.map((r) => ({
-      wordId: r.word_id,
-      position: r.position,
-      text: r.text,
-      lemmaRaw: r.lemma_raw,
-      strongsNumber: r.strongs_number ?? null,
-      morph: r.morph,
-    }));
-  }
-
-  async getGreekWords(osisRef: string): Promise<GnosisGreekWord[]> {
-    const db = await this.db();
-    const vRows: any[] = await db.select('SELECT id FROM verse WHERE osis_ref = ?', [osisRef]);
-    if (!vRows.length) return [];
-
-    const rows: any[] = await db.select(
-      'SELECT * FROM greek_word WHERE verse_id = ? ORDER BY position',
-      [vRows[0].id]
-    );
-
-    return rows.map((r) => ({
-      wordId: r.word_id,
-      position: r.position,
-      text: r.text,
-      lemma: r.lemma,
-      strongsNumber: r.strongs_number ?? null,
-      morph: r.morph,
-    }));
-  }
-
   async getLexiconEntry(lexicalId: string): Promise<GnosisLexiconEntry> {
     const db = await this.db();
     const rows: any[] = await db.select('SELECT * FROM lexicon_entry WHERE lexical_id = ?', [lexicalId]);
@@ -713,7 +675,7 @@ export class GnosisLocalDb implements GnosisDataProvider {
     const metaMap: Record<string, string> = {};
     for (const r of metaRows) metaMap[r.key] = r.value;
 
-    const tables = ['person', 'place', 'event', 'people_group', 'strongs', 'dictionary_entry', 'topic', 'lexicon_entry', 'cross_reference', 'hebrew_word', 'greek_word', 'greek_lexicon_entry'];
+    const tables = ['person', 'place', 'event', 'people_group', 'strongs', 'dictionary_entry', 'topic', 'lexicon_entry', 'cross_reference', 'greek_lexicon_entry'];
     const counts: Record<string, number> = {};
     for (const table of tables) {
       const row: any[] = await db.select(`SELECT COUNT(*) as cnt FROM ${table}`);
@@ -757,6 +719,7 @@ function mapLocalPersonSummary(r: any): GnosisPerson {
     firstMention: r.first_mention ?? null,
     nameMeaning: r.name_meaning ?? null,
     peopleGroups: [],
+    datesConfidence: r.dates_confidence ?? null,
   };
 }
 

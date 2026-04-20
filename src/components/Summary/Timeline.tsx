@@ -1,11 +1,11 @@
-import { useMemo, useEffect, useRef } from 'react';
+import { useLayoutEffect, useMemo, useEffect, useRef, useState } from 'react';
 import { useTimeStore } from '@/stores/timeStore';
 import { usePeopleStore } from '@/stores/peopleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useChapterEntities, useGnosisEntity } from '@/hooks/useGnosis';
 import { formatVerseRef, parseOsisRef } from '@/types';
-import type { VerseRef, GnosisEvent, GnosisPerson } from '@/types';
+import type { VerseRef, GnosisEvent, GnosisPerson, DatesConfidence } from '@/types';
 
 interface TimelineEntry {
   type: 'time' | 'person' | 'event';
@@ -15,6 +15,13 @@ interface TimelineEntry {
   startNum: number;
   endNum: number;
   verseRef: VerseRef;
+  /** null/exact/scholarly_consensus render solid; tradition/estimate render dashed. */
+  confidence?: DatesConfidence | null;
+}
+
+/** Tradition + estimate are "tentative" — render with dashed borders to signal the dates are educated guesses. */
+function isTentativeConfidence(c: DatesConfidence | null | undefined): boolean {
+  return c === 'tradition' || c === 'estimate';
 }
 
 function toNum(year: number, era: 'BC' | 'AD'): number {
@@ -28,7 +35,13 @@ function formatYearNum(num: number): string {
 
 const ROW_HEIGHT = 32;
 const ROW_GAP = 4;
-const YEAR_COL_WIDTH = 110;
+// Label column sizes itself to the widest rendered label (measured after layout),
+// clamped to this range so layout stays predictable.
+const LABEL_COL_MIN = 80;
+const LABEL_COL_MAX = 320;
+const LABEL_COL_PADDING = 8;
+
+const TIMELESS_PERSON_SLUGS = new Set(['god', 'satan', 'holy-spirit']);
 
 interface TimelineProps {
   filterByBook?: boolean;
@@ -40,6 +53,10 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
   const { activeStudyId } = useStudyStore();
   const { currentBook, currentChapter, currentModuleId, navigateToVerse } = useBibleStore();
   const lastPopulatedChapter = useRef('');
+
+  // Label column sizes to the widest rendered label, measured after layout.
+  const labelRefs = useRef<Map<string, HTMLSpanElement>>(new Map());
+  const [labelColWidth, setLabelColWidth] = useState(LABEL_COL_MIN);
 
   useEffect(() => {
     loadTimeExpressions();
@@ -153,12 +170,15 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
         type: 'event', id: e.slug, label: e.title,
         yearLabel: e.startYearDisplay ?? undefined,
         startNum: e.startYear, endNum, verseRef,
+        confidence: e.datesConfidence,
       });
     }
 
-    // Gnosis people (dedup against user people)
+    // Gnosis people (dedup against user people). Hide divine/spiritual figures — they
+    // appear in essentially every chapter and add no chronological signal.
     const userPersonNames = new Set(result.filter(r => r.type === 'person').map(r => r.label.toLowerCase().trim()));
     for (const p of gnosisPeople ?? []) {
+      if (TIMELESS_PERSON_SLUGS.has(p.slug)) continue;
       if (userPersonNames.has(p.name.toLowerCase().trim())) continue;
       const s = p.birthYear ?? p.earliestYearMentioned ?? p.deathYear ?? p.latestYearMentioned!;
       const e = p.deathYear ?? p.latestYearMentioned ?? s;
@@ -171,6 +191,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
       result.push({
         type: 'person', id: `gnosis-${p.slug}`, label: p.name,
         yearLabel, startNum: Math.min(s, e), endNum: Math.max(s, e), verseRef,
+        confidence: p.datesConfidence,
       });
     }
 
@@ -191,45 +212,46 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     return filtered;
   }, [timeExpressions, people, gnosisEvents, gnosisPeople, activeStudyId, currentBook, currentChapter, filterByBook]);
 
-  // Compute the horizontal scale focused on the majority cluster
+  // Compute the horizontal scale zoomed to the event cluster. Long lifespan bars that
+  // extend beyond this window are clipped at the edges and marked with < / > indicators.
   const { minYear, maxYear, yearToPercent } = useMemo(() => {
     if (entries.length === 0) return { minYear: 0, maxYear: 0, yearToPercent: () => 0 };
 
-    // If we have a chapter year, center the scale around it
-    // Include entries whose ranges overlap a window around the chapter year
-    const allNums = entries.flatMap(e => [e.startNum, e.endNum]);
+    // Focus window prefers chapter-scoped content: events and short-lived persons.
+    // Long lifespans (like Mary 5BC-33AD in a Matt 2 view) are allowed to overflow
+    // rather than stretching the axis to encompass them.
+    const eventNums = entries.filter(e => e.type === 'event').flatMap(e => [e.startNum, e.endNum]);
+    const shortPersonNums = entries
+      .filter(e => e.type === 'person' && (e.endNum - e.startNum) <= 20)
+      .flatMap(e => [e.startNum, e.endNum]);
+    const timeNums = entries.filter(e => e.type === 'time').flatMap(e => [e.startNum, e.endNum]);
+    // Always anchor the chapter year so the Matt 22 (~33 AD) marker stays visible even
+    // when gnosis tags its events to a slightly different year (e.g. Passion Week at 30 AD).
+    const chapterNum = chapterYear ? [chapterYear.year] : [];
+    const focusNums = [...eventNums, ...shortPersonNums, ...timeNums, ...chapterNum];
+
     let min: number;
     let max: number;
 
-    if (chapterYear) {
-      // Build scale from entries within ~50 years of the chapter year
+    if (focusNums.length > 0) {
+      const rawMin = Math.min(...focusNums);
+      const rawMax = Math.max(...focusNums);
+      const focusRange = Math.max(rawMax - rawMin, 2);
+      const buffer = Math.max(focusRange * 0.5, 3);
+      min = rawMin - buffer;
+      max = rawMax + buffer;
+    } else if (chapterYear) {
       const cy = chapterYear.year;
-      const window = 50;
-      const nearby = entries.filter(e =>
-        (e.startNum >= cy - window && e.startNum <= cy + window) ||
-        (e.endNum >= cy - window && e.endNum <= cy + window) ||
-        (e.startNum <= cy && e.endNum >= cy)
-      );
-      const nearNums = nearby.length > 0
-        ? nearby.flatMap(e => [
-            Math.max(e.startNum, cy - window),
-            Math.min(e.endNum, cy + window),
-          ])
-        : [cy - 10, cy + 10];
-      min = Math.min(...nearNums);
-      max = Math.max(...nearNums);
+      min = cy - 30;
+      max = cy + 30;
     } else {
-      // Fallback: IQR-based
-      const sorted = [...allNums].sort((a, b) => a - b);
-      const q1 = sorted[Math.floor(sorted.length * 0.25)];
-      const q3 = sorted[Math.floor(sorted.length * 0.75)];
-      const iqr = Math.max(q3 - q1, 10);
-      min = Math.max(Math.min(...allNums), q1 - iqr * 0.5);
-      max = Math.min(Math.max(...allNums), q3 + iqr * 0.5);
+      const allNums = entries.flatMap(e => [e.startNum, e.endNum]);
+      min = Math.min(...allNums);
+      max = Math.max(...allNums);
     }
 
     const range = Math.max(max - min, 1);
-    const pad = range * 0.15;
+    const pad = range * 0.05;
     const pMin = min - pad;
     const pMax = max + pad;
     const pRange = pMax - pMin;
@@ -258,11 +280,34 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     return result;
   }, [entries, minYear, maxYear, yearToPercent]);
 
-  const totalHeight = entries.length * (ROW_HEIGHT + ROW_GAP);
+  // Drop entries whose full range falls outside the visible axis. Gnosis lists
+  // names like Abraham for Matt 22 via the person_verse join (because Jesus cites
+  // him), but the patriarch's lifespan is millennia off-screen — rendering him as
+  // a 2%-wide pill at the left edge is noise rather than information.
+  const visibleEntries = useMemo(() => {
+    if (entries.length === 0) return entries;
+    return entries.filter(e => e.endNum >= minYear && e.startNum <= maxYear);
+  }, [entries, minYear, maxYear]);
+
+  const totalHeight = visibleEntries.length * (ROW_HEIGHT + ROW_GAP);
+
+  useLayoutEffect(() => {
+    if (visibleEntries.length === 0) return;
+    let widest = 0;
+    for (const el of labelRefs.current.values()) {
+      if (el.scrollWidth > widest) widest = el.scrollWidth;
+    }
+    if (widest === 0) return;
+    const next = Math.max(LABEL_COL_MIN, Math.min(LABEL_COL_MAX, Math.ceil(widest) + LABEL_COL_PADDING));
+    // Guarded against cascading renders: the updater returns the same reference when
+    // the measured width hasn't changed, so React bails out of re-rendering.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLabelColWidth((prev) => (prev === next ? prev : next));
+  }, [visibleEntries]);
 
   return (
     <div>
-      {entries.length === 0 ? (
+      {visibleEntries.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-scripture-muted text-sm mb-2">No timeline entries for this chapter.</p>
           <p className="text-scripture-muted text-xs">
@@ -274,12 +319,12 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
           {/* Chapter date header */}
           {chapterYear && (
             <p className="text-xs text-scripture-muted px-1">
-              {currentBook} {currentChapter} — <span className="font-medium text-scripture-text">{chapterYear.yearDisplay}</span>
+              {currentBook} {currentChapter} (~{chapterYear.yearDisplay})
             </p>
           )}
 
           {/* Horizontal year axis */}
-          <div className="relative h-6" style={{ marginLeft: YEAR_COL_WIDTH }}>
+          <div className="relative h-6" style={{ marginLeft: labelColWidth }}>
             {ticks.map((tick) => (
               <div
                 key={tick.num}
@@ -294,7 +339,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
           {/* Gantt rows */}
           <div className="relative" style={{ height: totalHeight }}>
             {/* Grid lines */}
-            <div className="absolute inset-0" style={{ left: YEAR_COL_WIDTH }}>
+            <div className="absolute inset-0" style={{ left: labelColWidth }}>
               {ticks.map((tick) => (
                 <div
                   key={tick.num}
@@ -306,7 +351,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
 
             {/* Chapter year marker line */}
             {chapterYear && (
-              <div className="absolute inset-0" style={{ left: YEAR_COL_WIDTH }}>
+              <div className="absolute inset-0" style={{ left: labelColWidth }}>
                 <div
                   className="absolute top-0 bottom-0 w-0.5 bg-scripture-accent/40"
                   style={{ left: `${yearToPercent(chapterYear.year)}%` }}
@@ -315,44 +360,59 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
             )}
 
             {/* Rows */}
-            {entries.map((entry, idx) => {
+            {visibleEntries.map((entry, idx) => {
               const y = idx * (ROW_HEIGHT + ROW_GAP);
               const rawLeftPct = yearToPercent(entry.startNum);
               const rawRightPct = yearToPercent(entry.endNum);
               const leftPct = Math.max(rawLeftPct, 0);
               const rightPct = Math.min(rawRightPct, 100);
+              const leftClipped = rawLeftPct < 0;
+              const rightClipped = rawRightPct > 100;
               const isRange = entry.startNum !== entry.endNum;
               const yearLabel = entry.yearLabel || (
                 formatYearNum(entry.startNum) +
                 (isRange ? ` — ${formatYearNum(entry.endNum)}` : '')
               );
-              const tooltip = `${entry.label}\n${yearLabel}\n${formatVerseRef(entry.verseRef.book, entry.verseRef.chapter, entry.verseRef.verse)}`;
+              const clippedLabel = `${leftClipped ? '‹ ' : ''}${yearLabel}${rightClipped ? ' ›' : ''}`;
+              const tentative = isTentativeConfidence(entry.confidence);
+              const tooltip = `${entry.label}\n${yearLabel}${tentative ? ` (${entry.confidence})` : ''}\n${formatVerseRef(entry.verseRef.book, entry.verseRef.chapter, entry.verseRef.verse)}`;
+
+              const borderStyle = tentative ? 'border-dashed' : '';
 
               const barColorClasses = entry.type === 'event'
-                ? 'bg-scripture-warning/30 hover:bg-scripture-warning/40 border-scripture-warning/60'
+                ? `bg-scripture-warning/30 hover:bg-scripture-warning/40 border-scripture-warning/60 ${borderStyle}`
                 : entry.type === 'person'
-                  ? 'bg-scripture-accent/70 hover:bg-scripture-accent border-scripture-accent'
-                  : 'bg-scripture-elevated hover:bg-scripture-border border-scripture-border/40';
+                  ? `bg-scripture-accent/70 hover:bg-scripture-accent border-scripture-accent ${borderStyle}`
+                  : `bg-scripture-elevated hover:bg-scripture-border border-scripture-border/40 ${borderStyle}`;
 
               const dotColorClasses = entry.type === 'event'
-                ? 'bg-scripture-warning/60 border-scripture-warning'
+                ? `bg-scripture-warning/60 border-scripture-warning ${borderStyle}`
                 : entry.type === 'person'
-                  ? 'bg-scripture-accent border-scripture-accent'
-                  : 'bg-scripture-border border-scripture-border';
+                  ? `bg-scripture-accent border-scripture-accent ${borderStyle}`
+                  : `bg-scripture-border border-scripture-border ${borderStyle}`;
 
               return (
                 <div key={`${entry.type}-${entry.id}`} className="absolute left-0 right-0" style={{ top: y, height: ROW_HEIGHT }}>
                   {/* Label */}
                   <div
-                    className="absolute top-0 bottom-0 flex items-center pr-2 text-[11px] text-scripture-text font-medium truncate"
-                    style={{ width: YEAR_COL_WIDTH }}
+                    className="absolute top-0 bottom-0 flex items-center pr-1.5 text-[11px] text-scripture-text font-medium overflow-hidden"
+                    style={{ width: labelColWidth }}
                     title={entry.label}
                   >
-                    <span className="truncate">{entry.label}</span>
+                    <span
+                      ref={(el) => {
+                        const key = `${entry.type}-${entry.id}`;
+                        if (el) labelRefs.current.set(key, el);
+                        else labelRefs.current.delete(key);
+                      }}
+                      className="whitespace-nowrap"
+                    >
+                      {entry.label}
+                    </span>
                   </div>
 
                   {/* Bar or dot */}
-                  <div className="absolute top-0 bottom-0" style={{ left: YEAR_COL_WIDTH, right: 0 }}>
+                  <div className="absolute top-0 bottom-0" style={{ left: labelColWidth, right: 0 }}>
                     {isRange ? (
                       <button
                         onClick={() => handleNavigateToVerse(entry.verseRef)}
@@ -364,7 +424,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
                         title={tooltip}
                       >
                         <span className="text-[10px] font-medium truncate">
-                          {yearLabel}
+                          {clippedLabel}
                         </span>
                       </button>
                     ) : (

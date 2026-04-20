@@ -16,8 +16,9 @@ import { ApplicationWorksheet } from '@/components/Application';
 import { usePlaceStore } from '@/stores/placeStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
+import { useChapterEntities, useGnosisEntity } from '@/hooks/useGnosis';
 import { Checkbox } from '@/components/shared';
-import type { Place, VerseRef } from '@/types';
+import type { GnosisPlace, Place, VerseRef } from '@/types';
 
 export type AnalyzeTab = 'overview' | 'chapter' | 'themes' | 'timeline' | 'places-map' | 'interpretation' | 'application';
 
@@ -268,9 +269,28 @@ function PlacesMapPanel({
     return result;
   }, [places, filterByChapter, currentBook, currentChapter, activeStudyId]);
 
+  // Gnosis chapter places — shown alongside user-tracked places when filtering by chapter.
+  // Mirrors the Timeline pattern: render inline, don't persist to the user's place store.
+  const scopedBook = filterByChapter ? currentBook ?? undefined : undefined;
+  const scopedChapter = filterByChapter ? currentChapter ?? undefined : undefined;
+  const { entities: chapterEntities } = useChapterEntities(scopedBook, scopedChapter);
+  const placeSlugs = chapterEntities?.places ?? [];
+  const { data: gnosisPlaces } = useGnosisEntity(
+    async (provider) => {
+      if (placeSlugs.length === 0) return [] as GnosisPlace[];
+      const results = await Promise.all(
+        placeSlugs.map((slug) => provider.getPlace(slug).catch(() => null))
+      );
+      return results.filter((p): p is GnosisPlace =>
+        p !== null && p.latitude !== null && p.longitude !== null
+      );
+    },
+    [placeSlugs.join(',')]
+  );
+
   return (
     <div role="tabpanel" id="analyze-tabpanel-places-map" aria-labelledby="analyze-tab-places-map" className="h-full">
-      <PlaceMap places={filtered} onNavigate={onNavigate} />
+      <PlaceMap places={filtered} gnosisPlaces={gnosisPlaces ?? []} onNavigate={onNavigate} />
     </div>
   );
 }
