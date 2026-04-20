@@ -227,12 +227,12 @@ export class GnosisLocalDb implements GnosisDataProvider {
       uuid: r.uuid,
       name: r.name,
       gender: r.gender ?? null,
-      birthYear: r.birth_year ?? null,
-      deathYear: r.death_year ?? null,
+      birthYear: fromGnosisYear(r.birth_year),
+      deathYear: fromGnosisYear(r.death_year),
       birthYearDisplay: r.birth_year_display ?? null,
       deathYearDisplay: r.death_year_display ?? null,
-      earliestYearMentioned: r.earliest_year_mentioned ?? null,
-      latestYearMentioned: r.latest_year_mentioned ?? null,
+      earliestYearMentioned: fromGnosisYear(r.earliest_year_mentioned),
+      latestYearMentioned: fromGnosisYear(r.latest_year_mentioned),
       earliestYearMentionedDisplay: r.earliest_year_mentioned_display ?? null,
       latestYearMentionedDisplay: r.latest_year_mentioned_display ?? null,
       birthPlace: birthPlaceSlug,
@@ -315,7 +315,8 @@ export class GnosisLocalDb implements GnosisDataProvider {
 
     const data = rows.map((r): GnosisEvent => ({
       slug: r.slug, uuid: r.uuid, title: r.title,
-      startYear: r.start_year ?? null, endYear: r.end_year ?? null, startYearDisplay: r.start_year_display ?? null,
+      startYear: fromGnosisYear(r.start_year), endYear: fromGnosisYear(r.end_year),
+      startYearDisplay: r.start_year_display ?? null,
       duration: r.duration ?? null, sortKey: r.sort_key ?? null,
       participants: [], locations: [], verses: [],
       parentEvent: null, predecessor: null,
@@ -352,8 +353,8 @@ export class GnosisLocalDb implements GnosisDataProvider {
       slug: r.slug,
       uuid: r.uuid,
       title: r.title,
-      startYear: r.start_year ?? null,
-      endYear: r.end_year ?? null,
+      startYear: fromGnosisYear(r.start_year),
+      endYear: fromGnosisYear(r.end_year),
       startYearDisplay: r.start_year_display ?? null,
       duration: r.duration ?? null,
       sortKey: r.sort_key ?? null,
@@ -692,6 +693,17 @@ export class GnosisLocalDb implements GnosisDataProvider {
 
 // --- Helpers ---
 
+/**
+ * Gnosis stores years using astronomical numbering: year 0 corresponds to 1 BC,
+ * -1 to 2 BC, -4 to 5 BC, etc. The rest of our app uses "direct negation" where
+ * -5 represents 5 BC (and year 0 doesn't exist). Convert at the read boundary so
+ * downstream code (Timeline axis, formatYearNum) keeps its simpler convention.
+ */
+function fromGnosisYear(n: number | null | undefined): number | null {
+  if (n === null || n === undefined) return null;
+  return n <= 0 ? n - 1 : n;
+}
+
 /** Lightweight person mapping for list views — no sub-queries */
 function mapLocalPersonSummary(r: any): GnosisPerson {
   return {
@@ -699,8 +711,8 @@ function mapLocalPersonSummary(r: any): GnosisPerson {
     uuid: r.uuid,
     name: r.name,
     gender: r.gender ?? null,
-    birthYear: r.birth_year ?? null,
-    deathYear: r.death_year ?? null,
+    birthYear: fromGnosisYear(r.birth_year),
+    deathYear: fromGnosisYear(r.death_year),
     birthYearDisplay: r.birth_year_display ?? null,
     deathYearDisplay: r.death_year_display ?? null,
     earliestYearMentioned: null,
