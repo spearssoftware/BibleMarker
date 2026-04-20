@@ -39,7 +39,7 @@ const ROW_GAP = 4;
 // clamped to this range so layout stays predictable.
 const LABEL_COL_MIN = 80;
 const LABEL_COL_MAX = 320;
-const LABEL_COL_PADDING = 16;
+const LABEL_COL_PADDING = 8;
 
 const TIMELESS_PERSON_SLUGS = new Set(['god', 'satan', 'holy-spirit']);
 
@@ -212,45 +212,43 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     return filtered;
   }, [timeExpressions, people, gnosisEvents, gnosisPeople, activeStudyId, currentBook, currentChapter, filterByBook]);
 
-  // Compute the horizontal scale focused on the majority cluster
+  // Compute the horizontal scale zoomed to the event cluster. Long lifespan bars that
+  // extend beyond this window are clipped at the edges and marked with < / > indicators.
   const { minYear, maxYear, yearToPercent } = useMemo(() => {
     if (entries.length === 0) return { minYear: 0, maxYear: 0, yearToPercent: () => 0 };
 
-    // If we have a chapter year, center the scale around it
-    // Include entries whose ranges overlap a window around the chapter year
-    const allNums = entries.flatMap(e => [e.startNum, e.endNum]);
+    // Focus window prefers chapter-scoped content: events and short-lived persons.
+    // Long lifespans (like Mary 5BC-33AD in a Matt 2 view) are allowed to overflow
+    // rather than stretching the axis to encompass them.
+    const eventNums = entries.filter(e => e.type === 'event').flatMap(e => [e.startNum, e.endNum]);
+    const shortPersonNums = entries
+      .filter(e => e.type === 'person' && (e.endNum - e.startNum) <= 20)
+      .flatMap(e => [e.startNum, e.endNum]);
+    const timeNums = entries.filter(e => e.type === 'time').flatMap(e => [e.startNum, e.endNum]);
+    const focusNums = [...eventNums, ...shortPersonNums, ...timeNums];
+
     let min: number;
     let max: number;
 
-    if (chapterYear) {
-      // Build scale from entries within ~50 years of the chapter year
+    if (focusNums.length > 0) {
+      const rawMin = Math.min(...focusNums);
+      const rawMax = Math.max(...focusNums);
+      const focusRange = Math.max(rawMax - rawMin, 2);
+      const buffer = Math.max(focusRange * 0.5, 3);
+      min = rawMin - buffer;
+      max = rawMax + buffer;
+    } else if (chapterYear) {
       const cy = chapterYear.year;
-      const window = 50;
-      const nearby = entries.filter(e =>
-        (e.startNum >= cy - window && e.startNum <= cy + window) ||
-        (e.endNum >= cy - window && e.endNum <= cy + window) ||
-        (e.startNum <= cy && e.endNum >= cy)
-      );
-      const nearNums = nearby.length > 0
-        ? nearby.flatMap(e => [
-            Math.max(e.startNum, cy - window),
-            Math.min(e.endNum, cy + window),
-          ])
-        : [cy - 10, cy + 10];
-      min = Math.min(...nearNums);
-      max = Math.max(...nearNums);
+      min = cy - 30;
+      max = cy + 30;
     } else {
-      // Fallback: IQR-based
-      const sorted = [...allNums].sort((a, b) => a - b);
-      const q1 = sorted[Math.floor(sorted.length * 0.25)];
-      const q3 = sorted[Math.floor(sorted.length * 0.75)];
-      const iqr = Math.max(q3 - q1, 10);
-      min = Math.max(Math.min(...allNums), q1 - iqr * 0.5);
-      max = Math.min(Math.max(...allNums), q3 + iqr * 0.5);
+      const allNums = entries.flatMap(e => [e.startNum, e.endNum]);
+      min = Math.min(...allNums);
+      max = Math.max(...allNums);
     }
 
     const range = Math.max(max - min, 1);
-    const pad = range * 0.15;
+    const pad = range * 0.05;
     const pMin = min - pad;
     const pMax = max + pad;
     const pRange = pMax - pMin;
@@ -353,11 +351,14 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
               const rawRightPct = yearToPercent(entry.endNum);
               const leftPct = Math.max(rawLeftPct, 0);
               const rightPct = Math.min(rawRightPct, 100);
+              const leftClipped = rawLeftPct < 0;
+              const rightClipped = rawRightPct > 100;
               const isRange = entry.startNum !== entry.endNum;
               const yearLabel = entry.yearLabel || (
                 formatYearNum(entry.startNum) +
                 (isRange ? ` — ${formatYearNum(entry.endNum)}` : '')
               );
+              const clippedLabel = `${leftClipped ? '‹ ' : ''}${yearLabel}${rightClipped ? ' ›' : ''}`;
               const tentative = isTentativeConfidence(entry.confidence);
               const tooltip = `${entry.label}\n${yearLabel}${tentative ? ` (${entry.confidence})` : ''}\n${formatVerseRef(entry.verseRef.book, entry.verseRef.chapter, entry.verseRef.verse)}`;
 
@@ -379,7 +380,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
                 <div key={`${entry.type}-${entry.id}`} className="absolute left-0 right-0" style={{ top: y, height: ROW_HEIGHT }}>
                   {/* Label */}
                   <div
-                    className="absolute top-0 bottom-0 flex items-center pr-3 text-[11px] text-scripture-text font-medium overflow-hidden"
+                    className="absolute top-0 bottom-0 flex items-center pr-1.5 text-[11px] text-scripture-text font-medium overflow-hidden"
                     style={{ width: labelColWidth }}
                     title={entry.label}
                   >
@@ -408,7 +409,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
                         title={tooltip}
                       >
                         <span className="text-[10px] font-medium truncate">
-                          {yearLabel}
+                          {clippedLabel}
                         </span>
                       </button>
                     ) : (
