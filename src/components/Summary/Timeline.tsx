@@ -225,7 +225,10 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
       .filter(e => e.type === 'person' && (e.endNum - e.startNum) <= 20)
       .flatMap(e => [e.startNum, e.endNum]);
     const timeNums = entries.filter(e => e.type === 'time').flatMap(e => [e.startNum, e.endNum]);
-    const focusNums = [...eventNums, ...shortPersonNums, ...timeNums];
+    // Always anchor the chapter year so the Matt 22 (~33 AD) marker stays visible even
+    // when gnosis tags its events to a slightly different year (e.g. Passion Week at 30 AD).
+    const chapterNum = chapterYear ? [chapterYear.year] : [];
+    const focusNums = [...eventNums, ...shortPersonNums, ...timeNums, ...chapterNum];
 
     let min: number;
     let max: number;
@@ -277,10 +280,19 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     return result;
   }, [entries, minYear, maxYear, yearToPercent]);
 
-  const totalHeight = entries.length * (ROW_HEIGHT + ROW_GAP);
+  // Drop entries whose full range falls outside the visible axis. Gnosis lists
+  // names like Abraham for Matt 22 via the person_verse join (because Jesus cites
+  // him), but the patriarch's lifespan is millennia off-screen — rendering him as
+  // a 2%-wide pill at the left edge is noise rather than information.
+  const visibleEntries = useMemo(() => {
+    if (entries.length === 0) return entries;
+    return entries.filter(e => e.endNum >= minYear && e.startNum <= maxYear);
+  }, [entries, minYear, maxYear]);
+
+  const totalHeight = visibleEntries.length * (ROW_HEIGHT + ROW_GAP);
 
   useLayoutEffect(() => {
-    if (entries.length === 0) return;
+    if (visibleEntries.length === 0) return;
     let widest = 0;
     for (const el of labelRefs.current.values()) {
       if (el.scrollWidth > widest) widest = el.scrollWidth;
@@ -288,11 +300,11 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     if (widest === 0) return;
     const next = Math.max(LABEL_COL_MIN, Math.min(LABEL_COL_MAX, Math.ceil(widest) + LABEL_COL_PADDING));
     setLabelColWidth((prev) => (prev === next ? prev : next));
-  }, [entries]);
+  }, [visibleEntries]);
 
   return (
     <div>
-      {entries.length === 0 ? (
+      {visibleEntries.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-scripture-muted text-sm mb-2">No timeline entries for this chapter.</p>
           <p className="text-scripture-muted text-xs">
@@ -345,7 +357,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
             )}
 
             {/* Rows */}
-            {entries.map((entry, idx) => {
+            {visibleEntries.map((entry, idx) => {
               const y = idx * (ROW_HEIGHT + ROW_GAP);
               const rawLeftPct = yearToPercent(entry.startNum);
               const rawRightPct = yearToPercent(entry.endNum);
