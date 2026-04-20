@@ -30,6 +30,8 @@ const ROW_HEIGHT = 32;
 const ROW_GAP = 4;
 const YEAR_COL_WIDTH = 110;
 
+const TIMELESS_PERSON_SLUGS = new Set(['god', 'satan', 'holy-spirit']);
+
 interface TimelineProps {
   filterByBook?: boolean;
 }
@@ -156,9 +158,11 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
       });
     }
 
-    // Gnosis people (dedup against user people)
+    // Gnosis people (dedup against user people). Hide divine/spiritual figures — they
+    // appear in essentially every chapter and add no chronological signal.
     const userPersonNames = new Set(result.filter(r => r.type === 'person').map(r => r.label.toLowerCase().trim()));
     for (const p of gnosisPeople ?? []) {
+      if (TIMELESS_PERSON_SLUGS.has(p.slug)) continue;
       if (userPersonNames.has(p.name.toLowerCase().trim())) continue;
       const s = p.birthYear ?? p.earliestYearMentioned ?? p.deathYear ?? p.latestYearMentioned!;
       const e = p.deathYear ?? p.latestYearMentioned ?? s;
