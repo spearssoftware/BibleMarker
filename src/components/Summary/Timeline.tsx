@@ -316,7 +316,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
           {/* Chapter date header */}
           {chapterYear && (
             <p className="text-xs text-scripture-muted px-1">
-              {currentBook} {currentChapter} <span className="font-medium text-scripture-text">(~{chapterYear.yearDisplay})</span>
+              {currentBook} {currentChapter} (~{chapterYear.yearDisplay})
             </p>
           )}
 
