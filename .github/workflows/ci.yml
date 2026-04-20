@@ -69,6 +69,11 @@ jobs:
           gh release download v1.0.0 --repo spearssoftware/biblemarker-assets --dir src-tauri/resources --pattern "sword-*.zip"
         env:
           GH_TOKEN: ${{ secrets.BIBLEMARKER_ASSETS_TOKEN }}
+      - name: Download gnosis-lite.db
+        run: |
+          gh release download v0.5.2 --repo spearssoftware/gnosis --dir src-tauri/resources --pattern "gnosis-lite.db"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Check
         run: cargo check
         working-directory: src-tauri

@@ -279,7 +279,6 @@ export async function loadApiConfigs(): Promise<void> {
 
     if (prefs?.apiConfigs) {
       for (const configRecord of prefs.apiConfigs) {
-        // Only handle ESV configs (SWORD doesn't need config)
         if (configRecord.provider === 'esv') {
           const config: ApiConfig = {
             provider: configRecord.provider as BibleApiProvider,
@@ -287,6 +286,9 @@ export async function loadApiConfigs(): Promise<void> {
             enabled: configRecord.enabled,
           };
           configureApi(config.provider, config);
+        } else if (configRecord.provider === 'gnosis' && configRecord.apiKey) {
+          const { initGnosis } = await import('@/lib/gnosis');
+          await initGnosis({ mode: 'auto', apiKey: configRecord.apiKey });
         }
       }
     }
@@ -310,13 +312,11 @@ export async function saveApiConfig(config: ApiConfig): Promise<void> {
   if (config.provider === 'sword') return;
 
   const prefs = await getPreferences();
-  const existingConfigs = (prefs.apiConfigs || []).filter(c =>
-    c.provider === 'esv' || c.provider === 'sword'
-  );
+  const existingConfigs = prefs.apiConfigs || [];
   const updatedConfigs = existingConfigs.filter(c => c.provider !== config.provider);
 
   updatedConfigs.push({
-    provider: config.provider as 'esv' | 'sword',
+    provider: config.provider as 'esv' | 'sword' | 'gnosis',
     apiKey: config.apiKey,
     username: config.username,
     password: config.password,
@@ -325,7 +325,13 @@ export async function saveApiConfig(config: ApiConfig): Promise<void> {
   });
 
   await updatePreferences({ apiConfigs: updatedConfigs });
-  configureApi(config.provider, config);
+
+  if ((config.provider as string) === 'gnosis') {
+    const { initGnosis } = await import('@/lib/gnosis');
+    await initGnosis({ mode: 'auto', apiKey: config.apiKey });
+  } else {
+    configureApi(config.provider, config);
+  }
 }
 
 /**

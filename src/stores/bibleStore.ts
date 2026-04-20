@@ -22,20 +22,29 @@ interface BibleState {
   
   // Navigation selection
   navSelectedVerse: number | null;
-  
+
+  // Location history (for back navigation after cross-ref jumps)
+  locationHistory: { book: string; chapter: number }[];
+
   // Actions
   setCurrentModule: (moduleId: string) => void;
-  setLocation: (book: string, chapter: number) => void;
+  setLocation: (book: string, chapter: number, pushHistory?: boolean) => void;
   setChapter: (chapter: Chapter | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setNavSelectedVerse: (verse: number | null) => void;
-  
+  /** Navigate to a verse, highlight it, and scroll it into view */
+  navigateToVerse: (book: string, chapter: number, verse: number, pushHistory?: boolean) => void;
+  /** Highlight a verse in the current chapter and scroll it into view */
+  highlightVerse: (verse: number) => void;
+
   // Navigation
   nextChapter: () => void;
   previousChapter: () => void;
+  goBack: () => void;
   canGoNext: () => boolean;
   canGoPrevious: () => boolean;
+  canGoBack: () => boolean;
 }
 
 export const useBibleStore = create<BibleState>()(
@@ -48,7 +57,8 @@ export const useBibleStore = create<BibleState>()(
       isLoading: false,
       error: null,
       navSelectedVerse: null,
-      
+      locationHistory: [],
+
       setCurrentModule: (moduleId) => {
         // Validate moduleId - must be a non-empty string and not contain "undefined"
         if (!moduleId || typeof moduleId !== 'string' || moduleId.trim() === '' || 
@@ -62,12 +72,19 @@ export const useBibleStore = create<BibleState>()(
         });
       },
       
-      setLocation: (book, chapter) => set({ 
-        currentBook: book, 
-        currentChapter: chapter,
-        chapter: null, // Clear until loaded
-        navSelectedVerse: null, // Clear nav selection when changing location
-      }),
+      setLocation: (book, chapter, pushHistory) => {
+        const { currentBook, currentChapter, locationHistory } = get();
+        if (book === currentBook && chapter === currentChapter) return;
+        set({
+          currentBook: book,
+          currentChapter: chapter,
+          chapter: null,
+          navSelectedVerse: null,
+          ...(pushHistory
+            ? { locationHistory: [...locationHistory, { book: currentBook, chapter: currentChapter }].slice(-20) }
+            : {}),
+        });
+      },
       
       setChapter: (chapter) => set({ chapter, isLoading: false }),
       
@@ -76,7 +93,24 @@ export const useBibleStore = create<BibleState>()(
       setError: (error) => set({ error, isLoading: false }),
       
       setNavSelectedVerse: (verse) => set({ navSelectedVerse: verse }),
-      
+
+      navigateToVerse: (book, chapter, verse, pushHistory) => {
+        const { currentBook, currentChapter, highlightVerse } = get();
+        if (book !== currentBook || chapter !== currentChapter) {
+          get().setLocation(book, chapter, pushHistory);
+          setTimeout(() => highlightVerse(verse), 100);
+        } else {
+          highlightVerse(verse);
+        }
+      },
+
+      highlightVerse: (verse) => {
+        set({ navSelectedVerse: verse });
+        const el = document.querySelector(`[data-verse="${verse}"]`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => set({ navSelectedVerse: null }), 3000);
+      },
+
       nextChapter: () => {
         const { currentBook, currentChapter } = get();
         const bookInfo = getBookById(currentBook);
@@ -119,6 +153,19 @@ export const useBibleStore = create<BibleState>()(
         }
       },
       
+      goBack: () => {
+        const { locationHistory } = get();
+        if (locationHistory.length === 0) return;
+        const prev = locationHistory[locationHistory.length - 1];
+        set({
+          currentBook: prev.book,
+          currentChapter: prev.chapter,
+          chapter: null,
+          navSelectedVerse: null,
+          locationHistory: locationHistory.slice(0, -1),
+        });
+      },
+
       canGoNext: () => {
         const { currentBook, currentChapter } = get();
         const bookInfo = getBookById(currentBook);
@@ -129,6 +176,8 @@ export const useBibleStore = create<BibleState>()(
         return true;
       },
       
+      canGoBack: () => get().locationHistory.length > 0,
+
       canGoPrevious: () => {
         const { currentBook, currentChapter } = get();
         // Can go previous if not at Genesis 1

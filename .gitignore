@@ -60,3 +60,6 @@ src-tauri/gen/
 
 # Licensed SWORD modules (hosted in private repo: spearssoftware/biblemarker-assets)
 src-tauri/resources/sword-*.zip
+
+# Gnosis database (built from ~/code/gnosis with: uv run gnosis build --no-vectors)
+src-tauri/resources/gnosis-lite.db

@@ -39,7 +39,7 @@ const KJV_FALLBACK_ERROR_PREFIX = 'Showing KJV';
 export function MultiTranslationView() {
   const { activeView, loadActiveView, addTranslation, setChaptersByTranslation } = useMultiTranslationStore();
   const setActiveChapterVerses = useActiveChapterStore(state => state.setActiveChapterVerses);
-  const { currentBook, currentChapter, currentModuleId, navSelectedVerse, nextChapter, previousChapter } = useBibleStore();
+  const { currentBook, currentChapter, currentModuleId, navSelectedVerse, setNavSelectedVerse, nextChapter, previousChapter } = useBibleStore();
   const { fontSize, selection } = useAnnotationStore();
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const [translationChapters, setTranslationChapters] = useState<Map<string, TranslationChapter>>(new Map());
@@ -140,6 +140,7 @@ export function MultiTranslationView() {
   const panelActive = usePanelStore(s => s.activePanel);
   const panelCollapsed = usePanelStore(s => s.isCollapsed);
   const panelDragging = usePanelStore(s => s.isDragging);
+  const openPanel = usePanelStore(s => s.openPanel);
   const prevDraggingRef = useRef(false);
 
   // Re-key after panel open/close/collapse (wait for 300ms CSS transition)
@@ -673,6 +674,16 @@ export function MultiTranslationView() {
                                           autoCreate: true,
                                         },
                                       }));
+                                    }}
+                                    onCrossRefs={() => {
+                                      setVerseMenuAt(null);
+                                      setNavSelectedVerse(verseNum);
+                                      openPanel('reference', { referenceInitialTab: 'cross-refs' });
+                                    }}
+                                    onOriginalLanguage={() => {
+                                      setVerseMenuAt(null);
+                                      setNavSelectedVerse(verseNum);
+                                      openPanel('reference', { referenceInitialTab: 'original-lang' });
                                     }}
                                     onClose={() => setVerseMenuAt(null)}
                                   />

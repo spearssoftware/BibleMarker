@@ -75,7 +75,6 @@ vi.mock('../SelectionMenu', () => ({
   ),
 }));
 
-vi.mock('@/components/BibleReader/StrongsPopup', () => ({ StrongsPopup: () => null }));
 vi.mock('@/components/Settings', () => ({ SettingsPanel: () => null }));
 vi.mock('@/components/shared', () => ({
   Modal: () => null,

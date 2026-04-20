@@ -17,6 +17,8 @@ import {
 import { fetchChapter } from '@/lib/bible-api';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
+import { useGnosisEntity } from '@/hooks/useGnosis';
+import { Checkbox } from '@/components/shared';
 import type { ChapterTitle } from '@/types';
 import { getBookById, presetMatchesBook } from '@/types';
 
@@ -33,6 +35,8 @@ interface ChapterSummaryData {
   keywordCount: number;
   observationCount: number;
   theme: string | null;
+  year?: number;
+  yearDisplay?: string;
 }
 
 interface BookOverviewProps {
@@ -49,8 +53,15 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
 
   const [summaries, setSummaries] = useState<ChapterSummaryData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [chronological, setChronological] = useState(false);
 
   const bookInfo = useMemo(() => getBookById(currentBook), [currentBook]);
+
+  // Fetch chapter years for the whole book in one query
+  const { data: chapterYears } = useGnosisEntity(
+    (provider) => provider.getBookChapterYears(currentBook),
+    [currentBook]
+  );
   const chapterCount = bookInfo?.chapters || 0;
 
   const relevantPresets = useMemo(() => {
@@ -137,6 +148,22 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
     loadBookSummary();
   }, [primaryTranslationId, currentBook, bookInfo, activeStudyId, relevantPresets]);
 
+  // Merge chapter year data into summaries
+  const enrichedSummaries = useMemo(() => {
+    if (!chapterYears || chapterYears.size === 0) return summaries;
+    return summaries.map(s => {
+      const y = chapterYears.get(s.chapter);
+      return y ? { ...s, year: y.year, yearDisplay: y.yearDisplay } : s;
+    });
+  }, [summaries, chapterYears]);
+
+  const hasYearData = enrichedSummaries.some(s => s.year !== undefined);
+
+  const displaySummaries = useMemo(() => {
+    if (!chronological || !hasYearData) return enrichedSummaries;
+    return [...enrichedSummaries].sort((a, b) => (a.year ?? 0) - (b.year ?? 0));
+  }, [enrichedSummaries, chronological, hasYearData]);
+
   if (isLoading) {
     return (
       <div className="p-4 bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm">
@@ -160,12 +187,21 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
     <div>
       <div className="flex items-center justify-between mb-4 px-4 pt-4 flex-shrink-0">
         <h2 className="text-lg font-semibold text-scripture-text">{bookInfo.name} Overview</h2>
-        <div className="text-sm text-scripture-muted">{chapterCount} chapters</div>
+        <div className="flex items-center gap-3">
+          {hasYearData && (
+            <Checkbox
+              label="Chronological"
+              checked={chronological}
+              onChange={(e) => setChronological(e.target.checked)}
+            />
+          )}
+          <div className="text-sm text-scripture-muted">{chapterCount} ch.</div>
+        </div>
       </div>
 
       <div className="px-4 pb-4">
         <div className="divide-y divide-scripture-border/30 rounded-xl overflow-hidden border border-scripture-border/50">
-          {summaries.map(summary => {
+          {displaySummaries.map(summary => {
             const hasData = summary.title || summary.headingCount > 0 || summary.keywordCount > 0 || summary.observationCount > 0;
 
             return (
@@ -189,6 +225,9 @@ export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
                   )}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-scripture-muted shrink-0">
+                  {summary.yearDisplay && (
+                    <span className="text-scripture-accent font-medium">{summary.yearDisplay}</span>
+                  )}
                   {summary.headingCount > 0 && <span>📑 {summary.headingCount}</span>}
                   {summary.keywordCount > 0 && <span>🔑 {summary.keywordCount}</span>}
                   {summary.observationCount > 0 && <span>📝 {summary.observationCount}</span>}

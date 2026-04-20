@@ -4,7 +4,9 @@ import type { VerseRef } from '@/types';
 import type { ObservationTab } from '@/components/Observation';
 import type { AnalyzeTab } from '@/components/Analyze';
 
-export type PanelType = 'keywords' | 'observe' | 'analyze';
+export type PanelType = 'keywords' | 'observe' | 'analyze' | 'reference';
+
+export type ReferenceTab = 'chapter' | 'search' | 'cross-refs' | 'original-lang' | 'strongs';
 
 interface PanelOpenOptions {
   // Keywords
@@ -17,6 +19,12 @@ interface PanelOpenOptions {
   // Analyze
   analyzeInitialTab?: AnalyzeTab;
   analyzeThemeSearchTerm?: string;
+  // Reference
+  referenceInitialTab?: ReferenceTab;
+  referenceEntitySlug?: string;
+  referenceSearchQuery?: string;
+  referenceStrongsNumber?: string;
+  referenceVerse?: number;
   // Shared
   selectedText?: string;
   verseRef?: VerseRef;
@@ -39,6 +47,11 @@ interface PanelState {
   observeAutoCreate: boolean;
   analyzeInitialTab: AnalyzeTab;
   analyzeThemeSearchTerm: string | undefined;
+  referenceInitialTab: ReferenceTab;
+  referenceEntitySlug: string | undefined;
+  referenceSearchQuery: string | undefined;
+  referenceStrongsNumber: string | undefined;
+  referenceVerse: number | undefined;
   panelSelectedText: string | undefined;
   panelVerseRef: VerseRef | undefined;
 
@@ -56,6 +69,7 @@ interface PanelState {
 
 const DEFAULT_OBSERVE_TAB: ObservationTab = 'lists';
 const DEFAULT_ANALYZE_TAB: AnalyzeTab = 'chapter';
+const DEFAULT_REFERENCE_TAB: ReferenceTab = 'chapter';
 
 export const usePanelStore = create<PanelState>()(
   persist(
@@ -74,6 +88,11 @@ export const usePanelStore = create<PanelState>()(
       observeAutoCreate: false,
       analyzeInitialTab: DEFAULT_ANALYZE_TAB,
       analyzeThemeSearchTerm: undefined,
+      referenceInitialTab: DEFAULT_REFERENCE_TAB,
+      referenceEntitySlug: undefined,
+      referenceSearchQuery: undefined,
+      referenceStrongsNumber: undefined,
+      referenceVerse: undefined,
       panelSelectedText: undefined,
       panelVerseRef: undefined,
 
@@ -88,6 +107,11 @@ export const usePanelStore = create<PanelState>()(
           observeAutoCreate: opts?.observeAutoCreate ?? false,
           analyzeInitialTab: opts?.analyzeInitialTab ?? DEFAULT_ANALYZE_TAB,
           analyzeThemeSearchTerm: opts?.analyzeThemeSearchTerm,
+          referenceInitialTab: opts?.referenceInitialTab ?? DEFAULT_REFERENCE_TAB,
+          referenceEntitySlug: opts?.referenceEntitySlug,
+          referenceSearchQuery: opts?.referenceSearchQuery,
+          referenceStrongsNumber: opts?.referenceStrongsNumber,
+          referenceVerse: opts?.referenceVerse,
           panelSelectedText: opts?.selectedText,
           panelVerseRef: opts?.verseRef,
         });
@@ -103,6 +127,11 @@ export const usePanelStore = create<PanelState>()(
           observeAutoCreate: false,
           analyzeInitialTab: DEFAULT_ANALYZE_TAB,
           analyzeThemeSearchTerm: undefined,
+          referenceInitialTab: DEFAULT_REFERENCE_TAB,
+          referenceEntitySlug: undefined,
+          referenceSearchQuery: undefined,
+          referenceStrongsNumber: undefined,
+          referenceVerse: undefined,
           panelSelectedText: undefined,
           panelVerseRef: undefined,
         });

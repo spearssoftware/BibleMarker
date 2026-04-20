@@ -3,17 +3,18 @@ import { useTimeStore } from '@/stores/timeStore';
 import { usePeopleStore } from '@/stores/peopleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import { formatVerseRef } from '@/types';
-import type { VerseRef } from '@/types';
+import { useChapterEntities, useGnosisEntity } from '@/hooks/useGnosis';
+import { formatVerseRef, parseOsisRef } from '@/types';
+import type { VerseRef, GnosisEvent, GnosisPerson } from '@/types';
 
-interface SwimLaneEntry {
-  type: 'time' | 'person';
+interface TimelineEntry {
+  type: 'time' | 'person' | 'event';
   id: string;
   label: string;
+  yearLabel?: string;
   startNum: number;
   endNum: number;
   verseRef: VerseRef;
-  lane: number;
 }
 
 function toNum(year: number, era: 'BC' | 'AD'): number {
@@ -25,34 +26,9 @@ function formatYearNum(num: number): string {
   return `${num} AD`;
 }
 
-function getNiceInterval(range: number): number {
-  const intervals = [5, 10, 25, 50, 100, 250, 500, 1000];
-  for (const iv of intervals) {
-    if (range / iv <= 12) return iv;
-  }
-  return 1000;
-}
-
-function assignLanes(entries: Omit<SwimLaneEntry, 'lane'>[]): SwimLaneEntry[] {
-  const sorted = [...entries].sort((a, b) => a.startNum - b.startNum);
-  const laneEnds: number[] = [];
-
-  return sorted.map(entry => {
-    let lane = laneEnds.findIndex(end => end <= entry.startNum);
-    if (lane === -1) {
-      lane = laneEnds.length;
-      laneEnds.push(entry.endNum);
-    } else {
-      laneEnds[lane] = entry.endNum;
-    }
-    return { ...entry, lane };
-  });
-}
-
-const SLOT_PX = 56;       // pixels per unique data-year slot
-const MIN_BAR_PX = 24;
-const AXIS_WIDTH = 64;
-const MIN_LANE_WIDTH = 80;
+const ROW_HEIGHT = 32;
+const ROW_GAP = 4;
+const YEAR_COL_WIDTH = 110;
 
 interface TimelineProps {
   filterByBook?: boolean;
@@ -62,7 +38,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
   const { timeExpressions, loadTimeExpressions, autoPopulateFromChapter } = useTimeStore();
   const { people, loadPeople, autoPopulateFromChapter: autoPopulatePeople } = usePeopleStore();
   const { activeStudyId } = useStudyStore();
-  const { currentBook, currentChapter, currentModuleId, setLocation, setNavSelectedVerse } = useBibleStore();
+  const { currentBook, currentChapter, currentModuleId, navigateToVerse } = useBibleStore();
   const lastPopulatedChapter = useRef('');
 
   useEffect(() => {
@@ -84,224 +60,330 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     });
   }, [currentBook, currentChapter, currentModuleId, autoPopulateFromChapter, autoPopulatePeople, loadTimeExpressions, loadPeople]);
 
-  const handleNavigateToVerse = (verseRef: VerseRef) => {
-    const highlight = (verse: number) => {
-      window.dispatchEvent(new CustomEvent('toolbar-overlay-minimize'));
-      setNavSelectedVerse(verse);
-      setTimeout(() => setNavSelectedVerse(null), 3000);
-      setTimeout(() => {
-        const el = document.querySelector(`[data-verse="${verse}"]`);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
-    };
+  // Fetch gnosis entities for the current chapter
+  const { entities: chapterEntities } = useChapterEntities(currentBook, currentChapter);
 
-    if (verseRef.book !== currentBook || verseRef.chapter !== currentChapter) {
-      setLocation(verseRef.book, verseRef.chapter);
-      setTimeout(() => highlight(verseRef.verse), 300);
-    } else {
-      highlight(verseRef.verse);
-    }
+  const eventSlugs = chapterEntities?.events ?? [];
+  const { data: gnosisEvents } = useGnosisEntity(
+    async (provider) => {
+      if (eventSlugs.length === 0) return [] as GnosisEvent[];
+      const results = await Promise.all(
+        eventSlugs.map((slug) => provider.getEvent(slug).catch(() => null))
+      );
+      return results.filter((e): e is GnosisEvent => e !== null && e.startYear !== null);
+    },
+    [eventSlugs.join(',')]
+  );
+
+  const peopleSlugs = chapterEntities?.people ?? [];
+  const { data: gnosisPeople } = useGnosisEntity(
+    async (provider) => {
+      if (peopleSlugs.length === 0) return [] as GnosisPerson[];
+      const results = await Promise.all(
+        peopleSlugs.map((slug) => provider.getPerson(slug).catch(() => null))
+      );
+      return results.filter((p): p is GnosisPerson =>
+        p !== null && (p.birthYear !== null || p.deathYear !== null || p.earliestYearMentioned !== null)
+      );
+    },
+    [peopleSlugs.join(',')]
+  );
+
+  // Fetch the historical year for the current chapter
+  const { data: chapterYear } = useGnosisEntity(
+    (provider) => currentBook && currentChapter
+      ? provider.getChapterYear(currentBook, currentChapter)
+      : Promise.resolve(null),
+    [currentBook, currentChapter]
+  );
+
+  const handleNavigateToVerse = (verseRef: VerseRef) => {
+    window.dispatchEvent(new CustomEvent('toolbar-overlay-minimize'));
+    navigateToVerse(verseRef.book, verseRef.chapter, verseRef.verse, true);
   };
 
-  const { lanedEntries, ticks, chartHeight, yearToPixel, numLanes, timeLaneCount } = useMemo(() => {
-    const noopScale = (_: number) => 0;
-    const empty = { lanedEntries: [] as SwimLaneEntry[], ticks: [] as { num: number; label: string }[], chartHeight: 0, yearToPixel: noopScale, numLanes: 0, timeLaneCount: 0 };
-
+  const entries = useMemo(() => {
     const matchesStudy = (studyId: string | undefined) =>
       !activeStudyId || !studyId || studyId === activeStudyId;
-    const matchesBook = (book: string) => !currentBook || !filterByBook || book === currentBook;
+    const matchesChapter = (ref: VerseRef) =>
+      !currentBook || !filterByBook || (ref.book === currentBook && ref.chapter === currentChapter);
 
-    const rawTimeEntries = timeExpressions
-      .filter(t => t.year != null && t.yearEra && matchesStudy(t.studyId) && matchesBook(t.verseRef.book))
-      .map(t => {
-        const num = toNum(t.year!, t.yearEra!);
-        return { type: 'time' as const, id: t.id, label: `${t.verseRef.book} ${t.verseRef.chapter} (${t.expression})`, startNum: num, endNum: num, verseRef: t.verseRef };
+    const result: TimelineEntry[] = [];
+
+    // User time expressions
+    for (const t of timeExpressions) {
+      if (t.year == null || !t.yearEra || !matchesStudy(t.studyId) || !matchesChapter(t.verseRef)) continue;
+      const num = toNum(t.year, t.yearEra);
+      result.push({
+        type: 'time', id: t.id,
+        label: `${t.verseRef.book} ${t.verseRef.chapter}:${t.verseRef.verse} — ${t.expression}`,
+        startNum: num, endNum: num, verseRef: t.verseRef,
       });
-
-    const seenPeople = new Set<string>();
-    const rawPersonEntries = people
-      .filter(p => (p.yearStart != null || p.yearEnd != null) && matchesStudy(p.studyId) && matchesBook(p.verseRef.book))
-      .filter(p => (p.yearStart != null && p.yearStartEra) || (p.yearEnd != null && p.yearEndEra))
-      .filter(p => {
-        const groupKey = p.presetId || `manual:${p.name.toLowerCase().trim()}`;
-        if (seenPeople.has(groupKey)) return false;
-        seenPeople.add(groupKey);
-        return true;
-      })
-      .map(p => {
-        const hasStart = p.yearStart != null && p.yearStartEra;
-        const hasEnd = p.yearEnd != null && p.yearEndEra;
-        const s = hasStart ? toNum(p.yearStart!, p.yearStartEra!) : toNum(p.yearEnd!, p.yearEndEra!);
-        const e = hasEnd ? toNum(p.yearEnd!, p.yearEndEra!) : s;
-        return { type: 'person' as const, id: p.id, label: p.name, startNum: Math.min(s, e), endNum: Math.max(s, e), verseRef: p.verseRef };
-      });
-
-    if (rawTimeEntries.length === 0 && rawPersonEntries.length === 0) return empty;
-
-    // Build ordinal scale: each unique data year gets one SLOT_PX slot.
-    // Years that fall between data points (e.g. axis ticks) are interpolated.
-    const allNums = [...rawTimeEntries, ...rawPersonEntries].flatMap(e => [e.startNum, e.endNum]);
-    const rawMin = Math.min(...allNums);
-    const rawMax = Math.max(...allNums);
-    const range = Math.max(rawMax - rawMin, 1);
-    const interval = getNiceInterval(range);
-
-    // Anchor years = data years + padding slots on each end
-    const dataYearSet = new Set(allNums);
-    const sortedAnchors = [...dataYearSet].sort((a, b) => a - b);
-    const paddedAnchors = [rawMin - interval, ...sortedAnchors, rawMax + interval];
-    const anchorIndex = new Map(paddedAnchors.map((y, i) => [y, i]));
-
-    const toPixel = (year: number): number => {
-      const exact = anchorIndex.get(year);
-      if (exact !== undefined) return exact * SLOT_PX;
-      // linear interpolation between surrounding anchors
-      let lo = 0;
-      for (let i = 0; i < paddedAnchors.length - 1; i++) {
-        if (paddedAnchors[i] <= year) lo = i;
-        else break;
-      }
-      const hi = Math.min(lo + 1, paddedAnchors.length - 1);
-      if (lo === hi) return lo * SLOT_PX;
-      const t = (year - paddedAnchors[lo]) / (paddedAnchors[hi] - paddedAnchors[lo]);
-      return (lo + t) * SLOT_PX;
-    };
-
-    const chartH = (paddedAnchors.length - 1) * SLOT_PX;
-
-    const lanedTime = assignLanes(rawTimeEntries);
-    const numTimeLanes = lanedTime.length > 0 ? Math.max(...lanedTime.map(e => e.lane + 1)) : 0;
-
-    const rawLanedPeople = assignLanes(rawPersonEntries);
-    const numPeopleLanes = rawLanedPeople.length > 0 ? Math.max(...rawLanedPeople.map(e => e.lane + 1)) : 0;
-    const lanedPeople = rawLanedPeople.map(e => ({ ...e, lane: e.lane + numTimeLanes }));
-    const laned = [...lanedTime, ...lanedPeople];
-    const nLanes = Math.max(1, numTimeLanes + numPeopleLanes);
-
-    const firstTick = Math.ceil(rawMin / interval) * interval;
-    const lastTick = Math.floor(rawMax / interval) * interval;
-    const tickList: { num: number; label: string }[] = [];
-    for (let n = firstTick; n <= lastTick; n += interval) {
-      tickList.push({ num: n, label: formatYearNum(n) });
     }
 
-    return { lanedEntries: laned, ticks: tickList, chartHeight: chartH, yearToPixel: toPixel, numLanes: nLanes, timeLaneCount: numTimeLanes };
-  }, [timeExpressions, people, activeStudyId, currentBook, filterByBook]);
+    // User people
+    const seenPeople = new Set<string>();
+    for (const p of people) {
+      if (!matchesStudy(p.studyId) || !matchesChapter(p.verseRef)) continue;
+      if (!((p.yearStart != null && p.yearStartEra) || (p.yearEnd != null && p.yearEndEra))) continue;
+      const groupKey = p.presetId || `manual:${p.name.toLowerCase().trim()}`;
+      if (seenPeople.has(groupKey)) continue;
+      seenPeople.add(groupKey);
+      const hasStart = p.yearStart != null && p.yearStartEra;
+      const hasEnd = p.yearEnd != null && p.yearEndEra;
+      const s = hasStart ? toNum(p.yearStart!, p.yearStartEra!) : toNum(p.yearEnd!, p.yearEndEra!);
+      const e = hasEnd ? toNum(p.yearEnd!, p.yearEndEra!) : s;
+      result.push({
+        type: 'person', id: p.id, label: p.name,
+        startNum: Math.min(s, e), endNum: Math.max(s, e), verseRef: p.verseRef,
+      });
+    }
 
-  const getTop = yearToPixel;
+    // Gnosis events
+    const chapterPrefix = `${currentBook}.${currentChapter}.`;
+    for (const e of gnosisEvents ?? []) {
+      if (e.startYear == null) continue;
+      const chapterVerse = e.verses.find(v => v.startsWith(chapterPrefix));
+      const parsed = chapterVerse ? parseOsisRef(chapterVerse) : null;
+      const verseRef: VerseRef = parsed
+        ? { book: parsed.book, chapter: parsed.chapter, verse: parsed.verse ?? 1 }
+        : { book: currentBook, chapter: currentChapter, verse: 1 };
+      const endNum = e.endYear ?? e.startYear;
+      result.push({
+        type: 'event', id: e.slug, label: e.title,
+        yearLabel: e.startYearDisplay ?? undefined,
+        startNum: e.startYear, endNum, verseRef,
+      });
+    }
+
+    // Gnosis people (dedup against user people)
+    const userPersonNames = new Set(result.filter(r => r.type === 'person').map(r => r.label.toLowerCase().trim()));
+    for (const p of gnosisPeople ?? []) {
+      if (userPersonNames.has(p.name.toLowerCase().trim())) continue;
+      const s = p.birthYear ?? p.earliestYearMentioned ?? p.deathYear ?? p.latestYearMentioned!;
+      const e = p.deathYear ?? p.latestYearMentioned ?? s;
+      const chapterVerse = p.verses.find(v => v.startsWith(chapterPrefix));
+      const parsed = chapterVerse ? parseOsisRef(chapterVerse) : null;
+      const verseRef: VerseRef = parsed
+        ? { book: parsed.book, chapter: parsed.chapter, verse: parsed.verse ?? 1 }
+        : { book: currentBook, chapter: currentChapter, verse: 1 };
+      const yearLabel = [p.birthYearDisplay, p.deathYearDisplay].filter(Boolean).join(' — ') || undefined;
+      result.push({
+        type: 'person', id: `gnosis-${p.slug}`, label: p.name,
+        yearLabel, startNum: Math.min(s, e), endNum: Math.max(s, e), verseRef,
+      });
+    }
+
+    // Compute focus window using IQR on all year values to exclude outlier eras
+    const allYears = result.flatMap(e => [e.startNum, e.endNum]).sort((a, b) => a - b);
+    const q1 = allYears[Math.floor(allYears.length * 0.25)];
+    const q3 = allYears[Math.floor(allYears.length * 0.75)];
+    const iqr = Math.max(q3 - q1, 10);
+    const focusMin = q1 - iqr * 1.5;
+    const focusMax = q3 + iqr * 1.5;
+
+    // Drop entries that don't overlap the focus window at all
+    const filtered = result.filter(e => e.endNum >= focusMin && e.startNum <= focusMax);
+
+    // Sort by start year, then by duration (longer bars first)
+    filtered.sort((a, b) => a.startNum - b.startNum || (b.endNum - b.startNum) - (a.endNum - a.startNum));
+
+    return filtered;
+  }, [timeExpressions, people, gnosisEvents, gnosisPeople, activeStudyId, currentBook, currentChapter, filterByBook]);
+
+  // Compute the horizontal scale focused on the majority cluster
+  const { minYear, maxYear, yearToPercent } = useMemo(() => {
+    if (entries.length === 0) return { minYear: 0, maxYear: 0, yearToPercent: () => 0 };
+
+    // If we have a chapter year, center the scale around it
+    // Include entries whose ranges overlap a window around the chapter year
+    const allNums = entries.flatMap(e => [e.startNum, e.endNum]);
+    let min: number;
+    let max: number;
+
+    if (chapterYear) {
+      // Build scale from entries within ~50 years of the chapter year
+      const cy = chapterYear.year;
+      const window = 50;
+      const nearby = entries.filter(e =>
+        (e.startNum >= cy - window && e.startNum <= cy + window) ||
+        (e.endNum >= cy - window && e.endNum <= cy + window) ||
+        (e.startNum <= cy && e.endNum >= cy)
+      );
+      const nearNums = nearby.length > 0
+        ? nearby.flatMap(e => [
+            Math.max(e.startNum, cy - window),
+            Math.min(e.endNum, cy + window),
+          ])
+        : [cy - 10, cy + 10];
+      min = Math.min(...nearNums);
+      max = Math.max(...nearNums);
+    } else {
+      // Fallback: IQR-based
+      const sorted = [...allNums].sort((a, b) => a - b);
+      const q1 = sorted[Math.floor(sorted.length * 0.25)];
+      const q3 = sorted[Math.floor(sorted.length * 0.75)];
+      const iqr = Math.max(q3 - q1, 10);
+      min = Math.max(Math.min(...allNums), q1 - iqr * 0.5);
+      max = Math.min(Math.max(...allNums), q3 + iqr * 0.5);
+    }
+
+    const range = Math.max(max - min, 1);
+    const pad = range * 0.15;
+    const pMin = min - pad;
+    const pMax = max + pad;
+    const pRange = pMax - pMin;
+    return {
+      minYear: min,
+      maxYear: max,
+      yearToPercent: (year: number) => ((year - pMin) / pRange) * 100,
+    };
+  }, [entries, chapterYear]);
+
+  // Year axis ticks
+  const ticks = useMemo(() => {
+    if (entries.length === 0) return [];
+    const range = Math.max(maxYear - minYear, 1);
+    const intervals = [1, 2, 5, 10, 25, 50, 100, 250, 500, 1000];
+    let interval = 1000;
+    for (const iv of intervals) {
+      if (range / iv <= 8) { interval = iv; break; }
+    }
+    const first = Math.ceil(minYear / interval) * interval;
+    const last = Math.floor(maxYear / interval) * interval;
+    const result: { num: number; label: string; pct: number }[] = [];
+    for (let n = first; n <= last; n += interval) {
+      result.push({ num: n, label: formatYearNum(n), pct: yearToPercent(n) });
+    }
+    return result;
+  }, [entries, minYear, maxYear, yearToPercent]);
+
+  const totalHeight = entries.length * (ROW_HEIGHT + ROW_GAP);
 
   return (
     <div>
-      {lanedEntries.length === 0 ? (
+      {entries.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-scripture-muted text-sm mb-2">No timeline entries yet.</p>
+          <p className="text-scripture-muted text-sm mb-2">No timeline entries for this chapter.</p>
           <p className="text-scripture-muted text-xs">
-            Add years to time expressions or people in the Observation tools to see them here.
+            Historical events from the reference library and user-added time expressions will appear here.
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto custom-scrollbar">
-          <div
-            className="relative"
-            style={{ height: chartHeight, minWidth: AXIS_WIDTH + numLanes * MIN_LANE_WIDTH }}
-          >
-            {/* Year axis tick labels */}
+        <div className="space-y-3">
+          {/* Chapter date header */}
+          {chapterYear && (
+            <p className="text-xs text-scripture-muted px-1">
+              {currentBook} {currentChapter} — <span className="font-medium text-scripture-text">{chapterYear.yearDisplay}</span>
+            </p>
+          )}
+
+          {/* Horizontal year axis */}
+          <div className="relative h-6" style={{ marginLeft: YEAR_COL_WIDTH }}>
             {ticks.map((tick) => (
               <div
                 key={tick.num}
-                className="absolute text-[10px] text-scripture-muted text-right pr-2 leading-none -translate-y-1/2 select-none"
-                style={{ top: getTop(tick.num), left: 0, width: AXIS_WIDTH }}
+                className="absolute text-[10px] text-scripture-muted -translate-x-1/2 select-none"
+                style={{ left: `${tick.pct}%` }}
               >
                 {tick.label}
               </div>
             ))}
+          </div>
 
-            {/* Vertical axis line */}
-            <div
-              className="absolute top-0 bottom-0 w-px bg-scripture-border/40"
-              style={{ left: AXIS_WIDTH }}
-            />
-
-            {/* Lanes area */}
-            <div className="absolute top-0 bottom-0 right-0" style={{ left: AXIS_WIDTH }}>
-              {/* Horizontal grid lines */}
+          {/* Gantt rows */}
+          <div className="relative" style={{ height: totalHeight }}>
+            {/* Grid lines */}
+            <div className="absolute inset-0" style={{ left: YEAR_COL_WIDTH }}>
               {ticks.map((tick) => (
                 <div
                   key={tick.num}
-                  className="absolute left-0 right-0 h-px bg-scripture-border/15"
-                  style={{ top: getTop(tick.num) }}
+                  className="absolute top-0 bottom-0 w-px bg-scripture-border/20"
+                  style={{ left: `${tick.pct}%` }}
                 />
               ))}
+            </div>
 
-              {/* Lane separator between time and person lanes */}
-              {timeLaneCount > 0 && numLanes > timeLaneCount && (
+            {/* Chapter year marker line */}
+            {chapterYear && (
+              <div className="absolute inset-0" style={{ left: YEAR_COL_WIDTH }}>
                 <div
-                  className="absolute top-0 bottom-0 w-px bg-scripture-border/30"
-                  style={{ left: `${(timeLaneCount / numLanes) * 100}%` }}
+                  className="absolute top-0 bottom-0 w-0.5 bg-scripture-accent/40"
+                  style={{ left: `${yearToPercent(chapterYear.year)}%` }}
                 />
-              )}
+              </div>
+            )}
 
-              {/* Entries */}
-              {lanedEntries.map((entry) => {
-                const top = getTop(entry.startNum);
-                const naturalHeight = yearToPixel(entry.endNum) - yearToPixel(entry.startNum);
-                const leftPct = (entry.lane / numLanes) * 100;
-                const widthPct = (1 / numLanes) * 100;
-                const yearLabel = formatYearNum(entry.startNum) +
-                  (entry.endNum !== entry.startNum ? ` — ${formatYearNum(entry.endNum)}` : '');
-                const tooltip = `${entry.label}\n${yearLabel}\n${formatVerseRef(entry.verseRef.book, entry.verseRef.chapter, entry.verseRef.verse)}`;
+            {/* Rows */}
+            {entries.map((entry, idx) => {
+              const y = idx * (ROW_HEIGHT + ROW_GAP);
+              const rawLeftPct = yearToPercent(entry.startNum);
+              const rawRightPct = yearToPercent(entry.endNum);
+              const leftPct = Math.max(rawLeftPct, 0);
+              const rightPct = Math.min(rawRightPct, 100);
+              const isRange = entry.startNum !== entry.endNum;
+              const yearLabel = entry.yearLabel || (
+                formatYearNum(entry.startNum) +
+                (isRange ? ` — ${formatYearNum(entry.endNum)}` : '')
+              );
+              const tooltip = `${entry.label}\n${yearLabel}\n${formatVerseRef(entry.verseRef.book, entry.verseRef.chapter, entry.verseRef.verse)}`;
 
-                if (entry.type === 'person') {
-                  const barHeight = Math.max(naturalHeight, MIN_BAR_PX);
-                  return (
-                    <button
-                      key={`person-${entry.id}`}
-                      onClick={() => handleNavigateToVerse(entry.verseRef)}
-                      className="absolute rounded-md bg-scripture-accent/70 hover:bg-scripture-accent border border-scripture-accent transition-colors cursor-pointer overflow-hidden flex flex-col justify-center px-1.5"
-                      style={{
-                        top: top + 1,
-                        height: barHeight - 2,
-                        left: `calc(${leftPct}% + 2px)`,
-                        width: `calc(${widthPct}% - 4px)`,
-                      }}
-                      title={tooltip}
-                    >
-                      <span className="text-[10px] text-white font-medium truncate block leading-tight">
-                        {entry.label}
-                      </span>
-                      {barHeight >= 36 && (
-                        <span className="text-[9px] text-white/70 truncate block leading-tight">
+              const barColorClasses = entry.type === 'event'
+                ? 'bg-scripture-warning/30 hover:bg-scripture-warning/40 border-scripture-warning/60'
+                : entry.type === 'person'
+                  ? 'bg-scripture-accent/70 hover:bg-scripture-accent border-scripture-accent'
+                  : 'bg-scripture-elevated hover:bg-scripture-border border-scripture-border/40';
+
+              const dotColorClasses = entry.type === 'event'
+                ? 'bg-scripture-warning/60 border-scripture-warning'
+                : entry.type === 'person'
+                  ? 'bg-scripture-accent border-scripture-accent'
+                  : 'bg-scripture-border border-scripture-border';
+
+              return (
+                <div key={`${entry.type}-${entry.id}`} className="absolute left-0 right-0" style={{ top: y, height: ROW_HEIGHT }}>
+                  {/* Label */}
+                  <div
+                    className="absolute top-0 bottom-0 flex items-center pr-2 text-[11px] text-scripture-text font-medium truncate"
+                    style={{ width: YEAR_COL_WIDTH }}
+                    title={entry.label}
+                  >
+                    <span className="truncate">{entry.label}</span>
+                  </div>
+
+                  {/* Bar or dot */}
+                  <div className="absolute top-0 bottom-0" style={{ left: YEAR_COL_WIDTH, right: 0 }}>
+                    {isRange ? (
+                      <button
+                        onClick={() => handleNavigateToVerse(entry.verseRef)}
+                        className={`absolute top-0.5 bottom-0.5 rounded-md border transition-colors cursor-pointer overflow-hidden flex items-center px-2 text-white ${barColorClasses}`}
+                        style={{
+                          left: `${leftPct}%`,
+                          width: `${Math.max(rightPct - leftPct, 2)}%`,
+                        }}
+                        title={tooltip}
+                      >
+                        <span className="text-[10px] font-medium truncate">
                           {yearLabel}
                         </span>
-                      )}
-                    </button>
-                  );
-                }
-
-                return (
-                  <button
-                    key={`time-${entry.id}`}
-                    onClick={() => handleNavigateToVerse(entry.verseRef)}
-                    className="absolute flex items-center gap-1.5 cursor-pointer rounded-sm bg-scripture-elevated/90 hover:bg-scripture-elevated border border-scripture-border/40 px-1.5 overflow-hidden transition-colors"
-                    style={{
-                      top: top - 10,
-                      left: `calc(${leftPct}% + 2px)`,
-                      width: `calc(${widthPct}% - 4px)`,
-                      height: 20,
-                    }}
-                    title={tooltip}
-                  >
-                    <span className="text-[10px] text-scripture-muted shrink-0">🕐</span>
-                    <span className="text-[10px] text-scripture-text font-medium truncate leading-none">
-                      {entry.label}
-                    </span>
-                    <span className="text-[9px] text-scripture-muted shrink-0">
-                      {yearLabel}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleNavigateToVerse(entry.verseRef)}
+                        className="absolute top-1/2 -translate-y-1/2 flex items-center gap-1.5 cursor-pointer transition-opacity hover:opacity-80"
+                        style={{ left: `${leftPct}%` }}
+                        title={tooltip}
+                      >
+                        <div className={`w-2.5 h-2.5 rounded-full border shrink-0 ${dotColorClasses}`} />
+                        <span className="text-[10px] text-scripture-muted whitespace-nowrap">
+                          {formatYearNum(entry.startNum)}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

@@ -110,7 +110,7 @@ export async function closeSqliteDb(): Promise<void> {
 // Schema Initialization
 // ============================================================================
 
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 
 /**
  * Safety net: ensure all expected tables exist.
@@ -121,6 +121,17 @@ async function ensureTablesExist(db: Database): Promise<void> {
     CREATE TABLE IF NOT EXISTS keyword_exclusions (
       id TEXT PRIMARY KEY,
       data TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      sync_status TEXT DEFAULT 'pending',
+      device_id TEXT
+    )
+  `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS entity_notes (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL,
+      study_id TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       sync_status TEXT DEFAULT 'pending',
@@ -363,6 +374,23 @@ async function migrateSchema(
       WHERE book_scope IS NOT NULL
     `);
     console.log('[SQLite] v8 migration: added scopes column to marking_presets');
+  }
+
+  // Version 9: Add entity_notes table for gnosis entity annotations
+  if (fromVersion < 9) {
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS entity_notes (
+        id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        study_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        sync_status TEXT DEFAULT 'pending',
+        device_id TEXT
+      )
+    `);
+    await db.execute(`CREATE INDEX IF NOT EXISTS idx_entity_notes_study ON entity_notes(study_id)`);
+    console.log('[SQLite] v9 migration: added entity_notes table');
   }
 
   // Update schema version
@@ -1116,6 +1144,7 @@ export async function sqliteFindStudyScopedIds(studyId: string): Promise<{ table
     'observation_lists',
     'interpretations',
     'applications',
+    'entity_notes',
   ];
   for (const table of directTables) {
     const rows = await db.select<{ id: string }[]>(
@@ -1184,6 +1213,7 @@ export async function sqliteCascadeDeleteStudy(studyId: string): Promise<void> {
     'observation_lists',
     'interpretations',
     'applications',
+    'entity_notes',
   ];
   for (const table of directTables) {
     await db.execute(`DELETE FROM ${table} WHERE study_id = ?`, [studyId]);
@@ -1218,6 +1248,7 @@ export async function sqliteCleanupOrphanedStudyRecords(): Promise<number> {
     'observation_lists',
     'interpretations',
     'applications',
+    'entity_notes',
   ];
   for (const table of directTables) {
     const result = await db.execute(
@@ -1302,6 +1333,7 @@ const VALID_TABLE_NAMES = new Set([
   'conclusions',
   'interpretations',
   'applications',
+  'entity_notes',
   'preferences',
   'chapter_cache',
   'keyword_exclusions',
@@ -1349,6 +1381,26 @@ export async function sqliteSaveToTable<T extends { id: string; createdAt?: Date
     `INSERT OR REPLACE INTO ${tableName} (id, data, created_at, updated_at, sync_status, device_id)
      VALUES (?, ?, ?, ?, 'pending', ?)`,
     [item.id, JSON.stringify(item), createdAt, now, deviceId]
+  );
+
+  return item.id;
+}
+
+export async function sqliteSaveToTableWithStudyId<T extends { id: string; createdAt?: Date }>(
+  tableName: string,
+  item: T,
+  studyId?: string
+): Promise<string> {
+  validateTableName(tableName);
+  const db = await getSqliteDb();
+  const now = toISOString(new Date());
+  const deviceId = getDeviceId();
+  const createdAt = item.createdAt ? toISOString(item.createdAt) : now;
+
+  await db.execute(
+    `INSERT OR REPLACE INTO ${tableName} (id, data, study_id, created_at, updated_at, sync_status, device_id)
+     VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
+    [item.id, JSON.stringify(item), studyId ?? null, createdAt, now, deviceId]
   );
 
   return item.id;
@@ -1588,6 +1640,7 @@ export const SYNCED_TABLES = new Set([
   'conclusions',
   'interpretations',
   'applications',
+  'entity_notes',
   'preferences',
   'keyword_exclusions',
 ]);

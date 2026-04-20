@@ -61,6 +61,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [highContrast, setHighContrast] = useState(false);
   const [debugKeywordMatching, setDebugKeywordMatching] = useState(false);
   const [debugVerseText, setDebugVerseText] = useState(false);
+  const [forceSyncEnabled, setForceSyncEnabled] = useState(false);
   const [checkForUpdates, setCheckForUpdates] = useState(true);
   const [updateChannel, setUpdateChannel] = useState<'stable' | 'beta'>('stable');
   const [isClearing, setIsClearing] = useState(false);
@@ -150,6 +151,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         }
         if (prefs.debug?.verseText !== undefined) {
           setDebugVerseText(prefs.debug.verseText);
+        }
+        if (prefs.debug?.forceSyncEnabled !== undefined) {
+          setForceSyncEnabled(prefs.debug.forceSyncEnabled);
         }
         if (prefs.checkForUpdates !== undefined) {
           setCheckForUpdates(prefs.checkForUpdates);
@@ -1909,6 +1913,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                             debug: {
                               keywordMatching: newValue,
                               verseText: debugVerseText,
+                              forceSyncEnabled,
                             },
                           });
                           clearDebugFlagsCache();
@@ -1936,6 +1941,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                             debug: {
                               keywordMatching: debugKeywordMatching,
                               verseText: newValue,
+                              forceSyncEnabled,
                             },
                           });
                           clearDebugFlagsCache();
@@ -1945,8 +1951,35 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                         className="ml-4 w-5 h-5 text-scripture-accent bg-scripture-elevated border-scripture-border rounded focus:ring-2 focus:ring-scripture-accent/50 cursor-pointer"
                       />
                     </label>
+
+                    <label className="flex items-center justify-between p-3 bg-scripture-surface border border-scripture-border/50 rounded-lg hover:bg-scripture-elevated transition-colors cursor-pointer">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-scripture-text">Force-Enable Sync</div>
+                        <div className="text-xs text-scripture-muted mt-0.5">
+                          Sync is disabled by default on dev/beta builds to protect stable users' iCloud data. Enable to test sync changes.
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={forceSyncEnabled}
+                        onChange={async (e) => {
+                          const newValue = e.target.checked;
+                          setForceSyncEnabled(newValue);
+                          await updatePreferences({
+                            debug: {
+                              keywordMatching: debugKeywordMatching,
+                              verseText: debugVerseText,
+                              forceSyncEnabled: newValue,
+                            },
+                          });
+                          clearDebugFlagsCache();
+                          await getDebugFlags();
+                        }}
+                        className="ml-4 w-5 h-5 text-scripture-accent bg-scripture-elevated border-scripture-border rounded focus:ring-2 focus:ring-scripture-accent/50 cursor-pointer"
+                      />
+                    </label>
                   </div>
-                  
+
                   <p className="text-xs text-scripture-muted mt-3">
                     Debug logs will appear in the browser console (F12 → Console tab). Refresh the page after toggling for changes to take effect.
                   </p>

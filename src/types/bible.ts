@@ -123,6 +123,16 @@ export function formatVerseRef(book: string, chapter: number, verse?: number): s
 }
 
 /** Parse a verse reference string like "Gen.1.1" or "John 3:16" */
+/** Parse an OSIS reference like "Gen.1.1" or "Gen.1" (verse optional) */
+export function parseOsisRef(ref: string): { book: string; chapter: number; verse?: number } | null {
+  const parts = ref.split('.');
+  if (parts.length < 2) return null;
+  const chapter = parseInt(parts[1], 10);
+  if (isNaN(chapter)) return null;
+  const verse = parts.length >= 3 ? parseInt(parts[2], 10) : undefined;
+  return { book: parts[0], chapter, verse: verse !== undefined && !isNaN(verse) ? verse : undefined };
+}
+
 export function parseVerseRef(refString: string): { book: string; chapter: number; verse: number } | null {
   // Try OSIS format: Book.Chapter.Verse
   const osisMatch = refString.match(/^(\w+)\.(\d+)\.(\d+)$/);

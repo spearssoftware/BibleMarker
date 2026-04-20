@@ -11,7 +11,6 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { SelectionMenu, type ApplyScope } from './SelectionMenu';
-import { StrongsPopup } from '@/components/BibleReader/StrongsPopup';
 import { useListStore } from '@/stores/listStore';
 import { SettingsPanel } from '@/components/Settings';
 import { Modal } from '@/components/shared';
@@ -31,10 +30,11 @@ import { usePlaceStore } from '@/stores/placeStore';
 import type { ObservationTab } from '@/components/Observation';
 import type { AnalyzeTab } from '@/components/Analyze';
 
-const TOOLS: { type: 'keywords' | 'observe' | 'analyze'; icon: string; label: string }[] = [
+const TOOLS: { type: 'keywords' | 'observe' | 'analyze' | 'reference'; icon: string; label: string }[] = [
   { type: 'keywords', icon: '✏️', label: 'Mark' },
   { type: 'observe', icon: '🔍', label: 'Observe' },
   { type: 'analyze', icon: '📊', label: 'Analyze' },
+  { type: 'reference', icon: '📖', label: 'Reference' },
 ];
 
 export function Toolbar() {
@@ -56,7 +56,6 @@ export function Toolbar() {
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [strongsPopup, setStrongsPopup] = useState<{ numbers: string[]; position: { x: number; y: number }; word?: string } | null>(null);
 
   // Load marking presets on mount
   useEffect(() => {
@@ -273,7 +272,7 @@ export function Toolbar() {
     }
   };
 
-  const handleToolClick = (toolType: 'keywords' | 'observe' | 'analyze') => {
+  const handleToolClick = (toolType: 'keywords' | 'observe' | 'analyze' | 'reference') => {
     togglePanel(toolType);
     setActiveTool(null);
   };
@@ -318,7 +317,6 @@ export function Toolbar() {
           <SelectionMenu
             selection={selection}
             presets={filterPresetsByStudy(presets, activeStudyId)}
-            strongsNumbers={selection.strongsNumbers}
             canPropagate={installedTranslationCount > 1}
             onApplyPreset={applyPresetToSelection}
             onAddAsVariant={addToVariantsAndApply}
@@ -369,13 +367,15 @@ export function Toolbar() {
               }
               setActiveTool(null);
             }}
-            onStrongsLookup={selection.strongsNumbers ? () => {
-              setStrongsPopup({
-                numbers: selection.strongsNumbers!,
-                position: selection.menuAnchor ?? { x: 0, y: 0 },
-                word: selection.text?.trim(),
+            onReferenceLookup={() => {
+              openPanel('reference', {
+                referenceInitialTab: 'search',
+                referenceSearchQuery: selection?.text?.trim() || undefined,
+                referenceStrongsNumber: selection?.strongsNumbers?.[0],
+                referenceVerse: selection?.startVerse,
               });
-            } : undefined}
+              setActiveTool(null);
+            }}
             onCancel={() => {
               window.getSelection()?.removeAllRanges();
               clearSelection();
@@ -383,16 +383,6 @@ export function Toolbar() {
             onClose={() => {
               clearSelection();
             }}
-          />
-        )}
-
-        {/* Strong's Popup */}
-        {strongsPopup && (
-          <StrongsPopup
-            strongsNumbers={strongsPopup.numbers}
-            position={strongsPopup.position}
-            word={strongsPopup.word}
-            onClose={() => setStrongsPopup(null)}
           />
         )}
 

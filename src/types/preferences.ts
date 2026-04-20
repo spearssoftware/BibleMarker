@@ -8,7 +8,7 @@ import type { MarkingPreferences } from './annotation';
 
 /** API configuration for Bible APIs */
 export interface ApiConfigRecord {
-  provider: 'esv' | 'sword';
+  provider: 'esv' | 'sword' | 'gnosis';
   apiKey?: string;
   username?: string;
   password?: string;
@@ -61,6 +61,8 @@ export interface UserPreferences {
   debug?: {
     keywordMatching?: boolean;
     verseText?: boolean;
+    /** Force-enable sync on dev/beta builds (normally gated off for safety) */
+    forceSyncEnabled?: boolean;
   };
 }
 
