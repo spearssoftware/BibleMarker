@@ -62,12 +62,11 @@ async function initGnosisDb(): Promise<Database> {
   const db = await Database.load('sqlite:gnosis-lite.db');
 
   try {
-    const meta = await db.select<{ build_date: string; version: string }[]>('SELECT build_date, version FROM gnosis_meta LIMIT 1');
-    if (meta.length > 0) {
-      console.log(`[Gnosis] Loaded v${meta[0].version} (built ${meta[0].build_date}) from ${destPath}`);
-    } else {
-      console.log(`[Gnosis] Loaded (no version info) from ${destPath}`);
-    }
+    const meta = await db.select<{ key: string; value: string }[]>('SELECT key, value FROM gnosis_meta');
+    const metaMap = new Map(meta.map(m => [m.key, m.value]));
+    const version = metaMap.get('version') ?? 'unknown';
+    const buildDate = metaMap.get('build_date') ?? 'unknown';
+    console.log(`[Gnosis] Loaded v${version} (built ${buildDate}) from ${destPath}`);
   } catch {
     console.log(`[Gnosis] Loaded (no meta table) from ${destPath}`);
   }
