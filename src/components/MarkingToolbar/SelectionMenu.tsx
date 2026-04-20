@@ -334,7 +334,7 @@ export function SelectionMenu({
             role="menuitem"
             aria-label="Add person"
           >
-            <span className="text-lg" aria-hidden="true"><SymbolIcon symbol="person" size={18} /></span>
+            <span className="text-lg" aria-hidden="true">👤</span>
             <span>Add Person</span>
           </button>
 
@@ -352,7 +352,7 @@ export function SelectionMenu({
             role="menuitem"
             aria-label="Add place"
           >
-            <span className="text-lg" aria-hidden="true"><SymbolIcon symbol="mapPin" size={18} /></span>
+            <span className="text-lg" aria-hidden="true">📍</span>
             <span>Add Place</span>
           </button>
 
