@@ -247,6 +247,7 @@ export class GnosisLocalDb implements GnosisDataProvider {
       firstMention: r.first_mention ?? null,
       nameMeaning: r.name_meaning ?? null,
       peopleGroups: groups.map((g) => g.slug),
+      datesConfidence: r.dates_confidence ?? null,
     };
   }
 
@@ -318,6 +319,8 @@ export class GnosisLocalDb implements GnosisDataProvider {
       duration: r.duration ?? null, sortKey: r.sort_key ?? null,
       participants: [], locations: [], verses: [],
       parentEvent: null, predecessor: null,
+      datesConfidence: r.dates_confidence ?? null,
+      datesSource: r.dates_source ?? null,
     }));
     return { data, meta: { total, limit, offset } };
   }
@@ -359,6 +362,8 @@ export class GnosisLocalDb implements GnosisDataProvider {
       verses: verses.map((v) => v.osis_ref),
       parentEvent: parentSlug,
       predecessor: predecessorSlug,
+      datesConfidence: r.dates_confidence ?? null,
+      datesSource: r.dates_source ?? null,
     };
   }
 
@@ -714,6 +719,7 @@ function mapLocalPersonSummary(r: any): GnosisPerson {
     firstMention: r.first_mention ?? null,
     nameMeaning: r.name_meaning ?? null,
     peopleGroups: [],
+    datesConfidence: r.dates_confidence ?? null,
   };
 }
 

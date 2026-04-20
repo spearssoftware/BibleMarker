@@ -5,7 +5,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useChapterEntities, useGnosisEntity } from '@/hooks/useGnosis';
 import { formatVerseRef, parseOsisRef } from '@/types';
-import type { VerseRef, GnosisEvent, GnosisPerson } from '@/types';
+import type { VerseRef, GnosisEvent, GnosisPerson, DatesConfidence } from '@/types';
 
 interface TimelineEntry {
   type: 'time' | 'person' | 'event';
@@ -15,6 +15,13 @@ interface TimelineEntry {
   startNum: number;
   endNum: number;
   verseRef: VerseRef;
+  /** null/exact/scholarly_consensus render solid; tradition/estimate render dashed. */
+  confidence?: DatesConfidence | null;
+}
+
+/** Tradition + estimate are "tentative" — render with dashed borders to signal the dates are educated guesses. */
+function isTentativeConfidence(c: DatesConfidence | null | undefined): boolean {
+  return c === 'tradition' || c === 'estimate';
 }
 
 function toNum(year: number, era: 'BC' | 'AD'): number {
@@ -163,6 +170,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
         type: 'event', id: e.slug, label: e.title,
         yearLabel: e.startYearDisplay ?? undefined,
         startNum: e.startYear, endNum, verseRef,
+        confidence: e.datesConfidence,
       });
     }
 
@@ -183,6 +191,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
       result.push({
         type: 'person', id: `gnosis-${p.slug}`, label: p.name,
         yearLabel, startNum: Math.min(s, e), endNum: Math.max(s, e), verseRef,
+        confidence: p.datesConfidence,
       });
     }
 
@@ -349,19 +358,22 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
                 formatYearNum(entry.startNum) +
                 (isRange ? ` — ${formatYearNum(entry.endNum)}` : '')
               );
-              const tooltip = `${entry.label}\n${yearLabel}\n${formatVerseRef(entry.verseRef.book, entry.verseRef.chapter, entry.verseRef.verse)}`;
+              const tentative = isTentativeConfidence(entry.confidence);
+              const tooltip = `${entry.label}\n${yearLabel}${tentative ? ` (${entry.confidence})` : ''}\n${formatVerseRef(entry.verseRef.book, entry.verseRef.chapter, entry.verseRef.verse)}`;
+
+              const borderStyle = tentative ? 'border-dashed' : '';
 
               const barColorClasses = entry.type === 'event'
-                ? 'bg-scripture-warning/30 hover:bg-scripture-warning/40 border-scripture-warning/60'
+                ? `bg-scripture-warning/30 hover:bg-scripture-warning/40 border-scripture-warning/60 ${borderStyle}`
                 : entry.type === 'person'
-                  ? 'bg-scripture-accent/70 hover:bg-scripture-accent border-scripture-accent'
-                  : 'bg-scripture-elevated hover:bg-scripture-border border-scripture-border/40';
+                  ? `bg-scripture-accent/70 hover:bg-scripture-accent border-scripture-accent ${borderStyle}`
+                  : `bg-scripture-elevated hover:bg-scripture-border border-scripture-border/40 ${borderStyle}`;
 
               const dotColorClasses = entry.type === 'event'
-                ? 'bg-scripture-warning/60 border-scripture-warning'
+                ? `bg-scripture-warning/60 border-scripture-warning ${borderStyle}`
                 : entry.type === 'person'
-                  ? 'bg-scripture-accent border-scripture-accent'
-                  : 'bg-scripture-border border-scripture-border';
+                  ? `bg-scripture-accent border-scripture-accent ${borderStyle}`
+                  : `bg-scripture-border border-scripture-border ${borderStyle}`;
 
               return (
                 <div key={`${entry.type}-${entry.id}`} className="absolute left-0 right-0" style={{ top: y, height: ROW_HEIGHT }}>

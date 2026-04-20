@@ -24,6 +24,9 @@ export interface SingleResponse<T> {
 
 // --- Core Entities ---
 
+/** Confidence tier for a dated entity. `null` means no confidence metadata. */
+export type DatesConfidence = 'exact' | 'scholarly_consensus' | 'tradition' | 'estimate';
+
 export interface GnosisPerson {
   slug: string;
   uuid: string;
@@ -49,6 +52,7 @@ export interface GnosisPerson {
   firstMention: string | null;
   nameMeaning: string | null;
   peopleGroups: string[];
+  datesConfidence: DatesConfidence | null;
 }
 
 export interface GnosisPlace {
@@ -79,6 +83,8 @@ export interface GnosisEvent {
   verses: string[];
   parentEvent: string | null;
   predecessor: string | null;
+  datesConfidence: DatesConfidence | null;
+  datesSource: string | null;
 }
 
 export interface GnosisTopic {
