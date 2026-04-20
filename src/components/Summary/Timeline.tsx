@@ -299,6 +299,9 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     }
     if (widest === 0) return;
     const next = Math.max(LABEL_COL_MIN, Math.min(LABEL_COL_MAX, Math.ceil(widest) + LABEL_COL_PADDING));
+    // Guarded against cascading renders: the updater returns the same reference when
+    // the measured width hasn't changed, so React bails out of re-rendering.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLabelColWidth((prev) => (prev === next ? prev : next));
   }, [visibleEntries]);
 
