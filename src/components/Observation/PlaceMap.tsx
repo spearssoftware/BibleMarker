@@ -15,11 +15,14 @@ import { layers, namedFlavor } from '@protomaps/basemaps';
 
 const pmtilesProtocol = new Protocol();
 maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
-import type { Place, VerseRef } from '@/types';
+import type { GnosisPlace, Place, VerseRef } from '@/types';
 import { formatVerseRef } from '@/types';
 
 interface PlaceMapProps {
   places: Place[];
+  /** Read-only places from the gnosis reference library for the current chapter.
+   * Rendered alongside user-tracked places but not persisted to the user's store. */
+  gnosisPlaces?: GnosisPlace[];
   onNavigate?: (ref: VerseRef) => void;
 }
 
@@ -103,7 +106,7 @@ function getStyles() {
   return cachedStyles;
 }
 
-export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
+export function PlaceMap({ places, gnosisPlaces = [], onNavigate }: PlaceMapProps) {
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [tileLayer, setTileLayer] = useState<'map' | 'satellite'>('map');
   const [tileError, setTileError] = useState(false);
@@ -115,7 +118,27 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
     [groups]
   );
 
-  const effectiveSelectedName = selectedName && groups.some(g => g.name === selectedName)
+  // Gnosis places the user hasn't already tracked — dedup by lowercased name so the
+  // tracked version always wins (same coords and name, but tracked ones carry verse refs).
+  const userNames = useMemo(
+    () => new Set(groups.map(g => g.name.toLowerCase().trim())),
+    [groups]
+  );
+  const gnosisOnly = useMemo(
+    () => gnosisPlaces.filter(g =>
+      g.latitude != null && g.longitude != null &&
+      !userNames.has(g.name.toLowerCase().trim())
+    ),
+    [gnosisPlaces, userNames]
+  );
+  const selectedGnosis = useMemo(
+    () => selectedName ? gnosisOnly.find(g => g.name === selectedName) ?? null : null,
+    [selectedName, gnosisOnly]
+  );
+
+  const effectiveSelectedName = selectedName && (
+    groups.some(g => g.name === selectedName) || gnosisOnly.some(g => g.name === selectedName)
+  )
     ? selectedName
     : null;
 
@@ -128,23 +151,32 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
 
   const styles = getStyles();
 
-  // Fit bounds when groups change
+  // All coordinates on the map, user + gnosis, used for initial fit bounds
+  const allCoords = useMemo(
+    () => [
+      ...mappableGroups.map(g => [g.longitude!, g.latitude!] as [number, number]),
+      ...gnosisOnly.map(g => [g.longitude!, g.latitude!] as [number, number]),
+    ],
+    [mappableGroups, gnosisOnly]
+  );
+
+  // Fit bounds when markers change
   const fitAll = useCallback(() => {
     const map = mapRef.current;
-    if (!map || mappableGroups.length === 0) return;
-    if (mappableGroups.length === 1) {
-      map.flyTo({ center: [mappableGroups[0].longitude!, mappableGroups[0].latitude!], zoom: 8, duration: 0 });
+    if (!map || allCoords.length === 0) return;
+    if (allCoords.length === 1) {
+      map.flyTo({ center: allCoords[0], zoom: 8, duration: 0 });
       return;
     }
-    const lngs = mappableGroups.map(g => g.longitude!);
-    const lats = mappableGroups.map(g => g.latitude!);
+    const lngs = allCoords.map(c => c[0]);
+    const lats = allCoords.map(c => c[1]);
     map.fitBounds(
       [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
       { padding: 40, maxZoom: 10, duration: 0 }
     );
-  }, [mappableGroups]);
+  }, [allCoords]);
 
-  // Fly to selected place
+  // Fly to selected place (either tracked or gnosis)
   const prevSelected = useRef<string | null>(null);
   useEffect(() => {
     if (!effectiveSelectedName || effectiveSelectedName === prevSelected.current) {
@@ -154,12 +186,16 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
     }
     prevSelected.current = effectiveSelectedName;
     const group = mappableGroups.find(g => g.name === effectiveSelectedName);
-    if (!group) return;
+    const gnosis = !group ? gnosisOnly.find(g => g.name === effectiveSelectedName) : null;
+    const center: [number, number] | null = group
+      ? [group.longitude!, group.latitude!]
+      : gnosis ? [gnosis.longitude!, gnosis.latitude!] : null;
+    if (!center) return;
     const map = mapRef.current;
     if (!map) return;
     const zoom = Math.max(map.getZoom(), 8);
-    map.flyTo({ center: [group.longitude!, group.latitude!], zoom, duration: 0.6 });
-  }, [effectiveSelectedName, mappableGroups, fitAll]);
+    map.flyTo({ center, zoom, duration: 0.6 });
+  }, [effectiveSelectedName, mappableGroups, gnosisOnly, fitAll]);
 
   const activeStyle = styles[tileLayer];
 
@@ -169,15 +205,20 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
       <div className="w-44 flex-shrink-0 flex flex-col bg-scripture-surface rounded-xl border border-scripture-border/50 overflow-hidden">
         <div className="px-3 py-2 border-b border-scripture-border/30 flex-shrink-0">
           <span className="text-xs font-medium text-scripture-muted uppercase tracking-wide">
-            Places ({groups.length})
+            Places ({groups.length + gnosisOnly.length})
           </span>
         </div>
-        {groups.length === 0 ? (
+        {groups.length === 0 && gnosisOnly.length === 0 ? (
           <div className="flex-1 flex items-center justify-center p-3">
             <p className="text-xs text-scripture-muted text-center">No places yet.</p>
           </div>
         ) : (
           <div className="overflow-y-auto flex-1 custom-scrollbar p-1.5 space-y-0.5">
+            {groups.length > 0 && (
+              <div className="px-2 pt-1 pb-1 text-[10px] font-semibold text-scripture-muted uppercase tracking-wider">
+                Tracked
+              </div>
+            )}
             {groups.map(group => {
               const hasCoordsMap = group.latitude != null && group.longitude != null;
               const isSelected = effectiveSelectedName === group.name;
@@ -225,6 +266,33 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
                 </div>
               );
             })}
+            {gnosisOnly.length > 0 && (
+              <div className={`px-2 pb-1 text-[10px] font-semibold text-scripture-muted uppercase tracking-wider ${groups.length > 0 ? 'pt-3' : 'pt-1'}`}>
+                In this chapter
+              </div>
+            )}
+            {gnosisOnly.map(place => {
+              const isSelected = effectiveSelectedName === place.name;
+              return (
+                <div
+                  key={`gnosis-${place.slug}`}
+                  className={`rounded-lg transition-colors ${
+                    isSelected ? 'bg-scripture-accent' : ''
+                  }`}
+                >
+                  <button
+                    onClick={() => setSelectedName(place.name)}
+                    className={`w-full text-left px-2.5 py-2 text-sm transition-colors rounded-lg ${
+                      isSelected
+                        ? 'text-scripture-bg'
+                        : 'hover:bg-scripture-elevated text-scripture-muted italic'
+                    }`}
+                  >
+                    {place.name}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -237,7 +305,7 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
         >
           {tileLayer === 'map' ? 'Satellite' : 'Map'}
         </button>
-        {mappableGroups.length === 0 ? (
+        {mappableGroups.length === 0 && gnosisOnly.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6">
             <p className="text-scripture-muted text-sm">No places with coordinates to display.</p>
             <p className="text-scripture-muted text-xs mt-2">
@@ -280,9 +348,58 @@ export function PlaceMap({ places, onNavigate }: PlaceMapProps) {
                 />
               </Marker>
             ))}
+            {gnosisOnly.map(place => (
+              <Marker
+                key={`gnosis-${place.slug}`}
+                longitude={place.longitude!}
+                latitude={place.latitude!}
+                anchor="center"
+                onClick={(e) => { e.originalEvent.stopPropagation(); setSelectedName(place.name); }}
+              >
+                <div
+                  style={{
+                    width: place.name === effectiveSelectedName ? 12 : 9,
+                    height: place.name === effectiveSelectedName ? 12 : 9,
+                    borderRadius: '50%',
+                    background: place.name === effectiveSelectedName ? '#f97316' : '#94a3b8',
+                    border: '2px solid white',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
+                    cursor: 'pointer',
+                    opacity: 0.9,
+                  }}
+                />
+              </Marker>
+            ))}
             {effectiveSelectedName && (() => {
               const group = mappableGroups.find(g => g.name === effectiveSelectedName);
-              if (!group) return null;
+              if (!group) {
+                if (!selectedGnosis) return null;
+                return (
+                  <Popup
+                    longitude={selectedGnosis.longitude!}
+                    latitude={selectedGnosis.latitude!}
+                    anchor="bottom"
+                    onClose={() => setSelectedName(null)}
+                    closeOnClick={false}
+                    closeButton={false}
+                    className="place-map-popup"
+                  >
+                    <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '13px', lineHeight: '1.6' }}>
+                      <div style={{ fontWeight: 600, marginBottom: '4px', paddingRight: '16px' }}>{selectedGnosis.name}</div>
+                      {selectedGnosis.featureType && (
+                        <div style={{ color: '#888', fontSize: '11px', textTransform: 'capitalize' }}>
+                          {selectedGnosis.featureType.replace(/_/g, ' ')}
+                        </div>
+                      )}
+                      {selectedGnosis.modernName && selectedGnosis.modernName !== selectedGnosis.name && (
+                        <div style={{ color: '#666', fontSize: '11px', fontStyle: 'italic' }}>
+                          today: {selectedGnosis.modernName}
+                        </div>
+                      )}
+                    </div>
+                  </Popup>
+                );
+              }
               return (
                 <Popup
                   longitude={group.longitude!}
