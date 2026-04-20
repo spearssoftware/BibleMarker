@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef } from 'react';
+import { useLayoutEffect, useMemo, useEffect, useRef, useState } from 'react';
 import { useTimeStore } from '@/stores/timeStore';
 import { usePeopleStore } from '@/stores/peopleStore';
 import { useStudyStore } from '@/stores/studyStore';
@@ -28,7 +28,11 @@ function formatYearNum(num: number): string {
 
 const ROW_HEIGHT = 32;
 const ROW_GAP = 4;
-const YEAR_COL_WIDTH = 110;
+// Label column sizes itself to the widest rendered label (measured after layout),
+// clamped to this range so layout stays predictable.
+const LABEL_COL_MIN = 80;
+const LABEL_COL_MAX = 320;
+const LABEL_COL_PADDING = 16;
 
 const TIMELESS_PERSON_SLUGS = new Set(['god', 'satan', 'holy-spirit']);
 
@@ -42,6 +46,10 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
   const { activeStudyId } = useStudyStore();
   const { currentBook, currentChapter, currentModuleId, navigateToVerse } = useBibleStore();
   const lastPopulatedChapter = useRef('');
+
+  // Label column sizes to the widest rendered label, measured after layout.
+  const labelRefs = useRef<Map<string, HTMLSpanElement>>(new Map());
+  const [labelColWidth, setLabelColWidth] = useState(LABEL_COL_MIN);
 
   useEffect(() => {
     loadTimeExpressions();
@@ -264,6 +272,17 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
 
   const totalHeight = entries.length * (ROW_HEIGHT + ROW_GAP);
 
+  useLayoutEffect(() => {
+    if (entries.length === 0) return;
+    let widest = 0;
+    for (const el of labelRefs.current.values()) {
+      if (el.scrollWidth > widest) widest = el.scrollWidth;
+    }
+    if (widest === 0) return;
+    const next = Math.max(LABEL_COL_MIN, Math.min(LABEL_COL_MAX, Math.ceil(widest) + LABEL_COL_PADDING));
+    setLabelColWidth((prev) => (prev === next ? prev : next));
+  }, [entries]);
+
   return (
     <div>
       {entries.length === 0 ? (
@@ -283,7 +302,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
           )}
 
           {/* Horizontal year axis */}
-          <div className="relative h-6" style={{ marginLeft: YEAR_COL_WIDTH }}>
+          <div className="relative h-6" style={{ marginLeft: labelColWidth }}>
             {ticks.map((tick) => (
               <div
                 key={tick.num}
@@ -298,7 +317,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
           {/* Gantt rows */}
           <div className="relative" style={{ height: totalHeight }}>
             {/* Grid lines */}
-            <div className="absolute inset-0" style={{ left: YEAR_COL_WIDTH }}>
+            <div className="absolute inset-0" style={{ left: labelColWidth }}>
               {ticks.map((tick) => (
                 <div
                   key={tick.num}
@@ -310,7 +329,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
 
             {/* Chapter year marker line */}
             {chapterYear && (
-              <div className="absolute inset-0" style={{ left: YEAR_COL_WIDTH }}>
+              <div className="absolute inset-0" style={{ left: labelColWidth }}>
                 <div
                   className="absolute top-0 bottom-0 w-0.5 bg-scripture-accent/40"
                   style={{ left: `${yearToPercent(chapterYear.year)}%` }}
@@ -348,15 +367,24 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
                 <div key={`${entry.type}-${entry.id}`} className="absolute left-0 right-0" style={{ top: y, height: ROW_HEIGHT }}>
                   {/* Label */}
                   <div
-                    className="absolute top-0 bottom-0 flex items-center pr-2 text-[11px] text-scripture-text font-medium truncate"
-                    style={{ width: YEAR_COL_WIDTH }}
+                    className="absolute top-0 bottom-0 flex items-center pr-3 text-[11px] text-scripture-text font-medium overflow-hidden"
+                    style={{ width: labelColWidth }}
                     title={entry.label}
                   >
-                    <span className="truncate">{entry.label}</span>
+                    <span
+                      ref={(el) => {
+                        const key = `${entry.type}-${entry.id}`;
+                        if (el) labelRefs.current.set(key, el);
+                        else labelRefs.current.delete(key);
+                      }}
+                      className="whitespace-nowrap"
+                    >
+                      {entry.label}
+                    </span>
                   </div>
 
                   {/* Bar or dot */}
-                  <div className="absolute top-0 bottom-0" style={{ left: YEAR_COL_WIDTH, right: 0 }}>
+                  <div className="absolute top-0 bottom-0" style={{ left: labelColWidth, right: 0 }}>
                     {isRange ? (
                       <button
                         onClick={() => handleNavigateToVerse(entry.verseRef)}
