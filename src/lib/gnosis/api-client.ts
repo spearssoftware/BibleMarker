@@ -14,8 +14,6 @@ import type {
   GnosisDictionaryEntry,
   GnosisEvent,
   GnosisGreekLexiconEntry,
-  GnosisGreekWord,
-  GnosisHebrewWord,
   GnosisLexiconEntry,
   GnosisMeta,
   GnosisPeopleGroup,
@@ -239,20 +237,6 @@ export class GnosisApiClient implements GnosisDataProvider {
   }
 
   // --- Language ---
-
-  async getHebrewWords(osisRef: string): Promise<GnosisHebrewWord[]> {
-    return this.cachedFetch(`hebrew:${osisRef}`, CACHE_TTL.entity, async () => {
-      const resp = await this.fetch<{ data: GnosisHebrewWord[] }>(`/hebrew/${osisRef}`);
-      return resp.data;
-    });
-  }
-
-  async getGreekWords(osisRef: string): Promise<GnosisGreekWord[]> {
-    return this.cachedFetch(`greek:${osisRef}`, CACHE_TTL.entity, async () => {
-      const resp = await this.fetch<{ data: GnosisGreekWord[] }>(`/greek/${osisRef}`);
-      return resp.data;
-    });
-  }
 
   async getLexiconEntry(lexicalId: string): Promise<GnosisLexiconEntry> {
     return this.cachedFetch(`lexicon:${lexicalId}`, CACHE_TTL.entity, async () => {

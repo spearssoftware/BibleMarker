@@ -154,23 +154,6 @@ export interface GnosisDictionaryEntry {
   scriptureRefs: string[];
 }
 
-export interface GnosisHebrewWord {
-  wordId: string;
-  position: number;
-  text: string;
-  lemmaRaw: string;
-  strongsNumber: string | null;
-  morph: string;
-}
-
-export interface GnosisGreekWord {
-  wordId: string;
-  position: number;
-  text: string;
-  lemma: string;
-  strongsNumber: string | null;
-  morph: string;
-}
 
 export interface GnosisLexiconEntry {
   lexicalId: string;

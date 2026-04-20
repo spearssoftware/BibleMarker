@@ -16,8 +16,6 @@ import type {
   GnosisDictionaryDefinition,
   GnosisEvent,
   GnosisGreekLexiconEntry,
-  GnosisGreekWord,
-  GnosisHebrewWord,
   GnosisLexiconEntry,
   GnosisMeta,
   GnosisPeopleGroup,
@@ -526,46 +524,6 @@ export class GnosisLocalDb implements GnosisDataProvider {
 
   // --- Language ---
 
-  async getHebrewWords(osisRef: string): Promise<GnosisHebrewWord[]> {
-    const db = await this.db();
-    const vRows: any[] = await db.select('SELECT id FROM verse WHERE osis_ref = ?', [osisRef]);
-    if (!vRows.length) return [];
-
-    const rows: any[] = await db.select(
-      'SELECT * FROM hebrew_word WHERE verse_id = ? ORDER BY position',
-      [vRows[0].id]
-    );
-
-    return rows.map((r) => ({
-      wordId: r.word_id,
-      position: r.position,
-      text: r.text,
-      lemmaRaw: r.lemma_raw,
-      strongsNumber: r.strongs_number ?? null,
-      morph: r.morph,
-    }));
-  }
-
-  async getGreekWords(osisRef: string): Promise<GnosisGreekWord[]> {
-    const db = await this.db();
-    const vRows: any[] = await db.select('SELECT id FROM verse WHERE osis_ref = ?', [osisRef]);
-    if (!vRows.length) return [];
-
-    const rows: any[] = await db.select(
-      'SELECT * FROM greek_word WHERE verse_id = ? ORDER BY position',
-      [vRows[0].id]
-    );
-
-    return rows.map((r) => ({
-      wordId: r.word_id,
-      position: r.position,
-      text: r.text,
-      lemma: r.lemma,
-      strongsNumber: r.strongs_number ?? null,
-      morph: r.morph,
-    }));
-  }
-
   async getLexiconEntry(lexicalId: string): Promise<GnosisLexiconEntry> {
     const db = await this.db();
     const rows: any[] = await db.select('SELECT * FROM lexicon_entry WHERE lexical_id = ?', [lexicalId]);
@@ -712,7 +670,7 @@ export class GnosisLocalDb implements GnosisDataProvider {
     const metaMap: Record<string, string> = {};
     for (const r of metaRows) metaMap[r.key] = r.value;
 
-    const tables = ['person', 'place', 'event', 'people_group', 'strongs', 'dictionary_entry', 'topic', 'lexicon_entry', 'cross_reference', 'hebrew_word', 'greek_word', 'greek_lexicon_entry'];
+    const tables = ['person', 'place', 'event', 'people_group', 'strongs', 'dictionary_entry', 'topic', 'lexicon_entry', 'cross_reference', 'greek_lexicon_entry'];
     const counts: Record<string, number> = {};
     for (const table of tables) {
       const row: any[] = await db.select(`SELECT COUNT(*) as cnt FROM ${table}`);
