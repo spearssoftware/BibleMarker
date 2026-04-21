@@ -136,8 +136,10 @@ pub async fn install_bundled_module(
             if meta.len() == bytes.len() as u64 && on_disk_ok {
                 let dest_for_hash = dest.clone();
                 let bytes_for_hash = bytes.clone();
-                let bundled_task = tauri::async_runtime::spawn_blocking(move || hash_bytes(&bytes_for_hash));
-                let dest_task = tauri::async_runtime::spawn_blocking(move || hash_file(&dest_for_hash).ok());
+                let bundled_task =
+                    tauri::async_runtime::spawn_blocking(move || hash_bytes(&bytes_for_hash));
+                let dest_task =
+                    tauri::async_runtime::spawn_blocking(move || hash_file(&dest_for_hash).ok());
                 let bundled_hash = bundled_task.await.unwrap_or_default();
                 let dest_hash = dest_task.await.ok().flatten();
                 if dest_hash.as_deref() == Some(bundled_hash.as_str()) {
@@ -206,8 +208,10 @@ pub async fn install_bundled_module(
             if meta.len() == source_size {
                 let source_for_hash = source.clone();
                 let dest_for_hash = dest.clone();
-                let source_task = tauri::async_runtime::spawn_blocking(move || hash_file(&source_for_hash).ok());
-                let dest_task = tauri::async_runtime::spawn_blocking(move || hash_file(&dest_for_hash).ok());
+                let source_task =
+                    tauri::async_runtime::spawn_blocking(move || hash_file(&source_for_hash).ok());
+                let dest_task =
+                    tauri::async_runtime::spawn_blocking(move || hash_file(&dest_for_hash).ok());
                 let source_hash = source_task.await.ok().flatten();
                 let dest_hash = dest_task.await.ok().flatten();
                 if source_hash.is_some() && source_hash == dest_hash {
