@@ -69,7 +69,7 @@ pub async fn download_file(url: String, dest_path: String) -> Result<(), String>
 ///
 /// The hash check catches content drift between builds that happen to produce the same
 /// file size (e.g. two gnosis-lite.db builds with identical byte counts but different
-/// data). Hashing ~40MB on modern hardware is <200ms — only paid when sizes match.
+/// data). Hashes run in parallel on the blocking threadpool.
 #[tauri::command]
 pub async fn install_bundled_module(
     app: tauri::AppHandle,
@@ -134,8 +134,12 @@ pub async fn install_bundled_module(
             .unwrap_or(false);
 
             if meta.len() == bytes.len() as u64 && on_disk_ok {
-                let bundled_hash = hash_bytes(&bytes);
-                let dest_hash = hash_file(&dest).ok();
+                let dest_for_hash = dest.clone();
+                let bytes_for_hash = bytes.clone();
+                let bundled_task = tauri::async_runtime::spawn_blocking(move || hash_bytes(&bytes_for_hash));
+                let dest_task = tauri::async_runtime::spawn_blocking(move || hash_file(&dest_for_hash).ok());
+                let bundled_hash = bundled_task.await.unwrap_or_default();
+                let dest_hash = dest_task.await.ok().flatten();
                 if dest_hash.as_deref() == Some(bundled_hash.as_str()) {
                     println!(
                         "[install_bundled_module] {} already installed ({} bytes, hash match), skipping",
@@ -200,9 +204,12 @@ pub async fn install_bundled_module(
 
         if let Ok(meta) = std::fs::metadata(&dest) {
             if meta.len() == source_size {
-                // Size matches — confirm with SHA-256 before trusting the cache.
-                let source_hash = hash_file(&source).ok();
-                let dest_hash = hash_file(&dest).ok();
+                let source_for_hash = source.clone();
+                let dest_for_hash = dest.clone();
+                let source_task = tauri::async_runtime::spawn_blocking(move || hash_file(&source_for_hash).ok());
+                let dest_task = tauri::async_runtime::spawn_blocking(move || hash_file(&dest_for_hash).ok());
+                let source_hash = source_task.await.ok().flatten();
+                let dest_hash = dest_task.await.ok().flatten();
                 if source_hash.is_some() && source_hash == dest_hash {
                     println!(
                         "[install_bundled_module] {} already installed ({} bytes, hash match), skipping",
