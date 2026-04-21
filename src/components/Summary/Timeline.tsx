@@ -17,11 +17,58 @@ interface TimelineEntry {
   verseRef: VerseRef;
   /** null/exact/scholarly_consensus render solid; tradition/estimate render dashed. */
   confidence?: DatesConfidence | null;
+  /** True when the bar's range is gnosis's earliest/latest mention window rather than
+   * a real lifespan (birth/death). Rendered with a thinner, lighter bar and a tooltip
+   * that says "mentioned" instead of a year range. */
+  isMentionSpan?: boolean;
 }
 
 /** Tradition + estimate are "tentative" — render with dashed borders to signal the dates are educated guesses. */
 function isTentativeConfidence(c: DatesConfidence | null | undefined): boolean {
   return c === 'tradition' || c === 'estimate';
+}
+
+/** Shared swatch classes so the legend can't drift from the actual bar styles. */
+const LEGEND_CUES = [
+  {
+    key: 'lifespan',
+    label: 'Lifespan',
+    className: 'inline-block w-5 h-2 rounded-sm bg-scripture-accent/70 border border-scripture-accent',
+    test: (e: TimelineEntry) => e.type === 'person' && !e.isMentionSpan,
+  },
+  {
+    key: 'mention',
+    label: 'Mentioned in scripture',
+    className: 'inline-block w-5 h-1 rounded-sm bg-scripture-accent/20 border border-scripture-accent/40',
+    test: (e: TimelineEntry) => e.type === 'person' && !!e.isMentionSpan,
+  },
+  {
+    key: 'event',
+    label: 'Event',
+    className: 'inline-block w-2 h-2 rounded-full bg-scripture-warning/60 border border-scripture-warning',
+    test: (e: TimelineEntry) => e.type === 'event',
+  },
+  {
+    key: 'estimated',
+    label: 'Estimated',
+    className: 'inline-block w-5 h-2 rounded-sm bg-scripture-warning/30 border border-dashed border-scripture-warning/60',
+    test: (e: TimelineEntry) => isTentativeConfidence(e.confidence),
+  },
+] as const;
+
+function TimelineLegend({ entries }: { entries: TimelineEntry[] }) {
+  const active = LEGEND_CUES.filter(cue => entries.some(cue.test));
+  if (active.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-scripture-muted px-1">
+      {active.map(cue => (
+        <span key={cue.key} className="flex items-center gap-1.5">
+          <span className={cue.className} />
+          {cue.label}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function toNum(year: number, era: 'BC' | 'AD'): number {
@@ -180,6 +227,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     for (const p of gnosisPeople ?? []) {
       if (TIMELESS_PERSON_SLUGS.has(p.slug)) continue;
       if (userPersonNames.has(p.name.toLowerCase().trim())) continue;
+      const hasLifespan = p.birthYear !== null && p.deathYear !== null;
       const s = p.birthYear ?? p.earliestYearMentioned ?? p.deathYear ?? p.latestYearMentioned!;
       const e = p.deathYear ?? p.latestYearMentioned ?? s;
       const chapterVerse = p.verses.find(v => v.startsWith(chapterPrefix));
@@ -187,11 +235,14 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
       const verseRef: VerseRef = parsed
         ? { book: parsed.book, chapter: parsed.chapter, verse: parsed.verse ?? 1 }
         : { book: currentBook, chapter: currentChapter, verse: 1 };
-      const yearLabel = [p.birthYearDisplay, p.deathYearDisplay].filter(Boolean).join(' — ') || undefined;
+      const yearLabel = hasLifespan
+        ? [p.birthYearDisplay, p.deathYearDisplay].filter(Boolean).join(' — ') || undefined
+        : [p.earliestYearMentionedDisplay, p.latestYearMentionedDisplay].filter(Boolean).join(' — ') || undefined;
       result.push({
         type: 'person', id: `gnosis-${p.slug}`, label: p.name,
         yearLabel, startNum: Math.min(s, e), endNum: Math.max(s, e), verseRef,
         confidence: p.datesConfidence,
+        isMentionSpan: !hasLifespan,
       });
     }
 
@@ -323,6 +374,8 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
             </p>
           )}
 
+          <TimelineLegend entries={visibleEntries} />
+
           {/* Horizontal year axis */}
           <div className="relative h-6" style={{ marginLeft: labelColWidth }}>
             {ticks.map((tick) => (
@@ -375,14 +428,20 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
               );
               const clippedLabel = `${leftClipped ? '‹ ' : ''}${yearLabel}${rightClipped ? ' ›' : ''}`;
               const tentative = isTentativeConfidence(entry.confidence);
-              const tooltip = `${entry.label}\n${yearLabel}${tentative ? ` (${entry.confidence})` : ''}\n${formatVerseRef(entry.verseRef.book, entry.verseRef.chapter, entry.verseRef.verse)}`;
+              const mentionSpan = entry.isMentionSpan === true;
+              const yearTooltipText = mentionSpan
+                ? `mentioned ${yearLabel}`
+                : yearLabel;
+              const tooltip = `${entry.label}\n${yearTooltipText}${tentative ? ` (${entry.confidence})` : ''}\n${formatVerseRef(entry.verseRef.book, entry.verseRef.chapter, entry.verseRef.verse)}`;
 
               const borderStyle = tentative ? 'border-dashed' : '';
 
               const barColorClasses = entry.type === 'event'
                 ? `bg-scripture-warning/30 hover:bg-scripture-warning/40 border-scripture-warning/60 ${borderStyle}`
                 : entry.type === 'person'
-                  ? `bg-scripture-accent/70 hover:bg-scripture-accent border-scripture-accent ${borderStyle}`
+                  ? mentionSpan
+                    ? `bg-scripture-accent/20 hover:bg-scripture-accent/30 border-scripture-accent/40 ${borderStyle}`
+                    : `bg-scripture-accent/70 hover:bg-scripture-accent border-scripture-accent ${borderStyle}`
                   : `bg-scripture-elevated hover:bg-scripture-border border-scripture-border/40 ${borderStyle}`;
 
               const dotColorClasses = entry.type === 'event'
@@ -416,7 +475,11 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
                     {isRange ? (
                       <button
                         onClick={() => handleNavigateToVerse(entry.verseRef)}
-                        className={`absolute top-0.5 bottom-0.5 rounded-md border transition-colors cursor-pointer overflow-hidden flex items-center px-2 text-white ${barColorClasses}`}
+                        className={`absolute rounded-md border transition-colors cursor-pointer overflow-hidden flex items-center px-2 ${
+                          mentionSpan
+                            ? 'top-2 bottom-2 text-scripture-text/70'
+                            : 'top-0.5 bottom-0.5 text-white'
+                        } ${barColorClasses}`}
                         style={{
                           left: `${leftPct}%`,
                           width: `${Math.max(rightPct - leftPct, 2)}%`,

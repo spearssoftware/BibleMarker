@@ -1,7 +1,35 @@
-use std::path::PathBuf;
+use sha2::{Digest, Sha256};
+use std::io::Read;
+use std::path::{Path, PathBuf};
 use tauri::Manager;
 #[cfg(target_os = "android")]
 use tauri_plugin_fs::FsExt;
+
+const HASH_BUFFER_SIZE: usize = 64 * 1024;
+
+/// Stream-hash a file on disk with SHA-256. Returns hex digest.
+fn hash_file(path: &Path) -> Result<String, std::io::Error> {
+    let mut file = std::fs::File::open(path)?;
+    let mut hasher = Sha256::new();
+    let mut buf = vec![0u8; HASH_BUFFER_SIZE];
+    loop {
+        let n = file.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+/// Hash an in-memory byte slice with SHA-256. Returns hex digest.
+/// Only used on Android, where bundled resources are read from the APK into memory.
+#[cfg(target_os = "android")]
+fn hash_bytes(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    format!("{:x}", hasher.finalize())
+}
 
 /// Download a file from `url` and save it to `dest_path`.
 /// Creates parent directories if needed.
@@ -36,9 +64,12 @@ pub async fn download_file(url: String, dest_path: String) -> Result<(), String>
 ///
 /// Behavior:
 /// - If `dest` doesn't exist → install.
-/// - If `dest` exists AND its size matches the bundled source → skip (cached).
-/// - If `dest` exists but size differs → re-install (self-heals corrupt / stale copies,
-///   e.g. Android 1.6.1 shipped SWORD zips wrapped in .jar containers by AGP).
+/// - If size differs → re-install (fast path).
+/// - If size matches → compare SHA-256 hashes. Equal → skip. Different → re-install.
+///
+/// The hash check catches content drift between builds that happen to produce the same
+/// file size (e.g. two gnosis-lite.db builds with identical byte counts but different
+/// data). Hashes run in parallel on the blocking threadpool.
 #[tauri::command]
 pub async fn install_bundled_module(
     app: tauri::AppHandle,
@@ -95,7 +126,6 @@ pub async fn install_bundled_module(
             // AGP can wrap assets in a .jar container, producing a valid zip that
             // doesn't contain the expected SWORD contents. In that case, overwrite.
             let on_disk_ok = (|| -> Result<bool, std::io::Error> {
-                use std::io::Read;
                 let mut f = std::fs::File::open(&dest)?;
                 let mut magic = [0u8; 4];
                 f.read_exact(&mut magic)?;
@@ -104,19 +134,35 @@ pub async fn install_bundled_module(
             .unwrap_or(false);
 
             if meta.len() == bytes.len() as u64 && on_disk_ok {
+                let dest_for_hash = dest.clone();
+                let bytes_for_hash = bytes.clone();
+                let bundled_task = tauri::async_runtime::spawn_blocking(move || hash_bytes(&bytes_for_hash));
+                let dest_task = tauri::async_runtime::spawn_blocking(move || hash_file(&dest_for_hash).ok());
+                let bundled_hash = bundled_task.await.unwrap_or_default();
+                let dest_hash = dest_task.await.ok().flatten();
+                if dest_hash.as_deref() == Some(bundled_hash.as_str()) {
+                    println!(
+                        "[install_bundled_module] {} already installed ({} bytes, hash match), skipping",
+                        resource_name,
+                        meta.len()
+                    );
+                    return Ok(());
+                }
                 println!(
-                    "[install_bundled_module] {} already installed ({} bytes), skipping",
+                    "[install_bundled_module] {} size matches ({} bytes) but hash differs (on-disk={:?}, bundled={}), re-installing",
                     resource_name,
-                    meta.len()
+                    meta.len(),
+                    dest_hash,
+                    bundled_hash
                 );
-                return Ok(());
+            } else {
+                println!(
+                    "[install_bundled_module] {} size mismatch (on-disk={}, bundled={}), re-installing",
+                    resource_name,
+                    meta.len(),
+                    bytes.len()
+                );
             }
-            println!(
-                "[install_bundled_module] {} size mismatch (on-disk={}, bundled={}), re-installing",
-                resource_name,
-                meta.len(),
-                bytes.len()
-            );
         }
 
         std::fs::write(&dest, &bytes)
@@ -158,18 +204,31 @@ pub async fn install_bundled_module(
 
         if let Ok(meta) = std::fs::metadata(&dest) {
             if meta.len() == source_size {
+                let source_for_hash = source.clone();
+                let dest_for_hash = dest.clone();
+                let source_task = tauri::async_runtime::spawn_blocking(move || hash_file(&source_for_hash).ok());
+                let dest_task = tauri::async_runtime::spawn_blocking(move || hash_file(&dest_for_hash).ok());
+                let source_hash = source_task.await.ok().flatten();
+                let dest_hash = dest_task.await.ok().flatten();
+                if source_hash.is_some() && source_hash == dest_hash {
+                    println!(
+                        "[install_bundled_module] {} already installed ({} bytes, hash match), skipping",
+                        resource_name, source_size
+                    );
+                    return Ok(());
+                }
                 println!(
-                    "[install_bundled_module] {} already installed ({} bytes), skipping",
-                    resource_name, source_size
+                    "[install_bundled_module] {} size matches ({} bytes) but hash differs (on-disk={:?}, bundled={:?}), re-installing",
+                    resource_name, source_size, dest_hash, source_hash
                 );
-                return Ok(());
+            } else {
+                println!(
+                    "[install_bundled_module] {} size mismatch (on-disk={}, bundled={}), re-installing",
+                    resource_name,
+                    meta.len(),
+                    source_size
+                );
             }
-            println!(
-                "[install_bundled_module] {} size mismatch (on-disk={}, bundled={}), re-installing",
-                resource_name,
-                meta.len(),
-                source_size
-            );
         }
 
         std::fs::copy(&source, &dest).map_err(|e| {
