@@ -28,6 +28,49 @@ function isTentativeConfidence(c: DatesConfidence | null | undefined): boolean {
   return c === 'tradition' || c === 'estimate';
 }
 
+/** Shared swatch classes so the legend can't drift from the actual bar styles. */
+const LEGEND_CUES = [
+  {
+    key: 'lifespan',
+    label: 'Lifespan',
+    className: 'inline-block w-5 h-2 rounded-sm bg-scripture-accent/70 border border-scripture-accent',
+    test: (e: TimelineEntry) => e.type === 'person' && !e.isMentionSpan,
+  },
+  {
+    key: 'mention',
+    label: 'Mentioned in scripture',
+    className: 'inline-block w-5 h-1 rounded-sm bg-scripture-accent/20 border border-scripture-accent/40',
+    test: (e: TimelineEntry) => e.type === 'person' && !!e.isMentionSpan,
+  },
+  {
+    key: 'event',
+    label: 'Event',
+    className: 'inline-block w-2 h-2 rounded-full bg-scripture-warning/60 border border-scripture-warning',
+    test: (e: TimelineEntry) => e.type === 'event',
+  },
+  {
+    key: 'estimated',
+    label: 'Estimated',
+    className: 'inline-block w-5 h-2 rounded-sm bg-scripture-warning/30 border border-dashed border-scripture-warning/60',
+    test: (e: TimelineEntry) => isTentativeConfidence(e.confidence),
+  },
+] as const;
+
+function TimelineLegend({ entries }: { entries: TimelineEntry[] }) {
+  const active = LEGEND_CUES.filter(cue => entries.some(cue.test));
+  if (active.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-scripture-muted px-1">
+      {active.map(cue => (
+        <span key={cue.key} className="flex items-center gap-1.5">
+          <span className={cue.className} />
+          {cue.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function toNum(year: number, era: 'BC' | 'AD'): number {
   return era === 'BC' ? -year : year;
 }
@@ -184,9 +227,6 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     for (const p of gnosisPeople ?? []) {
       if (TIMELESS_PERSON_SLUGS.has(p.slug)) continue;
       if (userPersonNames.has(p.name.toLowerCase().trim())) continue;
-      // A real lifespan requires both birth and death years. When either is missing,
-      // fall back to earliest/latest mention — but mark the entry so it renders
-      // visually distinct (thinner, muted) and its tooltip says "mentioned".
       const hasLifespan = p.birthYear !== null && p.deathYear !== null;
       const s = p.birthYear ?? p.earliestYearMentioned ?? p.deathYear ?? p.latestYearMentioned!;
       const e = p.deathYear ?? p.latestYearMentioned ?? s;
@@ -334,42 +374,7 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
             </p>
           )}
 
-          {/* Legend — only shows cues that apply to the visible entries */}
-          {(() => {
-            const hasLifespan = visibleEntries.some(e => e.type === 'person' && !e.isMentionSpan);
-            const hasMention = visibleEntries.some(e => e.type === 'person' && e.isMentionSpan);
-            const hasTentative = visibleEntries.some(e => isTentativeConfidence(e.confidence));
-            const hasEvent = visibleEntries.some(e => e.type === 'event');
-            if (!hasLifespan && !hasMention && !hasTentative && !hasEvent) return null;
-            return (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-scripture-muted px-1">
-                {hasLifespan && (
-                  <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-5 h-2 rounded-sm bg-scripture-accent/70 border border-scripture-accent" />
-                    Lifespan
-                  </span>
-                )}
-                {hasMention && (
-                  <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-5 h-1 rounded-sm bg-scripture-accent/20 border border-scripture-accent/40" />
-                    Mentioned in scripture
-                  </span>
-                )}
-                {hasEvent && (
-                  <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-2 h-2 rounded-full bg-scripture-warning/60 border border-scripture-warning" />
-                    Event
-                  </span>
-                )}
-                {hasTentative && (
-                  <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-5 h-2 rounded-sm bg-scripture-warning/30 border border-dashed border-scripture-warning/60" />
-                    Estimated
-                  </span>
-                )}
-              </div>
-            );
-          })()}
+          <TimelineLegend entries={visibleEntries} />
 
           {/* Horizontal year axis */}
           <div className="relative h-6" style={{ marginLeft: labelColWidth }}>
