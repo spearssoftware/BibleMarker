@@ -1,0 +1,42 @@
+name: ci-docs-skip
+
+# Stub jobs that share names with the required checks in ci.yml and security.yml.
+# Fires on the complementary paths those workflows ignore, so docs-only PRs still
+# satisfy branch protection without spinning up real CI.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Skipped — docs-only change"
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Skipped — docs-only change"
+  rust-format:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Skipped — docs-only change"
+  rust-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Skipped — docs-only change"
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Skipped — docs-only change"
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Skipped — docs-only change"
