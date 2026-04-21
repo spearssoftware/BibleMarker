@@ -334,6 +334,43 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
             </p>
           )}
 
+          {/* Legend — only shows cues that apply to the visible entries */}
+          {(() => {
+            const hasLifespan = visibleEntries.some(e => e.type === 'person' && !e.isMentionSpan);
+            const hasMention = visibleEntries.some(e => e.type === 'person' && e.isMentionSpan);
+            const hasTentative = visibleEntries.some(e => isTentativeConfidence(e.confidence));
+            const hasEvent = visibleEntries.some(e => e.type === 'event');
+            if (!hasLifespan && !hasMention && !hasTentative && !hasEvent) return null;
+            return (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-scripture-muted px-1">
+                {hasLifespan && (
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block w-5 h-2 rounded-sm bg-scripture-accent/70 border border-scripture-accent" />
+                    Lifespan
+                  </span>
+                )}
+                {hasMention && (
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block w-5 h-1 rounded-sm bg-scripture-accent/20 border border-scripture-accent/40" />
+                    Mentioned in scripture
+                  </span>
+                )}
+                {hasEvent && (
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block w-2 h-2 rounded-full bg-scripture-warning/60 border border-scripture-warning" />
+                    Event
+                  </span>
+                )}
+                {hasTentative && (
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block w-5 h-2 rounded-sm bg-scripture-warning/30 border border-dashed border-scripture-warning/60" />
+                    Estimated
+                  </span>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Horizontal year axis */}
           <div className="relative h-6" style={{ marginLeft: labelColWidth }}>
             {ticks.map((tick) => (
