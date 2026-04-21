@@ -112,7 +112,8 @@ export const useXxxStore = create<XxxState>()(
 ```
 
 Conventions:
-- Persist IDs and preferences — not full data arrays (reload from DB on mount)
+- **No data store persists full arrays.** Observation/worksheet stores use `partialize: (_state) => ({})` and reload from DB on mount. UI/preference stores may persist IDs and preferences.
+- Every consumer of such a store must call the store's `load*` function on mount. A component showing empty content is usually a missing `load*` call.
 - All DB operations are async
 - Optimistic pattern: write to DB, then update local state
 
@@ -138,6 +139,11 @@ async function migrateSchema(db, fromVersion, toVersion) {
   if (fromVersion < 3) { /* add tables/columns */ }
 }
 ```
+
+When adding a new table, you MUST also:
+- Add it to `VALID_TABLE_NAMES` in `sqlite-db.ts` — generic CRUD throws "Invalid table name" otherwise.
+- Add it to `SYNCED_TABLES` if it should sync between devices.
+- Add it to `ensureTablesExist()` in `sqlite-db.ts` — safety net for tables missed during migration (e.g., schema version bumped but table creation skipped under hot-reload).
 
 ## Bible API
 
@@ -209,8 +215,17 @@ Example:
 ```
 
 ```bash
-pnpm run release -- patch   # or major / minor
+pnpm run release -- patch                                   # 1.6.3 → 1.6.4 (stable)
+pnpm run release -- minor                                   # → next minor (stable)
+pnpm run release -- major                                   # → next major (stable)
+pnpm run release -- beta                                    # → 1.7.0-beta.N (prerelease)
+pnpm run release -- patch --notes "- Bullet one\n- Bullet two"   # prepend What's New automatically
 ```
+
+Prefer `--notes` over editing the draft on GitHub after the fact — the script waits for CI and prepends the `## What's New` section for you. Pitfalls:
+- `--notes` requires a string argument immediately after it. An empty value silently fails under `set -euo pipefail`.
+- The script aborts on uncommitted changes — commit `Cargo.lock` and `project.yml` from dev builds first.
+- Tags with `-` (e.g. `1.7.0-beta.1`) publish as GitHub prereleases with a `beta.json` manifest; tags without `-` publish as `latest` with `latest.json`.
 
 The script creates a `release/vX.Y.Z` branch with the version bump, pushes it, and opens a PR. When the PR is merged, the `release-tag` workflow automatically creates the `app-vX.Y.Z` tag, which triggers the publish workflow and creates a draft GitHub Release.
 
