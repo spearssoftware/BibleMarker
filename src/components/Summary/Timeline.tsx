@@ -17,6 +17,10 @@ interface TimelineEntry {
   verseRef: VerseRef;
   /** null/exact/scholarly_consensus render solid; tradition/estimate render dashed. */
   confidence?: DatesConfidence | null;
+  /** True when the bar's range is gnosis's earliest/latest mention window rather than
+   * a real lifespan (birth/death). Rendered with a thinner, lighter bar and a tooltip
+   * that says "mentioned" instead of a year range. */
+  isMentionSpan?: boolean;
 }
 
 /** Tradition + estimate are "tentative" — render with dashed borders to signal the dates are educated guesses. */
@@ -180,6 +184,10 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
     for (const p of gnosisPeople ?? []) {
       if (TIMELESS_PERSON_SLUGS.has(p.slug)) continue;
       if (userPersonNames.has(p.name.toLowerCase().trim())) continue;
+      // A real lifespan requires both birth and death years. When either is missing,
+      // fall back to earliest/latest mention — but mark the entry so it renders
+      // visually distinct (thinner, muted) and its tooltip says "mentioned".
+      const hasLifespan = p.birthYear !== null && p.deathYear !== null;
       const s = p.birthYear ?? p.earliestYearMentioned ?? p.deathYear ?? p.latestYearMentioned!;
       const e = p.deathYear ?? p.latestYearMentioned ?? s;
       const chapterVerse = p.verses.find(v => v.startsWith(chapterPrefix));
@@ -187,11 +195,14 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
       const verseRef: VerseRef = parsed
         ? { book: parsed.book, chapter: parsed.chapter, verse: parsed.verse ?? 1 }
         : { book: currentBook, chapter: currentChapter, verse: 1 };
-      const yearLabel = [p.birthYearDisplay, p.deathYearDisplay].filter(Boolean).join(' — ') || undefined;
+      const yearLabel = hasLifespan
+        ? [p.birthYearDisplay, p.deathYearDisplay].filter(Boolean).join(' — ') || undefined
+        : [p.earliestYearMentionedDisplay, p.latestYearMentionedDisplay].filter(Boolean).join(' — ') || undefined;
       result.push({
         type: 'person', id: `gnosis-${p.slug}`, label: p.name,
         yearLabel, startNum: Math.min(s, e), endNum: Math.max(s, e), verseRef,
         confidence: p.datesConfidence,
+        isMentionSpan: !hasLifespan,
       });
     }
 
@@ -375,14 +386,20 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
               );
               const clippedLabel = `${leftClipped ? '‹ ' : ''}${yearLabel}${rightClipped ? ' ›' : ''}`;
               const tentative = isTentativeConfidence(entry.confidence);
-              const tooltip = `${entry.label}\n${yearLabel}${tentative ? ` (${entry.confidence})` : ''}\n${formatVerseRef(entry.verseRef.book, entry.verseRef.chapter, entry.verseRef.verse)}`;
+              const mentionSpan = entry.isMentionSpan === true;
+              const yearTooltipText = mentionSpan
+                ? `mentioned ${yearLabel}`
+                : yearLabel;
+              const tooltip = `${entry.label}\n${yearTooltipText}${tentative ? ` (${entry.confidence})` : ''}\n${formatVerseRef(entry.verseRef.book, entry.verseRef.chapter, entry.verseRef.verse)}`;
 
               const borderStyle = tentative ? 'border-dashed' : '';
 
               const barColorClasses = entry.type === 'event'
                 ? `bg-scripture-warning/30 hover:bg-scripture-warning/40 border-scripture-warning/60 ${borderStyle}`
                 : entry.type === 'person'
-                  ? `bg-scripture-accent/70 hover:bg-scripture-accent border-scripture-accent ${borderStyle}`
+                  ? mentionSpan
+                    ? `bg-scripture-accent/20 hover:bg-scripture-accent/30 border-scripture-accent/40 ${borderStyle}`
+                    : `bg-scripture-accent/70 hover:bg-scripture-accent border-scripture-accent ${borderStyle}`
                   : `bg-scripture-elevated hover:bg-scripture-border border-scripture-border/40 ${borderStyle}`;
 
               const dotColorClasses = entry.type === 'event'
@@ -416,7 +433,11 @@ export function Timeline({ filterByBook = true }: TimelineProps) {
                     {isRange ? (
                       <button
                         onClick={() => handleNavigateToVerse(entry.verseRef)}
-                        className={`absolute top-0.5 bottom-0.5 rounded-md border transition-colors cursor-pointer overflow-hidden flex items-center px-2 text-white ${barColorClasses}`}
+                        className={`absolute rounded-md border transition-colors cursor-pointer overflow-hidden flex items-center px-2 ${
+                          mentionSpan
+                            ? 'top-2 bottom-2 text-scripture-text/70'
+                            : 'top-0.5 bottom-0.5 text-white'
+                        } ${barColorClasses}`}
                         style={{
                           left: `${leftPct}%`,
                           width: `${Math.max(rightPct - leftPct, 2)}%`,
