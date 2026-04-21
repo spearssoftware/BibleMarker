@@ -286,7 +286,7 @@ checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
 name = "biblemarker"
-version = "1.6.3"
+version = "1.7.0-beta.3"
 dependencies = [
  "objc2",
  "objc2-foundation",
@@ -294,6 +294,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
