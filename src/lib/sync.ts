@@ -14,7 +14,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { isApplePlatform, isIOS } from './platform';
 import { getPreferences } from './database';
-import { parseVersion } from './updateCheck';
 import {
   initSyncEngine,
   stopSyncEngine,
@@ -107,16 +106,13 @@ export function onSyncStatusChange(listener: SyncStatusListener): () => void {
  * On Apple platforms, auto-detects iCloud Drive as the default sync folder.
  */
 /**
- * Determine whether sync should run. Dev and beta builds are gated off by
- * default so experimental code can't corrupt stable users' iCloud journals.
- * Users can override with the `forceSyncEnabled` debug flag in Settings.
+ * Determine whether sync should run. Dev builds are gated off by default so
+ * experimental code can't corrupt iCloud journals; the `forceSyncEnabled`
+ * debug flag overrides this. Release builds always sync.
  */
 async function isSyncAllowed(): Promise<{ allowed: boolean; reason?: string }> {
-  const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
   const isDev = import.meta.env.DEV;
-  const isBeta = parseVersion(version).prerelease !== null;
-
-  if (!isDev && !isBeta) return { allowed: true };
+  if (!isDev) return { allowed: true };
 
   try {
     const prefs = await getPreferences();
@@ -127,8 +123,7 @@ async function isSyncAllowed(): Promise<{ allowed: boolean; reason?: string }> {
     console.warn('[Sync] Failed to read forceSyncEnabled flag:', err);
   }
 
-  const label = isDev ? 'dev build' : 'beta build';
-  return { allowed: false, reason: label };
+  return { allowed: false, reason: 'dev build' };
 }
 
 export async function initializeSync(): Promise<void> {

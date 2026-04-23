@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseVersion, isNewer, isUpdateForChannel } from './updateCheck'
+import { parseVersion, isNewer } from './updateCheck'
 
 describe('parseVersion', () => {
   it('parses "1.2.3"', () => {
@@ -98,29 +98,3 @@ describe('isNewer', () => {
   })
 })
 
-describe('isUpdateForChannel', () => {
-  it('stable channel accepts newer stable versions', () => {
-    expect(isUpdateForChannel('1.5.4', '1.5.3', 'stable')).toBe(true)
-  })
-
-  it('stable channel rejects beta versions', () => {
-    expect(isUpdateForChannel('2.0.0-beta.1', '1.5.3', 'stable')).toBe(false)
-  })
-
-  it('beta channel accepts newer beta versions', () => {
-    expect(isUpdateForChannel('2.0.0-beta.1', '1.5.3', 'beta')).toBe(true)
-  })
-
-  it('beta channel accepts newer stable versions', () => {
-    expect(isUpdateForChannel('2.0.0', '2.0.0-beta.3', 'beta')).toBe(true)
-  })
-
-  it('beta channel rejects older versions', () => {
-    expect(isUpdateForChannel('1.5.3', '2.0.0-beta.1', 'beta')).toBe(false)
-  })
-
-  // Downgrade protection: beta user switches to stable
-  it('stable channel does not offer older stable to beta user', () => {
-    expect(isUpdateForChannel('1.5.4', '2.0.0-beta.3', 'stable')).toBe(false)
-  })
-})
