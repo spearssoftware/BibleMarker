@@ -52,8 +52,6 @@ export interface UserPreferences {
   autoBackup?: AutoBackupConfig;
   /** When false, app will not check GitHub for new releases (default true) */
   checkForUpdates?: boolean;
-  /** Update channel: 'stable' (default) or 'beta' for early access */
-  updateChannel?: 'stable' | 'beta';
   /** ISO date string of last update check (used to throttle to once per 24h) */
   lastUpdateCheck?: string;
   /** Last app version the user has seen the What's New popup for */
@@ -61,7 +59,7 @@ export interface UserPreferences {
   debug?: {
     keywordMatching?: boolean;
     verseText?: boolean;
-    /** Force-enable sync on dev/beta builds (normally gated off for safety) */
+    /** Force-enable sync on dev builds (normally gated off for safety) */
     forceSyncEnabled?: boolean;
   };
 }

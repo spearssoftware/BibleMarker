@@ -1,6 +1,5 @@
 /**
- * Update check: fetches GitHub releases on app startup.
- * Supports stable and beta update channels.
+ * Update check: fetches the latest GitHub release on app startup.
  * Respects preference checkForUpdates (default true).
  */
 
@@ -9,8 +8,6 @@ import { isAndroid, isIOS } from '@/lib/platform';
 
 const GITHUB_RELEASES_URL = 'https://api.github.com/repos/spearssoftware/BibleMarker/releases';
 const RELEASES_PAGE_URL = 'https://github.com/spearssoftware/BibleMarker/releases';
-
-export type UpdateChannel = 'stable' | 'beta';
 
 export interface ParsedVersion {
   major: number;
@@ -69,21 +66,11 @@ export function isNewer(a: string, b: string): boolean {
   return false;
 }
 
-/** Check if candidate is a valid update for the given channel. */
-export function isUpdateForChannel(candidate: string, current: string, channel: UpdateChannel): boolean {
-  const cv = parseVersion(candidate);
-  // Stable channel: only accept stable versions
-  if (channel === 'stable' && cv.prerelease !== null) return false;
-  return isNewer(candidate, current);
-}
-
 export interface UpdateCheckResult {
-  /** Newer version string (e.g. "0.6.0" or "2.0.0-beta.1") */
+  /** Newer version string (e.g. "0.6.0") */
   version: string;
-  /** URL to the releases page or specific release */
+  /** URL to the releases page */
   url: string;
-  /** Whether this is a prerelease */
-  isPrerelease: boolean;
 }
 
 export interface WhatsNewResult {
@@ -93,7 +80,6 @@ export interface WhatsNewResult {
 
 interface GithubRelease {
   tag_name?: string;
-  prerelease?: boolean;
   body?: string;
   html_url?: string;
 }
@@ -153,40 +139,10 @@ export async function fetchWhatsNew(): Promise<WhatsNewResult | null> {
   }
 }
 
-/**
- * Internal function to fetch and compare versions.
- * For stable channel: uses /releases/latest (GitHub excludes prereleases).
- * For beta channel: fetches recent releases and finds the highest version.
- */
-async function fetchAndCompareVersion(channel: UpdateChannel): Promise<UpdateCheckResult | null> {
+/** Internal: fetch /releases/latest and return a result if it's newer than the current version. */
+async function fetchAndCompareVersion(): Promise<UpdateCheckResult | null> {
   const currentVersion = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
 
-  if (channel === 'beta') {
-    const res = await fetch(`${GITHUB_RELEASES_URL}?per_page=10`, {
-      headers: { Accept: 'application/vnd.github.v3+json' },
-    });
-    if (!res.ok) return null;
-    const releases = (await res.json()) as GithubRelease[];
-
-    let best: { version: string; url: string; isPrerelease: boolean } | null = null;
-    for (const rel of releases) {
-      if (!rel.tag_name) continue;
-      const ver = rel.tag_name.replace(/^app-v?/i, '').replace(/^v/i, '').trim();
-      if (!isUpdateForChannel(ver, currentVersion, 'beta')) continue;
-      if (!best || isNewer(ver, best.version)) {
-        best = {
-          version: ver,
-          url: rel.html_url || RELEASES_PAGE_URL,
-          isPrerelease: rel.prerelease ?? false,
-        };
-      }
-    }
-
-    await updatePreferences({ lastUpdateCheck: new Date().toISOString() });
-    return best;
-  }
-
-  // Stable channel: existing behavior
   const res = await fetch(`${GITHUB_RELEASES_URL}/latest`, {
     headers: { Accept: 'application/vnd.github.v3+json' },
   });
@@ -200,14 +156,14 @@ async function fetchAndCompareVersion(channel: UpdateChannel): Promise<UpdateChe
   await updatePreferences({ lastUpdateCheck: new Date().toISOString() });
 
   if (isNewer(latestVersion, currentVersion)) {
-    return { version: latestVersion, url: RELEASES_PAGE_URL, isPrerelease: false };
+    return { version: latestVersion, url: RELEASES_PAGE_URL };
   }
   return null;
 }
 
 /**
  * Check for a new release on GitHub on every startup.
- * Respects the checkForUpdates and updateChannel preferences.
+ * Respects the checkForUpdates preference.
  */
 export async function checkForUpdateIfDue(): Promise<UpdateCheckResult | null> {
   if (isAndroid() || isIOS()) return null;
@@ -216,10 +172,8 @@ export async function checkForUpdateIfDue(): Promise<UpdateCheckResult | null> {
     return null;
   }
 
-  const channel: UpdateChannel = prefs.updateChannel ?? 'stable';
-
   try {
-    return await fetchAndCompareVersion(channel);
+    return await fetchAndCompareVersion();
   } catch {
     await updatePreferences({ lastUpdateCheck: new Date().toISOString() });
   }
@@ -263,15 +217,12 @@ export async function fetchWhatsNewForced(): Promise<WhatsNewResult | null> {
 /**
  * Manually check for updates, bypassing the 24-hour throttle.
  * Use this when the user explicitly requests an update check.
- * Returns the newer version and releases URL if one exists, otherwise null.
  */
 export async function checkForUpdateNow(): Promise<UpdateCheckResult | null> {
   if (isAndroid() || isIOS()) return null;
-  const prefs = await getPreferences();
-  const channel: UpdateChannel = prefs.updateChannel ?? 'stable';
 
   try {
-    return await fetchAndCompareVersion(channel);
+    return await fetchAndCompareVersion();
   } catch {
     // Network or parse error: still record that we tried
     await updatePreferences({ lastUpdateCheck: new Date().toISOString() });
