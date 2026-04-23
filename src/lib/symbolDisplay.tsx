@@ -197,14 +197,13 @@ export function getSymbolMarkup(symbol: SymbolKey | string, color?: string): str
   let svg = svgCache.get(resolved);
   if (svg === undefined) {
     const { Icon, weight } = spec;
-    // Render at 1.4em so the glyph reads clearly but doesn't overpower short words like "Me".
-    svg = renderToStaticMarkup(<Icon size="1.4em" weight={weight ?? 'fill'} />);
+    svg = renderToStaticMarkup(<Icon size="1.8em" weight={weight ?? 'duotone'} />);
     svgCache.set(resolved, svg);
   }
+  const baseStyle = 'opacity:0.85;display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%';
   if (color) {
-    // Inject fill color — Phosphor SVGs use currentColor by default, so wrapping with color works.
-    return `<span style="color:${color};display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%">${svg}</span>`;
+    return `<span style="color:${color};${baseStyle}">${svg}</span>`;
   }
-  return svg;
+  return `<span style="${baseStyle}">${svg}</span>`;
 }
 
