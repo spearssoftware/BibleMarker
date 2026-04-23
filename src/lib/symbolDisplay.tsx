@@ -196,8 +196,8 @@ export function getSymbolMarkup(symbol: SymbolKey | string, color?: string): str
 
   let svg = svgCache.get(resolved);
   if (svg === undefined) {
-    const { Icon, weight } = spec;
-    svg = renderToStaticMarkup(<Icon size="1.8em" weight={weight ?? 'duotone'} />);
+    const { Icon } = spec;
+    svg = renderToStaticMarkup(<Icon size="1.8em" weight="duotone" />);
     svgCache.set(resolved, svg);
   }
   const baseStyle = 'opacity:0.85;display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%';
