@@ -16,109 +16,108 @@ type PhosphorIcon = ComponentType<IconProps>;
 
 interface IconSpec {
   Icon: PhosphorIcon;
-  weight?: IconProps['weight'];
 }
 
 const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   // Identity & deity
-  triangle: { Icon: Triangle, weight: 'fill' },
-  cross: { Icon: Cross, weight: 'fill' },
-  dove: { Icon: Bird, weight: 'fill' },
-  flame: { Icon: Flame, weight: 'fill' },
-  angel: { Icon: PersonArmsSpread, weight: 'fill' },
-  lamb: { Icon: Circle, weight: 'fill' },
-  anchor: { Icon: Anchor, weight: 'fill' },
-  cloud: { Icon: Cloud, weight: 'fill' },
+  triangle: { Icon: Triangle },
+  cross: { Icon: Cross },
+  dove: { Icon: Bird },
+  flame: { Icon: Flame },
+  angel: { Icon: PersonArmsSpread },
+  lamb: { Icon: Circle },
+  anchor: { Icon: Anchor },
+  cloud: { Icon: Cloud },
 
   // People & relationships
-  person: { Icon: Person, weight: 'fill' },
-  peopleGroup: { Icon: UsersThree, weight: 'fill' },
-  crown: { Icon: Crown, weight: 'fill' },
-  prayer: { Icon: HandsPraying, weight: 'fill' },
+  person: { Icon: Person },
+  peopleGroup: { Icon: UsersThree },
+  crown: { Icon: Crown },
+  prayer: { Icon: HandsPraying },
 
   // Obedience & freedom
-  obey: { Icon: ThumbsUp, weight: 'fill' },
-  chains: { Icon: Link, weight: 'bold' },
-  liberty: { Icon: LinkBreak, weight: 'bold' },
+  obey: { Icon: ThumbsUp },
+  chains: { Icon: Link },
+  liberty: { Icon: LinkBreak },
 
   // Concepts & themes
-  star: { Icon: Star, weight: 'fill' },
-  heart: { Icon: Heart, weight: 'fill' },
-  lightning: { Icon: Lightning, weight: 'fill' },
-  gavel: { Icon: Gavel, weight: 'fill' },
-  skull: { Icon: Skull, weight: 'fill' },
-  sin: { Icon: ArrowFatDown, weight: 'fill' },
-  shield: { Icon: Shield, weight: 'fill' },
-  scales: { Icon: Scales, weight: 'fill' },
-  key: { Icon: Key, weight: 'fill' },
-  sun: { Icon: Sun, weight: 'fill' },
-  moon: { Icon: Moon, weight: 'fill' },
-  lamp: { Icon: Lamp, weight: 'fill' },
-  cup: { Icon: PintGlass, weight: 'fill' },
-  sword: { Icon: Sword, weight: 'fill' },
-  vine: { Icon: Plant, weight: 'fill' },
-  bread: { Icon: Bread, weight: 'fill' },
-  rock: { Icon: Mountains, weight: 'fill' },
-  door: { Icon: Door, weight: 'fill' },
-  harvest: { Icon: Farm, weight: 'fill' },
-  fruit: { Icon: Cherries, weight: 'fill' },
-  warning: { Icon: Warning, weight: 'fill' },
-  joy: { Icon: Smiley, weight: 'fill' },
-  peace: { Icon: Peace, weight: 'fill' },
-  mercy: { Icon: HandHeart, weight: 'fill' },
-  wisdom: { Icon: Lightbulb, weight: 'fill' },
-  repentance: { Icon: ArrowUUpLeft, weight: 'bold' },
-  praise: { Icon: MusicNotes, weight: 'fill' },
-  glory: { Icon: Sparkle, weight: 'fill' },
+  star: { Icon: Star },
+  heart: { Icon: Heart },
+  lightning: { Icon: Lightning },
+  gavel: { Icon: Gavel },
+  skull: { Icon: Skull },
+  sin: { Icon: ArrowFatDown },
+  shield: { Icon: Shield },
+  scales: { Icon: Scales },
+  key: { Icon: Key },
+  sun: { Icon: Sun },
+  moon: { Icon: Moon },
+  lamp: { Icon: Lamp },
+  cup: { Icon: PintGlass },
+  sword: { Icon: Sword },
+  vine: { Icon: Plant },
+  bread: { Icon: Bread },
+  rock: { Icon: Mountains },
+  door: { Icon: Door },
+  harvest: { Icon: Farm },
+  fruit: { Icon: Cherries },
+  warning: { Icon: Warning },
+  joy: { Icon: Smiley },
+  peace: { Icon: Peace },
+  mercy: { Icon: HandHeart },
+  wisdom: { Icon: Lightbulb },
+  repentance: { Icon: ArrowUUpLeft },
+  praise: { Icon: MusicNotes },
+  glory: { Icon: Sparkle },
 
   // Scripture & teaching
-  scroll: { Icon: Scroll, weight: 'fill' },
-  book: { Icon: BookOpen, weight: 'fill' },
-  tablet: { Icon: Article, weight: 'fill' },
+  scroll: { Icon: Scroll },
+  book: { Icon: BookOpen },
+  tablet: { Icon: Article },
 
   // Time & place
-  clock: { Icon: Clock, weight: 'fill' },
-  calendar: { Icon: Calendar, weight: 'fill' },
-  hourglass: { Icon: Hourglass, weight: 'fill' },
-  arrowRight: { Icon: ArrowRight, weight: 'bold' },
-  arrowLeft: { Icon: ArrowLeft, weight: 'bold' },
-  doubleArrow: { Icon: ArrowsLeftRight, weight: 'bold' },
+  clock: { Icon: Clock },
+  calendar: { Icon: Calendar },
+  hourglass: { Icon: Hourglass },
+  arrowRight: { Icon: ArrowRight },
+  arrowLeft: { Icon: ArrowLeft },
+  doubleArrow: { Icon: ArrowsLeftRight },
 
   // Geography
-  mapPin: { Icon: MapPin, weight: 'fill' },
-  mountain: { Icon: Mountains, weight: 'fill' },
-  nationLand: { Icon: MapTrifold, weight: 'fill' },
-  globe: { Icon: Globe, weight: 'fill' },
-  tree: { Icon: Tree, weight: 'fill' },
-  river: { Icon: Waves, weight: 'bold' },
-  house: { Icon: House, weight: 'fill' },
-  temple: { Icon: Synagogue, weight: 'fill' },
-  church: { Icon: Church, weight: 'fill' },
-  city: { Icon: Buildings, weight: 'fill' },
+  mapPin: { Icon: MapPin },
+  mountain: { Icon: Mountains },
+  nationLand: { Icon: MapTrifold },
+  globe: { Icon: Globe },
+  tree: { Icon: Tree },
+  river: { Icon: Waves },
+  house: { Icon: House },
+  temple: { Icon: Synagogue },
+  church: { Icon: Church },
+  city: { Icon: Buildings },
 
   // Actions & states
-  water: { Icon: Drop, weight: 'fill' },
-  fire: { Icon: Fire, weight: 'fill' },
-  check: { Icon: Check, weight: 'bold' },
-  x: { Icon: X, weight: 'bold' },
-  hand: { Icon: Hand, weight: 'fill' },
-  eye: { Icon: Eye, weight: 'fill' },
-  mouth: { Icon: SpeakerHigh, weight: 'fill' },
-  ear: { Icon: Ear, weight: 'fill' },
-  megaphone: { Icon: Megaphone, weight: 'fill' },
-  foot: { Icon: Footprints, weight: 'fill' },
+  water: { Icon: Drop },
+  fire: { Icon: Fire },
+  check: { Icon: Check },
+  x: { Icon: X },
+  hand: { Icon: Hand },
+  eye: { Icon: Eye },
+  mouth: { Icon: SpeakerHigh },
+  ear: { Icon: Ear },
+  megaphone: { Icon: Megaphone },
+  foot: { Icon: Footprints },
 
   // Shapes
-  circle: { Icon: Circle, weight: 'fill' },
-  square: { Icon: Square, weight: 'fill' },
-  diamond: { Icon: Diamond, weight: 'fill' },
-  hexagon: { Icon: Hexagon, weight: 'fill' },
-  plus: { Icon: Plus, weight: 'bold' },
-  minus: { Icon: Minus, weight: 'bold' },
+  circle: { Icon: Circle },
+  square: { Icon: Square },
+  diamond: { Icon: Diamond },
+  hexagon: { Icon: Hexagon },
+  plus: { Icon: Plus },
+  minus: { Icon: Minus },
 
   // Punctuation
-  question: { Icon: Question, weight: 'bold' },
-  asterisk: { Icon: Asterisk, weight: 'bold' },
+  question: { Icon: Question },
+  asterisk: { Icon: Asterisk },
 };
 
 const TEXT_FALLBACK: Partial<Record<SymbolKey, string>> = {
@@ -161,8 +160,8 @@ export function SymbolIcon({
 
   const spec = ICON_MAP[resolved];
   if (spec) {
-    const { Icon, weight } = spec;
-    return <Icon size={size} weight={weight ?? 'fill'} color={color} className={className} />;
+    const { Icon } = spec;
+    return <Icon size={size} weight="duotone" color={color} className={className} />;
   }
 
   const text = TEXT_FALLBACK[resolved];
@@ -196,15 +195,14 @@ export function getSymbolMarkup(symbol: SymbolKey | string, color?: string): str
 
   let svg = svgCache.get(resolved);
   if (svg === undefined) {
-    const { Icon, weight } = spec;
-    // Render at 1.2em so the glyph reads clearly but doesn't overpower short words like "Me".
-    svg = renderToStaticMarkup(<Icon size="1.2em" weight={weight ?? 'fill'} />);
+    const { Icon } = spec;
+    svg = renderToStaticMarkup(<Icon size="1.8em" weight="duotone" />);
     svgCache.set(resolved, svg);
   }
+  const baseStyle = 'opacity:0.85;display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%';
   if (color) {
-    // Inject fill color — Phosphor SVGs use currentColor by default, so wrapping with color works.
-    return `<span style="color:${color};display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%">${svg}</span>`;
+    return `<span style="color:${color};${baseStyle}">${svg}</span>`;
   }
-  return svg;
+  return `<span style="${baseStyle}">${svg}</span>`;
 }
 
