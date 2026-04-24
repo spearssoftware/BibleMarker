@@ -239,4 +239,3 @@ Then re-merge or manually create the tag on the desired commit.
 After merging a release PR, monitor at:
 - https://github.com/spearssoftware/BibleMarker/actions
 - https://github.com/spearssoftware/BibleMarker/releases
-
