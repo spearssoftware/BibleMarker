@@ -18,7 +18,6 @@ if (!tag) {
   console.error('Usage: node scripts/create-latest-json.js <tag> [version]');
   process.exit(1);
 }
-const isBeta = version.includes('-');
 
 const PLATFORM_PATTERNS = [
   { pattern: /BibleMarker-darwin-aarch64\.app\.tar\.gz$/i, key: 'darwin-aarch64' },
@@ -71,13 +70,12 @@ try {
     platforms,
   };
 
-  const fileName = isBeta ? 'beta.json' : 'latest.json';
-  const outputPath = join(tmpDir, fileName);
+  const outputPath = join(tmpDir, 'latest.json');
   writeFileSync(outputPath, JSON.stringify(latest, null, 2));
   execSync(`gh release upload "${tag}" "${outputPath}" --clobber --repo spearssoftware/BibleMarker`, {
     stdio: 'inherit',
   });
-  console.log(`Uploaded ${fileName}`);
+  console.log('Uploaded latest.json');
 } finally {
   rmSync(tmpDir, { recursive: true });
 }

@@ -21,12 +21,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -z "$BUMP_TYPE" ]; then
-  echo "Usage: pnpm run release -- <major|minor|patch|beta> [--notes \"User-facing notes\"]"
+  echo "Usage: pnpm run release -- <major|minor|patch> [--notes \"User-facing notes\"]"
   exit 1
 fi
 
-if [[ "$BUMP_TYPE" != "major" && "$BUMP_TYPE" != "minor" && "$BUMP_TYPE" != "patch" && "$BUMP_TYPE" != "beta" ]]; then
-  echo "Error: argument must be major, minor, patch, or beta"
+if [[ "$BUMP_TYPE" != "major" && "$BUMP_TYPE" != "minor" && "$BUMP_TYPE" != "patch" ]]; then
+  echo "Error: argument must be major, minor, or patch"
   exit 1
 fi
 
@@ -56,26 +56,17 @@ fi
 
 IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_BASE"
 
-case "$BUMP_TYPE" in
-  major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0; PRERELEASE="" ;;
-  minor) MINOR=$((MINOR + 1)); PATCH=0; PRERELEASE="" ;;
-  patch) PATCH=$((PATCH + 1)); PRERELEASE="" ;;
-  beta)
-    if [[ "$CURRENT_PRE" == beta.* ]]; then
-      # Already a beta: bump the beta number
-      BETA_N="${CURRENT_PRE#beta.}"
-      PRERELEASE="beta.$((BETA_N + 1))"
-    else
-      # Stable version: bump minor and start beta.1
-      MINOR=$((MINOR + 1)); PATCH=0
-      PRERELEASE="beta.1"
-    fi
-    ;;
-esac
-
-if [ -n "$PRERELEASE" ]; then
-  NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}-${PRERELEASE}"
+# If the current version is a prerelease, finalize it at the same base rather
+# than bumping further — matches npm's "version patch" semantics. Users wanting
+# a bigger bump can run another release command after finalizing.
+if [ -n "$CURRENT_PRE" ]; then
+  NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
 else
+  case "$BUMP_TYPE" in
+    major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+    minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+    patch) PATCH=$((PATCH + 1)) ;;
+  esac
   NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
 fi
 BRANCH_NAME="release/v${NEW_VERSION}"
