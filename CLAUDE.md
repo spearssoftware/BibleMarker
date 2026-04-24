@@ -224,7 +224,7 @@ pnpm run release -- patch --notes "- Bullet one\n- Bullet two"   # prepend What'
 Prefer `--notes` over editing the draft on GitHub after the fact — the script waits for CI and prepends the `## What's New` section for you. Pitfalls:
 - `--notes` requires a string argument immediately after it. An empty value silently fails under `set -euo pipefail`.
 - The script aborts on uncommitted changes — commit `Cargo.lock` and `project.yml` from dev builds first.
-- If the current version is a prerelease (e.g. `1.7.0-beta.4`), any bump finalizes it at the same base (`1.7.0`) rather than incrementing further — matches npm semantics.
+- From a prerelease (e.g. `1.7.0-beta.4`): `patch` finalizes at the same base (`1.7.0`) — npm semantics — while `minor`/`major` still increment from the base (`1.8.0` / `2.0.0`).
 - Every release publishes a single `latest.json` manifest consumed by the Tauri updater.
 
 The script creates a `release/vX.Y.Z` branch with the version bump, pushes it, and opens a PR. When the PR is merged, the `release-tag` workflow automatically creates the `app-vX.Y.Z` tag, which triggers the publish workflow and creates a draft GitHub Release.
