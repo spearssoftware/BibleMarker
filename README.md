@@ -3,58 +3,75 @@
 [![CI](https://github.com/spearssoftware/BibleMarker/actions/workflows/ci.yml/badge.svg)](https://github.com/spearssoftware/BibleMarker/actions/workflows/ci.yml)
 [![Security](https://github.com/spearssoftware/BibleMarker/actions/workflows/security.yml/badge.svg)](https://github.com/spearssoftware/BibleMarker/actions/workflows/security.yml)
 
-Bible study built on the precepts of inductive study — observation, interpretation, and application. Mark, annotate, and analyze Scripture with powerful study tools.
+BibleMarker is a local-first Bible study app built for inductive study: mark key words, capture observations, organize notes, and trace connections through Scripture without losing your place.
 
-**Website:** [biblemarker.app](https://biblemarker.app)
+**Website:** [biblemarker.app](https://biblemarker.app)  
+**iOS:** [Download on the App Store](https://apps.apple.com/us/app/biblemarker/id6759001361)
 
-![BibleMarker Screenshot](./public/biblemarker-screenshot-202603.png)
+<p align="center">
+  <img src="./docs/app-store-screenshots/ipad-13-01-mark-scripture.png" alt="BibleMarker showing marked Scripture with chapter titles and section headings" width="900">
+</p>
+
+## Screenshots
+
+<table>
+  <tr>
+    <td><img src="./docs/app-store-screenshots/iphone-6.9-01-mark-scripture.png" alt="Mark Scripture" width="220"></td>
+    <td><img src="./docs/app-store-screenshots/iphone-6.9-02-observe-connections.png" alt="Observe connections" width="220"></td>
+    <td><img src="./docs/app-store-screenshots/iphone-6.9-03-analyze.png" alt="Analyze a chapter" width="220"></td>
+    <td><img src="./docs/app-store-screenshots/iphone-6.9-04-reference.png" alt="Reference people and places" width="220"></td>
+  </tr>
+  <tr>
+    <td><strong>Mark Scripture</strong></td>
+    <td><strong>Observe Connections</strong></td>
+    <td><strong>Analyze Passages</strong></td>
+    <td><strong>Build References</strong></td>
+  </tr>
+</table>
 
 ## Features
 
-### 📖 Bible Reading
-- **Multiple Translations**: NASB 2020 and NASB 1995 bundled. Additional translations available via downloadable SWORD modules or an ESV API key
-- **Fully Offline**: SWORD modules are stored locally—no internet required after download
-- **Multi-Translation View**: Compare up to 3 translations side-by-side with synchronized scrolling
+### 📖 Read and compare Scripture
+- **NASB 2020 and NASB 1995 bundled**: Start studying right away with no extra setup
+- **More translations**: Download additional SWORD modules or connect an optional ESV API key
+- **Offline-first reading**: Keep downloaded translations available without an internet connection
+- **Multi-translation view**: Compare up to 3 translations side-by-side with synchronized scrolling
 - **Strong's Numbers**: Look up original Hebrew and Greek definitions from the text selection menu
 
-### ✏️ Text Marking & Annotation
-- **Flexible Highlighting**: Mark text with colors, underline styles, and custom symbols
-- **Keyword System**: Create reusable keyword presets with automatic matching across translations
-- **Case-Sensitive Keywords**: Match exact casing when needed (e.g. "LORD" vs "Lord")
-- **Dismiss Auto-Matches**: Hide false positives from automatic keyword matching, with undo support
-- **Smart Suggestions**: Previously used markings suggested for repeated words
+### ✏️ Mark the text as you study
+- **Flexible markings**: Apply colors, underline styles, and custom symbols to words and phrases
+- **Keyword presets**: Reuse markings and automatically highlight matching words across visible translations
+- **Precise matching**: Use case-sensitive keywords when distinctions matter, such as `LORD` and `Lord`
+- **False-positive control**: Dismiss unwanted auto-matches with undo support
+- **Chapter titles and section headings**: Add your own structure to help remember the flow of a passage
 - **Notes**: Add markdown-supported notes to any verse
-- **Section Headings & Chapter Titles**: Create custom structure and organization
 
-### 🔍 Inductive Bible Study Tools
-- **Observation Tools**:
-  - Track places, people, and times—with optional book scope
-  - Identify contrasts and conclusions
-  - Mark themes throughout passages
-  - 5 W's and H (Who, What, When, Where, Why, How)
-- **Interpretation Worksheet**: Explore what the text means
-- **Application Worksheet**: Record personal applications
-- **Lists**: Create custom lists to track any concept
-- **Interactive Maps**: View places on an OpenFreeMap map with English labels
+### 🔍 Observe, analyze, and apply
+- **Observation tools**: Track people, places, times, contrasts, conclusions, themes, and 5 W's/H observations
+- **Custom lists**: Create lists for repeated ideas, commands, promises, questions, or anything else you want to trace
+- **Chapter analysis**: Record chapter titles, themes, structure, and study notes in one place
+- **Interpretation worksheet**: Work through what the text means
+- **Application worksheet**: Capture personal application without mixing it into your observation notes
+- **Reference view**: Review people, places, keywords, Strong's entries, and cross references while you study
 
-### 📚 Study Management
-- **Study System**: Organize keywords and markings by study
-- **Book-Scoped Keywords**: Limit keywords to specific books for focused study
-- **Book-Scoped People & Places**: Scope observation entries to specific books
-- **Clear Book Highlights**: Start fresh on any book while preserving your data structure
+### 📚 Organize focused studies
+- **Study system**: Keep keywords, markings, and observations organized by study
+- **Book-scoped keywords**: Limit keywords to specific books for focused studies
+- **Book-scoped people and places**: Scope observation entries where they belong
+- **Clear book highlights**: Start fresh on a book while preserving your reusable study structure
 
-### 💾 Data Management
-- **Automatic Backups**: Configurable auto-backup system with retention policies
-- **Import/Export**: Full backup and restore capabilities
-- **Study Export**: Export formatted study notes with all observations and applications
-- **Local Storage**: All data stored locally in SQLite—no cloud required
-- **iCloud Sync**: Optionally sync study data between macOS and iOS via iCloud
+### 💾 Own your study data
+- **Local storage**: Your study data lives locally in SQLite
+- **Automatic backups**: Configure backup frequency and retention
+- **Import/export**: Restore or move your full BibleMarker data when needed
+- **Study export**: Export formatted study notes with observations and applications
+- **iCloud sync**: Optionally sync study data between macOS and iOS through iCloud Documents
 
-### ⚡ User Experience
-- **Keyboard Shortcuts**: Navigate efficiently with arrow keys, J/K navigation, and toolbar shortcuts
-- **Dark/Light Themes**: Choose dark, light, or auto (follows OS preference)
-- **Scripture Fonts**: Choose from multiple scripture fonts in Appearance settings
-- **Native App**: Runs natively on macOS, Windows, Linux, and iOS via Tauri
+### ⚡ Built for daily use
+- **Native app**: Runs on macOS, Windows, Linux, and iOS through Tauri
+- **Keyboard shortcuts**: Navigate with arrow keys, J/K, chapter shortcuts, search, and marking hotkeys
+- **Appearance options**: Choose dark, light, or system theme and select from multiple scripture fonts
+- **Touch-friendly workflow**: Use the bottom toolbar on iPhone and iPad for Mark, Observe, Analyze, Reference, and Settings
 
 ## Download & Installation
 
