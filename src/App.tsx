@@ -110,7 +110,7 @@ export default function App() {
     
     // Active view is needed for first render
     loadActiveView();
-  }, [setFontSize, loadActiveView]);
+  }, [setFontSize, loadActiveView, loadExclusions]);
 
   // Deferred initialization: non-critical work after first render
   useEffect(() => {

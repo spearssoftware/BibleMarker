@@ -24,6 +24,7 @@ import { BibleApiError } from './types';
 import type { VerseRef } from '@/types';
 import { getBookById, getVerseCount, getBookVerseCount, countVersesInRange } from '@/types';
 import { getEsvRateLimitState, saveEsvRateLimitState } from '@/lib/database';
+import { getDebugFlagsSync } from '@/lib/debug';
 
 const ESV_BASE_URL = 'https://api.esv.org/v3/passage';
 
@@ -225,11 +226,10 @@ export class EsvClient implements BibleApiClient {
     const fullText = response.passages[0] || '';
     const verses: VerseResponse[] = [];
     
-    // Debug: Log ESV parsing for Jeremiah 29 when debug flags are enabled
-    // Note: We can't check debug flags here since this is in the API layer
-    // This will only log if called from a context where debug is enabled
-    const isESVDebug = book === 'Jer' && chapter === 29;
-    if (isESVDebug && typeof window !== 'undefined' && (window as Window & { __ESV_DEBUG__?: boolean }).__ESV_DEBUG__) {
+    // Debug: Log ESV parsing for Jeremiah 29 when debug flags are enabled.
+    const debugFlags = getDebugFlagsSync();
+    const isESVDebug = (debugFlags.keywordMatching || debugFlags.verseText) && book === 'Jer' && chapter === 29;
+    if (isESVDebug) {
       console.log(`%c[ESV DEBUG] ========== Parsing ${book} ${chapter} ==========`, 'color: green; font-weight: bold; font-size: 16px;');
       console.log(`[ESV DEBUG] Full text length: ${fullText.length}`);
       console.log(`[ESV DEBUG] First 500 chars:`, fullText.substring(0, 500));
