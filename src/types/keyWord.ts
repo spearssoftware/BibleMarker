@@ -210,6 +210,8 @@ export const PRESET_KEY_WORDS: Partial<MarkingPreset>[] = [
   { word: 'therefore', variants: normalizeVariants(['thus', 'so', 'for this reason', 'because of this']), symbol: 'arrowRight', highlight: { style: 'highlight', color: 'orange' }, category: 'conclusions', description: 'Conclusion markers', autoSuggest: true },
   { word: 'love', variants: normalizeVariants(['loved', 'loves', 'loving']), symbol: 'heart', highlight: { style: 'highlight', color: 'pink' }, category: 'themes', description: 'Love-related terms', autoSuggest: true },
   { word: 'faith', variants: normalizeVariants(['believe', 'believed', 'believes', 'believing', 'trust']), symbol: 'shield', highlight: { style: 'highlight', color: 'blue' }, category: 'themes', description: 'Faith and belief', autoSuggest: true },
+  { word: 'forgive', variants: normalizeVariants(['forgiven', 'forgives', 'forgiving', 'forgiveness']), symbol: 'mercy', highlight: { style: 'highlight', color: 'orange' }, category: 'themes', description: 'Forgiveness and mercy', autoSuggest: true },
+  { word: 'praise', variants: normalizeVariants(['praised', 'praises', 'praising', 'hallelujah', 'worship']), symbol: 'praise', highlight: { style: 'highlight', color: 'yellow' }, category: 'themes', description: 'Praise and worship', autoSuggest: true },
 ];
 
 /** An exclusion record that suppresses a specific auto-matched keyword in a verse */

@@ -167,7 +167,7 @@ export function SymbolIcon({
   const text = TEXT_FALLBACK[resolved];
   if (text) {
     return (
-      <span className={className} style={{ color, fontSize: size }}>
+      <span className={className} style={{ color, fontSize: '1.8em', fontWeight: 600, lineHeight: 1 }}>
         {text}
       </span>
     );
@@ -187,7 +187,10 @@ export function getSymbolMarkup(symbol: SymbolKey | string, color?: string): str
     const safe = text.replace(/[&<>"']/g, (c) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
     );
-    return color ? `<span style="color:${color}">${safe}</span>` : safe;
+    const letterStyle = 'font-size:1.8em;font-weight:600;line-height:1';
+    return color
+      ? `<span style="color:${color};${letterStyle}">${safe}</span>`
+      : `<span style="${letterStyle}">${safe}</span>`;
   }
 
   const spec = ICON_MAP[resolved];
