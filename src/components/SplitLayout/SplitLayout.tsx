@@ -16,7 +16,6 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
 
   const showPanel = activePanel && !isCollapsed && panel;
   const isHorizontal = orientation === 'horizontal';
-  const isVerticalSplit = !isHorizontal && showPanel;
 
   // Measure container — reads orientation from store directly so the observer is stable
   useEffect(() => {
@@ -48,46 +47,47 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
 
   return (
     <div
-      ref={containerRef}
-      className={`flex-1 min-h-0 flex ${isHorizontal ? 'flex-row' : 'flex-col'}`}
+      className="flex-1 min-h-0 flex flex-col"
+      style={{ paddingBottom: TOOLBAR_PADDING }}
     >
       <div
-        className="relative min-h-0 min-w-0 shrink-0"
-        style={{
-          ...scriptureSizeStyle,
-          flex: scriptureSizeStyle ? undefined : '1 0 0%',
-        }}
+        ref={containerRef}
+        className={`flex-1 min-h-0 flex ${isHorizontal ? 'flex-row' : 'flex-col'}`}
       >
         <div
-          className="absolute inset-0 overflow-hidden flex flex-col pl-safe-left pr-safe-right"
-          style={{ paddingBottom: isVerticalSplit ? undefined : TOOLBAR_PADDING }}
-          role="main"
-          aria-label="Bible reading area"
+          className="relative min-h-0 min-w-0 shrink-0"
+          style={{
+            ...scriptureSizeStyle,
+            flex: scriptureSizeStyle ? undefined : '1 0 0%',
+          }}
         >
-          {children}
-        </div>
-      </div>
-
-      {showPanel && (
-        <>
-          <SplitDivider containerRef={containerRef} />
-
           <div
-            className="relative min-h-0 min-w-0 shrink-0"
-            style={{
-              ...panelSizeStyle,
-              transition: isDragging ? undefined : isHorizontal ? 'width 300ms ease-out' : 'height 300ms ease-out',
-            }}
+            className="absolute inset-0 overflow-hidden flex flex-col pl-safe-left pr-safe-right"
+            role="main"
+            aria-label="Bible reading area"
           >
-            <div
-              className="absolute inset-0 overflow-hidden flex flex-col pr-safe-right"
-              style={{ paddingBottom: TOOLBAR_PADDING }}
-            >
-              {panel}
-            </div>
+            {children}
           </div>
-        </>
-      )}
+        </div>
+
+        {showPanel && (
+          <>
+            <SplitDivider containerRef={containerRef} />
+
+            <div
+              className="relative min-h-0 min-w-0 shrink-0"
+              style={{
+                ...panelSizeStyle,
+                transition: isDragging ? undefined : isHorizontal ? 'width 300ms ease-out' : 'height 300ms ease-out',
+              }}
+            >
+              <div className="absolute inset-0 overflow-hidden flex flex-col pr-safe-right">
+                {panel}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
