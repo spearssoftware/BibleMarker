@@ -7,10 +7,10 @@ const TAP_THRESHOLD_PX = 5;
 const TAP_TIMEOUT_MS = 300;
 const SNAP_TOLERANCE = 0.01;
 
-// Order matters: tap from a non-snap position goes to SNAP_CYCLE[0], then
-// each subsequent tap advances. With [0.5, 0.25, 0.75], the sequence is
-// even split → panel grows → panel shrinks → wraps back to even.
-const SNAP_CYCLE = [0.5, 0.25, 0.75];
+// Tap snap points. First tap from any non-snap position goes to SNAP_CYCLE[0];
+// subsequent taps ping-pong between entries. Kept to two positions so a tap
+// can never shrink the panel to a near-invisible strip.
+const SNAP_CYCLE = [0.5, 0.25];
 
 function nextSnap(current: number): number {
   const idx = SNAP_CYCLE.findIndex((p) => Math.abs(current - p) < SNAP_TOLERANCE);
