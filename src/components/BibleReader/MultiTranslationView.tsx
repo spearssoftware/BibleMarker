@@ -256,6 +256,16 @@ export function MultiTranslationView() {
     }
   }, [activeView, currentModuleId, addTranslation]);
 
+  // Reset scroll to top when chapter changes (arrows, swipe).
+  // Verse-anchor scrolls (highlightVerse, cross-ref jumps) run after a short
+  // delay and override this with scrollIntoView, so they still land correctly.
+  useEffect(() => {
+    const el = verseContainerRef.current;
+    if (!el) return;
+    const raf = requestAnimationFrame(() => { el.scrollTop = 0; });
+    return () => cancelAnimationFrame(raf);
+  }, [currentBook, currentChapter]);
+
   useEffect(() => {
     // Reset loading refs when book/chapter changes
     const key = `${currentBook}-${currentChapter}`;

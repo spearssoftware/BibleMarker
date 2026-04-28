@@ -1,6 +1,11 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { usePanelStore } from '@/stores/panelStore';
 
+const MIN_RATIO = 0.05;
+const MAX_RATIO = 0.95;
+const TAP_THRESHOLD_PX = 5;
+const TAP_TIMEOUT_MS = 300;
+
 interface SplitDividerProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -27,37 +32,49 @@ export function SplitDivider({ containerRef }: SplitDividerProps) {
     if (containerSize === 0) return;
 
     const startPos = isHorizontal ? e.clientX : e.clientY;
+    const startTime = Date.now();
     const startRatio = splitRatio;
-
-    setDragging(true);
+    let movedEnough = false;
 
     const onPointerMove = (moveEvent: PointerEvent) => {
       const currentPos = isHorizontal ? moveEvent.clientX : moveEvent.clientY;
       const delta = currentPos - startPos;
-      const newRatio = Math.min(0.75, Math.max(0.25, startRatio + delta / containerSize));
+      if (!movedEnough) {
+        if (Math.abs(delta) <= TAP_THRESHOLD_PX) return;
+        movedEnough = true;
+        setDragging(true);
+      }
+      const newRatio = Math.min(MAX_RATIO, Math.max(MIN_RATIO, startRatio + delta / containerSize));
       setSplitRatio(newRatio);
     };
 
-    const onPointerUp = () => {
+    const cleanup = () => {
       setDragging(false);
       document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerup', onPointerUp);
+      document.removeEventListener('pointercancel', cleanup);
+    };
+
+    const onPointerUp = () => {
+      const elapsed = Date.now() - startTime;
+      if (!movedEnough && elapsed < TAP_TIMEOUT_MS) {
+        // Tap: toggle 50% ↔ previous ratio
+        if (Math.abs(splitRatio - 0.5) < 0.001) {
+          if (prevRatioRef.current !== null) {
+            setSplitRatio(prevRatioRef.current);
+          }
+        } else {
+          prevRatioRef.current = splitRatio;
+          setSplitRatio(0.5);
+        }
+      }
+      cleanup();
     };
 
     document.addEventListener('pointermove', onPointerMove);
     document.addEventListener('pointerup', onPointerUp);
+    document.addEventListener('pointercancel', cleanup);
   }, [isHorizontal, splitRatio, setSplitRatio, setDragging, containerRef]);
-
-  const handleDoubleClick = useCallback(() => {
-    if (prevRatioRef.current !== null) {
-      const restored = prevRatioRef.current;
-      prevRatioRef.current = splitRatio;
-      setSplitRatio(restored);
-    } else {
-      prevRatioRef.current = splitRatio;
-      setSplitRatio(0.5);
-    }
-  }, [splitRatio, setSplitRatio]);
 
   if (isHorizontal) {
     return (
@@ -67,7 +84,6 @@ export function SplitDivider({ containerRef }: SplitDividerProps) {
         }`}
         style={{ width: '4px', touchAction: 'none', padding: '0 6px', boxSizing: 'content-box' }}
         onPointerDown={handlePointerDown}
-        onDoubleClick={handleDoubleClick}
         role="separator"
         aria-orientation="vertical"
         aria-label="Resize panels"
@@ -88,7 +104,6 @@ export function SplitDivider({ containerRef }: SplitDividerProps) {
       }`}
       style={{ height: '4px', touchAction: 'none', padding: '6px 0', boxSizing: 'content-box' }}
       onPointerDown={handlePointerDown}
-      onDoubleClick={handleDoubleClick}
       role="separator"
       aria-orientation="horizontal"
       aria-label="Resize panels"
