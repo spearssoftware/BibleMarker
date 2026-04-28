@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, type ReactNode } from 'react';
 import { usePanelStore } from '@/stores/panelStore';
 import { SplitDivider } from './SplitDivider';
 
-const TOOLBAR_PADDING = 'calc(60px + env(safe-area-inset-bottom, 0px))';
+const TOOLBAR_FALLBACK_PX = 60;
 
 interface SplitLayoutProps {
   children: ReactNode;
@@ -13,6 +13,7 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
   const { activePanel, isCollapsed, splitRatio, orientation, isDragging } = usePanelStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState(0);
+  const [toolbarHeight, setToolbarHeight] = useState(TOOLBAR_FALLBACK_PX);
 
   const showPanel = activePanel && !isCollapsed && panel;
   const isHorizontal = orientation === 'horizontal';
@@ -32,6 +33,20 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
     return () => observer.disconnect();
   }, []);
 
+  // Measure the fixed bottom toolbar so we can reserve space for it. The
+  // toolbar uses position:fixed and overlays this layout; without reserving
+  // its height the divider can be dragged behind it and become unreachable.
+  useEffect(() => {
+    const toolbar = document.querySelector<HTMLElement>('[data-marking-toolbar]');
+    if (!toolbar) return;
+    const observer = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (rect) setToolbarHeight(Math.max(rect.height, TOOLBAR_FALLBACK_PX));
+    });
+    observer.observe(toolbar);
+    return () => observer.disconnect();
+  }, []);
+
   const dividerSize = 16;
   const availableSize = containerSize - (showPanel ? dividerSize : 0);
   const scriptureSize = showPanel ? Math.round(availableSize * splitRatio) : availableSize;
@@ -48,7 +63,7 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
   return (
     <div
       className="flex-1 min-h-0 flex flex-col"
-      style={{ paddingBottom: TOOLBAR_PADDING }}
+      style={{ paddingBottom: toolbarHeight }}
     >
       <div
         ref={containerRef}
