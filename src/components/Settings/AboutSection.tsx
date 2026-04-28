@@ -98,7 +98,7 @@ export function AboutSection({
             </div>
           </div>
           <p className="text-xs text-scripture-muted">
-            A Precept-style Bible study application with keyword marking, observation lists, and multi-translation support.
+            An inductive Bible study app with keyword marking, observation lists, and multi-translation support.
           </p>
         </div>
       </div>

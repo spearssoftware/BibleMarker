@@ -65,7 +65,7 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
               Welcome to BibleMarker
             </h1>
             <p className="text-sm text-scripture-muted">
-              A Bible study app following the Precept method, emphasizing observation through consistent marking and keyword tracking.
+              A Bible study app for the inductive Bible study method, emphasizing observation through consistent marking and keyword tracking.
             </p>
           </div>
 
@@ -89,22 +89,23 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                   </div>
 
                   <div className="flex gap-4">
-                    <div className="text-2xl flex-shrink-0">{'\u{1F58D}\uFE0F'}</div>
-                    <div>
-                      <div className="font-medium text-scripture-text mb-1">Mark & Highlight</div>
-                      <p className="text-scripture-muted">
-                        Select text to apply key words, add variants, or add to observation lists.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4">
                     <div className="text-2xl flex-shrink-0">{'\u{1F511}'}</div>
-                    <div>
-                      <div className="font-medium text-scripture-text mb-1">Key Words</div>
-                      <p className="text-scripture-muted">
-                        Define key words with colors and symbols. They automatically highlight across all visible translations.
-                      </p>
+                    <div className="flex-1">
+                      <div className="font-medium text-scripture-text mb-1">Key Words: three things to know</div>
+                      <ul className="space-y-2 text-scripture-muted">
+                        <li>
+                          <strong className="text-scripture-text">Keyword.</strong> A word or concept you want to track. Gets a color and symbol, auto-highlights in every translation.
+                          <div className="text-xs italic mt-0.5">e.g. keyword <strong>&ldquo;God&rdquo;</strong> &rarr; every &ldquo;God&rdquo; lights up automatically.</div>
+                        </li>
+                        <li>
+                          <strong className="text-scripture-text">Add as Variant.</strong> Expands the keyword to also match a related word everywhere.
+                          <div className="text-xs italic mt-0.5">e.g. add <strong>&ldquo;LORD&rdquo;</strong> as a variant of &ldquo;God&rdquo; &rarr; both auto-highlight from then on.</div>
+                        </li>
+                        <li>
+                          <strong className="text-scripture-text">Apply.</strong> Marks <em>just this one occurrence</em>. Doesn&rsquo;t change what the keyword matches elsewhere.
+                          <div className="text-xs italic mt-0.5">e.g. &ldquo;And <strong>He</strong> spoke&hellip;&rdquo; refers to Jesus. Apply the Jesus keyword to that &ldquo;He&rdquo; only. You don&rsquo;t want every &ldquo;He&rdquo; in the Bible auto-matched as Jesus.</div>
+                        </li>
+                      </ul>
                     </div>
                   </div>
 
@@ -113,7 +114,17 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                     <div>
                       <div className="font-medium text-scripture-text mb-1">Notes & Observations</div>
                       <p className="text-scripture-muted">
-                        Add notes to verses and capture observations for time, places, contrasts, and conclusions.
+                        Click verse numbers to add notes. Open Observe to capture lists, people, places, and conclusions as you study.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="text-2xl flex-shrink-0">{'\u{1F4D6}'}</div>
+                    <div>
+                      <div className="font-medium text-scripture-text mb-1">Reference</div>
+                      <p className="text-scripture-muted">
+                        Look up Strong&rsquo;s entries, Hebrew/Greek roots, cross-references, and the people and places tied to your chapter. Open it from the toolbar or jump straight in from the selection menu.
                       </p>
                     </div>
                   </div>

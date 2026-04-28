@@ -395,6 +395,7 @@ export function Toolbar() {
               const dataAttr = tool.type === 'keywords' ? 'data-toolbar-keywords'
                 : tool.type === 'observe' ? 'data-toolbar-observe'
                 : tool.type === 'analyze' ? 'data-toolbar-analyze'
+                : tool.type === 'reference' ? 'data-toolbar-reference'
                 : undefined;
               return (
                 <button

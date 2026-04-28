@@ -5,14 +5,14 @@
  * that's always visible regardless of screen size.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { updatePreferences, getPreferences } from '@/lib/database';
 import { useStudyStore } from '@/stores/studyStore';
 
 interface TourStep {
   id: string;
   title: string;
-  description: string;
+  description: ReactNode;
   target?: string; // CSS selector for element to highlight
   action?: () => void; // Optional action to perform before showing step
 }
@@ -27,32 +27,58 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'reading',
     title: 'Bible Reading',
-    description: 'Read Scripture here. Select text to open the selection menu—apply key words, add to observation lists, or open Observe tools. Click verse numbers to add notes or view cross-references.',
+    description: 'Read Scripture here. Select text to open the selection menu, where you can apply key words, add as a keyword variant, add to observation lists, or jump straight to Reference for the Strong’s entry or cross-references. Click verse numbers to add notes.',
     target: '[data-bible-reader]',
   },
   {
     id: 'toolbar',
     title: 'Marking Toolbar',
-    description: 'Use the toolbar to access Mark, Observe, and Analyze tools. All text marking is done through keywords. Press 1–3 for quick access.',
+    description: 'The toolbar opens Mark, Observe, Analyze, and Reference. All text marking flows through keywords for consistency across translations. Press 1–3 for quick access to Mark, Observe, and Analyze.',
     target: '[data-marking-toolbar]',
   },
   {
     id: 'keywords',
-    title: 'Mark',
-    description: 'Define key words to automatically highlight across translations. Apply them from the selection menu or here. Access from the toolbar (pencil icon or press 1).',
+    title: 'Mark: Keyword, Variant, Apply',
+    description: (
+      <div className="space-y-2.5">
+        <p>Three things to know:</p>
+        <div>
+          <div className="font-medium text-scripture-text">🔑 Keyword</div>
+          <p className="ml-5">A word or concept you track. Gets a color and symbol, auto-highlights in every translation.</p>
+          <p className="ml-5 italic text-xs">Example: keyword <strong>&ldquo;God&rdquo;</strong> → every &ldquo;God&rdquo; auto-highlights.</p>
+        </div>
+        <div>
+          <div className="font-medium text-scripture-text">➕ Add as Variant</div>
+          <p className="ml-5">Adds another word to an existing keyword so it also auto-matches.</p>
+          <p className="ml-5 italic text-xs">Example: add <strong>&ldquo;LORD&rdquo;</strong> as a variant of &ldquo;God&rdquo; → both highlight everywhere.</p>
+        </div>
+        <div>
+          <div className="font-medium text-scripture-text">🎯 Apply</div>
+          <p className="ml-5">Marks just this one occurrence. Does <em>not</em> change what the keyword matches elsewhere.</p>
+          <p className="ml-5 italic text-xs">Example: in &ldquo;And <strong>He</strong> spoke…&rdquo; the &ldquo;He&rdquo; means Jesus. Apply the Jesus keyword to that &ldquo;He&rdquo; only. Not every &ldquo;He&rdquo; in the Bible refers to Jesus, so you don&rsquo;t want it as a variant.</p>
+        </div>
+        <p className="text-xs">Open Mark from the toolbar (✏️ or press 1).</p>
+      </div>
+    ),
     target: '[data-toolbar-keywords]',
   },
   {
     id: 'observe',
     title: 'Observe',
-    description: 'Observation tools: lists, people, places, and time. Add to lists from the selection menu or manage them here. Access from the toolbar (magnifying glass icon or press 2).',
+    description: 'Capture observations from the text. Free-form lists per chapter, plus people, places, and conclusions. Add entries from the selection menu or manage them here. Access from the toolbar (magnifying glass icon or press 2).',
     target: '[data-toolbar-observe]',
   },
   {
     id: 'analyze',
     title: 'Analyze',
-    description: 'Analysis tools: theme tracking, conclusions, book overview, chapter summary, and timeline. Access from the toolbar (chart icon or press 3).',
+    description: 'Step back and look at the bigger picture: chapter summaries, book overview, themes, timeline, places map, and your interpretation and application notes. Access from the toolbar (chart icon or press 3).',
     target: '[data-toolbar-analyze]',
+  },
+  {
+    id: 'reference',
+    title: 'Reference',
+    description: 'Look up the people, places, Strong’s entries, Hebrew/Greek words, and cross-references for what you’re reading. The Chapter tab shows everything tied to the current chapter; you can also lookup any word, verse, or Strong’s number directly from the selection menu. Access from the toolbar (book icon).',
+    target: '[data-toolbar-reference]',
   },
   {
     id: 'search',
@@ -228,9 +254,9 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
         <h3 className="text-lg font-ui font-semibold text-scripture-text mb-1">
           {step.title}
         </h3>
-        <p className="text-sm text-scripture-muted leading-relaxed">
+        <div className="text-sm text-scripture-muted leading-relaxed">
           {step.description}
-        </p>
+        </div>
 
         {/* Studies step: inline create form */}
         {step.id === 'studies' && (
