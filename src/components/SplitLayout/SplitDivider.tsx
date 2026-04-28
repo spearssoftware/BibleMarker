@@ -1,13 +1,29 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { usePanelStore } from '@/stores/panelStore';
+
+const MIN_RATIO = 0.05;
+const MAX_RATIO = 0.95;
+const TAP_THRESHOLD_PX = 5;
+const TAP_TIMEOUT_MS = 300;
+const SNAP_TOLERANCE = 0.01;
+
+// Tap snap points. First tap from any non-snap position goes to SNAP_CYCLE[0];
+// subsequent taps ping-pong between entries. Kept to two positions so a tap
+// can never shrink the panel to a near-invisible strip.
+const SNAP_CYCLE = [0.5, 0.25];
+
+function nextSnap(current: number): number {
+  const idx = SNAP_CYCLE.findIndex((p) => Math.abs(current - p) < SNAP_TOLERANCE);
+  if (idx === -1) return SNAP_CYCLE[0];
+  return SNAP_CYCLE[(idx + 1) % SNAP_CYCLE.length];
+}
 
 interface SplitDividerProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function SplitDivider({ containerRef }: SplitDividerProps) {
-  const { orientation, splitRatio, setSplitRatio, setDragging, isDragging } = usePanelStore();
-  const prevRatioRef = useRef<number | null>(null);
+  const { orientation, setSplitRatio, setDragging, isDragging } = usePanelStore();
   const isHorizontal = orientation === 'horizontal';
 
   // Guard body user-select with lifecycle cleanup (safe if component unmounts mid-drag)
@@ -27,37 +43,41 @@ export function SplitDivider({ containerRef }: SplitDividerProps) {
     if (containerSize === 0) return;
 
     const startPos = isHorizontal ? e.clientX : e.clientY;
-    const startRatio = splitRatio;
-
-    setDragging(true);
+    const startTime = Date.now();
+    const startRatio = usePanelStore.getState().splitRatio;
+    let movedEnough = false;
 
     const onPointerMove = (moveEvent: PointerEvent) => {
       const currentPos = isHorizontal ? moveEvent.clientX : moveEvent.clientY;
       const delta = currentPos - startPos;
-      const newRatio = Math.min(0.75, Math.max(0.25, startRatio + delta / containerSize));
+      if (!movedEnough) {
+        if (Math.abs(delta) <= TAP_THRESHOLD_PX) return;
+        movedEnough = true;
+        setDragging(true);
+      }
+      const newRatio = Math.min(MAX_RATIO, Math.max(MIN_RATIO, startRatio + delta / containerSize));
       setSplitRatio(newRatio);
     };
 
-    const onPointerUp = () => {
+    const cleanup = () => {
       setDragging(false);
       document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerup', onPointerUp);
+      document.removeEventListener('pointercancel', cleanup);
+    };
+
+    const onPointerUp = () => {
+      const elapsed = Date.now() - startTime;
+      if (!movedEnough && elapsed < TAP_TIMEOUT_MS) {
+        setSplitRatio(nextSnap(usePanelStore.getState().splitRatio));
+      }
+      cleanup();
     };
 
     document.addEventListener('pointermove', onPointerMove);
     document.addEventListener('pointerup', onPointerUp);
-  }, [isHorizontal, splitRatio, setSplitRatio, setDragging, containerRef]);
-
-  const handleDoubleClick = useCallback(() => {
-    if (prevRatioRef.current !== null) {
-      const restored = prevRatioRef.current;
-      prevRatioRef.current = splitRatio;
-      setSplitRatio(restored);
-    } else {
-      prevRatioRef.current = splitRatio;
-      setSplitRatio(0.5);
-    }
-  }, [splitRatio, setSplitRatio]);
+    document.addEventListener('pointercancel', cleanup);
+  }, [isHorizontal, setSplitRatio, setDragging, containerRef]);
 
   if (isHorizontal) {
     return (
@@ -67,7 +87,6 @@ export function SplitDivider({ containerRef }: SplitDividerProps) {
         }`}
         style={{ width: '4px', touchAction: 'none', padding: '0 6px', boxSizing: 'content-box' }}
         onPointerDown={handlePointerDown}
-        onDoubleClick={handleDoubleClick}
         role="separator"
         aria-orientation="vertical"
         aria-label="Resize panels"
@@ -88,7 +107,6 @@ export function SplitDivider({ containerRef }: SplitDividerProps) {
       }`}
       style={{ height: '4px', touchAction: 'none', padding: '6px 0', boxSizing: 'content-box' }}
       onPointerDown={handlePointerDown}
-      onDoubleClick={handleDoubleClick}
       role="separator"
       aria-orientation="horizontal"
       aria-label="Resize panels"
