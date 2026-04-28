@@ -196,18 +196,19 @@ pnpm run version:sync     # Sync version across configs
 
 ## License
 
-This project is licensed under the [PolyForm Noncommercial License 1.0.0](./LICENSE).
+BibleMarker is licensed under the [GNU Affero General Public License v3.0 or later](./LICENSE) (AGPL-3.0-or-later).
 
-**In Summary:**
-- ✅ Free for personal use, study, research, and non-profit organizations
-- ✅ Modify and share for non-commercial purposes
-- ❌ Commercial use requires separate licensing
+**In summary:**
+- ✅ Free to use, modify, and self-host — for individuals, churches, ministries, and organizations
+- ✅ You may distribute modified versions, **provided you release your source code under the same license**
+- ✅ Commercial use is permitted under the same terms
+- 🤝 If you'd like to ship BibleMarker as part of a paid product, hosted offering, or curriculum without those copyleft requirements, [contact us](mailto:biblemarker@spearssoftware.com) — we're happy to discuss commercial licensing
 
-See [LICENSE](./LICENSE) file for full terms.
+See [LICENSE](./LICENSE) for full terms.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome. Before your first pull request can be merged, you'll be asked to sign our [Contributor License Agreement](./CLA.md) — a one-click process via the CLA Assistant bot. See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
 ## Support
 
