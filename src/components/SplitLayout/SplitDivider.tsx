@@ -1,10 +1,22 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { usePanelStore } from '@/stores/panelStore';
 
 const MIN_RATIO = 0.05;
 const MAX_RATIO = 0.95;
 const TAP_THRESHOLD_PX = 5;
 const TAP_TIMEOUT_MS = 300;
+const SNAP_TOLERANCE = 0.01;
+
+// Order matters: tap from a non-snap position goes to SNAP_CYCLE[0], then
+// each subsequent tap advances. With [0.5, 0.25, 0.75], the sequence is
+// even split → panel grows → panel shrinks → wraps back to even.
+const SNAP_CYCLE = [0.5, 0.25, 0.75];
+
+function nextSnap(current: number): number {
+  const idx = SNAP_CYCLE.findIndex((p) => Math.abs(current - p) < SNAP_TOLERANCE);
+  if (idx === -1) return SNAP_CYCLE[0];
+  return SNAP_CYCLE[(idx + 1) % SNAP_CYCLE.length];
+}
 
 interface SplitDividerProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
@@ -12,7 +24,6 @@ interface SplitDividerProps {
 
 export function SplitDivider({ containerRef }: SplitDividerProps) {
   const { orientation, setSplitRatio, setDragging, isDragging } = usePanelStore();
-  const prevRatioRef = useRef<number | null>(null);
   const isHorizontal = orientation === 'horizontal';
 
   // Guard body user-select with lifecycle cleanup (safe if component unmounts mid-drag)
@@ -58,16 +69,7 @@ export function SplitDivider({ containerRef }: SplitDividerProps) {
     const onPointerUp = () => {
       const elapsed = Date.now() - startTime;
       if (!movedEnough && elapsed < TAP_TIMEOUT_MS) {
-        // Tap: toggle 50% ↔ previous ratio
-        const currentRatio = usePanelStore.getState().splitRatio;
-        if (Math.abs(currentRatio - 0.5) < 0.001) {
-          if (prevRatioRef.current !== null) {
-            setSplitRatio(prevRatioRef.current);
-          }
-        } else {
-          prevRatioRef.current = currentRatio;
-          setSplitRatio(0.5);
-        }
+        setSplitRatio(nextSnap(usePanelStore.getState().splitRatio));
       }
       cleanup();
     };
