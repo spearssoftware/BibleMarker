@@ -11,7 +11,7 @@ interface SplitDividerProps {
 }
 
 export function SplitDivider({ containerRef }: SplitDividerProps) {
-  const { orientation, splitRatio, setSplitRatio, setDragging, isDragging } = usePanelStore();
+  const { orientation, setSplitRatio, setDragging, isDragging } = usePanelStore();
   const prevRatioRef = useRef<number | null>(null);
   const isHorizontal = orientation === 'horizontal';
 
@@ -33,7 +33,7 @@ export function SplitDivider({ containerRef }: SplitDividerProps) {
 
     const startPos = isHorizontal ? e.clientX : e.clientY;
     const startTime = Date.now();
-    const startRatio = splitRatio;
+    const startRatio = usePanelStore.getState().splitRatio;
     let movedEnough = false;
 
     const onPointerMove = (moveEvent: PointerEvent) => {
@@ -59,12 +59,13 @@ export function SplitDivider({ containerRef }: SplitDividerProps) {
       const elapsed = Date.now() - startTime;
       if (!movedEnough && elapsed < TAP_TIMEOUT_MS) {
         // Tap: toggle 50% ↔ previous ratio
-        if (Math.abs(splitRatio - 0.5) < 0.001) {
+        const currentRatio = usePanelStore.getState().splitRatio;
+        if (Math.abs(currentRatio - 0.5) < 0.001) {
           if (prevRatioRef.current !== null) {
             setSplitRatio(prevRatioRef.current);
           }
         } else {
-          prevRatioRef.current = splitRatio;
+          prevRatioRef.current = currentRatio;
           setSplitRatio(0.5);
         }
       }
@@ -74,7 +75,7 @@ export function SplitDivider({ containerRef }: SplitDividerProps) {
     document.addEventListener('pointermove', onPointerMove);
     document.addEventListener('pointerup', onPointerUp);
     document.addEventListener('pointercancel', cleanup);
-  }, [isHorizontal, splitRatio, setSplitRatio, setDragging, containerRef]);
+  }, [isHorizontal, setSplitRatio, setDragging, containerRef]);
 
   if (isHorizontal) {
     return (
