@@ -90,11 +90,22 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
 
                   <div className="flex gap-4">
                     <div className="text-2xl flex-shrink-0">{'\u{1F511}'}</div>
-                    <div>
-                      <div className="font-medium text-scripture-text mb-1">Key Words</div>
-                      <p className="text-scripture-muted">
-                        Define key words with a color and symbol \u2014 they auto-highlight in every visible translation. Use <strong>Add as Variant</strong> to expand which words a keyword matches (e.g. add &ldquo;Lord&rdquo; as a variant of &ldquo;God&rdquo;), or <strong>Apply</strong> to mark just one occurrence \u2014 perfect for pronouns like &ldquo;He&rdquo; that refer back to a keyword without auto-matching everywhere.
-                      </p>
+                    <div className="flex-1">
+                      <div className="font-medium text-scripture-text mb-1">Key Words \u2014 three things to know</div>
+                      <ul className="space-y-2 text-scripture-muted">
+                        <li>
+                          <strong className="text-scripture-text">Keyword</strong> \u2014 a word or concept you want to track. Gets a color and symbol, auto-highlights in every translation.
+                          <div className="text-xs italic mt-0.5">e.g. keyword <strong>&ldquo;God&rdquo;</strong> \u2192 every &ldquo;God&rdquo; lights up automatically.</div>
+                        </li>
+                        <li>
+                          <strong className="text-scripture-text">Add as Variant</strong> \u2014 expands the keyword to also match a related word everywhere.
+                          <div className="text-xs italic mt-0.5">e.g. add <strong>&ldquo;LORD&rdquo;</strong> as a variant of &ldquo;God&rdquo; \u2192 both auto-highlight from then on.</div>
+                        </li>
+                        <li>
+                          <strong className="text-scripture-text">Apply</strong> \u2014 marks <em>just this one occurrence</em>. Doesn&rsquo;t change what the keyword matches elsewhere.
+                          <div className="text-xs italic mt-0.5">e.g. &ldquo;And <strong>He</strong> spoke\u2026&rdquo; refers to Jesus. Apply the Jesus keyword to that &ldquo;He&rdquo; only \u2014 you don&rsquo;t want every &ldquo;He&rdquo; in the Bible auto-matched as Jesus.</div>
+                        </li>
+                      </ul>
                     </div>
                   </div>
 

@@ -5,14 +5,14 @@
  * that's always visible regardless of screen size.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { updatePreferences, getPreferences } from '@/lib/database';
 import { useStudyStore } from '@/stores/studyStore';
 
 interface TourStep {
   id: string;
   title: string;
-  description: string;
+  description: ReactNode;
   target?: string; // CSS selector for element to highlight
   action?: () => void; // Optional action to perform before showing step
 }
@@ -38,8 +38,28 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'keywords',
-    title: 'Mark',
-    description: 'Define key words (like "God", "love", or "Jesus") with a color and symbol — they auto-highlight across every translation. From the selection menu, "Add as Variant" expands a keyword to also match a related word (e.g. add "Lord" as a variant of "God"), while "Apply" marks just this one occurrence — handy for pronouns like "He" or "Him" that refer back to the keyword without you wanting them auto-matched everywhere.',
+    title: 'Mark — Keyword, Variant, Apply',
+    description: (
+      <div className="space-y-2.5">
+        <p>Three things to know:</p>
+        <div>
+          <div className="font-medium text-scripture-text">🔑 Keyword</div>
+          <p className="ml-5">A word/concept you track — gets a color and symbol, auto-highlights in every translation.</p>
+          <p className="ml-5 italic text-xs">Example: keyword <strong>&ldquo;God&rdquo;</strong> → every &ldquo;God&rdquo; auto-highlights.</p>
+        </div>
+        <div>
+          <div className="font-medium text-scripture-text">➕ Add as Variant</div>
+          <p className="ml-5">Adds another word to an existing keyword so it also auto-matches.</p>
+          <p className="ml-5 italic text-xs">Example: add <strong>&ldquo;LORD&rdquo;</strong> as a variant of &ldquo;God&rdquo; → both highlight everywhere.</p>
+        </div>
+        <div>
+          <div className="font-medium text-scripture-text">🎯 Apply</div>
+          <p className="ml-5">Marks just this one occurrence — does <em>not</em> change what the keyword matches elsewhere.</p>
+          <p className="ml-5 italic text-xs">Example: in &ldquo;And <strong>He</strong> spoke…&rdquo; the &ldquo;He&rdquo; means Jesus. Apply the Jesus keyword to that &ldquo;He&rdquo; only — not every &ldquo;He&rdquo; in the Bible refers to Jesus, so you don&rsquo;t want it as a variant.</p>
+        </div>
+        <p className="text-xs">Open Mark from the toolbar (✏️ or press 1).</p>
+      </div>
+    ),
     target: '[data-toolbar-keywords]',
   },
   {
@@ -234,9 +254,9 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
         <h3 className="text-lg font-ui font-semibold text-scripture-text mb-1">
           {step.title}
         </h3>
-        <p className="text-sm text-scripture-muted leading-relaxed">
+        <div className="text-sm text-scripture-muted leading-relaxed">
           {step.description}
-        </p>
+        </div>
 
         {/* Studies step: inline create form */}
         {step.id === 'studies' && (
