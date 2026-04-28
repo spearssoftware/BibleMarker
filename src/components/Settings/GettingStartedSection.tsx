@@ -24,22 +24,13 @@ export function GettingStartedSection() {
           </div>
 
           <div>
-            <div className="font-medium text-scripture-text mb-2">✏️ Marking Text</div>
-            <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
-              <li>Select text to open the selection menu: apply keywords, add variants, or add to observation lists</li>
-              <li>All markings use keywords for consistency across translations</li>
-              <li>Keywords automatically highlight matching text in all visible translations</li>
-              <li>Press 1–3 for Mark, Observe, Analyze</li>
-            </ul>
-          </div>
-
-          <div>
             <div className="font-medium text-scripture-text mb-2">✏️ Key Words</div>
             <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
-              <li>Define key words (e.g., "God", "Jesus", "love") with colors and symbols</li>
-              <li>Key words automatically highlight across all visible translations</li>
-              <li>Create studies to scope keywords to specific books</li>
-              <li>Access Key Words from the toolbar (✏️ or press 1) or from the selection menu</li>
+              <li>Define key words (e.g., &ldquo;God&rdquo;, &ldquo;Jesus&rdquo;, &ldquo;love&rdquo;) with a color and symbol — they auto-highlight in every visible translation</li>
+              <li><strong>Add as Variant</strong> — expand which words a keyword matches across the text (e.g. add &ldquo;Lord&rdquo; as a variant of &ldquo;God&rdquo; so both highlight)</li>
+              <li><strong>Apply</strong> — mark just the selected occurrence with a keyword&rsquo;s color/symbol without making it a new variant. Useful for pronouns like &ldquo;He&rdquo; or &ldquo;Him&rdquo; that refer to a keyword but shouldn&rsquo;t auto-match everywhere</li>
+              <li>Create a study to scope keywords to a specific book or topic</li>
+              <li>Access from the toolbar (✏️ or press 1) or from the selection menu</li>
             </ul>
           </div>
 
@@ -47,9 +38,8 @@ export function GettingStartedSection() {
             <div className="font-medium text-scripture-text mb-2">🔍 Observe</div>
             <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
               <li>Open Observe (🔍 or press 2) to capture structured study observations</li>
-              <li>📝 Lists — free-form observation lists per chapter</li>
-              <li>❓ 5 W's & H — Who, What, When, Where, Why, How questions</li>
-              <li>⇔ Contrasts, 🕐 Time, 📍 Places, 👤 People — categorized lists</li>
+              <li>📝 Lists — free-form observation lists per chapter, plus people, places, and time entries</li>
+              <li>💡 Conclusions — record what you learn from the chapter</li>
               <li>Click verse numbers to add inline notes (supports Markdown)</li>
             </ul>
           </div>
@@ -66,11 +56,23 @@ export function GettingStartedSection() {
           </div>
 
           <div>
+            <div className="font-medium text-scripture-text mb-2">📖 Reference</div>
+            <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
+              <li>Open Reference (📖 from the toolbar) to look up information for what you&rsquo;re reading</li>
+              <li>📖 Chapter — every person, place, topic, and event tied to the current chapter</li>
+              <li>🔎 Search — find any person, place, or topic across the reference data</li>
+              <li>🔤 Strong&rsquo;s — Hebrew and Greek lexicon entries (also accessible from the selection menu)</li>
+              <li>א Hebrew/Greek — original-language word breakdown for the current verse</li>
+              <li>🔗 Cross-Refs — cross-references for the current verse</li>
+            </ul>
+          </div>
+
+          <div>
             <div className="font-medium text-scripture-text mb-2">🔎 Search</div>
             <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
               <li>Press Cmd/Ctrl+F or tap the search icon in the navigation bar</li>
               <li>Search Bible text, notes, and annotations</li>
-              <li>Search by verse reference (e.g., "John 3:16")</li>
+              <li>Search by verse reference (e.g., &ldquo;John 3:16&rdquo;)</li>
             </ul>
           </div>
 

@@ -27,32 +27,38 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'reading',
     title: 'Bible Reading',
-    description: 'Read Scripture here. Select text to open the selection menu—apply key words, add to observation lists, or open Observe tools. Click verse numbers to add notes or view cross-references.',
+    description: 'Read Scripture here. Select text to open the selection menu — apply key words, add as a keyword variant, add to observation lists, or jump straight to Reference for the Strong’s entry or cross-references. Click verse numbers to add notes.',
     target: '[data-bible-reader]',
   },
   {
     id: 'toolbar',
     title: 'Marking Toolbar',
-    description: 'Use the toolbar to access Mark, Observe, and Analyze tools. All text marking is done through keywords. Press 1–3 for quick access.',
+    description: 'The toolbar opens Mark, Observe, Analyze, and Reference. All text marking flows through keywords for consistency across translations. Press 1–3 for quick access to Mark, Observe, and Analyze.',
     target: '[data-marking-toolbar]',
   },
   {
     id: 'keywords',
     title: 'Mark',
-    description: 'Define key words to automatically highlight across translations. Apply them from the selection menu or here. Access from the toolbar (pencil icon or press 1).',
+    description: 'Define key words (like "God", "love", or "Jesus") with a color and symbol — they auto-highlight across every translation. From the selection menu, "Add as Variant" expands a keyword to also match a related word (e.g. add "Lord" as a variant of "God"), while "Apply" marks just this one occurrence — handy for pronouns like "He" or "Him" that refer back to the keyword without you wanting them auto-matched everywhere.',
     target: '[data-toolbar-keywords]',
   },
   {
     id: 'observe',
     title: 'Observe',
-    description: 'Observation tools: lists, people, places, and time. Add to lists from the selection menu or manage them here. Access from the toolbar (magnifying glass icon or press 2).',
+    description: 'Capture observations from the text — free-form lists per chapter, plus people, places, and conclusions. Add entries from the selection menu or manage them here. Access from the toolbar (magnifying glass icon or press 2).',
     target: '[data-toolbar-observe]',
   },
   {
     id: 'analyze',
     title: 'Analyze',
-    description: 'Analysis tools: theme tracking, conclusions, book overview, chapter summary, and timeline. Access from the toolbar (chart icon or press 3).',
+    description: 'Step back and look at the bigger picture — chapter summaries, book overview, themes, timeline, places map, and your interpretation/application notes. Access from the toolbar (chart icon or press 3).',
     target: '[data-toolbar-analyze]',
+  },
+  {
+    id: 'reference',
+    title: 'Reference',
+    description: 'Look up the people, places, Strong’s entries, Hebrew/Greek words, and cross-references for what you’re reading. The Chapter tab shows everything tied to the current chapter; you can also lookup any word, verse, or Strong’s number directly from the selection menu. Access from the toolbar (book icon).',
+    target: '[data-toolbar-reference]',
   },
   {
     id: 'search',

@@ -89,21 +89,11 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                   </div>
 
                   <div className="flex gap-4">
-                    <div className="text-2xl flex-shrink-0">{'\u{1F58D}\uFE0F'}</div>
-                    <div>
-                      <div className="font-medium text-scripture-text mb-1">Mark & Highlight</div>
-                      <p className="text-scripture-muted">
-                        Select text to apply key words, add variants, or add to observation lists.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4">
                     <div className="text-2xl flex-shrink-0">{'\u{1F511}'}</div>
                     <div>
                       <div className="font-medium text-scripture-text mb-1">Key Words</div>
                       <p className="text-scripture-muted">
-                        Define key words with colors and symbols. They automatically highlight across all visible translations.
+                        Define key words with a color and symbol \u2014 they auto-highlight in every visible translation. Use <strong>Add as Variant</strong> to expand which words a keyword matches (e.g. add &ldquo;Lord&rdquo; as a variant of &ldquo;God&rdquo;), or <strong>Apply</strong> to mark just one occurrence \u2014 perfect for pronouns like &ldquo;He&rdquo; that refer back to a keyword without auto-matching everywhere.
                       </p>
                     </div>
                   </div>
@@ -113,7 +103,17 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                     <div>
                       <div className="font-medium text-scripture-text mb-1">Notes & Observations</div>
                       <p className="text-scripture-muted">
-                        Add notes to verses and capture observations for time, places, contrasts, and conclusions.
+                        Click verse numbers to add notes. Open Observe to capture lists, people, places, and conclusions as you study.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="text-2xl flex-shrink-0">{'\u{1F4D6}'}</div>
+                    <div>
+                      <div className="font-medium text-scripture-text mb-1">Reference</div>
+                      <p className="text-scripture-muted">
+                        Look up Strong&rsquo;s entries, Hebrew/Greek roots, cross-references, and the people and places tied to your chapter. Open it from the toolbar or jump straight in from the selection menu.
                       </p>
                     </div>
                   </div>
