@@ -3,6 +3,7 @@ import { usePanelStore } from '@/stores/panelStore';
 import { SplitDivider } from './SplitDivider';
 
 const TOOLBAR_FALLBACK_PX = 60;
+const MIN_PANE_PX = 40;
 
 interface SplitLayoutProps {
   children: ReactNode;
@@ -49,7 +50,14 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
 
   const dividerSize = 16;
   const availableSize = containerSize - (showPanel ? dividerSize : 0);
-  const scriptureSize = showPanel ? Math.round(availableSize * splitRatio) : availableSize;
+  // Clamp both panes to a minimum pixel size so the divider always stays
+  // visible and grabbable, regardless of the persisted ratio or any
+  // mid-drag overshoot. Prevents the divider from sliding into the toolbar
+  // zone if toolbar measurement lags or the stored ratio is stale.
+  const rawScripture = showPanel ? Math.round(availableSize * splitRatio) : availableSize;
+  const minScripture = showPanel ? Math.min(MIN_PANE_PX, availableSize) : availableSize;
+  const maxScripture = showPanel ? Math.max(availableSize - MIN_PANE_PX, minScripture) : availableSize;
+  const scriptureSize = showPanel ? Math.min(maxScripture, Math.max(minScripture, rawScripture)) : availableSize;
   const panelSize = showPanel ? availableSize - scriptureSize : 0;
 
   const scriptureSizeStyle = containerSize > 0 && showPanel
