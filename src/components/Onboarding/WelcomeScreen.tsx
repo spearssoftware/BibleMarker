@@ -65,7 +65,7 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
               Welcome to BibleMarker
             </h1>
             <p className="text-sm text-scripture-muted">
-              A Bible study app for the inductive Bible study method &mdash; emphasizing observation through consistent marking and keyword tracking.
+              A Bible study app for the inductive Bible study method, emphasizing observation through consistent marking and keyword tracking.
             </p>
           </div>
 
@@ -91,19 +91,19 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                   <div className="flex gap-4">
                     <div className="text-2xl flex-shrink-0">{'\u{1F511}'}</div>
                     <div className="flex-1">
-                      <div className="font-medium text-scripture-text mb-1">Key Words &mdash; three things to know</div>
+                      <div className="font-medium text-scripture-text mb-1">Key Words: three things to know</div>
                       <ul className="space-y-2 text-scripture-muted">
                         <li>
-                          <strong className="text-scripture-text">Keyword</strong> &mdash; a word or concept you want to track. Gets a color and symbol, auto-highlights in every translation.
+                          <strong className="text-scripture-text">Keyword.</strong> A word or concept you want to track. Gets a color and symbol, auto-highlights in every translation.
                           <div className="text-xs italic mt-0.5">e.g. keyword <strong>&ldquo;God&rdquo;</strong> &rarr; every &ldquo;God&rdquo; lights up automatically.</div>
                         </li>
                         <li>
-                          <strong className="text-scripture-text">Add as Variant</strong> &mdash; expands the keyword to also match a related word everywhere.
+                          <strong className="text-scripture-text">Add as Variant.</strong> Expands the keyword to also match a related word everywhere.
                           <div className="text-xs italic mt-0.5">e.g. add <strong>&ldquo;LORD&rdquo;</strong> as a variant of &ldquo;God&rdquo; &rarr; both auto-highlight from then on.</div>
                         </li>
                         <li>
-                          <strong className="text-scripture-text">Apply</strong> &mdash; marks <em>just this one occurrence</em>. Doesn&rsquo;t change what the keyword matches elsewhere.
-                          <div className="text-xs italic mt-0.5">e.g. &ldquo;And <strong>He</strong> spoke&hellip;&rdquo; refers to Jesus. Apply the Jesus keyword to that &ldquo;He&rdquo; only &mdash; you don&rsquo;t want every &ldquo;He&rdquo; in the Bible auto-matched as Jesus.</div>
+                          <strong className="text-scripture-text">Apply.</strong> Marks <em>just this one occurrence</em>. Doesn&rsquo;t change what the keyword matches elsewhere.
+                          <div className="text-xs italic mt-0.5">e.g. &ldquo;And <strong>He</strong> spoke&hellip;&rdquo; refers to Jesus. Apply the Jesus keyword to that &ldquo;He&rdquo; only. You don&rsquo;t want every &ldquo;He&rdquo; in the Bible auto-matched as Jesus.</div>
                         </li>
                       </ul>
                     </div>

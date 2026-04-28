@@ -27,7 +27,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'reading',
     title: 'Bible Reading',
-    description: 'Read Scripture here. Select text to open the selection menu — apply key words, add as a keyword variant, add to observation lists, or jump straight to Reference for the Strong’s entry or cross-references. Click verse numbers to add notes.',
+    description: 'Read Scripture here. Select text to open the selection menu, where you can apply key words, add as a keyword variant, add to observation lists, or jump straight to Reference for the Strong’s entry or cross-references. Click verse numbers to add notes.',
     target: '[data-bible-reader]',
   },
   {
@@ -38,13 +38,13 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'keywords',
-    title: 'Mark — Keyword, Variant, Apply',
+    title: 'Mark: Keyword, Variant, Apply',
     description: (
       <div className="space-y-2.5">
         <p>Three things to know:</p>
         <div>
           <div className="font-medium text-scripture-text">🔑 Keyword</div>
-          <p className="ml-5">A word/concept you track — gets a color and symbol, auto-highlights in every translation.</p>
+          <p className="ml-5">A word or concept you track. Gets a color and symbol, auto-highlights in every translation.</p>
           <p className="ml-5 italic text-xs">Example: keyword <strong>&ldquo;God&rdquo;</strong> → every &ldquo;God&rdquo; auto-highlights.</p>
         </div>
         <div>
@@ -54,8 +54,8 @@ const TOUR_STEPS: TourStep[] = [
         </div>
         <div>
           <div className="font-medium text-scripture-text">🎯 Apply</div>
-          <p className="ml-5">Marks just this one occurrence — does <em>not</em> change what the keyword matches elsewhere.</p>
-          <p className="ml-5 italic text-xs">Example: in &ldquo;And <strong>He</strong> spoke…&rdquo; the &ldquo;He&rdquo; means Jesus. Apply the Jesus keyword to that &ldquo;He&rdquo; only — not every &ldquo;He&rdquo; in the Bible refers to Jesus, so you don&rsquo;t want it as a variant.</p>
+          <p className="ml-5">Marks just this one occurrence. Does <em>not</em> change what the keyword matches elsewhere.</p>
+          <p className="ml-5 italic text-xs">Example: in &ldquo;And <strong>He</strong> spoke…&rdquo; the &ldquo;He&rdquo; means Jesus. Apply the Jesus keyword to that &ldquo;He&rdquo; only. Not every &ldquo;He&rdquo; in the Bible refers to Jesus, so you don&rsquo;t want it as a variant.</p>
         </div>
         <p className="text-xs">Open Mark from the toolbar (✏️ or press 1).</p>
       </div>
@@ -65,13 +65,13 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'observe',
     title: 'Observe',
-    description: 'Capture observations from the text — free-form lists per chapter, plus people, places, and conclusions. Add entries from the selection menu or manage them here. Access from the toolbar (magnifying glass icon or press 2).',
+    description: 'Capture observations from the text. Free-form lists per chapter, plus people, places, and conclusions. Add entries from the selection menu or manage them here. Access from the toolbar (magnifying glass icon or press 2).',
     target: '[data-toolbar-observe]',
   },
   {
     id: 'analyze',
     title: 'Analyze',
-    description: 'Step back and look at the bigger picture — chapter summaries, book overview, themes, timeline, places map, and your interpretation/application notes. Access from the toolbar (chart icon or press 3).',
+    description: 'Step back and look at the bigger picture: chapter summaries, book overview, themes, timeline, places map, and your interpretation and application notes. Access from the toolbar (chart icon or press 3).',
     target: '[data-toolbar-analyze]',
   },
   {
