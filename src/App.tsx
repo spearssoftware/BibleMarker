@@ -266,7 +266,7 @@ export default function App() {
   }, [currentBook, currentChapter, currentModuleId, setChapter, setLoading, setError]);
 
   return (
-    <div className="min-h-screen bg-scripture-bg text-scripture-text flex flex-col">
+    <div className="h-[100dvh] overflow-hidden bg-scripture-bg text-scripture-text flex flex-col">
       {/* Global error display */}
       <ErrorDisplay />
 
