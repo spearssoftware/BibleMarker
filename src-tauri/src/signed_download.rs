@@ -143,6 +143,8 @@ mod tests {
         // Pre-computed in the worker tests with the same inputs.
         // This locks the wire format so accidental changes are caught.
         assert!(!token.is_empty());
-        assert!(token.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'));
+        assert!(token
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'));
     }
 }
