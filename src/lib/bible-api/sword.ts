@@ -34,6 +34,13 @@ interface SwordModuleInfo {
   downloadUrl?: string;
   /** Resource filename for modules bundled with the app */
   bundledResource?: string;
+  /**
+   * Filename at the signed Lockman endpoint (https://biblemarker.app/modules/<file>).
+   * Modules with this set are downloaded via the Tauri `download_signed_module`
+   * command, which attaches an HMAC signature using the build-time `NASB_SIGNING_KEY`.
+   * Builds without that secret (forks, Flathub) cannot fetch these modules.
+   */
+  signedEndpoint?: string;
   copyright: string | null;
   copyrightUrl: string | null;
   language: string;
@@ -63,12 +70,15 @@ function pdModule(abbreviation: string, name: string, language = 'en', hasStrong
 
 /** Hardcoded module registry */
 const MODULE_REGISTRY: SwordModuleInfo[] = [
-  // Licensed modules (Lockman Foundation) — bundled with the app
+  // Licensed modules (Lockman Foundation) — downloaded on demand from
+  // biblemarker.app via the official-build-only signed endpoint. AGPL forks
+  // built without NASB_SIGNING_KEY get a clear error when trying to install
+  // these and can use ASV (bundled) or any public-domain module.
   {
     id: 'sword-NASB',
     name: 'New American Standard Bible (2020)',
     abbreviation: 'NASB',
-    bundledResource: 'sword-NASB.zip',
+    signedEndpoint: 'NASB-2020.zip',
     copyright: NASB_COPYRIGHT,
     copyrightUrl: LOCKMAN_URL,
     language: 'en',
@@ -79,7 +89,7 @@ const MODULE_REGISTRY: SwordModuleInfo[] = [
     id: 'sword-NASB1995',
     name: 'New American Standard Bible (1995)',
     abbreviation: 'NASB95',
-    bundledResource: 'sword-NASB1995.zip',
+    signedEndpoint: 'NASB-1995.zip',
     copyright: NASB95_COPYRIGHT,
     copyrightUrl: LOCKMAN_URL,
     language: 'en',
@@ -298,6 +308,31 @@ export async function downloadModule(
 ): Promise<void> {
   const info = MODULE_REGISTRY.find((m) => m.id === moduleId);
   if (!info) throw new Error(`Unknown SWORD module: ${moduleId}`);
+
+  // Signed endpoint takes precedence — Lockman-licensed modules
+  if (info.signedEndpoint) {
+    onProgress?.(0);
+    const destPath = await getModulePath(moduleId);
+    console.log(`[SWORD] Downloading ${info.name} via signed endpoint: ${info.signedEndpoint}`);
+
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('download_signed_module', { module: info.signedEndpoint, destPath });
+      console.log(`[SWORD] Signed download complete: ${destPath}`);
+    } catch (e) {
+      console.error(`[SWORD] Signed download failed:`, e);
+      throw new BibleApiError(
+        `Failed to download ${info.name}: ${e instanceof Error ? e.message : String(e)}`,
+        'sword'
+      );
+    }
+
+    onProgress?.(100);
+    loadedModules.delete(moduleId);
+    bufferCaches.delete(moduleId);
+    verifiedInstalled.delete(moduleId);
+    return;
+  }
 
   if (!info.downloadUrl) {
     // Bundled module — install from resources
