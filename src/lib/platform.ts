@@ -110,6 +110,32 @@ export function isICloudAvailable(): boolean {
 }
 
 /**
+ * Check if running inside a Flatpak sandbox.
+ *
+ * Detected by querying a Tauri command that checks for `/.flatpak-info`,
+ * which is always present inside Flatpak and never elsewhere. The result
+ * is cached so callers can `await` cheaply on every check.
+ *
+ * Returns false in non-Tauri contexts.
+ */
+let flatpakCheckPromise: Promise<boolean> | null = null;
+
+export function isFlatpak(): Promise<boolean> {
+  if (!isTauri()) return Promise.resolve(false);
+  if (flatpakCheckPromise) return flatpakCheckPromise;
+  flatpakCheckPromise = (async () => {
+    await waitForTauriInternals();
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return await invoke<boolean>('check_flatpak');
+    } catch {
+      return false;
+    }
+  })();
+  return flatpakCheckPromise;
+}
+
+/**
  * Open a URL in the system browser.
  * Uses tauri-plugin-opener in Tauri, falls back to window.open on web.
  */

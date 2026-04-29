@@ -8,6 +8,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { checkForUpdateIfDue, checkForUpdateNow, type UpdateCheckResult } from '@/lib/updateCheck';
+import { isFlatpak } from '@/lib/platform';
 import { UpdateBanner } from '@/components/shared';
 
 interface AboutSectionProps {
@@ -25,8 +26,17 @@ export function AboutSection({
     checkForUpdatesEnabled ? 'checking' : null
   );
   const [showUpdateBanner, setShowUpdateBanner] = useState(false);
+  const [inFlatpak, setInFlatpak] = useState(false);
 
   useEffect(() => {
+    isFlatpak().then(setInFlatpak);
+  }, []);
+
+  useEffect(() => {
+    if (inFlatpak) {
+      queueMicrotask(() => setUpdateResult(null));
+      return;
+    }
     if (!checkForUpdatesEnabled) {
       queueMicrotask(() => setUpdateResult(null));
       return;
@@ -41,7 +51,7 @@ export function AboutSection({
     return () => {
       cancelled = true;
     };
-  }, [checkForUpdatesEnabled]);
+  }, [checkForUpdatesEnabled, inFlatpak]);
 
   const handleCheckNow = useCallback(async () => {
     setUpdateResult('checking');
@@ -69,7 +79,9 @@ export function AboutSection({
               </a>
             </div>
             <div className="mt-2 flex items-center gap-3">
-              {updateResult === 'checking' ? (
+              {inFlatpak ? (
+                <span className="text-xs text-scripture-muted">Updates are managed by Flathub</span>
+              ) : updateResult === 'checking' ? (
                 <span className="text-xs text-scripture-muted">Checking for updates…</span>
               ) : updateResult ? (
                 <button
@@ -81,7 +93,7 @@ export function AboutSection({
               ) : (
                 <span className="text-xs text-scripture-muted">You're up to date</span>
               )}
-              {updateResult !== 'checking' && (
+              {!inFlatpak && updateResult !== 'checking' && (
                 <button
                   onClick={handleCheckNow}
                   className="text-xs text-scripture-accent hover:underline"
@@ -111,7 +123,7 @@ export function AboutSection({
         />
       )}
 
-      {onCheckForUpdatesChange && (
+      {!inFlatpak && onCheckForUpdatesChange && (
         <div className="flex items-center justify-between gap-4 pt-2">
           <div>
             <div className="text-sm font-medium text-scripture-text">Check for updates automatically</div>

@@ -11,6 +11,9 @@ mod icloud;
 // File download (bypasses webview CORS)
 mod download;
 
+// Flatpak sandbox detection (Linux only, but compiled everywhere — returns false off-Linux)
+mod flatpak;
+
 pub type SetupHook = Box<dyn FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send>;
 
 #[derive(Default)]
@@ -42,9 +45,11 @@ impl AppBuilder {
 
         #[cfg(desktop)]
         {
-            builder = builder
-                .plugin(tauri_plugin_updater::Builder::new().build())
-                .plugin(tauri_plugin_process::init());
+            builder = builder.plugin(tauri_plugin_process::init());
+            // Skip the in-app updater under Flatpak — Flathub manages updates.
+            if !flatpak::is_flatpak() {
+                builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+            }
         }
 
         builder
@@ -57,6 +62,7 @@ impl AppBuilder {
                 icloud::delete_local_database,
                 download::download_file,
                 download::install_bundled_module,
+                flatpak::check_flatpak,
             ])
             .setup(move |app| {
                 if let Some(setup) = setup {
