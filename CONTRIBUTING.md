@@ -45,6 +45,10 @@ If you'd prefer to read the full agreement first, it's at [CLA.md](./CLA.md).
 
 See [CLAUDE.md](./CLAUDE.md) for the project's code conventions — TypeScript, React, Tauri, and styling guidelines.
 
+## Linux builds
+
+BibleMarker's Linux distribution is moving to Flatpak (via Flathub) plus AppImage. The Tauri bundler is configured to build only AppImage on Linux; `.deb` and `.rpm` are no longer produced. If you run `pnpm tauri build` on Linux, you'll get a single `.AppImage` artifact under `src-tauri/target/release/bundle/appimage/`.
+
 ## Questions?
 
 Open an issue or email biblemarker@spearssoftware.com.
