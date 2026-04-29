@@ -76,10 +76,10 @@ npx wrangler r2 object put biblemarker-modules/NASB-1995.zip --file /tmp/sword/s
 ### 5. Deploy the Worker
 
 ```bash
-pnpm deploy
+pnpm run publish
 ```
 
-This deploys to the `production` environment, which binds the Worker to `biblemarker.app/sword/*` (configured in `wrangler.toml`).
+This deploys to the `production` environment, which binds the Worker to `biblemarker.app/sword/*` (configured in `wrangler.toml`). Avoid `pnpm publish` (no `run`) — that's a built-in pnpm command, not this script.
 
 ### 6. Add the signing key to GitHub Actions
 
@@ -95,7 +95,7 @@ The PR that wires this into Tauri builds will reference the secret as `NASB_SIGN
 
 After the initial setup, day-to-day updates are simple:
 
-- **Worker code change**: `pnpm deploy`
+- **Worker code change**: `pnpm run publish`
 - **New NASB module version**: re-upload via `wrangler r2 object put`
 - **Rotate the signing key**: regenerate, set as new secret in both Worker and GitHub Actions, deploy. Old client builds will start failing — only do this if you suspect compromise.
 

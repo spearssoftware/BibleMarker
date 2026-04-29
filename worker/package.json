@@ -5,7 +5,7 @@
   "description": "Cloudflare Worker that authenticates NASB SWORD module downloads for the official BibleMarker app.",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy --env production",
+    "publish": "wrangler deploy --env production",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
