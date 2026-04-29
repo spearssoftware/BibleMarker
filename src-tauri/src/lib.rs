@@ -14,6 +14,9 @@ mod download;
 // Flatpak sandbox detection (Linux only, but compiled everywhere — returns false off-Linux)
 mod flatpak;
 
+// Authenticated download for Lockman-licensed modules (NASB)
+mod signed_download;
+
 pub type SetupHook = Box<dyn FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send>;
 
 #[derive(Default)]
@@ -63,6 +66,8 @@ impl AppBuilder {
                 download::download_file,
                 download::install_bundled_module,
                 flatpak::check_flatpak,
+                signed_download::download_signed_module,
+                signed_download::has_signing_key,
             ])
             .setup(move |app| {
                 if let Some(setup) = setup {

@@ -86,11 +86,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Download SWORD modules
-        run: |
-          gh release download v1.0.0 --repo spearssoftware/biblemarker-assets --dir src-tauri/resources --pattern "sword-*.zip"
-        env:
-          GH_TOKEN: ${{ secrets.BIBLEMARKER_ASSETS_TOKEN }}
       - name: Download gnosis-lite.db
         run: |
           gh release download v0.9.3 --repo spearssoftware/gnosis --dir src-tauri/resources --pattern "gnosis-lite.db"
@@ -157,6 +152,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Embed the Lockman endpoint signing key at compile time. Builds without
+          # this env var (forks, Flathub) get NASB downloads disabled with a clear
+          # error message; everything else still works.
+          NASB_SIGNING_KEY: ${{ secrets.NASB_SIGNING_KEY }}
         with:
           releaseId: ${{ needs.prepare.outputs.release_id }}
           releaseDraft: true
@@ -174,6 +173,7 @@ jobs:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
+          NASB_SIGNING_KEY: ${{ secrets.NASB_SIGNING_KEY }}
         with:
           releaseDraft: true
           args: ${{ matrix.args }}
@@ -304,11 +304,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Download SWORD modules
-        run: |
-          gh release download v1.0.0 --repo spearssoftware/biblemarker-assets --dir src-tauri/resources --pattern "sword-*.zip"
-        env:
-          GH_TOKEN: ${{ secrets.BIBLEMARKER_ASSETS_TOKEN }}
       - name: Download gnosis-lite.db
         run: |
           gh release download v0.9.3 --repo spearssoftware/gnosis --dir src-tauri/resources --pattern "gnosis-lite.db"
@@ -441,6 +436,7 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APPLE_API_KEY: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APPLE_API_KEY_PATH: ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+          NASB_SIGNING_KEY: ${{ secrets.NASB_SIGNING_KEY }}
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v7
@@ -474,11 +470,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Download SWORD modules
-        run: |
-          gh release download v1.0.0 --repo spearssoftware/biblemarker-assets --dir src-tauri/resources --pattern "sword-*.zip"
-        env:
-          GH_TOKEN: ${{ secrets.BIBLEMARKER_ASSETS_TOKEN }}
       - name: Download gnosis-lite.db
         run: |
           gh release download v0.9.3 --repo spearssoftware/gnosis --dir src-tauri/resources --pattern "gnosis-lite.db"
@@ -552,6 +543,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          NASB_SIGNING_KEY: ${{ secrets.NASB_SIGNING_KEY }}
 
       - name: Locate and rename AAB
         run: |
