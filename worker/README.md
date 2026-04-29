@@ -41,7 +41,7 @@ pnpm install
 ### 2. Create the R2 bucket
 
 ```bash
-npx wrangler r2 bucket create biblemarker-sword
+npx wrangler r2 bucket create biblemarker-modules
 ```
 
 ### 3. Generate and set the signing key
@@ -69,8 +69,8 @@ gh release download v1.0.0 \
   --pattern "sword-NASB*.zip"
 
 # R2 keys must match what the BibleMarker app requests
-npx wrangler r2 object put biblemarker-sword/NASB-2020.zip --file /tmp/sword/sword-NASB.zip --remote
-npx wrangler r2 object put biblemarker-sword/NASB-1995.zip --file /tmp/sword/sword-NASB1995.zip --remote
+npx wrangler r2 object put biblemarker-modules/NASB-2020.zip --file /tmp/sword/sword-NASB.zip --remote
+npx wrangler r2 object put biblemarker-modules/NASB-1995.zip --file /tmp/sword/sword-NASB1995.zip --remote
 ```
 
 ### 5. Deploy the Worker

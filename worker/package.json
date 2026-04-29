@@ -1,5 +1,5 @@
 {
-  "name": "biblemarker-sword-worker",
+  "name": "biblemarker-modules-worker",
   "private": true,
   "version": "0.1.0",
   "description": "Cloudflare Worker that authenticates NASB SWORD module downloads for the official BibleMarker app.",

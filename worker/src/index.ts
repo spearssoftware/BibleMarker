@@ -20,7 +20,7 @@ export interface Env {
   /** Shared HMAC secret. Set via: wrangler secret put SIGNING_KEY */
   SIGNING_KEY: string;
   /** R2 bucket holding `<module>.zip` files */
-  SWORD_BUCKET: R2Bucket;
+  MODULES_BUCKET: R2Bucket;
 }
 
 const TOKEN_VALIDITY_SECONDS = 3600;
@@ -50,7 +50,7 @@ export default {
       return jsonError(401, 'Invalid or expired token');
     }
 
-    const obj = await env.SWORD_BUCKET.get(moduleName);
+    const obj = await env.MODULES_BUCKET.get(moduleName);
     if (!obj) {
       return jsonError(404, `Module ${moduleName} not found`);
     }

@@ -1,4 +1,4 @@
-name = "biblemarker-sword"
+name = "biblemarker-modules"
 main = "src/index.ts"
 compatibility_date = "2026-04-29"
 
@@ -10,10 +10,10 @@ routes = [
 ]
 
 # R2 bucket holding NASB SWORD modules (and any future Lockman-licensed modules).
-# Bucket must be created via: wrangler r2 bucket create biblemarker-sword
+# Bucket must be created via: wrangler r2 bucket create biblemarker-modules
 [[r2_buckets]]
-binding = "SWORD_BUCKET"
-bucket_name = "biblemarker-sword"
+binding = "MODULES_BUCKET"
+bucket_name = "biblemarker-modules"
 
 # SIGNING_KEY is set as a Worker secret, NOT committed:
 #   echo -n "<random-32-byte-hex-string>" | wrangler secret put SIGNING_KEY --env production
