@@ -1,0 +1,30 @@
+name = "biblemarker-modules"
+main = "src/index.ts"
+compatibility_date = "2026-04-29"
+
+# Top-level config is used by `wrangler dev` for local development.
+# Production deploys go through [env.production] below.
+[[r2_buckets]]
+binding = "MODULES_BUCKET"
+bucket_name = "biblemarker-modules"
+
+[observability]
+enabled = true
+
+# Production environment — used by `wrangler deploy --env production`.
+# When --env is passed, wrangler ONLY uses config under [env.X], so bindings
+# must be repeated here even if also defined at the top level.
+[env.production]
+routes = [
+  { pattern = "biblemarker.app/modules/*", zone_name = "biblemarker.app" }
+]
+
+[[env.production.r2_buckets]]
+binding = "MODULES_BUCKET"
+bucket_name = "biblemarker-modules"
+
+[env.production.observability]
+enabled = true
+
+# SIGNING_KEY is set as a Worker secret, NOT committed:
+#   echo -n "<random-32-byte-hex-string>" | wrangler secret put SIGNING_KEY --env production
