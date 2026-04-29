@@ -162,6 +162,67 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
+      # Linux only: repack the AppImage with the static type2-runtime so users
+      # don't need libfuse2 installed to run it. Tauri's bundler links against
+      # the older runtime that requires libfuse.so.2, which isn't installed by
+      # default on Debian 12, Ubuntu 22.04+, Fedora 38+, and other modern
+      # distros. The static runtime bundles its own FUSE.
+      #
+      # Repacking invalidates the .sig file Tauri generated, so we re-sign the
+      # repacked AppImage with the same Tauri updater key.
+      - name: Repack AppImage with static runtime (Linux only)
+        if: matrix.platform == 'ubuntu-22.04'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          TAG: app-v${{ needs.prepare.outputs.version }}
+        run: |
+          set -e
+          APPIMAGE_DIR=src-tauri/target/release/bundle/appimage
+          BASENAME="BibleMarker_${VERSION}_amd64.AppImage"
+          APPIMAGE="$APPIMAGE_DIR/$BASENAME"
+
+          if [ ! -f "$APPIMAGE" ]; then
+            echo "::warning::No AppImage found at $APPIMAGE; skipping repack"
+            exit 0
+          fi
+
+          echo "Downloading static type2-runtime"
+          curl -fsSL -o /tmp/runtime-x86_64 \
+            https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64
+          chmod +x /tmp/runtime-x86_64
+
+          echo "Downloading appimagetool"
+          curl -fsSL -o /tmp/appimagetool \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x /tmp/appimagetool
+
+          echo "Extracting original AppImage"
+          cd "$APPIMAGE_DIR"
+          "./$BASENAME" --appimage-extract > /dev/null
+
+          echo "Repacking with static runtime"
+          rm "$BASENAME" "$BASENAME.sig"
+          ARCH=x86_64 /tmp/appimagetool --appimage-extract-and-run \
+            --runtime-file /tmp/runtime-x86_64 \
+            squashfs-root \
+            "$BASENAME"
+          rm -rf squashfs-root
+
+          echo "Re-signing repacked AppImage"
+          cd "$GITHUB_WORKSPACE"
+          pnpm tauri signer sign "$APPIMAGE"
+
+          echo "Uploading repacked AppImage and new signature to release"
+          gh release upload "$TAG" \
+            "$APPIMAGE" \
+            "$APPIMAGE.sig" \
+            --repo "$GITHUB_REPOSITORY" --clobber
+
+          echo "Done. AppImage size: $(du -h "$APPIMAGE" | cut -f1)"
+
       # macOS: build only (no upload)
       - name: Build (macOS only)
         if: matrix.platform == 'macos-latest'
