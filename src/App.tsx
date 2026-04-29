@@ -17,7 +17,7 @@ import { Toolbar } from '@/components/MarkingToolbar';
 import { SplitLayout, PanelContainer } from '@/components/SplitLayout';
 import { useLayoutOrientation } from '@/hooks/useLayoutOrientation';
 import { ErrorDisplay } from '@/components/ErrorDisplay';
-import { WelcomeScreen, OnboardingTour } from '@/components/Onboarding';
+import { WelcomeScreen, TranslationLibrary, OnboardingTour } from '@/components/Onboarding';
 import { loadSampleData } from '@/lib/sampleData';
 import { getPreferences, initDatabase } from '@/lib/database';
 import { loadApiConfigs } from '@/lib/bible-api';
@@ -57,7 +57,9 @@ export default function App() {
   
   // Onboarding state
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showTranslationLibrary, setShowTranslationLibrary] = useState(false);
   const [showTour, setShowTour] = useState(false);
+  const [pendingTour, setPendingTour] = useState(false);
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
 
   // Update check: show banner when new version available (respects checkForUpdates pref, 24h throttle)
@@ -94,9 +96,13 @@ export default function App() {
           setFontSize(prefs.fontSize);
         }
         
-        // Check onboarding state
+        // Check onboarding state. Welcome runs once for new users; the
+        // Translation Library runs once for everyone (new users after Welcome,
+        // existing users on first launch after upgrade).
         if (!prefs.onboarding?.hasSeenWelcome) {
           setShowWelcome(true);
+        } else if (!prefs.onboarding?.hasSeenTranslationLibrary) {
+          setShowTranslationLibrary(true);
         }
         setIsCheckingOnboarding(false);
         // Load exclusions after DB is ready (needs v6 schema)
@@ -296,15 +302,30 @@ export default function App() {
       {/* Onboarding */}
       {!isCheckingOnboarding && showWelcome && (
         <WelcomeScreen
-          onComplete={() => setShowWelcome(false)}
+          onComplete={() => {
+            setShowWelcome(false);
+            setShowTranslationLibrary(true);
+          }}
           onStartTour={() => {
             setShowWelcome(false);
-            // Small delay to allow welcome screen to close
-            setTimeout(() => setShowTour(true), 300);
+            setPendingTour(true);
+            setShowTranslationLibrary(true);
           }}
         />
       )}
-      
+
+      {showTranslationLibrary && (
+        <TranslationLibrary
+          onContinue={() => {
+            setShowTranslationLibrary(false);
+            if (pendingTour) {
+              setPendingTour(false);
+              setTimeout(() => setShowTour(true), 300);
+            }
+          }}
+        />
+      )}
+
       {showTour && (
         <OnboardingTour
           onComplete={() => setShowTour(false)}

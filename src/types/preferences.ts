@@ -20,6 +20,8 @@ export interface ApiConfigRecord {
 export interface OnboardingState {
   hasSeenWelcome: boolean;
   hasCompletedTour: boolean;
+  /** True once the user has seen the first-launch translation library prompt. */
+  hasSeenTranslationLibrary?: boolean;
   dismissedTooltips: string[];
 }
 
