@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=BibleMarker
+GenericName=Bible Study
+Comment=Inductive Bible study with marking, observation, and notes
+Exec=BibleMarker
+Icon=app.biblemarker.BibleMarker
+Terminal=false
+Categories=Education;Office;
+Keywords=bible;scripture;study;inductive;
+StartupWMClass=BibleMarker

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>app.biblemarker.BibleMarker</id>
+  <name>BibleMarker</name>
+  <summary>Inductive Bible study with marking, observation, and notes</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-or-later</project_license>
+
+  <developer id="com.spearssoftware">
+    <name>Spears Software</name>
+  </developer>
+
+  <description>
+    <p>
+      BibleMarker is a Bible study app built around inductive observation.
+      Mark the text, capture what you see, and develop your own
+      cross-references over time.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Multi-translation reading with the American Standard Version included and many more available as free downloads (NASB, KJV, BSB, and others)</li>
+      <li>Verse marking with custom keywords, colors, and symbols</li>
+      <li>Observations, notes, and structured study worksheets</li>
+      <li>Reference tools: Strong's, Hebrew and Greek breakdowns, cross-references, and chapter people and places</li>
+      <li>Works offline</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">app.biblemarker.BibleMarker.desktop</launchable>
+
+  <url type="homepage">https://biblemarker.app</url>
+  <url type="bugtracker">https://github.com/spearssoftware/BibleMarker/issues</url>
+  <url type="vcs-browser">https://github.com/spearssoftware/BibleMarker</url>
+  <url type="contribute">https://github.com/spearssoftware/BibleMarker/blob/main/CONTRIBUTING.md</url>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/spearssoftware/BibleMarker/main/docs/app-store-screenshots/ipad-13-01-mark-scripture.png</image>
+      <caption>Reading view with marked Scripture and chapter titles</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/spearssoftware/BibleMarker/main/docs/app-store-screenshots/iphone-6.9-02-observe-connections.png</image>
+      <caption>Observing connections across the text</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/spearssoftware/BibleMarker/main/docs/app-store-screenshots/iphone-6.9-03-analyze.png</image>
+      <caption>Analyzing a chapter's structure and themes</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/spearssoftware/BibleMarker/main/docs/app-store-screenshots/iphone-6.9-04-reference.png</image>
+      <caption>Reference tools for people, places, and Strong's</caption>
+    </screenshot>
+  </screenshots>
+
+  <categories>
+    <category>Education</category>
+    <category>Office</category>
+  </categories>
+
+  <keywords>
+    <keyword>bible</keyword>
+    <keyword>scripture</keyword>
+    <keyword>study</keyword>
+    <keyword>inductive</keyword>
+    <keyword>observation</keyword>
+  </keywords>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="2.0.1" date="2026-04-28">
+      <url>https://github.com/spearssoftware/BibleMarker/releases/tag/app-v2.0.1</url>
+    </release>
+  </releases>
+
+  <provides>
+    <binary>BibleMarker</binary>
+  </provides>
+</component>
