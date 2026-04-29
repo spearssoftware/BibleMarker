@@ -206,6 +206,19 @@ BibleMarker is licensed under the [GNU Affero General Public License v3.0 or lat
 
 See [LICENSE](./LICENSE) for full terms.
 
+## Bible text licensing
+
+BibleMarker source code is licensed under AGPL-3.0-or-later. **The NASB Bible text is not part of this repository.** NASB is licensed by The Lockman Foundation to Spears Software (the official BibleMarker developer) for use exclusively in the official BibleMarker app. The biblemarker.app endpoints that distribute NASB modules are restricted to the official app via a build-time signing key that is not present in this public source.
+
+If you fork BibleMarker and want to ship a similar app:
+- Your fork will not have NASB available. The build-time signing key is absent from the public source, so requests to biblemarker.app for NASB modules will be rejected.
+- The American Standard Version (ASV, public domain) ships bundled with the app. Many other public-domain SWORD modules are downloadable from CrossWire on demand.
+- To distribute NASB with a fork, you must obtain your own license from [The Lockman Foundation](https://www.lockman.org).
+
+## Trademark
+
+"BibleMarker" and the BibleMarker logo are trademarks of Spears Software. The AGPL license grants you rights to the source code. It does not grant rights to use the BibleMarker name or branding. Forks must rebrand.
+
 ## Contributing
 
 Contributions are welcome. Before your first pull request can be merged, you'll be asked to sign our [Contributor License Agreement](./CLA.md) — a one-click process via the CLA Assistant bot. See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.

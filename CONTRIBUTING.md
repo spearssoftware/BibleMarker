@@ -45,6 +45,18 @@ If you'd prefer to read the full agreement first, it's at [CLA.md](./CLA.md).
 
 See [CLAUDE.md](./CLAUDE.md) for the project's code conventions — TypeScript, React, Tauri, and styling guidelines.
 
+## Bible text, NASB, and trademark
+
+A few non-code things worth knowing as a contributor:
+
+**NASB is not in this repository.** The NASB SWORD modules are distributed by Spears Software via `biblemarker.app/modules/<file>.zip` under a license from The Lockman Foundation. The endpoint authenticates requests with an HMAC signature using a build-time secret (`NASB_SIGNING_KEY`) that is set in CI for official builds and is **not** in the public source. Local dev builds and forks built from public source cannot fetch NASB. Use ASV (bundled) or any of the public-domain SWORD modules from CrossWire instead.
+
+**If you want NASB locally for development**, ask Kevin for the signing key. Set it as a shell env var before running `pnpm tauri:dev` and the embedded build will be able to fetch from biblemarker.app like an official build would.
+
+**Don't bundle NASB into a fork.** The Lockman license is non-sublicensable, so even if you obtain NASB through some other channel, you cannot redistribute it as part of a forked BibleMarker. If you want to ship a fork with NASB, you must obtain your own license from [The Lockman Foundation](https://www.lockman.org).
+
+**Trademark.** The "BibleMarker" name and logo are trademarks of Spears Software. The AGPL license covers source code, not branding. Forks must rebrand under a different name.
+
 ## Linux builds
 
 BibleMarker's Linux distribution is moving to Flatpak (via Flathub) plus AppImage. The Tauri bundler is configured to build only AppImage on Linux; `.deb` and `.rpm` are no longer produced. If you run `pnpm tauri build` on Linux, you'll get a single `.AppImage` artifact under `src-tauri/target/release/bundle/appimage/`.
