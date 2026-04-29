@@ -1,6 +1,6 @@
-# BibleMarker SWORD module Worker
+# BibleMarker module Worker
 
-A Cloudflare Worker that authenticates and serves Lockman-licensed NASB SWORD modules from an R2 bucket. Lives at `https://biblemarker.app/sword/<module>.zip`.
+A Cloudflare Worker that authenticates and serves Lockman-licensed Bible modules from an R2 bucket. Lives at `https://biblemarker.app/modules/<module>.zip`.
 
 ## Why this exists
 
@@ -13,7 +13,7 @@ A fork built from public source has no signing key embedded, so its requests get
 Client (BibleMarker app) makes a `GET` request:
 
 ```
-GET /sword/NASB-2020.zip HTTP/1.1
+GET /modules/NASB-2020.zip HTTP/1.1
 Host: biblemarker.app
 Authorization: BibleMarker <unix_timestamp>.<base64url_hmac>
 ```
@@ -60,7 +60,7 @@ echo -n "<your-key>" | npx wrangler secret put SIGNING_KEY --env production
 
 ### 4. Upload NASB modules to R2
 
-The NASB SWORD zips are kept in `spearssoftware/biblemarker-assets` (private repo). Download and upload to R2:
+The NASB Bible modules are kept in `spearssoftware/biblemarker-assets` (private repo). Download and upload to R2:
 
 ```bash
 gh release download v1.0.0 \
@@ -79,7 +79,7 @@ npx wrangler r2 object put biblemarker-modules/NASB-1995.zip --file /tmp/sword/s
 pnpm run publish
 ```
 
-This deploys to the `production` environment, which binds the Worker to `biblemarker.app/sword/*` (configured in `wrangler.toml`). Avoid `pnpm publish` (no `run`) — that's a built-in pnpm command, not this script.
+This deploys to the `production` environment, which binds the Worker to `biblemarker.app/modules/*` (configured in `wrangler.toml`). Avoid `pnpm publish` (no `run`) — that's a built-in pnpm command, not this script.
 
 ### 6. Add the signing key to GitHub Actions
 
@@ -112,7 +112,7 @@ TS=$(date +%s)
 KEY="your-test-signing-key"
 TOKEN=$(printf "NASB-2020.zip:%s" "$TS" | openssl dgst -sha256 -hmac "$KEY" -binary | base64 | tr -d '=' | tr '/+' '_-')
 curl -H "Authorization: BibleMarker ${TS}.${TOKEN}" \
-     http://localhost:8787/sword/NASB-2020.zip
+     http://localhost:8787/modules/NASB-2020.zip
 ```
 
 For local R2, wrangler creates a fake bucket at `.wrangler/state/`. Drop a test zip there with the same name.
@@ -126,7 +126,7 @@ Cloudflare R2 has zero egress fees, so even at heavy download volume costs stay 
 The Worker logs every successful download as a structured JSON line:
 
 ```json
-{"event":"sword_download","module":"NASB-2020.zip","timestamp":"2026-04-29T12:00:00Z","country":"US"}
+{"event":"module_download","module":"NASB-2020.zip","timestamp":"2026-04-29T12:00:00Z","country":"US"}
 ```
 
 Cloudflare's Logpush or the dashboard's log query can be used to extract per-year totals for the report due to Lockman by end of February each year.

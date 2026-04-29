@@ -1,10 +1,11 @@
 /**
- * BibleMarker SWORD module distribution Worker.
+ * BibleMarker module distribution Worker.
  *
- * Serves Lockman-licensed NASB SWORD modules from an R2 bucket to the official
- * BibleMarker app. Requests must carry a valid HMAC-signed `Authorization`
- * header proving they originate from a build that has the embedded signing
- * key — i.e. an official BibleMarker build, not a public AGPL fork.
+ * Serves Lockman-licensed Bible modules (NASB, others) from an R2 bucket to
+ * the official BibleMarker app. Requests must carry a valid HMAC-signed
+ * `Authorization` header proving they originate from a build that has the
+ * embedded signing key — i.e. an official BibleMarker build, not a public
+ * AGPL fork.
  *
  * Token format:
  *   Authorization: BibleMarker <unix_timestamp>.<base64url-hmac>
@@ -24,7 +25,7 @@ export interface Env {
 }
 
 const TOKEN_VALIDITY_SECONDS = 3600;
-const MODULE_PATH_RE = /^\/sword\/([A-Za-z0-9_.-]+\.zip)$/;
+const MODULE_PATH_RE = /^\/modules\/([A-Za-z0-9_.-]+\.zip)$/;
 const AUTH_HEADER_RE = /^BibleMarker\s+(\d+)\.([A-Za-z0-9_-]+)$/;
 
 export default {
@@ -59,7 +60,7 @@ export default {
     const cf = (request as { cf?: IncomingRequestCfProperties }).cf;
     console.log(
       JSON.stringify({
-        event: 'sword_download',
+        event: 'module_download',
         module: moduleName,
         timestamp: new Date().toISOString(),
         country: cf?.country,

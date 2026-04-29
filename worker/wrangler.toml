@@ -16,7 +16,7 @@ enabled = true
 # must be repeated here even if also defined at the top level.
 [env.production]
 routes = [
-  { pattern = "biblemarker.app/sword/*", zone_name = "biblemarker.app" }
+  { pattern = "biblemarker.app/modules/*", zone_name = "biblemarker.app" }
 ]
 
 [[env.production.r2_buckets]]

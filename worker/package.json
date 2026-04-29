@@ -2,7 +2,7 @@
   "name": "biblemarker-modules-worker",
   "private": true,
   "version": "0.1.0",
-  "description": "Cloudflare Worker that authenticates NASB SWORD module downloads for the official BibleMarker app.",
+  "description": "Cloudflare Worker that authenticates Bible module downloads for the official BibleMarker app.",
   "scripts": {
     "dev": "wrangler dev",
     "publish": "wrangler deploy --env production",
