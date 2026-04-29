@@ -87,9 +87,21 @@ const MODULE_REGISTRY: SwordModuleInfo[] = [
     hasStrongs: true,
   },
 
-  // Public domain modules (CrossWire)
+  // Public domain modules — ASV is bundled as the offline-default translation
+  // so a fresh install always has a Bible to read, even without internet.
+  // Other public-domain modules download from CrossWire on demand.
+  {
+    id: 'sword-ASV',
+    name: 'American Standard Version',
+    abbreviation: 'ASV',
+    downloadUrl: `${CROSSWIRE_BASE}/ASV.zip`,
+    bundledResource: 'sword-ASV.zip',
+    copyright: null,
+    copyrightUrl: null,
+    language: 'en',
+    category: 'public-domain',
+  },
   pdModule('KJV', 'King James Version', 'en', true),
-  pdModule('ASV', 'American Standard Version'),
   pdModule('BBE', 'Bible in Basic English'),
   pdModule('BSB', 'Berean Standard Bible'),
   pdModule('Darby', 'Darby Translation'),
