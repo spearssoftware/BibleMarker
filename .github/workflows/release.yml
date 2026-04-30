@@ -78,6 +78,13 @@ jobs:
           - platform: ubuntu-22.04
             args: ""
             tauri_target: ""
+            linux_arch: x86_64
+            appimage_suffix: amd64
+          - platform: ubuntu-22.04-arm
+            args: ""
+            tauri_target: ""
+            linux_arch: aarch64
+            appimage_suffix: aarch64
           - platform: windows-latest
             args: ""
             tauri_target: ""
@@ -93,7 +100,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
+        if: startsWith(matrix.platform, 'ubuntu-')
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
@@ -171,17 +178,19 @@ jobs:
       # Repacking invalidates the .sig file Tauri generated, so we re-sign the
       # repacked AppImage with the same Tauri updater key.
       - name: Repack AppImage with static runtime (Linux only)
-        if: matrix.platform == 'ubuntu-22.04'
+        if: startsWith(matrix.platform, 'ubuntu-')
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.prepare.outputs.version }}
           TAG: app-v${{ needs.prepare.outputs.version }}
+          LINUX_ARCH: ${{ matrix.linux_arch }}
+          APPIMAGE_SUFFIX: ${{ matrix.appimage_suffix }}
         run: |
           set -e
           APPIMAGE_DIR=src-tauri/target/release/bundle/appimage
-          BASENAME="BibleMarker_${VERSION}_amd64.AppImage"
+          BASENAME="BibleMarker_${VERSION}_${APPIMAGE_SUFFIX}.AppImage"
           APPIMAGE="$APPIMAGE_DIR/$BASENAME"
 
           if [ ! -f "$APPIMAGE" ]; then
@@ -189,14 +198,14 @@ jobs:
             exit 0
           fi
 
-          echo "Downloading static type2-runtime"
-          curl -fsSL -o /tmp/runtime-x86_64 \
-            https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64
-          chmod +x /tmp/runtime-x86_64
+          echo "Downloading static type2-runtime for $LINUX_ARCH"
+          curl -fsSL -o /tmp/runtime \
+            "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-${LINUX_ARCH}"
+          chmod +x /tmp/runtime
 
-          echo "Downloading appimagetool"
+          echo "Downloading appimagetool for $LINUX_ARCH"
           curl -fsSL -o /tmp/appimagetool \
-            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+            "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${LINUX_ARCH}.AppImage"
           chmod +x /tmp/appimagetool
 
           echo "Extracting original AppImage"
@@ -205,8 +214,8 @@ jobs:
 
           echo "Repacking with static runtime"
           rm "$BASENAME" "$BASENAME.sig"
-          ARCH=x86_64 /tmp/appimagetool --appimage-extract-and-run \
-            --runtime-file /tmp/runtime-x86_64 \
+          ARCH="$LINUX_ARCH" /tmp/appimagetool --appimage-extract-and-run \
+            --runtime-file /tmp/runtime \
             squashfs-root \
             "$BASENAME"
           rm -rf squashfs-root
@@ -326,16 +335,19 @@ jobs:
             --dir artifacts \
             --pattern "BibleMarker_${VERSION}_x64-setup.exe" \
             --pattern "BibleMarker_${VERSION}_x64_en-US.msi" \
-            --pattern "BibleMarker_${VERSION}_amd64.AppImage"
+            --pattern "BibleMarker_${VERSION}_amd64.AppImage" \
+            --pattern "BibleMarker_${VERSION}_aarch64.AppImage"
 
-          cp "artifacts/BibleMarker_${VERSION}_x64-setup.exe"   "artifacts/BibleMarker-windows-x64-setup.exe"
-          cp "artifacts/BibleMarker_${VERSION}_x64_en-US.msi"   "artifacts/BibleMarker-windows-x64.msi"
-          cp "artifacts/BibleMarker_${VERSION}_amd64.AppImage"  "artifacts/BibleMarker-linux-x64.AppImage"
+          cp "artifacts/BibleMarker_${VERSION}_x64-setup.exe"     "artifacts/BibleMarker-windows-x64-setup.exe"
+          cp "artifacts/BibleMarker_${VERSION}_x64_en-US.msi"     "artifacts/BibleMarker-windows-x64.msi"
+          cp "artifacts/BibleMarker_${VERSION}_amd64.AppImage"    "artifacts/BibleMarker-linux-x64.AppImage"
+          cp "artifacts/BibleMarker_${VERSION}_aarch64.AppImage"  "artifacts/BibleMarker-linux-aarch64.AppImage"
 
           gh release upload "$TAG" \
             "artifacts/BibleMarker-windows-x64-setup.exe" \
             "artifacts/BibleMarker-windows-x64.msi" \
             "artifacts/BibleMarker-linux-x64.AppImage" \
+            "artifacts/BibleMarker-linux-aarch64.AppImage" \
             --repo "$GITHUB_REPOSITORY" --clobber
 
   create-latest-json:
