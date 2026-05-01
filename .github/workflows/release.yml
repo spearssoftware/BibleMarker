@@ -334,18 +334,15 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --dir artifacts \
             --pattern "BibleMarker_${VERSION}_x64-setup.exe" \
-            --pattern "BibleMarker_${VERSION}_x64_en-US.msi" \
             --pattern "BibleMarker_${VERSION}_amd64.AppImage" \
             --pattern "BibleMarker_${VERSION}_aarch64.AppImage"
 
           cp "artifacts/BibleMarker_${VERSION}_x64-setup.exe"     "artifacts/BibleMarker-windows-x64-setup.exe"
-          cp "artifacts/BibleMarker_${VERSION}_x64_en-US.msi"     "artifacts/BibleMarker-windows-x64.msi"
           cp "artifacts/BibleMarker_${VERSION}_amd64.AppImage"    "artifacts/BibleMarker-linux-x64.AppImage"
           cp "artifacts/BibleMarker_${VERSION}_aarch64.AppImage"  "artifacts/BibleMarker-linux-aarch64.AppImage"
 
           gh release upload "$TAG" \
             "artifacts/BibleMarker-windows-x64-setup.exe" \
-            "artifacts/BibleMarker-windows-x64.msi" \
             "artifacts/BibleMarker-linux-x64.AppImage" \
             "artifacts/BibleMarker-linux-aarch64.AppImage" \
             --repo "$GITHUB_REPOSITORY" --clobber
