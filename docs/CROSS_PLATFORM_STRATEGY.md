@@ -104,7 +104,7 @@ CARGO_HOME="$(pwd)/.cargo-home" unset CI && pnpm tauri build --target aarch64-ap
 - See [MAC_APP_GUIDE.md](./MAC_APP_GUIDE.md)
 
 **Windows:**
-- `.exe` / `.msi` installer
+- `.exe` installer (NSIS)
 - See [WINDOWS_CODE_SIGNING.md](./WINDOWS_CODE_SIGNING.md)
 
 **Linux:**
