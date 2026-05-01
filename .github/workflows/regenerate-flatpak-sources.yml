@@ -6,20 +6,20 @@ name: regenerate-flatpak-sources
 # These files do that.
 #
 # Triggered by:
-#   - Manual dispatch (e.g. for the initial run)
-#   - Push to main affecting src-tauri/Cargo.lock or pnpm-lock.yaml
-#     (catches dependabot merges, deliberate dep bumps, etc.)
+#   - Manual dispatch only (Flathub submission is parked; auto-trigger off
+#     to avoid noise PRs while we're not actively pursuing Flathub)
 #
-# On change, opens a PR titled "chore(flatpak): regenerate vendored
-# dependency sources". Merging that PR keeps the Flatpak build buildable.
+# When Flathub work resumes: re-enable the push trigger by uncommenting the
+# block below, OR just dispatch this workflow whenever you need fresh sources.
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'src-tauri/Cargo.lock'
-      - 'pnpm-lock.yaml'
+  # Auto-trigger disabled while Flathub submission is parked. Re-enable when ready.
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'src-tauri/Cargo.lock'
+  #     - 'pnpm-lock.yaml'
 
 permissions:
   contents: write
