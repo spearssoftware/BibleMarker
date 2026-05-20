@@ -44,6 +44,10 @@ export function UnifiedPicker({
   const [recentBooks, setRecentBooks] = useState<string[]>([]);
   const pickerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  // When the picker opens straight to the verse grid, focus the current verse
+  // so the modal's auto-focus doesn't land on the breadcrumb book button
+  // (which would draw a stray accent focus ring around the book name).
+  const currentVerseRef = useRef<HTMLButtonElement>(null);
 
   const otBooks = getOTBooks();
   const ntBooks = getNTBooks();
@@ -100,6 +104,7 @@ export function UnifiedPicker({
     onClose,
     lockScroll: true,
     handleEscape: true,
+    initialFocusRef: currentVerseRef,
   });
 
   // Focus search input on mount (skip on iOS to avoid keyboard/zoom)
@@ -358,19 +363,26 @@ export function UnifiedPicker({
           /* Verse Selection */
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4">
             <div className="grid grid-cols-8 gap-1.5">
-              {verses.map((verse) => (
+              {verses.map((verse) => {
+                const isCurrentVerse =
+                  verse === currentVerse &&
+                  selectedChapter === currentChapter &&
+                  selectedBook === currentBook;
+                return (
                 <button
                   key={verse}
+                  ref={isCurrentVerse ? currentVerseRef : undefined}
                   onClick={() => handleVerseSelect(verse)}
                   className={`w-9 h-9 text-xs font-ui font-medium rounded-lg transition-all duration-200
-                            ${verse === currentVerse && selectedChapter === currentChapter && selectedBook === currentBook
+                            ${isCurrentVerse
                               ? 'bg-scripture-accent text-scripture-bg shadow-sm'
                               : 'bg-scripture-elevated hover:bg-scripture-border/50'}`}
                   aria-label={`Verse ${verse}`}
                 >
                   {verse}
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
