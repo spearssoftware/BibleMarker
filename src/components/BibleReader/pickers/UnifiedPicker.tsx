@@ -277,7 +277,7 @@ export function UnifiedPicker({
                                     ? 'bg-scripture-accent text-scripture-bg shadow-sm'
                                     : 'bg-scripture-elevated hover:bg-scripture-border/50'}`}
                       >
-                        {book.shortName}
+                        {book.name}
                       </button>
                     );
                   })}
@@ -291,18 +291,18 @@ export function UnifiedPicker({
                 <h3 className="text-xs font-ui font-semibold text-scripture-muted uppercase tracking-wider mb-2">
                   Old Testament
                 </h3>
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5">
                   {filteredBooks.ot.map((book) => (
                     <button
                       key={book.id}
                       onClick={() => handleBookSelect(book.id)}
-                      className={`px-2 py-2 text-sm font-ui rounded-lg transition-all duration-200
+                      className={`px-3 py-2 text-sm font-ui rounded-lg transition-all duration-200 text-left truncate
                                 ${book.id === currentBook
                                   ? 'bg-scripture-accent text-scripture-bg shadow-sm'
                                   : 'bg-scripture-elevated hover:bg-scripture-border/50'}`}
                       aria-label={`Select ${book.name}`}
                     >
-                      {book.shortName}
+                      {book.name}
                     </button>
                   ))}
                 </div>
@@ -315,18 +315,18 @@ export function UnifiedPicker({
                 <h3 className="text-xs font-ui font-semibold text-scripture-muted uppercase tracking-wider mb-2">
                   New Testament
                 </h3>
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5">
                   {filteredBooks.nt.map((book) => (
                     <button
                       key={book.id}
                       onClick={() => handleBookSelect(book.id)}
-                      className={`px-2 py-2 text-sm font-ui rounded-lg transition-all duration-200
+                      className={`px-3 py-2 text-sm font-ui rounded-lg transition-all duration-200 text-left truncate
                                 ${book.id === currentBook
                                   ? 'bg-scripture-accent text-scripture-bg shadow-sm'
                                   : 'bg-scripture-elevated hover:bg-scripture-border/50'}`}
                       aria-label={`Select ${book.name}`}
                     >
-                      {book.shortName}
+                      {book.name}
                     </button>
                   ))}
                 </div>
