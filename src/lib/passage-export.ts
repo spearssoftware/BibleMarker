@@ -17,12 +17,22 @@ import type {
   Note,
   SectionHeading,
   SymbolAnnotation,
+  SymbolKey,
   TextAnnotation,
   Verse,
 } from '@/types';
-import { getBookById, getHighlightColorHex } from '@/types';
+import { getBookById, getHighlightColorHex, SYMBOLS } from '@/types';
 import { getModuleCopyright, ESV_COPYRIGHT, type ApiTranslation } from '@/lib/bible-api';
 import { getSymbolMarkup } from '@/lib/symbolDisplay';
+
+/**
+ * How to render symbols in the exported HTML.
+ * - `svg`: inline Phosphor SVG. Looks like the on-screen marks. Use for
+ *   Print/PDF where the browser renders the SVG faithfully.
+ * - `unicode`: text glyph from the SYMBOLS map. Use for clipboard/Word —
+ *   Word strips inline SVG on paste, but the glyph survives.
+ */
+export type SymbolFormat = 'svg' | 'unicode';
 
 export interface PassageExportInput {
   translation: ApiTranslation;
@@ -35,6 +45,8 @@ export interface PassageExportInput {
   chapterTitle: ChapterTitle | null;
   /** Inclusive verse range. Omit to export the entire chapter. */
   verseRange?: { start: number; end: number };
+  /** Defaults to 'svg'. Use 'unicode' for the clipboard path so symbols survive paste into Word. */
+  symbolFormat?: SymbolFormat;
 }
 
 export interface PassageExportOutput {
@@ -182,7 +194,19 @@ function inlineStyleFor(textAnns: TextAnnotation[]): string {
   return styles.join(';');
 }
 
-function renderVerseHtml(verse: Verse, annotations: Annotation[]): string {
+function renderSymbol(symbol: SymbolKey, color: string | undefined, format: SymbolFormat): string {
+  if (format === 'unicode') {
+    const glyph = SYMBOLS[symbol] ?? '';
+    if (!glyph) return '';
+    const safe = escapeHtml(glyph);
+    const colorStyle = color ? `color:${color};` : '';
+    return `<span style="${colorStyle}font-weight:600;">${safe}</span>`;
+  }
+  const markup = getSymbolMarkup(symbol, color);
+  return `<span style="display:inline-block;width:1em;height:1em;vertical-align:-0.1em;">${markup}</span>`;
+}
+
+function renderVerseHtml(verse: Verse, annotations: Annotation[], symbolFormat: SymbolFormat): string {
   const text = verse.text || '';
   if (!text) return '';
 
@@ -198,8 +222,7 @@ function renderVerseHtml(verse: Verse, annotations: Annotation[]): string {
     )
     .map((a) => {
       const color = a.color ? getHighlightColorHex(a.color) : undefined;
-      const markup = getSymbolMarkup(a.symbol, color);
-      return `<span style="display:inline-block;width:1em;height:1em;margin-right:0.15em;vertical-align:-0.1em;">${markup}</span>`;
+      return renderSymbol(a.symbol, color, symbolFormat) + (symbolFormat === 'svg' ? '' : ' ');
     })
     .join('');
 
@@ -220,12 +243,10 @@ function renderVerseHtml(verse: Verse, annotations: Annotation[]): string {
     if (range.symbolAnns.length > 0) {
       const sym = range.symbolAnns[0];
       const color = sym.color ? getHighlightColorHex(sym.color) : undefined;
-      const symbolMarkup = getSymbolMarkup(sym.symbol, color);
+      const symbolHtml = renderSymbol(sym.symbol, color, symbolFormat);
       const styleAttr = style ? ` style="${style}"` : '';
-      out.push(
-        `<span style="display:inline-block;width:1em;height:1em;vertical-align:-0.1em;margin-right:0.1em;">${symbolMarkup}</span>` +
-          `<span${styleAttr}>${escapeHtml(segment)}</span>`,
-      );
+      const sep = symbolFormat === 'svg' ? '' : ' ';
+      out.push(`${symbolHtml}${sep}<span${styleAttr}>${escapeHtml(segment)}</span>`);
     } else if (style) {
       out.push(`<span style="${style}">${escapeHtml(segment)}</span>`);
     } else {
@@ -240,6 +261,7 @@ function renderVerseHtml(verse: Verse, annotations: Annotation[]): string {
 
 function buildHtmlDocument(input: PassageExportInput): string {
   const { translation, book, chapter, verses, annotations, notes, sectionHeadings, chapterTitle, verseRange } = input;
+  const symbolFormat: SymbolFormat = input.symbolFormat ?? 'svg';
 
   const range = verseRange ?? { start: verses[0]?.ref.verse ?? 1, end: verses[verses.length - 1]?.ref.verse ?? 0 };
   const inRange = verses.filter((v) => v.ref.verse >= range.start && v.ref.verse <= range.end);
@@ -288,7 +310,7 @@ function buildHtmlDocument(input: PassageExportInput): string {
     blocks.push(
       `<p style="margin:0 0 0.6em 0;line-height:1.6;text-indent:0;">` +
         `<sup style="font-weight:600;color:#888;margin-right:0.3em;">${verse.ref.verse}</sup>` +
-        renderVerseHtml(verse, verseAnns) +
+        renderVerseHtml(verse, verseAnns, symbolFormat) +
         `</p>`,
     );
 
@@ -388,50 +410,57 @@ export function formatPassageAsHtml(input: PassageExportInput): PassageExportOut
 
 /**
  * Open the system print dialog with the given HTML. On macOS/Windows/Linux
- * the dialog includes "Save as PDF" — same code path covers both. Uses a
- * hidden iframe so the print document is a fresh DOM with only its own styles.
+ * the dialog includes "Save as PDF" — same code path covers both.
+ *
+ * Implementation notes:
+ * - Uses `srcdoc` rather than `document.write`. WKWebView (Tauri on macOS)
+ *   is unreliable about firing `onload` for written documents, so the
+ *   print call would silently fire before content existed.
+ * - Iframe has real paper-sized dimensions positioned offscreen. Zero-
+ *   dimension hidden iframes don't actually trigger print in WKWebView.
  */
 export function printPassage(html: string): void {
+  const existing = document.querySelector('iframe[data-passage-print]');
+  if (existing) existing.remove();
+
   const iframe = document.createElement('iframe');
+  iframe.setAttribute('data-passage-print', 'true');
   iframe.setAttribute('aria-hidden', 'true');
   iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
+  iframe.style.left = '-10000px';
+  iframe.style.top = '0';
+  iframe.style.width = '210mm';
+  iframe.style.height = '297mm';
   iframe.style.border = '0';
-  iframe.style.opacity = '0';
-  document.body.appendChild(iframe);
+  iframe.style.pointerEvents = 'none';
+  iframe.srcdoc = html;
 
+  let cleaned = false;
   const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
     if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
   };
 
-  const doc = iframe.contentDocument;
-  const win = iframe.contentWindow;
-  if (!doc || !win) {
-    cleanup();
-    throw new Error('Print iframe failed to initialize');
-  }
-
-  doc.open();
-  doc.write(html);
-  doc.close();
-
-  win.addEventListener('afterprint', () => {
-    setTimeout(cleanup, 100);
-  });
-
-  // Give the document a tick to lay out before invoking the dialog.
-  setTimeout(() => {
+  iframe.addEventListener('load', () => {
+    const win = iframe.contentWindow;
+    if (!win) {
+      cleanup();
+      return;
+    }
+    win.addEventListener('afterprint', () => setTimeout(cleanup, 200));
+    // Safety net: clean up after 60s even if afterprint never fires.
+    setTimeout(cleanup, 60_000);
     try {
       win.focus();
       win.print();
     } catch (err) {
+      console.error('[passage-export] print failed', err);
       cleanup();
-      throw err;
     }
-  }, 50);
+  });
+
+  document.body.appendChild(iframe);
 }
 
 /**

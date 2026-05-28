@@ -216,6 +216,65 @@ describe('formatPassageAsHtml', () => {
     expect(out.html).toContain('>God<');
   });
 
+  it('emits Unicode symbol glyphs when symbolFormat is "unicode" (for Word paste)', () => {
+    const verses: Verse[] = [{ ref: { book: 'John', chapter: 3, verse: 16 }, text: 'For God so loved the world' }];
+    const sym: Annotation = {
+      id: 's',
+      moduleId: 'sword-KJV',
+      type: 'symbol',
+      ref: { book: 'John', chapter: 3, verse: 16 },
+      position: 'center',
+      startOffset: 4,
+      endOffset: 7,
+      selectedText: 'God',
+      symbol: 'triangle',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const out = formatPassageAsHtml({
+      translation: PUBLIC_DOMAIN,
+      book: 'John',
+      chapter: 3,
+      verses,
+      annotations: [sym],
+      notes: [],
+      sectionHeadings: [],
+      chapterTitle: null,
+      symbolFormat: 'unicode',
+    });
+    // SYMBOLS.triangle === '▲'
+    expect(out.html).toContain('▲');
+    expect(out.html).not.toContain('<svg');
+  });
+
+  it('emits inline SVG markup when symbolFormat is "svg" (default, for print)', () => {
+    const verses: Verse[] = [{ ref: { book: 'John', chapter: 3, verse: 16 }, text: 'For God so loved the world' }];
+    const sym: Annotation = {
+      id: 's',
+      moduleId: 'sword-KJV',
+      type: 'symbol',
+      ref: { book: 'John', chapter: 3, verse: 16 },
+      position: 'center',
+      startOffset: 4,
+      endOffset: 7,
+      selectedText: 'God',
+      symbol: 'triangle',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const out = formatPassageAsHtml({
+      translation: PUBLIC_DOMAIN,
+      book: 'John',
+      chapter: 3,
+      verses,
+      annotations: [sym],
+      notes: [],
+      sectionHeadings: [],
+      chapterTitle: null,
+    });
+    expect(out.html).toContain('<svg');
+  });
+
   it('escapes HTML-special characters in verse text and notes', () => {
     const verses: Verse[] = [{ ref: { book: 'John', chapter: 3, verse: 1 }, text: '<script>alert(1)</script>' }];
     const note: Note = {

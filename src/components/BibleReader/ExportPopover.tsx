@@ -96,7 +96,7 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
     [verses],
   );
 
-  const buildOutput = () => {
+  const buildOutput = (symbolFormat: 'svg' | 'unicode') => {
     return formatPassageAsHtml({
       translation,
       book,
@@ -107,13 +107,14 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
       sectionHeadings: headings,
       chapterTitle,
       verseRange: wholeChapter ? undefined : { start: startVerse, end: endVerse },
+      symbolFormat,
     });
   };
 
   const handlePrint = () => {
     setAction({ status: 'busy' });
     try {
-      const { html } = buildOutput();
+      const { html } = buildOutput('svg');
       printPassage(html);
       setAction({ status: 'idle' });
     } catch (err) {
@@ -125,7 +126,9 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
   const handleCopy = async () => {
     setAction({ status: 'busy' });
     try {
-      const { html, plainText } = buildOutput();
+      // Unicode glyphs for symbols — Word strips inline SVG on paste, but
+      // the Unicode characters in the SYMBOLS map survive.
+      const { html, plainText } = buildOutput('unicode');
       await copyPassage(html, plainText);
       setAction({ status: 'success', message: 'Copied — paste into Word, Pages, or any rich-text editor.' });
     } catch (err) {
