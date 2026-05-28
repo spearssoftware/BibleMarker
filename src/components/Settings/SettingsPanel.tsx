@@ -11,7 +11,14 @@ import { getBookById, BIBLE_BOOKS } from '@/types';
 import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences, getSyncDiagnostics, type SyncDiagnostics } from '@/lib/database';
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
 import { exportStudyData } from '@/lib/export';
-import { applyTheme, applyScriptureFont, type ScriptureFont } from '@/lib/theme';
+import {
+  applyTheme,
+  applyScriptureFont,
+  applySymbolOpacity,
+  SYMBOL_OPACITY_MIN,
+  SYMBOL_OPACITY_MAX,
+  type ScriptureFont,
+} from '@/lib/theme';
 import { clearDebugFlagsCache, getDebugFlags } from '@/lib/debug';
 import { 
   getAutoBackupConfig, 
@@ -55,7 +62,14 @@ interface SettingsPanelProps {
 
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
-  const { fontSize, setFontSize, scriptureFont, setScriptureFont } = useAnnotationStore();
+  const {
+    fontSize,
+    setFontSize,
+    scriptureFont,
+    setScriptureFont,
+    symbolOpacity,
+    setSymbolOpacity,
+  } = useAnnotationStore();
   const { currentBook, currentModuleId } = useBibleStore();
   const [theme, setTheme] = useState<'dark' | 'light' | 'auto'>('dark');
   const [highContrast, setHighContrast] = useState(false);
@@ -389,6 +403,19 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     }
   };
 
+  const handleSymbolOpacityChange = (next: number) => {
+    setSymbolOpacity(next);
+    applySymbolOpacity(next);
+  };
+
+  const handleSymbolOpacityCommit = async (next: number) => {
+    try {
+      await updatePreferences({ symbolOpacity: next });
+    } catch (error) {
+      console.error('Error updating symbol opacity:', error);
+    }
+  };
+
   const handleThemeChange = async (newTheme: 'dark' | 'light' | 'auto') => {
     setTheme(newTheme);
     applyTheme(newTheme, highContrast);
@@ -700,6 +727,32 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </div>
                 <p className="text-xs text-scripture-muted mt-2">
                   Choose the font used for Bible text
+                </p>
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
+
+              <div className="p-4">
+                <div className="flex items-baseline justify-between mb-3">
+                  <h3 className="text-base font-ui font-semibold text-scripture-text">Symbol Visibility</h3>
+                  <span className="text-xs font-ui text-scripture-muted tabular-nums">
+                    {Math.round(symbolOpacity * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={SYMBOL_OPACITY_MIN}
+                  max={SYMBOL_OPACITY_MAX}
+                  step={0.05}
+                  value={symbolOpacity}
+                  onChange={(e) => handleSymbolOpacityChange(Number(e.target.value))}
+                  onPointerUp={(e) => handleSymbolOpacityCommit(Number((e.target as HTMLInputElement).value))}
+                  onKeyUp={(e) => handleSymbolOpacityCommit(Number((e.target as HTMLInputElement).value))}
+                  aria-label="Symbol mark opacity"
+                  className="w-full accent-scripture-accent"
+                />
+                <p className="text-xs text-scripture-muted mt-2">
+                  How visible symbol marks appear behind annotated words. Increase if the marks are hard to see.
                 </p>
               </div>
 

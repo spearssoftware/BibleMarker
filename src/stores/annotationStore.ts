@@ -60,6 +60,7 @@ interface AnnotationState {
   preferences: MarkingPreferences;
   fontSize: FontSize;
   scriptureFont: 'crimson-pro' | 'lora' | 'merriweather' | 'literata';
+  symbolOpacity: number;
   
   // Toolbar visibility
   toolbarVisible: boolean;
@@ -78,6 +79,7 @@ interface AnnotationState {
   setPreferences: (prefs: MarkingPreferences) => void;
   setFontSize: (size: FontSize) => void;
   setScriptureFont: (font: 'crimson-pro' | 'lora' | 'merriweather' | 'literata') => void;
+  setSymbolOpacity: (opacity: number) => void;
   setToolbarVisible: (visible: boolean) => void;
   setToolbarExpanded: (expanded: boolean) => void;
   
@@ -102,6 +104,7 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   preferences: DEFAULT_MARKING_PREFERENCES,
   fontSize: 'base',
   scriptureFont: 'crimson-pro',
+  symbolOpacity: 0.85,
   toolbarVisible: true,
   toolbarExpanded: false,
   
@@ -134,6 +137,8 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   setFontSize: (fontSize) => set({ fontSize }),
 
   setScriptureFont: (scriptureFont) => set({ scriptureFont }),
+
+  setSymbolOpacity: (symbolOpacity) => set({ symbolOpacity }),
   
   setToolbarVisible: (toolbarVisible) => set({ toolbarVisible }),
   
