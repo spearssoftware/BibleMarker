@@ -1,16 +1,25 @@
 /**
  * Passage PDF export.
  *
- * Builds a real PDF (via pdfmake, dynamic-imported on first use) from the
- * chapter data the export popover already loads, then saves it through
- * Tauri's native save dialog and auto-opens it in the system's default
- * PDF viewer.
+ * Builds a PDF (via jsPDF, dynamic-imported on first use) from the chapter
+ * data the export popover loads, then saves it through Tauri's native
+ * save dialog and auto-opens it in the system's default PDF viewer.
  *
- * Why pdfmake and not browser print: WKWebView (Tauri on macOS) has a
- * no-op window.print(), so the HTML-based approaches we tried earlier
- * never reached the print dialog. A PDF file works everywhere — user
- * gets a portable artifact they can print, email, or open in Preview
- * and copy text from into Word.
+ * Why jsPDF and not pdfmake / browser print:
+ * - WKWebView (Tauri on macOS) has a no-op window.print(), so HTML
+ *   approaches never reached the print dialog.
+ * - pdfmake bundles PDFKit which uses Node-style streams that don't
+ *   initialize in WKWebView/Vite — createPdf().getBuffer() hangs even
+ *   for trivial documents.
+ * - jsPDF is pure browser JS with no Node-stream dependencies, ships
+ *   the core 14 PDF fonts, and is well-trodden in Tauri/Electron apps.
+ *
+ * Trade-off in v1: jsPDF is imperative (you position text yourself), so
+ * we render verses as clean numbered paragraphs and summarize the
+ * annotations on a small line after each verse — instead of trying to
+ * inline-color individual words, which requires manual run-by-run
+ * layout. The information is preserved; iteration can move to inline
+ * coloring later.
  *
  * Hard-capped at one chapter for licensing reasons (NASB Lockman / ESV
  * quotation guidelines).
@@ -19,15 +28,11 @@
 import type {
   Annotation,
   ChapterTitle,
-  HighlightColor,
   Note,
   SectionHeading,
-  SymbolAnnotation,
-  SymbolKey,
-  TextAnnotation,
   Verse,
 } from '@/types';
-import { getBookById, getHighlightColorHex, SYMBOLS } from '@/types';
+import { getBookById, SYMBOL_LABELS } from '@/types';
 import { getModuleCopyright, ESV_COPYRIGHT, type ApiTranslation } from '@/lib/bible-api';
 
 export interface BuildPassagePdfInput {
@@ -69,186 +74,266 @@ function findCoveringHeading(verseNum: number, headings: SectionHeading[]): Sect
   return covering;
 }
 
-interface AnnotationRange {
-  start: number;
-  end: number;
-  textAnns: TextAnnotation[];
-  symbolAnns: SymbolAnnotation[];
-}
-
-function resolveOffsets(
-  ann: TextAnnotation | SymbolAnnotation,
-  text: string,
-): { start: number; end: number } | null {
-  const startOffset = 'startOffset' in ann ? ann.startOffset : undefined;
-  const endOffset = 'endOffset' in ann ? ann.endOffset : undefined;
-  if (startOffset !== undefined && endOffset !== undefined) {
-    const s = Math.max(0, Math.min(startOffset, text.length));
-    const e = Math.max(s, Math.min(endOffset, text.length));
-    return { start: s, end: e };
-  }
-  const selectedText = 'selectedText' in ann ? ann.selectedText : undefined;
-  if (selectedText) {
-    const idx = text.indexOf(selectedText);
-    if (idx >= 0) return { start: idx, end: idx + selectedText.length };
-  }
-  return null;
-}
-
-function buildRangesForVerse(verse: Verse, annotations: Annotation[]): AnnotationRange[] {
-  const text = verse.text || '';
-  const ranges: AnnotationRange[] = [];
-
+/**
+ * One-line, human-readable summary of the marks on this verse.
+ * Example: 'marks: "so loved" highlighted yellow · "Christ" marked Jesus (cross) · "loved" underlined red'
+ */
+function buildMarksSummary(verse: Verse, annotations: Annotation[]): string | null {
+  const parts: string[] = [];
   for (const ann of annotations) {
     if (ann.type === 'symbol') {
       if (ann.ref.verse !== verse.ref.verse) continue;
-      if (ann.startOffset === undefined && ann.startWordIndex === undefined) continue;
-      const offsets = resolveOffsets(ann, text);
-      if (!offsets) continue;
-      let range = ranges.find((r) => r.start === offsets.start && r.end === offsets.end);
-      if (!range) {
-        range = { start: offsets.start, end: offsets.end, textAnns: [], symbolAnns: [] };
-        ranges.push(range);
-      }
-      if (!range.symbolAnns.some((s) => s.symbol === ann.symbol)) {
-        range.symbolAnns.push(ann);
-      }
+      const label = SYMBOL_LABELS[ann.symbol] || ann.symbol;
+      const target = ann.selectedText
+        ? `"${ann.selectedText}"`
+        : 'verse';
+      parts.push(`${target} marked ${label}`);
     } else {
       if (ann.startRef.verse !== verse.ref.verse) continue;
       if (ann.endRef.verse !== verse.ref.verse) continue;
-      const offsets = resolveOffsets(ann, text);
-      if (!offsets) continue;
-      let range = ranges.find((r) => r.start === offsets.start && r.end === offsets.end);
-      if (!range) {
-        range = { start: offsets.start, end: offsets.end, textAnns: [], symbolAnns: [] };
-        ranges.push(range);
+      const label =
+        ann.type === 'highlight' ? 'highlighted'
+        : ann.type === 'textColor' ? 'colored'
+        : 'underlined';
+      const target = ann.selectedText ? `"${ann.selectedText}"` : 'text';
+      parts.push(`${target} ${label} ${ann.color}`);
+    }
+  }
+  if (parts.length === 0) return null;
+  return `marks: ${parts.join(' · ')}`;
+}
+
+// --- jsPDF lazy loader -------------------------------------------------------
+
+type JsPDFDoc = {
+  internal: { pageSize: { getWidth: () => number; getHeight: () => number } };
+  setFont(family: string, style?: string): JsPDFDoc;
+  setFontSize(size: number): JsPDFDoc;
+  setTextColor(r: number, g: number, b: number): JsPDFDoc;
+  setDrawColor(r: number, g: number, b: number): JsPDFDoc;
+  setFillColor(r: number, g: number, b: number): JsPDFDoc;
+  setLineWidth(w: number): JsPDFDoc;
+  text(text: string | string[], x: number, y: number, options?: { align?: 'left' | 'center' | 'right'; maxWidth?: number }): JsPDFDoc;
+  splitTextToSize(text: string, maxWidth: number): string[];
+  rect(x: number, y: number, w: number, h: number, style?: string): JsPDFDoc;
+  line(x1: number, y1: number, x2: number, y2: number): JsPDFDoc;
+  addPage(): JsPDFDoc;
+  getNumberOfPages(): number;
+  setPage(n: number): JsPDFDoc;
+  output(type: 'arraybuffer'): ArrayBuffer;
+};
+
+type JsPDFCtor = new (opts?: { unit?: string; format?: string; orientation?: string }) => JsPDFDoc;
+
+let jspdfPromise: Promise<JsPDFCtor> | null = null;
+
+function loadJsPDF(): Promise<JsPDFCtor> {
+  if (jspdfPromise) return jspdfPromise;
+  jspdfPromise = (async () => {
+    console.log('[passage-pdf] loading jsPDF…');
+    const mod = (await import('jspdf')) as unknown as { jsPDF?: JsPDFCtor; default?: JsPDFCtor | { jsPDF?: JsPDFCtor } };
+    const candidate = mod.jsPDF
+      ?? (typeof mod.default === 'function' ? mod.default as JsPDFCtor : (mod.default as { jsPDF?: JsPDFCtor } | undefined)?.jsPDF);
+    if (!candidate) throw new Error('jsPDF module did not expose a constructor.');
+    console.log('[passage-pdf] jsPDF ready.');
+    return candidate;
+  })();
+  jspdfPromise.catch(() => { jspdfPromise = null; });
+  return jspdfPromise;
+}
+
+// --- Layout writer -----------------------------------------------------------
+
+interface PageWriterOptions {
+  marginTop: number;
+  marginBottom: number;
+  marginLeft: number;
+  marginRight: number;
+  /** Reserved space at the bottom of every page for the running footer. */
+  footerHeight: number;
+}
+
+const DEFAULT_OPTS: PageWriterOptions = {
+  marginTop: 54,
+  marginBottom: 72,
+  marginLeft: 54,
+  marginRight: 54,
+  footerHeight: 24,
+};
+
+class PageWriter {
+  readonly doc: JsPDFDoc;
+  private opts: PageWriterOptions;
+  private y: number;
+  readonly pageWidth: number;
+  readonly pageHeight: number;
+  readonly contentWidth: number;
+
+  constructor(doc: JsPDFDoc, opts: PageWriterOptions = DEFAULT_OPTS) {
+    this.doc = doc;
+    this.opts = opts;
+    this.pageWidth = doc.internal.pageSize.getWidth();
+    this.pageHeight = doc.internal.pageSize.getHeight();
+    this.contentWidth = this.pageWidth - opts.marginLeft - opts.marginRight;
+    this.y = opts.marginTop;
+  }
+
+  private bottomLimit(): number {
+    return this.pageHeight - this.opts.marginBottom - this.opts.footerHeight;
+  }
+
+  private ensureSpace(needed: number): void {
+    if (this.y + needed > this.bottomLimit()) {
+      this.doc.addPage();
+      this.y = this.opts.marginTop;
+    }
+  }
+
+  writeCentered(text: string, opts: { fontSize: number; bold?: boolean; italics?: boolean; color?: [number, number, number]; marginBottom?: number }): void {
+    const style = opts.italics ? (opts.bold ? 'bolditalic' : 'italic') : (opts.bold ? 'bold' : 'normal');
+    this.doc.setFont('helvetica', style);
+    this.doc.setFontSize(opts.fontSize);
+    if (opts.color) this.doc.setTextColor(...opts.color); else this.doc.setTextColor(0, 0, 0);
+    const lines = this.doc.splitTextToSize(text, this.contentWidth);
+    const lineHeight = opts.fontSize * 1.2;
+    this.ensureSpace(lines.length * lineHeight + (opts.marginBottom ?? 0));
+    this.doc.text(lines, this.pageWidth / 2, this.y + opts.fontSize, { align: 'center' });
+    this.y += lines.length * lineHeight + (opts.marginBottom ?? 0);
+  }
+
+  writeBlock(text: string, opts: { fontSize: number; bold?: boolean; italics?: boolean; color?: [number, number, number]; indent?: number; marginTop?: number; marginBottom?: number }): void {
+    if (opts.marginTop) this.y += opts.marginTop;
+    const style = opts.italics ? (opts.bold ? 'bolditalic' : 'italic') : (opts.bold ? 'bold' : 'normal');
+    this.doc.setFont('helvetica', style);
+    this.doc.setFontSize(opts.fontSize);
+    if (opts.color) this.doc.setTextColor(...opts.color); else this.doc.setTextColor(0, 0, 0);
+    const indent = opts.indent ?? 0;
+    const width = this.contentWidth - indent;
+    const lines = this.doc.splitTextToSize(text, width);
+    const lineHeight = opts.fontSize * 1.3;
+    // For potentially long blocks: emit line-by-line so we can page-break
+    // mid-block rather than orphaning lines past the page bottom.
+    for (const line of lines) {
+      this.ensureSpace(lineHeight);
+      this.doc.text(line, this.opts.marginLeft + indent, this.y + opts.fontSize);
+      this.y += lineHeight;
+    }
+    if (opts.marginBottom) this.y += opts.marginBottom;
+  }
+
+  /** Render a verse: small bold gray number + body text on one paragraph. */
+  writeVerse(verseNum: number, body: string, marksSummary: string | null): void {
+    const fontSize = 11;
+    const lineHeight = fontSize * 1.35;
+
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFontSize(fontSize);
+    this.doc.setTextColor(0, 0, 0);
+
+    const numLabel = `${verseNum} `;
+    const numWidth = this.doc.splitTextToSize(numLabel, this.contentWidth)[0]
+      ? // getStringUnitWidth would be cleaner but the typings vary; estimate via splitTextToSize.
+        approxTextWidth(this.doc, numLabel)
+      : 12;
+
+    // Body wraps to (contentWidth - hanging indent after the verse number).
+    const bodyWidth = this.contentWidth - numWidth;
+    const lines = this.doc.splitTextToSize(body, bodyWidth);
+    if (lines.length === 0) return;
+
+    this.ensureSpace(lineHeight);
+
+    // First line: verse number in gray, body to its right.
+    this.doc.setTextColor(120, 120, 120);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.text(numLabel, this.opts.marginLeft, this.y + fontSize);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setTextColor(0, 0, 0);
+    this.doc.text(lines[0], this.opts.marginLeft + numWidth, this.y + fontSize);
+    this.y += lineHeight;
+
+    // Subsequent lines: hanging-indented under the body, not under the number.
+    for (let i = 1; i < lines.length; i++) {
+      this.ensureSpace(lineHeight);
+      this.doc.text(lines[i], this.opts.marginLeft + numWidth, this.y + fontSize);
+      this.y += lineHeight;
+    }
+
+    if (marksSummary) {
+      this.doc.setFont('helvetica', 'italic');
+      this.doc.setFontSize(8.5);
+      this.doc.setTextColor(80, 80, 120);
+      const summaryLines = this.doc.splitTextToSize(marksSummary, bodyWidth);
+      const summaryLineHeight = 8.5 * 1.3;
+      for (const line of summaryLines) {
+        this.ensureSpace(summaryLineHeight);
+        this.doc.text(line, this.opts.marginLeft + numWidth, this.y + 8.5);
+        this.y += summaryLineHeight;
       }
-      range.textAnns.push(ann);
     }
+
+    this.y += 3;
   }
 
-  ranges.sort((a, b) => a.start - b.start);
-  return ranges;
-}
-
-interface PdfTextRun {
-  text: string;
-  color?: string;
-  background?: string;
-  decoration?: 'underline';
-  decorationColor?: string;
-  decorationStyle?: string;
-  bold?: boolean;
-  fontSize?: number;
-}
-
-function styleForTextAnns(textAnns: TextAnnotation[]): Partial<PdfTextRun> {
-  const style: Partial<PdfTextRun> = {};
-  for (const ann of textAnns) {
-    const hex = getHighlightColorHex(ann.color as HighlightColor);
-    if (ann.type === 'highlight') {
-      // pdfmake doesn't blend backgrounds; use the same 25%-alpha hex the app uses on screen.
-      style.background = `${hex}40`;
-    }
-    if (ann.type === 'textColor') {
-      style.color = hex;
-    }
-    if (ann.type === 'underline') {
-      style.decoration = 'underline';
-      style.decorationColor = hex;
-      style.decorationStyle = ann.underlineStyle || 'solid';
+  drawRunningFooter(text: string): void {
+    const total = this.doc.getNumberOfPages();
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFontSize(8);
+    this.doc.setTextColor(110, 110, 110);
+    for (let p = 1; p <= total; p++) {
+      this.doc.setPage(p);
+      const footerY = this.pageHeight - this.opts.marginBottom + 12;
+      const lines = this.doc.splitTextToSize(text, this.contentWidth);
+      this.doc.text(lines, this.pageWidth / 2, footerY, { align: 'center' });
     }
   }
-  return style;
 }
 
-/** Unicode glyph for a symbol key — `SYMBOLS[key]` is the source of truth. */
-function symbolGlyph(symbol: SymbolKey): string {
-  return SYMBOLS[symbol] ?? '';
+function approxTextWidth(doc: JsPDFDoc, text: string): number {
+  // splitTextToSize returns whatever fits in maxWidth. We probe with a very
+  // large width to get the line as a single string, then measure with a
+  // shrinking binary-ish heuristic. jsPDF exposes getStringUnitWidth in
+  // most builds but the typings disagree; this is the portable workaround.
+  const big = 9999;
+  const oneLine = doc.splitTextToSize(text, big)[0] ?? '';
+  // Estimate: 11pt Helvetica averages ~5.5 units per char; close enough for
+  // verse-number gutter sizing. The text is always short ("1 ", "12 ", etc.)
+  // so a small over-estimate is fine.
+  return Math.max(10, oneLine.length * 5.5 + 2);
 }
 
-/**
- * Convert a verse + its annotations into an array of pdfmake inline text
- * runs. Symbols become text runs with their Unicode glyph (Phosphor SVG
- * isn't reliably inline-renderable in pdfmake's text arrays; the glyph
- * preserves meaning and stays selectable).
- */
-function buildVerseRuns(verse: Verse, annotations: Annotation[]): PdfTextRun[] {
-  const text = verse.text || '';
-  const runs: PdfTextRun[] = [];
+// --- Document builder --------------------------------------------------------
 
-  // Verse-level prefix symbols with no word target → render up front.
-  for (const ann of annotations) {
-    if (ann.type !== 'symbol' || ann.ref.verse !== verse.ref.verse) continue;
-    if (ann.startOffset !== undefined || ann.startWordIndex !== undefined) continue;
-    const glyph = symbolGlyph(ann.symbol);
-    if (!glyph) continue;
-    runs.push({
-      text: `${glyph} `,
-      color: ann.color ? getHighlightColorHex(ann.color) : undefined,
-      bold: true,
-    });
-  }
-
-  const ranges = buildRangesForVerse(verse, annotations);
-  if (ranges.length === 0) {
-    runs.push({ text });
-    return runs;
-  }
-
-  let cursor = 0;
-  for (const range of ranges) {
-    if (range.start < cursor) continue;
-    if (range.start > cursor) runs.push({ text: text.slice(cursor, range.start) });
-    const segment = text.slice(range.start, range.end);
-
-    if (range.symbolAnns.length > 0) {
-      const sym = range.symbolAnns[0];
-      const glyph = symbolGlyph(sym.symbol);
-      const color = sym.color ? getHighlightColorHex(sym.color) : undefined;
-      if (glyph) runs.push({ text: `${glyph} `, color, bold: true });
-    }
-    runs.push({ text: segment, ...styleForTextAnns(range.textAnns) });
-    cursor = range.end;
-  }
-  if (cursor < text.length) runs.push({ text: text.slice(cursor) });
-  return runs;
-}
-
-/**
- * Build pdfmake's docDefinition for the export.
- * `Content` and friends from @types/pdfmake are looser than what we
- * actually emit; the structural types are correct so we let TS infer
- * via the shape rather than importing the lib's types directly (avoids
- * coupling this file to pdfmake's internal type layout).
- */
-function buildDocDefinition(input: BuildPassagePdfInput): Record<string, unknown> {
+function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): JsPDFDoc {
   const { translation, book, chapter, verses, annotations, notes, sectionHeadings, chapterTitle, verseRange } = input;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+  const writer = new PageWriter(doc);
 
   const range = verseRange ?? { start: verses[0]?.ref.verse ?? 1, end: verses[verses.length - 1]?.ref.verse ?? 0 };
   const inRange = verses.filter((v) => v.ref.verse >= range.start && v.ref.verse <= range.end);
   const rangeLabel = formatRangeLabel(book, chapter, verseRange);
   const showChapterTitle = !verseRange || verseRange.start === (verses[0]?.ref.verse ?? 1);
 
-  const content: Record<string, unknown>[] = [
-    {
-      text: `${rangeLabel}  ·  ${translation.name}`,
-      style: 'pageHeader',
-    },
-  ];
+  // Page header line.
+  writer.writeCentered(`${rangeLabel}  ·  ${translation.name}`, {
+    fontSize: 9, color: [110, 110, 110], marginBottom: 12,
+  });
 
   if (showChapterTitle && chapterTitle?.title) {
-    content.push({ text: chapterTitle.title, style: 'chapterTitle' });
+    writer.writeCentered(chapterTitle.title, { fontSize: 18, bold: true, marginBottom: 4 });
     if (chapterTitle.theme) {
-      content.push({ text: chapterTitle.theme, style: 'chapterTheme' });
+      writer.writeCentered(chapterTitle.theme, { fontSize: 10, italics: true, color: [85, 85, 85], marginBottom: 14 });
+    } else {
+      writer.writeBlock('', { fontSize: 1, marginBottom: 10 });
     }
   }
 
+  // If the range starts mid-section, show the section heading it falls under.
   let lastHeadingId: string | null = null;
   if (inRange.length > 0) {
     const covering = findCoveringHeading(inRange[0].ref.verse, sectionHeadings);
     if (covering && covering.beforeRef.verse < inRange[0].ref.verse) {
-      content.push({ text: covering.title, style: 'sectionHeading' });
+      writer.writeBlock(covering.title, { fontSize: 13, bold: true, color: [50, 50, 50], marginTop: 6, marginBottom: 4 });
       lastHeadingId = covering.id;
     }
   }
@@ -256,7 +341,7 @@ function buildDocDefinition(input: BuildPassagePdfInput): Record<string, unknown
   for (const verse of inRange) {
     const headingAtVerse = sectionHeadings.find((h) => h.beforeRef.verse === verse.ref.verse);
     if (headingAtVerse && headingAtVerse.id !== lastHeadingId) {
-      content.push({ text: headingAtVerse.title, style: 'sectionHeading' });
+      writer.writeBlock(headingAtVerse.title, { fontSize: 13, bold: true, color: [50, 50, 50], marginTop: 10, marginBottom: 4 });
       lastHeadingId = headingAtVerse.id;
     }
 
@@ -265,172 +350,36 @@ function buildDocDefinition(input: BuildPassagePdfInput): Record<string, unknown
       return a.startRef.verse <= verse.ref.verse && a.endRef.verse >= verse.ref.verse;
     });
 
-    const runs = buildVerseRuns(verse, verseAnns);
-    content.push({
-      text: [
-        { text: `${verse.ref.verse} `, style: 'verseNum' },
-        ...runs,
-      ],
-      style: 'verse',
-      margin: [0, 0, 0, 6],
-    });
+    writer.writeVerse(verse.ref.verse, verse.text || '', buildMarksSummary(verse, verseAnns));
 
     const verseNotes = notes.filter(
       (n) => n.ref.verse === verse.ref.verse ||
         (n.range && n.range.start.verse <= verse.ref.verse && n.range.end.verse >= verse.ref.verse),
     );
     for (const note of verseNotes) {
-      content.push({ text: note.content, style: 'note' });
+      writer.writeBlock(note.content, {
+        fontSize: 9.5,
+        italics: true,
+        color: [60, 60, 90],
+        indent: 18,
+        marginTop: 2,
+        marginBottom: 6,
+      });
     }
   }
 
-  const attribution = getTranslationAttribution(translation);
-
-  return {
-    pageSize: 'LETTER',
-    pageMargins: [54, 56, 54, 72] as [number, number, number, number],
-    defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.35 },
-    content,
-    footer: (_currentPage: number, _pageCount: number) => ({
-      text: attribution,
-      alignment: 'center',
-      fontSize: 8,
-      color: '#666',
-      margin: [54, 16, 54, 0],
-    }),
-    styles: {
-      pageHeader: { fontSize: 9, color: '#666', alignment: 'center', margin: [0, 0, 0, 12] },
-      chapterTitle: { fontSize: 18, bold: true, alignment: 'center', margin: [0, 0, 0, 4] },
-      chapterTheme: { fontSize: 10, italics: true, color: '#555', alignment: 'center', margin: [0, 0, 0, 14] },
-      sectionHeading: { fontSize: 13, bold: true, color: '#333', margin: [0, 10, 0, 6] },
-      verseNum: { fontSize: 8, bold: true, color: '#888' },
-      verse: { fontSize: 11 },
-      note: { fontSize: 9, color: '#334', italics: true, margin: [18, 2, 0, 10] },
-    },
-  };
-}
-
-type PdfDoc = {
-  getBuffer: (cb: (buf: Uint8Array) => void) => void;
-  getBlob: (cb: (blob: Blob) => void) => void;
-};
-type PdfFontConfig = Record<string, { normal: string; bold: string; italics: string; bolditalics: string }>;
-type PdfMakeInstance = {
-  createPdf: (def: unknown) => PdfDoc;
-  addVirtualFileSystem?: (vfs: Record<string, string>) => void;
-  vfs?: Record<string, string>;
-  fonts?: PdfFontConfig;
-};
-
-let pdfMakePromise: Promise<PdfMakeInstance> | null = null;
-
-/**
- * Lazy-load pdfmake + its font bundle. The font bundle is ~700 KB; we only
- * want it on disk for users who actually export. Vite code-splits this into
- * its own chunk. Cached so repeat exports skip the import.
- */
-function loadPdfMake(): Promise<PdfMakeInstance> {
-  if (pdfMakePromise) return pdfMakePromise;
-  pdfMakePromise = (async () => {
-    // pdfmake bundles PDFKit, which uses Node's `process.nextTick` inside
-    // its stream callbacks. WKWebView (and most browsers) don't provide
-    // `process`, so streams never advance and createPdf().getBuffer()
-    // hangs silently with no callback. Shim the minimum surface pdfmake
-    // needs before it loads.
-    type ProcessShim = { nextTick: (cb: () => void) => void; browser?: boolean; env?: Record<string, string> };
-    const w = window as unknown as { process?: ProcessShim };
-    if (!w.process) {
-      w.process = {
-        nextTick: (cb: () => void) => setTimeout(cb, 0),
-        browser: true,
-        env: {},
-      };
-    } else if (typeof w.process.nextTick !== 'function') {
-      w.process.nextTick = (cb: () => void) => setTimeout(cb, 0);
-    }
-
-    console.log('[passage-pdf] loading pdfmake…');
-    const pdfMakeMod = (await import('pdfmake/build/pdfmake')) as unknown as { default?: PdfMakeInstance } & PdfMakeInstance;
-    const pdfMake = (pdfMakeMod.default ?? pdfMakeMod) as PdfMakeInstance;
-    if (typeof pdfMake.createPdf !== 'function') {
-      throw new Error('pdfmake module did not expose createPdf; import shape unexpected.');
-    }
-    console.log('[passage-pdf] loading vfs_fonts…');
-    const vfsMod = (await import('pdfmake/build/vfs_fonts')) as unknown as { default?: Record<string, string> } & Record<string, string>;
-    // vfs_fonts ships as UMD: in some Vite resolutions the default export is
-    // the vfs map, in others the module *is* the vfs map. Accept both.
-    const candidate = vfsMod.default ?? vfsMod;
-    const vfs = (typeof candidate === 'object' && candidate && 'Roboto-Regular.ttf' in candidate)
-      ? (candidate as Record<string, string>)
-      : (vfsMod as Record<string, string>);
-    if (!vfs || !('Roboto-Regular.ttf' in vfs)) {
-      throw new Error('pdfmake vfs_fonts did not include Roboto — font bundle import failed.');
-    }
-    if (typeof pdfMake.addVirtualFileSystem === 'function') {
-      pdfMake.addVirtualFileSystem(vfs);
-    } else {
-      pdfMake.vfs = vfs;
-    }
-    // pdfmake's UMD usually sets pdfMake.fonts to the Roboto default, but
-    // when loaded via ESM dynamic import that initialization doesn't always
-    // run, leaving fonts undefined → createPdf hangs silently. Set it
-    // explicitly so the docDefinition's default font resolves.
-    pdfMake.fonts = {
-      Roboto: {
-        normal: 'Roboto-Regular.ttf',
-        bold: 'Roboto-Medium.ttf',
-        italics: 'Roboto-Italic.ttf',
-        bolditalics: 'Roboto-MediumItalic.ttf',
-      },
-    };
-    console.log('[passage-pdf] pdfmake ready.');
-    return pdfMake;
-  })();
-  // Don't cache failures — let the next attempt try again.
-  pdfMakePromise.catch(() => { pdfMakePromise = null; });
-  return pdfMakePromise;
-}
-
-function generatePdfBytes(pdfMake: PdfMakeInstance, docDef: unknown, timeoutMs: number): Promise<Uint8Array> {
-  return new Promise<Uint8Array>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error(`PDF generation timed out after ${Math.round(timeoutMs / 1000)}s.`));
-    }, timeoutMs);
-    try {
-      pdfMake.createPdf(docDef).getBuffer((buf) => {
-        clearTimeout(timeout);
-        resolve(buf);
-      });
-    } catch (err) {
-      clearTimeout(timeout);
-      reject(err instanceof Error ? err : new Error(String(err)));
-    }
-  });
+  writer.drawRunningFooter(getTranslationAttribution(translation));
+  return doc;
 }
 
 export async function buildPassagePdf(input: BuildPassagePdfInput): Promise<Uint8Array> {
-  const pdfMake = await loadPdfMake();
-
-  // Probe with a trivial document first. If pdfmake itself is broken (e.g.
-  // Vite/UMD bundling stripped its Buffer polyfill), this hangs too — which
-  // tells us the problem isn't our docDefinition.
-  console.log('[passage-pdf] probing pdfmake with a trivial document…');
-  try {
-    const probeBytes = await generatePdfBytes(pdfMake, {
-      content: ['probe'],
-      defaultStyle: { font: 'Roboto', fontSize: 12 },
-    }, 5_000);
-    console.log('[passage-pdf] probe ok, size=', probeBytes?.length ?? 'unknown');
-  } catch (err) {
-    console.error('[passage-pdf] probe FAILED — pdfmake itself is not generating:', err);
-    throw new Error('pdfmake is not generating PDFs in this environment. See console for details.');
-  }
-
-  const docDef = buildDocDefinition(input);
-  console.log('[passage-pdf] generating real PDF buffer…');
-  const buf = await generatePdfBytes(pdfMake, docDef, 30_000);
-  console.log('[passage-pdf] PDF buffer ready, size=', buf?.length ?? 'unknown');
-  return buf;
+  const jsPDF = await loadJsPDF();
+  console.log('[passage-pdf] building PDF…');
+  const doc = buildPdfDoc(jsPDF, input);
+  const arrBuf = doc.output('arraybuffer');
+  const bytes = new Uint8Array(arrBuf);
+  console.log('[passage-pdf] PDF ready, bytes=', bytes.length);
+  return bytes;
 }
 
 /** Filesystem-safe slug for a filename — e.g. "Jeremiah 46:5–12" → "Jeremiah-46-5-12". */
@@ -448,13 +397,10 @@ function defaultFilename(input: BuildPassagePdfInput): string {
 /**
  * Build the PDF and write it to disk.
  *
- * - **Desktop (macOS/Windows/Linux/Android):** show Tauri's native save
- *   dialog so the user picks the location. Android uses the Storage
- *   Access Framework via the same call.
- * - **iOS:** Tauri 2 doesn't bridge an iOS save dialog. Mirror the
- *   pattern in `src/lib/export.ts:392` — write directly to the app's
- *   Documents directory under an `exports/` subfolder. The file is then
- *   visible in the Files app under "BibleMarker".
+ * - Desktop / Android: native save dialog.
+ * - iOS: Tauri 2 doesn't bridge an iOS save dialog. Mirror the pattern
+ *   in `src/lib/export.ts:392` — write directly to the app's Documents
+ *   directory under `exports/`. The file appears in the Files app.
  *
  * Returns the saved path, or `{ cancelled: true }` if the user dismissed
  * the dialog (desktop / Android only).
@@ -497,15 +443,7 @@ export async function savePassagePdf(
   return { path: chosen };
 }
 
-/**
- * Open a previously-saved PDF in the system default viewer.
- *
- * - macOS/Windows/Linux: launches Preview / default PDF app.
- * - Android: fires an `ACTION_VIEW` intent (system "Open with…").
- * - iOS: best-effort. Tauri's iOS opener support is limited; if the
- *   call throws, the popover surfaces the file path so the user can
- *   find it in the Files app.
- */
+/** Open a previously-saved PDF in the system default viewer. */
 export async function openSavedPdf(path: string): Promise<void> {
   const { openPath } = await import('@tauri-apps/plugin-opener');
   await openPath(path);
