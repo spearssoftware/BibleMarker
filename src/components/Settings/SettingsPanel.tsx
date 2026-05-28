@@ -54,14 +54,15 @@ import {
   type ApiTranslation,
 } from '@/lib/bible-api';
 
-type SettingsTab = 'appearance' | 'bible' | 'data' | 'studies' | 'help';
+export type SettingsTab = 'appearance' | 'bible' | 'data' | 'studies' | 'help';
 
 interface SettingsPanelProps {
   onClose: () => void;
+  initialTab?: SettingsTab;
 }
 
-export function SettingsPanel({ onClose }: SettingsPanelProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
+export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPanelProps) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const {
     fontSize,
     setFontSize,
