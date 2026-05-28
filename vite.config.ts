@@ -21,6 +21,13 @@ export default defineConfig({
       '@': '/src'
     }
   },
+  optimizeDeps: {
+    // pdfmake is UMD/CommonJS; without explicit pre-bundling, Vite's
+    // lazy dependency resolver hands the dynamic import an unbundled
+    // module whose internal Buffer/PDFKit polyfills don't initialize,
+    // and createPdf().getBuffer() hangs silently.
+    include: ['pdfmake/build/pdfmake', 'pdfmake/build/vfs_fonts'],
+  },
   server: {
     host: true, // Allow access from local network (for iPad testing)
     port: 5173, // Change this to your preferred port
