@@ -358,22 +358,41 @@ function defaultFilename(input: BuildPassagePdfInput): string {
 }
 
 /**
- * Build the PDF and write it to a user-chosen location via Tauri's save
- * dialog. Returns the chosen path, or `{ cancelled: true }` if the user
- * dismissed the dialog.
+ * Build the PDF and write it to disk.
+ *
+ * - **Desktop (macOS/Windows/Linux/Android):** show Tauri's native save
+ *   dialog so the user picks the location. Android uses the Storage
+ *   Access Framework via the same call.
+ * - **iOS:** Tauri 2 doesn't bridge an iOS save dialog. Mirror the
+ *   pattern in `src/lib/export.ts:392` — write directly to the app's
+ *   Documents directory under an `exports/` subfolder. The file is then
+ *   visible in the Files app under "BibleMarker".
+ *
+ * Returns the saved path, or `{ cancelled: true }` if the user dismissed
+ * the dialog (desktop / Android only).
  */
 export async function savePassagePdf(
   input: BuildPassagePdfInput,
 ): Promise<{ path: string } | { cancelled: true }> {
   const bytes = await buildPassagePdf(input);
 
-  const { save } = await import('@tauri-apps/plugin-dialog');
-  const { writeFile } = await import('@tauri-apps/plugin-fs');
-  const { documentDir } = await import('@tauri-apps/api/path');
-  const { join } = await import('@tauri-apps/api/path');
+  const { writeFile, exists, mkdir } = await import('@tauri-apps/plugin-fs');
+  const { documentDir, join } = await import('@tauri-apps/api/path');
+  const { isIOS } = await import('@/lib/platform');
 
-  const defaultDir = await documentDir().catch(() => '');
   const filename = defaultFilename(input);
+
+  if (isIOS()) {
+    const dir = await documentDir();
+    const exportsDir = await join(dir, 'exports');
+    if (!(await exists(exportsDir))) await mkdir(exportsDir, { recursive: true });
+    const filePath = await join(exportsDir, filename);
+    await writeFile(filePath, bytes);
+    return { path: filePath };
+  }
+
+  const { save } = await import('@tauri-apps/plugin-dialog');
+  const defaultDir = await documentDir().catch(() => '');
   const defaultPath = defaultDir ? await join(defaultDir, filename) : filename;
 
   const chosen = await save({
@@ -386,7 +405,15 @@ export async function savePassagePdf(
   return { path: chosen };
 }
 
-/** Open a previously-saved PDF in the system default viewer (Preview on macOS). */
+/**
+ * Open a previously-saved PDF in the system default viewer.
+ *
+ * - macOS/Windows/Linux: launches Preview / default PDF app.
+ * - Android: fires an `ACTION_VIEW` intent (system "Open with…").
+ * - iOS: best-effort. Tauri's iOS opener support is limited; if the
+ *   call throws, the popover surfaces the file path so the user can
+ *   find it in the Files app.
+ */
 export async function openSavedPdf(path: string): Promise<void> {
   const { openPath } = await import('@tauri-apps/plugin-opener');
   await openPath(path);

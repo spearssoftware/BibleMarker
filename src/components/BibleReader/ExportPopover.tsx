@@ -126,6 +126,9 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
       setAction({ status: 'success', message: 'Saved — opening…' });
       try {
         await openSavedPdf(result.path);
+        // On iOS the open call may succeed silently without launching a
+        // viewer; show the path so the user knows where the file lives.
+        setAction({ status: 'success', message: `Saved to ${result.path}` });
       } catch (openErr) {
         console.error('[ExportPopover] open after save failed', openErr);
         setAction({ status: 'success', message: `Saved to ${result.path}` });
