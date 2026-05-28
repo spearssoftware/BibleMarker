@@ -32,6 +32,8 @@ import type {
   MarkingPreset,
   Note,
   SectionHeading,
+  SymbolAnnotation,
+  TextAnnotation,
   Verse,
 } from '@/types';
 import { getBookById, getHighlightColorHex, SYMBOL_LABELS, type HighlightColor, type SymbolKey } from '@/types';
@@ -209,6 +211,7 @@ async function buildIconCache(tokens: MarkToken[][], sizePt: number): Promise<Ma
 
 // --- jsPDF lazy loader -------------------------------------------------------
 
+type JsPDFGState = object;
 type JsPDFDoc = {
   internal: { pageSize: { getWidth: () => number; getHeight: () => number } };
   setFont(family: string, style?: string): JsPDFDoc;
@@ -227,6 +230,8 @@ type JsPDFDoc = {
   getNumberOfPages(): number;
   setPage(n: number): JsPDFDoc;
   output(type: 'arraybuffer'): ArrayBuffer;
+  GState(opts: { opacity?: number; 'stroke-opacity'?: number }): JsPDFGState;
+  setGState(state: JsPDFGState): JsPDFDoc;
 };
 
 type JsPDFCtor = new (opts?: { unit?: string; format?: string; orientation?: string }) => JsPDFDoc;
@@ -409,48 +414,125 @@ class PageWriter {
   }
 
   /**
-   * Render a verse: small bold gray number + body text on one paragraph.
-   * Returns the verse-number gutter width so the caller can align the
-   * marks line (if any) under the body indent.
+   * Render a verse with annotations laid out inline: highlighted words get
+   * a faded colored background, underlined words get a colored line beneath,
+   * text-colored words get the color applied, and symbol marks are drawn
+   * over the word as a translucent icon. Returns the verse-number gutter
+   * width.
+   *
+   * Token-based: tokenize the verse text by whitespace, measure each
+   * token, place it at the current cursor, wrap when overflowing the
+   * line. Each token resolves its own set of covering annotations from
+   * the original character offsets.
    */
-  writeVerse(verseNum: number, body: string): number {
+  writeVerse(verseNum: number, body: string, annotations: Annotation[], iconCache: Map<string, string>): number {
     const fontSize = 11;
-    const lineHeight = fontSize * 1.35;
+    const lineHeight = fontSize * 1.4;
+    const iconSize = fontSize * 1.2;
 
     this.doc.setFont('helvetica', 'normal');
     this.doc.setFontSize(fontSize);
-    this.doc.setTextColor(0, 0, 0);
 
     const numLabel = `${verseNum} `;
     const numWidth = approxTextWidth(this.doc, numLabel);
+    const bodyLeft = this.opts.marginLeft + numWidth;
+    const maxX = this.opts.marginLeft + this.contentWidth;
 
-    // Body wraps to (contentWidth - hanging indent after the verse number).
-    const bodyWidth = this.contentWidth - numWidth;
-    const lines = this.doc.splitTextToSize(body, bodyWidth);
-    if (lines.length === 0) return numWidth;
+    // Make room for an icon overhang on the first line of the verse.
+    this.ensureSpace(lineHeight + 2);
 
-    this.ensureSpace(lineHeight);
-
-    // First line: verse number in gray, body to its right.
+    // Verse number in bold gray.
     this.doc.setTextColor(120, 120, 120);
     this.doc.setFont('helvetica', 'bold');
     this.doc.text(numLabel, this.opts.marginLeft, this.y + fontSize);
     this.doc.setFont('helvetica', 'normal');
     this.doc.setTextColor(0, 0, 0);
-    this.doc.text(lines[0], this.opts.marginLeft + numWidth, this.y + fontSize);
-    this.y += lineHeight;
 
-    // Subsequent lines: hanging-indented under the body, not under the number.
-    for (let i = 1; i < lines.length; i++) {
-      this.ensureSpace(lineHeight);
-      this.doc.text(lines[i], this.opts.marginLeft + numWidth, this.y + fontSize);
-      this.y += lineHeight;
+    const tokens = tokenizeVerse(body);
+    let x = bodyLeft;
+    let firstOnLine = true;
+
+    for (const tok of tokens) {
+      const leading = firstOnLine ? '' : tok.leadingSpace || ' ';
+      const leadingW = leading ? this.doc.getTextWidth(leading) : 0;
+      const wordW = this.doc.getTextWidth(tok.text);
+
+      // Wrap if this token wouldn't fit. Wrapped lines hang at bodyLeft.
+      if (!firstOnLine && x + leadingW + wordW > maxX) {
+        this.y += lineHeight;
+        this.ensureSpace(lineHeight);
+        x = bodyLeft;
+        firstOnLine = true;
+      }
+      if (!firstOnLine && leading) {
+        // Spaces are rendered implicitly by advancing x — no need to draw them.
+        x += leadingW;
+      }
+
+      // Collect annotations that cover this token.
+      const covers = annotations.filter((a) => annotationCoversToken(a, tok, verseNum));
+      const highlight = covers.find((a) => a.type === 'highlight') as TextAnnotation | undefined;
+      const textColor = covers.find((a) => a.type === 'textColor') as TextAnnotation | undefined;
+      const underline = covers.find((a) => a.type === 'underline') as TextAnnotation | undefined;
+      const symbols = covers.filter((a): a is SymbolAnnotation => a.type === 'symbol');
+
+      // 1) Highlight background — drawn first so text sits on top.
+      if (highlight) {
+        const [r, g, b] = hexToRgb(getHighlightColorHex(highlight.color));
+        this.doc.setFillColor(r, g, b);
+        const gs = this.doc.GState({ opacity: 0.25 });
+        this.doc.setGState(gs);
+        // Tight rect around just the glyph height.
+        this.doc.rect(x - 0.5, this.y + 2, wordW + 1, fontSize, 'F');
+        this.doc.setGState(this.doc.GState({ opacity: 1 }));
+      }
+
+      // 2) Text color (or default black).
+      if (textColor) {
+        const [r, g, b] = hexToRgb(getHighlightColorHex(textColor.color));
+        this.doc.setTextColor(r, g, b);
+      } else {
+        this.doc.setTextColor(0, 0, 0);
+      }
+      this.doc.text(tok.text, x, this.y + fontSize);
+
+      // 3) Underline beneath the word.
+      if (underline) {
+        const [r, g, b] = hexToRgb(getHighlightColorHex(underline.color));
+        this.doc.setDrawColor(r, g, b);
+        this.doc.setLineWidth(0.6);
+        const uy = this.y + fontSize + 1.5;
+        this.doc.line(x, uy, x + wordW, uy);
+      }
+
+      // 4) Symbols — drawn translucent on top of the word (centered),
+      //    matching the on-screen "overlay" appearance.
+      if (symbols.length > 0) {
+        for (let i = 0; i < symbols.length; i++) {
+          const sym = symbols[i];
+          const colorHex = sym.color ? getHighlightColorHex(sym.color as HighlightColor) : undefined;
+          const cacheKey = `${sym.symbol}|${colorHex ?? ''}`;
+          const dataUrl = iconCache.get(cacheKey);
+          if (!dataUrl) continue;
+          // Center on the word horizontally and vertically.
+          const ix = x + wordW / 2 - iconSize / 2;
+          const iy = this.y + 2 + (fontSize - iconSize) / 2 + (i * (iconSize + 1));
+          const gs = this.doc.GState({ opacity: 0.6 });
+          this.doc.setGState(gs);
+          this.doc.addImage(dataUrl, 'PNG', ix, iy, iconSize, iconSize);
+          this.doc.setGState(this.doc.GState({ opacity: 1 }));
+        }
+      }
+
+      x += wordW;
+      firstOnLine = false;
     }
 
+    this.y += lineHeight;
     return numWidth;
   }
 
-  /** Add a small gap after a verse + its marks line. */
+  /** Add a small gap after a verse. */
   spacer(pts: number): void {
     this.y += pts;
   }
@@ -467,6 +549,58 @@ class PageWriter {
       this.doc.text(lines, this.pageWidth / 2, footerY, { align: 'center' });
     }
   }
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const m = hex.replace('#', '');
+  const full = m.length === 3
+    ? m.split('').map((c) => c + c).join('')
+    : m.length >= 6 ? m.slice(0, 6) : 'cccccc';
+  return [
+    parseInt(full.slice(0, 2), 16) || 0,
+    parseInt(full.slice(2, 4), 16) || 0,
+    parseInt(full.slice(4, 6), 16) || 0,
+  ];
+}
+
+interface VerseToken {
+  text: string;
+  startOffset: number;
+  endOffset: number;
+  leadingSpace: string;
+}
+
+/** Split verse text into whitespace-separated tokens, preserving each
+ *  token's character offsets in the original string so we can match
+ *  annotation ranges precisely. */
+function tokenizeVerse(text: string): VerseToken[] {
+  const tokens: VerseToken[] = [];
+  let lastEnd = 0;
+  const re = /\S+/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    tokens.push({
+      text: m[0],
+      startOffset: m.index,
+      endOffset: m.index + m[0].length,
+      leadingSpace: text.slice(lastEnd, m.index),
+    });
+    lastEnd = m.index + m[0].length;
+  }
+  return tokens;
+}
+
+function annotationCoversToken(ann: Annotation, tok: VerseToken, verseNum: number): boolean {
+  if (ann.type === 'symbol') {
+    if (ann.ref.verse !== verseNum) return false;
+    const s = ann.startOffset, e = ann.endOffset;
+    if (s === undefined || e === undefined) return false;
+    return s < tok.endOffset && e > tok.startOffset;
+  }
+  if (ann.startRef.verse !== verseNum || ann.endRef.verse !== verseNum) return false;
+  const s = ann.startOffset, e = ann.endOffset;
+  if (s === undefined || e === undefined) return false;
+  return s < tok.endOffset && e > tok.startOffset;
 }
 
 function approxTextWidth(doc: JsPDFDoc, text: string): number {
@@ -496,10 +630,11 @@ async function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): Promi
   const range = verseRange ?? { start: verses[0]?.ref.verse ?? 1, end: verses[verses.length - 1]?.ref.verse ?? 0 };
   const inRange = verses.filter((v) => v.ref.verse >= range.start && v.ref.verse <= range.end);
 
-  // Pre-build per-verse mark token lists so we can pre-rasterize all the
-  // unique symbol icons in one async pass (Canvas image loading is async,
-  // and the doc-building pass below is sync).
-  const verseTokens = new Map<number, MarkToken[]>();
+  // Per-verse combined annotation lists (persisted + virtual keyword matches).
+  // Built once up front so we can pre-rasterize every unique symbol icon
+  // in a single async pass before the (sync) PDF doc-building pass.
+  const verseAnnotations = new Map<number, Annotation[]>();
+  const tokensForIconCache: MarkToken[][] = [];
   for (const verse of inRange) {
     const verseAnns = annotations.filter((a) => {
       if (a.type === 'symbol') return a.ref.verse === verse.ref.verse;
@@ -508,9 +643,13 @@ async function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): Promi
     const virtualAnns = filteredPresets.length > 0
       ? findKeywordMatches(verse.text || '', verse.ref, filteredPresets, translation.id, exclusions)
       : [];
-    verseTokens.set(verse.ref.verse, buildMarkTokens(verse, [...verseAnns, ...virtualAnns]));
+    const all = [...verseAnns, ...virtualAnns];
+    verseAnnotations.set(verse.ref.verse, all);
+    // Feed every annotation through buildMarkTokens just to enumerate the
+    // unique (symbol, color) pairs the rasterizer needs.
+    tokensForIconCache.push(buildMarkTokens(verse, all));
   }
-  const iconCache = await buildIconCache([...verseTokens.values()], 10);
+  const iconCache = await buildIconCache(tokensForIconCache, 14);
 
   const rangeLabel = formatRangeLabel(book, chapter, verseRange);
   const showChapterTitle = !verseRange || verseRange.start === (verses[0]?.ref.verse ?? 1);
@@ -544,9 +683,7 @@ async function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): Promi
       lastHeadingId = headingAtVerse.id;
     }
 
-    const numWidth = writer.writeVerse(verse.ref.verse, verse.text || '');
-    const tokens = verseTokens.get(verse.ref.verse) ?? [];
-    if (tokens.length > 0) writer.writeMarksLine(tokens, iconCache, numWidth);
+    writer.writeVerse(verse.ref.verse, verse.text || '', verseAnnotations.get(verse.ref.verse) ?? [], iconCache);
     writer.spacer(3);
 
     const verseNotes = notes.filter(
