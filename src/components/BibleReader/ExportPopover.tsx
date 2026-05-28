@@ -2,26 +2,32 @@
  * Export Popover
  *
  * Opened from the share/export button in the navigation bar. Lets the user
- * pick a verse range within the active chapter, then opens the rendered
- * passage in the system browser — where Print, Save-as-PDF, and copy-to-
- * Word all work reliably. Tauri's WKWebView does none of those well, so
- * we hand the work to the OS's default browser instead.
+ * pick a verse range within the active chapter, then saves a PDF of the
+ * passage via Tauri's native save dialog and auto-opens it in the system
+ * default PDF viewer.
  *
- * Hard-capped at one chapter for licensing reasons.
+ * One chapter cap, copyright in the popover and on every PDF page footer.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ModalBackdrop, Button, Select, Checkbox } from '@/components/shared';
 import { useModal } from '@/hooks/useModal';
 import { Z_INDEX } from '@/lib/modalConstants';
 import { getBookById } from '@/types';
-import type { Verse } from '@/types';
+import type { Annotation, ChapterTitle, Note, SectionHeading, Verse } from '@/types';
 import type { ApiTranslation } from '@/lib/bible-api';
 import {
-  captureChapterHtml,
+  getChapterAnnotations,
+  getChapterHeadings,
+  getChapterNotes,
+  getChapterTitle,
+} from '@/lib/database';
+import { useStudyStore } from '@/stores/studyStore';
+import {
   getTranslationAttribution,
-  openHtmlInBrowser,
-} from '@/lib/passage-capture';
+  openSavedPdf,
+  savePassagePdf,
+} from '@/lib/passage-pdf';
 
 interface ExportPopoverProps {
   translation: ApiTranslation;
@@ -38,6 +44,8 @@ type ActionState =
   | { status: 'success'; message: string };
 
 export function ExportPopover({ translation, book, chapter, verses, onClose }: ExportPopoverProps) {
+  const { activeStudyId } = useStudyStore();
+
   const firstVerse = verses[0]?.ref.verse ?? 1;
   const lastVerse = verses[verses.length - 1]?.ref.verse ?? firstVerse;
 
@@ -46,6 +54,11 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
   const [endVerse, setEndVerse] = useState(lastVerse);
   const [action, setAction] = useState<ActionState>({ status: 'idle' });
 
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [headings, setHeadings] = useState<SectionHeading[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [chapterTitle, setChapterTitle] = useState<ChapterTitle | null>(null);
+
   const { handleBackdropClick } = useModal({
     isOpen: true,
     onClose,
@@ -53,10 +66,33 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
     handleEscape: true,
   });
 
-  const verseOptions = verses.map((v) => ({
-    value: String(v.ref.verse),
-    label: String(v.ref.verse),
-  }));
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [ann, hd, nt, ct] = await Promise.all([
+          getChapterAnnotations(translation.id, book, chapter),
+          getChapterHeadings(translation.id, book, chapter, activeStudyId),
+          getChapterNotes(translation.id, book, chapter),
+          getChapterTitle(translation.id, book, chapter, activeStudyId),
+        ]);
+        if (cancelled) return;
+        setAnnotations(ann);
+        setHeadings(hd);
+        setNotes(nt);
+        setChapterTitle(ct ?? null);
+      } catch (err) {
+        if (cancelled) return;
+        console.error('[ExportPopover] failed to load chapter metadata', err);
+        setAction({ status: 'error', message: 'Could not load chapter data.' });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [translation.id, book, chapter, activeStudyId]);
+
+  const verseOptions = verses.map((v) => ({ value: String(v.ref.verse), label: String(v.ref.verse) }));
 
   const onStartChange = (val: string) => {
     const n = Number(val);
@@ -69,30 +105,42 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
     if (n < startVerse) setStartVerse(n);
   };
 
-  const handleOpen = async () => {
+  const handleSave = async () => {
     setAction({ status: 'busy' });
     try {
-      const verseRange = wholeChapter ? undefined : { start: startVerse, end: endVerse };
-      const { html, pageTitle } = captureChapterHtml({
+      const result = await savePassagePdf({
         translation,
         book,
         chapter,
-        verseRange,
+        verses,
+        annotations,
+        notes,
+        sectionHeadings: headings,
+        chapterTitle,
+        verseRange: wholeChapter ? undefined : { start: startVerse, end: endVerse },
       });
-      await openHtmlInBrowser(html, pageTitle);
-      setAction({ status: 'success', message: 'Opened in your browser. Print, Save as PDF, or copy from there.' });
+      if ('cancelled' in result) {
+        setAction({ status: 'idle' });
+        return;
+      }
+      setAction({ status: 'success', message: 'Saved — opening…' });
+      try {
+        await openSavedPdf(result.path);
+      } catch (openErr) {
+        console.error('[ExportPopover] open after save failed', openErr);
+        setAction({ status: 'success', message: `Saved to ${result.path}` });
+      }
     } catch (err) {
-      console.error('[ExportPopover] open failed', err);
-      // Tauri plugin errors can be strings or plain objects, not Error instances.
+      console.error('[ExportPopover] save failed', err);
       const msg =
         err instanceof Error
           ? err.message
           : typeof err === 'string'
             ? err
-            : (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string')
+            : err && typeof err === 'object' && 'message' in err && typeof err.message === 'string'
               ? err.message
               : JSON.stringify(err);
-      setAction({ status: 'error', message: msg || 'Could not open the page.' });
+      setAction({ status: 'error', message: msg || 'Could not save the PDF.' });
     }
   };
 
@@ -151,12 +199,12 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
           )}
 
           <p className="text-xs text-scripture-muted leading-relaxed">
-            Opens the page in your default browser. From there you can Print,
-            Save as PDF, or select-all and paste into Word, Pages, or Google Docs.
+            Saves a PDF of the passage with your marks, headings, and notes.
+            Opens in Preview so you can print, attach to email, or copy text into Word.
           </p>
 
-          <Button variant="primary" onClick={handleOpen} disabled={busy} fullWidth>
-            {busy ? 'Opening…' : 'Open in browser'}
+          <Button variant="primary" onClick={handleSave} disabled={busy} fullWidth>
+            {busy ? 'Saving…' : 'Save as PDF'}
           </Button>
 
           {action.status === 'success' && (
