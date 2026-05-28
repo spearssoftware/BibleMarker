@@ -1134,13 +1134,14 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    value={esvApiKey}
-                    onChange={(e) => setEsvApiKey(e.target.value)}
-                    placeholder={esvClient.isConfigured() ? "Edit your ESV API key" : "Paste your ESV API key here"}
-                    className="flex-1"
-                  />
+                  <div className="flex-1 min-w-0">
+                    <Input
+                      type="text"
+                      value={esvApiKey}
+                      onChange={(e) => setEsvApiKey(e.target.value)}
+                      placeholder={esvClient.isConfigured() ? "Edit your ESV API key" : "Paste your ESV API key here"}
+                    />
+                  </div>
                   <button
                     onClick={() => saveEsvConfig(esvApiKey)}
                     disabled={savingApi}
