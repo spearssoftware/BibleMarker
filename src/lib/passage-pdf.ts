@@ -332,6 +332,23 @@ let pdfMakePromise: Promise<PdfMakeInstance> | null = null;
 function loadPdfMake(): Promise<PdfMakeInstance> {
   if (pdfMakePromise) return pdfMakePromise;
   pdfMakePromise = (async () => {
+    // pdfmake bundles PDFKit, which uses Node's `process.nextTick` inside
+    // its stream callbacks. WKWebView (and most browsers) don't provide
+    // `process`, so streams never advance and createPdf().getBuffer()
+    // hangs silently with no callback. Shim the minimum surface pdfmake
+    // needs before it loads.
+    type ProcessShim = { nextTick: (cb: () => void) => void; browser?: boolean; env?: Record<string, string> };
+    const w = window as unknown as { process?: ProcessShim };
+    if (!w.process) {
+      w.process = {
+        nextTick: (cb: () => void) => setTimeout(cb, 0),
+        browser: true,
+        env: {},
+      };
+    } else if (typeof w.process.nextTick !== 'function') {
+      w.process.nextTick = (cb: () => void) => setTimeout(cb, 0);
+    }
+
     console.log('[passage-pdf] loading pdfmake…');
     const pdfMakeMod = (await import('pdfmake/build/pdfmake')) as unknown as { default?: PdfMakeInstance } & PdfMakeInstance;
     const pdfMake = (pdfMakeMod.default ?? pdfMakeMod) as PdfMakeInstance;
