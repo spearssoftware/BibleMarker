@@ -4,7 +4,7 @@
  * Translation, book and chapter selection, with prev/next navigation.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { getBookById } from '@/types';
 import { getAllTranslations, type ApiTranslation } from '@/lib/bible-api';
@@ -12,6 +12,7 @@ import { getPreferences } from '@/lib/database';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { Search } from '@/components/Search';
 import { TranslationPicker, UnifiedPicker } from './pickers';
+import { ExportPopover } from './ExportPopover';
 export function NavigationBar() {
   const {
     currentBook,
@@ -32,13 +33,14 @@ export function NavigationBar() {
   const [showTranslationPicker, setShowTranslationPicker] = useState(false);
   const [showVersePicker, setShowVersePicker] = useState(false);
   const [showUnifiedPicker, setShowUnifiedPicker] = useState(false);
+  const [showExportPopover, setShowExportPopover] = useState(false);
 
   // Create refs for trigger buttons
   const translationButtonRef = useRef<HTMLButtonElement>(null);
   const referenceButtonRef = useRef<HTMLButtonElement>(null);
 
   // Lock scroll when any picker is open (but not for dropdowns - they use lockScroll: false in useModal)
-  const anyPickerOpen = showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker || showUnifiedPicker;
+  const anyPickerOpen = showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker || showUnifiedPicker || showExportPopover;
   // Note: Individual pickers use useModal with lockScroll: false, so scroll locking here is optional
   // Keeping this commented for now as dropdowns shouldn't lock scroll
   // useScrollLock(anyPickerOpen);
@@ -48,6 +50,31 @@ export function NavigationBar() {
   const [currentVerse, setCurrentVerse] = useState<number | null>(null);
   
   const { activeView, loadActiveView, addTranslation, removeTranslation } = useMultiTranslationStore();
+  const chaptersByTranslation = useMultiTranslationStore((s) => s.chaptersByTranslation);
+  const fallbackChapter = useBibleStore((s) => s.chapter);
+
+  const primaryTranslationId = useMemo(() => {
+    const ids = activeView?.translationIds;
+    if (!ids || ids.length === 0) return useBibleStore.getState().currentModuleId;
+    return ids[0];
+  }, [activeView?.translationIds]);
+
+  const exportTranslation = useMemo(
+    () => translations.find((t) => t.id === primaryTranslationId) ?? null,
+    [translations, primaryTranslationId],
+  );
+
+  const exportChapter = useMemo(() => {
+    if (!primaryTranslationId) return null;
+    const fromMulti = chaptersByTranslation[primaryTranslationId];
+    if (fromMulti && fromMulti.book === currentBook && fromMulti.chapter === currentChapter) {
+      return fromMulti;
+    }
+    if (fallbackChapter && fallbackChapter.book === currentBook && fallbackChapter.chapter === currentChapter) {
+      return fallbackChapter;
+    }
+    return null;
+  }, [chaptersByTranslation, primaryTranslationId, fallbackChapter, currentBook, currentChapter]);
 
   const bookInfo = getBookById(currentBook);
   
@@ -333,8 +360,39 @@ export function NavigationBar() {
           </button>
         </div>
 
-        {/* Right side: Search and Next button */}
+        {/* Right side: Export, Search, and Next buttons */}
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          {/* Export / Share button — opens chapter export popover */}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowExportPopover(true);
+              setShowTranslationPicker(false);
+              setShowBookPicker(false);
+              setShowChapterPicker(false);
+              setShowVersePicker(false);
+              setShowUnifiedPicker(false);
+              setShowSearch(false);
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            disabled={!exportTranslation || !exportChapter}
+            className={`p-2 rounded-lg transition-all duration-200 touch-target select-none
+                       disabled:opacity-30 disabled:cursor-not-allowed
+                       ${showExportPopover
+                         ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                         : 'hover:bg-scripture-elevated'}`}
+            aria-label="Export this page (print, save as PDF, or copy)"
+            title="Export this page"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4" />
+            </svg>
+          </button>
+
           {/* Search button */}
           <button
             data-nav-search
@@ -482,6 +540,17 @@ export function NavigationBar() {
             }
           }}
           onClose={() => setShowUnifiedPicker(false)}
+        />
+      )}
+
+      {/* ExportPopover - chapter/range export to Print, PDF, or clipboard */}
+      {showExportPopover && exportTranslation && exportChapter && (
+        <ExportPopover
+          translation={exportTranslation}
+          book={exportChapter.book}
+          chapter={exportChapter.chapter}
+          verses={exportChapter.verses}
+          onClose={() => setShowExportPopover(false)}
         />
       )}
     </>
