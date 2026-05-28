@@ -167,7 +167,7 @@ export function SymbolIcon({
   const text = TEXT_FALLBACK[resolved];
   if (text) {
     return (
-      <span className={className} style={{ color, fontSize: '1.8em', fontWeight: 600, lineHeight: 1 }}>
+      <span className={className} style={{ color, fontSize: '1em', fontWeight: 600, lineHeight: 1 }}>
         {text}
       </span>
     );
@@ -187,7 +187,7 @@ export function getSymbolMarkup(symbol: SymbolKey | string, color?: string): str
     const safe = text.replace(/[&<>"']/g, (c) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
     );
-    const letterStyle = 'font-size:1.8em;font-weight:600;line-height:1';
+    const letterStyle = 'font-size:1em;font-weight:600;line-height:1';
     return color
       ? `<span style="color:${color};${letterStyle}">${safe}</span>`
       : `<span style="${letterStyle}">${safe}</span>`;
@@ -199,7 +199,7 @@ export function getSymbolMarkup(symbol: SymbolKey | string, color?: string): str
   let svg = svgCache.get(resolved);
   if (svg === undefined) {
     const { Icon } = spec;
-    svg = renderToStaticMarkup(<Icon size="1.8em" weight="duotone" />);
+    svg = renderToStaticMarkup(<Icon size="1em" weight="duotone" />);
     svgCache.set(resolved, svg);
   }
   const baseStyle = 'opacity:0.85;display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%';

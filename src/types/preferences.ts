@@ -43,6 +43,8 @@ export interface UserPreferences {
   scriptureFont?: 'crimson-pro' | 'lora' | 'merriweather' | 'literata';
   /** Opacity of symbol marks rendered behind annotated words (0.3–1.0, default 0.85). */
   symbolOpacity?: number;
+  /** Size of symbol marks as an em multiplier of the verse text (1.2–3.0, default 1.8). */
+  symbolSize?: number;
   theme: 'dark' | 'light' | 'auto';
   highContrast?: boolean;
   apiConfigs?: ApiConfigRecord[];

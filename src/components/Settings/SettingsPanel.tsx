@@ -15,8 +15,11 @@ import {
   applyTheme,
   applyScriptureFont,
   applySymbolOpacity,
+  applySymbolSize,
   SYMBOL_OPACITY_MIN,
   SYMBOL_OPACITY_MAX,
+  SYMBOL_SIZE_MIN,
+  SYMBOL_SIZE_MAX,
   type ScriptureFont,
 } from '@/lib/theme';
 import { clearDebugFlagsCache, getDebugFlags } from '@/lib/debug';
@@ -70,6 +73,8 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     setScriptureFont,
     symbolOpacity,
     setSymbolOpacity,
+    symbolSize,
+    setSymbolSize,
   } = useAnnotationStore();
   const { currentBook, currentModuleId } = useBibleStore();
   const [theme, setTheme] = useState<'dark' | 'light' | 'auto'>('dark');
@@ -417,6 +422,19 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     }
   };
 
+  const handleSymbolSizeChange = (next: number) => {
+    setSymbolSize(next);
+    applySymbolSize(next);
+  };
+
+  const handleSymbolSizeCommit = async (next: number) => {
+    try {
+      await updatePreferences({ symbolSize: next });
+    } catch (error) {
+      console.error('Error updating symbol size:', error);
+    }
+  };
+
   const handleThemeChange = async (newTheme: 'dark' | 'light' | 'auto') => {
     setTheme(newTheme);
     applyTheme(newTheme, highContrast);
@@ -757,6 +775,32 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                   {highContrast
                     ? 'High Contrast Mode is on, so symbol marks are shown at full visibility.'
                     : 'How visible symbol marks appear behind annotated words. Increase if the marks are hard to see.'}
+                </p>
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
+
+              <div className="p-4">
+                <div className="flex items-baseline justify-between mb-3">
+                  <h3 className="text-base font-ui font-semibold text-scripture-text">Symbol Size</h3>
+                  <span className="text-xs font-ui text-scripture-muted tabular-nums">
+                    {symbolSize.toFixed(1)}×
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={SYMBOL_SIZE_MIN}
+                  max={SYMBOL_SIZE_MAX}
+                  step={0.1}
+                  value={symbolSize}
+                  onChange={(e) => handleSymbolSizeChange(Number(e.target.value))}
+                  onPointerUp={(e) => handleSymbolSizeCommit(Number((e.target as HTMLInputElement).value))}
+                  onKeyUp={(e) => handleSymbolSizeCommit(Number((e.target as HTMLInputElement).value))}
+                  aria-label="Symbol mark size"
+                  className="w-full accent-scripture-accent"
+                />
+                <p className="text-xs text-scripture-muted mt-2">
+                  How large symbol marks appear relative to the word. Increase so more of the mark shows around short words.
                 </p>
               </div>
 

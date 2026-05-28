@@ -30,6 +30,15 @@ export function applySymbolOpacity(opacity: number): void {
   document.documentElement.style.setProperty('--symbol-opacity', String(clamped));
 }
 
+export const SYMBOL_SIZE_MIN = 1.2;
+export const SYMBOL_SIZE_MAX = 3.0;
+export const SYMBOL_SIZE_DEFAULT = 1.8;
+
+export function applySymbolSize(size: number): void {
+  const clamped = Math.min(SYMBOL_SIZE_MAX, Math.max(SYMBOL_SIZE_MIN, size));
+  document.documentElement.style.setProperty('--symbol-size', `${clamped}em`);
+}
+
 /**
  * Get the effective theme (resolves 'auto' to OS preference)
  */
@@ -247,6 +256,9 @@ export async function initTheme(): Promise<void> {
     }
     if (typeof prefs.symbolOpacity === 'number') {
       applySymbolOpacity(prefs.symbolOpacity);
+    }
+    if (typeof prefs.symbolSize === 'number') {
+      applySymbolSize(prefs.symbolSize);
     }
     
     // Set up OS theme watcher (will only apply if in auto mode)
