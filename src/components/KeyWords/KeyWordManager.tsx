@@ -715,8 +715,10 @@ function KeyWordEditor({
       return;
     }
 
-    // Filter out empty variants
-    const validVariants = variants.filter(v => v.text.trim().length > 0);
+    // Trim and filter out empty variants
+    const validVariants = variants
+      .map(v => ({ ...v, text: v.text.trim() }))
+      .filter(v => v.text.length > 0);
 
     if (symbol) {
       useAnnotationStore.getState().addRecentSymbol(symbol);
@@ -755,6 +757,7 @@ function KeyWordEditor({
               <VariantEditor
                 key={index}
                 variant={variant}
+                index={index}
                 currentBook={currentBook}
                 currentChapter={currentChapter}
                 onChange={(updated) => {
@@ -982,41 +985,47 @@ function KeyWordEditor({
 /** Variant Editor Component - Edit individual variant with optional scope */
 function VariantEditor({
   variant,
+  index,
   currentBook,
   currentChapter,
   onChange,
   onRemove,
 }: {
   variant: Variant;
+  index: number;
   currentBook?: string;
   currentChapter?: number;
   onChange: (variant: Variant) => void;
   onRemove: () => void;
 }) {
-  const [text, setText] = useState(variant.text);
-  const [scopeType, setScopeType] = useState<'global' | 'book' | 'chapter'>(
+  const scopeType: 'global' | 'book' | 'chapter' =
     variant.chapterScope !== undefined ? 'chapter' :
-    variant.bookScope ? 'book' : 'global'
-  );
-  const [bookScope, setBookScope] = useState(variant.bookScope || currentBook || '');
-  const [chapterScope, setChapterScope] = useState(variant.chapterScope || currentChapter || 1);
+    variant.bookScope ? 'book' : 'global';
+  const bookScope = variant.bookScope ?? '';
+  const chapterScope = variant.chapterScope ?? 1;
 
-  // Update parent when values change
-  useEffect(() => {
-    const updatedVariant: Variant = {
-      text: text.trim(),
-      bookScope: scopeType === 'book' || scopeType === 'chapter' ? bookScope : undefined,
-      chapterScope: scopeType === 'chapter' ? chapterScope : undefined,
-    };
-    onChange(updatedVariant);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, scopeType, bookScope, chapterScope]);
-
-  const scopeName = `variant-scope-${variant.text}`;
+  const scopeName = `variant-scope-${index}`;
   const bookOptions = [
     { value: '', label: 'Select a book...' },
     ...BIBLE_BOOKS.map(book => ({ value: book.id, label: book.name })),
   ];
+
+  const setScopeType = (next: 'global' | 'book' | 'chapter') => {
+    if (next === 'global') {
+      onChange({ text: variant.text });
+    } else if (next === 'book') {
+      onChange({
+        text: variant.text,
+        bookScope: variant.bookScope || currentBook || '',
+      });
+    } else {
+      onChange({
+        text: variant.text,
+        bookScope: variant.bookScope || currentBook || '',
+        chapterScope: variant.chapterScope ?? currentChapter ?? 1,
+      });
+    }
+  };
 
   return (
     <div className="p-2 bg-scripture-elevated border border-scripture-border/30 rounded-lg space-y-1.5">
@@ -1024,8 +1033,8 @@ function VariantEditor({
         <div className="flex-1 min-w-0">
           <Input
             type="text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
+            value={variant.text}
+            onChange={(e) => onChange({ ...variant, text: e.target.value })}
             placeholder="Variant text"
           />
         </div>
@@ -1056,7 +1065,7 @@ function VariantEditor({
       {scopeType === 'book' && (
         <DropdownSelect
           value={bookScope}
-          onChange={(val) => setBookScope(val)}
+          onChange={(val) => onChange({ ...variant, bookScope: val })}
           options={bookOptions}
           placeholder="Select a book..."
         />
@@ -1066,11 +1075,9 @@ function VariantEditor({
           <DropdownSelect
             value={bookScope}
             onChange={(val) => {
-              setBookScope(val);
-              if (val) {
-                const bookInfo = getBookById(val);
-                if (bookInfo && chapterScope > bookInfo.chapters) setChapterScope(1);
-              }
+              const bookInfo = val ? getBookById(val) : undefined;
+              const clampedChapter = bookInfo && chapterScope > bookInfo.chapters ? 1 : chapterScope;
+              onChange({ ...variant, bookScope: val, chapterScope: clampedChapter });
             }}
             options={bookOptions}
             placeholder="Select a book..."
@@ -1079,13 +1086,12 @@ function VariantEditor({
             type="number"
             value={chapterScope}
             onChange={(e) => {
-              const newChapter = parseInt(e.target.value) || 1;
+              const parsed = parseInt(e.target.value) || 1;
               const bookInfo = bookScope ? getBookById(bookScope) : undefined;
-              if (bookInfo) {
-                setChapterScope(Math.min(Math.max(1, newChapter), bookInfo.chapters));
-              } else {
-                setChapterScope(newChapter);
-              }
+              const next = bookInfo
+                ? Math.min(Math.max(1, parsed), bookInfo.chapters)
+                : parsed;
+              onChange({ ...variant, chapterScope: next });
             }}
             min="1"
             max={bookScope ? getBookById(bookScope)?.chapters : undefined}
