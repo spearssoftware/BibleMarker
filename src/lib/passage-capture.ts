@@ -64,6 +64,10 @@ const STRIP_SELECTORS = [
   'button[aria-label*="delete" i]',
   'button[aria-label*="remove" i]',
   'button[aria-label*="edit" i]',
+  // The in-app translation copyright block — our exported footer carries
+  // the authoritative attribution; leaving the live one in produces a
+  // duplicate copyright block in the PDF/print output.
+  '[data-copyright-notice]',
 ];
 
 /**
@@ -215,17 +219,41 @@ export function captureChapterHtml(input: CapturePassageInput): { html: string; 
     color: #555;
     text-align: center;
   }
-  /* Reset a few app-specific things that shouldn't carry over visually */
+  /* Reset app-specific layout so the captured DOM flows on the printed page
+     instead of carrying over screen widths and flex/grid containers. The
+     captured root has inlined computed styles like "width: 1280px" and
+     "display: flex; flex: 1" which would overflow / shift the page. */
   [data-passage-root] {
-    background: transparent !important;
-    overflow: visible !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
     height: auto !important;
     max-height: none !important;
+    flex: none !important;
+    overflow: visible !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
   [data-passage-root] * {
+    max-width: 100% !important;
+    min-width: 0 !important;
     overflow: visible !important;
     max-height: none !important;
     backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+  /* Verse rows are 1–3 column grids on screen; we keep only the primary
+     translation cell, so the empty grid columns would push the kept cell
+     into a fraction of the page. Force back to single-column block flow. */
+  [data-passage-root] [data-verse] {
+    display: block !important;
+    grid-template-columns: none !important;
+  }
+  [data-passage-root] [data-translation-id] {
+    display: block !important;
+    width: 100% !important;
   }
   button { display: none !important; }
   /* Page break hints */

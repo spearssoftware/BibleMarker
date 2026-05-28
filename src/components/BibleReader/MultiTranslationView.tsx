@@ -809,7 +809,10 @@ export function MultiTranslationView() {
 
           {/* Copyright notices */}
           {translationList.some(({ translation }) => translation.copyright) && (
-            <div className={`grid gap-4 px-4 py-3 border-t border-scripture-muted/20 bg-scripture-surface/50 flex-shrink-0 ${gridColsClass}`}>
+            <div
+              data-copyright-notice
+              className={`grid gap-4 px-4 py-3 border-t border-scripture-muted/20 bg-scripture-surface/50 flex-shrink-0 ${gridColsClass}`}
+            >
               {translationList.map(({ translation }) => (
                 <CopyrightNotice key={`copyright-${translation.id}`} translation={translation} />
               ))}
