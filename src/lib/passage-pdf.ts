@@ -414,21 +414,18 @@ class PageWriter {
   }
 
   /**
-   * Render a verse with annotations laid out inline: highlighted words get
-   * a faded colored background, underlined words get a colored line beneath,
-   * text-colored words get the color applied, and symbol marks are drawn
-   * over the word as a translucent icon. Returns the verse-number gutter
-   * width.
-   *
-   * Token-based: tokenize the verse text by whitespace, measure each
-   * token, place it at the current cursor, wrap when overflowing the
-   * line. Each token resolves its own set of covering annotations from
-   * the original character offsets.
+   * Render a verse with annotations laid out inline. Two-pass: first lays
+   * out tokens onto lines (so we know which lines contain symbol-marked
+   * words), second renders each line — adding extra vertical headroom
+   * above any line that has symbols, with icons drawn full-opacity in
+   * that gap above the word they mark. Matches the on-screen reader's
+   * "icons above words" appearance.
    */
   writeVerse(verseNum: number, body: string, annotations: Annotation[], iconCache: Map<string, string>): number {
     const fontSize = 11;
     const lineHeight = fontSize * 1.4;
-    const iconSize = fontSize * 1.2;
+    const iconSize = fontSize * 1.3;
+    const iconGap = 2;
 
     this.doc.setFont('helvetica', 'normal');
     this.doc.setFontSize(fontSize);
@@ -438,97 +435,116 @@ class PageWriter {
     const bodyLeft = this.opts.marginLeft + numWidth;
     const maxX = this.opts.marginLeft + this.contentWidth;
 
-    // Make room for an icon overhang on the first line of the verse.
-    this.ensureSpace(lineHeight + 2);
-
-    // Verse number in bold gray.
-    this.doc.setTextColor(120, 120, 120);
-    this.doc.setFont('helvetica', 'bold');
-    this.doc.text(numLabel, this.opts.marginLeft, this.y + fontSize);
-    this.doc.setFont('helvetica', 'normal');
-    this.doc.setTextColor(0, 0, 0);
-
+    // -- Pass 1: layout --
+    interface LaidOutToken {
+      tok: VerseToken;
+      covers: Annotation[];
+      x: number;
+      width: number;
+    }
+    interface Line {
+      tokens: LaidOutToken[];
+      hasSymbols: boolean;
+    }
     const tokens = tokenizeVerse(body);
+    const lines: Line[] = [];
+    let line: Line = { tokens: [], hasSymbols: false };
     let x = bodyLeft;
     let firstOnLine = true;
 
     for (const tok of tokens) {
+      const covers = annotations.filter((a) => annotationCoversToken(a, tok, verseNum));
+      const tokenHasSymbol = covers.some((a) => a.type === 'symbol');
+
       const leading = firstOnLine ? '' : tok.leadingSpace || ' ';
       const leadingW = leading ? this.doc.getTextWidth(leading) : 0;
       const wordW = this.doc.getTextWidth(tok.text);
 
-      // Wrap if this token wouldn't fit. Wrapped lines hang at bodyLeft.
       if (!firstOnLine && x + leadingW + wordW > maxX) {
-        this.y += lineHeight;
-        this.ensureSpace(lineHeight);
+        lines.push(line);
+        line = { tokens: [], hasSymbols: false };
         x = bodyLeft;
         firstOnLine = true;
       }
-      if (!firstOnLine && leading) {
-        // Spaces are rendered implicitly by advancing x — no need to draw them.
-        x += leadingW;
-      }
+      if (!firstOnLine) x += leadingW;
 
-      // Collect annotations that cover this token.
-      const covers = annotations.filter((a) => annotationCoversToken(a, tok, verseNum));
-      const highlight = covers.find((a) => a.type === 'highlight') as TextAnnotation | undefined;
-      const textColor = covers.find((a) => a.type === 'textColor') as TextAnnotation | undefined;
-      const underline = covers.find((a) => a.type === 'underline') as TextAnnotation | undefined;
-      const symbols = covers.filter((a): a is SymbolAnnotation => a.type === 'symbol');
-
-      // 1) Highlight background — drawn first so text sits on top.
-      if (highlight) {
-        const [r, g, b] = hexToRgb(getHighlightColorHex(highlight.color));
-        this.doc.setFillColor(r, g, b);
-        const gs = this.doc.GState({ opacity: 0.25 });
-        this.doc.setGState(gs);
-        // Tight rect around just the glyph height.
-        this.doc.rect(x - 0.5, this.y + 2, wordW + 1, fontSize, 'F');
-        this.doc.setGState(this.doc.GState({ opacity: 1 }));
-      }
-
-      // 2) Text color (or default black).
-      if (textColor) {
-        const [r, g, b] = hexToRgb(getHighlightColorHex(textColor.color));
-        this.doc.setTextColor(r, g, b);
-      } else {
-        this.doc.setTextColor(0, 0, 0);
-      }
-      this.doc.text(tok.text, x, this.y + fontSize);
-
-      // 3) Underline beneath the word.
-      if (underline) {
-        const [r, g, b] = hexToRgb(getHighlightColorHex(underline.color));
-        this.doc.setDrawColor(r, g, b);
-        this.doc.setLineWidth(0.6);
-        const uy = this.y + fontSize + 1.5;
-        this.doc.line(x, uy, x + wordW, uy);
-      }
-
-      // 4) Symbols — drawn translucent on top of the word (centered),
-      //    matching the on-screen "overlay" appearance.
-      if (symbols.length > 0) {
-        for (let i = 0; i < symbols.length; i++) {
-          const sym = symbols[i];
-          const colorHex = sym.color ? getHighlightColorHex(sym.color as HighlightColor) : undefined;
-          const cacheKey = `${sym.symbol}|${colorHex ?? ''}`;
-          const dataUrl = iconCache.get(cacheKey);
-          if (!dataUrl) continue;
-          // Center on the word horizontally and vertically.
-          const ix = x + wordW / 2 - iconSize / 2;
-          const iy = this.y + 2 + (fontSize - iconSize) / 2 + (i * (iconSize + 1));
-          const gs = this.doc.GState({ opacity: 0.6 });
-          this.doc.setGState(gs);
-          this.doc.addImage(dataUrl, 'PNG', ix, iy, iconSize, iconSize);
-          this.doc.setGState(this.doc.GState({ opacity: 1 }));
-        }
-      }
-
+      line.tokens.push({ tok, covers, x, width: wordW });
+      if (tokenHasSymbol) line.hasSymbols = true;
       x += wordW;
       firstOnLine = false;
     }
+    if (line.tokens.length > 0) lines.push(line);
 
-    this.y += lineHeight;
+    // -- Pass 2: render --
+    for (let li = 0; li < lines.length; li++) {
+      const ln = lines[li];
+      const headroom = ln.hasSymbols ? iconSize + iconGap : 0;
+      this.ensureSpace(headroom + lineHeight);
+      this.y += headroom; // make room above this line for the icon row
+
+      // Verse number on the first physical line of the verse.
+      if (li === 0) {
+        this.doc.setTextColor(120, 120, 120);
+        this.doc.setFont('helvetica', 'bold');
+        this.doc.text(numLabel, this.opts.marginLeft, this.y + fontSize);
+        this.doc.setFont('helvetica', 'normal');
+        this.doc.setTextColor(0, 0, 0);
+      }
+
+      for (const lt of ln.tokens) {
+        const { tok, covers, x: tokX, width: wordW } = lt;
+        const highlight = covers.find((a) => a.type === 'highlight') as TextAnnotation | undefined;
+        const textColor = covers.find((a) => a.type === 'textColor') as TextAnnotation | undefined;
+        const underline = covers.find((a) => a.type === 'underline') as TextAnnotation | undefined;
+        const symbols = covers.filter((a): a is SymbolAnnotation => a.type === 'symbol');
+
+        // Highlight rect.
+        if (highlight) {
+          const [r, g, b] = hexToRgb(getHighlightColorHex(highlight.color));
+          this.doc.setFillColor(r, g, b);
+          this.doc.setGState(this.doc.GState({ opacity: 0.28 }));
+          this.doc.rect(tokX - 0.5, this.y + 2, wordW + 1, fontSize, 'F');
+          this.doc.setGState(this.doc.GState({ opacity: 1 }));
+        }
+
+        // Text color.
+        if (textColor) {
+          const [r, g, b] = hexToRgb(getHighlightColorHex(textColor.color));
+          this.doc.setTextColor(r, g, b);
+        } else {
+          this.doc.setTextColor(0, 0, 0);
+        }
+        this.doc.text(tok.text, tokX, this.y + fontSize);
+
+        // Underline.
+        if (underline) {
+          const [r, g, b] = hexToRgb(getHighlightColorHex(underline.color));
+          this.doc.setDrawColor(r, g, b);
+          this.doc.setLineWidth(0.6);
+          const uy = this.y + fontSize + 1.5;
+          this.doc.line(tokX, uy, tokX + wordW, uy);
+        }
+
+        // Symbols ABOVE the word, in the headroom we reserved for this line.
+        // Center each over the word horizontally. Multiple symbols → side by
+        // side; if too wide, clamp to the icon row above the word.
+        if (symbols.length > 0) {
+          const totalIconW = symbols.length * iconSize + (symbols.length - 1) * 1;
+          let ix = tokX + wordW / 2 - totalIconW / 2;
+          if (ix < this.opts.marginLeft) ix = this.opts.marginLeft;
+          const iy = this.y - iconGap - iconSize;
+          for (const sym of symbols) {
+            const colorHex = sym.color ? getHighlightColorHex(sym.color as HighlightColor) : undefined;
+            const dataUrl = iconCache.get(`${sym.symbol}|${colorHex ?? ''}`);
+            if (dataUrl) this.doc.addImage(dataUrl, 'PNG', ix, iy, iconSize, iconSize);
+            ix += iconSize + 1;
+          }
+        }
+      }
+
+      this.y += lineHeight;
+    }
+
     return numWidth;
   }
 
