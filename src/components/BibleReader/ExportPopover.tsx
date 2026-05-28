@@ -83,8 +83,16 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
       setAction({ status: 'success', message: 'Opened in your browser. Print, Save as PDF, or copy from there.' });
     } catch (err) {
       console.error('[ExportPopover] open failed', err);
-      const msg = err instanceof Error ? err.message : 'Could not open the page.';
-      setAction({ status: 'error', message: msg });
+      // Tauri plugin errors can be strings or plain objects, not Error instances.
+      const msg =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'string'
+            ? err
+            : (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string')
+              ? err.message
+              : JSON.stringify(err);
+      setAction({ status: 'error', message: msg || 'Could not open the page.' });
     }
   };
 
