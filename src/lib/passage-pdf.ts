@@ -310,38 +310,74 @@ function buildDocDefinition(input: BuildPassagePdfInput): Record<string, unknown
   };
 }
 
+type PdfDoc = {
+  getBuffer: (cb: (buf: Uint8Array) => void) => void;
+  getBlob: (cb: (blob: Blob) => void) => void;
+};
+type PdfMakeInstance = {
+  createPdf: (def: unknown) => PdfDoc;
+  addVirtualFileSystem?: (vfs: Record<string, string>) => void;
+  vfs?: Record<string, string>;
+};
+
+let pdfMakePromise: Promise<PdfMakeInstance> | null = null;
+
 /**
  * Lazy-load pdfmake + its font bundle. The font bundle is ~700 KB; we only
  * want it on disk for users who actually export. Vite code-splits this into
- * its own chunk.
+ * its own chunk. Cached so repeat exports skip the import.
  */
-async function loadPdfMake(): Promise<{ createPdf: (def: unknown) => { getBuffer: (cb: (buf: Uint8Array) => void) => void } }> {
-  // pdfmake's UMD module exposes `createPdf` and `addVirtualFileSystem`.
-  // vfs_fonts.js auto-attaches if `window.pdfMake.addVirtualFileSystem` is
-  // already wired, but in ESM the imports run in module scope and don't see
-  // each other's globals — we wire them manually.
-  type PdfMakeInstance = {
-    createPdf: (def: unknown) => { getBuffer: (cb: (buf: Uint8Array) => void) => void };
-    addVirtualFileSystem: (vfs: Record<string, string>) => void;
-    vfs?: Record<string, string>;
-  };
-  const pdfMakeMod = (await import('pdfmake/build/pdfmake')) as unknown as { default: PdfMakeInstance } | PdfMakeInstance;
-  const pdfMake = ('default' in pdfMakeMod ? pdfMakeMod.default : pdfMakeMod) as PdfMakeInstance;
-  const vfsMod = (await import('pdfmake/build/vfs_fonts')) as unknown as { default: Record<string, string> } | Record<string, string>;
-  const vfs = ('default' in vfsMod && typeof vfsMod.default === 'object' ? vfsMod.default : vfsMod) as Record<string, string>;
-  if (typeof pdfMake.addVirtualFileSystem === 'function') {
-    pdfMake.addVirtualFileSystem(vfs);
-  } else {
-    pdfMake.vfs = vfs;
-  }
-  return pdfMake;
+function loadPdfMake(): Promise<PdfMakeInstance> {
+  if (pdfMakePromise) return pdfMakePromise;
+  pdfMakePromise = (async () => {
+    console.log('[passage-pdf] loading pdfmake…');
+    const pdfMakeMod = (await import('pdfmake/build/pdfmake')) as unknown as { default?: PdfMakeInstance } & PdfMakeInstance;
+    const pdfMake = (pdfMakeMod.default ?? pdfMakeMod) as PdfMakeInstance;
+    if (typeof pdfMake.createPdf !== 'function') {
+      throw new Error('pdfmake module did not expose createPdf; import shape unexpected.');
+    }
+    console.log('[passage-pdf] loading vfs_fonts…');
+    const vfsMod = (await import('pdfmake/build/vfs_fonts')) as unknown as { default?: Record<string, string> } & Record<string, string>;
+    // vfs_fonts ships as UMD: in some Vite resolutions the default export is
+    // the vfs map, in others the module *is* the vfs map. Accept both.
+    const candidate = vfsMod.default ?? vfsMod;
+    const vfs = (typeof candidate === 'object' && candidate && 'Roboto-Regular.ttf' in candidate)
+      ? (candidate as Record<string, string>)
+      : (vfsMod as Record<string, string>);
+    if (!vfs || !('Roboto-Regular.ttf' in vfs)) {
+      throw new Error('pdfmake vfs_fonts did not include Roboto — font bundle import failed.');
+    }
+    if (typeof pdfMake.addVirtualFileSystem === 'function') {
+      pdfMake.addVirtualFileSystem(vfs);
+    } else {
+      pdfMake.vfs = vfs;
+    }
+    console.log('[passage-pdf] pdfmake ready.');
+    return pdfMake;
+  })();
+  // Don't cache failures — let the next attempt try again.
+  pdfMakePromise.catch(() => { pdfMakePromise = null; });
+  return pdfMakePromise;
 }
 
 export async function buildPassagePdf(input: BuildPassagePdfInput): Promise<Uint8Array> {
   const pdfMake = await loadPdfMake();
   const docDef = buildDocDefinition(input);
-  return new Promise<Uint8Array>((resolve) => {
-    pdfMake.createPdf(docDef).getBuffer((buf) => resolve(buf));
+  console.log('[passage-pdf] generating PDF buffer…');
+  return new Promise<Uint8Array>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('PDF generation timed out after 30s.'));
+    }, 30_000);
+    try {
+      pdfMake.createPdf(docDef).getBuffer((buf) => {
+        clearTimeout(timeout);
+        console.log('[passage-pdf] PDF buffer ready, size=', buf?.length ?? 'unknown');
+        resolve(buf);
+      });
+    } catch (err) {
+      clearTimeout(timeout);
+      reject(err instanceof Error ? err : new Error(String(err)));
+    }
   });
 }
 
@@ -395,13 +431,17 @@ export async function savePassagePdf(
   const defaultDir = await documentDir().catch(() => '');
   const defaultPath = defaultDir ? await join(defaultDir, filename) : filename;
 
+  console.log('[passage-pdf] opening save dialog, defaultPath=', defaultPath);
   const chosen = await save({
     defaultPath,
     filters: [{ name: 'PDF', extensions: ['pdf'] }],
   });
+  console.log('[passage-pdf] save dialog returned:', chosen);
   if (!chosen) return { cancelled: true };
 
+  console.log('[passage-pdf] writing file…');
   await writeFile(chosen, bytes);
+  console.log('[passage-pdf] file written.');
   return { path: chosen };
 }
 
