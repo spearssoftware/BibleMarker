@@ -34,10 +34,11 @@ import type {
   SectionHeading,
   Verse,
 } from '@/types';
-import { getBookById, SYMBOL_LABELS } from '@/types';
+import { getBookById, getHighlightColorHex, SYMBOL_LABELS, type HighlightColor, type SymbolKey } from '@/types';
 import { getModuleCopyright, ESV_COPYRIGHT, type ApiTranslation } from '@/lib/bible-api';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
+import { getSymbolMarkup } from '@/lib/symbolDisplay';
 
 export interface BuildPassagePdfInput {
   translation: ApiTranslation;
@@ -86,29 +87,34 @@ function findCoveringHeading(verseNum: number, headings: SectionHeading[]): Sect
 }
 
 /**
- * One-line, human-readable summary of the marks on this verse. Includes
- * both persisted annotations and virtual keyword-match annotations
- * (presets that match words in the verse text but aren't stored). Dedup
- * is by `${kind}|${selectedText.toLowerCase()}|${label}` within a verse
- * — same word marked twice with the same preset only lists once.
- *
- * Example: `marks: "Lord" marked God · "Gilead" marked Place · "Gilead" highlighted fuchsia`
+ * A token in the marks line: either a symbol-icon-plus-word entry (`{icon}`)
+ * or a plain text entry for highlights/underlines/colors (`{text}`). The
+ * renderer walks these in order, placing icons as embedded PNGs and text
+ * via doc.text, wrapping on the line as needed.
  */
-function buildMarksSummary(verse: Verse, annotations: Annotation[]): string | null {
-  const parts: string[] = [];
+type MarkToken =
+  | { kind: 'icon'; symbol: SymbolKey; color: string | undefined; word: string }
+  | { kind: 'text'; text: string };
+
+/**
+ * Build the list of mark tokens for a verse. Includes both persisted
+ * annotations and virtual keyword-match annotations. Deduped by
+ * `${kind}|${selectedText.toLowerCase()}|${label}` so the same word
+ * marked twice with the same preset only lists once.
+ */
+function buildMarkTokens(verse: Verse, annotations: Annotation[]): MarkToken[] {
+  const tokens: MarkToken[] = [];
   const seen = new Set<string>();
-  const add = (key: string, text: string) => {
-    if (seen.has(key)) return;
-    seen.add(key);
-    parts.push(text);
-  };
 
   for (const ann of annotations) {
     if (ann.type === 'symbol') {
       if (ann.ref.verse !== verse.ref.verse) continue;
       const label = SYMBOL_LABELS[ann.symbol] || ann.symbol;
-      const target = ann.selectedText ? `"${ann.selectedText}"` : 'verse';
-      add(`sym|${(ann.selectedText ?? '').toLowerCase()}|${label}`, `${target} marked ${label}`);
+      const word = ann.selectedText ?? 'verse';
+      const key = `sym|${word.toLowerCase()}|${label}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      tokens.push({ kind: 'icon', symbol: ann.symbol, color: ann.color, word });
     } else {
       if (ann.startRef.verse !== verse.ref.verse) continue;
       if (ann.endRef.verse !== verse.ref.verse) continue;
@@ -116,12 +122,89 @@ function buildMarksSummary(verse: Verse, annotations: Annotation[]): string | nu
         ann.type === 'highlight' ? 'highlighted'
         : ann.type === 'textColor' ? 'colored'
         : 'underlined';
-      const target = ann.selectedText ? `"${ann.selectedText}"` : 'text';
-      add(`${kind}|${(ann.selectedText ?? '').toLowerCase()}|${ann.color}`, `${target} ${kind} ${ann.color}`);
+      const word = ann.selectedText ?? 'text';
+      const key = `${kind}|${word.toLowerCase()}|${ann.color}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      tokens.push({ kind: 'text', text: `"${word}" ${kind} ${ann.color}` });
     }
   }
-  if (parts.length === 0) return null;
-  return `marks: ${parts.join(' · ')}`;
+  return tokens;
+}
+
+/** All unique (symbol, colorHex) pairs needed for the export — used to
+ *  pre-render the PNG cache before the (sync) doc builder runs. */
+function collectIconKeys(tokens: MarkToken[][]): Array<{ symbol: SymbolKey; colorHex: string | undefined }> {
+  const seen = new Set<string>();
+  const out: Array<{ symbol: SymbolKey; colorHex: string | undefined }> = [];
+  for (const list of tokens) {
+    for (const t of list) {
+      if (t.kind !== 'icon') continue;
+      const colorHex = t.color ? getHighlightColorHex(t.color as HighlightColor) : undefined;
+      const key = `${t.symbol}|${colorHex ?? ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ symbol: t.symbol, colorHex });
+    }
+  }
+  return out;
+}
+
+/** Render a Phosphor SVG to a PNG data URL at 2x the requested pt size
+ *  (for crisp rendering at print resolutions). Returns null if rasterization
+ *  fails — caller falls back to a text label. */
+async function rasterizeSymbol(symbol: SymbolKey, colorHex: string | undefined, sizePt: number): Promise<string | null> {
+  const markup = getSymbolMarkup(symbol, colorHex ?? '#222');
+  if (!markup) return null;
+  // getSymbolMarkup wraps the SVG in a <span>; jsPDF needs the raw SVG.
+  const svgMatch = markup.match(/<svg[\s\S]*<\/svg>/);
+  if (!svgMatch) return null;
+  // Force an explicit width/height on the SVG so canvas drawImage knows the
+  // intrinsic size — Phosphor's em-based sizing gives 0×0 on a free SVG.
+  const svgStr = svgMatch[0].replace(/<svg([^>]*)>/, (_m, attrs) => {
+    const cleaned = String(attrs)
+      .replace(/\swidth="[^"]*"/, '')
+      .replace(/\sheight="[^"]*"/, '');
+    return `<svg${cleaned} width="64" height="64">`;
+  });
+  const px = Math.max(16, Math.round(sizePt * 2));
+
+  try {
+    const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    try {
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('SVG image load failed'));
+        img.src = url;
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = px;
+      canvas.height = px;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.drawImage(img, 0, 0, px, px);
+      return canvas.toDataURL('image/png');
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  } catch (err) {
+    console.warn('[passage-pdf] symbol rasterize failed for', symbol, err);
+    return null;
+  }
+}
+
+async function buildIconCache(tokens: MarkToken[][], sizePt: number): Promise<Map<string, string>> {
+  const cache = new Map<string, string>();
+  const keys = collectIconKeys(tokens);
+  await Promise.all(
+    keys.map(async ({ symbol, colorHex }) => {
+      const dataUrl = await rasterizeSymbol(symbol, colorHex, sizePt);
+      if (dataUrl) cache.set(`${symbol}|${colorHex ?? ''}`, dataUrl);
+    }),
+  );
+  return cache;
 }
 
 // --- jsPDF lazy loader -------------------------------------------------------
@@ -136,8 +219,10 @@ type JsPDFDoc = {
   setLineWidth(w: number): JsPDFDoc;
   text(text: string | string[], x: number, y: number, options?: { align?: 'left' | 'center' | 'right'; maxWidth?: number }): JsPDFDoc;
   splitTextToSize(text: string, maxWidth: number): string[];
+  getTextWidth(text: string): number;
   rect(x: number, y: number, w: number, h: number, style?: string): JsPDFDoc;
   line(x1: number, y1: number, x2: number, y2: number): JsPDFDoc;
+  addImage(data: string, format: string, x: number, y: number, w: number, h: number): JsPDFDoc;
   addPage(): JsPDFDoc;
   getNumberOfPages(): number;
   setPage(n: number): JsPDFDoc;
@@ -259,8 +344,76 @@ class PageWriter {
     if (opts.marginBottom) this.y += opts.marginBottom;
   }
 
-  /** Render a verse: small bold gray number + body text on one paragraph. */
-  writeVerse(verseNum: number, body: string, marksSummary: string | null): void {
+  /**
+   * Render a list of mark tokens beneath a verse as `[icon] word · [icon] word · …`.
+   * Plain-text tokens are rendered as-is. Icon tokens render the cached
+   * PNG followed by the word. Wraps to a new line when content doesn't
+   * fit; subsequent lines hang under the verse's body indent.
+   */
+  writeMarksLine(tokens: MarkToken[], iconCache: Map<string, string>, leftIndent: number): void {
+    if (tokens.length === 0) return;
+    const fontSize = 8.5;
+    const lineHeight = fontSize * 1.4;
+    const iconSize = fontSize * 1.15; // pt
+    const gap = 3;        // gap between icon and its word
+    const sepGap = 6;     // gap between entries
+
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFontSize(fontSize);
+    this.doc.setTextColor(80, 80, 120);
+
+    const startX = this.opts.marginLeft + leftIndent;
+    const maxX = this.opts.marginLeft + this.contentWidth;
+    let x = startX;
+    let firstOnLine = true;
+
+    this.ensureSpace(lineHeight);
+
+    for (const token of tokens) {
+      const isIcon = token.kind === 'icon';
+      const word = isIcon ? token.word : token.text;
+      const wordWidth = this.doc.getTextWidth(word);
+      const entryWidth = (isIcon ? iconSize + gap : 0) + wordWidth;
+      const needed = entryWidth + (firstOnLine ? 0 : sepGap + this.doc.getTextWidth('·') + sepGap);
+
+      if (!firstOnLine && x + needed > maxX) {
+        // Wrap to next line.
+        this.y += lineHeight;
+        this.ensureSpace(lineHeight);
+        x = startX;
+        firstOnLine = true;
+      }
+
+      if (!firstOnLine) {
+        const sep = '·';
+        const sepW = this.doc.getTextWidth(sep);
+        this.doc.text(sep, x + sepGap, this.y + fontSize);
+        x += sepGap + sepW + sepGap;
+      }
+
+      if (isIcon) {
+        const cacheKey = `${token.symbol}|${token.color ? getHighlightColorHex(token.color as HighlightColor) : ''}`;
+        const dataUrl = iconCache.get(cacheKey);
+        if (dataUrl) {
+          // Center icon vertically with the text baseline.
+          this.doc.addImage(dataUrl, 'PNG', x, this.y + (fontSize - iconSize) / 2 + 1, iconSize, iconSize);
+        }
+        x += iconSize + gap;
+      }
+      this.doc.text(word, x, this.y + fontSize);
+      x += wordWidth;
+      firstOnLine = false;
+    }
+
+    this.y += lineHeight;
+  }
+
+  /**
+   * Render a verse: small bold gray number + body text on one paragraph.
+   * Returns the verse-number gutter width so the caller can align the
+   * marks line (if any) under the body indent.
+   */
+  writeVerse(verseNum: number, body: string): number {
     const fontSize = 11;
     const lineHeight = fontSize * 1.35;
 
@@ -269,15 +422,12 @@ class PageWriter {
     this.doc.setTextColor(0, 0, 0);
 
     const numLabel = `${verseNum} `;
-    const numWidth = this.doc.splitTextToSize(numLabel, this.contentWidth)[0]
-      ? // getStringUnitWidth would be cleaner but the typings vary; estimate via splitTextToSize.
-        approxTextWidth(this.doc, numLabel)
-      : 12;
+    const numWidth = approxTextWidth(this.doc, numLabel);
 
     // Body wraps to (contentWidth - hanging indent after the verse number).
     const bodyWidth = this.contentWidth - numWidth;
     const lines = this.doc.splitTextToSize(body, bodyWidth);
-    if (lines.length === 0) return;
+    if (lines.length === 0) return numWidth;
 
     this.ensureSpace(lineHeight);
 
@@ -297,20 +447,12 @@ class PageWriter {
       this.y += lineHeight;
     }
 
-    if (marksSummary) {
-      this.doc.setFont('helvetica', 'italic');
-      this.doc.setFontSize(8.5);
-      this.doc.setTextColor(80, 80, 120);
-      const summaryLines = this.doc.splitTextToSize(marksSummary, bodyWidth);
-      const summaryLineHeight = 8.5 * 1.3;
-      for (const line of summaryLines) {
-        this.ensureSpace(summaryLineHeight);
-        this.doc.text(line, this.opts.marginLeft + numWidth, this.y + 8.5);
-        this.y += summaryLineHeight;
-      }
-    }
+    return numWidth;
+  }
 
-    this.y += 3;
+  /** Add a small gap after a verse + its marks line. */
+  spacer(pts: number): void {
+    this.y += pts;
   }
 
   drawRunningFooter(text: string): void {
@@ -342,7 +484,7 @@ function approxTextWidth(doc: JsPDFDoc, text: string): number {
 
 // --- Document builder --------------------------------------------------------
 
-function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): JsPDFDoc {
+async function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): Promise<JsPDFDoc> {
   const { translation, book, chapter, verses, annotations, notes, sectionHeadings, chapterTitle, verseRange } = input;
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });
   const writer = new PageWriter(doc);
@@ -353,6 +495,23 @@ function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): JsPDFDoc {
 
   const range = verseRange ?? { start: verses[0]?.ref.verse ?? 1, end: verses[verses.length - 1]?.ref.verse ?? 0 };
   const inRange = verses.filter((v) => v.ref.verse >= range.start && v.ref.verse <= range.end);
+
+  // Pre-build per-verse mark token lists so we can pre-rasterize all the
+  // unique symbol icons in one async pass (Canvas image loading is async,
+  // and the doc-building pass below is sync).
+  const verseTokens = new Map<number, MarkToken[]>();
+  for (const verse of inRange) {
+    const verseAnns = annotations.filter((a) => {
+      if (a.type === 'symbol') return a.ref.verse === verse.ref.verse;
+      return a.startRef.verse <= verse.ref.verse && a.endRef.verse >= verse.ref.verse;
+    });
+    const virtualAnns = filteredPresets.length > 0
+      ? findKeywordMatches(verse.text || '', verse.ref, filteredPresets, translation.id, exclusions)
+      : [];
+    verseTokens.set(verse.ref.verse, buildMarkTokens(verse, [...verseAnns, ...virtualAnns]));
+  }
+  const iconCache = await buildIconCache([...verseTokens.values()], 10);
+
   const rangeLabel = formatRangeLabel(book, chapter, verseRange);
   const showChapterTitle = !verseRange || verseRange.start === (verses[0]?.ref.verse ?? 1);
 
@@ -385,16 +544,10 @@ function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): JsPDFDoc {
       lastHeadingId = headingAtVerse.id;
     }
 
-    const verseAnns = annotations.filter((a) => {
-      if (a.type === 'symbol') return a.ref.verse === verse.ref.verse;
-      return a.startRef.verse <= verse.ref.verse && a.endRef.verse >= verse.ref.verse;
-    });
-    const virtualAnns = filteredPresets.length > 0
-      ? findKeywordMatches(verse.text || '', verse.ref, filteredPresets, translation.id, exclusions)
-      : [];
-    const allAnns: Annotation[] = [...verseAnns, ...virtualAnns];
-
-    writer.writeVerse(verse.ref.verse, verse.text || '', buildMarksSummary(verse, allAnns));
+    const numWidth = writer.writeVerse(verse.ref.verse, verse.text || '');
+    const tokens = verseTokens.get(verse.ref.verse) ?? [];
+    if (tokens.length > 0) writer.writeMarksLine(tokens, iconCache, numWidth);
+    writer.spacer(3);
 
     const verseNotes = notes.filter(
       (n) => n.ref.verse === verse.ref.verse ||
@@ -419,7 +572,7 @@ function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): JsPDFDoc {
 export async function buildPassagePdf(input: BuildPassagePdfInput): Promise<Uint8Array> {
   const jsPDF = await loadJsPDF();
   console.log('[passage-pdf] building PDF…');
-  const doc = buildPdfDoc(jsPDF, input);
+  const doc = await buildPdfDoc(jsPDF, input);
   const arrBuf = doc.output('arraybuffer');
   const bytes = new Uint8Array(arrBuf);
   console.log('[passage-pdf] PDF ready, bytes=', bytes.length);
