@@ -39,6 +39,14 @@ export function applySymbolSize(size: number): void {
   document.documentElement.style.setProperty('--symbol-size', `${clamped}em`);
 }
 
+export type SymbolPosition = 'above' | 'behind';
+export const SYMBOL_POSITION_DEFAULT: SymbolPosition = 'behind';
+
+export function applySymbolPosition(position: SymbolPosition): void {
+  const html = document.documentElement;
+  html.classList.toggle('symbol-position-above', position === 'above');
+}
+
 /**
  * Get the effective theme (resolves 'auto' to OS preference)
  */
@@ -259,6 +267,9 @@ export async function initTheme(): Promise<void> {
     }
     if (typeof prefs.symbolSize === 'number') {
       applySymbolSize(prefs.symbolSize);
+    }
+    if (prefs.symbolPosition === 'above' || prefs.symbolPosition === 'behind') {
+      applySymbolPosition(prefs.symbolPosition);
     }
     
     // Set up OS theme watcher (will only apply if in auto mode)

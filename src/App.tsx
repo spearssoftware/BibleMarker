@@ -49,7 +49,7 @@ export default function App() {
   const { setChapter, currentBook, currentChapter, currentModuleId, setLoading, setError } = useBibleStore();
 
   const { setCurrentModule } = useBibleStore();
-  const { setFontSize, setSymbolOpacity, setSymbolSize } = useAnnotationStore();
+  const { setFontSize, setSymbolOpacity, setSymbolSize, setSymbolPosition } = useAnnotationStore();
   const { loadStudies } = useStudyStore();
   const { loadActiveView } = useMultiTranslationStore();
   const { loadLists } = useListStore();
@@ -101,6 +101,9 @@ export default function App() {
         if (typeof prefs.symbolSize === 'number') {
           setSymbolSize(prefs.symbolSize);
         }
+        if (prefs.symbolPosition === 'above' || prefs.symbolPosition === 'behind') {
+          setSymbolPosition(prefs.symbolPosition);
+        }
         
         // Check onboarding state. Welcome runs once for new users; the
         // Translation Library runs once for everyone (new users after Welcome,
@@ -122,7 +125,7 @@ export default function App() {
     
     // Active view is needed for first render
     loadActiveView();
-  }, [setFontSize, setSymbolOpacity, setSymbolSize, loadActiveView, loadExclusions]);
+  }, [setFontSize, setSymbolOpacity, setSymbolSize, setSymbolPosition, loadActiveView, loadExclusions]);
 
   // Deferred initialization: non-critical work after first render
   useEffect(() => {

@@ -45,6 +45,8 @@ export interface UserPreferences {
   symbolOpacity?: number;
   /** Size of symbol marks as an em multiplier of the verse text (1.2–3.0, default 1.8). */
   symbolSize?: number;
+  /** Where symbol marks render relative to the word they annotate. Default 'behind'. */
+  symbolPosition?: 'above' | 'behind';
   theme: 'dark' | 'light' | 'auto';
   highContrast?: boolean;
   apiConfigs?: ApiConfigRecord[];

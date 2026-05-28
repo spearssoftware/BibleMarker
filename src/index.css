@@ -449,6 +449,29 @@ select:focus-visible {
     z-index: 1;
   }
 
+  /* When the user picks "above" position in Appearance, symbols render
+     furigana-style above each marked word instead of as a watermark
+     behind it. Verse line-height grows with --symbol-size so the symbol
+     "tower" always has room. */
+  html.symbol-position-above .verse-content {
+    line-height: calc(1em + var(--symbol-size, 1.8em) + 0.3em);
+  }
+
+  html.symbol-position-above .symbol-wrapper {
+    /* Collapse the wrapper's own line-box so its top edge sits at the
+       word's glyph top, not the verse's generous line-height top. */
+    line-height: 1;
+  }
+
+  html.symbol-position-above .symbol-overlay {
+    inset: auto;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    align-items: flex-end;
+    white-space: nowrap;
+  }
+
   .annotation-group:hover .annotation-remove,
   .annotation-group:focus-within .annotation-remove {
     display: inline-flex !important;

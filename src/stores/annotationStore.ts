@@ -62,6 +62,7 @@ interface AnnotationState {
   scriptureFont: 'crimson-pro' | 'lora' | 'merriweather' | 'literata';
   symbolOpacity: number;
   symbolSize: number;
+  symbolPosition: 'above' | 'behind';
   
   // Toolbar visibility
   toolbarVisible: boolean;
@@ -82,6 +83,7 @@ interface AnnotationState {
   setScriptureFont: (font: 'crimson-pro' | 'lora' | 'merriweather' | 'literata') => void;
   setSymbolOpacity: (opacity: number) => void;
   setSymbolSize: (size: number) => void;
+  setSymbolPosition: (position: 'above' | 'behind') => void;
   setToolbarVisible: (visible: boolean) => void;
   setToolbarExpanded: (expanded: boolean) => void;
   
@@ -108,6 +110,7 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   scriptureFont: 'crimson-pro',
   symbolOpacity: 0.85,
   symbolSize: 1.8,
+  symbolPosition: 'behind',
   toolbarVisible: true,
   toolbarExpanded: false,
   
@@ -144,6 +147,8 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   setSymbolOpacity: (symbolOpacity) => set({ symbolOpacity }),
 
   setSymbolSize: (symbolSize) => set({ symbolSize }),
+
+  setSymbolPosition: (symbolPosition) => set({ symbolPosition }),
   
   setToolbarVisible: (toolbarVisible) => set({ toolbarVisible }),
   
