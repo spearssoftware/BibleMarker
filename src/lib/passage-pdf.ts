@@ -289,7 +289,7 @@ function buildDocDefinition(input: BuildPassagePdfInput): Record<string, unknown
   return {
     pageSize: 'LETTER',
     pageMargins: [54, 56, 54, 72] as [number, number, number, number],
-    defaultStyle: { fontSize: 11, lineHeight: 1.35 },
+    defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.35 },
     content,
     footer: (_currentPage: number, _pageCount: number) => ({
       text: attribution,
@@ -314,10 +314,12 @@ type PdfDoc = {
   getBuffer: (cb: (buf: Uint8Array) => void) => void;
   getBlob: (cb: (blob: Blob) => void) => void;
 };
+type PdfFontConfig = Record<string, { normal: string; bold: string; italics: string; bolditalics: string }>;
 type PdfMakeInstance = {
   createPdf: (def: unknown) => PdfDoc;
   addVirtualFileSystem?: (vfs: Record<string, string>) => void;
   vfs?: Record<string, string>;
+  fonts?: PdfFontConfig;
 };
 
 let pdfMakePromise: Promise<PdfMakeInstance> | null = null;
@@ -352,6 +354,18 @@ function loadPdfMake(): Promise<PdfMakeInstance> {
     } else {
       pdfMake.vfs = vfs;
     }
+    // pdfmake's UMD usually sets pdfMake.fonts to the Roboto default, but
+    // when loaded via ESM dynamic import that initialization doesn't always
+    // run, leaving fonts undefined → createPdf hangs silently. Set it
+    // explicitly so the docDefinition's default font resolves.
+    pdfMake.fonts = {
+      Roboto: {
+        normal: 'Roboto-Regular.ttf',
+        bold: 'Roboto-Medium.ttf',
+        italics: 'Roboto-Italic.ttf',
+        bolditalics: 'Roboto-MediumItalic.ttf',
+      },
+    };
     console.log('[passage-pdf] pdfmake ready.');
     return pdfMake;
   })();
