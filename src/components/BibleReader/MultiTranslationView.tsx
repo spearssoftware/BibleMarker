@@ -158,6 +158,22 @@ export function MultiTranslationView() {
     prevDraggingRef.current = panelDragging;
   }, [panelDragging]);
 
+  // Re-key after window resize (debounced). Without this, resizing the
+  // desktop window leaves verse block heights stale and the last lines
+  // can clip behind the fixed bottom toolbar until a panel is toggled.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onResize = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setLayoutKey(k => k + 1), 150);
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
   // Track the last book/chapter we loaded to prevent duplicate calls
   const lastLoadedRef = useRef<{ book: string; chapter: number } | null>(null);
   const isLoadingRef = useRef<boolean>(false);

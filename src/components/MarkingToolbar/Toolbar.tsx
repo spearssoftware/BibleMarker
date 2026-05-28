@@ -12,8 +12,6 @@ import { useAnnotations } from '@/hooks/useAnnotations';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { SelectionMenu, type ApplyScope } from './SelectionMenu';
 import { useListStore } from '@/stores/listStore';
-import { SettingsPanel } from '@/components/Settings';
-import { Modal } from '@/components/shared';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { usePanelStore } from '@/stores/panelStore';
@@ -54,8 +52,6 @@ export function Toolbar() {
   const { activePanel, togglePanel, openPanel, isCollapsed } = usePanelStore();
   const chaptersByTranslation = useMultiTranslationStore(s => s.chaptersByTranslation);
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
-
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   // Load marking presets on mount
   useEffect(() => {
@@ -107,7 +103,7 @@ export function Toolbar() {
     };
 
     const handleOpenSettings = () => {
-      setShowSettingsModal(true);
+      openPanel('settings');
     };
 
     window.addEventListener('openObservationTools', handleOpenObservationTools as EventListener);
@@ -289,20 +285,10 @@ export function Toolbar() {
 
   if (!toolbarVisible) return null;
 
+  const settingsPanelActive = activePanel === 'settings';
+
   return (
     <>
-      {/* Settings Modal */}
-      <Modal
-        isOpen={showSettingsModal}
-        onClose={() => setShowSettingsModal(false)}
-        size="full"
-        title="Settings"
-        showCloseButton={true}
-        contentClassName="flex-1 min-h-0 flex flex-col"
-      >
-        <SettingsPanel onClose={() => setShowSettingsModal(false)} />
-      </Modal>
-
       <div className="fixed left-0 right-0 z-30"
            style={{
              bottom: 'var(--keyboard-height, 0px)',
@@ -417,17 +403,11 @@ export function Toolbar() {
             })}
             <button
               data-toolbar-settings
-              onClick={() => {
-                setShowSettingsModal(v => !v);
-                // Close any open panel when opening settings
-                if (!showSettingsModal) {
-                  usePanelStore.getState().closePanel();
-                }
-              }}
+              onClick={() => togglePanel('settings')}
               className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg
                          transition-all duration-200 touch-target
                          border border-scripture-border/30 hover:border-scripture-border/50
-                         ${showSettingsModal
+                         ${settingsPanelActive
                            ? 'bg-scripture-accent text-scripture-bg shadow-md'
                            : 'hover:bg-scripture-elevated'}`}
               aria-label="Settings"

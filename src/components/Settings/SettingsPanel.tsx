@@ -11,7 +11,17 @@ import { getBookById, BIBLE_BOOKS } from '@/types';
 import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences, getSyncDiagnostics, type SyncDiagnostics } from '@/lib/database';
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
 import { exportStudyData } from '@/lib/export';
-import { applyTheme, applyScriptureFont, type ScriptureFont } from '@/lib/theme';
+import {
+  applyTheme,
+  applyScriptureFont,
+  applySymbolOpacity,
+  applySymbolSize,
+  SYMBOL_OPACITY_MIN,
+  SYMBOL_OPACITY_MAX,
+  SYMBOL_SIZE_MIN,
+  SYMBOL_SIZE_MAX,
+  type ScriptureFont,
+} from '@/lib/theme';
 import { clearDebugFlagsCache, getDebugFlags } from '@/lib/debug';
 import { 
   getAutoBackupConfig, 
@@ -47,15 +57,25 @@ import {
   type ApiTranslation,
 } from '@/lib/bible-api';
 
-type SettingsTab = 'appearance' | 'bible' | 'data' | 'studies' | 'help';
+export type SettingsTab = 'appearance' | 'bible' | 'data' | 'studies' | 'help';
 
 interface SettingsPanelProps {
   onClose: () => void;
+  initialTab?: SettingsTab;
 }
 
-export function SettingsPanel({ onClose }: SettingsPanelProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
-  const { fontSize, setFontSize, scriptureFont, setScriptureFont } = useAnnotationStore();
+export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPanelProps) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+  const {
+    fontSize,
+    setFontSize,
+    scriptureFont,
+    setScriptureFont,
+    symbolOpacity,
+    setSymbolOpacity,
+    symbolSize,
+    setSymbolSize,
+  } = useAnnotationStore();
   const { currentBook, currentModuleId } = useBibleStore();
   const [theme, setTheme] = useState<'dark' | 'light' | 'auto'>('dark');
   const [highContrast, setHighContrast] = useState(false);
@@ -389,6 +409,32 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     }
   };
 
+  const handleSymbolOpacityChange = (next: number) => {
+    setSymbolOpacity(next);
+    applySymbolOpacity(next);
+  };
+
+  const handleSymbolOpacityCommit = async (next: number) => {
+    try {
+      await updatePreferences({ symbolOpacity: next });
+    } catch (error) {
+      console.error('Error updating symbol opacity:', error);
+    }
+  };
+
+  const handleSymbolSizeChange = (next: number) => {
+    setSymbolSize(next);
+    applySymbolSize(next);
+  };
+
+  const handleSymbolSizeCommit = async (next: number) => {
+    try {
+      await updatePreferences({ symbolSize: next });
+    } catch (error) {
+      console.error('Error updating symbol size:', error);
+    }
+  };
+
   const handleThemeChange = async (newTheme: 'dark' | 'light' | 'auto') => {
     setTheme(newTheme);
     applyTheme(newTheme, highContrast);
@@ -700,6 +746,61 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </div>
                 <p className="text-xs text-scripture-muted mt-2">
                   Choose the font used for Bible text
+                </p>
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
+
+              <div className="p-4">
+                <div className="flex items-baseline justify-between mb-3">
+                  <h3 className="text-base font-ui font-semibold text-scripture-text">Symbol Visibility</h3>
+                  <span className="text-xs font-ui text-scripture-muted tabular-nums">
+                    {Math.round(symbolOpacity * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={SYMBOL_OPACITY_MIN}
+                  max={SYMBOL_OPACITY_MAX}
+                  step={0.05}
+                  value={symbolOpacity}
+                  onChange={(e) => handleSymbolOpacityChange(Number(e.target.value))}
+                  onPointerUp={(e) => handleSymbolOpacityCommit(Number((e.target as HTMLInputElement).value))}
+                  onKeyUp={(e) => handleSymbolOpacityCommit(Number((e.target as HTMLInputElement).value))}
+                  disabled={highContrast}
+                  aria-label="Symbol mark opacity"
+                  className="w-full accent-scripture-accent disabled:opacity-50"
+                />
+                <p className="text-xs text-scripture-muted mt-2">
+                  {highContrast
+                    ? 'High Contrast Mode is on, so symbol marks are shown at full visibility.'
+                    : 'How visible symbol marks appear behind annotated words. Increase if the marks are hard to see.'}
+                </p>
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
+
+              <div className="p-4">
+                <div className="flex items-baseline justify-between mb-3">
+                  <h3 className="text-base font-ui font-semibold text-scripture-text">Symbol Size</h3>
+                  <span className="text-xs font-ui text-scripture-muted tabular-nums">
+                    {symbolSize.toFixed(1)}×
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={SYMBOL_SIZE_MIN}
+                  max={SYMBOL_SIZE_MAX}
+                  step={0.1}
+                  value={symbolSize}
+                  onChange={(e) => handleSymbolSizeChange(Number(e.target.value))}
+                  onPointerUp={(e) => handleSymbolSizeCommit(Number((e.target as HTMLInputElement).value))}
+                  onKeyUp={(e) => handleSymbolSizeCommit(Number((e.target as HTMLInputElement).value))}
+                  aria-label="Symbol mark size"
+                  className="w-full accent-scripture-accent"
+                />
+                <p className="text-xs text-scripture-muted mt-2">
+                  How large symbol marks appear relative to the word. Increase so more of the mark shows around short words.
                 </p>
               </div>
 
@@ -1033,13 +1134,14 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    value={esvApiKey}
-                    onChange={(e) => setEsvApiKey(e.target.value)}
-                    placeholder={esvClient.isConfigured() ? "Edit your ESV API key" : "Paste your ESV API key here"}
-                    className="flex-1"
-                  />
+                  <div className="flex-1 min-w-0">
+                    <Input
+                      type="text"
+                      value={esvApiKey}
+                      onChange={(e) => setEsvApiKey(e.target.value)}
+                      placeholder={esvClient.isConfigured() ? "Edit your ESV API key" : "Paste your ESV API key here"}
+                    />
+                  </div>
                   <button
                     onClick={() => saveEsvConfig(esvApiKey)}
                     disabled={savingApi}

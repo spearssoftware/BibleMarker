@@ -134,6 +134,10 @@ select:focus-visible {
     --scripture-info-text: #0051d5;
     /* Backdrop/overlay opacity */
     --scripture-backdrop-opacity: 0.4;
+    /* Opacity of symbol marks rendered behind annotated words. User-tunable in Appearance settings. */
+    --symbol-opacity: 0.85;
+    /* Size of symbol marks as an em multiplier of the verse text. User-tunable in Appearance settings. */
+    --symbol-size: 1.8em;
   }
 
   /* iOS-inspired Dark theme colors - True black with high contrast */
@@ -419,12 +423,18 @@ select:focus-visible {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1em;
+    font-size: var(--symbol-size, 1.8em);
     line-height: 1;
-    opacity: 0.6;
+    opacity: var(--symbol-opacity);
     pointer-events: none;
     z-index: 0;
     color: currentColor;
+  }
+
+  /* High-contrast mode forces symbol marks fully opaque for maximum legibility,
+     overriding the user's --symbol-opacity preference. */
+  html.high-contrast .symbol-overlay {
+    opacity: 1;
   }
 
   .symbol-overlay svg {

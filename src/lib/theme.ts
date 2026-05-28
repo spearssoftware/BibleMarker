@@ -21,6 +21,24 @@ export function applyScriptureFont(font: ScriptureFont): void {
   );
 }
 
+export const SYMBOL_OPACITY_MIN = 0.3;
+export const SYMBOL_OPACITY_MAX = 1;
+export const SYMBOL_OPACITY_DEFAULT = 0.85;
+
+export function applySymbolOpacity(opacity: number): void {
+  const clamped = Math.min(SYMBOL_OPACITY_MAX, Math.max(SYMBOL_OPACITY_MIN, opacity));
+  document.documentElement.style.setProperty('--symbol-opacity', String(clamped));
+}
+
+export const SYMBOL_SIZE_MIN = 1.2;
+export const SYMBOL_SIZE_MAX = 3.0;
+export const SYMBOL_SIZE_DEFAULT = 1.8;
+
+export function applySymbolSize(size: number): void {
+  const clamped = Math.min(SYMBOL_SIZE_MAX, Math.max(SYMBOL_SIZE_MIN, size));
+  document.documentElement.style.setProperty('--symbol-size', `${clamped}em`);
+}
+
 /**
  * Get the effective theme (resolves 'auto' to OS preference)
  */
@@ -235,6 +253,12 @@ export async function initTheme(): Promise<void> {
     applyTheme(theme, highContrast);
     if (prefs.scriptureFont) {
       applyScriptureFont(prefs.scriptureFont);
+    }
+    if (typeof prefs.symbolOpacity === 'number') {
+      applySymbolOpacity(prefs.symbolOpacity);
+    }
+    if (typeof prefs.symbolSize === 'number') {
+      applySymbolSize(prefs.symbolSize);
     }
     
     // Set up OS theme watcher (will only apply if in auto mode)
