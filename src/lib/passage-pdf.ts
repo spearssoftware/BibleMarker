@@ -374,18 +374,14 @@ function loadPdfMake(): Promise<PdfMakeInstance> {
   return pdfMakePromise;
 }
 
-export async function buildPassagePdf(input: BuildPassagePdfInput): Promise<Uint8Array> {
-  const pdfMake = await loadPdfMake();
-  const docDef = buildDocDefinition(input);
-  console.log('[passage-pdf] generating PDF buffer…');
+function generatePdfBytes(pdfMake: PdfMakeInstance, docDef: unknown, timeoutMs: number): Promise<Uint8Array> {
   return new Promise<Uint8Array>((resolve, reject) => {
     const timeout = setTimeout(() => {
-      reject(new Error('PDF generation timed out after 30s.'));
-    }, 30_000);
+      reject(new Error(`PDF generation timed out after ${Math.round(timeoutMs / 1000)}s.`));
+    }, timeoutMs);
     try {
       pdfMake.createPdf(docDef).getBuffer((buf) => {
         clearTimeout(timeout);
-        console.log('[passage-pdf] PDF buffer ready, size=', buf?.length ?? 'unknown');
         resolve(buf);
       });
     } catch (err) {
@@ -393,6 +389,31 @@ export async function buildPassagePdf(input: BuildPassagePdfInput): Promise<Uint
       reject(err instanceof Error ? err : new Error(String(err)));
     }
   });
+}
+
+export async function buildPassagePdf(input: BuildPassagePdfInput): Promise<Uint8Array> {
+  const pdfMake = await loadPdfMake();
+
+  // Probe with a trivial document first. If pdfmake itself is broken (e.g.
+  // Vite/UMD bundling stripped its Buffer polyfill), this hangs too — which
+  // tells us the problem isn't our docDefinition.
+  console.log('[passage-pdf] probing pdfmake with a trivial document…');
+  try {
+    const probeBytes = await generatePdfBytes(pdfMake, {
+      content: ['probe'],
+      defaultStyle: { font: 'Roboto', fontSize: 12 },
+    }, 5_000);
+    console.log('[passage-pdf] probe ok, size=', probeBytes?.length ?? 'unknown');
+  } catch (err) {
+    console.error('[passage-pdf] probe FAILED — pdfmake itself is not generating:', err);
+    throw new Error('pdfmake is not generating PDFs in this environment. See console for details.');
+  }
+
+  const docDef = buildDocDefinition(input);
+  console.log('[passage-pdf] generating real PDF buffer…');
+  const buf = await generatePdfBytes(pdfMake, docDef, 30_000);
+  console.log('[passage-pdf] PDF buffer ready, size=', buf?.length ?? 'unknown');
+  return buf;
 }
 
 /** Filesystem-safe slug for a filename — e.g. "Jeremiah 46:5–12" → "Jeremiah-46-5-12". */
