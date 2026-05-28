@@ -202,7 +202,7 @@ export function getSymbolMarkup(symbol: SymbolKey | string, color?: string): str
     svg = renderToStaticMarkup(<Icon size="1em" weight="duotone" />);
     svgCache.set(resolved, svg);
   }
-  const baseStyle = 'opacity:0.85;display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%';
+  const baseStyle = 'display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%';
   if (color) {
     return `<span style="color:${color};${baseStyle}">${svg}</span>`;
   }
