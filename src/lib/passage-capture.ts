@@ -71,6 +71,31 @@ const STRIP_SELECTORS = [
 ];
 
 /**
+ * Layout-related computed properties that should NOT be carried into the
+ * exported document. The on-screen values are sized to the app window, not
+ * the printed page — inlining e.g. `width: 1280px` on the chapter root or
+ * `height: 24px` on a verse cell (from a `min-h-[1.5rem]` class) causes
+ * overflow and stacked verses on the page. Letting the page lay out
+ * naturally with our CSS overrides produces a readable result.
+ *
+ * `display` is intentionally preserved so symbol overlays keep their
+ * `inline-flex` etc. and verse spans stay inline.
+ */
+const SKIP_COMPUTED_PROPS = new Set([
+  'width', 'height',
+  'min-width', 'min-height',
+  'max-width', 'max-height',
+  'flex', 'flex-basis', 'flex-grow', 'flex-shrink',
+  'grid-template-columns', 'grid-template-rows', 'grid-template-areas',
+  'grid-area', 'grid-column', 'grid-row',
+  'grid-auto-columns', 'grid-auto-rows', 'grid-auto-flow',
+  'position', 'top', 'left', 'right', 'bottom',
+  'overflow', 'overflow-x', 'overflow-y',
+  'contain', 'content-visibility',
+  'transform-origin',
+]);
+
+/**
  * Walk a cloned subtree, inlining computed styles from the live counterpart
  * and stripping interactive chrome and class names. `live` is the original
  * on-screen element, `cloned` is the deep-clone we're transforming. Both
@@ -83,6 +108,7 @@ function inlineStyles(live: Element, cloned: Element): void {
     const styleProps: string[] = [];
     for (let i = 0; i < computed.length; i++) {
       const prop = computed[i];
+      if (SKIP_COMPUTED_PROPS.has(prop)) continue;
       const value = computed.getPropertyValue(prop);
       if (!value) continue;
       styleProps.push(`${prop}:${value}`);
