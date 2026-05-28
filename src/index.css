@@ -472,6 +472,17 @@ select:focus-visible {
     white-space: nowrap;
   }
 
+  /* Section headings, chapter titles, and inline notes only have a small
+     default margin from the Tailwind utility (my-3 / my-4). In "above"
+     mode the symbol tower above the next verse needs more room or it
+     visually overlaps these elements. Bump bottom margin to roughly the
+     same gap that exists between verse lines, scaled to --symbol-size. */
+  html.symbol-position-above .section-heading,
+  html.symbol-position-above .chapter-title,
+  html.symbol-position-above .note-display {
+    margin-bottom: calc(var(--symbol-size, 1.8em) + 0.3em) !important;
+  }
+
   .annotation-group:hover .annotation-remove,
   .annotation-group:focus-within .annotation-remove {
     display: inline-flex !important;
