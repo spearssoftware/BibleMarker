@@ -748,11 +748,14 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   onChange={(e) => handleSymbolOpacityChange(Number(e.target.value))}
                   onPointerUp={(e) => handleSymbolOpacityCommit(Number((e.target as HTMLInputElement).value))}
                   onKeyUp={(e) => handleSymbolOpacityCommit(Number((e.target as HTMLInputElement).value))}
+                  disabled={highContrast}
                   aria-label="Symbol mark opacity"
-                  className="w-full accent-scripture-accent"
+                  className="w-full accent-scripture-accent disabled:opacity-50"
                 />
                 <p className="text-xs text-scripture-muted mt-2">
-                  How visible symbol marks appear behind annotated words. Increase if the marks are hard to see.
+                  {highContrast
+                    ? 'High Contrast Mode is on, so symbol marks are shown at full visibility.'
+                    : 'How visible symbol marks appear behind annotated words. Increase if the marks are hard to see.'}
                 </p>
               </div>
 

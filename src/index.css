@@ -429,6 +429,12 @@ select:focus-visible {
     color: currentColor;
   }
 
+  /* High-contrast mode forces symbol marks fully opaque for maximum legibility,
+     overriding the user's --symbol-opacity preference. */
+  html.high-contrast .symbol-overlay {
+    opacity: 1;
+  }
+
   .symbol-overlay svg {
     fill: currentColor;
     pointer-events: none;
