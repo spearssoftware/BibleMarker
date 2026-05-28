@@ -23,6 +23,8 @@ import {
   getChapterTitle,
 } from '@/lib/database';
 import { useStudyStore } from '@/stores/studyStore';
+import { useMarkingPresetStore } from '@/stores/markingPresetStore';
+import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
 import {
   getTranslationAttribution,
   openSavedPdf,
@@ -45,6 +47,8 @@ type ActionState =
 
 export function ExportPopover({ translation, book, chapter, verses, onClose }: ExportPopoverProps) {
   const { activeStudyId } = useStudyStore();
+  const presets = useMarkingPresetStore((s) => s.presets);
+  const exclusions = useKeywordExclusionStore((s) => s.exclusions);
 
   const firstVerse = verses[0]?.ref.verse ?? 1;
   const lastVerse = verses[verses.length - 1]?.ref.verse ?? firstVerse;
@@ -118,6 +122,9 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
         sectionHeadings: headings,
         chapterTitle,
         verseRange: wholeChapter ? undefined : { start: startVerse, end: endVerse },
+        presets,
+        exclusions,
+        activeStudyId,
       });
       if ('cancelled' in result) {
         setAction({ status: 'idle' });

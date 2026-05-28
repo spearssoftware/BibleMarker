@@ -28,12 +28,16 @@
 import type {
   Annotation,
   ChapterTitle,
+  KeywordExclusion,
+  MarkingPreset,
   Note,
   SectionHeading,
   Verse,
 } from '@/types';
 import { getBookById, SYMBOL_LABELS } from '@/types';
 import { getModuleCopyright, ESV_COPYRIGHT, type ApiTranslation } from '@/lib/bible-api';
+import { findKeywordMatches } from '@/lib/keywordMatching';
+import { filterPresetsByStudy } from '@/lib/studyFilter';
 
 export interface BuildPassagePdfInput {
   translation: ApiTranslation;
@@ -46,6 +50,13 @@ export interface BuildPassagePdfInput {
   chapterTitle: ChapterTitle | null;
   /** Inclusive verse range. Omit to export the entire chapter. */
   verseRange?: { start: number; end: number };
+  /** MarkingPresets — needed to surface the virtual keyword-match annotations
+   *  the on-screen reader shows but never persists. */
+  presets?: MarkingPreset[];
+  /** Per-verse keyword exclusions (user-dismissed virtual matches). */
+  exclusions?: KeywordExclusion[];
+  /** Active study, used to filter presets. */
+  activeStudyId?: string | null;
 }
 
 /** Per-translation attribution string used in the PDF footer and the popover. */
@@ -75,28 +86,38 @@ function findCoveringHeading(verseNum: number, headings: SectionHeading[]): Sect
 }
 
 /**
- * One-line, human-readable summary of the marks on this verse.
- * Example: 'marks: "so loved" highlighted yellow · "Christ" marked Jesus (cross) · "loved" underlined red'
+ * One-line, human-readable summary of the marks on this verse. Includes
+ * both persisted annotations and virtual keyword-match annotations
+ * (presets that match words in the verse text but aren't stored). Dedup
+ * is by `${kind}|${selectedText.toLowerCase()}|${label}` within a verse
+ * — same word marked twice with the same preset only lists once.
+ *
+ * Example: `marks: "Lord" marked God · "Gilead" marked Place · "Gilead" highlighted fuchsia`
  */
 function buildMarksSummary(verse: Verse, annotations: Annotation[]): string | null {
   const parts: string[] = [];
+  const seen = new Set<string>();
+  const add = (key: string, text: string) => {
+    if (seen.has(key)) return;
+    seen.add(key);
+    parts.push(text);
+  };
+
   for (const ann of annotations) {
     if (ann.type === 'symbol') {
       if (ann.ref.verse !== verse.ref.verse) continue;
       const label = SYMBOL_LABELS[ann.symbol] || ann.symbol;
-      const target = ann.selectedText
-        ? `"${ann.selectedText}"`
-        : 'verse';
-      parts.push(`${target} marked ${label}`);
+      const target = ann.selectedText ? `"${ann.selectedText}"` : 'verse';
+      add(`sym|${(ann.selectedText ?? '').toLowerCase()}|${label}`, `${target} marked ${label}`);
     } else {
       if (ann.startRef.verse !== verse.ref.verse) continue;
       if (ann.endRef.verse !== verse.ref.verse) continue;
-      const label =
+      const kind =
         ann.type === 'highlight' ? 'highlighted'
         : ann.type === 'textColor' ? 'colored'
         : 'underlined';
       const target = ann.selectedText ? `"${ann.selectedText}"` : 'text';
-      parts.push(`${target} ${label} ${ann.color}`);
+      add(`${kind}|${(ann.selectedText ?? '').toLowerCase()}|${ann.color}`, `${target} ${kind} ${ann.color}`);
     }
   }
   if (parts.length === 0) return null;
@@ -154,7 +175,7 @@ interface PageWriterOptions {
 }
 
 const DEFAULT_OPTS: PageWriterOptions = {
-  marginTop: 54,
+  marginTop: 68,
   marginBottom: 72,
   marginLeft: 54,
   marginRight: 54,
@@ -165,6 +186,7 @@ class PageWriter {
   readonly doc: JsPDFDoc;
   private opts: PageWriterOptions;
   private y: number;
+  private headerText: string | null = null;
   readonly pageWidth: number;
   readonly pageHeight: number;
   readonly contentWidth: number;
@@ -178,6 +200,21 @@ class PageWriter {
     this.y = opts.marginTop;
   }
 
+  /** Set a running header that's redrawn at the top of every page (including the current one). */
+  setHeader(text: string): void {
+    this.headerText = text;
+    this.drawHeaderOnCurrentPage();
+  }
+
+  private drawHeaderOnCurrentPage(): void {
+    if (!this.headerText) return;
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFontSize(9);
+    this.doc.setTextColor(110, 110, 110);
+    // Header text sits above marginTop so it doesn't push content down on new pages.
+    this.doc.text(this.headerText, this.pageWidth / 2, this.opts.marginTop - 18, { align: 'center' });
+  }
+
   private bottomLimit(): number {
     return this.pageHeight - this.opts.marginBottom - this.opts.footerHeight;
   }
@@ -186,6 +223,7 @@ class PageWriter {
     if (this.y + needed > this.bottomLimit()) {
       this.doc.addPage();
       this.y = this.opts.marginTop;
+      this.drawHeaderOnCurrentPage();
     }
   }
 
@@ -309,15 +347,17 @@ function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): JsPDFDoc {
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });
   const writer = new PageWriter(doc);
 
+  const presets = input.presets ?? [];
+  const exclusions = input.exclusions ?? [];
+  const filteredPresets = filterPresetsByStudy(presets, input.activeStudyId ?? null);
+
   const range = verseRange ?? { start: verses[0]?.ref.verse ?? 1, end: verses[verses.length - 1]?.ref.verse ?? 0 };
   const inRange = verses.filter((v) => v.ref.verse >= range.start && v.ref.verse <= range.end);
   const rangeLabel = formatRangeLabel(book, chapter, verseRange);
   const showChapterTitle = !verseRange || verseRange.start === (verses[0]?.ref.verse ?? 1);
 
-  // Page header line.
-  writer.writeCentered(`${rangeLabel}  ·  ${translation.name}`, {
-    fontSize: 9, color: [110, 110, 110], marginBottom: 12,
-  });
+  // Running page header — drawn at top of every page (above marginTop).
+  writer.setHeader(`${rangeLabel}  ·  ${translation.name}`);
 
   if (showChapterTitle && chapterTitle?.title) {
     writer.writeCentered(chapterTitle.title, { fontSize: 18, bold: true, marginBottom: 4 });
@@ -349,8 +389,12 @@ function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): JsPDFDoc {
       if (a.type === 'symbol') return a.ref.verse === verse.ref.verse;
       return a.startRef.verse <= verse.ref.verse && a.endRef.verse >= verse.ref.verse;
     });
+    const virtualAnns = filteredPresets.length > 0
+      ? findKeywordMatches(verse.text || '', verse.ref, filteredPresets, translation.id, exclusions)
+      : [];
+    const allAnns: Annotation[] = [...verseAnns, ...virtualAnns];
 
-    writer.writeVerse(verse.ref.verse, verse.text || '', buildMarksSummary(verse, verseAnns));
+    writer.writeVerse(verse.ref.verse, verse.text || '', buildMarksSummary(verse, allAnns));
 
     const verseNotes = notes.filter(
       (n) => n.ref.verse === verse.ref.verse ||
