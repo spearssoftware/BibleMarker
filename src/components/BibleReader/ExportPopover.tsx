@@ -2,30 +2,26 @@
  * Export Popover
  *
  * Opened from the share/export button in the navigation bar. Lets the user
- * pick a verse range within the active chapter, then Print/Save-as-PDF or
- * Copy-to-clipboard. Hard-capped at one chapter for licensing reasons.
+ * pick a verse range within the active chapter, then opens the rendered
+ * passage in the system browser — where Print, Save-as-PDF, and copy-to-
+ * Word all work reliably. Tauri's WKWebView does none of those well, so
+ * we hand the work to the OS's default browser instead.
+ *
+ * Hard-capped at one chapter for licensing reasons.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ModalBackdrop, Button, Select, Checkbox } from '@/components/shared';
 import { useModal } from '@/hooks/useModal';
 import { Z_INDEX } from '@/lib/modalConstants';
 import { getBookById } from '@/types';
-import type { Annotation, ChapterTitle, Note, SectionHeading, Verse } from '@/types';
+import type { Verse } from '@/types';
 import type { ApiTranslation } from '@/lib/bible-api';
 import {
-  getChapterAnnotations,
-  getChapterHeadings,
-  getChapterNotes,
-  getChapterTitle,
-} from '@/lib/database';
-import { useStudyStore } from '@/stores/studyStore';
-import {
-  copyPassage,
-  formatPassageAsHtml,
+  captureChapterHtml,
   getTranslationAttribution,
-  printPassage,
-} from '@/lib/passage-export';
+  openHtmlInBrowser,
+} from '@/lib/passage-capture';
 
 interface ExportPopoverProps {
   translation: ApiTranslation;
@@ -42,20 +38,12 @@ type ActionState =
   | { status: 'success'; message: string };
 
 export function ExportPopover({ translation, book, chapter, verses, onClose }: ExportPopoverProps) {
-  const { activeStudyId } = useStudyStore();
-
   const firstVerse = verses[0]?.ref.verse ?? 1;
   const lastVerse = verses[verses.length - 1]?.ref.verse ?? firstVerse;
 
   const [wholeChapter, setWholeChapter] = useState(true);
   const [startVerse, setStartVerse] = useState(firstVerse);
   const [endVerse, setEndVerse] = useState(lastVerse);
-
-  const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [headings, setHeadings] = useState<SectionHeading[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [chapterTitle, setChapterTitle] = useState<ChapterTitle | null>(null);
-
   const [action, setAction] = useState<ActionState>({ status: 'idle' });
 
   const { handleBackdropClick } = useModal({
@@ -65,79 +53,11 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
     handleEscape: true,
   });
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [ann, hd, nt, ct] = await Promise.all([
-          getChapterAnnotations(translation.id, book, chapter),
-          getChapterHeadings(translation.id, book, chapter, activeStudyId),
-          getChapterNotes(translation.id, book, chapter),
-          getChapterTitle(translation.id, book, chapter, activeStudyId),
-        ]);
-        if (cancelled) return;
-        setAnnotations(ann);
-        setHeadings(hd);
-        setNotes(nt);
-        setChapterTitle(ct ?? null);
-      } catch (err) {
-        if (cancelled) return;
-        console.error('[ExportPopover] failed to load chapter metadata', err);
-        setAction({ status: 'error', message: 'Could not load chapter data.' });
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [translation.id, book, chapter, activeStudyId]);
+  const verseOptions = verses.map((v) => ({
+    value: String(v.ref.verse),
+    label: String(v.ref.verse),
+  }));
 
-  const verseOptions = useMemo(
-    () => verses.map((v) => ({ value: String(v.ref.verse), label: String(v.ref.verse) })),
-    [verses],
-  );
-
-  const buildOutput = (symbolFormat: 'svg' | 'unicode') => {
-    return formatPassageAsHtml({
-      translation,
-      book,
-      chapter,
-      verses,
-      annotations,
-      notes,
-      sectionHeadings: headings,
-      chapterTitle,
-      verseRange: wholeChapter ? undefined : { start: startVerse, end: endVerse },
-      symbolFormat,
-    });
-  };
-
-  const handlePrint = () => {
-    setAction({ status: 'busy' });
-    try {
-      const { html } = buildOutput('svg');
-      printPassage(html);
-      setAction({ status: 'idle' });
-    } catch (err) {
-      console.error('[ExportPopover] print failed', err);
-      setAction({ status: 'error', message: 'Could not open the print dialog.' });
-    }
-  };
-
-  const handleCopy = async () => {
-    setAction({ status: 'busy' });
-    try {
-      // Unicode glyphs for symbols — Word strips inline SVG on paste, but
-      // the Unicode characters in the SYMBOLS map survive.
-      const { html, plainText } = buildOutput('unicode');
-      await copyPassage(html, plainText);
-      setAction({ status: 'success', message: 'Copied — paste into Word, Pages, or any rich-text editor.' });
-    } catch (err) {
-      console.error('[ExportPopover] copy failed', err);
-      setAction({ status: 'error', message: 'Copy failed. Try Print/Save as PDF instead.' });
-    }
-  };
-
-  // Keep endVerse >= startVerse when user changes either.
   const onStartChange = (val: string) => {
     const n = Number(val);
     setStartVerse(n);
@@ -149,9 +69,28 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
     if (n < startVerse) setStartVerse(n);
   };
 
+  const handleOpen = async () => {
+    setAction({ status: 'busy' });
+    try {
+      const verseRange = wholeChapter ? undefined : { start: startVerse, end: endVerse };
+      const { html, pageTitle } = captureChapterHtml({
+        translation,
+        book,
+        chapter,
+        verseRange,
+      });
+      await openHtmlInBrowser(html, pageTitle);
+      setAction({ status: 'success', message: 'Opened in your browser. Print, Save as PDF, or copy from there.' });
+    } catch (err) {
+      console.error('[ExportPopover] open failed', err);
+      const msg = err instanceof Error ? err.message : 'Could not open the page.';
+      setAction({ status: 'error', message: msg });
+    }
+  };
+
   const bookName = getBookById(book)?.name ?? book;
   const attribution = getTranslationAttribution(translation);
-  const rangeBusy = action.status === 'busy';
+  const busy = action.status === 'busy';
 
   return (
     <>
@@ -204,17 +143,13 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
           )}
 
           <p className="text-xs text-scripture-muted leading-relaxed">
-            Includes the chapter title, section headings, your markings, and notes.
+            Opens the page in your default browser. From there you can Print,
+            Save as PDF, or select-all and paste into Word, Pages, or Google Docs.
           </p>
 
-          <div className="flex flex-col gap-2 pt-2">
-            <Button variant="primary" onClick={handlePrint} disabled={rangeBusy} fullWidth>
-              Print or Save as PDF
-            </Button>
-            <Button variant="secondary" onClick={handleCopy} disabled={rangeBusy} fullWidth>
-              Copy to clipboard
-            </Button>
-          </div>
+          <Button variant="primary" onClick={handleOpen} disabled={busy} fullWidth>
+            {busy ? 'Opening…' : 'Open in browser'}
+          </Button>
 
           {action.status === 'success' && (
             <p className="text-xs text-scripture-success" role="status">{action.message}</p>

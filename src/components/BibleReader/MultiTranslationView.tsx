@@ -532,7 +532,15 @@ export function MultiTranslationView() {
   const gridColsClass = translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3';
 
   return (
-    <div className="multi-translation-view flex-1 min-h-0 flex flex-col" onClick={handleClick} data-bible-reader>
+    <div
+      className="multi-translation-view flex-1 min-h-0 flex flex-col"
+      onClick={handleClick}
+      data-bible-reader
+      data-passage-root
+      data-passage-book={currentBook}
+      data-passage-chapter={currentChapter}
+      data-passage-primary={primaryTranslationId || ''}
+    >
       {/* Chapter title section */}
       {(chapterTitle || creatingChapterTitle) && (
         <div className="px-4 py-3 text-center flex-shrink-0 bg-transparent" data-chapter-title={currentChapter} style={{ scrollMarginTop: '80px' }}>
@@ -644,6 +652,7 @@ export function MultiTranslationView() {
                       <div
                         key={`${translation.id}-${verseNum}`}
                         className="verse-cell min-h-[1.5rem] min-w-0"
+                        data-translation-id={translation.id}
                       >
                         {isColumnLoading ? (
                           // Elegant skeleton loader - subtle placeholder that doesn't clutter
