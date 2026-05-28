@@ -35,7 +35,8 @@ lerna-debug.log*
 *.sw?
 .cursor/*
 !.cursor/rules/
-.claude/
+.claude/*
+!.claude/agents/
 
 # OS files
 .DS_Store
