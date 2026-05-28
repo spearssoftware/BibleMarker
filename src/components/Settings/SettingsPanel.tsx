@@ -16,11 +16,13 @@ import {
   applyScriptureFont,
   applySymbolOpacity,
   applySymbolSize,
+  applySymbolPosition,
   SYMBOL_OPACITY_MIN,
   SYMBOL_OPACITY_MAX,
   SYMBOL_SIZE_MIN,
   SYMBOL_SIZE_MAX,
   type ScriptureFont,
+  type SymbolPosition,
 } from '@/lib/theme';
 import { clearDebugFlagsCache, getDebugFlags } from '@/lib/debug';
 import { 
@@ -71,6 +73,8 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     setFontSize,
     scriptureFont,
     setScriptureFont,
+    symbolPosition,
+    setSymbolPosition,
     symbolOpacity,
     setSymbolOpacity,
     symbolSize,
@@ -435,6 +439,16 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     }
   };
 
+  const handleSymbolPositionChange = async (next: SymbolPosition) => {
+    setSymbolPosition(next);
+    applySymbolPosition(next);
+    try {
+      await updatePreferences({ symbolPosition: next });
+    } catch (error) {
+      console.error('Error updating symbol position:', error);
+    }
+  };
+
   const handleThemeChange = async (newTheme: 'dark' | 'light' | 'auto') => {
     setTheme(newTheme);
     applyTheme(newTheme, highContrast);
@@ -746,6 +760,25 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                 </div>
                 <p className="text-xs text-scripture-muted mt-2">
                   Choose the font used for Bible text
+                </p>
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
+
+              <div className="p-4">
+                <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Symbol Position</h3>
+                <SegmentedControl<SymbolPosition>
+                  columns={2}
+                  ariaLabel="Symbol position"
+                  value={symbolPosition}
+                  onChange={handleSymbolPositionChange}
+                  options={[
+                    { value: 'behind', label: 'Behind' },
+                    { value: 'above', label: 'Above' },
+                  ]}
+                />
+                <p className="text-xs text-scripture-muted mt-2">
+                  Render symbol marks as a watermark behind each annotated word, or floating above it. Above gives more legible marks but spreads verses out.
                 </p>
               </div>
 
