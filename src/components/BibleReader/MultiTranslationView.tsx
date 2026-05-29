@@ -119,7 +119,7 @@ export function MultiTranslationView() {
   
   const verseContainerRef = useRef<HTMLDivElement>(null);
 
-  const { handleMouseUp } = useTextSelection({
+  const { handleMouseUp, handleTouchEnd, cancelSelectionCapture } = useTextSelection({
     activeView,
     currentBook,
     currentChapter,
@@ -595,7 +595,7 @@ export function MultiTranslationView() {
       </div>
 
       {/* Verse rows - scrollable container */}
-      <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchStart={swipeTouchStart} onTouchEnd={(e) => { swipeTouchEnd(e); setTimeout(handleMouseUp, 50); }}>
+      <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchStart={(e) => { swipeTouchStart(e); cancelSelectionCapture(); }} onTouchMove={cancelSelectionCapture} onTouchEnd={(e) => { swipeTouchEnd(e); handleTouchEnd(); }}>
           <div key={layoutKey} className={`px-4 py-4 space-y-1.5`}>
             {sortedVerseNumbers.map(verseNum => {
               const heading = getHeadingBefore(verseNum);
