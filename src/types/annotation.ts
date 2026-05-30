@@ -128,6 +128,8 @@ export const SYMBOLS = {
   harvest: '🌾',     // Harvest / Grain / Sowing
   fruit: '🍎',       // Fruit / Bearing fruit / Produce
   warning: '⚠',     // Warning / Caution
+  warningDiamond: '🔶', // Warning of judgment (esp. OT prophets)
+  idol: '🗿',        // Idol / Idolatry / False worship
   joy: '😊',         // Joy / Rejoicing / Delight
   peace: '☮',        // Peace / Shalom
   mercy: '💝',       // Mercy / Grace / Compassion
@@ -153,6 +155,7 @@ export const SYMBOLS = {
   mapPin: '📍',      // Place / Location / Geography
   mountain: '⛰',     // Mountain / Place (alternative)
   nationLand: '🗺',  // Nation / Land / Territory / Map
+  starOfDavid: '✡',  // Israel / Jewish people
   globe: '🌍',       // World / Earth
   tree: '🌳',        // Tree / Growth / Life
   river: '〰',       // River / Stream / Water source
@@ -239,14 +242,15 @@ export const SYMBOL_LABELS: Record<SymbolKey, string> = {
   skull: 'Death', sin: 'Sin', shield: 'Faith', scales: 'Justice', key: 'Kingdom',
   sun: 'Light', moon: 'Seasons', lamp: 'Truth', cup: 'Cup', sword: 'Sword',
   vine: 'Vine', bread: 'Bread', rock: 'Rock', door: 'Door', harvest: 'Harvest',
-  fruit: 'Fruit', warning: 'Warning', joy: 'Joy', peace: 'Peace', mercy: 'Mercy',
+  fruit: 'Fruit', warning: 'Warning', warningDiamond: 'Judgment', idol: 'Idol',
+  joy: 'Joy', peace: 'Peace', mercy: 'Mercy',
   wisdom: 'Wisdom', repentance: 'Repent', praise: 'Praise', glory: 'Glory',
   scroll: 'Law', book: 'Book', tablet: 'Commands',
   clock: 'Time', calendar: 'Date', hourglass: 'Waiting',
   arrowRight: 'Therefore', arrowLeft: 'Because', doubleArrow: 'Contrast',
   mapPin: 'Place', mountain: 'Mountain', nationLand: 'Nation', globe: 'World',
   tree: 'Tree', river: 'River', house: 'House', temple: 'Temple', church: 'Church',
-  city: 'City',
+  city: 'City', starOfDavid: 'Israel',
   water: 'Water', fire: 'Fire', check: 'Done', x: 'Reject', hand: 'Deed',
   eye: 'See', mouth: 'Speak', ear: 'Hear', megaphone: 'Proclaim', foot: 'Walk',
   circle: 'Circle', square: 'Square', diamond: 'Diamond', hexagon: 'Hexagon',
@@ -277,11 +281,11 @@ export const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   { name: 'People & Relationships', symbols: ['chains', 'crown', 'liberty', 'obey', 'peopleGroup', 'person'] },
   {
     name: 'Virtues & Heart',
-    symbols: ['glory', 'heart', 'joy', 'mercy', 'peace', 'praise', 'prayer', 'repentance', 'sin', 'warning', 'wisdom'],
+    symbols: ['glory', 'heart', 'idol', 'joy', 'mercy', 'peace', 'praise', 'prayer', 'repentance', 'sin', 'warning', 'wisdom'],
   },
   {
     name: 'Power & Judgment',
-    symbols: ['gavel', 'key', 'lightning', 'scales', 'shield', 'skull', 'sword'],
+    symbols: ['gavel', 'key', 'lightning', 'scales', 'shield', 'skull', 'sword', 'warningDiamond'],
   },
   {
     name: 'Signs & Metaphors',
@@ -291,7 +295,7 @@ export const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   { name: 'Time & Sequence', symbols: ['arrowLeft', 'arrowRight', 'calendar', 'clock', 'doubleArrow', 'hourglass'] },
   {
     name: 'Geography & Place',
-    symbols: ['church', 'city', 'globe', 'house', 'mapPin', 'mountain', 'nationLand', 'river', 'temple'],
+    symbols: ['church', 'city', 'globe', 'house', 'mapPin', 'mountain', 'nationLand', 'river', 'starOfDavid', 'temple'],
   },
   {
     name: 'Actions & Senses',
