@@ -743,8 +743,17 @@ export function MultiTranslationView() {
                       verseNum={verseNum}
                       book={currentBook}
                       chapter={currentChapter}
-                      onSave={updateNote}
-                      onDelete={removeNote}
+                      onSave={async (updated) => {
+                        // Optimistically reflect the edit in the displayed notes
+                        // so it appears immediately, not only after the next
+                        // chapter load (see createNote handler below).
+                        setNotes((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
+                        await updateNote(updated);
+                      }}
+                      onDelete={async (id) => {
+                        setNotes((prev) => prev.filter((n) => n.id !== id));
+                        await removeNote(id);
+                      }}
                     />
                   ))}
                 </div>
@@ -763,12 +772,19 @@ export function MultiTranslationView() {
                         : undefined
                     }
                     onSave={async (content) => {
-                      const range = selection && 
-                        selection.startVerse === verseNum && 
+                      const range = selection &&
+                        selection.startVerse === verseNum &&
                         selection.endVerse !== verseNum
                           ? { startVerse: selection.startVerse, endVerse: selection.endVerse }
                           : undefined;
-                      await createNote(verseNum, content, range);
+                      const note = await createNote(verseNum, content, range);
+                      // Optimistically add the new note to the displayed list so
+                      // it shows immediately. Previously this relied solely on the
+                      // global 'annotationsUpdated' event to re-query the DB, which
+                      // could leave a saved note invisible until the app restarted.
+                      if (note) {
+                        setNotes((prev) => (prev.some((n) => n.id === note.id) ? prev : [...prev, note]));
+                      }
                       setCreatingNoteAt(null);
                     }}
                     onCancel={() => setCreatingNoteAt(null)}
