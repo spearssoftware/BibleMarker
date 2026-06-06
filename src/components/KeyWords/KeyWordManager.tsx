@@ -700,14 +700,16 @@ function KeyWordEditor({
   });
   const [markingTouched, setMarkingTouched] = useState(false);
 
-  // Re-derive the default marking when the word changes (new keyword only, until the user
-  // picks one manually) using the sanctioned "adjust state during render" pattern.
-  // Single-word → none, multi-word → the user's default setting.
-  const [prevWord, setPrevWord] = useState(word);
-  if (word !== prevWord) {
-    setPrevWord(word);
+  // Re-derive the default marking when the keyword's shape changes (new keyword only, until
+  // the user picks one manually) using the sanctioned "adjust state during render" pattern.
+  // The marking applies to every match, so a multi-word PRIMARY word OR any multi-word
+  // variant counts as multi-word → the user's default setting; otherwise none.
+  const isMultiWordKeyword = isMultiWordText(word) || variants.some(v => isMultiWordText(v.text));
+  const [prevMultiWord, setPrevMultiWord] = useState(isMultiWordKeyword);
+  if (isMultiWordKeyword !== prevMultiWord) {
+    setPrevMultiWord(isMultiWordKeyword);
     if (!preset && !markingTouched) {
-      setMarking(isMultiWordText(word) ? defaultMultiWordMarking : 'none');
+      setMarking(isMultiWordKeyword ? defaultMultiWordMarking : 'none');
     }
   }
 
