@@ -699,26 +699,28 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const trailingPunct = trailingPunctMatch ? trailingPunctMatch[1] : '';
           const wordContent = trailingPunct ? segmentText.slice(0, -trailingPunct.length) : segmentText;
 
-          // Background highlight paints behind the symbol → on the wrapper; everything else
-          // (underline decoration, textColor) applies to the word text.
-          // The wrapper is inline-block, so a plain background fills the whole line-height box
-          // and looks too tall. Paint it as a fixed-height band (clipped via background-size)
-          // so it hugs the word like a normal inline highlight, still behind the symbol + text.
-          const bgStyles = combinedStyles.filter(s => s.startsWith('background-color'));
-          const textStyles = combinedStyles.filter(s => !s.startsWith('background-color'));
-          const symbolColorStyle = symbolColor ? `color: ${symbolColor};` : '';
-          const wrapperStyleAttr = bgStyles.length
-            ? ` style="${bgStyles
-                .map(s => {
-                  const color = s.slice(s.indexOf(':') + 1).trim();
-                  return `background: linear-gradient(${color}, ${color}) center / 100% 1.4em no-repeat`;
-                })
-                .join('; ')}"`
-            : '';
-          // With a symbol behind the word, drop the underline a little so it clears the symbol.
-          if (textStyles.includes('text-decoration: underline')) {
-            textStyles.push('text-underline-offset: 0.2em');
+          // Split styles by target in one pass: the background highlight paints behind the
+          // symbol → on the wrapper; everything else (underline, textColor) goes on the word.
+          let bandColor: string | null = null;
+          let hasUnderline = false;
+          const textStyles: string[] = [];
+          for (const s of combinedStyles) {
+            if (s.startsWith('background-color')) {
+              bandColor = s.slice(s.indexOf(':') + 1).trim();
+            } else {
+              textStyles.push(s);
+              if (s === 'text-decoration: underline') hasUnderline = true;
+            }
           }
+          // With a symbol behind the word, drop the underline a little so it clears the symbol.
+          if (hasUnderline) textStyles.push('text-underline-offset: 0.2em');
+          const symbolColorStyle = symbolColor ? `color: ${symbolColor};` : '';
+          // The wrapper is inline-block, so a plain background fills the whole line-height box
+          // and looks too tall. Paint a fixed-height band (clipped via background-size) so it
+          // hugs the word like a normal inline highlight, still behind the symbol + text.
+          const wrapperStyleAttr = bandColor
+            ? ` style="background: linear-gradient(${bandColor}, ${bandColor}) center / 100% 1.4em no-repeat"`
+            : '';
           const textStyleAttr = textStyles.length ? ` style="${textStyles.join('; ')}"` : '';
           htmlSegments.push(
             `${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">` +

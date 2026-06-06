@@ -325,6 +325,11 @@ export const MARKING_STYLE_OPTIONS: readonly { value: MarkingStyle; label: strin
   { value: 'highlight', label: 'Highlight' },
 ];
 
+/** Runtime guard for a persisted/unknown value being a valid MarkingStyle. */
+export function isMarkingStyle(value: unknown): value is MarkingStyle {
+  return value === 'none' || value === 'underline' || value === 'highlight';
+}
+
 /** Base annotation interface */
 interface BaseAnnotation {
   id: string;

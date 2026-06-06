@@ -11,6 +11,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useListStore } from '@/stores/listStore';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
+import { isMarkingStyle } from '@/types';
 import { NavigationBar } from '@/components/BibleReader';
 import { MultiTranslationView } from '@/components/BibleReader/MultiTranslationView';
 import { Toolbar } from '@/components/MarkingToolbar';
@@ -104,11 +105,7 @@ export default function App() {
         if (prefs.symbolPosition === 'above' || prefs.symbolPosition === 'behind') {
           setSymbolPosition(prefs.symbolPosition);
         }
-        if (
-          prefs.defaultMultiWordMarking === 'none' ||
-          prefs.defaultMultiWordMarking === 'underline' ||
-          prefs.defaultMultiWordMarking === 'highlight'
-        ) {
+        if (isMarkingStyle(prefs.defaultMultiWordMarking)) {
           setDefaultMultiWordMarking(prefs.defaultMultiWordMarking);
         }
 
