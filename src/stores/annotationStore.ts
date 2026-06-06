@@ -11,6 +11,7 @@ import type {
   SymbolKey, 
   AnnotationType,
   MarkingPreferences,
+  MarkingStyle,
   SectionHeading,
   ChapterTitle,
   Note,
@@ -64,7 +65,7 @@ interface AnnotationState {
   symbolSize: number;
   symbolPosition: 'above' | 'behind';
   /** Default marking pre-selected for new multi-word keywords. */
-  defaultMultiWordMarking: 'none' | 'underline' | 'highlight';
+  defaultMultiWordMarking: MarkingStyle;
 
   // Toolbar visibility
   toolbarVisible: boolean;
@@ -86,7 +87,7 @@ interface AnnotationState {
   setSymbolOpacity: (opacity: number) => void;
   setSymbolSize: (size: number) => void;
   setSymbolPosition: (position: 'above' | 'behind') => void;
-  setDefaultMultiWordMarking: (marking: 'none' | 'underline' | 'highlight') => void;
+  setDefaultMultiWordMarking: (marking: MarkingStyle) => void;
   setToolbarVisible: (visible: boolean) => void;
   setToolbarExpanded: (expanded: boolean) => void;
   

@@ -7,6 +7,7 @@
 import type { MarkingPreset, KeywordExclusion } from '@/types';
 import type { TextAnnotation, SymbolAnnotation } from '@/types';
 import type { VerseRef } from '@/types';
+import { presetHasDecoration } from '@/types';
 import { getDebugFlagsSync } from '@/lib/debug';
 
 /**
@@ -421,12 +422,11 @@ export function findKeywordMatches(
         }
         
         // Create highlight annotation if preset has a visible decoration ('none' = color only)
-        if (preset.highlight && preset.highlight.style !== 'none') {
+        if (presetHasDecoration(preset)) {
           const highlightAnn: TextAnnotation = {
             id: `${baseId}-highlight`,
             moduleId: '', // Virtual annotations don't have a moduleId
-            type: preset.highlight.style === 'textColor' ? 'textColor' : 
-                  preset.highlight.style === 'underline' ? 'underline' : 'highlight',
+            type: preset.highlight.style,
             startRef: verseRef,
             endRef: verseRef,
             startWordIndex: undefined,

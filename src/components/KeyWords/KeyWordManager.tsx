@@ -8,7 +8,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, scopeLabel, type KeyWordCategory, type MarkingPreset, type PresetScope, type Variant } from '@/types';
+import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, scopeLabel, MARKING_STYLE_OPTIONS, type KeyWordCategory, type MarkingPreset, type MarkingStyle, type PresetScope, type Variant } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { SYMBOLS, SYMBOL_LABELS, SYMBOL_CATEGORIES, isLetterOrNumberSymbol, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
 import { SymbolIcon } from '@/lib/symbolDisplay';
@@ -17,6 +17,11 @@ import { useAnnotationStore } from '@/stores/annotationStore';
 import { Input, Textarea, Label, DropdownSelect, Checkbox, Button, SegmentedControl } from '@/components/shared';
 import { getBookById, BIBLE_BOOKS } from '@/types';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
+
+/** A word/phrase counts as multi-word when it has 2+ whitespace-separated tokens. */
+function isMultiWordText(text: string): boolean {
+  return text.trim().split(/\s+/).filter(Boolean).length > 1;
+}
 
 interface KeyWordManagerProps {
   onClose?: () => void;
@@ -128,7 +133,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
     variants: Variant[];
     symbol?: SymbolKey;
     color?: HighlightColor;
-    marking: 'none' | 'underline' | 'highlight';
+    marking: MarkingStyle;
     category: KeyWordCategory;
     description: string;
     autoSuggest: boolean;
@@ -663,7 +668,7 @@ function KeyWordEditor({
     variants: Variant[];
     symbol?: SymbolKey;
     color?: HighlightColor;
-    marking: 'none' | 'underline' | 'highlight';
+    marking: MarkingStyle;
     category: KeyWordCategory;
     description: string;
     autoSuggest: boolean;
@@ -686,13 +691,12 @@ function KeyWordEditor({
 
   // Marking decoration drawn across the word/phrase. New keywords default by word shape:
   // single-word → none, multi-word → the user's defaultMultiWordMarking setting.
-  const [marking, setMarking] = useState<'none' | 'underline' | 'highlight'>(() => {
+  const [marking, setMarking] = useState<MarkingStyle>(() => {
     if (preset) {
       const s = preset.highlight?.style;
       return s === 'underline' || s === 'highlight' ? s : 'none';
     }
-    const isMultiWord = (initialWord || '').trim().split(/\s+/).filter(Boolean).length > 1;
-    return isMultiWord ? defaultMultiWordMarking : 'none';
+    return isMultiWordText(initialWord || '') ? defaultMultiWordMarking : 'none';
   });
   const [markingTouched, setMarkingTouched] = useState(false);
 
@@ -703,8 +707,7 @@ function KeyWordEditor({
   if (word !== prevWord) {
     setPrevWord(word);
     if (!preset && !markingTouched) {
-      const isMultiWord = word.trim().split(/\s+/).filter(Boolean).length > 1;
-      setMarking(isMultiWord ? defaultMultiWordMarking : 'none');
+      setMarking(isMultiWordText(word) ? defaultMultiWordMarking : 'none');
     }
   }
 
@@ -819,12 +822,8 @@ function KeyWordEditor({
         <div className="space-y-4">
           <div>
             <Label helpText="across the word or phrase">Marking</Label>
-            <SegmentedControl<'none' | 'underline' | 'highlight'>
-              options={[
-                { value: 'none', label: 'None' },
-                { value: 'underline', label: 'Underline' },
-                { value: 'highlight', label: 'Highlight' },
-              ]}
+            <SegmentedControl<MarkingStyle>
+              options={MARKING_STYLE_OPTIONS}
               value={marking}
               onChange={(val) => {
                 setMarking(val);

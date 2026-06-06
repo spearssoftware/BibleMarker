@@ -20,7 +20,7 @@ import { useUndoToastStore } from '@/stores/undoToastStore';
 import { deleteAnnotation } from '@/lib/database';
 import { getAllTranslations } from '@/lib/bible-api';
 import type { MarkingPreset, Verse } from '@/types';
-import { createMarkingPreset, getRandomHighlightColor } from '@/types';
+import { createMarkingPreset, getRandomHighlightColor, presetHasDecoration } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { stripSymbols } from '@/lib/textUtils';
 import { usePeopleStore } from '@/stores/peopleStore';
@@ -150,22 +150,21 @@ export function Toolbar() {
 
     await markPresetUsed(preset.id);
     const pid = preset.id;
-    // 'none' = color only (tints the symbol); it draws no text decoration.
-    const decoStyle =
-      preset.highlight && preset.highlight.style !== 'none' ? preset.highlight.style : null;
-    if (preset.symbol && decoStyle) {
+    // presetHasDecoration narrows preset.highlight to non-null with a real decoration style.
+    // ('none' = color only, which just tints the symbol and draws no text decoration.)
+    if (preset.symbol && presetHasDecoration(preset)) {
       setActiveTool('symbol');
-      setActiveColor(preset.highlight!.color);
-      await createSymbolAnnotation(preset.symbol, 'before', preset.highlight!.color, 'above', pid, { clearSelection: false });
-      setActiveTool(decoStyle);
-      await createTextAnnotation(decoStyle, preset.highlight!.color, pid);
+      setActiveColor(preset.highlight.color);
+      await createSymbolAnnotation(preset.symbol, 'before', preset.highlight.color, 'above', pid, { clearSelection: false });
+      setActiveTool(preset.highlight.style);
+      await createTextAnnotation(preset.highlight.style, preset.highlight.color, pid);
     } else if (preset.symbol) {
       setActiveTool('symbol');
       await createSymbolAnnotation(preset.symbol, 'before', preset.highlight?.color, 'above', pid);
-    } else if (decoStyle) {
-      setActiveTool(decoStyle);
-      setActiveColor(preset.highlight!.color);
-      await createTextAnnotation(decoStyle, preset.highlight!.color, pid);
+    } else if (presetHasDecoration(preset)) {
+      setActiveTool(preset.highlight.style);
+      setActiveColor(preset.highlight.color);
+      await createTextAnnotation(preset.highlight.style, preset.highlight.color, pid);
     }
     setActiveTool(null);
 

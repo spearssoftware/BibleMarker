@@ -5,7 +5,7 @@
  * KeyWordDefinition is kept for DB migration only (keyWords → markingPresets).
  */
 
-import type { HighlightColor, SymbolKey } from './annotation';
+import type { HighlightColor, SymbolKey, TextAnnotation } from './annotation';
 import { getBookById } from './bible';
 
 /** Variant with optional scope - allows variants to be scoped to specific books/chapters */
@@ -269,6 +269,18 @@ export function createMarkingPreset(
     createdAt: new Date(),
     updatedAt: new Date(),
   };
+}
+
+/**
+ * Whether a preset draws a visible text decoration across its match. Style 'none' is a
+ * sentinel meaning "color only" (kept so the symbol stays tinted) and draws nothing.
+ * Type guard: inside a truthy branch, `preset.highlight` is non-null and `style` is a
+ * real decoration type, so callers don't need non-null assertions.
+ */
+export function presetHasDecoration(
+  preset: MarkingPreset
+): preset is MarkingPreset & { highlight: { style: TextAnnotation['type']; color: HighlightColor } } {
+  return !!preset.highlight && preset.highlight.style !== 'none';
 }
 
 /** Check if text matches a preset's word/variants (case-insensitive). Presets without word never match. */

@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import { getBookById, BIBLE_BOOKS } from '@/types';
+import { getBookById, BIBLE_BOOKS, MARKING_STYLE_OPTIONS, type MarkingStyle } from '@/types';
 import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences, getSyncDiagnostics, type SyncDiagnostics } from '@/lib/database';
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
 import { exportStudyData } from '@/lib/export';
@@ -441,7 +441,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     }
   };
 
-  const handleDefaultMultiWordMarkingChange = async (next: 'none' | 'underline' | 'highlight') => {
+  const handleDefaultMultiWordMarkingChange = async (next: MarkingStyle) => {
     setDefaultMultiWordMarking(next);
     try {
       await updatePreferences({ defaultMultiWordMarking: next });
@@ -797,16 +797,12 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
 
               <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Multi-Word Keyword Marking</h3>
-                <SegmentedControl<'none' | 'underline' | 'highlight'>
+                <SegmentedControl<MarkingStyle>
                   columns={3}
                   ariaLabel="Default marking for multi-word keywords"
                   value={defaultMultiWordMarking}
                   onChange={handleDefaultMultiWordMarkingChange}
-                  options={[
-                    { value: 'none', label: 'None' },
-                    { value: 'underline', label: 'Underline' },
-                    { value: 'highlight', label: 'Highlight' },
-                  ]}
+                  options={MARKING_STYLE_OPTIONS}
                 />
                 <p className="text-xs text-scripture-muted mt-2">
                   The marking pre-selected when you create a keyword that spans more than one word, to tie the words together. You can still change it per keyword.

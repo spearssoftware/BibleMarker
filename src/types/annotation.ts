@@ -314,6 +314,17 @@ export type AnnotationType =
 /** Underline styles */
 export type UnderlineStyle = 'solid' | 'dashed' | 'dotted' | 'double' | 'wavy';
 
+/** UI marking choice for a keyword: draw nothing, an underline, or a highlight band
+ *  across the matched word/phrase. Subset of highlight styles (no 'textColor'). */
+export type MarkingStyle = 'none' | 'underline' | 'highlight';
+
+/** Options for the marking SegmentedControl, shared by the keyword editor and settings. */
+export const MARKING_STYLE_OPTIONS: readonly { value: MarkingStyle; label: string }[] = [
+  { value: 'none', label: 'None' },
+  { value: 'underline', label: 'Underline' },
+  { value: 'highlight', label: 'Highlight' },
+];
+
 /** Base annotation interface */
 interface BaseAnnotation {
   id: string;
