@@ -715,6 +715,10 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
                 })
                 .join('; ')}"`
             : '';
+          // With a symbol behind the word, drop the underline a little so it clears the symbol.
+          if (textStyles.includes('text-decoration: underline')) {
+            textStyles.push('text-underline-offset: 0.2em');
+          }
           const textStyleAttr = textStyles.length ? ` style="${textStyles.join('; ')}"` : '';
           htmlSegments.push(
             `${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">` +
