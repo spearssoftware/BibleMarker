@@ -711,7 +711,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
             ? ` style="${bgStyles
                 .map(s => {
                   const color = s.slice(s.indexOf(':') + 1).trim();
-                  return `background: linear-gradient(${color}, ${color}) center / 100% 1.3em no-repeat`;
+                  return `background: linear-gradient(${color}, ${color}) center / 100% 1.4em no-repeat`;
                 })
                 .join('; ')}"`
             : '';
