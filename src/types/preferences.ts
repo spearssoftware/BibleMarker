@@ -47,6 +47,8 @@ export interface UserPreferences {
   symbolSize?: number;
   /** Where symbol marks render relative to the word they annotate. Default 'behind'. */
   symbolPosition?: 'above' | 'behind';
+  /** Default marking applied to newly created multi-word keywords. Default 'underline'. */
+  defaultMultiWordMarking?: 'none' | 'underline' | 'highlight';
   theme: 'dark' | 'light' | 'auto';
   highContrast?: boolean;
   apiConfigs?: ApiConfigRecord[];

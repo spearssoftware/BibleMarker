@@ -420,8 +420,8 @@ export function findKeywordMatches(
           });
         }
         
-        // Create highlight annotation if preset has highlight
-        if (preset.highlight) {
+        // Create highlight annotation if preset has a visible decoration ('none' = color only)
+        if (preset.highlight && preset.highlight.style !== 'none') {
           const highlightAnn: TextAnnotation = {
             id: `${baseId}-highlight`,
             moduleId: '', // Virtual annotations don't have a moduleId

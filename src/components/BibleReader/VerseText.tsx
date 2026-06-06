@@ -680,7 +680,10 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           }
         }
 
-        // Handle symbols: inline in front of the word so the word can also have highlight/underline/color
+        // Handle symbols: the word can ALSO carry a highlight/underline/textColor decoration.
+        // Layering matters (see index.css): the symbol watermark is z-0 and .annotation-text
+        // is z-1 inside the wrapper, so a highlight band must go on the wrapper (paints behind
+        // both the symbol and the text); underline/textColor go on the text itself.
         if (segment.symbols.length > 0) {
           const symAnn = segment.symbols[0];
           const symbolMarkup = getSymbolMarkup(symAnn.symbol);
@@ -696,12 +699,18 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const trailingPunct = trailingPunctMatch ? trailingPunctMatch[1] : '';
           const wordContent = trailingPunct ? segmentText.slice(0, -trailingPunct.length) : segmentText;
 
+          // Background highlight paints behind the symbol → on the wrapper; everything else
+          // (underline decoration, textColor) applies to the word text.
+          const bgStyles = combinedStyles.filter(s => s.startsWith('background-color'));
+          const textStyles = combinedStyles.filter(s => !s.startsWith('background-color'));
           const symbolColorStyle = symbolColor ? `color: ${symbolColor};` : '';
+          const wrapperStyleAttr = bgStyles.length ? ` style="${bgStyles.join('; ')}"` : '';
+          const textStyleAttr = textStyles.length ? ` style="${textStyles.join('; ')}"` : '';
           htmlSegments.push(
             `${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">` +
-            `<span class="symbol-wrapper">` +
+            `<span class="symbol-wrapper"${wrapperStyleAttr}>` +
             `<span class="symbol-overlay"${symbolColorStyle ? ` style="${symbolColorStyle}"` : ''}>${symbolMarkup}</span>` +
-            `<span class="annotation-text">${escapeHtml(wordContent)}</span>` +
+            `<span class="annotation-text"${textStyleAttr}>${escapeHtml(wordContent)}</span>` +
             `</span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`
           );
         } else {

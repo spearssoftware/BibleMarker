@@ -28,8 +28,14 @@ export interface MarkingPreset {
   id: string;
   /** Symbol (optional). At least one of symbol or highlight required. */
   symbol?: SymbolKey;
-  /** Highlight style + color (optional). When set, applied as TextAnnotation. */
-  highlight?: { style: 'highlight' | 'textColor' | 'underline'; color: HighlightColor };
+  /**
+   * Highlight style + color (optional). When `style` is a decoration
+   * (`highlight`/`textColor`/`underline`) it is applied as a TextAnnotation across the
+   * marked word/phrase. `style: 'none'` means "color only" — no text decoration is drawn,
+   * but the color still tints the symbol. Kept present so the symbol stays tinted even
+   * when no decoration is shown.
+   */
+  highlight?: { style: 'none' | 'highlight' | 'textColor' | 'underline'; color: HighlightColor };
   /** Optional: when set, this preset is a "key word" (word match, auto-suggest, find). */
   word?: string;
   /** Variants can be scoped to specific books/chapters independent of the keyword scope */
@@ -242,7 +248,7 @@ export interface KeyWordOccurrence {
 
 /** Create a new marking preset (or key word when `word` is set) */
 export function createMarkingPreset(
-  options: { word?: string; variants?: string[] | Variant[]; symbol?: SymbolKey; highlight?: { style: 'highlight' | 'textColor' | 'underline'; color: HighlightColor }; category?: KeyWordCategory; description?: string; autoSuggest?: boolean; usageCount?: number; scopes?: PresetScope[]; moduleScope?: string; studyId?: string; caseSensitive?: boolean }
+  options: { word?: string; variants?: string[] | Variant[]; symbol?: SymbolKey; highlight?: { style: 'none' | 'highlight' | 'textColor' | 'underline'; color: HighlightColor }; category?: KeyWordCategory; description?: string; autoSuggest?: boolean; usageCount?: number; scopes?: PresetScope[]; moduleScope?: string; studyId?: string; caseSensitive?: boolean }
 ): MarkingPreset {
   const { word, variants = [], symbol, highlight, category = 'custom', description = '', autoSuggest = true, usageCount = 0, scopes, moduleScope, studyId, caseSensitive } = options;
   if (!symbol && !highlight) throw new Error('MarkingPreset must have at least one of symbol or highlight');

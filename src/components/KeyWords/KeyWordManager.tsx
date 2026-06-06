@@ -14,7 +14,7 @@ import { SYMBOLS, SYMBOL_LABELS, SYMBOL_CATEGORIES, isLetterOrNumberSymbol, getH
 import { SymbolIcon } from '@/lib/symbolDisplay';
 import { Trash } from '@phosphor-icons/react';
 import { useAnnotationStore } from '@/stores/annotationStore';
-import { Input, Textarea, Label, DropdownSelect, Checkbox, Button } from '@/components/shared';
+import { Input, Textarea, Label, DropdownSelect, Checkbox, Button, SegmentedControl } from '@/components/shared';
 import { getBookById, BIBLE_BOOKS } from '@/types';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
 
@@ -128,6 +128,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
     variants: Variant[];
     symbol?: SymbolKey;
     color?: HighlightColor;
+    marking: 'none' | 'underline' | 'highlight';
     category: KeyWordCategory;
     description: string;
     autoSuggest: boolean;
@@ -136,7 +137,18 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
     caseSensitive?: boolean;
   }) {
     try {
-      const highlight = formData.color ? { style: 'highlight' as const, color: formData.color } : undefined;
+      // Must produce something visible: a symbol, or a decoration that has a color.
+      if (!formData.symbol && formData.marking === 'none') {
+        alert('Add a symbol, an underline, or a highlight.');
+        return;
+      }
+      if (formData.marking !== 'none' && !formData.color) {
+        alert('Pick a color for the underline or highlight.');
+        return;
+      }
+      // Keep highlight present (carrying color) so the symbol stays tinted even when
+      // marking is 'none'. 'none' = color only, no text decoration drawn.
+      const highlight = formData.color ? { style: formData.marking, color: formData.color } : undefined;
       const scopes = formData.scopes;
       if (editingId) {
         const existing = presets.find((p) => p.id === editingId);
@@ -157,10 +169,6 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
           });
         }
       } else {
-        if (!formData.symbol && !formData.color) {
-          alert('Add at least a symbol or a color.');
-          return;
-        }
         const preset = createMarkingPreset({
           word: formData.word.trim() || undefined,
           variants: formData.variants,
@@ -655,6 +663,7 @@ function KeyWordEditor({
     variants: Variant[];
     symbol?: SymbolKey;
     color?: HighlightColor;
+    marking: 'none' | 'underline' | 'highlight';
     category: KeyWordCategory;
     description: string;
     autoSuggest: boolean;
@@ -673,6 +682,31 @@ function KeyWordEditor({
   const [symbol, setSymbol] = useState<SymbolKey | undefined>(initialSymbol ?? preset?.symbol);
   const [color, setColor] = useState<HighlightColor | undefined>(preset?.highlight?.color ?? (preset ? initialColor : getRandomHighlightColor()));
   const recentSymbols = useAnnotationStore(s => s.preferences.recentSymbols);
+  const defaultMultiWordMarking = useAnnotationStore(s => s.defaultMultiWordMarking);
+
+  // Marking decoration drawn across the word/phrase. New keywords default by word shape:
+  // single-word → none, multi-word → the user's defaultMultiWordMarking setting.
+  const [marking, setMarking] = useState<'none' | 'underline' | 'highlight'>(() => {
+    if (preset) {
+      const s = preset.highlight?.style;
+      return s === 'underline' || s === 'highlight' ? s : 'none';
+    }
+    const isMultiWord = (initialWord || '').trim().split(/\s+/).filter(Boolean).length > 1;
+    return isMultiWord ? defaultMultiWordMarking : 'none';
+  });
+  const [markingTouched, setMarkingTouched] = useState(false);
+
+  // Re-derive the default marking when the word changes (new keyword only, until the user
+  // picks one manually) using the sanctioned "adjust state during render" pattern.
+  // Single-word → none, multi-word → the user's default setting.
+  const [prevWord, setPrevWord] = useState(word);
+  if (word !== prevWord) {
+    setPrevWord(word);
+    if (!preset && !markingTouched) {
+      const isMultiWord = word.trim().split(/\s+/).filter(Boolean).length > 1;
+      setMarking(isMultiWord ? defaultMultiWordMarking : 'none');
+    }
+  }
 
   // Update word when initialWord changes (e.g., new selection made)
   useEffect(() => {
@@ -729,6 +763,7 @@ function KeyWordEditor({
       variants: validVariants,
       symbol,
       color,
+      marking,
       category,
       description: description.trim(),
       autoSuggest,
@@ -782,6 +817,25 @@ function KeyWordEditor({
         </div>
 
         <div className="space-y-4">
+          <div>
+            <Label helpText="across the word or phrase">Marking</Label>
+            <SegmentedControl<'none' | 'underline' | 'highlight'>
+              options={[
+                { value: 'none', label: 'None' },
+                { value: 'underline', label: 'Underline' },
+                { value: 'highlight', label: 'Highlight' },
+              ]}
+              value={marking}
+              onChange={(val) => {
+                setMarking(val);
+                setMarkingTouched(true);
+                if (val !== 'none' && !color) setColor(getRandomHighlightColor());
+              }}
+              columns={3}
+              ariaLabel="Word marking"
+            />
+          </div>
+
           <div>
             <ColorAccordion color={color} onSelect={setColor} />
           </div>

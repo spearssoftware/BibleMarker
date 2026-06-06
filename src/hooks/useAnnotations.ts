@@ -326,7 +326,7 @@ export function useAnnotations() {
         createdIds.push(symAnnotation.id);
       }
 
-      if (preset.highlight) {
+      if (preset.highlight && preset.highlight.style !== 'none') {
         const textAnnotation: TextAnnotation = {
           id: crypto.randomUUID(),
           moduleId: targetId,
@@ -347,7 +347,7 @@ export function useAnnotations() {
         createdIds.push(textAnnotation.id);
       }
 
-      if (preset.symbol || preset.highlight) {
+      if (preset.symbol || (preset.highlight && preset.highlight.style !== 'none')) {
         successes.push(targetId);
       } else {
         misses.push(targetId);

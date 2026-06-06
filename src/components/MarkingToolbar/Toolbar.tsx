@@ -150,19 +150,22 @@ export function Toolbar() {
 
     await markPresetUsed(preset.id);
     const pid = preset.id;
-    if (preset.symbol && preset.highlight) {
+    // 'none' = color only (tints the symbol); it draws no text decoration.
+    const decoStyle =
+      preset.highlight && preset.highlight.style !== 'none' ? preset.highlight.style : null;
+    if (preset.symbol && decoStyle) {
       setActiveTool('symbol');
-      setActiveColor(preset.highlight.color);
-      await createSymbolAnnotation(preset.symbol, 'before', preset.highlight.color, 'above', pid, { clearSelection: false });
-      setActiveTool(preset.highlight.style === 'textColor' ? 'textColor' : preset.highlight.style === 'underline' ? 'underline' : 'highlight');
-      await createTextAnnotation(preset.highlight.style, preset.highlight.color, pid);
+      setActiveColor(preset.highlight!.color);
+      await createSymbolAnnotation(preset.symbol, 'before', preset.highlight!.color, 'above', pid, { clearSelection: false });
+      setActiveTool(decoStyle);
+      await createTextAnnotation(decoStyle, preset.highlight!.color, pid);
     } else if (preset.symbol) {
       setActiveTool('symbol');
       await createSymbolAnnotation(preset.symbol, 'before', preset.highlight?.color, 'above', pid);
-    } else if (preset.highlight) {
-      setActiveTool(preset.highlight.style === 'textColor' ? 'textColor' : preset.highlight.style === 'underline' ? 'underline' : 'highlight');
-      setActiveColor(preset.highlight.color);
-      await createTextAnnotation(preset.highlight.style, preset.highlight.color, pid);
+    } else if (decoStyle) {
+      setActiveTool(decoStyle);
+      setActiveColor(preset.highlight!.color);
+      await createTextAnnotation(decoStyle, preset.highlight!.color, pid);
     }
     setActiveTool(null);
 
@@ -251,7 +254,8 @@ export function Toolbar() {
     const preset = createMarkingPreset({
       word,
       symbol: config.symbol,
-      highlight: { style: 'highlight', color },
+      // 'none' = color tints the symbol, no highlight band drawn (symbol-only look).
+      highlight: { style: 'none', color },
       category: config.category,
       studyId: activeStudyId || undefined,
       scopes: [{ book: selection.book }],

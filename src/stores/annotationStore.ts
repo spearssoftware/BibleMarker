@@ -63,7 +63,9 @@ interface AnnotationState {
   symbolOpacity: number;
   symbolSize: number;
   symbolPosition: 'above' | 'behind';
-  
+  /** Default marking pre-selected for new multi-word keywords. */
+  defaultMultiWordMarking: 'none' | 'underline' | 'highlight';
+
   // Toolbar visibility
   toolbarVisible: boolean;
   toolbarExpanded: boolean;
@@ -84,6 +86,7 @@ interface AnnotationState {
   setSymbolOpacity: (opacity: number) => void;
   setSymbolSize: (size: number) => void;
   setSymbolPosition: (position: 'above' | 'behind') => void;
+  setDefaultMultiWordMarking: (marking: 'none' | 'underline' | 'highlight') => void;
   setToolbarVisible: (visible: boolean) => void;
   setToolbarExpanded: (expanded: boolean) => void;
   
@@ -111,6 +114,7 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   symbolOpacity: 0.85,
   symbolSize: 1.8,
   symbolPosition: 'behind',
+  defaultMultiWordMarking: 'underline',
   toolbarVisible: true,
   toolbarExpanded: false,
   
@@ -149,7 +153,9 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   setSymbolSize: (symbolSize) => set({ symbolSize }),
 
   setSymbolPosition: (symbolPosition) => set({ symbolPosition }),
-  
+
+  setDefaultMultiWordMarking: (defaultMultiWordMarking) => set({ defaultMultiWordMarking }),
+
   setToolbarVisible: (toolbarVisible) => set({ toolbarVisible }),
   
   setToolbarExpanded: (toolbarExpanded) => set({ toolbarExpanded }),
