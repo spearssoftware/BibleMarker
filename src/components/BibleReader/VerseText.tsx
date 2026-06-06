@@ -701,10 +701,20 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
 
           // Background highlight paints behind the symbol → on the wrapper; everything else
           // (underline decoration, textColor) applies to the word text.
+          // The wrapper is inline-block, so a plain background fills the whole line-height box
+          // and looks too tall. Paint it as a fixed-height band (clipped via background-size)
+          // so it hugs the word like a normal inline highlight, still behind the symbol + text.
           const bgStyles = combinedStyles.filter(s => s.startsWith('background-color'));
           const textStyles = combinedStyles.filter(s => !s.startsWith('background-color'));
           const symbolColorStyle = symbolColor ? `color: ${symbolColor};` : '';
-          const wrapperStyleAttr = bgStyles.length ? ` style="${bgStyles.join('; ')}"` : '';
+          const wrapperStyleAttr = bgStyles.length
+            ? ` style="${bgStyles
+                .map(s => {
+                  const color = s.slice(s.indexOf(':') + 1).trim();
+                  return `background: linear-gradient(${color}, ${color}) center / 100% 1.3em no-repeat`;
+                })
+                .join('; ')}"`
+            : '';
           const textStyleAttr = textStyles.length ? ` style="${textStyles.join('; ')}"` : '';
           htmlSegments.push(
             `${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">` +
