@@ -6,9 +6,9 @@ import {
   Crown, Cross, Diamond, Door, Drop, Ear, Eye, Farm, Fire, Flame, Footprints, Gavel, Globe, Hand,
   HandHeart, HandsPraying, Heart, Hexagon, Hourglass, House, Key, Lamp, Lightbulb, Lightning,
   Link, LinkBreak, type IconProps, MapPin, MapTrifold, Megaphone, Minus, Moon, Mountains,
-  MusicNotes, Peace, PersonArmsSpread, Person, PintGlass, Plant, Plus, Question, Scales, Scroll,
-  Shield, Skull, Sparkle, SpeakerHigh, Smiley, Square, Star, Sun, Sword, Synagogue, ThumbsUp, Tree,
-  Triangle, UsersThree, Warning, Waves, X,
+  MusicNotes, Peace, PersonArmsSpread, Person, PersonSimpleCircle, PintGlass, Plant, Plus, Question,
+  Scales, Scroll, Shield, Skull, Sparkle, SpeakerHigh, Smiley, Square, Star, StarOfDavid, Sun, Sword,
+  Synagogue, ThumbsUp, Tree, Triangle, UsersThree, Warning, WarningDiamond, Waves, X,
 } from '@phosphor-icons/react';
 import type { SymbolKey } from '@/types/annotation';
 
@@ -62,6 +62,8 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   harvest: { Icon: Farm },
   fruit: { Icon: Cherries },
   warning: { Icon: Warning },
+  warningDiamond: { Icon: WarningDiamond },
+  idol: { Icon: PersonSimpleCircle },
   joy: { Icon: Smiley },
   peace: { Icon: Peace },
   mercy: { Icon: HandHeart },
@@ -94,6 +96,7 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   temple: { Icon: Synagogue },
   church: { Icon: Church },
   city: { Icon: Buildings },
+  starOfDavid: { Icon: StarOfDavid },
 
   // Actions & states
   water: { Icon: Drop },

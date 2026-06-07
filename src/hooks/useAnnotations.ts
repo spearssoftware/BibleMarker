@@ -10,6 +10,7 @@ import { useAnnotationStore } from '@/stores/annotationStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { saveAnnotation, deleteAnnotation, findSisterAnnotations, getAnnotationById, getChapterAnnotations, getChapterHeadings, saveSectionHeading, deleteSectionHeading, getChapterTitle, saveChapterTitle, deleteChapterTitle, getChapterNotes, saveNote, deleteNote, getMarkingPreset } from '@/lib/database';
 import type { Annotation, TextAnnotation, SymbolAnnotation, HighlightColor, SymbolKey, SectionHeading, ChapterTitle, Note, MarkingPreset, Verse } from '@/types';
+import { presetHasDecoration } from '@/types';
 import { autoAddToObservationTracker } from '@/lib/observationAutoAdd';
 import { getAnnotationVerseRef } from '@/lib/annotationQueries';
 import { fetchChapter } from '@/lib/bible-api';
@@ -326,7 +327,7 @@ export function useAnnotations() {
         createdIds.push(symAnnotation.id);
       }
 
-      if (preset.highlight) {
+      if (presetHasDecoration(preset)) {
         const textAnnotation: TextAnnotation = {
           id: crypto.randomUUID(),
           moduleId: targetId,
@@ -347,7 +348,7 @@ export function useAnnotations() {
         createdIds.push(textAnnotation.id);
       }
 
-      if (preset.symbol || preset.highlight) {
+      if (preset.symbol || presetHasDecoration(preset)) {
         successes.push(targetId);
       } else {
         misses.push(targetId);

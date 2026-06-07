@@ -20,7 +20,7 @@ import { useUndoToastStore } from '@/stores/undoToastStore';
 import { deleteAnnotation } from '@/lib/database';
 import { getAllTranslations } from '@/lib/bible-api';
 import type { MarkingPreset, Verse } from '@/types';
-import { createMarkingPreset, getRandomHighlightColor } from '@/types';
+import { createMarkingPreset, getRandomHighlightColor, presetHasDecoration } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { stripSymbols } from '@/lib/textUtils';
 import { usePeopleStore } from '@/stores/peopleStore';
@@ -150,17 +150,19 @@ export function Toolbar() {
 
     await markPresetUsed(preset.id);
     const pid = preset.id;
-    if (preset.symbol && preset.highlight) {
+    // presetHasDecoration narrows preset.highlight to non-null with a real decoration style.
+    // ('none' = color only, which just tints the symbol and draws no text decoration.)
+    if (preset.symbol && presetHasDecoration(preset)) {
       setActiveTool('symbol');
       setActiveColor(preset.highlight.color);
       await createSymbolAnnotation(preset.symbol, 'before', preset.highlight.color, 'above', pid, { clearSelection: false });
-      setActiveTool(preset.highlight.style === 'textColor' ? 'textColor' : preset.highlight.style === 'underline' ? 'underline' : 'highlight');
+      setActiveTool(preset.highlight.style);
       await createTextAnnotation(preset.highlight.style, preset.highlight.color, pid);
     } else if (preset.symbol) {
       setActiveTool('symbol');
       await createSymbolAnnotation(preset.symbol, 'before', preset.highlight?.color, 'above', pid);
-    } else if (preset.highlight) {
-      setActiveTool(preset.highlight.style === 'textColor' ? 'textColor' : preset.highlight.style === 'underline' ? 'underline' : 'highlight');
+    } else if (presetHasDecoration(preset)) {
+      setActiveTool(preset.highlight.style);
       setActiveColor(preset.highlight.color);
       await createTextAnnotation(preset.highlight.style, preset.highlight.color, pid);
     }
@@ -251,7 +253,8 @@ export function Toolbar() {
     const preset = createMarkingPreset({
       word,
       symbol: config.symbol,
-      highlight: { style: 'highlight', color },
+      // 'none' = color tints the symbol, no highlight band drawn (symbol-only look).
+      highlight: { style: 'none', color },
       category: config.category,
       studyId: activeStudyId || undefined,
       scopes: [{ book: selection.book }],

@@ -117,6 +117,16 @@ describe('validateMarkingPreset', () => {
       validateMarkingPreset({ ...validPreset, symbol: undefined })
     ).toThrow(ValidationError)
   })
+
+  it("accepts a symbol preset with highlight style 'none' (color only)", () => {
+    const result = validateMarkingPreset({
+      ...validPreset,
+      id: 'p3',
+      highlight: { style: 'none', color: 'yellow' },
+    })
+    expect(result.id).toBe('p3')
+    expect(result.highlight?.style).toBe('none')
+  })
 })
 
 describe('sanitizeData', () => {
