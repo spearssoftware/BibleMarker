@@ -61,17 +61,21 @@ export function NavigationBar() {
     return `${activeView.translationIds.length}`;
   };
   
-  // Get current verse from loaded chapter data or use first verse as default
+  // Seed the displayed verse from loaded chapter data — but only when the
+  // loaded chapter actually matches the current location. On chapter change
+  // the new chapter is fetched async, so the store may still hold the previous
+  // chapter; using it here would show a stray (often out-of-range) verse like
+  // "John 15:43". Hold at verse 1 until the matching chapter is loaded.
   useEffect(() => {
     const { chapter } = useBibleStore.getState();
-    if (chapter && chapter.verses.length > 0) {
-      // Use the first verse as default
-      const firstVerse = chapter.verses[0]?.ref.verse;
-      if (firstVerse) {
-        setCurrentVerse(firstVerse);
-      }
+    if (
+      chapter &&
+      chapter.book === currentBook &&
+      chapter.chapter === currentChapter &&
+      chapter.verses.length > 0
+    ) {
+      setCurrentVerse(chapter.verses[0]?.ref.verse ?? 1);
     } else {
-      // Reset to verse 1 when chapter changes
       setCurrentVerse(1);
     }
   }, [currentBook, currentChapter]);
@@ -81,6 +85,13 @@ export function NavigationBar() {
     const handleScroll = () => {
       // Don't update verse when pickers are open to prevent text jumping
       if (showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker) {
+        return;
+      }
+
+      // Ignore the DOM while it still shows a stale chapter (async fetch in
+      // flight) — its verse elements can exceed the new chapter's range.
+      const { chapter } = useBibleStore.getState();
+      if (!chapter || chapter.book !== currentBook || chapter.chapter !== currentChapter) {
         return;
       }
 
@@ -106,7 +117,10 @@ export function NavigationBar() {
       });
 
       if (closestVerse !== null) {
-        setCurrentVerse(closestVerse);
+        // Clamp to the loaded chapter's actual verse range as a final guard
+        // against any stray out-of-range verse element.
+        const maxVerse = chapter.verses.reduce((m, v) => Math.max(m, v.ref.verse), 0);
+        setCurrentVerse(maxVerse > 0 ? Math.min(closestVerse, maxVerse) : closestVerse);
       }
     };
 

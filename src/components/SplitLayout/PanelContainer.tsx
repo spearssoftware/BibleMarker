@@ -5,6 +5,7 @@ import { KeyWordManager } from '@/components/KeyWords';
 import { ObservationToolsPanel } from '@/components/Observation';
 import { AnalyzeToolsPanel } from '@/components/Analyze';
 import { ReferenceToolsPanel } from '@/components/Reference';
+import { SettingsPanel } from '@/components/Settings';
 import type { VerseRef } from '@/types';
 
 const PANEL_TITLES: Record<PanelType, string> = {
@@ -12,6 +13,7 @@ const PANEL_TITLES: Record<PanelType, string> = {
   observe: 'Observe',
   analyze: 'Analyze',
   reference: 'Reference',
+  settings: 'Settings',
 };
 
 export function PanelContainer() {
@@ -32,6 +34,7 @@ export function PanelContainer() {
     referenceSearchQuery,
     referenceStrongsNumber,
     referenceVerse,
+    settingsInitialTab,
     panelSelectedText,
     panelVerseRef,
     setPinned,
@@ -168,6 +171,9 @@ export function PanelContainer() {
             strongsNumber={referenceStrongsNumber}
             verse={referenceVerse}
           />
+        )}
+        {activePanel === 'settings' && (
+          <SettingsPanel onClose={handleClose} initialTab={settingsInitialTab} />
         )}
       </div>
     </div>

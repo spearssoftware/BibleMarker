@@ -11,6 +11,7 @@ import type {
   SymbolKey, 
   AnnotationType,
   MarkingPreferences,
+  MarkingStyle,
   SectionHeading,
   ChapterTitle,
   Note,
@@ -60,7 +61,12 @@ interface AnnotationState {
   preferences: MarkingPreferences;
   fontSize: FontSize;
   scriptureFont: 'crimson-pro' | 'lora' | 'merriweather' | 'literata';
-  
+  symbolOpacity: number;
+  symbolSize: number;
+  symbolPosition: 'above' | 'behind';
+  /** Default marking pre-selected for new multi-word keywords. */
+  defaultMultiWordMarking: MarkingStyle;
+
   // Toolbar visibility
   toolbarVisible: boolean;
   toolbarExpanded: boolean;
@@ -78,6 +84,10 @@ interface AnnotationState {
   setPreferences: (prefs: MarkingPreferences) => void;
   setFontSize: (size: FontSize) => void;
   setScriptureFont: (font: 'crimson-pro' | 'lora' | 'merriweather' | 'literata') => void;
+  setSymbolOpacity: (opacity: number) => void;
+  setSymbolSize: (size: number) => void;
+  setSymbolPosition: (position: 'above' | 'behind') => void;
+  setDefaultMultiWordMarking: (marking: MarkingStyle) => void;
   setToolbarVisible: (visible: boolean) => void;
   setToolbarExpanded: (expanded: boolean) => void;
   
@@ -102,6 +112,10 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   preferences: DEFAULT_MARKING_PREFERENCES,
   fontSize: 'base',
   scriptureFont: 'crimson-pro',
+  symbolOpacity: 0.85,
+  symbolSize: 1.8,
+  symbolPosition: 'behind',
+  defaultMultiWordMarking: 'underline',
   toolbarVisible: true,
   toolbarExpanded: false,
   
@@ -134,7 +148,15 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   setFontSize: (fontSize) => set({ fontSize }),
 
   setScriptureFont: (scriptureFont) => set({ scriptureFont }),
-  
+
+  setSymbolOpacity: (symbolOpacity) => set({ symbolOpacity }),
+
+  setSymbolSize: (symbolSize) => set({ symbolSize }),
+
+  setSymbolPosition: (symbolPosition) => set({ symbolPosition }),
+
+  setDefaultMultiWordMarking: (defaultMultiWordMarking) => set({ defaultMultiWordMarking }),
+
   setToolbarVisible: (toolbarVisible) => set({ toolbarVisible }),
   
   setToolbarExpanded: (toolbarExpanded) => set({ toolbarExpanded }),

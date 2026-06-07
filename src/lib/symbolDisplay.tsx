@@ -6,9 +6,9 @@ import {
   Crown, Cross, Diamond, Door, Drop, Ear, Eye, Farm, Fire, Flame, Footprints, Gavel, Globe, Hand,
   HandHeart, HandsPraying, Heart, Hexagon, Hourglass, House, Key, Lamp, Lightbulb, Lightning,
   Link, LinkBreak, type IconProps, MapPin, MapTrifold, Megaphone, Minus, Moon, Mountains,
-  MusicNotes, Peace, PersonArmsSpread, Person, PintGlass, Plant, Plus, Question, Scales, Scroll,
-  Shield, Skull, Sparkle, SpeakerHigh, Smiley, Square, Star, Sun, Sword, Synagogue, ThumbsUp, Tree,
-  Triangle, UsersThree, Warning, Waves, X,
+  MusicNotes, Peace, PersonArmsSpread, Person, PersonSimpleCircle, PintGlass, Plant, Plus, Question,
+  Scales, Scroll, Shield, Skull, Sparkle, SpeakerHigh, Smiley, Square, Star, StarOfDavid, Sun, Sword,
+  Synagogue, ThumbsUp, Tree, Triangle, UsersThree, Warning, WarningDiamond, Waves, X,
 } from '@phosphor-icons/react';
 import type { SymbolKey } from '@/types/annotation';
 
@@ -62,6 +62,8 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   harvest: { Icon: Farm },
   fruit: { Icon: Cherries },
   warning: { Icon: Warning },
+  warningDiamond: { Icon: WarningDiamond },
+  idol: { Icon: PersonSimpleCircle },
   joy: { Icon: Smiley },
   peace: { Icon: Peace },
   mercy: { Icon: HandHeart },
@@ -94,6 +96,7 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   temple: { Icon: Synagogue },
   church: { Icon: Church },
   city: { Icon: Buildings },
+  starOfDavid: { Icon: StarOfDavid },
 
   // Actions & states
   water: { Icon: Drop },
@@ -167,7 +170,7 @@ export function SymbolIcon({
   const text = TEXT_FALLBACK[resolved];
   if (text) {
     return (
-      <span className={className} style={{ color, fontSize: '1.8em', fontWeight: 600, lineHeight: 1 }}>
+      <span className={className} style={{ color, fontSize: '1em', fontWeight: 600, lineHeight: 1 }}>
         {text}
       </span>
     );
@@ -187,7 +190,7 @@ export function getSymbolMarkup(symbol: SymbolKey | string, color?: string): str
     const safe = text.replace(/[&<>"']/g, (c) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
     );
-    const letterStyle = 'font-size:1.8em;font-weight:600;line-height:1';
+    const letterStyle = 'font-size:1em;font-weight:600;line-height:1';
     return color
       ? `<span style="color:${color};${letterStyle}">${safe}</span>`
       : `<span style="${letterStyle}">${safe}</span>`;
@@ -199,10 +202,10 @@ export function getSymbolMarkup(symbol: SymbolKey | string, color?: string): str
   let svg = svgCache.get(resolved);
   if (svg === undefined) {
     const { Icon } = spec;
-    svg = renderToStaticMarkup(<Icon size="1.8em" weight="duotone" />);
+    svg = renderToStaticMarkup(<Icon size="1em" weight="duotone" />);
     svgCache.set(resolved, svg);
   }
-  const baseStyle = 'opacity:0.85;display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%';
+  const baseStyle = 'display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%';
   if (color) {
     return `<span style="color:${color};${baseStyle}">${svg}</span>`;
   }

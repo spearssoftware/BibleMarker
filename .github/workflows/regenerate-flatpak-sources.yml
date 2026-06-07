@@ -78,7 +78,7 @@ jobs:
         run: rm -f package-lock.json
 
       - name: Open PR with regenerated sources
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: 'chore(flatpak): regenerate vendored dependency sources'
           title: 'chore(flatpak): regenerate vendored dependency sources'

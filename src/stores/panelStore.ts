@@ -3,8 +3,9 @@ import { persist } from 'zustand/middleware';
 import type { VerseRef } from '@/types';
 import type { ObservationTab } from '@/components/Observation';
 import type { AnalyzeTab } from '@/components/Analyze';
+import type { SettingsTab } from '@/components/Settings';
 
-export type PanelType = 'keywords' | 'observe' | 'analyze' | 'reference';
+export type PanelType = 'keywords' | 'observe' | 'analyze' | 'reference' | 'settings';
 
 export type ReferenceTab = 'chapter' | 'search' | 'cross-refs' | 'original-lang' | 'strongs';
 
@@ -25,6 +26,8 @@ interface PanelOpenOptions {
   referenceSearchQuery?: string;
   referenceStrongsNumber?: string;
   referenceVerse?: number;
+  // Settings
+  settingsInitialTab?: SettingsTab;
   // Shared
   selectedText?: string;
   verseRef?: VerseRef;
@@ -52,6 +55,7 @@ interface PanelState {
   referenceSearchQuery: string | undefined;
   referenceStrongsNumber: string | undefined;
   referenceVerse: number | undefined;
+  settingsInitialTab: SettingsTab;
   panelSelectedText: string | undefined;
   panelVerseRef: VerseRef | undefined;
 
@@ -70,6 +74,7 @@ interface PanelState {
 const DEFAULT_OBSERVE_TAB: ObservationTab = 'lists';
 const DEFAULT_ANALYZE_TAB: AnalyzeTab = 'chapter';
 const DEFAULT_REFERENCE_TAB: ReferenceTab = 'chapter';
+const DEFAULT_SETTINGS_TAB: SettingsTab = 'appearance';
 
 export const usePanelStore = create<PanelState>()(
   persist(
@@ -93,6 +98,7 @@ export const usePanelStore = create<PanelState>()(
       referenceSearchQuery: undefined,
       referenceStrongsNumber: undefined,
       referenceVerse: undefined,
+      settingsInitialTab: DEFAULT_SETTINGS_TAB,
       panelSelectedText: undefined,
       panelVerseRef: undefined,
 
@@ -112,6 +118,7 @@ export const usePanelStore = create<PanelState>()(
           referenceSearchQuery: opts?.referenceSearchQuery,
           referenceStrongsNumber: opts?.referenceStrongsNumber,
           referenceVerse: opts?.referenceVerse,
+          settingsInitialTab: opts?.settingsInitialTab ?? DEFAULT_SETTINGS_TAB,
           panelSelectedText: opts?.selectedText,
           panelVerseRef: opts?.verseRef,
         });
@@ -132,6 +139,7 @@ export const usePanelStore = create<PanelState>()(
           referenceSearchQuery: undefined,
           referenceStrongsNumber: undefined,
           referenceVerse: undefined,
+          settingsInitialTab: DEFAULT_SETTINGS_TAB,
           panelSelectedText: undefined,
           panelVerseRef: undefined,
         });

@@ -134,6 +134,10 @@ select:focus-visible {
     --scripture-info-text: #0051d5;
     /* Backdrop/overlay opacity */
     --scripture-backdrop-opacity: 0.4;
+    /* Opacity of symbol marks rendered behind annotated words. User-tunable in Appearance settings. */
+    --symbol-opacity: 0.85;
+    /* Size of symbol marks as an em multiplier of the verse text. User-tunable in Appearance settings. */
+    --symbol-size: 1.8em;
   }
 
   /* iOS-inspired Dark theme colors - True black with high contrast */
@@ -419,12 +423,18 @@ select:focus-visible {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1em;
+    font-size: var(--symbol-size, 1.8em);
     line-height: 1;
-    opacity: 0.6;
+    opacity: var(--symbol-opacity);
     pointer-events: none;
     z-index: 0;
     color: currentColor;
+  }
+
+  /* High-contrast mode forces symbol marks fully opaque for maximum legibility,
+     overriding the user's --symbol-opacity preference. */
+  html.high-contrast .symbol-overlay {
+    opacity: 1;
   }
 
   .symbol-overlay svg {
@@ -437,6 +447,40 @@ select:focus-visible {
   .symbol-wrapper > .annotation-text {
     position: relative;
     z-index: 1;
+  }
+
+  /* When the user picks "above" position in Appearance, symbols render
+     furigana-style above each marked word instead of as a watermark
+     behind it. Verse line-height grows with --symbol-size so the symbol
+     "tower" always has room. */
+  html.symbol-position-above .verse-content {
+    line-height: calc(1em + var(--symbol-size, 1.8em) + 0.3em);
+  }
+
+  html.symbol-position-above .symbol-wrapper {
+    /* Collapse the wrapper's own line-box so its top edge sits at the
+       word's glyph top, not the verse's generous line-height top. */
+    line-height: 1;
+  }
+
+  html.symbol-position-above .symbol-overlay {
+    inset: auto;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    align-items: flex-end;
+    white-space: nowrap;
+  }
+
+  /* Section headings, chapter titles, and inline notes only have a small
+     default margin from the Tailwind utility (my-3 / my-4). In "above"
+     mode the symbol tower above the next verse needs more room or it
+     visually overlaps these elements. Bump bottom margin to roughly the
+     same gap that exists between verse lines, scaled to --symbol-size. */
+  html.symbol-position-above .section-heading,
+  html.symbol-position-above .chapter-title,
+  html.symbol-position-above .note-display {
+    margin-bottom: calc(var(--symbol-size, 1.8em) + 0.3em) !important;
   }
 
   .annotation-group:hover .annotation-remove,
