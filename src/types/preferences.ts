@@ -4,7 +4,7 @@
  * Previously defined in db.ts, moved here so they're independent of the database layer.
  */
 
-import type { MarkingPreferences } from './annotation';
+import type { MarkingPreferences, MarkingStyle } from './annotation';
 
 /** API configuration for Bible APIs */
 export interface ApiConfigRecord {
@@ -47,6 +47,8 @@ export interface UserPreferences {
   symbolSize?: number;
   /** Where symbol marks render relative to the word they annotate. Default 'behind'. */
   symbolPosition?: 'above' | 'behind';
+  /** Default marking applied to newly created multi-word keywords. Default 'underline'. */
+  defaultMultiWordMarking?: MarkingStyle;
   theme: 'dark' | 'light' | 'auto';
   highContrast?: boolean;
   apiConfigs?: ApiConfigRecord[];

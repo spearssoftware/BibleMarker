@@ -11,6 +11,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useListStore } from '@/stores/listStore';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
+import { isMarkingStyle } from '@/types';
 import { NavigationBar } from '@/components/BibleReader';
 import { MultiTranslationView } from '@/components/BibleReader/MultiTranslationView';
 import { Toolbar } from '@/components/MarkingToolbar';
@@ -49,7 +50,7 @@ export default function App() {
   const { setChapter, currentBook, currentChapter, currentModuleId, setLoading, setError } = useBibleStore();
 
   const { setCurrentModule } = useBibleStore();
-  const { setFontSize, setSymbolOpacity, setSymbolSize, setSymbolPosition } = useAnnotationStore();
+  const { setFontSize, setSymbolOpacity, setSymbolSize, setSymbolPosition, setDefaultMultiWordMarking } = useAnnotationStore();
   const { loadStudies } = useStudyStore();
   const { loadActiveView } = useMultiTranslationStore();
   const { loadLists } = useListStore();
@@ -104,7 +105,10 @@ export default function App() {
         if (prefs.symbolPosition === 'above' || prefs.symbolPosition === 'behind') {
           setSymbolPosition(prefs.symbolPosition);
         }
-        
+        if (isMarkingStyle(prefs.defaultMultiWordMarking)) {
+          setDefaultMultiWordMarking(prefs.defaultMultiWordMarking);
+        }
+
         // Check onboarding state. Welcome runs once for new users; the
         // Translation Library runs once for everyone (new users after Welcome,
         // existing users on first launch after upgrade).
@@ -125,7 +129,7 @@ export default function App() {
     
     // Active view is needed for first render
     loadActiveView();
-  }, [setFontSize, setSymbolOpacity, setSymbolSize, setSymbolPosition, loadActiveView, loadExclusions]);
+  }, [setFontSize, setSymbolOpacity, setSymbolSize, setSymbolPosition, setDefaultMultiWordMarking, loadActiveView, loadExclusions]);
 
   // Deferred initialization: non-critical work after first render
   useEffect(() => {

@@ -54,6 +54,7 @@ export function SegmentedControl<T extends string>({
         return (
           <button
             key={option.value}
+            type="button"
             role="radio"
             aria-checked={selected}
             onClick={() => onChange(option.value)}
