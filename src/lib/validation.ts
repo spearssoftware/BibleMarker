@@ -224,7 +224,7 @@ export function validateMarkingPreset(preset: unknown): MarkingPreset {
     if (typeof p.highlight !== 'object') {
       throw new ValidationError('Marking preset highlight must be an object', 'highlight', p.highlight);
     }
-    if (!['highlight', 'textColor', 'underline'].includes(p.highlight.style)) {
+    if (!['none', 'highlight', 'textColor', 'underline'].includes(p.highlight.style)) {
       throw new ValidationError('Marking preset highlight must have a valid style', 'highlight.style', p.highlight.style);
     }
     if (!(p.highlight.color in HIGHLIGHT_COLORS)) {

@@ -80,6 +80,25 @@ describe('findKeywordMatches', () => {
     }
   })
 
+  // --- Marking style 'none' (color only, no text decoration) ---
+  it('symbol + marking none yields a symbol annotation but no text annotation', () => {
+    const presets = [
+      preset({ id: 'p1', word: 'God', symbol: 'cross', highlight: { style: 'none', color: 'red' } }),
+    ]
+    const result = findKeywordMatches('In the beginning God created', verseRef, presets)
+    expect(result.some(a => a.type === 'symbol')).toBe(true)
+    expect(result.some(a => a.type === 'highlight' || a.type === 'underline' || a.type === 'textColor')).toBe(false)
+  })
+
+  it('symbol + underline yields both a symbol and an underline annotation', () => {
+    const presets = [
+      preset({ id: 'p1', word: 'God', symbol: 'cross', highlight: { style: 'underline', color: 'red' } }),
+    ]
+    const result = findKeywordMatches('In the beginning God created', verseRef, presets)
+    expect(result.some(a => a.type === 'symbol')).toBe(true)
+    expect(result.some(a => a.type === 'underline')).toBe(true)
+  })
+
   it('returns empty when preset is book-scoped to a different book', () => {
     const presets = [
       preset({ id: 'p1', word: 'Moses', scopes: [{ book: 'Exod' }] }),
