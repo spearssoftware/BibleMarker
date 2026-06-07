@@ -112,11 +112,51 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   const [studyCreated, setStudyCreated] = useState(false);
   const { createStudy, setActiveStudy } = useStudyStore();
 
-  useEffect(() => {
-    stepRef.current = currentStep;
-    updateHighlight();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- updateHighlight is intentional on currentStep only
-  }, [currentStep]);
+  async function handleComplete() {
+    setShowTour(false);
+    const prefs = await getPreferences();
+    await updatePreferences({
+      onboarding: {
+        ...prefs.onboarding!,
+        hasCompletedTour: true,
+      },
+    });
+    onComplete();
+  }
+
+  function findAndHighlight() {
+    const step = TOUR_STEPS[stepRef.current];
+    if (!step?.target) {
+      setHighlightRect(null);
+      return;
+    }
+
+    const element = document.querySelector(step.target);
+    if (!element) {
+      setTimeout(() => {
+        if (stepRef.current < TOUR_STEPS.length - 1) {
+          setCurrentStep(stepRef.current + 1);
+        } else {
+          void handleComplete();
+        }
+      }, 500);
+      return;
+    }
+
+    const rect = element.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      setTimeout(() => {
+        if (stepRef.current < TOUR_STEPS.length - 1) {
+          setCurrentStep(stepRef.current + 1);
+        } else {
+          void handleComplete();
+        }
+      }, 500);
+      return;
+    }
+
+    setHighlightRect(rect);
+  }
 
   function updateHighlight() {
     const step = TOUR_STEPS[currentStep];
@@ -133,39 +173,11 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     }
   }
 
-  function findAndHighlight() {
-    const step = TOUR_STEPS[stepRef.current];
-    if (!step?.target) {
-      setHighlightRect(null);
-      return;
-    }
-
-    const element = document.querySelector(step.target);
-    if (!element) {
-      setTimeout(() => {
-        if (stepRef.current < TOUR_STEPS.length - 1) {
-          setCurrentStep(stepRef.current + 1);
-        } else {
-          handleComplete();
-        }
-      }, 500);
-      return;
-    }
-
-    const rect = element.getBoundingClientRect();
-    if (rect.width === 0 && rect.height === 0) {
-      setTimeout(() => {
-        if (stepRef.current < TOUR_STEPS.length - 1) {
-          setCurrentStep(stepRef.current + 1);
-        } else {
-          handleComplete();
-        }
-      }, 500);
-      return;
-    }
-
-    setHighlightRect(rect);
-  }
+  useEffect(() => {
+    stepRef.current = currentStep;
+    void (async () => { updateHighlight(); })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- updateHighlight is intentional on currentStep only
+  }, [currentStep]);
 
   useEffect(() => {
     if (!showTour) return;
@@ -185,7 +197,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     if (currentStep < TOUR_STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      handleComplete();
+      void handleComplete();
     }
   }
 
@@ -196,7 +208,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   }
 
   function handleSkip() {
-    handleComplete();
+    void handleComplete();
   }
 
   async function handleCreateStudy() {
@@ -205,18 +217,6 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     await setActiveStudy(study.id);
     setStudyCreated(true);
     setNewStudyName('');
-  }
-
-  async function handleComplete() {
-    setShowTour(false);
-    const prefs = await getPreferences();
-    await updatePreferences({
-      onboarding: {
-        ...prefs.onboarding!,
-        hasCompletedTour: true,
-      },
-    });
-    onComplete();
   }
 
   const step = TOUR_STEPS[currentStep];

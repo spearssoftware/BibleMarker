@@ -39,10 +39,10 @@ export function useChapterEntities(book: string | undefined, chapter: number | u
     if (!book || chapter === undefined) return;
 
     let cancelled = false;
-    setIsLoading(true);
-    setError(null);
 
     (async () => {
+      setIsLoading(true);
+      setError(null);
       try {
         const provider = await ensureProvider();
         const result = await provider.getChapterEntities(book, chapter);
@@ -75,16 +75,18 @@ export function useGnosisEntity<T>(
   const [error, setError] = useState<string | null>(null);
   const [fetchCount, setFetchCount] = useState(0);
   const fetcherRef = useRef(fetcher);
-  fetcherRef.current = fetcher;
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  });
 
   const refetch = useCallback(() => setFetchCount((c) => c + 1), []);
 
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
-    setError(null);
 
     (async () => {
+      setIsLoading(true);
+      setError(null);
       try {
         const provider = await ensureProvider();
         const result = await fetcherRef.current(provider);
@@ -120,14 +122,14 @@ export function useGnosisSearch<T>(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searcherRef = useRef(searcher);
-  searcherRef.current = searcher;
+  useEffect(() => {
+    searcherRef.current = searcher;
+  });
+
+  const hasQuery = query.trim().length > 0;
 
   useEffect(() => {
-    if (!query.trim()) {
-      setResults([]);
-      setTotal(0);
-      return;
-    }
+    if (!hasQuery) return;
 
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -155,5 +157,10 @@ export function useGnosisSearch<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, opts?.limit, opts?.offset, debounceMs]);
 
-  return { results, total, isLoading, error };
+  return {
+    results: hasQuery ? results : [],
+    total: hasQuery ? total : 0,
+    isLoading,
+    error,
+  };
 }

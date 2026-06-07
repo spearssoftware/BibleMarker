@@ -67,6 +67,27 @@ export function Search({ onClose, onNavigate }: SearchProps) {
     return () => clearTimeout(timeoutId);
   }, [query, scope, currentModuleId, currentBook, currentChapter]);
 
+  const scrollToSelected = () => {
+    const selectedElement = resultsRef.current?.querySelector(`[data-result-index="${selectedIndex}"]`);
+    if (selectedElement) {
+      selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  };
+
+  const handleSelectResult = (result: SearchResult) => {
+    if (result.type === 'keyword' && result.keywordWord) {
+      onClose();
+      window.dispatchEvent(new CustomEvent('openAnalyzeTools', {
+        detail: { tab: 'themes', themeSearchTerm: result.keywordWord }
+      }));
+      return;
+    }
+    if (result.book && result.chapter > 0) {
+      onNavigate(result.book, result.chapter, result.verse > 0 ? result.verse : undefined);
+    }
+    onClose();
+  };
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -98,27 +119,6 @@ export function Search({ onClose, onNavigate }: SearchProps) {
     handleEscape: true,
     initialFocusRef: inputRef,
   });
-
-  const scrollToSelected = () => {
-    const selectedElement = resultsRef.current?.querySelector(`[data-result-index="${selectedIndex}"]`);
-    if (selectedElement) {
-      selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
-  };
-
-  const handleSelectResult = (result: SearchResult) => {
-    if (result.type === 'keyword' && result.keywordWord) {
-      onClose();
-      window.dispatchEvent(new CustomEvent('openAnalyzeTools', {
-        detail: { tab: 'themes', themeSearchTerm: result.keywordWord }
-      }));
-      return;
-    }
-    if (result.book && result.chapter > 0) {
-      onNavigate(result.book, result.chapter, result.verse > 0 ? result.verse : undefined);
-    }
-    onClose();
-  };
 
   const highlightText = (text: string, query: string): React.ReactNode => {
     if (!query.trim()) return text;

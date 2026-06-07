@@ -66,15 +66,18 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
   const [draftTitle, setDraftTitle] = useState('');
   const [draftTheme, setDraftTheme] = useState('');
 
+  // Reset editing state when chapter changes (adjust state during render)
+  const chapterKey = `${currentBook}:${currentChapter}`;
+  const [prevChapterKey, setPrevChapterKey] = useState(chapterKey);
+  if (chapterKey !== prevChapterKey) {
+    setPrevChapterKey(chapterKey);
+    setEditingTitle(false);
+    setEditingTheme(false);
+  }
+
   useEffect(() => {
     loadPresets();
   }, [loadPresets]);
-
-  // Reset editing state when chapter changes
-  useEffect(() => {
-    setEditingTitle(false);
-    setEditingTheme(false);
-  }, [currentBook, currentChapter]);
 
   const saveTitle = async (newTitle: string) => {
     const existing = summary?.title;

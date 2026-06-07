@@ -36,10 +36,6 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
   const [moduleStatuses, setModuleStatuses] = useState<Record<string, 'installed' | 'downloading' | 'not-installed'>>({});
   const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
 
-  useEffect(() => {
-    loadModules();
-  }, []);
-
   async function loadModules() {
     try {
       setLoading(true);
@@ -59,6 +55,10 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    void (async () => { await loadModules(); })();
+  }, []);
 
   async function handleDownloadModule(moduleId: string) {
     setModuleStatuses(prev => ({ ...prev, [moduleId]: 'downloading' }));

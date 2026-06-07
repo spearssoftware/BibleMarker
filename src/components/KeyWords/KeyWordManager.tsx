@@ -52,7 +52,9 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
   const { currentBook, currentChapter } = useBibleStore();
   const { activeStudyId } = useStudyStore();
 
-  const [isCreating, setIsCreating] = useState(false);
+  // Seed create mode from initialWord so opening with a selection works on mount;
+  // the prevInitialWord tracker below handles subsequent changes.
+  const [isCreating, setIsCreating] = useState(!!initialWord);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -63,12 +65,14 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
   }, [loadPresets]);
 
   // When opened with a selection (e.g. "➕ Key Word"), start in create mode
-  useEffect(() => {
+  const [prevInitialWord, setPrevInitialWord] = useState(initialWord);
+  if (initialWord !== prevInitialWord) {
+    setPrevInitialWord(initialWord);
     if (initialWord) {
       setIsCreating(true);
       setEditingId(null);
     }
-  }, [initialWord]);
+  }
 
   // Filter presets by active study (null = global only; study = global + study) and scope, then sort
   const filteredPresets = useMemo(() => {
