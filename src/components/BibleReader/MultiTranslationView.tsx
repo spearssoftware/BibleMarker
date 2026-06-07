@@ -389,7 +389,7 @@ export function MultiTranslationView() {
   useEffect(() => {
     void (async () => {
       loadActiveView();
-      await loadTranslations();
+      loadTranslations();
     })();
   }, [loadActiveView]);
   

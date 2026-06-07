@@ -126,10 +126,20 @@ export function useGnosisSearch<T>(
     searcherRef.current = searcher;
   });
 
-  const hasQuery = query.trim().length > 0;
+  // Clear results the moment the query is emptied. This matches the old effect's
+  // empty-query branch but runs during render (an allowed setState) instead of
+  // synchronously inside an effect, so it doesn't trip set-state-in-effect.
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (query !== prevQuery) {
+    setPrevQuery(query);
+    if (!query.trim()) {
+      setResults([]);
+      setTotal(0);
+    }
+  }
 
   useEffect(() => {
-    if (!hasQuery) return;
+    if (!query.trim()) return;
 
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -157,10 +167,5 @@ export function useGnosisSearch<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, opts?.limit, opts?.offset, debounceMs]);
 
-  return {
-    results: hasQuery ? results : [],
-    total: hasQuery ? total : 0,
-    isLoading,
-    error,
-  };
+  return { results, total, isLoading, error };
 }
