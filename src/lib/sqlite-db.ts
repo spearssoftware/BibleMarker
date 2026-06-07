@@ -110,7 +110,7 @@ export async function closeSqliteDb(): Promise<void> {
 // Schema Initialization
 // ============================================================================
 
-const SCHEMA_VERSION = 9;
+const SCHEMA_VERSION = 10;
 
 /**
  * Safety net: ensure all expected tables exist.
@@ -391,6 +391,21 @@ async function migrateSchema(
     `);
     await db.execute(`CREATE INDEX IF NOT EXISTS idx_entity_notes_study ON entity_notes(study_id)`);
     console.log('[SQLite] v9 migration: added entity_notes table');
+  }
+
+  // Version 10: Preserve appearance for symbol keywords gaining a renderable decoration.
+  // Legacy symbol presets stored highlight.style='highlight' that never actually rendered
+  // (the symbol branch dropped it). Now that decorations render alongside symbols, flip those
+  // to 'none' so they keep their symbol-only look. Color-only presets (no symbol) were already
+  // visible, so leave them as 'highlight'. Local-only fix (no change_log entry, does not sync).
+  if (fromVersion < 10) {
+    await db.execute(`
+      UPDATE marking_presets
+      SET highlight = json_set(highlight, '$.style', 'none')
+      WHERE symbol IS NOT NULL
+        AND json_extract(highlight, '$.style') = 'highlight'
+    `);
+    console.log('[SQLite] v10 migration: set symbol+highlight presets to marking none');
   }
 
   // Update schema version

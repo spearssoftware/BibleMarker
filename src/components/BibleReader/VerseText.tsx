@@ -680,7 +680,10 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           }
         }
 
-        // Handle symbols: inline in front of the word so the word can also have highlight/underline/color
+        // Handle symbols: the word can ALSO carry a highlight/underline/textColor decoration.
+        // Layering matters (see index.css): the symbol watermark is z-0 and .annotation-text
+        // is z-1 inside the wrapper, so a highlight band must go on the wrapper (paints behind
+        // both the symbol and the text); underline/textColor go on the text itself.
         if (segment.symbols.length > 0) {
           const symAnn = segment.symbols[0];
           const symbolMarkup = getSymbolMarkup(symAnn.symbol);
@@ -696,12 +699,34 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
           const trailingPunct = trailingPunctMatch ? trailingPunctMatch[1] : '';
           const wordContent = trailingPunct ? segmentText.slice(0, -trailingPunct.length) : segmentText;
 
+          // Split styles by target in one pass: the background highlight paints behind the
+          // symbol → on the wrapper; everything else (underline, textColor) goes on the word.
+          let bandColor: string | null = null;
+          let hasUnderline = false;
+          const textStyles: string[] = [];
+          for (const s of combinedStyles) {
+            if (s.startsWith('background-color')) {
+              bandColor = s.slice(s.indexOf(':') + 1).trim();
+            } else {
+              textStyles.push(s);
+              if (s === 'text-decoration: underline') hasUnderline = true;
+            }
+          }
+          // With a symbol behind the word, drop the underline a little so it clears the symbol.
+          if (hasUnderline) textStyles.push('text-underline-offset: 0.2em');
           const symbolColorStyle = symbolColor ? `color: ${symbolColor};` : '';
+          // The wrapper is inline-block, so a plain background fills the whole line-height box
+          // and looks too tall. Paint a fixed-height band (clipped via background-size) so it
+          // hugs the word like a normal inline highlight, still behind the symbol + text.
+          const wrapperStyleAttr = bandColor
+            ? ` style="background: linear-gradient(${bandColor}, ${bandColor}) center / 100% 1.4em no-repeat"`
+            : '';
+          const textStyleAttr = textStyles.length ? ` style="${textStyles.join('; ')}"` : '';
           htmlSegments.push(
             `${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">` +
-            `<span class="symbol-wrapper">` +
+            `<span class="symbol-wrapper"${wrapperStyleAttr}>` +
             `<span class="symbol-overlay"${symbolColorStyle ? ` style="${symbolColorStyle}"` : ''}>${symbolMarkup}</span>` +
-            `<span class="annotation-text">${escapeHtml(wordContent)}</span>` +
+            `<span class="annotation-text"${textStyleAttr}>${escapeHtml(wordContent)}</span>` +
             `</span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`
           );
         } else {
