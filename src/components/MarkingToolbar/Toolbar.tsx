@@ -12,8 +12,6 @@ import { useAnnotations } from '@/hooks/useAnnotations';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { SelectionMenu, type ApplyScope } from './SelectionMenu';
 import { useListStore } from '@/stores/listStore';
-import { SettingsPanel } from '@/components/Settings';
-import { Modal } from '@/components/shared';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { usePanelStore } from '@/stores/panelStore';
@@ -22,7 +20,7 @@ import { useUndoToastStore } from '@/stores/undoToastStore';
 import { deleteAnnotation } from '@/lib/database';
 import { getAllTranslations } from '@/lib/bible-api';
 import type { MarkingPreset, Verse } from '@/types';
-import { createMarkingPreset, getRandomHighlightColor } from '@/types';
+import { createMarkingPreset, getRandomHighlightColor, presetHasDecoration } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { stripSymbols } from '@/lib/textUtils';
 import { usePeopleStore } from '@/stores/peopleStore';
@@ -54,8 +52,6 @@ export function Toolbar() {
   const { activePanel, togglePanel, openPanel, isCollapsed } = usePanelStore();
   const chaptersByTranslation = useMultiTranslationStore(s => s.chaptersByTranslation);
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
-
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   // Load marking presets on mount
   useEffect(() => {
@@ -107,7 +103,7 @@ export function Toolbar() {
     };
 
     const handleOpenSettings = () => {
-      setShowSettingsModal(true);
+      openPanel('settings');
     };
 
     window.addEventListener('openObservationTools', handleOpenObservationTools as EventListener);
@@ -154,17 +150,19 @@ export function Toolbar() {
 
     await markPresetUsed(preset.id);
     const pid = preset.id;
-    if (preset.symbol && preset.highlight) {
+    // presetHasDecoration narrows preset.highlight to non-null with a real decoration style.
+    // ('none' = color only, which just tints the symbol and draws no text decoration.)
+    if (preset.symbol && presetHasDecoration(preset)) {
       setActiveTool('symbol');
       setActiveColor(preset.highlight.color);
       await createSymbolAnnotation(preset.symbol, 'before', preset.highlight.color, 'above', pid, { clearSelection: false });
-      setActiveTool(preset.highlight.style === 'textColor' ? 'textColor' : preset.highlight.style === 'underline' ? 'underline' : 'highlight');
+      setActiveTool(preset.highlight.style);
       await createTextAnnotation(preset.highlight.style, preset.highlight.color, pid);
     } else if (preset.symbol) {
       setActiveTool('symbol');
       await createSymbolAnnotation(preset.symbol, 'before', preset.highlight?.color, 'above', pid);
-    } else if (preset.highlight) {
-      setActiveTool(preset.highlight.style === 'textColor' ? 'textColor' : preset.highlight.style === 'underline' ? 'underline' : 'highlight');
+    } else if (presetHasDecoration(preset)) {
+      setActiveTool(preset.highlight.style);
       setActiveColor(preset.highlight.color);
       await createTextAnnotation(preset.highlight.style, preset.highlight.color, pid);
     }
@@ -255,7 +253,8 @@ export function Toolbar() {
     const preset = createMarkingPreset({
       word,
       symbol: config.symbol,
-      highlight: { style: 'highlight', color },
+      // 'none' = color tints the symbol, no highlight band drawn (symbol-only look).
+      highlight: { style: 'none', color },
       category: config.category,
       studyId: activeStudyId || undefined,
       scopes: [{ book: selection.book }],
@@ -289,20 +288,10 @@ export function Toolbar() {
 
   if (!toolbarVisible) return null;
 
+  const settingsPanelActive = activePanel === 'settings';
+
   return (
     <>
-      {/* Settings Modal */}
-      <Modal
-        isOpen={showSettingsModal}
-        onClose={() => setShowSettingsModal(false)}
-        size="full"
-        title="Settings"
-        showCloseButton={true}
-        contentClassName="flex-1 min-h-0 flex flex-col"
-      >
-        <SettingsPanel onClose={() => setShowSettingsModal(false)} />
-      </Modal>
-
       <div className="fixed left-0 right-0 z-30"
            style={{
              bottom: 'var(--keyboard-height, 0px)',
@@ -417,17 +406,11 @@ export function Toolbar() {
             })}
             <button
               data-toolbar-settings
-              onClick={() => {
-                setShowSettingsModal(v => !v);
-                // Close any open panel when opening settings
-                if (!showSettingsModal) {
-                  usePanelStore.getState().closePanel();
-                }
-              }}
+              onClick={() => togglePanel('settings')}
               className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg
                          transition-all duration-200 touch-target
                          border border-scripture-border/30 hover:border-scripture-border/50
-                         ${showSettingsModal
+                         ${settingsPanelActive
                            ? 'bg-scripture-accent text-scripture-bg shadow-md'
                            : 'hover:bg-scripture-elevated'}`}
               aria-label="Settings"

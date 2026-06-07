@@ -8,15 +8,20 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, scopeLabel, type KeyWordCategory, type MarkingPreset, type PresetScope, type Variant } from '@/types';
+import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, scopeLabel, MARKING_STYLE_OPTIONS, type KeyWordCategory, type MarkingPreset, type MarkingStyle, type PresetScope, type Variant } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { SYMBOLS, SYMBOL_LABELS, SYMBOL_CATEGORIES, isLetterOrNumberSymbol, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
 import { SymbolIcon } from '@/lib/symbolDisplay';
 import { Trash } from '@phosphor-icons/react';
 import { useAnnotationStore } from '@/stores/annotationStore';
-import { Input, Textarea, Label, DropdownSelect, Checkbox, Button } from '@/components/shared';
+import { Input, Textarea, Label, DropdownSelect, Checkbox, Button, SegmentedControl } from '@/components/shared';
 import { getBookById, BIBLE_BOOKS } from '@/types';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
+
+/** A word/phrase counts as multi-word when it has 2+ whitespace-separated tokens. */
+function isMultiWordText(text: string): boolean {
+  return text.trim().split(/\s+/).filter(Boolean).length > 1;
+}
 
 interface KeyWordManagerProps {
   onClose?: () => void;
@@ -128,6 +133,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
     variants: Variant[];
     symbol?: SymbolKey;
     color?: HighlightColor;
+    marking: MarkingStyle;
     category: KeyWordCategory;
     description: string;
     autoSuggest: boolean;
@@ -136,7 +142,18 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
     caseSensitive?: boolean;
   }) {
     try {
-      const highlight = formData.color ? { style: 'highlight' as const, color: formData.color } : undefined;
+      // Must produce something visible: a symbol, or a decoration that has a color.
+      if (!formData.symbol && formData.marking === 'none') {
+        alert('Add a symbol, an underline, or a highlight.');
+        return;
+      }
+      if (formData.marking !== 'none' && !formData.color) {
+        alert('Pick a color for the underline or highlight.');
+        return;
+      }
+      // Keep highlight present (carrying color) so the symbol stays tinted even when
+      // marking is 'none'. 'none' = color only, no text decoration drawn.
+      const highlight = formData.color ? { style: formData.marking, color: formData.color } : undefined;
       const scopes = formData.scopes;
       if (editingId) {
         const existing = presets.find((p) => p.id === editingId);
@@ -157,10 +174,6 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
           });
         }
       } else {
-        if (!formData.symbol && !formData.color) {
-          alert('Add at least a symbol or a color.');
-          return;
-        }
         const preset = createMarkingPreset({
           word: formData.word.trim() || undefined,
           variants: formData.variants,
@@ -655,6 +668,7 @@ function KeyWordEditor({
     variants: Variant[];
     symbol?: SymbolKey;
     color?: HighlightColor;
+    marking: MarkingStyle;
     category: KeyWordCategory;
     description: string;
     autoSuggest: boolean;
@@ -673,6 +687,31 @@ function KeyWordEditor({
   const [symbol, setSymbol] = useState<SymbolKey | undefined>(initialSymbol ?? preset?.symbol);
   const [color, setColor] = useState<HighlightColor | undefined>(preset?.highlight?.color ?? (preset ? initialColor : getRandomHighlightColor()));
   const recentSymbols = useAnnotationStore(s => s.preferences.recentSymbols);
+  const defaultMultiWordMarking = useAnnotationStore(s => s.defaultMultiWordMarking);
+
+  // Marking decoration drawn across the word/phrase. New keywords default by word shape:
+  // single-word → none, multi-word → the user's defaultMultiWordMarking setting.
+  const [marking, setMarking] = useState<MarkingStyle>(() => {
+    if (preset) {
+      const s = preset.highlight?.style;
+      return s === 'underline' || s === 'highlight' ? s : 'none';
+    }
+    return isMultiWordText(initialWord || '') ? defaultMultiWordMarking : 'none';
+  });
+  const [markingTouched, setMarkingTouched] = useState(false);
+
+  // Re-derive the default marking when the keyword's shape changes (new keyword only, until
+  // the user picks one manually) using the sanctioned "adjust state during render" pattern.
+  // The marking applies to every match, so a multi-word PRIMARY word OR any multi-word
+  // variant counts as multi-word → the user's default setting; otherwise none.
+  const isMultiWordKeyword = isMultiWordText(word) || variants.some(v => isMultiWordText(v.text));
+  const [prevMultiWord, setPrevMultiWord] = useState(isMultiWordKeyword);
+  if (isMultiWordKeyword !== prevMultiWord) {
+    setPrevMultiWord(isMultiWordKeyword);
+    if (!preset && !markingTouched) {
+      setMarking(isMultiWordKeyword ? defaultMultiWordMarking : 'none');
+    }
+  }
 
   // Update word when initialWord changes (e.g., new selection made)
   useEffect(() => {
@@ -715,8 +754,10 @@ function KeyWordEditor({
       return;
     }
 
-    // Filter out empty variants
-    const validVariants = variants.filter(v => v.text.trim().length > 0);
+    // Trim and filter out empty variants
+    const validVariants = variants
+      .map(v => ({ ...v, text: v.text.trim() }))
+      .filter(v => v.text.length > 0);
 
     if (symbol) {
       useAnnotationStore.getState().addRecentSymbol(symbol);
@@ -727,6 +768,7 @@ function KeyWordEditor({
       variants: validVariants,
       symbol,
       color,
+      marking,
       category,
       description: description.trim(),
       autoSuggest,
@@ -755,6 +797,7 @@ function KeyWordEditor({
               <VariantEditor
                 key={index}
                 variant={variant}
+                index={index}
                 currentBook={currentBook}
                 currentChapter={currentChapter}
                 onChange={(updated) => {
@@ -779,6 +822,21 @@ function KeyWordEditor({
         </div>
 
         <div className="space-y-4">
+          <div>
+            <Label helpText="across the word or phrase">Marking</Label>
+            <SegmentedControl<MarkingStyle>
+              options={MARKING_STYLE_OPTIONS}
+              value={marking}
+              onChange={(val) => {
+                setMarking(val);
+                setMarkingTouched(true);
+                if (val !== 'none' && !color) setColor(getRandomHighlightColor());
+              }}
+              columns={3}
+              ariaLabel="Word marking"
+            />
+          </div>
+
           <div>
             <ColorAccordion color={color} onSelect={setColor} />
           </div>
@@ -982,41 +1040,47 @@ function KeyWordEditor({
 /** Variant Editor Component - Edit individual variant with optional scope */
 function VariantEditor({
   variant,
+  index,
   currentBook,
   currentChapter,
   onChange,
   onRemove,
 }: {
   variant: Variant;
+  index: number;
   currentBook?: string;
   currentChapter?: number;
   onChange: (variant: Variant) => void;
   onRemove: () => void;
 }) {
-  const [text, setText] = useState(variant.text);
-  const [scopeType, setScopeType] = useState<'global' | 'book' | 'chapter'>(
+  const scopeType: 'global' | 'book' | 'chapter' =
     variant.chapterScope !== undefined ? 'chapter' :
-    variant.bookScope ? 'book' : 'global'
-  );
-  const [bookScope, setBookScope] = useState(variant.bookScope || currentBook || '');
-  const [chapterScope, setChapterScope] = useState(variant.chapterScope || currentChapter || 1);
+    variant.bookScope ? 'book' : 'global';
+  const bookScope = variant.bookScope ?? '';
+  const chapterScope = variant.chapterScope ?? 1;
 
-  // Update parent when values change
-  useEffect(() => {
-    const updatedVariant: Variant = {
-      text: text.trim(),
-      bookScope: scopeType === 'book' || scopeType === 'chapter' ? bookScope : undefined,
-      chapterScope: scopeType === 'chapter' ? chapterScope : undefined,
-    };
-    onChange(updatedVariant);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, scopeType, bookScope, chapterScope]);
-
-  const scopeName = `variant-scope-${variant.text}`;
+  const scopeName = `variant-scope-${index}`;
   const bookOptions = [
     { value: '', label: 'Select a book...' },
     ...BIBLE_BOOKS.map(book => ({ value: book.id, label: book.name })),
   ];
+
+  const setScopeType = (next: 'global' | 'book' | 'chapter') => {
+    if (next === 'global') {
+      onChange({ text: variant.text });
+    } else if (next === 'book') {
+      onChange({
+        text: variant.text,
+        bookScope: variant.bookScope || currentBook || '',
+      });
+    } else {
+      onChange({
+        text: variant.text,
+        bookScope: variant.bookScope || currentBook || '',
+        chapterScope: variant.chapterScope ?? currentChapter ?? 1,
+      });
+    }
+  };
 
   return (
     <div className="p-2 bg-scripture-elevated border border-scripture-border/30 rounded-lg space-y-1.5">
@@ -1024,8 +1088,8 @@ function VariantEditor({
         <div className="flex-1 min-w-0">
           <Input
             type="text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
+            value={variant.text}
+            onChange={(e) => onChange({ ...variant, text: e.target.value })}
             placeholder="Variant text"
           />
         </div>
@@ -1056,7 +1120,7 @@ function VariantEditor({
       {scopeType === 'book' && (
         <DropdownSelect
           value={bookScope}
-          onChange={(val) => setBookScope(val)}
+          onChange={(val) => onChange({ ...variant, bookScope: val })}
           options={bookOptions}
           placeholder="Select a book..."
         />
@@ -1066,11 +1130,9 @@ function VariantEditor({
           <DropdownSelect
             value={bookScope}
             onChange={(val) => {
-              setBookScope(val);
-              if (val) {
-                const bookInfo = getBookById(val);
-                if (bookInfo && chapterScope > bookInfo.chapters) setChapterScope(1);
-              }
+              const bookInfo = val ? getBookById(val) : undefined;
+              const clampedChapter = bookInfo && chapterScope > bookInfo.chapters ? 1 : chapterScope;
+              onChange({ ...variant, bookScope: val, chapterScope: clampedChapter });
             }}
             options={bookOptions}
             placeholder="Select a book..."
@@ -1079,13 +1141,12 @@ function VariantEditor({
             type="number"
             value={chapterScope}
             onChange={(e) => {
-              const newChapter = parseInt(e.target.value) || 1;
+              const parsed = parseInt(e.target.value) || 1;
               const bookInfo = bookScope ? getBookById(bookScope) : undefined;
-              if (bookInfo) {
-                setChapterScope(Math.min(Math.max(1, newChapter), bookInfo.chapters));
-              } else {
-                setChapterScope(newChapter);
-              }
+              const next = bookInfo
+                ? Math.min(Math.max(1, parsed), bookInfo.chapters)
+                : parsed;
+              onChange({ ...variant, chapterScope: next });
             }}
             min="1"
             max={bookScope ? getBookById(bookScope)?.chapters : undefined}

@@ -1,6 +1,6 @@
 [package]
 name = "biblemarker"
-version = "2.0.3"
+version = "2.1.1"
 description = "A focused Bible study app with rich annotation tools"
 authors = ["Kevin Spears <biblemarker@spearssoftware.com>"]
 license = "AGPL-3.0-or-later"
@@ -14,14 +14,14 @@ name = "biblemarker"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.5", features = [] }
+tauri-build = { version = "2.6", features = [] }
 
 [dependencies]
-tauri = { version = "2.10", features = [] }
-tauri-plugin-dialog = { version = "2.0", features = [] }
+tauri = { version = "2.11", features = [] }
+tauri-plugin-dialog = { version = "2.7", features = [] }
 tauri-plugin-fs = { version = "2.0", features = [] }
 tauri-plugin-sql = { version = "2.4", features = ["sqlite"] }
-tauri-plugin-opener = { version = "2.0", features = [] }
+tauri-plugin-opener = { version = "2.5", features = [] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rusqlite = { version = "0.31", features = ["bundled"] }

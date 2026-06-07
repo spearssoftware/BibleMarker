@@ -313,17 +313,48 @@ export function useTextSelection({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- verseContainerRef is a stable ref
   }, [activeView, currentBook, currentChapter, translationChapters, setSelection, setIsSelecting]);
 
-  // Android WebView captures long-press gestures at the native layer and does
-  // not deliver onTouchEnd to JS while the selection gesture is active, so the
-  // onMouseUp/onTouchEnd path above never fires. Fall back to a `selectionchange`
-  // listener that runs the same capture logic once the selection settles.
-  // Debounced so desktop drag-select doesn't fire on every mouse-move.
+  // Delay before capturing a touch selection once the finger lifts. Short, because
+  // lifting signals the drag is complete — if the selection isn't what they wanted,
+  // the natural recovery is to drag again, which replaces it.
+  const FINGER_LIFT_MS = 150;
+  // Fallback settle delay for the `selectionchange` path used on Android, where
+  // touchend isn't delivered during a selection gesture. Resettable: each change
+  // restarts the countdown so an in-progress selection is never cut off.
+  const SELECTION_SETTLE_MS = 500;
+
   const handleSelectionRef = useRef(handleMouseUp);
   handleSelectionRef.current = handleMouseUp;
 
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null;
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Cancel a pending capture — called while a finger is actively on the screen
+  // (touch start / move) so the menu never pops in the middle of a drag.
+  const cancelSelectionCapture = useCallback(() => {
+    if (settleTimerRef.current !== null) {
+      clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleSelectionCapture = useCallback((delayMs: number = SELECTION_SETTLE_MS) => {
+    if (settleTimerRef.current !== null) clearTimeout(settleTimerRef.current);
+    settleTimerRef.current = setTimeout(() => {
+      settleTimerRef.current = null;
+      handleSelectionRef.current();
+    }, delayMs);
+  }, []);
+
+  // Finger lifted — the touch gesture is complete, so capture promptly.
+  const handleTouchEnd = useCallback(() => {
+    scheduleSelectionCapture(FINGER_LIFT_MS);
+  }, [scheduleSelectionCapture]);
+
+  // Android WebView captures long-press gestures at the native layer and does not
+  // deliver onTouchEnd to JS while the selection gesture is active, so the touch-end
+  // path never fires there. A `selectionchange` listener runs the same capture logic
+  // once the selection settles. Debounced so it doesn't fire mid-drag, and so desktop
+  // mouse-drag (which commits immediately on mouseup) isn't affected.
+  useEffect(() => {
     const onSelectionChange = () => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed) return;
@@ -331,19 +362,15 @@ export function useTextSelection({
       const anchor = sel.anchorNode?.parentElement;
       if (!anchor?.closest('[data-verse]')) return;
 
-      if (timer !== null) clearTimeout(timer);
-      timer = setTimeout(() => {
-        timer = null;
-        handleSelectionRef.current();
-      }, 200);
+      scheduleSelectionCapture();
     };
 
     document.addEventListener('selectionchange', onSelectionChange);
     return () => {
       document.removeEventListener('selectionchange', onSelectionChange);
-      if (timer !== null) clearTimeout(timer);
+      if (settleTimerRef.current !== null) clearTimeout(settleTimerRef.current);
     };
-  }, []);
+  }, [scheduleSelectionCapture]);
 
-  return { handleMouseUp };
+  return { handleMouseUp, handleTouchEnd, cancelSelectionCapture };
 }

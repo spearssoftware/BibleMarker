@@ -119,7 +119,7 @@ export function MultiTranslationView() {
   
   const verseContainerRef = useRef<HTMLDivElement>(null);
 
-  const { handleMouseUp } = useTextSelection({
+  const { handleMouseUp, handleTouchEnd, cancelSelectionCapture } = useTextSelection({
     activeView,
     currentBook,
     currentChapter,
@@ -157,6 +157,22 @@ export function MultiTranslationView() {
     }
     prevDraggingRef.current = panelDragging;
   }, [panelDragging]);
+
+  // Re-key after window resize (debounced). Without this, resizing the
+  // desktop window leaves verse block heights stale and the last lines
+  // can clip behind the fixed bottom toolbar until a panel is toggled.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onResize = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setLayoutKey(k => k + 1), 150);
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
 
   // Track the last book/chapter we loaded to prevent duplicate calls
   const lastLoadedRef = useRef<{ book: string; chapter: number } | null>(null);
@@ -579,7 +595,7 @@ export function MultiTranslationView() {
       </div>
 
       {/* Verse rows - scrollable container */}
-      <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchStart={swipeTouchStart} onTouchEnd={(e) => { swipeTouchEnd(e); setTimeout(handleMouseUp, 50); }}>
+      <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchStart={(e) => { swipeTouchStart(e); cancelSelectionCapture(); }} onTouchMove={cancelSelectionCapture} onTouchEnd={(e) => { swipeTouchEnd(e); handleTouchEnd(); }}>
           <div key={layoutKey} className={`px-4 py-4 space-y-1.5`}>
             {sortedVerseNumbers.map(verseNum => {
               const heading = getHeadingBefore(verseNum);

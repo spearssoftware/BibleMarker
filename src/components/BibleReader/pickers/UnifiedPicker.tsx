@@ -31,13 +31,23 @@ export function UnifiedPicker({
   onSelect, 
   onClose 
 }: UnifiedPickerProps) {
-  const [step, setStep] = useState<'book' | 'chapter' | 'verse'>('book');
+  // Default to the verse grid for the current chapter (the common case during
+  // study/teaching: you stay in the same chapter and just hop verses). Fall
+  // back to the book list only when the current location has no verse data.
+  const canStartAtVerse = getVerseCount(currentBook, currentChapter) > 0;
+  const [step, setStep] = useState<'book' | 'chapter' | 'verse'>(
+    canStartAtVerse ? 'verse' : 'book'
+  );
   const [selectedBook, setSelectedBook] = useState<string>(currentBook);
   const [selectedChapter, setSelectedChapter] = useState<number>(currentChapter);
   const [searchQuery, setSearchQuery] = useState('');
   const [recentBooks, setRecentBooks] = useState<string[]>([]);
   const pickerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  // When the picker opens straight to the verse grid, focus the current verse
+  // so the modal's auto-focus doesn't land on the breadcrumb book button
+  // (which would draw a stray accent focus ring around the book name).
+  const currentVerseRef = useRef<HTMLButtonElement>(null);
 
   const otBooks = getOTBooks();
   const ntBooks = getNTBooks();
@@ -94,6 +104,7 @@ export function UnifiedPicker({
     onClose,
     lockScroll: true,
     handleEscape: true,
+    initialFocusRef: currentVerseRef,
   });
 
   // Focus search input on mount (skip on iOS to avoid keyboard/zoom)
@@ -124,13 +135,9 @@ export function UnifiedPicker({
     onClose();
   };
 
-  const handleBack = () => {
-    if (step === 'verse') {
-      setStep('chapter');
-    } else {
-      setStep('book');
-      setSearchQuery('');
-    }
+  const goToBookStep = () => {
+    setStep('book');
+    setSearchQuery('');
   };
 
   // Generate chapter numbers for selected book
@@ -163,29 +170,47 @@ export function UnifiedPicker({
               : `Select verse in ${selectedBookInfo?.name} ${selectedChapter}`
         }
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-scripture-border/30 flex-shrink-0">
-          {(step === 'chapter' || step === 'verse') && (
+        {/* Header — breadcrumb (Book › Chapter › Verse) lets the user jump
+            straight up a level instead of stepping back one at a time. */}
+        <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-scripture-border/30 flex-shrink-0">
+          <div className="flex items-center min-w-0 text-base font-ui font-semibold">
             <button
-              onClick={handleBack}
-              className="p-1.5 -ml-1.5 rounded-lg hover:bg-scripture-elevated transition-colors"
-              aria-label={step === 'verse' ? 'Back to chapter selection' : 'Back to book selection'}
+              onClick={goToBookStep}
+              className={`px-1.5 py-1 rounded-md truncate transition-colors
+                        ${step === 'book'
+                          ? 'text-scripture-text'
+                          : 'text-scripture-accent hover:bg-scripture-elevated'}`}
+              aria-label="Change book"
+              aria-current={step === 'book' ? 'step' : undefined}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
+              {selectedBookInfo?.name || 'Select Book'}
             </button>
-          )}
-          <h2 className="text-base font-ui font-semibold text-scripture-text flex-1 text-center">
-            {step === 'book' 
-              ? 'Select Book' 
-              : step === 'chapter'
-                ? selectedBookInfo?.name || 'Select Chapter'
-                : `${selectedBookInfo?.name || ''} ${selectedChapter}`}
-          </h2>
+            {step !== 'book' && (
+              <>
+                <span className="text-scripture-muted px-0.5 flex-shrink-0" aria-hidden="true">›</span>
+                <button
+                  onClick={() => setStep('chapter')}
+                  className={`px-1.5 py-1 rounded-md transition-colors flex-shrink-0
+                            ${step === 'chapter'
+                              ? 'text-scripture-text'
+                              : 'text-scripture-accent hover:bg-scripture-elevated'}`}
+                  aria-label="Change chapter"
+                  aria-current={step === 'chapter' ? 'step' : undefined}
+                >
+                  {selectedChapter}
+                </button>
+              </>
+            )}
+            {step === 'verse' && (
+              <>
+                <span className="text-scripture-muted px-0.5 flex-shrink-0" aria-hidden="true">›</span>
+                <span className="px-1.5 py-1 text-scripture-muted flex-shrink-0">Verse</span>
+              </>
+            )}
+          </div>
           <button
             onClick={onClose}
-            className="p-1.5 -mr-1.5 rounded-lg hover:bg-scripture-elevated transition-colors"
+            className="p-1.5 -mr-1.5 rounded-lg hover:bg-scripture-elevated transition-colors flex-shrink-0"
             aria-label="Close picker"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -252,7 +277,7 @@ export function UnifiedPicker({
                                     ? 'bg-scripture-accent text-scripture-bg shadow-sm'
                                     : 'bg-scripture-elevated hover:bg-scripture-border/50'}`}
                       >
-                        {book.shortName}
+                        {book.name}
                       </button>
                     );
                   })}
@@ -266,18 +291,18 @@ export function UnifiedPicker({
                 <h3 className="text-xs font-ui font-semibold text-scripture-muted uppercase tracking-wider mb-2">
                   Old Testament
                 </h3>
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5">
                   {filteredBooks.ot.map((book) => (
                     <button
                       key={book.id}
                       onClick={() => handleBookSelect(book.id)}
-                      className={`px-2 py-2 text-sm font-ui rounded-lg transition-all duration-200
+                      className={`px-3 py-2 text-sm font-ui rounded-lg transition-all duration-200 text-left truncate
                                 ${book.id === currentBook
                                   ? 'bg-scripture-accent text-scripture-bg shadow-sm'
                                   : 'bg-scripture-elevated hover:bg-scripture-border/50'}`}
                       aria-label={`Select ${book.name}`}
                     >
-                      {book.shortName}
+                      {book.name}
                     </button>
                   ))}
                 </div>
@@ -290,18 +315,18 @@ export function UnifiedPicker({
                 <h3 className="text-xs font-ui font-semibold text-scripture-muted uppercase tracking-wider mb-2">
                   New Testament
                 </h3>
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5">
                   {filteredBooks.nt.map((book) => (
                     <button
                       key={book.id}
                       onClick={() => handleBookSelect(book.id)}
-                      className={`px-2 py-2 text-sm font-ui rounded-lg transition-all duration-200
+                      className={`px-3 py-2 text-sm font-ui rounded-lg transition-all duration-200 text-left truncate
                                 ${book.id === currentBook
                                   ? 'bg-scripture-accent text-scripture-bg shadow-sm'
                                   : 'bg-scripture-elevated hover:bg-scripture-border/50'}`}
                       aria-label={`Select ${book.name}`}
                     >
-                      {book.shortName}
+                      {book.name}
                     </button>
                   ))}
                 </div>
@@ -338,19 +363,26 @@ export function UnifiedPicker({
           /* Verse Selection */
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4">
             <div className="grid grid-cols-8 gap-1.5">
-              {verses.map((verse) => (
+              {verses.map((verse) => {
+                const isCurrentVerse =
+                  verse === currentVerse &&
+                  selectedChapter === currentChapter &&
+                  selectedBook === currentBook;
+                return (
                 <button
                   key={verse}
+                  ref={isCurrentVerse ? currentVerseRef : undefined}
                   onClick={() => handleVerseSelect(verse)}
                   className={`w-9 h-9 text-xs font-ui font-medium rounded-lg transition-all duration-200
-                            ${verse === currentVerse && selectedChapter === currentChapter && selectedBook === currentBook
+                            ${isCurrentVerse
                               ? 'bg-scripture-accent text-scripture-bg shadow-sm'
                               : 'bg-scripture-elevated hover:bg-scripture-border/50'}`}
                   aria-label={`Verse ${verse}`}
                 >
                   {verse}
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
