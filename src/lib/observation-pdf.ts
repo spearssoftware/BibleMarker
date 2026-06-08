@@ -23,7 +23,9 @@ import { formatVerseRef, getBookById, getHighlightColorHex, type HighlightColor 
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { PageWriter, loadJsPDF, type JsPDFCtor, type JsPDFDoc } from '@/lib/pdf/page-writer';
 import { buildPresetIconCache, iconCacheKey } from '@/lib/pdf/symbol-cache';
-import { savePdfBytes } from '@/lib/pdf/save';
+import { savePdfBytes, openSavedPdf } from '@/lib/pdf/save';
+
+export { openSavedPdf };
 
 export interface BuildObservationPdfInput {
   study: Study;

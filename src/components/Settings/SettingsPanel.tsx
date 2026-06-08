@@ -12,6 +12,12 @@ import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences,
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
 import { exportStudyData } from '@/lib/export';
 import {
+  getAllMarkingPresets, getAllObservationLists, getAllPlaces, getAllPeople,
+  getAllTimeExpressions, getAllConclusions, getAllInterpretations, getAllApplications,
+} from '@/lib/database';
+import { saveObservationPdf, openSavedPdf } from '@/lib/observation-pdf';
+import type { Study } from '@/types';
+import {
   applyTheme,
   applyScriptureFont,
   applySymbolOpacity,
@@ -106,6 +112,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
   
   // Study Export state
   const [isExportingStudy, setIsExportingStudy] = useState(false);
+  const [exportingStudyPdfId, setExportingStudyPdfId] = useState<string | null>(null);
   const [studyExportError, setStudyExportError] = useState<string | null>(null);
   const [studyExportSuccess, setStudyExportSuccess] = useState<string | boolean>(false);
   
@@ -595,6 +602,41 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
       }
     } finally {
       setIsExportingStudy(false);
+    }
+  };
+
+  // Export a single study's observation data (keywords, lists, places, people,
+  // time, conclusions, interpretation, application) as a PDF report scoped to
+  // that study. Each getter is independently resilient so one failure can't
+  // blank the whole report.
+  const handleExportStudyPdf = async (study: Study) => {
+    setExportingStudyPdfId(study.id);
+    setStudyExportError(null);
+    setStudyExportSuccess(false);
+    try {
+      const [presets, lists, places, people, time, conclusions, interpretations, applications] = await Promise.all([
+        getAllMarkingPresets().catch(() => []),
+        getAllObservationLists().catch(() => []),
+        getAllPlaces().catch(() => []),
+        getAllPeople().catch(() => []),
+        getAllTimeExpressions().catch(() => []),
+        getAllConclusions().catch(() => []),
+        getAllInterpretations().catch(() => []),
+        getAllApplications().catch(() => []),
+      ]);
+      const result = await saveObservationPdf({
+        study, activeStudyId: study.id, presets,
+        lists, places, people, time, conclusions, interpretations, applications,
+      });
+      if ('path' in result) {
+        await openSavedPdf(result.path).catch(() => {});
+        setStudyExportSuccess(result.path);
+        setTimeout(() => setStudyExportSuccess(false), 3000);
+      }
+    } catch (error) {
+      setStudyExportError(error instanceof Error ? error.message : 'Failed to export study PDF');
+    } finally {
+      setExportingStudyPdfId(null);
     }
   };
 
@@ -1896,6 +1938,9 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                       </button>
                     )}
                   </div>
+                  {studyExportError && (
+                    <p className="text-sm text-scripture-error mb-3">{studyExportError}</p>
+                  )}
                   {studies.length === 0 ? (
                     <p className="text-scripture-muted text-sm">No studies yet. Create one above to get started.</p>
                   ) : (
@@ -1956,6 +2001,16 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                                     Set Active
                                   </button>
                                 )}
+                                <button
+                                  onClick={() => handleExportStudyPdf(study)}
+                                  disabled={exportingStudyPdfId === study.id}
+                                  className="px-3 py-2 text-sm font-ui bg-scripture-elevated hover:bg-scripture-border/50
+                                           border border-scripture-border/50 text-scripture-text rounded-lg transition-all duration-200
+                                           disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Export this study's observations as a PDF"
+                                >
+                                  {exportingStudyPdfId === study.id ? 'Exporting…' : 'Export PDF'}
+                                </button>
                                 <button
                                   onClick={() => setEditingStudy({ id: study.id, name: study.name, book: study.book })}
                                   className="px-3 py-2 text-sm font-ui bg-scripture-elevated hover:bg-scripture-border/50
