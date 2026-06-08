@@ -73,22 +73,26 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const [ann, hd, nt, ct] = await Promise.all([
-          getChapterAnnotations(translation.id, book, chapter),
-          getChapterHeadings(translation.id, book, chapter, activeStudyId),
-          getChapterNotes(translation.id, book, chapter),
-          getChapterTitle(translation.id, book, chapter, activeStudyId),
-        ]);
-        if (cancelled) return;
-        setAnnotations(ann);
-        setHeadings(hd);
-        setNotes(nt);
-        setChapterTitle(ct ?? null);
-      } catch (err) {
-        if (cancelled) return;
-        console.error('[ExportPopover] failed to load chapter metadata', err);
-        setAction({ status: 'error', message: 'Could not load chapter data.' });
+      // Load each piece independently so one failing query (e.g. headings or
+      // title) can't blank out the others — notably notes, which would
+      // otherwise silently drop from the export.
+      const [ann, hd, nt, ct] = await Promise.allSettled([
+        getChapterAnnotations(translation.id, book, chapter),
+        getChapterHeadings(translation.id, book, chapter, activeStudyId),
+        getChapterNotes(translation.id, book, chapter),
+        getChapterTitle(translation.id, book, chapter, activeStudyId),
+      ]);
+      if (cancelled) return;
+
+      if (ann.status === 'fulfilled') setAnnotations(ann.value);
+      if (hd.status === 'fulfilled') setHeadings(hd.value);
+      if (nt.status === 'fulfilled') setNotes(nt.value);
+      if (ct.status === 'fulfilled') setChapterTitle(ct.value ?? null);
+
+      const failed = [ann, hd, nt, ct].filter((r) => r.status === 'rejected');
+      if (failed.length > 0) {
+        for (const r of failed) console.error('[ExportPopover] chapter data load failed', (r as PromiseRejectedResult).reason);
+        setAction({ status: 'error', message: 'Some chapter data could not be loaded.' });
       }
     })();
     return () => {
