@@ -599,6 +599,11 @@ export function MultiTranslationView() {
             {sortedVerseNumbers.map(verseNum => {
               const heading = getHeadingBefore(verseNum);
               const verseNotes = getVerseNotes(verseNum);
+              const verseRange = selection &&
+                selection.startVerse === verseNum &&
+                selection.endVerse !== verseNum
+                  ? { startVerse: selection.startVerse, endVerse: selection.endVerse }
+                  : undefined;
               return (
               <div key={verseNum}>
                 {heading && (
@@ -763,20 +768,9 @@ export function MultiTranslationView() {
                 <div className="mt-2 mb-2">
                   <NoteCreator
                     verseNum={verseNum}
-                    range={
-                      selection && 
-                      selection.startVerse === verseNum && 
-                      selection.endVerse !== verseNum
-                        ? { startVerse: selection.startVerse, endVerse: selection.endVerse }
-                        : undefined
-                    }
+                    range={verseRange}
                     onSave={async (content) => {
-                      const range = selection &&
-                        selection.startVerse === verseNum &&
-                        selection.endVerse !== verseNum
-                          ? { startVerse: selection.startVerse, endVerse: selection.endVerse }
-                          : undefined;
-                      const note = await createNote(verseNum, content, range);
+                      const note = await createNote(verseNum, content, verseRange);
                       // Optimistically add the new note to the displayed list so
                       // it shows immediately. Previously this relied solely on the
                       // global 'annotationsUpdated' event to re-query the DB, which
