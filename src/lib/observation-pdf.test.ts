@@ -47,7 +47,7 @@ describe('buildObservationPdf', () => {
       preset({ id: 'pJeru', word: 'Jerusalem', symbol: 'mapPin', category: 'places', studyId: 's1' }),
     ];
     const input: BuildObservationPdfInput = {
-      study, activeStudyId: 's1', presets,
+      study, presets,
       lists: [{ id: 'l1', title: 'Abide', keyWordId: 'pAbide', studyId: 's1',
         items: [{ id: 'i1', content: 'remain in me', verseRef: { book: 'John', chapter: 15, verse: 4 }, createdAt: new Date(0), updatedAt: new Date(0) }],
         createdAt: new Date(0), updatedAt: new Date(0) }],
@@ -68,7 +68,7 @@ describe('buildObservationPdf', () => {
 
   it('omits empty sections (no data → title-only doc still builds)', async () => {
     const input: BuildObservationPdfInput = {
-      study, activeStudyId: 's1', presets: [],
+      study, presets: [],
       lists: [], places: [], people: [], time: [], conclusions: [], interpretations: [], applications: [],
     };
     const bytes = await buildObservationPdf(input);

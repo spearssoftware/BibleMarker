@@ -113,6 +113,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
   // Study Export state
   const [isExportingStudy, setIsExportingStudy] = useState(false);
   const [exportingStudyPdfId, setExportingStudyPdfId] = useState<string | null>(null);
+  const [studyPdfError, setStudyPdfError] = useState<string | null>(null);
   const [studyExportError, setStudyExportError] = useState<string | null>(null);
   const [studyExportSuccess, setStudyExportSuccess] = useState<string | boolean>(false);
   
@@ -611,8 +612,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
   // blank the whole report.
   const handleExportStudyPdf = async (study: Study) => {
     setExportingStudyPdfId(study.id);
-    setStudyExportError(null);
-    setStudyExportSuccess(false);
+    setStudyPdfError(null);
     try {
       const [presets, lists, places, people, time, conclusions, interpretations, applications] = await Promise.all([
         getAllMarkingPresets().catch(() => []),
@@ -625,16 +625,13 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
         getAllApplications().catch(() => []),
       ]);
       const result = await saveObservationPdf({
-        study, activeStudyId: study.id, presets,
+        study, presets,
         lists, places, people, time, conclusions, interpretations, applications,
       });
-      if ('path' in result) {
-        await openSavedPdf(result.path).catch(() => {});
-        setStudyExportSuccess(result.path);
-        setTimeout(() => setStudyExportSuccess(false), 3000);
-      }
+      // On success the saved PDF opens in the system viewer — that's the feedback.
+      if ('path' in result) await openSavedPdf(result.path).catch(() => {});
     } catch (error) {
-      setStudyExportError(error instanceof Error ? error.message : 'Failed to export study PDF');
+      setStudyPdfError(error instanceof Error ? error.message : 'Failed to export study PDF');
     } finally {
       setExportingStudyPdfId(null);
     }
@@ -1938,8 +1935,8 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                       </button>
                     )}
                   </div>
-                  {studyExportError && (
-                    <p className="text-sm text-scripture-error mb-3">{studyExportError}</p>
+                  {studyPdfError && (
+                    <p className="text-sm text-scripture-error mb-3">{studyPdfError}</p>
                   )}
                   {studies.length === 0 ? (
                     <p className="text-scripture-muted text-sm">No studies yet. Create one above to get started.</p>

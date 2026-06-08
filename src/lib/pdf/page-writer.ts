@@ -203,9 +203,10 @@ export class PageWriter {
    * box is kept together on one page when it fits; an unusually tall block that
    * can't fit a fresh page falls back to flowing text.
    */
-  writeNote(content: string, indent = 18): void {
+  writeNote(content: string): void {
     const fontSize = 9.5;
     const lineHeight = fontSize * 1.35;
+    const indent = 18;       // box left inset from the text margin
     const padX = 9;          // horizontal padding inside the box
     const padY = 7;          // vertical padding inside the box
     const marginTop = 4;

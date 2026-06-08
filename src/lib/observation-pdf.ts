@@ -28,9 +28,9 @@ import { savePdfBytes, openSavedPdf } from '@/lib/pdf/save';
 export { openSavedPdf };
 
 export interface BuildObservationPdfInput {
+  /** The study to report on; its id scopes every section. */
   study: Study;
-  activeStudyId: string | null;
-  /** All marking presets (filtered internally for the legend). */
+  /** All marking presets (filtered to the study internally for the legend). */
   presets: MarkingPreset[];
   /** Raw observation data (filtered to the study internally). */
   lists: ObservationList[];
@@ -197,26 +197,60 @@ function bcad(year: number | undefined, era: 'BC' | 'AD' | undefined): string {
   return `${year} ${era ?? 'AD'}`;
 }
 
+/** Render entries grouped by their linked keyword (preset), each entry a
+ *  ref-tagged line whose primary text comes from `toText`. */
+function renderGrouped<T extends { presetId?: string; verseRef: VerseRef; notes?: string }>(
+  writer: ObservationPageWriter,
+  items: T[],
+  presetOrder: MarkingPreset[],
+  iconFor: (p: MarkingPreset | null) => string | null,
+  toText: (item: T) => string,
+): void {
+  for (const { preset, items: group } of groupByPreset(items, presetOrder)) {
+    writer.keywordHeading(iconFor(preset), preset?.word ?? 'Other', `${group.length}`);
+    for (const item of [...group].sort((a, b) => compareRef(a.verseRef, b.verseRef))) {
+      writer.entry(refLabel(item.verseRef), toText(item), item.notes, 22);
+    }
+  }
+}
+
+/** Render guided-question entries (Interpretation / Application): a passage
+ *  heading followed by each non-empty string field as a labelled line. */
+function renderGuidedFields<T extends { verseRef: VerseRef }>(
+  writer: ObservationPageWriter,
+  entries: T[],
+  fields: Array<[keyof T, string]>,
+  headingLabel: (entry: T) => string,
+): void {
+  for (const entry of [...entries].sort((a, b) => compareRef(a.verseRef, b.verseRef))) {
+    writer.keywordHeading(null, headingLabel(entry));
+    for (const [key, label] of fields) {
+      const value = entry[key];
+      if (typeof value === 'string' && value.trim()) writer.field(label, value.trim());
+    }
+  }
+}
+
 async function buildObservationDoc(jsPDF: JsPDFCtor, input: BuildObservationPdfInput): Promise<JsPDFDoc> {
-  const { study, activeStudyId } = input;
+  const { study } = input;
+  const studyId = study.id;
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });
   const writer = new ObservationPageWriter(doc);
 
-  // Presets included by the active study (global + this study); used for the
-  // legend, grouping order, and the conclusion-inclusion gate.
-  const studyPresets = filterPresetsByStudy(input.presets, activeStudyId);
-  const presetWithSymbols = studyPresets.filter((p) => p.symbol);
+  // Presets included by the study (global + this study); used for the legend,
+  // grouping order, and the conclusion-inclusion gate.
+  const studyPresets = filterPresetsByStudy(input.presets, studyId);
   const includedPresetIds = new Set(studyPresets.map((p) => p.id));
   const presetById = new Map(input.presets.map((p) => [p.id, p]));
-  const iconCache = await buildPresetIconCache(presetWithSymbols, 13);
+  const iconCache = await buildPresetIconCache(studyPresets, 13);
 
   // Study-filtered data.
-  const lists = filterByStudy(input.lists, activeStudyId);
-  const places = filterByStudy(input.places, activeStudyId);
-  const people = filterByStudy(input.people, activeStudyId);
-  const time = filterByStudy(input.time, activeStudyId);
-  const interpretations = filterByStudy(input.interpretations, activeStudyId);
-  const applications = filterByStudy(input.applications, activeStudyId);
+  const lists = filterByStudy(input.lists, studyId);
+  const places = filterByStudy(input.places, studyId);
+  const people = filterByStudy(input.people, studyId);
+  const time = filterByStudy(input.time, studyId);
+  const interpretations = filterByStudy(input.interpretations, studyId);
+  const applications = filterByStudy(input.applications, studyId);
   const conclusions = filterConclusions(input.conclusions, includedPresetIds);
 
   const iconFor = (p: MarkingPreset | null): string | null => {
@@ -260,26 +294,17 @@ async function buildObservationDoc(jsPDF: JsPDFCtor, input: BuildObservationPdfI
   // 3. Places.
   if (places.length > 0) {
     writer.sectionHeading('Places');
-    for (const { preset, items } of groupByPreset(places, studyPresets)) {
-      writer.keywordHeading(iconFor(preset), preset?.word ?? 'Other', `${items.length}`);
-      for (const pl of [...items].sort((a, b) => compareRef(a.verseRef, b.verseRef))) {
-        writer.entry(refLabel(pl.verseRef), pl.name, pl.notes, 22);
-      }
-    }
+    renderGrouped(writer, places, studyPresets, iconFor, (pl) => pl.name);
   }
 
   // 4. People.
   if (people.length > 0) {
     writer.sectionHeading('People');
-    for (const { preset, items } of groupByPreset(people, studyPresets)) {
-      writer.keywordHeading(iconFor(preset), preset?.word ?? 'Other', `${items.length}`);
-      for (const person of [...items].sort((a, b) => compareRef(a.verseRef, b.verseRef))) {
-        const dates = [bcad(person.yearStart, person.yearStartEra), bcad(person.yearEnd, person.yearEndEra)]
-          .filter(Boolean).join('–');
-        const text = dates ? `${person.name}  (${dates})` : person.name;
-        writer.entry(refLabel(person.verseRef), text, person.notes, 22);
-      }
-    }
+    renderGrouped(writer, people, studyPresets, iconFor, (person) => {
+      const dates = [bcad(person.yearStart, person.yearStartEra), bcad(person.yearEnd, person.yearEndEra)]
+        .filter(Boolean).join('–');
+      return dates ? `${person.name}  (${dates})` : person.name;
+    });
   }
 
   // 5. Time / chronology (ordered by timeOrder then canonical).
@@ -312,16 +337,8 @@ async function buildObservationDoc(jsPDF: JsPDFCtor, input: BuildObservationPdfI
       ['context', 'Context'], ['implications', 'Implications'], ['crossReferences', 'Cross-references'],
       ['questions', 'Questions'], ['insights', 'Insights'],
     ];
-    for (const entry of [...interpretations].sort((a, b) => compareRef(a.verseRef, b.verseRef))) {
-      const passage = entry.endVerseRef
-        ? `${refLabel(entry.verseRef)}–${entry.endVerseRef.verse}`
-        : refLabel(entry.verseRef);
-      writer.keywordHeading(null, passage);
-      for (const [key, label] of fields) {
-        const value = entry[key];
-        if (typeof value === 'string' && value.trim()) writer.field(label, value.trim());
-      }
-    }
+    renderGuidedFields(writer, interpretations, fields, (e) =>
+      e.endVerseRef ? `${refLabel(e.verseRef)}–${e.endVerseRef.verse}` : refLabel(e.verseRef));
   }
 
   // 8. Application (2 Tim 3:16 fields, non-empty only).
@@ -331,13 +348,7 @@ async function buildObservationDoc(jsPDF: JsPDFCtor, input: BuildObservationPdfI
       ['teaching', 'Teaching'], ['reproof', 'Reproof'], ['correction', 'Correction'],
       ['training', 'Training'], ['notes', 'Notes'],
     ];
-    for (const entry of [...applications].sort((a, b) => compareRef(a.verseRef, b.verseRef))) {
-      writer.keywordHeading(null, refLabel(entry.verseRef));
-      for (const [key, label] of fields) {
-        const value = entry[key];
-        if (typeof value === 'string' && value.trim()) writer.field(label, value.trim());
-      }
-    }
+    renderGuidedFields(writer, applications, fields, (e) => refLabel(e.verseRef));
   }
 
   writer.drawRunningFooter(`${study.name} — generated by BibleMarker`);
