@@ -599,6 +599,11 @@ export function MultiTranslationView() {
             {sortedVerseNumbers.map(verseNum => {
               const heading = getHeadingBefore(verseNum);
               const verseNotes = getVerseNotes(verseNum);
+              const verseRange = selection &&
+                selection.startVerse === verseNum &&
+                selection.endVerse !== verseNum
+                  ? { startVerse: selection.startVerse, endVerse: selection.endVerse }
+                  : undefined;
               return (
               <div key={verseNum}>
                 {heading && (
@@ -742,8 +747,27 @@ export function MultiTranslationView() {
                       verseNum={verseNum}
                       book={currentBook}
                       chapter={currentChapter}
-                      onSave={updateNote}
-                      onDelete={removeNote}
+                      onSave={async (updated) => {
+                        // Optimistically reflect the edit in the displayed notes
+                        // so it appears immediately, not only after the next
+                        // chapter load (see createNote handler below).
+                        const prev = notes;
+                        setNotes((ns) => ns.map((n) => (n.id === updated.id ? updated : n)));
+                        try {
+                          await updateNote(updated);
+                        } catch {
+                          setNotes(prev);
+                        }
+                      }}
+                      onDelete={async (id) => {
+                        const prev = notes;
+                        setNotes((ns) => ns.filter((n) => n.id !== id));
+                        try {
+                          await removeNote(id);
+                        } catch {
+                          setNotes(prev);
+                        }
+                      }}
                     />
                   ))}
                 </div>
@@ -754,20 +778,16 @@ export function MultiTranslationView() {
                 <div className="mt-2 mb-2">
                   <NoteCreator
                     verseNum={verseNum}
-                    range={
-                      selection && 
-                      selection.startVerse === verseNum && 
-                      selection.endVerse !== verseNum
-                        ? { startVerse: selection.startVerse, endVerse: selection.endVerse }
-                        : undefined
-                    }
+                    range={verseRange}
                     onSave={async (content) => {
-                      const range = selection && 
-                        selection.startVerse === verseNum && 
-                        selection.endVerse !== verseNum
-                          ? { startVerse: selection.startVerse, endVerse: selection.endVerse }
-                          : undefined;
-                      await createNote(verseNum, content, range);
+                      const note = await createNote(verseNum, content, verseRange);
+                      // Optimistically add the new note to the displayed list so
+                      // it shows immediately. Previously this relied solely on the
+                      // global 'annotationsUpdated' event to re-query the DB, which
+                      // could leave a saved note invisible until the app restarted.
+                      if (note) {
+                        setNotes((prev) => (prev.some((n) => n.id === note.id) ? prev : [...prev, note]));
+                      }
                       setCreatingNoteAt(null);
                     }}
                     onCancel={() => setCreatingNoteAt(null)}
