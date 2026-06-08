@@ -7,6 +7,19 @@ use tauri_plugin_fs::FsExt;
 
 const HASH_BUFFER_SIZE: usize = 64 * 1024;
 
+/// Encode bytes as a lowercase hex string.
+///
+/// `digest` 0.11 returns an `Array` from `finalize()` that no longer implements
+/// `LowerHex`, so `format!("{:x}", ...)` is no longer available.
+fn to_hex(bytes: &[u8]) -> String {
+    use std::fmt::Write;
+    let mut s = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        let _ = write!(s, "{b:02x}");
+    }
+    s
+}
+
 /// Stream-hash a file on disk with SHA-256. Returns hex digest.
 fn hash_file(path: &Path) -> Result<String, std::io::Error> {
     let mut file = std::fs::File::open(path)?;
@@ -19,7 +32,7 @@ fn hash_file(path: &Path) -> Result<String, std::io::Error> {
         }
         hasher.update(&buf[..n]);
     }
-    Ok(format!("{:x}", hasher.finalize()))
+    Ok(to_hex(&hasher.finalize()))
 }
 
 /// Hash an in-memory byte slice with SHA-256. Returns hex digest.
@@ -28,7 +41,7 @@ fn hash_file(path: &Path) -> Result<String, std::io::Error> {
 fn hash_bytes(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
+    to_hex(&hasher.finalize())
 }
 
 /// Download a file from `url` and save it to `dest_path`.
