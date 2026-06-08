@@ -36,7 +36,7 @@ import type {
   TextAnnotation,
   Verse,
 } from '@/types';
-import { getBookById, getHighlightColorHex, SYMBOL_LABELS, type HighlightColor, type SymbolKey } from '@/types';
+import { getBookById, getHighlightColorHex, type HighlightColor, type SymbolKey } from '@/types';
 import { getModuleCopyright, ESV_COPYRIGHT, type ApiTranslation } from '@/lib/bible-api';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
@@ -88,65 +88,19 @@ function findCoveringHeading(verseNum: number, headings: SectionHeading[]): Sect
   return covering;
 }
 
-/**
- * A token in the marks line: either a symbol-icon-plus-word entry (`{icon}`)
- * or a plain text entry for highlights/underlines/colors (`{text}`). The
- * renderer walks these in order, placing icons as embedded PNGs and text
- * via doc.text, wrapping on the line as needed.
- */
-type MarkToken =
-  | { kind: 'icon'; symbol: SymbolKey; color: string | undefined; word: string }
-  | { kind: 'text'; text: string };
-
-/**
- * Build the list of mark tokens for a verse. Includes both persisted
- * annotations and virtual keyword-match annotations. Deduped by
- * `${kind}|${selectedText.toLowerCase()}|${label}` so the same word
- * marked twice with the same preset only lists once.
- */
-function buildMarkTokens(verse: Verse, annotations: Annotation[]): MarkToken[] {
-  const tokens: MarkToken[] = [];
-  const seen = new Set<string>();
-
-  for (const ann of annotations) {
-    if (ann.type === 'symbol') {
-      if (ann.ref.verse !== verse.ref.verse) continue;
-      const label = SYMBOL_LABELS[ann.symbol] || ann.symbol;
-      const word = ann.selectedText ?? 'verse';
-      const key = `sym|${word.toLowerCase()}|${label}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      tokens.push({ kind: 'icon', symbol: ann.symbol, color: ann.color, word });
-    } else {
-      if (ann.startRef.verse !== verse.ref.verse) continue;
-      if (ann.endRef.verse !== verse.ref.verse) continue;
-      const kind =
-        ann.type === 'highlight' ? 'highlighted'
-        : ann.type === 'textColor' ? 'colored'
-        : 'underlined';
-      const word = ann.selectedText ?? 'text';
-      const key = `${kind}|${word.toLowerCase()}|${ann.color}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      tokens.push({ kind: 'text', text: `"${word}" ${kind} ${ann.color}` });
-    }
-  }
-  return tokens;
-}
-
-/** All unique (symbol, colorHex) pairs needed for the export — used to
- *  pre-render the PNG cache before the (sync) doc builder runs. */
-function collectIconKeys(tokens: MarkToken[][]): Array<{ symbol: SymbolKey; colorHex: string | undefined }> {
+/** All unique (symbol, colorHex) pairs across the per-verse annotation lists —
+ *  used to pre-render the PNG icon cache before the (sync) doc builder runs. */
+function collectIconKeys(annotationsByVerse: Annotation[][]): Array<{ symbol: SymbolKey; colorHex: string | undefined }> {
   const seen = new Set<string>();
   const out: Array<{ symbol: SymbolKey; colorHex: string | undefined }> = [];
-  for (const list of tokens) {
-    for (const t of list) {
-      if (t.kind !== 'icon') continue;
-      const colorHex = t.color ? getHighlightColorHex(t.color as HighlightColor) : undefined;
-      const key = `${t.symbol}|${colorHex ?? ''}`;
+  for (const list of annotationsByVerse) {
+    for (const ann of list) {
+      if (ann.type !== 'symbol') continue;
+      const colorHex = ann.color ? getHighlightColorHex(ann.color as HighlightColor) : undefined;
+      const key = `${ann.symbol}|${colorHex ?? ''}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({ symbol: t.symbol, colorHex });
+      out.push({ symbol: ann.symbol, colorHex });
     }
   }
   return out;
@@ -204,9 +158,9 @@ async function rasterizeSymbol(symbol: SymbolKey, colorHex: string | undefined, 
   }
 }
 
-async function buildIconCache(tokens: MarkToken[][], sizePt: number): Promise<Map<string, string>> {
+async function buildIconCache(annotationsByVerse: Annotation[][], sizePt: number): Promise<Map<string, string>> {
   const cache = new Map<string, string>();
-  const keys = collectIconKeys(tokens);
+  const keys = collectIconKeys(annotationsByVerse);
   await Promise.all(
     keys.map(async ({ symbol, colorHex }) => {
       const dataUrl = await rasterizeSymbol(symbol, colorHex, sizePt);
@@ -329,18 +283,6 @@ class PageWriter {
     }
   }
 
-  writeCentered(text: string, opts: { fontSize: number; bold?: boolean; italics?: boolean; color?: [number, number, number]; marginBottom?: number }): void {
-    const style = opts.italics ? (opts.bold ? 'bolditalic' : 'italic') : (opts.bold ? 'bold' : 'normal');
-    this.doc.setFont('helvetica', style);
-    this.doc.setFontSize(opts.fontSize);
-    if (opts.color) this.doc.setTextColor(...opts.color); else this.doc.setTextColor(0, 0, 0);
-    const lines = this.doc.splitTextToSize(text, this.contentWidth);
-    const lineHeight = opts.fontSize * 1.2;
-    this.ensureSpace(lines.length * lineHeight + (opts.marginBottom ?? 0));
-    this.doc.text(lines, this.pageWidth / 2, this.y + opts.fontSize, { align: 'center' });
-    this.y += lines.length * lineHeight + (opts.marginBottom ?? 0);
-  }
-
   /**
    * Prominent page-1 title block: a large bold title, an optional italic
    * theme line, a secondary attribution line, and a thin divider rule.
@@ -452,70 +394,6 @@ class PageWriter {
   }
 
   /**
-   * Render a list of mark tokens beneath a verse as `[icon] word · [icon] word · …`.
-   * Plain-text tokens are rendered as-is. Icon tokens render the cached
-   * PNG followed by the word. Wraps to a new line when content doesn't
-   * fit; subsequent lines hang under the verse's body indent.
-   */
-  writeMarksLine(tokens: MarkToken[], iconCache: Map<string, string>, leftIndent: number): void {
-    if (tokens.length === 0) return;
-    const fontSize = 8.5;
-    const lineHeight = fontSize * 1.4;
-    const iconSize = fontSize * 1.15; // pt
-    const gap = 3;        // gap between icon and its word
-    const sepGap = 6;     // gap between entries
-
-    this.doc.setFont('helvetica', 'normal');
-    this.doc.setFontSize(fontSize);
-    this.doc.setTextColor(80, 80, 120);
-
-    const startX = this.opts.marginLeft + leftIndent;
-    const maxX = this.opts.marginLeft + this.contentWidth;
-    let x = startX;
-    let firstOnLine = true;
-
-    this.ensureSpace(lineHeight);
-
-    for (const token of tokens) {
-      const isIcon = token.kind === 'icon';
-      const word = isIcon ? token.word : token.text;
-      const wordWidth = this.doc.getTextWidth(word);
-      const entryWidth = (isIcon ? iconSize + gap : 0) + wordWidth;
-      const needed = entryWidth + (firstOnLine ? 0 : sepGap + this.doc.getTextWidth('·') + sepGap);
-
-      if (!firstOnLine && x + needed > maxX) {
-        // Wrap to next line.
-        this.y += lineHeight;
-        this.ensureSpace(lineHeight);
-        x = startX;
-        firstOnLine = true;
-      }
-
-      if (!firstOnLine) {
-        const sep = '·';
-        const sepW = this.doc.getTextWidth(sep);
-        this.doc.text(sep, x + sepGap, this.y + fontSize);
-        x += sepGap + sepW + sepGap;
-      }
-
-      if (isIcon) {
-        const cacheKey = `${token.symbol}|${token.color ? getHighlightColorHex(token.color as HighlightColor) : ''}`;
-        const dataUrl = iconCache.get(cacheKey);
-        if (dataUrl) {
-          // Center icon vertically with the text baseline.
-          this.doc.addImage(dataUrl, 'PNG', x, this.y + (fontSize - iconSize) / 2 + 1, iconSize, iconSize);
-        }
-        x += iconSize + gap;
-      }
-      this.doc.text(word, x, this.y + fontSize);
-      x += wordWidth;
-      firstOnLine = false;
-    }
-
-    this.y += lineHeight;
-  }
-
-  /**
    * Render a verse with annotations laid out inline. Two-pass: first lays
    * out tokens onto lines, second renders each line. Every body line
    * reserves the same icon row above it, so line leading is uniform
@@ -536,7 +414,11 @@ class PageWriter {
     this.doc.setFontSize(fontSize);
 
     const numLabel = `${verseNum} `;
-    const numWidth = approxTextWidth(this.doc, numLabel);
+    // Measure with the bold face the number is actually drawn in, so the body
+    // gutter matches the rendered width.
+    this.doc.setFont('helvetica', 'bold');
+    const numWidth = this.doc.getTextWidth(numLabel);
+    this.doc.setFont('helvetica', 'normal');
     const bodyLeft = this.opts.marginLeft + numWidth;
     const maxX = this.opts.marginLeft + this.contentWidth;
 
@@ -743,19 +625,6 @@ function annotationCoversToken(ann: Annotation, tok: VerseToken, verseNum: numbe
   return s < tok.endOffset && e > tok.startOffset;
 }
 
-function approxTextWidth(doc: JsPDFDoc, text: string): number {
-  // splitTextToSize returns whatever fits in maxWidth. We probe with a very
-  // large width to get the line as a single string, then measure with a
-  // shrinking binary-ish heuristic. jsPDF exposes getStringUnitWidth in
-  // most builds but the typings disagree; this is the portable workaround.
-  const big = 9999;
-  const oneLine = doc.splitTextToSize(text, big)[0] ?? '';
-  // Estimate: 11pt Helvetica averages ~5.5 units per char; close enough for
-  // verse-number gutter sizing. The text is always short ("1 ", "12 ", etc.)
-  // so a small over-estimate is fine.
-  return Math.max(10, oneLine.length * 5.5 + 2);
-}
-
 // --- Document builder --------------------------------------------------------
 
 async function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): Promise<JsPDFDoc> {
@@ -774,7 +643,6 @@ async function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): Promi
   // Built once up front so we can pre-rasterize every unique symbol icon
   // in a single async pass before the (sync) PDF doc-building pass.
   const verseAnnotations = new Map<number, Annotation[]>();
-  const tokensForIconCache: MarkToken[][] = [];
   for (const verse of inRange) {
     const verseAnns = annotations.filter((a) => {
       if (a.type === 'symbol') return a.ref.verse === verse.ref.verse;
@@ -783,13 +651,9 @@ async function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): Promi
     const virtualAnns = filteredPresets.length > 0
       ? findKeywordMatches(verse.text || '', verse.ref, filteredPresets, translation.id, exclusions)
       : [];
-    const all = [...verseAnns, ...virtualAnns];
-    verseAnnotations.set(verse.ref.verse, all);
-    // Feed every annotation through buildMarkTokens just to enumerate the
-    // unique (symbol, color) pairs the rasterizer needs.
-    tokensForIconCache.push(buildMarkTokens(verse, all));
+    verseAnnotations.set(verse.ref.verse, [...verseAnns, ...virtualAnns]);
   }
-  const iconCache = await buildIconCache(tokensForIconCache, 14);
+  const iconCache = await buildIconCache([...verseAnnotations.values()], 14);
 
   const rangeLabel = formatRangeLabel(book, chapter, verseRange);
   const showChapterTitle = !verseRange || verseRange.start === (verses[0]?.ref.verse ?? 1);
