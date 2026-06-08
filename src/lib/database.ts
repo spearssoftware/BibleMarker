@@ -759,9 +759,32 @@ export async function exportAllData(): Promise<DatabaseExportData> {
   return mod.sqliteExportAll();
 }
 
+/**
+ * Re-apply the v10 keyword-marking normalization to imported presets.
+ *
+ * The v10 schema migration (see `migrateSchema` in sqlite-db.ts) flips legacy
+ * symbol presets that stored `highlight.style = 'highlight'` to `'none'`. That
+ * style never rendered in the pre-#230 symbol renderer, so the keyword looked
+ * symbol-only; once decorations render alongside symbols it would suddenly
+ * sprout a highlight band. The migration only runs on schema upgrade, so
+ * presets restored from a pre-v10 backup onto an already-v10 database bypass
+ * it and would re-introduce the stray highlights. Apply the same rule here so
+ * imports stay consistent with migrated data.
+ */
+export function normalizeImportedPresetMarking(preset: MarkingPreset): MarkingPreset {
+  if (preset.symbol && preset.highlight?.style === 'highlight') {
+    return { ...preset, highlight: { ...preset.highlight, style: 'none' } };
+  }
+  return preset;
+}
+
 export async function importAllData(data: DatabaseExportData): Promise<void> {
   const mod = await sqlite();
-  return mod.sqliteImportAll(data);
+  const normalized: DatabaseExportData = {
+    ...data,
+    markingPresets: data.markingPresets.map(normalizeImportedPresetMarking),
+  };
+  return mod.sqliteImportAll(normalized);
 }
 
 // ============================================================================
