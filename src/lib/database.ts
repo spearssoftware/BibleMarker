@@ -772,7 +772,8 @@ export async function exportAllData(): Promise<DatabaseExportData> {
  * imports stay consistent with migrated data.
  */
 export function normalizeImportedPresetMarking(preset: MarkingPreset): MarkingPreset {
-  if (preset.symbol && preset.highlight?.style === 'highlight') {
+  // `!= null` (not truthiness) to mirror the migration's `symbol IS NOT NULL`.
+  if (preset.symbol != null && preset.highlight?.style === 'highlight') {
     return { ...preset, highlight: { ...preset.highlight, style: 'none' } };
   }
   return preset;
