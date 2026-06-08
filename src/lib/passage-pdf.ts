@@ -277,6 +277,7 @@ class PageWriter {
   private opts: PageWriterOptions;
   private y: number;
   private headerText: string | null = null;
+  private pageNo = 1;
   readonly pageWidth: number;
   readonly pageHeight: number;
   readonly contentWidth: number;
@@ -298,6 +299,8 @@ class PageWriter {
 
   private drawHeaderOnCurrentPage(): void {
     if (!this.headerText) return;
+    // Page 1 carries the prominent title block instead of the running header.
+    if (this.pageNo <= 1) return;
     this.doc.setFont('helvetica', 'normal');
     this.doc.setFontSize(9);
     this.doc.setTextColor(110, 110, 110);
@@ -312,6 +315,7 @@ class PageWriter {
   private ensureSpace(needed: number): void {
     if (this.y + needed > this.bottomLimit()) {
       this.doc.addPage();
+      this.pageNo += 1;
       this.y = this.opts.marginTop;
       this.drawHeaderOnCurrentPage();
     }
@@ -327,6 +331,45 @@ class PageWriter {
     this.ensureSpace(lines.length * lineHeight + (opts.marginBottom ?? 0));
     this.doc.text(lines, this.pageWidth / 2, this.y + opts.fontSize, { align: 'center' });
     this.y += lines.length * lineHeight + (opts.marginBottom ?? 0);
+  }
+
+  /**
+   * Prominent page-1 title block: a large bold title, an optional italic
+   * theme line, a secondary attribution line, and a thin divider rule.
+   */
+  writeTitle(main: string, secondary: string, theme?: string): void {
+    // Main title.
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFontSize(23);
+    this.doc.setTextColor(17, 17, 17);
+    const titleLines = this.doc.splitTextToSize(main, this.contentWidth);
+    const titleLH = 23 * 1.15;
+    this.ensureSpace(titleLines.length * titleLH + 40);
+    this.doc.text(titleLines, this.pageWidth / 2, this.y + 23, { align: 'center' });
+    this.y += titleLines.length * titleLH + 4;
+
+    // Theme (sub-heading) line.
+    if (theme) {
+      this.doc.setFont('helvetica', 'italic');
+      this.doc.setFontSize(11.5);
+      this.doc.setTextColor(85, 85, 85);
+      const themeLines = this.doc.splitTextToSize(theme, this.contentWidth);
+      this.doc.text(themeLines, this.pageWidth / 2, this.y + 11.5, { align: 'center' });
+      this.y += themeLines.length * (11.5 * 1.3) + 2;
+    }
+
+    // Secondary attribution line (translation / reference).
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFontSize(10);
+    this.doc.setTextColor(120, 120, 120);
+    this.doc.text(secondary, this.pageWidth / 2, this.y + 10, { align: 'center' });
+    this.y += 10 + 12;
+
+    // Divider rule.
+    this.doc.setDrawColor(205, 205, 205);
+    this.doc.setLineWidth(0.75);
+    this.doc.line(this.opts.marginLeft, this.y, this.pageWidth - this.opts.marginRight, this.y);
+    this.y += 16;
   }
 
   writeBlock(text: string, opts: { fontSize: number; bold?: boolean; italics?: boolean; color?: [number, number, number]; indent?: number; marginTop?: number; marginBottom?: number }): void {
@@ -415,17 +458,20 @@ class PageWriter {
 
   /**
    * Render a verse with annotations laid out inline. Two-pass: first lays
-   * out tokens onto lines (so we know which lines contain symbol-marked
-   * words), second renders each line — adding extra vertical headroom
-   * above any line that has symbols, with icons drawn full-opacity in
-   * that gap above the word they mark. Matches the on-screen reader's
-   * "icons above words" appearance.
+   * out tokens onto lines, second renders each line. Every body line
+   * reserves the same icon row above it, so line leading is uniform
+   * whether or not a line carries symbols — symbols simply occupy the
+   * reserved gap above the word(s) they mark. Each symbol annotation draws
+   * exactly once, centered over the full span of words it covers (so a
+   * multi-word keyword gets a single symbol, not one per word). Matches the
+   * on-screen reader's "icons above words" appearance.
    */
   writeVerse(verseNum: number, body: string, annotations: Annotation[], iconCache: Map<string, string>): number {
     const fontSize = 11;
-    const lineHeight = fontSize * 1.4;
-    const iconSize = fontSize * 1.3;
+    const lineHeight = fontSize * 1.3;
+    const iconSize = 11.5;
     const iconGap = 2;
+    const symbolRow = iconSize + iconGap; // reserved above every line for consistent leading
 
     this.doc.setFont('helvetica', 'normal');
     this.doc.setFontSize(fontSize);
@@ -442,19 +488,14 @@ class PageWriter {
       x: number;
       width: number;
     }
-    interface Line {
-      tokens: LaidOutToken[];
-      hasSymbols: boolean;
-    }
     const tokens = tokenizeVerse(body);
-    const lines: Line[] = [];
-    let line: Line = { tokens: [], hasSymbols: false };
+    const lines: LaidOutToken[][] = [];
+    let line: LaidOutToken[] = [];
     let x = bodyLeft;
     let firstOnLine = true;
 
     for (const tok of tokens) {
       const covers = annotations.filter((a) => annotationCoversToken(a, tok, verseNum));
-      const tokenHasSymbol = covers.some((a) => a.type === 'symbol');
 
       const leading = firstOnLine ? '' : tok.leadingSpace || ' ';
       const leadingW = leading ? this.doc.getTextWidth(leading) : 0;
@@ -462,25 +503,23 @@ class PageWriter {
 
       if (!firstOnLine && x + leadingW + wordW > maxX) {
         lines.push(line);
-        line = { tokens: [], hasSymbols: false };
+        line = [];
         x = bodyLeft;
         firstOnLine = true;
       }
       if (!firstOnLine) x += leadingW;
 
-      line.tokens.push({ tok, covers, x, width: wordW });
-      if (tokenHasSymbol) line.hasSymbols = true;
+      line.push({ tok, covers, x, width: wordW });
       x += wordW;
       firstOnLine = false;
     }
-    if (line.tokens.length > 0) lines.push(line);
+    if (line.length > 0) lines.push(line);
 
     // -- Pass 2: render --
     for (let li = 0; li < lines.length; li++) {
       const ln = lines[li];
-      const headroom = ln.hasSymbols ? iconSize + iconGap : 0;
-      this.ensureSpace(headroom + lineHeight);
-      this.y += headroom; // make room above this line for the icon row
+      this.ensureSpace(symbolRow + lineHeight);
+      this.y += symbolRow; // uniform icon row above every line
 
       // Verse number on the first physical line of the verse.
       if (li === 0) {
@@ -491,12 +530,12 @@ class PageWriter {
         this.doc.setTextColor(0, 0, 0);
       }
 
-      for (const lt of ln.tokens) {
+      // Text run (highlights, colors, underlines, words).
+      for (const lt of ln) {
         const { tok, covers, x: tokX, width: wordW } = lt;
         const highlight = covers.find((a) => a.type === 'highlight') as TextAnnotation | undefined;
         const textColor = covers.find((a) => a.type === 'textColor') as TextAnnotation | undefined;
         const underline = covers.find((a) => a.type === 'underline') as TextAnnotation | undefined;
-        const symbols = covers.filter((a): a is SymbolAnnotation => a.type === 'symbol');
 
         // Highlight rect.
         if (highlight) {
@@ -524,16 +563,42 @@ class PageWriter {
           const uy = this.y + fontSize + 1.5;
           this.doc.line(tokX, uy, tokX + wordW, uy);
         }
+      }
 
-        // Symbols ABOVE the word, in the headroom we reserved for this line.
-        // Center each over the word horizontally. Multiple symbols → side by
-        // side; if too wide, clamp to the icon row above the word.
-        if (symbols.length > 0) {
-          const totalIconW = symbols.length * iconSize + (symbols.length - 1) * 1;
-          let ix = tokX + wordW / 2 - totalIconW / 2;
+      // Symbols ABOVE the line: one per annotation, centered over the full
+      // span of words it covers on this line. Group annotations that share
+      // the same span so co-located symbols sit side by side.
+      const spanByAnn = new Map<string, { left: number; right: number; ann: SymbolAnnotation }>();
+      for (const lt of ln) {
+        const left = lt.x;
+        const right = lt.x + lt.width;
+        for (const a of lt.covers) {
+          if (a.type !== 'symbol') continue;
+          const e = spanByAnn.get(a.id);
+          if (e) {
+            e.left = Math.min(e.left, left);
+            e.right = Math.max(e.right, right);
+          } else {
+            spanByAnn.set(a.id, { left, right, ann: a });
+          }
+        }
+      }
+      if (spanByAnn.size > 0) {
+        const groups = new Map<string, { left: number; right: number; anns: SymbolAnnotation[] }>();
+        for (const { left, right, ann } of spanByAnn.values()) {
+          const key = `${Math.round(left)}|${Math.round(right)}`;
+          const g = groups.get(key) ?? { left, right, anns: [] };
+          g.anns.push(ann);
+          groups.set(key, g);
+        }
+        const iy = this.y - iconGap - iconSize;
+        for (const g of groups.values()) {
+          const center = (g.left + g.right) / 2;
+          const totalIconW = g.anns.length * iconSize + (g.anns.length - 1) * 1;
+          let ix = center - totalIconW / 2;
           if (ix < this.opts.marginLeft) ix = this.opts.marginLeft;
-          const iy = this.y - iconGap - iconSize;
-          for (const sym of symbols) {
+          if (ix + totalIconW > maxX) ix = maxX - totalIconW;
+          for (const sym of g.anns) {
             const colorHex = sym.color ? getHighlightColorHex(sym.color as HighlightColor) : undefined;
             const dataUrl = iconCache.get(`${sym.symbol}|${colorHex ?? ''}`);
             if (dataUrl) this.doc.addImage(dataUrl, 'PNG', ix, iy, iconSize, iconSize);
@@ -670,16 +735,14 @@ async function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): Promi
   const rangeLabel = formatRangeLabel(book, chapter, verseRange);
   const showChapterTitle = !verseRange || verseRange.start === (verses[0]?.ref.verse ?? 1);
 
-  // Running page header — drawn at top of every page (above marginTop).
+  // Running page header — drawn at top of pages 2+ (page 1 gets the title block).
   writer.setHeader(`${rangeLabel}  ·  ${translation.name}`);
 
-  if (showChapterTitle && chapterTitle?.title) {
-    writer.writeCentered(chapterTitle.title, { fontSize: 18, bold: true, marginBottom: 4 });
-    if (chapterTitle.theme) {
-      writer.writeCentered(chapterTitle.theme, { fontSize: 10, italics: true, color: [85, 85, 85], marginBottom: 14 });
-    } else {
-      writer.writeBlock('', { fontSize: 1, marginBottom: 10 });
-    }
+  if (showChapterTitle) {
+    const customTitle = chapterTitle?.title?.trim();
+    const main = customTitle || rangeLabel;
+    const secondary = customTitle ? `${rangeLabel}  ·  ${translation.name}` : translation.name;
+    writer.writeTitle(main, secondary, customTitle ? chapterTitle?.theme : undefined);
   }
 
   // If the range starts mid-section, show the section heading it falls under.
@@ -700,7 +763,7 @@ async function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): Promi
     }
 
     writer.writeVerse(verse.ref.verse, verse.text || '', verseAnnotations.get(verse.ref.verse) ?? [], iconCache);
-    writer.spacer(3);
+    writer.spacer(8);
 
     const verseNotes = notes.filter(
       (n) => n.ref.verse === verse.ref.verse ||
