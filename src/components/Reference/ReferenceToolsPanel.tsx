@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { ReferenceTab } from '@/stores/panelStore';
 import { ChapterEntitiesTab } from './ChapterEntitiesTab';
 import { PersonDetail } from './PersonDetail';
@@ -34,17 +34,24 @@ interface DetailView {
 
 export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter', entitySlug, searchQuery, strongsNumber, verse }: ReferenceToolsPanelProps) {
   const [activeTab, setActiveTab] = useState<ReferenceTab>(initialTab);
-  const [detailView, setDetailView] = useState<DetailView | null>(null);
-
-  useEffect(() => {
+  const [prevInitialTab, setPrevInitialTab] = useState(initialTab);
+  if (initialTab !== prevInitialTab) {
+    setPrevInitialTab(initialTab);
     setActiveTab(initialTab);
-  }, [initialTab]);
+  }
 
-  useEffect(() => {
+  // Seed the detail view from entitySlug so mounting with a slug works on mount;
+  // the prevEntitySlug tracker below handles subsequent changes.
+  const [detailView, setDetailView] = useState<DetailView | null>(
+    entitySlug ? { type: 'search', slug: entitySlug } : null
+  );
+  const [prevEntitySlug, setPrevEntitySlug] = useState(entitySlug);
+  if (entitySlug !== prevEntitySlug) {
+    setPrevEntitySlug(entitySlug);
     if (entitySlug) {
       setDetailView({ type: 'search', slug: entitySlug });
     }
-  }, [entitySlug]);
+  }
 
   const navigateToDetail = (type: string, slug: string) => {
     setDetailView({ type, slug });

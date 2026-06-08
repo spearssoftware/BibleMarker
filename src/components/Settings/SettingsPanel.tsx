@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import { getBookById, BIBLE_BOOKS } from '@/types';
+import { getBookById, BIBLE_BOOKS, MARKING_STYLE_OPTIONS, type MarkingStyle } from '@/types';
 import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences, getSyncDiagnostics, type SyncDiagnostics } from '@/lib/database';
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
 import { exportStudyData } from '@/lib/export';
@@ -79,6 +79,8 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     setSymbolOpacity,
     symbolSize,
     setSymbolSize,
+    defaultMultiWordMarking,
+    setDefaultMultiWordMarking,
   } = useAnnotationStore();
   const { currentBook, currentModuleId } = useBibleStore();
   const [theme, setTheme] = useState<'dark' | 'light' | 'auto'>('dark');
@@ -439,6 +441,15 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     }
   };
 
+  const handleDefaultMultiWordMarkingChange = async (next: MarkingStyle) => {
+    setDefaultMultiWordMarking(next);
+    try {
+      await updatePreferences({ defaultMultiWordMarking: next });
+    } catch (error) {
+      console.error('Error updating default multi-word marking:', error);
+    }
+  };
+
   const handleSymbolPositionChange = async (next: SymbolPosition) => {
     setSymbolPosition(next);
     applySymbolPosition(next);
@@ -779,6 +790,22 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                 />
                 <p className="text-xs text-scripture-muted mt-2">
                   Render symbol marks as a watermark behind each annotated word, or floating above it. Above gives more legible marks but spreads verses out.
+                </p>
+              </div>
+
+              <div className="border-t border-scripture-border/30 my-4"></div>
+
+              <div className="p-4">
+                <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Multi-Word Keyword Marking</h3>
+                <SegmentedControl<MarkingStyle>
+                  columns={3}
+                  ariaLabel="Default marking for multi-word keywords"
+                  value={defaultMultiWordMarking}
+                  onChange={handleDefaultMultiWordMarkingChange}
+                  options={MARKING_STYLE_OPTIONS}
+                />
+                <p className="text-xs text-scripture-muted mt-2">
+                  The marking pre-selected when you create a keyword that spans more than one word, to tie the words together. You can still change it per keyword.
                 </p>
               </div>
 

@@ -37,13 +37,9 @@ export function KeyWordFinder({ preset, onClose }: KeyWordFinderProps) {
   const [searchScope, setSearchScope] = useState<SearchScope>('chapter');
 
   useEffect(() => {
-    searchOccurrences();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- searchOccurrences is stable; deps are scope only
-  }, [preset, currentBook, currentChapter, currentModuleId, searchScope]);
-
-  async function searchOccurrences() {
+    void (async () => {
     if (!currentModuleId) return;
-    
+
     setIsLoading(true);
     try {
       // Get all cached chapters
@@ -140,7 +136,8 @@ export function KeyWordFinder({ preset, onClose }: KeyWordFinderProps) {
     } finally {
       setIsLoading(false);
     }
-  }
+    })();
+  }, [preset, currentBook, currentChapter, currentModuleId, searchScope]);
 
   return (
     <div className="flex flex-col h-full">

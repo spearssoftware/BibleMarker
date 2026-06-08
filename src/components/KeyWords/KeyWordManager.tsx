@@ -8,15 +8,20 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, scopeLabel, type KeyWordCategory, type MarkingPreset, type PresetScope, type Variant } from '@/types';
+import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, scopeLabel, MARKING_STYLE_OPTIONS, type KeyWordCategory, type MarkingPreset, type MarkingStyle, type PresetScope, type Variant } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { SYMBOLS, SYMBOL_LABELS, SYMBOL_CATEGORIES, isLetterOrNumberSymbol, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
 import { SymbolIcon } from '@/lib/symbolDisplay';
 import { Trash } from '@phosphor-icons/react';
 import { useAnnotationStore } from '@/stores/annotationStore';
-import { Input, Textarea, Label, DropdownSelect, Checkbox, Button } from '@/components/shared';
+import { Input, Textarea, Label, DropdownSelect, Checkbox, Button, SegmentedControl } from '@/components/shared';
 import { getBookById, BIBLE_BOOKS } from '@/types';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
+
+/** A word/phrase counts as multi-word when it has 2+ whitespace-separated tokens. */
+function isMultiWordText(text: string): boolean {
+  return text.trim().split(/\s+/).filter(Boolean).length > 1;
+}
 
 interface KeyWordManagerProps {
   onClose?: () => void;
@@ -47,7 +52,9 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
   const { currentBook, currentChapter } = useBibleStore();
   const { activeStudyId } = useStudyStore();
 
-  const [isCreating, setIsCreating] = useState(false);
+  // Seed create mode from initialWord so opening with a selection works on mount;
+  // the prevInitialWord tracker below handles subsequent changes.
+  const [isCreating, setIsCreating] = useState(!!initialWord);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -58,12 +65,14 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
   }, [loadPresets]);
 
   // When opened with a selection (e.g. "➕ Key Word"), start in create mode
-  useEffect(() => {
+  const [prevInitialWord, setPrevInitialWord] = useState(initialWord);
+  if (initialWord !== prevInitialWord) {
+    setPrevInitialWord(initialWord);
     if (initialWord) {
       setIsCreating(true);
       setEditingId(null);
     }
-  }, [initialWord]);
+  }
 
   // Filter presets by active study (null = global only; study = global + study) and scope, then sort
   const filteredPresets = useMemo(() => {
@@ -128,6 +137,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
     variants: Variant[];
     symbol?: SymbolKey;
     color?: HighlightColor;
+    marking: MarkingStyle;
     category: KeyWordCategory;
     description: string;
     autoSuggest: boolean;
@@ -136,7 +146,18 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
     caseSensitive?: boolean;
   }) {
     try {
-      const highlight = formData.color ? { style: 'highlight' as const, color: formData.color } : undefined;
+      // Must produce something visible: a symbol, or a decoration that has a color.
+      if (!formData.symbol && formData.marking === 'none') {
+        alert('Add a symbol, an underline, or a highlight.');
+        return;
+      }
+      if (formData.marking !== 'none' && !formData.color) {
+        alert('Pick a color for the underline or highlight.');
+        return;
+      }
+      // Keep highlight present (carrying color) so the symbol stays tinted even when
+      // marking is 'none'. 'none' = color only, no text decoration drawn.
+      const highlight = formData.color ? { style: formData.marking, color: formData.color } : undefined;
       const scopes = formData.scopes;
       if (editingId) {
         const existing = presets.find((p) => p.id === editingId);
@@ -157,10 +178,6 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
           });
         }
       } else {
-        if (!formData.symbol && !formData.color) {
-          alert('Add at least a symbol or a color.');
-          return;
-        }
         const preset = createMarkingPreset({
           word: formData.word.trim() || undefined,
           variants: formData.variants,
@@ -655,6 +672,7 @@ function KeyWordEditor({
     variants: Variant[];
     symbol?: SymbolKey;
     color?: HighlightColor;
+    marking: MarkingStyle;
     category: KeyWordCategory;
     description: string;
     autoSuggest: boolean;
@@ -673,6 +691,31 @@ function KeyWordEditor({
   const [symbol, setSymbol] = useState<SymbolKey | undefined>(initialSymbol ?? preset?.symbol);
   const [color, setColor] = useState<HighlightColor | undefined>(preset?.highlight?.color ?? (preset ? initialColor : getRandomHighlightColor()));
   const recentSymbols = useAnnotationStore(s => s.preferences.recentSymbols);
+  const defaultMultiWordMarking = useAnnotationStore(s => s.defaultMultiWordMarking);
+
+  // Marking decoration drawn across the word/phrase. New keywords default by word shape:
+  // single-word → none, multi-word → the user's defaultMultiWordMarking setting.
+  const [marking, setMarking] = useState<MarkingStyle>(() => {
+    if (preset) {
+      const s = preset.highlight?.style;
+      return s === 'underline' || s === 'highlight' ? s : 'none';
+    }
+    return isMultiWordText(initialWord || '') ? defaultMultiWordMarking : 'none';
+  });
+  const [markingTouched, setMarkingTouched] = useState(false);
+
+  // Re-derive the default marking when the keyword's shape changes (new keyword only, until
+  // the user picks one manually) using the sanctioned "adjust state during render" pattern.
+  // The marking applies to every match, so a multi-word PRIMARY word OR any multi-word
+  // variant counts as multi-word → the user's default setting; otherwise none.
+  const isMultiWordKeyword = isMultiWordText(word) || variants.some(v => isMultiWordText(v.text));
+  const [prevMultiWord, setPrevMultiWord] = useState(isMultiWordKeyword);
+  if (isMultiWordKeyword !== prevMultiWord) {
+    setPrevMultiWord(isMultiWordKeyword);
+    if (!preset && !markingTouched) {
+      setMarking(isMultiWordKeyword ? defaultMultiWordMarking : 'none');
+    }
+  }
 
   // Update word when initialWord changes (e.g., new selection made)
   useEffect(() => {
@@ -729,6 +772,7 @@ function KeyWordEditor({
       variants: validVariants,
       symbol,
       color,
+      marking,
       category,
       description: description.trim(),
       autoSuggest,
@@ -782,6 +826,21 @@ function KeyWordEditor({
         </div>
 
         <div className="space-y-4">
+          <div>
+            <Label helpText="across the word or phrase">Marking</Label>
+            <SegmentedControl<MarkingStyle>
+              options={MARKING_STYLE_OPTIONS}
+              value={marking}
+              onChange={(val) => {
+                setMarking(val);
+                setMarkingTouched(true);
+                if (val !== 'none' && !color) setColor(getRandomHighlightColor());
+              }}
+              columns={3}
+              ariaLabel="Word marking"
+            />
+          </div>
+
           <div>
             <ColorAccordion color={color} onSelect={setColor} />
           </div>

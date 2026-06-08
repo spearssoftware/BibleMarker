@@ -39,10 +39,10 @@ export function useChapterEntities(book: string | undefined, chapter: number | u
     if (!book || chapter === undefined) return;
 
     let cancelled = false;
-    setIsLoading(true);
-    setError(null);
 
     (async () => {
+      setIsLoading(true);
+      setError(null);
       try {
         const provider = await ensureProvider();
         const result = await provider.getChapterEntities(book, chapter);
@@ -75,16 +75,18 @@ export function useGnosisEntity<T>(
   const [error, setError] = useState<string | null>(null);
   const [fetchCount, setFetchCount] = useState(0);
   const fetcherRef = useRef(fetcher);
-  fetcherRef.current = fetcher;
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  });
 
   const refetch = useCallback(() => setFetchCount((c) => c + 1), []);
 
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
-    setError(null);
 
     (async () => {
+      setIsLoading(true);
+      setError(null);
       try {
         const provider = await ensureProvider();
         const result = await fetcherRef.current(provider);
@@ -120,14 +122,24 @@ export function useGnosisSearch<T>(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searcherRef = useRef(searcher);
-  searcherRef.current = searcher;
-
   useEffect(() => {
+    searcherRef.current = searcher;
+  });
+
+  // Clear results the moment the query is emptied. This matches the old effect's
+  // empty-query branch but runs during render (an allowed setState) instead of
+  // synchronously inside an effect, so it doesn't trip set-state-in-effect.
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (query !== prevQuery) {
+    setPrevQuery(query);
     if (!query.trim()) {
       setResults([]);
       setTotal(0);
-      return;
     }
+  }
+
+  useEffect(() => {
+    if (!query.trim()) return;
 
     let cancelled = false;
     const timer = setTimeout(async () => {
