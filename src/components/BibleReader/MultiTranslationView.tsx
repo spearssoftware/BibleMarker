@@ -751,12 +751,22 @@ export function MultiTranslationView() {
                         // Optimistically reflect the edit in the displayed notes
                         // so it appears immediately, not only after the next
                         // chapter load (see createNote handler below).
-                        setNotes((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
-                        await updateNote(updated);
+                        const prev = notes;
+                        setNotes((ns) => ns.map((n) => (n.id === updated.id ? updated : n)));
+                        try {
+                          await updateNote(updated);
+                        } catch {
+                          setNotes(prev);
+                        }
                       }}
                       onDelete={async (id) => {
-                        setNotes((prev) => prev.filter((n) => n.id !== id));
-                        await removeNote(id);
+                        const prev = notes;
+                        setNotes((ns) => ns.filter((n) => n.id !== id));
+                        try {
+                          await removeNote(id);
+                        } catch {
+                          setNotes(prev);
+                        }
                       }}
                     />
                   ))}
