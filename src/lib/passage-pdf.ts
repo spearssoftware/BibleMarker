@@ -156,19 +156,26 @@ function collectIconKeys(tokens: MarkToken[][]): Array<{ symbol: SymbolKey; colo
  *  (for crisp rendering at print resolutions). Returns null if rasterization
  *  fails — caller falls back to a text label. */
 async function rasterizeSymbol(symbol: SymbolKey, colorHex: string | undefined, sizePt: number): Promise<string | null> {
-  const markup = getSymbolMarkup(symbol, colorHex ?? '#222');
+  const color = colorHex ?? '#222';
+  const markup = getSymbolMarkup(symbol, color);
   if (!markup) return null;
-  // getSymbolMarkup wraps the SVG in a <span>; jsPDF needs the raw SVG.
+  // getSymbolMarkup wraps the SVG in a <span style="color:…"> and relies on
+  // CSS `currentColor` to tint the Phosphor paths. We rasterize the bare SVG
+  // (without that span), so the color would otherwise be lost — bake it in by
+  // substituting currentColor with the actual hex. Duotone keeps its two-tone
+  // look because the faint background layer shares the same currentColor.
   const svgMatch = markup.match(/<svg[\s\S]*<\/svg>/);
   if (!svgMatch) return null;
   // Force an explicit width/height on the SVG so canvas drawImage knows the
   // intrinsic size — Phosphor's em-based sizing gives 0×0 on a free SVG.
-  const svgStr = svgMatch[0].replace(/<svg([^>]*)>/, (_m, attrs) => {
-    const cleaned = String(attrs)
-      .replace(/\swidth="[^"]*"/, '')
-      .replace(/\sheight="[^"]*"/, '');
-    return `<svg${cleaned} width="64" height="64">`;
-  });
+  const svgStr = svgMatch[0]
+    .replace(/currentColor/g, color)
+    .replace(/<svg([^>]*)>/, (_m, attrs) => {
+      const cleaned = String(attrs)
+        .replace(/\swidth="[^"]*"/, '')
+        .replace(/\sheight="[^"]*"/, '');
+      return `<svg${cleaned} width="64" height="64">`;
+    });
   const px = Math.max(16, Math.round(sizePt * 2));
 
   try {
