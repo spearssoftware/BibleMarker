@@ -38,6 +38,11 @@ export function AnalyzeToolsPanel({
   themeSearchTerm,
 }: AnalyzeToolsPanelProps) {
   const [activeTab, setActiveTabRaw] = useState<AnalyzeTab>(initialTab);
+  const [prevInitialTab, setPrevInitialTab] = useState(initialTab);
+  if (initialTab !== prevInitialTab) {
+    setPrevInitialTab(initialTab);
+    setActiveTabRaw(initialTab);
+  }
   const [filterByChapter, setFilterByChapter] = useState(true);
   const [filterByBook, setFilterByBook] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -52,10 +57,6 @@ export function AnalyzeToolsPanel({
     setIsCreating(false);
     setActiveTabRaw(tab);
   };
-
-  useEffect(() => {
-    setActiveTabRaw(initialTab);
-  }, [initialTab]);
 
   const allTabs: { id: AnalyzeTab; label: string; icon: string }[] = [
     { id: 'chapter', label: 'Chapter', icon: '📄' },

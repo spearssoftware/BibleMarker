@@ -70,16 +70,18 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
     });
 
     if (matchingPreset) {
-      setIsAutoResolving(true);
-      getOrCreateListForKeyword(matchingPreset.id, activeStudyId ?? undefined, verseRef.book)
-        .then(list => {
+      void (async () => {
+        setIsAutoResolving(true);
+        try {
+          const list = await getOrCreateListForKeyword(matchingPreset.id, activeStudyId ?? undefined, verseRef.book);
           setAutoListId(list.id);
           setAutoListTitle(list.title);
-        })
-        .catch(err => {
+        } catch (err) {
           console.error('[AddToList] Failed to auto-resolve list:', err);
-        })
-        .finally(() => setIsAutoResolving(false));
+        } finally {
+          setIsAutoResolving(false);
+        }
+      })();
     }
   // Run once on mount
   // eslint-disable-next-line react-hooks/exhaustive-deps

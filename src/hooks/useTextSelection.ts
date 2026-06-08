@@ -323,7 +323,9 @@ export function useTextSelection({
   const SELECTION_SETTLE_MS = 500;
 
   const handleSelectionRef = useRef(handleMouseUp);
-  handleSelectionRef.current = handleMouseUp;
+  useEffect(() => {
+    handleSelectionRef.current = handleMouseUp;
+  });
 
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

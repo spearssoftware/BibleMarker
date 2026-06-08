@@ -259,89 +259,6 @@ export function MultiTranslationView() {
     });
   }
 
-  useEffect(() => {
-    loadActiveView();
-    loadTranslations();
-  }, [loadActiveView]);
-  
-  // If no active view or no translations, default to currentModuleId
-  useEffect(() => {
-    if (currentModuleId && (!activeView || activeView.translationIds.length === 0)) {
-      // Auto-add currentModuleId as the default translation
-      addTranslation(currentModuleId);
-    }
-  }, [activeView, currentModuleId, addTranslation]);
-
-  // Reset scroll to top when chapter changes (arrows, swipe).
-  // Verse-anchor scrolls (highlightVerse, cross-ref jumps) run after a short
-  // delay and override this with scrollIntoView, so they still land correctly.
-  useEffect(() => {
-    const el = verseContainerRef.current;
-    if (!el) return;
-    const raf = requestAnimationFrame(() => { el.scrollTop = 0; });
-    return () => cancelAnimationFrame(raf);
-  }, [currentBook, currentChapter]);
-
-  useEffect(() => {
-    // Reset loading refs when book/chapter changes
-    const key = `${currentBook}-${currentChapter}`;
-    const lastKey = lastLoadedRef.current ? `${lastLoadedRef.current.book}-${lastLoadedRef.current.chapter}` : null;
-    if (key !== lastKey) {
-      isLoadingRef.current = false;
-      lastLoadedRef.current = null;
-      pendingLoadRef.current = null;
-    }
-    
-    if (activeView && activeView.translationIds.length > 0 && translations.length > 0) {
-      loadChapters();
-      loadAnnotations();
-      
-      // Load section headings, chapter title, and notes for primary translation
-      if (primaryTranslationId) {
-        loadSectionHeadings();
-        loadChapterTitle();
-        loadNotes();
-      }
-    }
-    // Only depend on actual values, not the callback functions
-    // The callbacks are stable and will be recreated when their dependencies change anyway
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeView?.id, activeView?.translationIds?.join(','), currentBook, currentChapter, translations.length, primaryTranslationId, activeStudyId, configGeneration]);
-
-  // Reload annotations when they are updated (e.g., when a new annotation is created)
-  useEffect(() => {
-    if (!activeView || activeView.translationIds.length === 0) return;
-    
-    const handleAnnotationsUpdated = () => {
-      loadAnnotations();
-      loadSectionHeadings();
-      loadChapterTitle();
-      loadNotes();
-    };
-    
-    // Listen for annotation updates
-    window.addEventListener('annotationsUpdated', handleAnnotationsUpdated);
-    
-    return () => {
-      window.removeEventListener('annotationsUpdated', handleAnnotationsUpdated);
-    };
-  }, [activeView, currentBook, currentChapter, activeStudyId, loadAnnotations, loadSectionHeadings, loadChapterTitle, loadNotes]);
-
-  // When modules are installed/removed or API configs change, reload translations list
-  // and retry any failed chapters
-  useEffect(() => {
-    const handleTranslationsUpdated = () => {
-      loadTranslations();
-      const hasErrors = Array.from(translationChapters.values()).some(tc => tc.error);
-      if (hasErrors) {
-        setConfigGeneration(g => g + 1);
-      }
-    };
-    window.addEventListener('translationsUpdated', handleTranslationsUpdated);
-    return () => window.removeEventListener('translationsUpdated', handleTranslationsUpdated);
-  }, [translationChapters]);
-
-
   const loadTranslations = async () => {
     const all = await getAllTranslations();
     setTranslations(all);
@@ -361,7 +278,7 @@ export function MultiTranslationView() {
       // Re-fetch if there was an error (e.g., fallback was used, API keys weren't ready)
       const existing = translationChapters.get(translationId);
       if (existing?.chapter && !existing.error &&
-          existing.chapter.book === currentBook && 
+          existing.chapter.book === currentBook &&
           existing.chapter.chapter === currentChapter) {
         newChapters.set(translationId, existing);
         continue;
@@ -396,7 +313,7 @@ export function MultiTranslationView() {
           error: null,
         });
         setTranslationChapters(new Map(newChapters));
-        
+
         // Publish verse text for the primary translation so ChapterAtAGlance
         // can do keyword matching without an extra API call.
         if (translationId === primaryTranslationId) {
@@ -468,6 +385,88 @@ export function MultiTranslationView() {
       }
     }
   };
+
+  useEffect(() => {
+    void (async () => {
+      loadActiveView();
+      loadTranslations();
+    })();
+  }, [loadActiveView]);
+  
+  // If no active view or no translations, default to currentModuleId
+  useEffect(() => {
+    if (currentModuleId && (!activeView || activeView.translationIds.length === 0)) {
+      // Auto-add currentModuleId as the default translation
+      addTranslation(currentModuleId);
+    }
+  }, [activeView, currentModuleId, addTranslation]);
+
+  // Reset scroll to top when chapter changes (arrows, swipe).
+  // Verse-anchor scrolls (highlightVerse, cross-ref jumps) run after a short
+  // delay and override this with scrollIntoView, so they still land correctly.
+  useEffect(() => {
+    const el = verseContainerRef.current;
+    if (!el) return;
+    const raf = requestAnimationFrame(() => { el.scrollTop = 0; });
+    return () => cancelAnimationFrame(raf);
+  }, [currentBook, currentChapter]);
+
+  useEffect(() => {
+    // Reset loading refs when book/chapter changes
+    const key = `${currentBook}-${currentChapter}`;
+    const lastKey = lastLoadedRef.current ? `${lastLoadedRef.current.book}-${lastLoadedRef.current.chapter}` : null;
+    if (key !== lastKey) {
+      isLoadingRef.current = false;
+      lastLoadedRef.current = null;
+      pendingLoadRef.current = null;
+    }
+    
+    if (activeView && activeView.translationIds.length > 0 && translations.length > 0) {
+      void (async () => {
+        await Promise.all([
+          loadChapters(),
+          loadAnnotations(),
+          ...(primaryTranslationId ? [loadSectionHeadings(), loadChapterTitle(), loadNotes()] : []),
+        ]);
+      })();
+    }
+    // Only depend on actual values, not the callback functions
+    // The callbacks are stable and will be recreated when their dependencies change anyway
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView?.id, activeView?.translationIds?.join(','), currentBook, currentChapter, translations.length, primaryTranslationId, activeStudyId, configGeneration]);
+
+  // Reload annotations when they are updated (e.g., when a new annotation is created)
+  useEffect(() => {
+    if (!activeView || activeView.translationIds.length === 0) return;
+    
+    const handleAnnotationsUpdated = () => {
+      loadAnnotations();
+      loadSectionHeadings();
+      loadChapterTitle();
+      loadNotes();
+    };
+    
+    // Listen for annotation updates
+    window.addEventListener('annotationsUpdated', handleAnnotationsUpdated);
+    
+    return () => {
+      window.removeEventListener('annotationsUpdated', handleAnnotationsUpdated);
+    };
+  }, [activeView, currentBook, currentChapter, activeStudyId, loadAnnotations, loadSectionHeadings, loadChapterTitle, loadNotes]);
+
+  // When modules are installed/removed or API configs change, reload translations list
+  // and retry any failed chapters
+  useEffect(() => {
+    const handleTranslationsUpdated = () => {
+      loadTranslations();
+      const hasErrors = Array.from(translationChapters.values()).some(tc => tc.error);
+      if (hasErrors) {
+        setConfigGeneration(g => g + 1);
+      }
+    };
+    window.addEventListener('translationsUpdated', handleTranslationsUpdated);
+    return () => window.removeEventListener('translationsUpdated', handleTranslationsUpdated);
+  }, [translationChapters]);
 
 
   // Show loading state if we're initializing

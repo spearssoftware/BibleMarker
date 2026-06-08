@@ -66,7 +66,10 @@ export function NavigationBar() {
   // the new chapter is fetched async, so the store may still hold the previous
   // chapter; using it here would show a stray (often out-of-range) verse like
   // "John 15:43". Hold at verse 1 until the matching chapter is loaded.
-  useEffect(() => {
+  const locationKey = `${currentBook}:${currentChapter}`;
+  const [prevLocationKey, setPrevLocationKey] = useState(locationKey);
+  if (locationKey !== prevLocationKey) {
+    setPrevLocationKey(locationKey);
     const { chapter } = useBibleStore.getState();
     if (
       chapter &&
@@ -78,7 +81,7 @@ export function NavigationBar() {
     } else {
       setCurrentVerse(1);
     }
-  }, [currentBook, currentChapter]);
+  }
 
   // Track scroll position to update current verse
   useEffect(() => {

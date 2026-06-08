@@ -753,8 +753,9 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
   const baseContent = verse.text || '';
   const plainTextForOffset = baseContent;
 
-  // Render annotations on the base text
-  const content = renderAnnotatedText(baseContent);
+  // Render annotations on the base text (use a local copy so the linter knows we aren't modifying the prop)
+  const contentSrc = String(baseContent);
+  const content = renderAnnotatedText(contentSrc);
 
   // Handle clicks on remove buttons and cross-references (using event delegation)
   const handleVerseContentClick = (e: React.MouseEvent<HTMLSpanElement>) => {

@@ -155,12 +155,15 @@ export function ThemeEditor({ verseRef }: ThemeEditorProps) {
     }
   };
   
-  // Update theme when sync is enabled and title changes
-  useEffect(() => {
+  // Update theme when sync is enabled and title changes (adjust state during render)
+  const syncKey = syncWithTitle ? (chapterTitle?.title ?? '') : '';
+  const [prevSyncKey, setPrevSyncKey] = useState(syncKey);
+  if (syncKey !== prevSyncKey) {
+    setPrevSyncKey(syncKey);
     if (syncWithTitle && chapterTitle?.title) {
       setTheme(chapterTitle.title);
     }
-  }, [syncWithTitle, chapterTitle?.title]);
+  }
   
   const handleDelete = async () => {
     if (!chapterTitle) return;
