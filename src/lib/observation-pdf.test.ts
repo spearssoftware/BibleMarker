@@ -66,6 +66,16 @@ describe('buildObservationPdf', () => {
     expect(text).toContain('Conclusions');
   });
 
+  it('still renders entries whose preset was deleted (orphaned presetId folded into Other)', async () => {
+    const input: BuildObservationPdfInput = {
+      study, presets: [], // no presets at all → 'pGone' is orphaned
+      lists: [], people: [], time: [], conclusions: [], interpretations: [], applications: [],
+      places: [{ id: 'pl1', name: 'ORPHANPLACE', verseRef: { book: 'John', chapter: 2, verse: 13 }, presetId: 'pGone', studyId: 's1', createdAt: new Date(0), updatedAt: new Date(0) }],
+    };
+    const text = new TextDecoder('latin1').decode(await buildObservationPdf(input));
+    expect(text).toContain('ORPHANPLACE');
+  });
+
   it('omits empty sections (no data → title-only doc still builds)', async () => {
     const input: BuildObservationPdfInput = {
       study, presets: [],

@@ -19,7 +19,7 @@ import type {
   TimeExpression,
   VerseRef,
 } from '@/types';
-import { formatVerseRef, getBookById, getHighlightColorHex, type HighlightColor } from '@/types';
+import { BIBLE_BOOKS, formatVerseRef, getBookById, getHighlightColorHex, type HighlightColor } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { PageWriter, loadJsPDF, type JsPDFCtor, type JsPDFDoc } from '@/lib/pdf/page-writer';
 import { buildPresetIconCache, iconCacheKey } from '@/lib/pdf/symbol-cache';
@@ -67,17 +67,30 @@ function refLabel(ref: VerseRef): string {
   return formatVerseRef(ref.book, ref.chapter, ref.verse);
 }
 
+/** Label a (possibly multi-verse) passage. A same-chapter range collapses to
+ *  "John 3:16–18"; a cross-chapter range keeps the end chapter ("John 3:16–4:2"). */
+function passageLabel(start: VerseRef, end?: VerseRef): string {
+  if (!end) return refLabel(start);
+  if (end.book === start.book && end.chapter === start.chapter) {
+    return `${refLabel(start)}–${end.verse}`;
+  }
+  return `${refLabel(start)}–${formatVerseRef(end.book, end.chapter, end.verse)}`;
+}
+
 function capitalize(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
+const BOOK_ORDER = new Map(BIBLE_BOOKS.map((b, i) => [b.id, i]));
+
 function compareRef(a: VerseRef, b: VerseRef): number {
-  return (a.chapter - b.chapter) || (a.verse - b.verse);
+  return ((BOOK_ORDER.get(a.book) ?? 0) - (BOOK_ORDER.get(b.book) ?? 0))
+    || (a.chapter - b.chapter) || (a.verse - b.verse);
 }
 
-/** Group entries by their linked preset id; entries with no preset go under a
- *  trailing `null` key (rendered as "Other / manual"). Returns groups in preset
- *  order, manual last. */
+/** Group entries by their linked preset id; entries with no preset (or whose
+ *  preset isn't in `presetOrder` — e.g. deleted) go under a trailing `null` key
+ *  rendered as "Other". Returns groups in preset order, "Other" last. */
 function groupByPreset<T extends { presetId?: string }>(
   items: T[],
   presetOrder: MarkingPreset[],
@@ -94,9 +107,18 @@ function groupByPreset<T extends { presetId?: string }>(
     }
   }
   const out: Array<{ preset: MarkingPreset | null; items: T[] }> = [];
+  const emitted = new Set<string>();
   for (const preset of presetOrder) {
     const list = byId.get(preset.id);
-    if (list && list.length > 0) out.push({ preset, items: list });
+    if (list && list.length > 0) {
+      out.push({ preset, items: list });
+      emitted.add(preset.id);
+    }
+  }
+  // Fold entries whose presetId didn't match any known preset (deleted/orphaned)
+  // into "Other" so they aren't silently dropped from the report.
+  for (const [id, list] of byId) {
+    if (!emitted.has(id)) manual.push(...list);
   }
   if (manual.length > 0) out.push({ preset: null, items: manual });
   return out;
@@ -108,7 +130,9 @@ class ObservationPageWriter extends PageWriter {
   /** Bold section heading with a thin underline rule. */
   sectionHeading(title: string): void {
     this.y += 16;
-    this.ensureSpace(28);
+    // Reserve the heading plus a following row so a heading never strands alone
+    // at the bottom of a page with its content on the next.
+    this.ensureSpace(28 + 22);
     this.doc.setFont('helvetica', 'bold');
     this.doc.setFontSize(15);
     this.doc.setTextColor(28, 28, 28);
@@ -124,7 +148,8 @@ class ObservationPageWriter extends PageWriter {
   keywordHeading(iconDataUrl: string | null, label: string, meta?: string): void {
     const size = 13;
     this.y += 7;
-    this.ensureSpace(size + 6);
+    // Reserve the heading plus one entry row so the group header keeps company.
+    this.ensureSpace(size + 6 + 16);
     const x = this.opts.marginLeft;
     if (iconDataUrl) this.doc.addImage(iconDataUrl, 'PNG', x, this.y, size, size);
     const textX = x + (iconDataUrl ? size + 5 : 0);
@@ -337,8 +362,7 @@ async function buildObservationDoc(jsPDF: JsPDFCtor, input: BuildObservationPdfI
       ['context', 'Context'], ['implications', 'Implications'], ['crossReferences', 'Cross-references'],
       ['questions', 'Questions'], ['insights', 'Insights'],
     ];
-    renderGuidedFields(writer, interpretations, fields, (e) =>
-      e.endVerseRef ? `${refLabel(e.verseRef)}–${e.endVerseRef.verse}` : refLabel(e.verseRef));
+    renderGuidedFields(writer, interpretations, fields, (e) => passageLabel(e.verseRef, e.endVerseRef));
   }
 
   // 8. Application (2 Tim 3:16 fields, non-empty only).

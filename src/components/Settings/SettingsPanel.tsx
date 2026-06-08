@@ -631,7 +631,8 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
       // On success the saved PDF opens in the system viewer — that's the feedback.
       if ('path' in result) await openSavedPdf(result.path).catch(() => {});
     } catch (error) {
-      setStudyPdfError(error instanceof Error ? error.message : 'Failed to export study PDF');
+      const msg = error instanceof Error ? error.message : 'Failed to export study PDF';
+      setStudyPdfError(`${study.name}: ${msg}`);
     } finally {
       setExportingStudyPdfId(null);
     }
