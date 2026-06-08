@@ -224,6 +224,7 @@ type JsPDFDoc = {
   splitTextToSize(text: string, maxWidth: number): string[];
   getTextWidth(text: string): number;
   rect(x: number, y: number, w: number, h: number, style?: string): JsPDFDoc;
+  roundedRect(x: number, y: number, w: number, h: number, rx: number, ry: number, style?: string): JsPDFDoc;
   line(x1: number, y1: number, x2: number, y2: number): JsPDFDoc;
   addImage(data: string, format: string, x: number, y: number, w: number, h: number): JsPDFDoc;
   addPage(): JsPDFDoc;
@@ -390,6 +391,57 @@ class PageWriter {
       this.y += lineHeight;
     }
     if (opts.marginBottom) this.y += opts.marginBottom;
+  }
+
+  /**
+   * Render a study note inside a light tinted rounded callout box, so it
+   * reads clearly as a note rather than blending into the scripture text.
+   * The whole box is kept together on one page when it fits; an unusually
+   * tall note that can't fit a fresh page falls back to flowing text.
+   */
+  writeNote(content: string): void {
+    const fontSize = 9.5;
+    const lineHeight = fontSize * 1.35;
+    const indent = 18;       // box left inset from the text margin
+    const padX = 9;          // horizontal padding inside the box
+    const padY = 7;          // vertical padding inside the box
+    const marginTop = 4;
+    const marginBottom = 7;
+    const fill: [number, number, number] = [240, 241, 250];
+    const border: [number, number, number] = [214, 216, 236];
+    const textColor: [number, number, number] = [55, 55, 80];
+
+    this.doc.setFont('helvetica', 'italic');
+    this.doc.setFontSize(fontSize);
+
+    const boxLeft = this.opts.marginLeft + indent;
+    const boxWidth = this.contentWidth - indent;
+    const textWidth = boxWidth - padX * 2;
+    const lines = this.doc.splitTextToSize(content, textWidth);
+    const boxHeight = lines.length * lineHeight + padY * 2;
+
+    this.y += marginTop;
+    // Keep the box together if it can fit on a page at all; otherwise fall
+    // back to plain flowing text so very long notes still render.
+    const pageUsable = this.pageHeight - this.opts.marginTop - this.opts.marginBottom - this.opts.footerHeight;
+    if (boxHeight <= pageUsable) {
+      this.ensureSpace(boxHeight);
+    }
+
+    const boxTop = this.y;
+    this.doc.setFillColor(...fill);
+    this.doc.setDrawColor(...border);
+    this.doc.setLineWidth(0.5);
+    this.doc.roundedRect(boxLeft, boxTop, boxWidth, boxHeight, 4, 4, 'FD');
+
+    this.doc.setTextColor(...textColor);
+    let ty = boxTop + padY;
+    for (const line of lines) {
+      this.doc.text(line, boxLeft + padX, ty + fontSize);
+      ty += lineHeight;
+    }
+
+    this.y = boxTop + boxHeight + marginBottom;
   }
 
   /**
@@ -770,14 +822,7 @@ async function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): Promi
         (n.range && n.range.start.verse <= verse.ref.verse && n.range.end.verse >= verse.ref.verse),
     );
     for (const note of verseNotes) {
-      writer.writeBlock(note.content, {
-        fontSize: 9.5,
-        italics: true,
-        color: [60, 60, 90],
-        indent: 18,
-        marginTop: 2,
-        marginBottom: 6,
-      });
+      writer.writeNote(note.content);
     }
   }
 
