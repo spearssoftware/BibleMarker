@@ -370,12 +370,24 @@ class PageWriter {
     const boxHeight = lines.length * lineHeight + padY * 2;
 
     this.y += marginTop;
-    // Keep the box together if it can fit on a page at all; otherwise fall
-    // back to plain flowing text so very long notes still render.
+
+    // If the note is too tall to ever fit a single page, drawing one box would
+    // overflow the footer. Flow it as plain indented text instead, page-breaking
+    // line by line so it stays on-page.
     const pageUsable = this.pageHeight - this.opts.marginTop - this.opts.marginBottom - this.opts.footerHeight;
-    if (boxHeight <= pageUsable) {
-      this.ensureSpace(boxHeight);
+    if (boxHeight > pageUsable) {
+      this.doc.setTextColor(...textColor);
+      for (const line of lines) {
+        this.ensureSpace(lineHeight);
+        this.doc.text(line, boxLeft + padX, this.y + fontSize);
+        this.y += lineHeight;
+      }
+      this.y += marginBottom;
+      return;
     }
+
+    // Keep the box together on one page.
+    this.ensureSpace(boxHeight);
 
     const boxTop = this.y;
     this.doc.setFillColor(...fill);
@@ -415,9 +427,10 @@ class PageWriter {
 
     const numLabel = `${verseNum} `;
     // Measure with the bold face the number is actually drawn in, so the body
-    // gutter matches the rendered width.
+    // gutter matches the rendered width. Floor at 10pt so the body never collapses
+    // onto the number if metrics are unavailable.
     this.doc.setFont('helvetica', 'bold');
-    const numWidth = this.doc.getTextWidth(numLabel);
+    const numWidth = Math.max(10, this.doc.getTextWidth(numLabel));
     this.doc.setFont('helvetica', 'normal');
     const bodyLeft = this.opts.marginLeft + numWidth;
     const maxX = this.opts.marginLeft + this.contentWidth;

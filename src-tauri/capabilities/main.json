@@ -54,8 +54,7 @@
         { "path": "$APPDATA/**" },
         { "path": "$DOCUMENT/**" },
         { "path": "$DESKTOP/**" },
-        { "path": "$DOWNLOAD/**" },
-        { "path": "$HOME/**" }
+        { "path": "$DOWNLOAD/**" }
       ]
     }
   ]
