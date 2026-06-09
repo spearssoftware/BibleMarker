@@ -5,6 +5,10 @@
  * panel" data) using the shared PDF core in `./pdf/*`. Sections: keyword
  * legend, observation lists, places, people, time/chronology, conclusions,
  * interpretation, application. Empty sections are omitted.
+ *
+ * Scoping: entries are filtered by study id, and when the study targets a
+ * single book they are further restricted to that book so cross-book markings
+ * don't leak in. Topical/no-book studies fall back to the study-id filter.
  */
 
 import type {
@@ -52,6 +56,18 @@ export interface BuildObservationPdfInput {
 export function filterByStudy<T extends { studyId?: string }>(items: T[], activeStudyId: string | null): T[] {
   if (!activeStudyId) return items;
   return items.filter((e) => !e.studyId || e.studyId === activeStudyId);
+}
+
+/**
+ * Book-scope a study report: when the study targets a single book, keep only
+ * entries whose verse falls in that book. This drops cross-book entries that
+ * the studyId filter alone would let through — e.g. another book's verses that
+ * were marked while this study was active, or global (no-studyId) markings.
+ * With no book set (topical/Prayer studies) it's a no-op.
+ */
+export function filterByBook<T extends { verseRef: VerseRef }>(items: T[], book: string | undefined): T[] {
+  if (!book) return items;
+  return items.filter((e) => e.verseRef.book === book);
 }
 
 /**
@@ -269,14 +285,18 @@ async function buildObservationDoc(jsPDF: JsPDFCtor, input: BuildObservationPdfI
   const presetById = new Map(input.presets.map((p) => [p.id, p]));
   const iconCache = await buildPresetIconCache(studyPresets, 13);
 
-  // Study-filtered data.
-  const lists = filterByStudy(input.lists, studyId);
-  const places = filterByStudy(input.places, studyId);
-  const people = filterByStudy(input.people, studyId);
-  const time = filterByStudy(input.time, studyId);
-  const interpretations = filterByStudy(input.interpretations, studyId);
-  const applications = filterByStudy(input.applications, studyId);
-  const conclusions = filterConclusions(input.conclusions, includedPresetIds);
+  // Study-filtered data. When the study targets a single book, also book-scope
+  // every section so cross-book entries (other books marked while this study
+  // was active, or global no-studyId markings) don't leak in.
+  const book = study.book || undefined;
+  const lists = filterByStudy(input.lists, studyId)
+    .map((l) => ({ ...l, items: filterByBook(l.items, book) }));
+  const places = filterByBook(filterByStudy(input.places, studyId), book);
+  const people = filterByBook(filterByStudy(input.people, studyId), book);
+  const time = filterByBook(filterByStudy(input.time, studyId), book);
+  const interpretations = filterByBook(filterByStudy(input.interpretations, studyId), book);
+  const applications = filterByBook(filterByStudy(input.applications, studyId), book);
+  const conclusions = filterByBook(filterConclusions(input.conclusions, includedPresetIds), book);
 
   const iconFor = (p: MarkingPreset | null): string | null => {
     if (!p?.symbol) return null;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildObservationPdf,
+  filterByBook,
   filterByStudy,
   filterConclusions,
   type BuildObservationPdfInput,
@@ -25,6 +26,21 @@ describe('filterByStudy', () => {
 
   it('keeps everything when no study is active', () => {
     expect(filterByStudy(items, null)).toEqual(items);
+  });
+});
+
+describe('filterByBook', () => {
+  const items = [
+    { verseRef: { book: 'Ezek', chapter: 1, verse: 1 } },
+    { verseRef: { book: 'Jer', chapter: 33, verse: 4 } },
+  ];
+
+  it('keeps only the study book when one is set', () => {
+    expect(filterByBook(items, 'Ezek')).toEqual([items[0]]);
+  });
+
+  it('is a no-op when no book is set', () => {
+    expect(filterByBook(items, undefined)).toEqual(items);
   });
 });
 
@@ -74,6 +90,23 @@ describe('buildObservationPdf', () => {
     };
     const text = new TextDecoder('latin1').decode(await buildObservationPdf(input));
     expect(text).toContain('ORPHANPLACE');
+  });
+
+  it('drops cross-book entries when the study targets a single book', async () => {
+    const bookStudy: Study = { ...study, name: 'Ezekiel', book: 'Ezek' };
+    const input: BuildObservationPdfInput = {
+      study: bookStudy, presets: [],
+      lists: [], conclusions: [], interpretations: [], applications: [], time: [],
+      places: [
+        { id: 'pIn', name: 'INBOOKPLACE', verseRef: { book: 'Ezek', chapter: 1, verse: 1 }, studyId: 's1', createdAt: new Date(0), updatedAt: new Date(0) },
+        // tagged to this study but a Jeremiah verse — must not leak in
+        { id: 'pOut', name: 'OTHERBOOKPLACE', verseRef: { book: 'Jer', chapter: 33, verse: 4 }, studyId: 's1', createdAt: new Date(0), updatedAt: new Date(0) },
+      ],
+      people: [],
+    };
+    const text = new TextDecoder('latin1').decode(await buildObservationPdf(input));
+    expect(text).toContain('INBOOKPLACE');
+    expect(text).not.toContain('OTHERBOOKPLACE');
   });
 
   it('omits empty sections (no data → title-only doc still builds)', async () => {
