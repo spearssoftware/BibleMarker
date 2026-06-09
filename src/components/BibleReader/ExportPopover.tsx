@@ -34,7 +34,7 @@ import {
 } from '@/lib/passage-pdf';
 import { buildStudyObservationPdf, observationFilename } from '@/lib/observation-pdf';
 import { buildChapterAndStudyPdf, chapterAndStudyFilename } from '@/lib/combined-pdf';
-import { savePdfsToDirectory } from '@/lib/pdf/save';
+import { savePdfBytes } from '@/lib/pdf/save';
 
 interface ExportPopoverProps {
   translation: ApiTranslation;
@@ -146,36 +146,33 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
       };
 
       // Both selected → one combined PDF. Otherwise the single chosen section.
-      const files: Array<{ bytes: Uint8Array; filename: string }> = [];
+      // Either way it's a single file, so a normal Save dialog handles it.
+      let file: { bytes: Uint8Array; filename: string };
       if (includeChapter && includeStudy && activeStudy) {
-        files.push({
+        file = {
           bytes: await buildChapterAndStudyPdf(passageInput, activeStudy),
           filename: chapterAndStudyFilename(passageInput, activeStudy),
-        });
+        };
       } else if (includeChapter) {
-        files.push({ bytes: await buildPassagePdf(passageInput), filename: passageFilename(passageInput) });
+        file = { bytes: await buildPassagePdf(passageInput), filename: passageFilename(passageInput) };
       } else if (includeStudy && activeStudy) {
-        files.push({ bytes: await buildStudyObservationPdf(activeStudy), filename: observationFilename(activeStudy) });
+        file = { bytes: await buildStudyObservationPdf(activeStudy), filename: observationFilename(activeStudy) };
+      } else {
+        setAction({ status: 'idle' });
+        return;
       }
 
-      const result = await savePdfsToDirectory(files);
+      const result = await savePdfBytes(file.bytes, file.filename);
       if ('cancelled' in result) {
         setAction({ status: 'idle' });
         return;
       }
 
       setAction({ status: 'success', message: 'Saved — opening…' });
-      for (const path of result.paths) {
-        // On iOS the open call may succeed silently without launching a viewer.
-        await openSavedPdf(path).catch((openErr) =>
-          console.error('[ExportPopover] open after save failed', openErr));
-      }
-      setAction({
-        status: 'success',
-        message: result.paths.length > 1
-          ? `Saved ${result.paths.length} PDFs to that folder`
-          : `Saved to ${result.paths[0]}`,
-      });
+      // On iOS the open call may succeed silently without launching a viewer.
+      await openSavedPdf(result.path).catch((openErr) =>
+        console.error('[ExportPopover] open after save failed', openErr));
+      setAction({ status: 'success', message: `Saved to ${result.path}` });
     } catch (err) {
       console.error('[ExportPopover] save failed', err);
       const msg =
@@ -265,7 +262,7 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
           <p className="text-xs text-scripture-muted leading-relaxed">
             The chapter PDF includes your marks, headings, and notes.
             {activeStudy && ' The study report lists your keywords, places, people, and more, and combines into the same PDF when both are picked.'}
-            {' '}You’ll choose a folder to save into (Downloads by default), then it opens in Preview.
+            {' '}You’ll choose where to save (Downloads by default), then it opens in Preview.
           </p>
 
           <Button variant="primary" onClick={handleSave} disabled={busy || nothingSelected} fullWidth>

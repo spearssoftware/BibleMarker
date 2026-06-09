@@ -15,7 +15,7 @@ export async function savePdfBytes(
   defaultFilename: string,
 ): Promise<{ path: string } | { cancelled: true }> {
   const { writeFile, exists, mkdir } = await import('@tauri-apps/plugin-fs');
-  const { documentDir, join } = await import('@tauri-apps/api/path');
+  const { documentDir, downloadDir, join } = await import('@tauri-apps/api/path');
   const { isIOS } = await import('@/lib/platform');
 
   if (isIOS()) {
@@ -28,7 +28,8 @@ export async function savePdfBytes(
   }
 
   const { save } = await import('@tauri-apps/plugin-dialog');
-  const defaultDir = await documentDir().catch(() => '');
+  // Default the save dialog to Downloads, falling back to Documents.
+  const defaultDir = await downloadDir().catch(() => '') || await documentDir().catch(() => '');
   const defaultPath = defaultDir ? await join(defaultDir, defaultFilename) : defaultFilename;
 
   console.log('[pdf] opening save dialog, defaultPath=', defaultPath);
@@ -43,41 +44,6 @@ export async function savePdfBytes(
   await writeFile(chosen, bytes);
   console.log('[pdf] file written.');
   return { path: chosen };
-}
-
-/**
- * Save one or more PDFs to a single user-chosen directory, auto-naming each
- * file. On desktop/Android a directory picker opens once (defaulting to the
- * Downloads folder); on iOS — which has no directory picker — files go to the
- * app's Documents/exports directory. Returns the saved paths, or
- * `{ cancelled: true }` if the user dismissed the picker.
- */
-export async function savePdfsToDirectory(
-  files: Array<{ bytes: Uint8Array; filename: string }>,
-): Promise<{ paths: string[] } | { cancelled: true }> {
-  const { writeFile, exists, mkdir } = await import('@tauri-apps/plugin-fs');
-  const { documentDir, downloadDir, join } = await import('@tauri-apps/api/path');
-  const { isIOS } = await import('@/lib/platform');
-
-  let dir: string;
-  if (isIOS()) {
-    dir = await join(await documentDir(), 'exports');
-    if (!(await exists(dir))) await mkdir(dir, { recursive: true });
-  } else {
-    const { open } = await import('@tauri-apps/plugin-dialog');
-    const defaultPath = await downloadDir().catch(() => undefined);
-    const chosen = await open({ directory: true, defaultPath: defaultPath || undefined });
-    if (!chosen || Array.isArray(chosen)) return { cancelled: true };
-    dir = chosen;
-  }
-
-  const paths: string[] = [];
-  for (const file of files) {
-    const filePath = await join(dir, file.filename);
-    await writeFile(filePath, file.bytes);
-    paths.push(filePath);
-  }
-  return { paths };
 }
 
 /** Open a previously-saved PDF in the system default viewer. */
