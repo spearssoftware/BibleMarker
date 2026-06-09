@@ -757,6 +757,8 @@ export interface DatabaseExportData {
   conclusions: Conclusion[];
   interpretations: InterpretationEntry[];
   applications: ApplicationEntry[];
+  entityNotes: EntityNote[];
+  keywordExclusions: KeywordExclusion[];
   preferences: UserPreferences | null;
 }
 

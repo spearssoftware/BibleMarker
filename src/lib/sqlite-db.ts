@@ -23,6 +23,8 @@ import type { Person } from '@/types';
 import type { Conclusion } from '@/types';
 import type { InterpretationEntry } from '@/types';
 import type { ApplicationEntry } from '@/types';
+import type { EntityNote } from '@/types';
+import type { KeywordExclusion } from '@/types';
 import type { UserPreferences } from '@/types';
 // ============================================================================
 // Database Connection
@@ -1466,6 +1468,8 @@ export interface SqliteExportData {
   conclusions: Conclusion[];
   interpretations: InterpretationEntry[];
   applications: ApplicationEntry[];
+  entityNotes: EntityNote[];
+  keywordExclusions: KeywordExclusion[];
   preferences: UserPreferences | null;
 }
 
@@ -1495,6 +1499,8 @@ export async function sqliteExportAll(): Promise<SqliteExportData> {
   const applications = await sqliteGetAllFromTable<ApplicationEntry>('applications');
   const observationLists = await sqliteGetAllFromTable<ObservationList>('observation_lists');
   const multiTranslationViews = await sqliteGetAllFromTable<MultiTranslationView>('multi_translation_views');
+  const entityNotes = await sqliteGetAllFromTable<EntityNote>('entity_notes');
+  const keywordExclusions = await sqliteGetAllFromTable<KeywordExclusion>('keyword_exclusions');
 
   // Get headings and titles
   const headingRows = await db.select<
@@ -1581,6 +1587,8 @@ export async function sqliteExportAll(): Promise<SqliteExportData> {
     conclusions,
     interpretations,
     applications,
+    entityNotes,
+    keywordExclusions,
     preferences,
   };
 }
@@ -1647,6 +1655,12 @@ export async function sqliteImportAll(data: SqliteExportData): Promise<void> {
   }
   for (const item of data.multiTranslationViews) {
     await sqliteSaveToTable('multi_translation_views', item);
+  }
+  for (const item of data.entityNotes) {
+    await sqliteSaveToTableWithStudyId('entity_notes', item, item.studyId);
+  }
+  for (const item of data.keywordExclusions) {
+    await sqliteSaveToTable('keyword_exclusions', item);
   }
 
   // Import preferences

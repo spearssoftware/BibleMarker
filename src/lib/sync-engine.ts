@@ -476,6 +476,32 @@ async function pullFromDevice(remoteDevice: string): Promise<PullResult> {
 // ============================================================================
 
 /**
+ * camelCase keys written into a snapshot's `tables` (excluding `preferences`,
+ * which is special-cased as a single-element array). Each maps 1:1 to a
+ * `SqliteExportData` field and, via `camelToSnakeTable`, to a `SYNCED_TABLES`
+ * entry. This is the single source of truth for snapshot table coverage —
+ * a test asserts these map onto every synced table.
+ */
+export const SNAPSHOT_TABLE_KEYS = [
+  'annotations',
+  'sectionHeadings',
+  'chapterTitles',
+  'notes',
+  'markingPresets',
+  'studies',
+  'multiTranslationViews',
+  'observationLists',
+  'timeExpressions',
+  'places',
+  'people',
+  'conclusions',
+  'interpretations',
+  'applications',
+  'entityNotes',
+  'keywordExclusions',
+] as const;
+
+/**
  * Write a full database snapshot for bootstrapping new devices.
  */
 async function writeSnapshot(): Promise<void> {
@@ -489,28 +515,21 @@ async function writeSnapshot(): Promise<void> {
   );
   const maxSeq = seqRows[0]?.max_seq ?? 0;
 
+  // Build the snapshot tables from SNAPSHOT_TABLE_KEYS so coverage of SYNCED_TABLES
+  // stays enforceable by a single test (see snapshot-coverage.test.ts). Adding a synced
+  // table without listing it here would silently drop it from snapshots/bootstrap.
+  const tables: Record<string, unknown[]> = {};
+  for (const key of SNAPSHOT_TABLE_KEYS) {
+    tables[key] = exportData[key] as unknown[];
+  }
+  tables.preferences = exportData.preferences ? [exportData.preferences] : [];
+
   const snapshot: SnapshotFile = {
     version: 1,
     device: deviceId,
     atSeq: maxSeq,
     createdAt: new Date().toISOString(),
-    tables: {
-      annotations: exportData.annotations,
-      sectionHeadings: exportData.sectionHeadings,
-      chapterTitles: exportData.chapterTitles,
-      notes: exportData.notes,
-      markingPresets: exportData.markingPresets,
-      studies: exportData.studies,
-      multiTranslationViews: exportData.multiTranslationViews,
-      observationLists: exportData.observationLists,
-      timeExpressions: exportData.timeExpressions,
-      places: exportData.places,
-      people: exportData.people,
-      conclusions: exportData.conclusions,
-      interpretations: exportData.interpretations,
-      applications: exportData.applications,
-      preferences: exportData.preferences ? [exportData.preferences] : [],
-    },
+    tables,
   };
 
   const snapshotsDir = `${syncFolderPath}/snapshots`;
@@ -785,7 +804,7 @@ async function listConnectedDevices(): Promise<string[]> {
 }
 
 /** Map camelCase export table names to snake_case DB table names */
-function camelToSnakeTable(name: string): string {
+export function camelToSnakeTable(name: string): string {
   const map: Record<string, string> = {
     annotations: 'annotations',
     sectionHeadings: 'section_headings',
@@ -801,6 +820,8 @@ function camelToSnakeTable(name: string): string {
     conclusions: 'conclusions',
     interpretations: 'interpretations',
     applications: 'applications',
+    entityNotes: 'entity_notes',
+    keywordExclusions: 'keyword_exclusions',
     preferences: 'preferences',
   };
   return map[name] ?? name;
