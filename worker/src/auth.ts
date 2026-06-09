@@ -1,0 +1,69 @@
+/**
+ * Session authentication for the sync routes.
+ *
+ * Sync requests carry an opaque session token: `Authorization: Bearer <token>`.
+ * The token itself is never stored server-side — only its SHA-256 hash is, in
+ * the `sessions` table — so a DB leak can't be replayed as a live token. Tokens
+ * are issued in Phase 2 (`/auth/verify`); this module is the verification half.
+ */
+
+import type { Env } from './env';
+
+const BEARER_RE = /^Bearer\s+([A-Za-z0-9_-]+)$/;
+
+export interface Session {
+  accountId: string;
+  deviceId: string | null;
+}
+
+/** Extract the opaque token from an `Authorization: Bearer <token>` header. */
+export function parseBearer(header: string | null): string | null {
+  if (!header) return null;
+  const m = BEARER_RE.exec(header);
+  return m ? m[1] : null;
+}
+
+/** Lowercase hex SHA-256 of a string. */
+export async function sha256Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Canonical `email_hash` for the `otp_codes` table. Single-sourced here so the
+ * Phase-2 OTP writer and the account-deletion reader can't drift on email
+ * normalization.
+ */
+export function emailHash(email: string): Promise<string> {
+  return sha256Hex(email.trim().toLowerCase());
+}
+
+/**
+ * Resolve the session for a request, or `null` if the token is missing,
+ * malformed, unknown, or revoked. On success, best-effort updates
+ * `last_used_at` (failure there is non-fatal and does not block the request).
+ */
+export async function authenticate(env: Env, request: Request): Promise<Session | null> {
+  const token = parseBearer(request.headers.get('Authorization'));
+  if (!token) return null;
+
+  const tokenHash = await sha256Hex(token);
+  const row = await env.DB.prepare(
+    'SELECT account_id, device_id FROM sessions WHERE token_hash = ? AND revoked = 0'
+  )
+    .bind(tokenHash)
+    .first<{ account_id: string; device_id: string | null }>();
+
+  if (!row) return null;
+
+  try {
+    await env.DB.prepare('UPDATE sessions SET last_used_at = ? WHERE token_hash = ?')
+      .bind(new Date().toISOString(), tokenHash)
+      .run();
+  } catch {
+    /* last_used_at is advisory — never fail a request over it */
+  }
+
+  return { accountId: row.account_id, deviceId: row.device_id };
+}
