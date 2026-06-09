@@ -333,7 +333,7 @@ select:focus-visible {
 @layer utilities {
   /* Touch-friendly tap targets */
   .touch-target {
-    @apply min-h-[44px] min-w-[44px];
+    @apply min-h-[44px] min-w-[44px] inline-flex items-center justify-center;
   }
 
   /* Search overlay animation that preserves translateX(-50%) for centering */

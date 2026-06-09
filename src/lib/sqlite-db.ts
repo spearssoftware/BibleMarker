@@ -750,6 +750,26 @@ export async function sqliteGetChapterAnnotations(
     });
 }
 
+/**
+ * Count keyword marks (annotations linked to a preset) within a single book,
+ * grouped by preset id. Symbol marks key off `ref.book`, highlights off
+ * `startRef.book`. Used by the study report to show book-scoped keyword usage
+ * rather than a preset's global mark count.
+ */
+export async function sqliteGetBookKeywordMarkCounts(book: string): Promise<Record<string, number>> {
+  const db = await getSqliteDb();
+  const rows = await db.select<{ preset_id: string; n: number }[]>(
+    `SELECT preset_id, COUNT(*) AS n FROM annotations
+     WHERE preset_id IS NOT NULL
+       AND COALESCE(json_extract(data, '$.ref.book'), json_extract(data, '$.startRef.book')) = ?
+     GROUP BY preset_id`,
+    [book]
+  );
+  const counts: Record<string, number> = {};
+  for (const row of rows) counts[row.preset_id] = row.n;
+  return counts;
+}
+
 export async function sqliteSaveAnnotation(annotation: Annotation): Promise<string> {
   const db = await getSqliteDb();
   const now = toISOString(new Date());

@@ -94,6 +94,12 @@ export async function getChapterAnnotations(
   return mod.sqliteGetChapterAnnotations(moduleId, book, chapter);
 }
 
+/** Per-preset count of keyword marks within a book (for study-report legends). */
+export async function getBookKeywordMarkCounts(book: string): Promise<Record<string, number>> {
+  const mod = await sqlite();
+  return mod.sqliteGetBookKeywordMarkCounts(book);
+}
+
 export async function saveAnnotation(annotation: Annotation): Promise<string> {
   const mod = await sqlite();
   const result = await mod.sqliteSaveAnnotation(annotation);

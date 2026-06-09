@@ -11,6 +11,8 @@ import { getBookById, BIBLE_BOOKS, MARKING_STYLE_OPTIONS, type MarkingStyle } fr
 import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences, getSyncDiagnostics, type SyncDiagnostics } from '@/lib/database';
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
 import { exportStudyData } from '@/lib/export';
+import { saveStudyObservationPdf, openSavedPdf } from '@/lib/observation-pdf';
+import type { Study } from '@/types';
 import {
   applyTheme,
   applyScriptureFont,
@@ -106,6 +108,8 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
   
   // Study Export state
   const [isExportingStudy, setIsExportingStudy] = useState(false);
+  const [exportingStudyPdfId, setExportingStudyPdfId] = useState<string | null>(null);
+  const [studyPdfError, setStudyPdfError] = useState<string | null>(null);
   const [studyExportError, setStudyExportError] = useState<string | null>(null);
   const [studyExportSuccess, setStudyExportSuccess] = useState<string | boolean>(false);
   
@@ -595,6 +599,22 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
       }
     } finally {
       setIsExportingStudy(false);
+    }
+  };
+
+  // Export a single study's observation report PDF, scoped to that study.
+  const handleExportStudyPdf = async (study: Study) => {
+    setExportingStudyPdfId(study.id);
+    setStudyPdfError(null);
+    try {
+      const result = await saveStudyObservationPdf(study);
+      // On success the saved PDF opens in the system viewer — that's the feedback.
+      if ('path' in result) await openSavedPdf(result.path).catch(() => {});
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to export study PDF';
+      setStudyPdfError(`${study.name}: ${msg}`);
+    } finally {
+      setExportingStudyPdfId(null);
     }
   };
 
@@ -1896,6 +1916,9 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                       </button>
                     )}
                   </div>
+                  {studyPdfError && (
+                    <p className="text-sm text-scripture-error mb-3">{studyPdfError}</p>
+                  )}
                   {studies.length === 0 ? (
                     <p className="text-scripture-muted text-sm">No studies yet. Create one above to get started.</p>
                   ) : (
@@ -1956,6 +1979,16 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                                     Set Active
                                   </button>
                                 )}
+                                <button
+                                  onClick={() => handleExportStudyPdf(study)}
+                                  disabled={exportingStudyPdfId === study.id}
+                                  className="px-3 py-2 text-sm font-ui bg-scripture-elevated hover:bg-scripture-border/50
+                                           border border-scripture-border/50 text-scripture-text rounded-lg transition-all duration-200
+                                           disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Export this study's observations as a PDF"
+                                >
+                                  {exportingStudyPdfId === study.id ? 'Exporting…' : 'Export PDF'}
+                                </button>
                                 <button
                                   onClick={() => setEditingStudy({ id: study.id, name: study.name, book: study.book })}
                                   className="px-3 py-2 text-sm font-ui bg-scripture-elevated hover:bg-scripture-border/50
