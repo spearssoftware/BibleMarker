@@ -34,6 +34,7 @@ import {
   getAllPeople,
   getAllPlaces,
   getAllTimeExpressions,
+  getBookKeywordMarkCounts,
 } from '@/lib/database';
 import { PageWriter, loadJsPDF, type JsPDFDoc } from '@/lib/pdf/page-writer';
 import { buildPresetIconCache, iconCacheKey } from '@/lib/pdf/symbol-cache';
@@ -54,6 +55,9 @@ export interface BuildObservationPdfInput {
   conclusions: Conclusion[];
   interpretations: InterpretationEntry[];
   applications: ApplicationEntry[];
+  /** Per-preset keyword mark counts within the study's book, for the legend.
+   *  Absent → the legend falls back to each preset's global usage count. */
+  markCounts?: Record<string, number>;
 }
 
 // --- Pure helpers (study filtering / grouping) -------------------------------
@@ -322,12 +326,34 @@ export async function renderObservationIntoDoc(doc: JsPDFDoc, input: BuildObserv
   const bookName = study.book ? getBookById(study.book)?.name ?? study.book : undefined;
   writer.writeTitle(study.name, bookName ? `Observation Report  ·  ${bookName}` : 'Observation Report');
 
-  // 1. Keyword legend.
-  const legend = studyPresets.filter((p) => p.word);
+  // 1. Keyword legend. When the study targets a book and we have book-scoped
+  // mark counts, show those counts (not the preset's global usage). A global
+  // keyword (no studyId) only earns a legend row if it's actually used in this
+  // book — by a mark or by appearing in a section — so cross-book globals like
+  // "Jesus" don't show up in, say, an Ezekiel report. Study-specific keywords
+  // are always listed since they belong to the study. With no book (topical
+  // studies) the legend lists every study keyword with its global count.
+  const { markCounts } = input;
+  const bookScoped = Boolean(book && markCounts);
+  const markCountFor = (p: MarkingPreset): number =>
+    bookScoped ? markCounts![p.id] ?? 0 : p.usageCount ?? 0;
+
+  const usedPresetIds = new Set<string>();
+  for (const l of lists) if (l.items.length > 0) usedPresetIds.add(l.keyWordId);
+  for (const e of [...places, ...people, ...time, ...conclusions]) {
+    if (e.presetId) usedPresetIds.add(e.presetId);
+  }
+
+  const legend = studyPresets.filter((p) => {
+    if (!p.word) return false;
+    if (!bookScoped || p.studyId) return true; // topical, or a study-specific keyword
+    return markCountFor(p) > 0 || usedPresetIds.has(p.id); // global keyword: only if used here
+  });
   if (legend.length > 0) {
     writer.sectionHeading('Keywords');
     for (const p of legend) {
-      const meta = [p.category ? capitalize(p.category) : null, p.usageCount ? `${p.usageCount} marked` : null]
+      const count = markCountFor(p);
+      const meta = [p.category ? capitalize(p.category) : null, count ? `${count} marked` : null]
         .filter(Boolean).join('  ·  ');
       writer.keywordHeading(iconFor(p), p.word!, meta || undefined);
     }
@@ -440,7 +466,7 @@ export async function saveObservationPdf(
  * independently resilient so one failed query can't blank the whole report.
  */
 export async function gatherStudyObservationInput(study: Study): Promise<BuildObservationPdfInput> {
-  const [presets, lists, places, people, time, conclusions, interpretations, applications] = await Promise.all([
+  const [presets, lists, places, people, time, conclusions, interpretations, applications, markCounts] = await Promise.all([
     getAllMarkingPresets().catch(() => []),
     getAllObservationLists().catch(() => []),
     getAllPlaces().catch(() => []),
@@ -449,8 +475,9 @@ export async function gatherStudyObservationInput(study: Study): Promise<BuildOb
     getAllConclusions().catch(() => []),
     getAllInterpretations().catch(() => []),
     getAllApplications().catch(() => []),
+    study.book ? getBookKeywordMarkCounts(study.book).catch(() => ({})) : Promise.resolve({}),
   ]);
-  return { study, presets, lists, places, people, time, conclusions, interpretations, applications };
+  return { study, presets, lists, places, people, time, conclusions, interpretations, applications, markCounts };
 }
 
 /** Gather a study's observation data and build its report PDF bytes. */

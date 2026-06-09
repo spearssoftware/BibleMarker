@@ -109,6 +109,39 @@ describe('buildObservationPdf', () => {
     expect(text).not.toContain('OTHERBOOKPLACE');
   });
 
+  it('book-scopes the keyword legend: global keywords unused in the book are dropped, counts are book-scoped', async () => {
+    const bookStudy: Study = { ...study, name: 'Ezekiel', book: 'Ezek' };
+    const presets: MarkingPreset[] = [
+      preset({ id: 'pGod', word: 'God', symbol: 'triangle', category: 'identity', usageCount: 32 }), // global, marked here
+      preset({ id: 'pJesus', word: 'Jesus', symbol: 'cross', category: 'identity', usageCount: 80 }), // global, NOT marked here
+      preset({ id: 'pWheels', word: 'wheels', symbol: 'circle', category: 'custom', usageCount: 0, studyId: 's1' }), // study keyword, unmarked
+    ];
+    const input: BuildObservationPdfInput = {
+      study: bookStudy, presets,
+      lists: [], places: [], people: [], time: [], conclusions: [], interpretations: [], applications: [],
+      markCounts: { pGod: 6 }, // Jesus has zero Ezekiel marks
+    };
+    const text = new TextDecoder('latin1').decode(await buildObservationPdf(input));
+    expect(text).toContain('God');
+    expect(text).toContain('6 marked');   // book count, not the global 32
+    expect(text).not.toContain('Jesus');  // global keyword unused in this book
+    expect(text).not.toContain('80 marked');
+    expect(text).toContain('wheels');     // study-specific keyword always listed
+  });
+
+  it('lists all study keywords with global counts when the study has no book', async () => {
+    const presets: MarkingPreset[] = [
+      preset({ id: 'pJesus', word: 'Jesus', symbol: 'cross', category: 'identity', usageCount: 80 }),
+    ];
+    const input: BuildObservationPdfInput = {
+      study, presets, // study has no book
+      lists: [], places: [], people: [], time: [], conclusions: [], interpretations: [], applications: [],
+    };
+    const text = new TextDecoder('latin1').decode(await buildObservationPdf(input));
+    expect(text).toContain('Jesus');
+    expect(text).toContain('80 marked');
+  });
+
   it('omits empty sections (no data → title-only doc still builds)', async () => {
     const input: BuildObservationPdfInput = {
       study, presets: [],
