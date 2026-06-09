@@ -95,6 +95,9 @@ export class PageWriter {
   protected y: number;
   private headerText: string | null = null;
   private pageNo = 1;
+  /** First doc page this writer renders onto (1 for a fresh doc; higher when
+   *  appended after another section), so footers stamp only its own pages. */
+  private readonly startPage: number;
   readonly pageWidth: number;
   readonly pageHeight: number;
   readonly contentWidth: number;
@@ -102,6 +105,7 @@ export class PageWriter {
   constructor(doc: JsPDFDoc, opts: PageWriterOptions = DEFAULT_OPTS) {
     this.doc = doc;
     this.opts = opts;
+    this.startPage = doc.getNumberOfPages();
     this.pageWidth = doc.internal.pageSize.getWidth();
     this.pageHeight = doc.internal.pageSize.getHeight();
     this.contentWidth = this.pageWidth - opts.marginLeft - opts.marginRight;
@@ -265,12 +269,14 @@ export class PageWriter {
     this.y += pts;
   }
 
+  /** Stamp the footer text on every page this writer rendered (its start page
+   *  through the doc's current last page). Other sections' pages are untouched. */
   drawRunningFooter(text: string): void {
     const total = this.doc.getNumberOfPages();
     this.doc.setFont('helvetica', 'normal');
     this.doc.setFontSize(8);
     this.doc.setTextColor(110, 110, 110);
-    for (let p = 1; p <= total; p++) {
+    for (let p = this.startPage; p <= total; p++) {
       this.doc.setPage(p);
       const footerY = this.pageHeight - this.opts.marginBottom + 12;
       const lines = this.doc.splitTextToSize(text, this.contentWidth);

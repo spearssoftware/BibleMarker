@@ -33,6 +33,7 @@ import {
   type BuildPassagePdfInput,
 } from '@/lib/passage-pdf';
 import { buildStudyObservationPdf, observationFilename } from '@/lib/observation-pdf';
+import { buildChapterAndStudyPdf, chapterAndStudyFilename } from '@/lib/combined-pdf';
 import { savePdfsToDirectory } from '@/lib/pdf/save';
 
 interface ExportPopoverProps {
@@ -129,29 +130,31 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
     if (nothingSelected) return;
     setAction({ status: 'busy' });
     try {
-      // Build every requested PDF first, then write them all to one chosen
-      // folder so the user picks a destination only once.
+      const passageInput: BuildPassagePdfInput = {
+        translation,
+        book,
+        chapter,
+        verses,
+        annotations,
+        notes,
+        sectionHeadings: headings,
+        chapterTitle,
+        verseRange: wholeChapter ? undefined : { start: startVerse, end: endVerse },
+        presets,
+        exclusions,
+        activeStudyId,
+      };
+
+      // Both selected → one combined PDF. Otherwise the single chosen section.
       const files: Array<{ bytes: Uint8Array; filename: string }> = [];
-
-      if (includeChapter) {
-        const input: BuildPassagePdfInput = {
-          translation,
-          book,
-          chapter,
-          verses,
-          annotations,
-          notes,
-          sectionHeadings: headings,
-          chapterTitle,
-          verseRange: wholeChapter ? undefined : { start: startVerse, end: endVerse },
-          presets,
-          exclusions,
-          activeStudyId,
-        };
-        files.push({ bytes: await buildPassagePdf(input), filename: passageFilename(input) });
-      }
-
-      if (includeStudy && activeStudy) {
+      if (includeChapter && includeStudy && activeStudy) {
+        files.push({
+          bytes: await buildChapterAndStudyPdf(passageInput, activeStudy),
+          filename: chapterAndStudyFilename(passageInput, activeStudy),
+        });
+      } else if (includeChapter) {
+        files.push({ bytes: await buildPassagePdf(passageInput), filename: passageFilename(passageInput) });
+      } else if (includeStudy && activeStudy) {
         files.push({ bytes: await buildStudyObservationPdf(activeStudy), filename: observationFilename(activeStudy) });
       }
 
@@ -261,8 +264,8 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
 
           <p className="text-xs text-scripture-muted leading-relaxed">
             The chapter PDF includes your marks, headings, and notes.
-            {activeStudy && ' The study report lists your keywords, places, people, and more.'}
-            {' '}You’ll pick a folder to save into (Downloads by default), then it opens in Preview.
+            {activeStudy && ' The study report lists your keywords, places, people, and more, and combines into the same PDF when both are picked.'}
+            {' '}You’ll choose a folder to save into (Downloads by default), then it opens in Preview.
           </p>
 
           <Button variant="primary" onClick={handleSave} disabled={busy || nothingSelected} fullWidth>

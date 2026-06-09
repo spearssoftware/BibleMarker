@@ -28,7 +28,7 @@ import { getBookById, getHighlightColorHex, type HighlightColor } from '@/types'
 import { getModuleCopyright, ESV_COPYRIGHT, type ApiTranslation } from '@/lib/bible-api';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
-import { PageWriter, hexToRgb, loadJsPDF, type JsPDFCtor, type JsPDFDoc } from '@/lib/pdf/page-writer';
+import { PageWriter, hexToRgb, loadJsPDF, type JsPDFDoc } from '@/lib/pdf/page-writer';
 import { buildIconCache, iconCacheKey } from '@/lib/pdf/symbol-cache';
 import { savePdfBytes, openSavedPdf } from '@/lib/pdf/save';
 
@@ -285,9 +285,13 @@ class PassagePageWriter extends PageWriter {
 
 // --- Document builder --------------------------------------------------------
 
-async function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): Promise<JsPDFDoc> {
+/**
+ * Render the passage section onto an existing doc, starting at its current
+ * page. Lets a combined export append other sections; standalone exports pass
+ * a fresh single-page doc.
+ */
+export async function renderPassageIntoDoc(doc: JsPDFDoc, input: BuildPassagePdfInput): Promise<void> {
   const { translation, book, chapter, verses, annotations, notes, sectionHeadings, chapterTitle, verseRange } = input;
-  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
   const writer = new PassagePageWriter(doc);
 
   const presets = input.presets ?? [];
@@ -356,15 +360,14 @@ async function buildPdfDoc(jsPDF: JsPDFCtor, input: BuildPassagePdfInput): Promi
   }
 
   writer.drawRunningFooter(getTranslationAttribution(translation));
-  return doc;
 }
 
 export async function buildPassagePdf(input: BuildPassagePdfInput): Promise<Uint8Array> {
   const jsPDF = await loadJsPDF();
   console.log('[passage-pdf] building PDF…');
-  const doc = await buildPdfDoc(jsPDF, input);
-  const arrBuf = doc.output('arraybuffer');
-  const bytes = new Uint8Array(arrBuf);
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+  await renderPassageIntoDoc(doc, input);
+  const bytes = new Uint8Array(doc.output('arraybuffer'));
   console.log('[passage-pdf] PDF ready, bytes=', bytes.length);
   return bytes;
 }
