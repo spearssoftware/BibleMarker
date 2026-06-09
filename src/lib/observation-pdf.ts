@@ -38,7 +38,7 @@ import {
 } from '@/lib/database';
 import { PageWriter, loadJsPDF, type JsPDFDoc } from '@/lib/pdf/page-writer';
 import { buildPresetIconCache, iconCacheKey } from '@/lib/pdf/symbol-cache';
-import { savePdfBytes, openSavedPdf } from '@/lib/pdf/save';
+import { savePdfBytes, openSavedPdf, slugify } from '@/lib/pdf/save';
 
 export { openSavedPdf };
 
@@ -449,8 +449,7 @@ export async function buildObservationPdf(input: BuildObservationPdfInput): Prom
 }
 
 export function observationFilename(study: Study): string {
-  const slug = study.name.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || 'study';
-  return `${slug}-observations.pdf`;
+  return `${slugify(study.name) || 'study'}-observations.pdf`;
 }
 
 /** Build the observation report and write it to disk (native dialog / iOS Documents). */

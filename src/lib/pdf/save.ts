@@ -46,6 +46,12 @@ export async function savePdfBytes(
   return { path: chosen };
 }
 
+/** Filesystem-safe slug for a PDF filename: strip punctuation, collapse spaces
+ *  to hyphens. Returns '' for input that's all punctuation (callers default). */
+export function slugify(text: string): string {
+  return text.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
+}
+
 /** Open a previously-saved PDF in the system default viewer. */
 export async function openSavedPdf(path: string): Promise<void> {
   const { openPath } = await import('@tauri-apps/plugin-opener');
