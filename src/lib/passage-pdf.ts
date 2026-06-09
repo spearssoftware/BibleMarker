@@ -30,7 +30,7 @@ import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { PageWriter, hexToRgb, loadJsPDF, type JsPDFDoc } from '@/lib/pdf/page-writer';
 import { buildIconCache, iconCacheKey } from '@/lib/pdf/symbol-cache';
-import { savePdfBytes, openSavedPdf } from '@/lib/pdf/save';
+import { openSavedPdf } from '@/lib/pdf/save';
 
 export { openSavedPdf };
 
@@ -381,16 +381,4 @@ export function passageFilename(input: BuildPassagePdfInput): string {
       : `-${range.start}-${range.end}`
     : '';
   return `${bookName}-${input.chapter}${suffix}.pdf`;
-}
-
-/**
- * Build the PDF and write it to disk (native dialog on desktop/Android, the
- * Documents/exports directory on iOS). Returns the saved path, or
- * `{ cancelled: true }` if the user dismissed the dialog.
- */
-export async function savePassagePdf(
-  input: BuildPassagePdfInput,
-): Promise<{ path: string } | { cancelled: true }> {
-  const bytes = await buildPassagePdf(input);
-  return savePdfBytes(bytes, passageFilename(input));
 }

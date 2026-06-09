@@ -25,7 +25,8 @@ export async function buildChapterAndStudyPdf(
   study: Study,
 ): Promise<Uint8Array> {
   // The study's DB gather is independent of the passage render — start it first
-  // so its queries overlap the passage's keyword/rasterize pass.
+  // so its queries run during the passage render's async gaps (jsPDF load, icon
+  // rasterization).
   const obsInputP = gatherStudyObservationInput(study);
   const jsPDF = await loadJsPDF();
   const doc = new jsPDF({ unit: 'pt', format: 'letter' });

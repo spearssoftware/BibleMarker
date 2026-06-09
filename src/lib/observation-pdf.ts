@@ -452,13 +452,6 @@ export function observationFilename(study: Study): string {
   return `${slugify(study.name) || 'study'}-observations.pdf`;
 }
 
-/** Build the observation report and write it to disk (native dialog / iOS Documents). */
-export async function saveObservationPdf(
-  input: BuildObservationPdfInput,
-): Promise<{ path: string } | { cancelled: true }> {
-  const bytes = await buildObservationPdf(input);
-  return savePdfBytes(bytes, observationFilename(input.study));
-}
 
 /**
  * Gather every observation table for a study into a build input. Each getter is
@@ -474,7 +467,9 @@ export async function gatherStudyObservationInput(study: Study): Promise<BuildOb
     getAllConclusions().catch(() => []),
     getAllInterpretations().catch(() => []),
     getAllApplications().catch(() => []),
-    study.book ? getBookKeywordMarkCounts(study.book).catch(() => ({})) : Promise.resolve({}),
+    // undefined (not {}) on failure/no-book so the legend falls back to each
+    // preset's global usage count rather than silently showing every count as 0.
+    study.book ? getBookKeywordMarkCounts(study.book).catch(() => undefined) : Promise.resolve(undefined),
   ]);
   return { study, presets, lists, places, people, time, conclusions, interpretations, applications, markCounts };
 }
