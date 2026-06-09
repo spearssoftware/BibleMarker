@@ -22,6 +22,8 @@ import type { Person } from '@/types';
 import type { Conclusion } from '@/types';
 import type { InterpretationEntry } from '@/types';
 import type { ApplicationEntry } from '@/types';
+import type { EntityNote } from '@/types';
+import type { KeywordExclusion } from '@/types';
 import {
   validateAnnotation,
   validateSectionHeading,
@@ -61,6 +63,8 @@ export interface BackupData {
     conclusions: Conclusion[];
     interpretations: InterpretationEntry[];
     applications: ApplicationEntry[];
+    entityNotes?: EntityNote[];
+    keywordExclusions?: KeywordExclusion[];
     cachedChapters?: Array<{
       id: string;
       moduleId: string;
@@ -150,6 +154,8 @@ export async function exportBackup(includeCache: boolean = false): Promise<strin
         conclusions: allData.conclusions,
         interpretations: allData.interpretations,
         applications: allData.applications,
+        entityNotes: allData.entityNotes,
+        keywordExclusions: allData.keywordExclusions,
       },
     };
 
@@ -616,6 +622,8 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
       conclusions: backup.data.conclusions || [],
       interpretations: validatedInterpretations,
       applications: validatedApplications,
+      entityNotes: backup.data.entityNotes || [],
+      keywordExclusions: backup.data.keywordExclusions || [],
       preferences: backup.data.preferences || null,
     });
 
