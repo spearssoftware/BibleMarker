@@ -26,11 +26,14 @@ import { useStudyStore } from '@/stores/studyStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
 import {
+  buildPassagePdf,
   getTranslationAttribution,
   openSavedPdf,
-  savePassagePdf,
+  passageFilename,
+  type BuildPassagePdfInput,
 } from '@/lib/passage-pdf';
-import { saveStudyObservationPdf } from '@/lib/observation-pdf';
+import { buildStudyObservationPdf, observationFilename } from '@/lib/observation-pdf';
+import { savePdfsToDirectory } from '@/lib/pdf/save';
 
 interface ExportPopoverProps {
   translation: ApiTranslation;
@@ -64,6 +67,8 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
   const [startVerse, setStartVerse] = useState(firstVerse);
   const [endVerse, setEndVerse] = useState(lastVerse);
   const [action, setAction] = useState<ActionState>({ status: 'idle' });
+
+  const nothingSelected = !includeChapter && !(includeStudy && activeStudy);
 
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [headings, setHeadings] = useState<SectionHeading[]>([]);
@@ -121,13 +126,15 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
   };
 
   const handleSave = async () => {
-    if (!includeChapter && !(includeStudy && activeStudy)) return;
+    if (nothingSelected) return;
     setAction({ status: 'busy' });
     try {
-      const savedPaths: string[] = [];
+      // Build every requested PDF first, then write them all to one chosen
+      // folder so the user picks a destination only once.
+      const files: Array<{ bytes: Uint8Array; filename: string }> = [];
 
       if (includeChapter) {
-        const result = await savePassagePdf({
+        const input: BuildPassagePdfInput = {
           translation,
           book,
           chapter,
@@ -140,30 +147,31 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
           presets,
           exclusions,
           activeStudyId,
-        });
-        if ('path' in result) savedPaths.push(result.path);
+        };
+        files.push({ bytes: await buildPassagePdf(input), filename: passageFilename(input) });
       }
 
       if (includeStudy && activeStudy) {
-        const result = await saveStudyObservationPdf(activeStudy);
-        if ('path' in result) savedPaths.push(result.path);
+        files.push({ bytes: await buildStudyObservationPdf(activeStudy), filename: observationFilename(activeStudy) });
       }
 
-      // Every requested save was cancelled at its dialog — nothing to report.
-      if (savedPaths.length === 0) {
+      const result = await savePdfsToDirectory(files);
+      if ('cancelled' in result) {
         setAction({ status: 'idle' });
         return;
       }
 
       setAction({ status: 'success', message: 'Saved — opening…' });
-      for (const path of savedPaths) {
+      for (const path of result.paths) {
         // On iOS the open call may succeed silently without launching a viewer.
         await openSavedPdf(path).catch((openErr) =>
           console.error('[ExportPopover] open after save failed', openErr));
       }
       setAction({
         status: 'success',
-        message: savedPaths.length > 1 ? `Saved ${savedPaths.length} PDFs` : `Saved to ${savedPaths[0]}`,
+        message: result.paths.length > 1
+          ? `Saved ${result.paths.length} PDFs to that folder`
+          : `Saved to ${result.paths[0]}`,
       });
     } catch (err) {
       console.error('[ExportPopover] save failed', err);
@@ -182,7 +190,6 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
   const bookName = getBookById(book)?.name ?? book;
   const attribution = getTranslationAttribution(translation);
   const busy = action.status === 'busy';
-  const nothingSelected = !includeChapter && !(includeStudy && activeStudy);
 
   return (
     <>
@@ -255,7 +262,7 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
           <p className="text-xs text-scripture-muted leading-relaxed">
             The chapter PDF includes your marks, headings, and notes.
             {activeStudy && ' The study report lists your keywords, places, people, and more.'}
-            {' '}Opens in Preview so you can print, attach to email, or copy text into Word.
+            {' '}You’ll pick a folder to save into (Downloads by default), then it opens in Preview.
           </p>
 
           <Button variant="primary" onClick={handleSave} disabled={busy || nothingSelected} fullWidth>

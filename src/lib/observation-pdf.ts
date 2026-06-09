@@ -418,7 +418,7 @@ export async function buildObservationPdf(input: BuildObservationPdfInput): Prom
   return bytes;
 }
 
-function defaultFilename(study: Study): string {
+export function observationFilename(study: Study): string {
   const slug = study.name.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || 'study';
   return `${slug}-observations.pdf`;
 }
@@ -428,17 +428,15 @@ export async function saveObservationPdf(
   input: BuildObservationPdfInput,
 ): Promise<{ path: string } | { cancelled: true }> {
   const bytes = await buildObservationPdf(input);
-  return savePdfBytes(bytes, defaultFilename(input.study));
+  return savePdfBytes(bytes, observationFilename(input.study));
 }
 
 /**
- * Gather every observation table for a study and save its report PDF. Each
- * getter is independently resilient so one failed query can't blank the whole
- * report. Used by both Settings → Studies and the chapter export popover.
+ * Gather every observation table for a study and build its report PDF bytes.
+ * Each getter is independently resilient so one failed query can't blank the
+ * whole report. Build-only — callers handle where the bytes are written.
  */
-export async function saveStudyObservationPdf(
-  study: Study,
-): Promise<{ path: string } | { cancelled: true }> {
+export async function buildStudyObservationPdf(study: Study): Promise<Uint8Array> {
   const [presets, lists, places, people, time, conclusions, interpretations, applications] = await Promise.all([
     getAllMarkingPresets().catch(() => []),
     getAllObservationLists().catch(() => []),
@@ -449,7 +447,15 @@ export async function saveStudyObservationPdf(
     getAllInterpretations().catch(() => []),
     getAllApplications().catch(() => []),
   ]);
-  return saveObservationPdf({
+  return buildObservationPdf({
     study, presets, lists, places, people, time, conclusions, interpretations, applications,
   });
+}
+
+/** Gather, build, and save a study's report PDF via the native save dialog. */
+export async function saveStudyObservationPdf(
+  study: Study,
+): Promise<{ path: string } | { cancelled: true }> {
+  const bytes = await buildStudyObservationPdf(study);
+  return savePdfBytes(bytes, observationFilename(study));
 }

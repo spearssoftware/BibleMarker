@@ -370,7 +370,7 @@ export async function buildPassagePdf(input: BuildPassagePdfInput): Promise<Uint
 }
 
 /** Filesystem-safe slug for a filename — e.g. "Jeremiah 46:5–12" → "Jeremiah-46-5-12". */
-function defaultFilename(input: BuildPassagePdfInput): string {
+export function passageFilename(input: BuildPassagePdfInput): string {
   const bookName = (getBookById(input.book)?.name ?? input.book).replace(/\s+/g, '-');
   const range = input.verseRange;
   const suffix = range
@@ -390,5 +390,5 @@ export async function savePassagePdf(
   input: BuildPassagePdfInput,
 ): Promise<{ path: string } | { cancelled: true }> {
   const bytes = await buildPassagePdf(input);
-  return savePdfBytes(bytes, defaultFilename(input));
+  return savePdfBytes(bytes, passageFilename(input));
 }

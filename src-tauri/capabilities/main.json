@@ -24,6 +24,9 @@
           "path": "$DOCUMENT/**"
         },
         {
+          "path": "$DOWNLOAD/**"
+        },
+        {
           "path": "$HOME/Library/Mobile Documents/iCloud~app~biblemarker/**"
         },
         {
