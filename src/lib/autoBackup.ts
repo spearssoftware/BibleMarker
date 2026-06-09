@@ -288,6 +288,8 @@ async function createBackupData(): Promise<BackupData> {
       conclusions: allData.conclusions,
       interpretations: allData.interpretations,
       applications: allData.applications,
+      entityNotes: allData.entityNotes,
+      keywordExclusions: allData.keywordExclusions,
     },
   };
 
