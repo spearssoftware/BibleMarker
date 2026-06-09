@@ -84,7 +84,6 @@ interface VerseToken {
   text: string;
   startOffset: number;
   endOffset: number;
-  leadingSpace: string;
 }
 
 /** Split verse text into whitespace-separated tokens, preserving each
@@ -92,7 +91,6 @@ interface VerseToken {
  *  annotation ranges precisely. */
 function tokenizeVerse(text: string): VerseToken[] {
   const tokens: VerseToken[] = [];
-  let lastEnd = 0;
   const re = /\S+/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text)) !== null) {
@@ -100,9 +98,7 @@ function tokenizeVerse(text: string): VerseToken[] {
       text: m[0],
       startOffset: m.index,
       endOffset: m.index + m[0].length,
-      leadingSpace: text.slice(lastEnd, m.index),
     });
-    lastEnd = m.index + m[0].length;
   }
   return tokens;
 }
@@ -168,8 +164,11 @@ class PassagePageWriter extends PageWriter {
     for (const tok of tokens) {
       const covers = annotations.filter((a) => annotationCoversToken(a, tok, verseNum));
 
-      const leading = firstOnLine ? '' : tok.leadingSpace || ' ';
-      const leadingW = leading ? this.doc.getTextWidth(leading) : 0;
+      // Render one normalized space between words regardless of the source
+      // whitespace. Some provider text has double/odd spaces that HTML collapses
+      // on screen but the PDF would otherwise honor literally (uneven gaps).
+      // Annotation matching uses token offsets, not this width, so marks stay aligned.
+      const leadingW = firstOnLine ? 0 : this.doc.getTextWidth(' ');
       const wordW = this.doc.getTextWidth(tok.text);
 
       if (!firstOnLine && x + leadingW + wordW > maxX) {
