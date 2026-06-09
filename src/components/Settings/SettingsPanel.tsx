@@ -11,11 +11,7 @@ import { getBookById, BIBLE_BOOKS, MARKING_STYLE_OPTIONS, type MarkingStyle } fr
 import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences, getSyncDiagnostics, type SyncDiagnostics } from '@/lib/database';
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
 import { exportStudyData } from '@/lib/export';
-import {
-  getAllMarkingPresets, getAllObservationLists, getAllPlaces, getAllPeople,
-  getAllTimeExpressions, getAllConclusions, getAllInterpretations, getAllApplications,
-} from '@/lib/database';
-import { saveObservationPdf, openSavedPdf } from '@/lib/observation-pdf';
+import { saveStudyObservationPdf, openSavedPdf } from '@/lib/observation-pdf';
 import type { Study } from '@/types';
 import {
   applyTheme,
@@ -606,28 +602,12 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     }
   };
 
-  // Export a single study's observation data (keywords, lists, places, people,
-  // time, conclusions, interpretation, application) as a PDF report scoped to
-  // that study. Each getter is independently resilient so one failure can't
-  // blank the whole report.
+  // Export a single study's observation report PDF, scoped to that study.
   const handleExportStudyPdf = async (study: Study) => {
     setExportingStudyPdfId(study.id);
     setStudyPdfError(null);
     try {
-      const [presets, lists, places, people, time, conclusions, interpretations, applications] = await Promise.all([
-        getAllMarkingPresets().catch(() => []),
-        getAllObservationLists().catch(() => []),
-        getAllPlaces().catch(() => []),
-        getAllPeople().catch(() => []),
-        getAllTimeExpressions().catch(() => []),
-        getAllConclusions().catch(() => []),
-        getAllInterpretations().catch(() => []),
-        getAllApplications().catch(() => []),
-      ]);
-      const result = await saveObservationPdf({
-        study, presets,
-        lists, places, people, time, conclusions, interpretations, applications,
-      });
+      const result = await saveStudyObservationPdf(study);
       // On success the saved PDF opens in the system viewer — that's the feedback.
       if ('path' in result) await openSavedPdf(result.path).catch(() => {});
     } catch (error) {

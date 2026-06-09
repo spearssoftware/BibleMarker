@@ -2,9 +2,9 @@
  * Export Popover
  *
  * Opened from the share/export button in the navigation bar. Lets the user
- * pick a verse range within the active chapter, then saves a PDF of the
- * passage via Tauri's native save dialog and auto-opens it in the system
- * default PDF viewer.
+ * export the chapter passage (optionally a verse range) and/or the active
+ * study's observation report as PDFs, via Tauri's native save dialog, then
+ * auto-opens each in the system default PDF viewer.
  *
  * One chapter cap, copyright in the popover and on every PDF page footer.
  */
@@ -30,6 +30,7 @@ import {
   openSavedPdf,
   savePassagePdf,
 } from '@/lib/passage-pdf';
+import { saveStudyObservationPdf } from '@/lib/observation-pdf';
 
 interface ExportPopoverProps {
   translation: ApiTranslation;
@@ -47,11 +48,17 @@ type ActionState =
 
 export function ExportPopover({ translation, book, chapter, verses, onClose }: ExportPopoverProps) {
   const { activeStudyId } = useStudyStore();
+  const activeStudy = useStudyStore((s) => s.studies.find((st) => st.id === s.activeStudyId) ?? null);
   const presets = useMarkingPresetStore((s) => s.presets);
   const exclusions = useKeywordExclusionStore((s) => s.exclusions);
 
   const firstVerse = verses[0]?.ref.verse ?? 1;
   const lastVerse = verses[verses.length - 1]?.ref.verse ?? firstVerse;
+
+  // What to export: the chapter passage and/or the active study's observation
+  // report. The study option only appears when a study is active.
+  const [includeChapter, setIncludeChapter] = useState(true);
+  const [includeStudy, setIncludeStudy] = useState(false);
 
   const [wholeChapter, setWholeChapter] = useState(true);
   const [startVerse, setStartVerse] = useState(firstVerse);
@@ -114,36 +121,50 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
   };
 
   const handleSave = async () => {
+    if (!includeChapter && !(includeStudy && activeStudy)) return;
     setAction({ status: 'busy' });
     try {
-      const result = await savePassagePdf({
-        translation,
-        book,
-        chapter,
-        verses,
-        annotations,
-        notes,
-        sectionHeadings: headings,
-        chapterTitle,
-        verseRange: wholeChapter ? undefined : { start: startVerse, end: endVerse },
-        presets,
-        exclusions,
-        activeStudyId,
-      });
-      if ('cancelled' in result) {
+      const savedPaths: string[] = [];
+
+      if (includeChapter) {
+        const result = await savePassagePdf({
+          translation,
+          book,
+          chapter,
+          verses,
+          annotations,
+          notes,
+          sectionHeadings: headings,
+          chapterTitle,
+          verseRange: wholeChapter ? undefined : { start: startVerse, end: endVerse },
+          presets,
+          exclusions,
+          activeStudyId,
+        });
+        if ('path' in result) savedPaths.push(result.path);
+      }
+
+      if (includeStudy && activeStudy) {
+        const result = await saveStudyObservationPdf(activeStudy);
+        if ('path' in result) savedPaths.push(result.path);
+      }
+
+      // Every requested save was cancelled at its dialog — nothing to report.
+      if (savedPaths.length === 0) {
         setAction({ status: 'idle' });
         return;
       }
+
       setAction({ status: 'success', message: 'Saved — opening…' });
-      try {
-        await openSavedPdf(result.path);
-        // On iOS the open call may succeed silently without launching a
-        // viewer; show the path so the user knows where the file lives.
-        setAction({ status: 'success', message: `Saved to ${result.path}` });
-      } catch (openErr) {
-        console.error('[ExportPopover] open after save failed', openErr);
-        setAction({ status: 'success', message: `Saved to ${result.path}` });
+      for (const path of savedPaths) {
+        // On iOS the open call may succeed silently without launching a viewer.
+        await openSavedPdf(path).catch((openErr) =>
+          console.error('[ExportPopover] open after save failed', openErr));
       }
+      setAction({
+        status: 'success',
+        message: savedPaths.length > 1 ? `Saved ${savedPaths.length} PDFs` : `Saved to ${savedPaths[0]}`,
+      });
     } catch (err) {
       console.error('[ExportPopover] save failed', err);
       const msg =
@@ -161,6 +182,7 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
   const bookName = getBookById(book)?.name ?? book;
   const attribution = getTranslationAttribution(translation);
   const busy = action.status === 'busy';
+  const nothingSelected = !includeChapter && !(includeStudy && activeStudy);
 
   return (
     <>
@@ -190,34 +212,53 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
 
         <div className="p-4 space-y-4">
           <Checkbox
-            label="Whole chapter"
-            checked={wholeChapter}
-            onChange={(e) => setWholeChapter(e.target.checked)}
+            label={`This chapter (${bookName} ${chapter})`}
+            checked={includeChapter}
+            onChange={(e) => setIncludeChapter(e.target.checked)}
           />
 
-          {!wholeChapter && (
-            <div className="grid grid-cols-2 gap-3">
-              <Select
-                label="From verse"
-                options={verseOptions}
-                value={String(startVerse)}
-                onChange={(e) => onStartChange(e.target.value)}
+          {includeChapter && (
+            <div className="ml-7 space-y-3">
+              <Checkbox
+                label="Whole chapter"
+                checked={wholeChapter}
+                onChange={(e) => setWholeChapter(e.target.checked)}
               />
-              <Select
-                label="To verse"
-                options={verseOptions}
-                value={String(endVerse)}
-                onChange={(e) => onEndChange(e.target.value)}
-              />
+
+              {!wholeChapter && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Select
+                    label="From verse"
+                    options={verseOptions}
+                    value={String(startVerse)}
+                    onChange={(e) => onStartChange(e.target.value)}
+                  />
+                  <Select
+                    label="To verse"
+                    options={verseOptions}
+                    value={String(endVerse)}
+                    onChange={(e) => onEndChange(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
           )}
 
+          {activeStudy && (
+            <Checkbox
+              label={`${activeStudy.name} study observations`}
+              checked={includeStudy}
+              onChange={(e) => setIncludeStudy(e.target.checked)}
+            />
+          )}
+
           <p className="text-xs text-scripture-muted leading-relaxed">
-            Saves a PDF of the passage with your marks, headings, and notes.
-            Opens in Preview so you can print, attach to email, or copy text into Word.
+            The chapter PDF includes your marks, headings, and notes.
+            {activeStudy && ' The study report lists your keywords, places, people, and more.'}
+            {' '}Opens in Preview so you can print, attach to email, or copy text into Word.
           </p>
 
-          <Button variant="primary" onClick={handleSave} disabled={busy} fullWidth>
+          <Button variant="primary" onClick={handleSave} disabled={busy || nothingSelected} fullWidth>
             {busy ? 'Saving…' : 'Save as PDF'}
           </Button>
 

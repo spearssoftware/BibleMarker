@@ -25,6 +25,16 @@ import type {
 } from '@/types';
 import { BIBLE_BOOKS, formatVerseRef, getBookById, getHighlightColorHex, type HighlightColor } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
+import {
+  getAllApplications,
+  getAllConclusions,
+  getAllInterpretations,
+  getAllMarkingPresets,
+  getAllObservationLists,
+  getAllPeople,
+  getAllPlaces,
+  getAllTimeExpressions,
+} from '@/lib/database';
 import { PageWriter, loadJsPDF, type JsPDFCtor, type JsPDFDoc } from '@/lib/pdf/page-writer';
 import { buildPresetIconCache, iconCacheKey } from '@/lib/pdf/symbol-cache';
 import { savePdfBytes, openSavedPdf } from '@/lib/pdf/save';
@@ -419,4 +429,27 @@ export async function saveObservationPdf(
 ): Promise<{ path: string } | { cancelled: true }> {
   const bytes = await buildObservationPdf(input);
   return savePdfBytes(bytes, defaultFilename(input.study));
+}
+
+/**
+ * Gather every observation table for a study and save its report PDF. Each
+ * getter is independently resilient so one failed query can't blank the whole
+ * report. Used by both Settings → Studies and the chapter export popover.
+ */
+export async function saveStudyObservationPdf(
+  study: Study,
+): Promise<{ path: string } | { cancelled: true }> {
+  const [presets, lists, places, people, time, conclusions, interpretations, applications] = await Promise.all([
+    getAllMarkingPresets().catch(() => []),
+    getAllObservationLists().catch(() => []),
+    getAllPlaces().catch(() => []),
+    getAllPeople().catch(() => []),
+    getAllTimeExpressions().catch(() => []),
+    getAllConclusions().catch(() => []),
+    getAllInterpretations().catch(() => []),
+    getAllApplications().catch(() => []),
+  ]);
+  return saveObservationPdf({
+    study, presets, lists, places, people, time, conclusions, interpretations, applications,
+  });
 }
