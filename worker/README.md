@@ -91,6 +91,42 @@ gh secret set NASB_SIGNING_KEY --repo spearssoftware/BibleMarker --body "<your-k
 
 The PR that wires this into Tauri builds will reference the secret as `NASB_SIGNING_KEY`.
 
+## Sync server (per-account study-data sync)
+
+The same Worker also backs cross-device sync for the app. Routes:
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/sync/blob/{key...}` | `GET`/`PUT`/`DELETE` | read/write/delete a sync blob |
+| `/sync/list?prefix={p}` | `GET` | list immediate children of a logical prefix |
+| `/sync/device` | `POST` | register a device for the account-management UI |
+| `/account` | `DELETE` | delete the account, its devices/sessions, and all blobs |
+| `/auth/*` | — | email-OTP sign-in (added in Phase 2) |
+
+All sync routes require `Authorization: Bearer <session-token>`. Only the token's
+SHA-256 hash is stored (in D1 `sessions`), and `accountId` is derived from the
+session — never from the request path. Blobs are stored in R2 under
+`sync/{accountId}/...`, which is the account-isolation boundary.
+
+### One-time setup for sync
+
+```bash
+# 1. Create the sync R2 bucket
+npx wrangler r2 bucket create biblemarker-sync
+
+# 2. Create the D1 database, then paste the printed database_id into
+#    wrangler.toml (both the top-level and [env.production] d1_databases blocks),
+#    replacing REPLACE_WITH_D1_DATABASE_ID.
+npx wrangler d1 create biblemarker-sync
+
+# 3. Apply the schema migration
+npx wrangler d1 migrations apply biblemarker-sync --remote    # production
+npx wrangler d1 migrations apply biblemarker-sync --local     # local dev
+```
+
+Phase 2 adds the `RESEND_API_KEY` secret for OTP email; until then the `/auth/*`
+routes are not implemented and sessions must be inserted manually for testing.
+
 ## Deploying updates
 
 After the initial setup, day-to-day updates are simple:

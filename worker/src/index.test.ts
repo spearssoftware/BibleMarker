@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { computeToken, verifyToken } from './index';
+import { computeToken, verifyToken } from './modules';
 
 const KEY = 'test-signing-key-1234567890abcdef';
 
