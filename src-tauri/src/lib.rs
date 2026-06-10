@@ -76,6 +76,10 @@ impl AppBuilder {
                 sync_client::get_session_account,
                 sync_client::auth_revoke,
                 sync_client::clear_session_token,
+                sync_client::sync_write,
+                sync_client::sync_read,
+                sync_client::sync_list,
+                sync_client::sync_remove,
             ])
             .setup(move |app| {
                 if let Some(setup) = setup {
