@@ -19,6 +19,12 @@ database_name = "biblemarker-sync"
 # Set after `wrangler d1 create biblemarker-sync` (see worker/README.md).
 database_id = "REPLACE_WITH_D1_DATABASE_ID"
 
+# Cloudflare Flagship feature flags (app_id is an identifier, not a secret —
+# see worker/README.md for the flag catalog). The vitest suite mocks the binding.
+[[flagship]]
+binding = "FLAGS"
+app_id = "283ab531-376d-4508-8530-bceb96de4d7b"
+
 [vars]
 # Verified Postmark sender address for OTP emails (not a secret).
 OTP_FROM_EMAIL = "noreply@spearssoftware.com"
@@ -34,7 +40,8 @@ routes = [
   { pattern = "biblemarker.app/modules/*", zone_name = "biblemarker.app" },
   { pattern = "biblemarker.app/sync/*", zone_name = "biblemarker.app" },
   { pattern = "biblemarker.app/account", zone_name = "biblemarker.app" },
-  { pattern = "biblemarker.app/auth/*", zone_name = "biblemarker.app" }
+  { pattern = "biblemarker.app/auth/*", zone_name = "biblemarker.app" },
+  { pattern = "biblemarker.app/config", zone_name = "biblemarker.app" }
 ]
 
 [[env.production.r2_buckets]]
@@ -49,6 +56,10 @@ bucket_name = "biblemarker-sync"
 binding = "DB"
 database_name = "biblemarker-sync"
 database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[[env.production.flagship]]
+binding = "FLAGS"
+app_id = "283ab531-376d-4508-8530-bceb96de4d7b"
 
 [env.production.vars]
 OTP_FROM_EMAIL = "noreply@spearssoftware.com"

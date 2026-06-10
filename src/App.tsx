@@ -30,6 +30,7 @@ import { getDebugFlags } from '@/lib/debug';
 import { useUndoToastStore } from '@/stores/undoToastStore';
 import { UndoToast } from '@/components/shared';
 import { initializeSync, shutdownSync } from '@/lib/sync';
+import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
 import { checkForUpdateIfDue, fetchWhatsNew, fetchWhatsNewForced } from '@/lib/updateCheck';
 import { isCapacitor } from '@/lib/platform';
 import { UpdateBanner, WhatsNewModal } from '@/components/shared';
@@ -139,6 +140,10 @@ export default function App() {
       getDebugFlags();
       autoBackupService.start();
 
+      // Refresh remote feature flags in the background (updates the SQLite cache
+      // + store). Sync starts independently — its kill-switch reads the cached
+      // `sync-enabled` directly, so it must not block on the network fetch.
+      useFeatureFlagsStore.getState().loadFlags();
       initializeSync().catch(err => {
         console.error('[App] Failed to initialize sync:', err);
       });
