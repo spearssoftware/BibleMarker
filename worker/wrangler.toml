@@ -19,12 +19,11 @@ database_name = "biblemarker-sync"
 # Set after `wrangler d1 create biblemarker-sync` (see worker/README.md).
 database_id = "REPLACE_WITH_D1_DATABASE_ID"
 
-# Cloudflare Flagship feature flags. Set app_id after creating the app in the
-# dashboard (see worker/README.md). `wrangler dev` may require a real app_id;
-# the vitest suite mocks the binding and does not need one.
+# Cloudflare Flagship feature flags (app_id is an identifier, not a secret —
+# see worker/README.md for the flag catalog). The vitest suite mocks the binding.
 [[flagship]]
 binding = "FLAGS"
-app_id = "REPLACE_WITH_FLAGSHIP_APP_ID"
+app_id = "283ab531-376d-4508-8530-bceb96de4d7b"
 
 [vars]
 # Verified Postmark sender address for OTP emails (not a secret).
@@ -60,7 +59,7 @@ database_id = "REPLACE_WITH_D1_DATABASE_ID"
 
 [[env.production.flagship]]
 binding = "FLAGS"
-app_id = "REPLACE_WITH_FLAGSHIP_APP_ID"
+app_id = "283ab531-376d-4508-8530-bceb96de4d7b"
 
 [env.production.vars]
 OTP_FROM_EMAIL = "noreply@spearssoftware.com"
