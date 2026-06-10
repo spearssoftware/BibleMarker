@@ -19,6 +19,10 @@ database_name = "biblemarker-sync"
 # Set after `wrangler d1 create biblemarker-sync` (see worker/README.md).
 database_id = "REPLACE_WITH_D1_DATABASE_ID"
 
+[vars]
+# Verified Postmark sender address for OTP emails (not a secret).
+OTP_FROM_EMAIL = "noreply@spearssoftware.com"
+
 [observability]
 enabled = true
 
@@ -46,9 +50,12 @@ binding = "DB"
 database_name = "biblemarker-sync"
 database_id = "REPLACE_WITH_D1_DATABASE_ID"
 
+[env.production.vars]
+OTP_FROM_EMAIL = "noreply@spearssoftware.com"
+
 [env.production.observability]
 enabled = true
 
 # Secrets (set via `wrangler secret put ... --env production`, never committed):
-#   SIGNING_KEY     — HMAC key for /modules auth
-#   RESEND_API_KEY  — transactional email for /auth OTP (Phase 2)
+#   SIGNING_KEY            — HMAC key for /modules auth
+#   POSTMARK_SERVER_TOKEN  — Postmark server token for /auth OTP emails

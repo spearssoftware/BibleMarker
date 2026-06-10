@@ -13,6 +13,8 @@ import { handleModuleRequest } from './modules';
 import { authenticate } from './auth';
 import { handleSync } from './sync';
 import { handleAccountDelete } from './account';
+import { PostmarkSender } from './email';
+import { handleAuthRequest, handleAuthVerify, handleAuthRevoke } from './auth-routes';
 
 export type { Env };
 
@@ -23,6 +25,19 @@ export default {
 
     if (path.startsWith('/modules/')) {
       return handleModuleRequest(request, env, url);
+    }
+
+    // Sign-in routes establish a session, so they are unauthenticated
+    // (/auth/revoke validates its own bearer token).
+    if (path.startsWith('/auth/')) {
+      if (request.method !== 'POST') return jsonError(405, 'Method Not Allowed');
+      if (path === '/auth/request') {
+        const sender = new PostmarkSender(env.POSTMARK_SERVER_TOKEN, env.OTP_FROM_EMAIL);
+        return handleAuthRequest(request, env, sender);
+      }
+      if (path === '/auth/verify') return handleAuthVerify(request, env);
+      if (path === '/auth/revoke') return handleAuthRevoke(request, env);
+      return jsonError(404, 'Not Found');
     }
 
     if (path.startsWith('/sync/') || path === '/account') {
