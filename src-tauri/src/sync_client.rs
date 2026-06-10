@@ -235,8 +235,120 @@ pub fn clear_session_token(app: tauri::AppHandle) -> Result<(), SyncError> {
 }
 
 // ============================================================================
+// Sync transport commands (Phase 3)
+//
+// These mirror the StorageBackend seam: write / read / list / remove against
+// the account-scoped /sync routes. The session token is read here and attached
+// as a Bearer header — it never crosses into the webview. A missing token
+// surfaces as a 401-kind error so the engine can drop to an auth-expired state.
+// ============================================================================
+
+fn require_token(app: &tauri::AppHandle) -> Result<String, SyncError> {
+    read_session(app)
+        .map(|s| s.token)
+        .ok_or_else(|| SyncError::new("auth", 401, "not signed in"))
+}
+
+/// One immediate child of a listed prefix.
+#[derive(Serialize, Deserialize)]
+pub struct ListEntry {
+    pub name: String,
+    #[serde(rename = "isDirectory")]
+    pub is_directory: bool,
+}
+
+#[derive(Deserialize)]
+struct ListResponse {
+    entries: Vec<ListEntry>,
+}
+
+/// Write a blob at `key` (overwrite).
+#[tauri::command]
+pub async fn sync_write(
+    app: tauri::AppHandle,
+    key: String,
+    content: String,
+) -> Result<(), SyncError> {
+    let token = require_token(&app)?;
+    let res = reqwest::Client::new()
+        .put(format!("{SYNC_BASE}/sync/blob/{key}"))
+        .bearer_auth(token)
+        .header("Content-Type", "application/json")
+        .body(content)
+        .send()
+        .await
+        .map_err(SyncError::network)?;
+    parse_empty(res).await
+}
+
+/// Read the blob at `key`. `None` (HTTP 404) means absent.
+#[tauri::command]
+pub async fn sync_read(app: tauri::AppHandle, key: String) -> Result<Option<String>, SyncError> {
+    let token = require_token(&app)?;
+    let res = reqwest::Client::new()
+        .get(format!("{SYNC_BASE}/sync/blob/{key}"))
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(SyncError::network)?;
+    let status = res.status();
+    if status == reqwest::StatusCode::NOT_FOUND {
+        return Ok(None);
+    }
+    if !status.is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(SyncError::from_response(status, &body));
+    }
+    let text = res.text().await.map_err(SyncError::network)?;
+    Ok(Some(text))
+}
+
+/// List the immediate children of `prefix` (`""` = account root).
+#[tauri::command]
+pub async fn sync_list(app: tauri::AppHandle, prefix: String) -> Result<Vec<ListEntry>, SyncError> {
+    let token = require_token(&app)?;
+    let res = reqwest::Client::new()
+        .get(format!("{SYNC_BASE}/sync/list"))
+        .query(&[("prefix", &prefix)])
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(SyncError::network)?;
+    let status = res.status();
+    let text = res.text().await.map_err(SyncError::network)?;
+    if !status.is_success() {
+        return Err(SyncError::from_response(status, &text));
+    }
+    let parsed: ListResponse = serde_json::from_str(&text)
+        .map_err(|e| SyncError::protocol(format!("bad list response: {e}")))?;
+    Ok(parsed.entries)
+}
+
+/// Delete the blob at `key` (idempotent).
+#[tauri::command]
+pub async fn sync_remove(app: tauri::AppHandle, key: String) -> Result<(), SyncError> {
+    let token = require_token(&app)?;
+    let res = reqwest::Client::new()
+        .delete(format!("{SYNC_BASE}/sync/blob/{key}"))
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(SyncError::network)?;
+    parse_empty(res).await
+}
+
+// ============================================================================
 // HTTP helper
 // ============================================================================
+
+async fn parse_empty(res: reqwest::Response) -> Result<(), SyncError> {
+    let status = res.status();
+    if status.is_success() {
+        return Ok(());
+    }
+    let body = res.text().await.unwrap_or_default();
+    Err(SyncError::from_response(status, &body))
+}
 
 async fn post_json(path: &str, body: &serde_json::Value) -> Result<reqwest::Response, SyncError> {
     reqwest::Client::new()
