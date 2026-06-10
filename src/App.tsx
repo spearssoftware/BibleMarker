@@ -141,7 +141,7 @@ export default function App() {
       autoBackupService.start();
 
       // Refresh remote feature flags first, then start sync — its kill-switch
-      // reads the freshly cached `sync.enabled`. loadFlags never throws and
+      // reads the freshly cached `sync-enabled`. loadFlags never throws and
       // times out quickly offline, so sync init is not meaningfully delayed.
       useFeatureFlagsStore.getState().loadFlags().finally(() => {
         initializeSync().catch(err => {

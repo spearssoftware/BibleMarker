@@ -14,16 +14,19 @@
 import { getSyncConfig, setSyncConfig, getDeviceId } from './sqlite-db';
 import { isIOS, isAndroid, isMacOS, isTauri } from './platform';
 
-/** Logical flag keys, mirrored in the Flagship dashboard and the worker. */
+/**
+ * Logical flag keys, mirrored exactly in the Flagship dashboard and the worker.
+ * Flagship keys allow only letters, numbers, hyphens, and underscores (no dots).
+ */
 export const FLAG_KEYS = {
   /** Global sync kill-switch (server-enforced + reflected here). */
-  syncEnabled: 'sync.enabled',
+  syncEnabled: 'sync-enabled',
   /** Gate the OTP sign-in UI. */
-  otpEnabled: 'auth.otpEnabled',
+  otpEnabled: 'auth-otp-enabled',
   /** Toggle the HTTP storage backend vs iCloud during the Phase 3 migration. */
-  httpBackend: 'sync.httpBackend',
+  httpBackend: 'sync-http-backend',
   /** Enable the one-shot iCloud drain (Phase 4). */
-  icloudMigration: 'sync.icloudMigration',
+  icloudMigration: 'sync-icloud-migration',
 } as const;
 
 export type FlagKey = (typeof FLAG_KEYS)[keyof typeof FLAG_KEYS];

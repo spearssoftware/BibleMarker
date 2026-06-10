@@ -128,12 +128,12 @@ async function isSyncAllowed(): Promise<{ allowed: boolean; reason?: string }> {
     return { allowed: false, reason: 'dev build' };
   }
 
-  // Remote kill-switch: reflect the server `sync.enabled` flag (read straight
+  // Remote kill-switch: reflect the server `sync-enabled` flag (read straight
   // from the SQLite cache so it works offline and before the store hydrates).
   // The worker is authoritative; this avoids hammering a disabled backend and
   // surfaces the disabled state in the UI.
   if (!(await isFlagEnabled(FLAG_KEYS.syncEnabled))) {
-    return { allowed: false, reason: 'disabled by remote flag (sync.enabled)' };
+    return { allowed: false, reason: 'disabled by remote flag (sync-enabled)' };
   }
 
   return { allowed: true };

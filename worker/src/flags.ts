@@ -13,16 +13,19 @@
 import type { Env } from './env';
 import type { Session } from './auth';
 
-/** Logical flag keys, mirrored in the Flagship dashboard. */
+/**
+ * Logical flag keys, mirrored exactly in the Flagship dashboard.
+ * Flagship keys allow only letters, numbers, hyphens, and underscores (no dots).
+ */
 export const FLAG_KEYS = {
   /** Global sync kill-switch (server-enforced on `/sync/*` + client-reflected). */
-  syncEnabled: 'sync.enabled',
+  syncEnabled: 'sync-enabled',
   /** Gate the OTP request route + the client sign-in UI. */
-  otpEnabled: 'auth.otpEnabled',
+  otpEnabled: 'auth-otp-enabled',
   /** Toggle the HTTP storage backend vs iCloud during the Phase 3 migration. */
-  httpBackend: 'sync.httpBackend',
+  httpBackend: 'sync-http-backend',
   /** Enable the one-shot iCloud drain (Phase 4). */
-  icloudMigration: 'sync.icloudMigration',
+  icloudMigration: 'sync-icloud-migration',
 } as const;
 
 /** Safe defaults used when a flag is undefined or the binding is unreachable. */

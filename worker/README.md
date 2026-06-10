@@ -136,8 +136,8 @@ Change it if you verify `biblemarker.app` in Postmark for branding.
 
 Flags are evaluated **server-side** via the `FLAGS` Flagship binding and used two ways:
 
-- **Kill-switches / gates enforced in the Worker** — `sync.enabled` returns `503`
-  on `/sync/*`, `auth.otpEnabled` blocks `/auth/request`. These are keyed on the
+- **Kill-switches / gates enforced in the Worker** — `sync-enabled` returns `503`
+  on `/sync/*`, `auth-otp-enabled` blocks `/auth/request`. These are keyed on the
   verified `accountId` (or a global key), never a client header.
 - **Client snapshot** — `GET /config` returns `{ flags, evaluatedAt }`. The app
   caches it in SQLite and falls back to coded defaults offline. All flag logic
@@ -146,10 +146,10 @@ Flags are evaluated **server-side** via the `FLAGS` Flagship binding and used tw
 
 | Key | Type | Default | Purpose |
 |-----|------|---------|---------|
-| `sync.enabled` | bool | `true` | Global sync kill-switch |
-| `auth.otpEnabled` | bool | `true` | Gate OTP sign-in (route + UI) |
-| `sync.httpBackend` | bool | `false` | HTTP backend vs iCloud during the Phase 3 migration |
-| `sync.icloudMigration` | bool | `false` | One-shot iCloud drain (Phase 4) |
+| `sync-enabled` | bool | `true` | Global sync kill-switch |
+| `auth-otp-enabled` | bool | `true` | Gate OTP sign-in (route + UI) |
+| `sync-http-backend` | bool | `false` | HTTP backend vs iCloud during the Phase 3 migration |
+| `sync-icloud-migration` | bool | `false` | One-shot iCloud drain (Phase 4) |
 
 **Setup:** create a Flagship app in the Cloudflare dashboard, then paste its
 `app_id` into `wrangler.toml` (both the top-level `[[flagship]]` block and
@@ -171,7 +171,7 @@ Settings → About (Device ID → Copy).
 > Caveats: flags live in KV (eventually consistent — a flip propagates in
 > seconds-to-a-minute, not instantly). The `/sync/*` kill-switch only affects the
 > HTTP backend; current iCloud-file sync users are gated by the client-reflected
-> `sync.enabled` flag instead.
+> `sync-enabled` flag instead.
 
 ### One-time setup for sync
 
