@@ -17,6 +17,9 @@ mod flatpak;
 // Authenticated download for Lockman-licensed modules (NASB)
 mod signed_download;
 
+// Sync-server client: email-OTP auth + secure session-token storage
+mod sync_client;
+
 pub type SetupHook = Box<dyn FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send>;
 
 #[derive(Default)]
@@ -68,6 +71,11 @@ impl AppBuilder {
                 flatpak::check_flatpak,
                 signed_download::download_signed_module,
                 signed_download::has_signing_key,
+                sync_client::auth_request,
+                sync_client::auth_verify,
+                sync_client::get_session_account,
+                sync_client::auth_revoke,
+                sync_client::clear_session_token,
             ])
             .setup(move |app| {
                 if let Some(setup) = setup {
