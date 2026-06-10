@@ -20,14 +20,8 @@
  *       {device_id}_{seq}.json — full database snapshot
  */
 
-import {
-  readDir,
-  readTextFile,
-  mkdir,
-  exists,
-  remove,
-} from '@tauri-apps/plugin-fs';
-import { invoke } from '@tauri-apps/api/core';
+import { exists } from '@tauri-apps/plugin-fs';
+import { FolderStorageBackend, type StorageBackend } from './storage-backend';
 import {
   getUnflushedChanges,
   markChangesFlushed,
@@ -107,7 +101,7 @@ const FLUSH_INTERVAL_MS = 30_000;
 /** Compaction threshold: compact when journal files exceed this count per device */
 const COMPACTION_THRESHOLD = 100;
 
-let syncFolderPath: string | null = null;
+let backend: StorageBackend | null = null;
 let deviceId: string = '';
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 let currentStatus: SyncEngineStatus = {
@@ -162,12 +156,11 @@ export async function initSyncEngine(): Promise<void> {
     try {
       const folderExists = await exists(savedPath);
       if (folderExists) {
-        syncFolderPath = savedPath;
+        backend = new FolderStorageBackend(savedPath);
         notifyStatusChange({
           state: 'idle',
           syncFolderPath: savedPath,
         });
-        await ensureDeviceFolder();
         // Refresh meta.json on every startup so the device folder is non-empty
         // (iCloud won't sync empty folders) and other devices can see this device.
         try {
@@ -201,18 +194,13 @@ export async function initSyncEngine(): Promise<void> {
  * Configure the sync folder path and enable sync.
  */
 export async function configureSyncFolder(folderPath: string): Promise<void> {
-  // Ensure the folder exists
-  const folderExists = await exists(folderPath);
-  if (!folderExists) {
-    await mkdir(folderPath, { recursive: true });
-  }
-
-  syncFolderPath = folderPath;
+  backend = new FolderStorageBackend(folderPath);
   await setSyncConfig('sync_folder_path', folderPath);
   await setSyncConfig('sync_enabled', 'true');
 
-  await ensureDeviceFolder();
-  // Write initial meta.json so the device folder is non-empty (iCloud won't sync empty folders)
+  // Write initial meta.json so the device folder is non-empty (iCloud won't sync
+  // empty folders). The first write lazily creates the device folder and root, so
+  // no explicit mkdir is needed (callers already pass an existing root).
   await writeDeviceMeta(0);
   startFlushTimer();
 
@@ -237,7 +225,7 @@ export async function configureSyncFolder(folderPath: string): Promise<void> {
  */
 export async function disableSync(): Promise<void> {
   stopFlushTimer();
-  syncFolderPath = null;
+  backend = null;
   await setSyncConfig('sync_enabled', 'false');
   notifyStatusChange({
     state: 'disabled',
@@ -253,7 +241,7 @@ export async function disableSync(): Promise<void> {
 export async function stopSyncEngine(): Promise<void> {
   stopFlushTimer();
   // Flush any remaining changes before shutdown
-  if (syncFolderPath) {
+  if (backend) {
     try {
       await flushChanges();
     } catch (error) {
@@ -270,7 +258,7 @@ export async function stopSyncEngine(): Promise<void> {
  * Run a full sync cycle: flush local changes, then pull remote changes.
  */
 export async function sync(): Promise<void> {
-  if (!syncFolderPath) return;
+  if (!backend) return;
 
   try {
     notifyStatusChange({ state: 'syncing' });
@@ -320,7 +308,7 @@ export async function sync(): Promise<void> {
  * Flush pending changes from change_log to a journal file in the sync folder.
  */
 async function flushChanges(): Promise<void> {
-  if (!syncFolderPath) return;
+  if (!backend) return;
 
   const changes = await getUnflushedChanges();
   if (changes.length === 0) return;
@@ -344,10 +332,9 @@ async function flushChanges(): Promise<void> {
   };
 
   // Write journal file named by max seq
-  const deviceFolder = `${syncFolderPath}/${deviceId}`;
-  const filePath = `${deviceFolder}/${String(maxSeq).padStart(10, '0')}.json`;
+  const filePath = `${deviceId}/${String(maxSeq).padStart(10, '0')}.json`;
 
-  await invoke('write_sync_file', { path: filePath, content: JSON.stringify(journal) });
+  await backend.write(filePath, JSON.stringify(journal));
 
   // Mark changes as flushed in local DB
   await markChangesFlushed(maxSeq);
@@ -374,7 +361,7 @@ interface PullResult {
  * Returns the number of changes applied and which tables were updated.
  */
 async function pullChanges(): Promise<PullResult> {
-  if (!syncFolderPath) return { applied: 0, tables: new Set() };
+  if (!backend) return { applied: 0, tables: new Set() };
 
   let totalApplied = 0;
   const allTables = new Set<string>();
@@ -399,7 +386,7 @@ async function pullChanges(): Promise<PullResult> {
  * Pull and apply changes from a single remote device.
  */
 async function pullFromDevice(remoteDevice: string): Promise<PullResult> {
-  if (!syncFolderPath) return { applied: 0, tables: new Set() };
+  if (!backend) return { applied: 0, tables: new Set() };
 
   // First check if there's a snapshot we should bootstrap from
   const watermark = await getSyncWatermark(remoteDevice);
@@ -412,15 +399,12 @@ async function pullFromDevice(remoteDevice: string): Promise<PullResult> {
     }
   }
 
-  const deviceFolder = `${syncFolderPath}/${remoteDevice}`;
-  const folderExists = await exists(deviceFolder);
-  if (!folderExists) return { applied: 0, tables: new Set() };
-
-  // List journal files and sort by name (seq order)
-  const entries = await readDir(deviceFolder);
+  // List journal files and sort by name (seq order). A missing device folder
+  // lists as empty, so no explicit existence check is needed.
+  const entries = await backend.list(remoteDevice);
   const journalFiles = entries
-    .filter(e => e.name?.endsWith('.json') && e.name !== 'meta.json')
-    .map(e => e.name!)
+    .filter(e => e.name.endsWith('.json') && e.name !== 'meta.json')
+    .map(e => e.name)
     .sort();
 
   let applied = 0;
@@ -432,7 +416,8 @@ async function pullFromDevice(remoteDevice: string): Promise<PullResult> {
     if (isNaN(fileSeq) || fileSeq <= watermark) continue;
 
     try {
-      const content = await readTextFile(`${deviceFolder}/${fileName}`);
+      const content = await backend.readText(`${remoteDevice}/${fileName}`);
+      if (content === null) continue; // vanished since listing — retry next sync
       const journal = JSON.parse(content) as JournalFile;
 
       if (journal.version !== 1) {
@@ -505,7 +490,7 @@ export const SNAPSHOT_TABLE_KEYS = [
  * Write a full database snapshot for bootstrapping new devices.
  */
 async function writeSnapshot(): Promise<void> {
-  if (!syncFolderPath) return;
+  if (!backend) return;
 
   const exportData = await sqliteExportAll();
 
@@ -532,13 +517,8 @@ async function writeSnapshot(): Promise<void> {
     tables,
   };
 
-  const snapshotsDir = `${syncFolderPath}/snapshots`;
-  if (!(await exists(snapshotsDir))) {
-    await mkdir(snapshotsDir, { recursive: true });
-  }
-
-  const snapshotPath = `${snapshotsDir}/${deviceId}_${maxSeq}.json`;
-  await invoke('write_sync_file', { path: snapshotPath, content: JSON.stringify(snapshot) });
+  const snapshotPath = `snapshots/${deviceId}_${maxSeq}.json`;
+  await backend.write(snapshotPath, JSON.stringify(snapshot));
 
   await setSyncConfig('last_snapshot_seq', String(maxSeq));
   console.log(`[SyncEngine] Wrote snapshot at seq ${maxSeq}`);
@@ -549,16 +529,13 @@ async function writeSnapshot(): Promise<void> {
  * Returns the number of records applied and which tables were updated.
  */
 async function bootstrapFromSnapshot(remoteDevice: string): Promise<PullResult> {
-  if (!syncFolderPath) return { applied: 0, tables: new Set() };
+  if (!backend) return { applied: 0, tables: new Set() };
 
-  const snapshotsDir = `${syncFolderPath}/snapshots`;
-  if (!(await exists(snapshotsDir))) return { applied: 0, tables: new Set() };
-
-  // Find the latest snapshot from this device
-  const entries = await readDir(snapshotsDir);
+  // Find the latest snapshot from this device (missing dir lists as empty)
+  const entries = await backend.list('snapshots');
   const deviceSnapshots = entries
-    .filter(e => e.name?.startsWith(`${remoteDevice}_`) && e.name?.endsWith('.json'))
-    .map(e => e.name!)
+    .filter(e => e.name.startsWith(`${remoteDevice}_`) && e.name.endsWith('.json'))
+    .map(e => e.name)
     .sort()
     .reverse();
 
@@ -567,7 +544,8 @@ async function bootstrapFromSnapshot(remoteDevice: string): Promise<PullResult> 
   const latestSnapshot = deviceSnapshots[0];
 
   try {
-    const content = await readTextFile(`${snapshotsDir}/${latestSnapshot}`);
+    const content = await backend.readText(`snapshots/${latestSnapshot}`);
+    if (content === null) return { applied: 0, tables: new Set() };
     const snapshot = JSON.parse(content) as SnapshotFile;
 
     if (snapshot.version !== 1) return { applied: 0, tables: new Set() };
@@ -620,14 +598,10 @@ async function bootstrapFromSnapshot(remoteDevice: string): Promise<PullResult> 
  * Check if compaction is needed and run it.
  */
 async function maybeCompact(): Promise<void> {
-  if (!syncFolderPath) return;
+  if (!backend) return;
 
-  const deviceFolder = `${syncFolderPath}/${deviceId}`;
-  const folderExists = await exists(deviceFolder);
-  if (!folderExists) return;
-
-  const entries = await readDir(deviceFolder);
-  const journalFiles = entries.filter(e => e.name?.endsWith('.json') && e.name !== 'meta.json');
+  const entries = await backend.list(deviceId);
+  const journalFiles = entries.filter(e => e.name.endsWith('.json') && e.name !== 'meta.json');
 
   if (journalFiles.length < COMPACTION_THRESHOLD) return;
 
@@ -639,7 +613,7 @@ async function maybeCompact(): Promise<void> {
  * Compact: write a snapshot, then delete old journal files.
  */
 async function compact(): Promise<void> {
-  if (!syncFolderPath) return;
+  if (!backend) return;
 
   // Write a fresh snapshot
   await writeSnapshot();
@@ -648,16 +622,13 @@ async function compact(): Promise<void> {
   if (lastSnapshotSeq === 0) return;
 
   // Delete journal files up to the snapshot seq
-  const deviceFolder = `${syncFolderPath}/${deviceId}`;
-  const entries = await readDir(deviceFolder);
+  const entries = await backend.list(deviceId);
 
   for (const entry of entries) {
-    if (!entry.name?.endsWith('.json') || entry.name === 'meta.json') continue;
+    if (!entry.name.endsWith('.json') || entry.name === 'meta.json') continue;
     const fileSeq = parseInt(entry.name.replace('.json', ''), 10);
     if (!isNaN(fileSeq) && fileSeq <= lastSnapshotSeq) {
-      try {
-        await remove(`${deviceFolder}/${entry.name}`);
-      } catch { /* ignore */ }
+      await backend.remove(`${deviceId}/${entry.name}`);
     }
   }
 
@@ -674,16 +645,13 @@ async function compact(): Promise<void> {
  * Remove old snapshot files, keeping only the latest per device.
  */
 async function cleanOldSnapshots(): Promise<void> {
-  if (!syncFolderPath) return;
+  if (!backend) return;
 
-  const snapshotsDir = `${syncFolderPath}/snapshots`;
-  if (!(await exists(snapshotsDir))) return;
-
-  const entries = await readDir(snapshotsDir);
+  const entries = await backend.list('snapshots');
   const byDevice = new Map<string, string[]>();
 
   for (const entry of entries) {
-    if (!entry.name?.endsWith('.json')) continue;
+    if (!entry.name.endsWith('.json')) continue;
     const parts = entry.name.replace('.json', '').split('_');
     if (parts.length < 2) continue;
     const devId = parts.slice(0, -1).join('_');
@@ -696,9 +664,7 @@ async function cleanOldSnapshots(): Promise<void> {
     files.sort();
     // Delete all but the latest
     for (let i = 0; i < files.length - 1; i++) {
-      try {
-        await remove(`${snapshotsDir}/${files[i]}`);
-      } catch { /* ignore */ }
+      await backend.remove(`snapshots/${files[i]}`);
     }
   }
 }
@@ -735,16 +701,8 @@ function getPlatformName(): string {
   return 'unknown';
 }
 
-async function ensureDeviceFolder(): Promise<void> {
-  if (!syncFolderPath) return;
-  const folder = `${syncFolderPath}/${deviceId}`;
-  if (!(await exists(folder))) {
-    await mkdir(folder, { recursive: true });
-  }
-}
-
 async function writeDeviceMeta(lastSeq: number): Promise<void> {
-  if (!syncFolderPath) return;
+  if (!backend) return;
 
   const meta: DeviceMeta = {
     deviceId,
@@ -755,10 +713,7 @@ async function writeDeviceMeta(lastSeq: number): Promise<void> {
     updatedAt: new Date().toISOString(),
   };
 
-  await invoke('write_sync_file', {
-    path: `${syncFolderPath}/${deviceId}/meta.json`,
-    content: JSON.stringify(meta, null, 2),
-  });
+  await backend.write(`${deviceId}/meta.json`, JSON.stringify(meta, null, 2));
 
   if (!meta.createdAt) {
     await setSyncConfig('device_created_at', meta.createdAt);
@@ -768,33 +723,29 @@ async function writeDeviceMeta(lastSeq: number): Promise<void> {
 const DEVICE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function listDeviceFolders(): Promise<string[]> {
-  if (!syncFolderPath) return [];
-  try {
-    const entries = await readDir(syncFolderPath);
-    return entries
-      .filter(e => e.isDirectory && e.name !== 'snapshots')
-      .map(e => e.name!)
-      .filter(name => DEVICE_ID_RE.test(name));
-  } catch {
-    return [];
-  }
+  if (!backend) return [];
+  const entries = await backend.list('');
+  return entries
+    .filter(e => e.isDirectory && e.name !== 'snapshots')
+    .map(e => e.name)
+    .filter(name => DEVICE_ID_RE.test(name));
 }
 
 async function listConnectedDevices(): Promise<string[]> {
+  if (!backend) return [];
   const folders = await listDeviceFolders();
   const names: string[] = [];
 
   for (const folder of folders) {
     if (folder === deviceId) continue;
     try {
-      const metaPath = `${syncFolderPath}/${folder}/meta.json`;
-      if (await exists(metaPath)) {
-        const content = await readTextFile(metaPath);
-        const meta = JSON.parse(content) as DeviceMeta;
-        names.push(meta.deviceName || folder);
-      } else {
+      const content = await backend.readText(`${folder}/meta.json`);
+      if (content === null) {
         names.push(folder);
+        continue;
       }
+      const meta = JSON.parse(content) as DeviceMeta;
+      names.push(meta.deviceName || folder);
     } catch {
       names.push(folder);
     }
