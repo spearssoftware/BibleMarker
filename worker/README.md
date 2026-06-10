@@ -91,6 +91,65 @@ gh secret set NASB_SIGNING_KEY --repo spearssoftware/BibleMarker --body "<your-k
 
 The PR that wires this into Tauri builds will reference the secret as `NASB_SIGNING_KEY`.
 
+## Sync server (per-account study-data sync)
+
+The same Worker also backs cross-device sync for the app. Routes:
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/sync/blob/{key...}` | `GET`/`PUT`/`DELETE` | read/write/delete a sync blob |
+| `/sync/list?prefix={p}` | `GET` | list immediate children of a logical prefix |
+| `/sync/device` | `POST` | register a device for the account-management UI |
+| `/account` | `DELETE` | delete the account, its devices/sessions, and all blobs |
+| `/auth/request` | `POST` | request a 6-digit sign-in code (emailed) |
+| `/auth/verify` | `POST` | verify a code → `{ token, accountId }` |
+| `/auth/revoke` | `POST` | revoke the caller's session (sign out) |
+
+All sync routes require `Authorization: Bearer <session-token>`. Only the token's
+SHA-256 hash is stored (in D1 `sessions`), and `accountId` is derived from the
+session — never from the request path. Blobs are stored in R2 under
+`sync/{accountId}/...`, which is the account-isolation boundary.
+
+### Email-OTP sign-in (`/auth/*`)
+
+Passwordless: a user enters their email, gets a 6-digit code, and types it back.
+`/auth/request` always returns 200 for a syntactically valid email and `/auth/verify`
+returns one generic error for unknown/expired/wrong codes, so neither reveals whether
+an account exists. Codes are single-use, expire in 10 minutes, lock after 5 wrong
+attempts, and are rate-limited by a 60s per-email resend cooldown. Sessions are opaque
+tokens (stored hash-only) valid for 1 year.
+
+Emails are sent via **Postmark** (shared with spearssoftware.com). The send is behind
+an `EmailSender` interface, so the provider is swappable and tests use a fake.
+
+```bash
+# Postmark server token (from the Postmark server's API Tokens tab)
+echo -n "<postmark-server-token>" | npx wrangler secret put POSTMARK_SERVER_TOKEN --env production
+```
+
+`OTP_FROM_EMAIL` (the verified sender address) is a plain var in `wrangler.toml` —
+default `noreply@spearssoftware.com` (already a verified Postmark sending domain).
+Change it if you verify `biblemarker.app` in Postmark for branding.
+
+### One-time setup for sync
+
+```bash
+# 1. Create the sync R2 bucket
+npx wrangler r2 bucket create biblemarker-sync
+
+# 2. Create the D1 database, then paste the printed database_id into
+#    wrangler.toml (both the top-level and [env.production] d1_databases blocks),
+#    replacing REPLACE_WITH_D1_DATABASE_ID.
+npx wrangler d1 create biblemarker-sync
+
+# 3. Apply the schema migration
+npx wrangler d1 migrations apply biblemarker-sync --remote    # production
+npx wrangler d1 migrations apply biblemarker-sync --local     # local dev
+```
+
+Phase 2 adds the `RESEND_API_KEY` secret for OTP email; until then the `/auth/*`
+routes are not implemented and sessions must be inserted manually for testing.
+
 ## Deploying updates
 
 After the initial setup, day-to-day updates are simple:
