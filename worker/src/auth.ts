@@ -23,6 +23,14 @@ export function parseBearer(header: string | null): string | null {
   return m ? m[1] : null;
 }
 
+/** Constant-time equality for two equal-length strings (e.g. hex hashes). */
+export function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return result === 0;
+}
+
 /** Lowercase hex SHA-256 of a string. */
 export async function sha256Hex(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
@@ -50,9 +58,9 @@ export async function authenticate(env: Env, request: Request): Promise<Session 
 
   const tokenHash = await sha256Hex(token);
   const row = await env.DB.prepare(
-    'SELECT account_id, device_id FROM sessions WHERE token_hash = ? AND revoked = 0'
+    'SELECT account_id, device_id FROM sessions WHERE token_hash = ? AND revoked = 0 AND (expires_at IS NULL OR expires_at > ?)'
   )
-    .bind(tokenHash)
+    .bind(tokenHash, new Date().toISOString())
     .first<{ account_id: string; device_id: string | null }>();
 
   if (!row) return null;
