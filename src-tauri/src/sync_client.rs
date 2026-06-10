@@ -39,7 +39,11 @@ pub struct SyncError {
 
 impl SyncError {
     fn new(kind: &str, status: u16, message: impl Into<String>) -> Self {
-        Self { kind: kind.into(), status_code: status, message: message.into() }
+        Self {
+            kind: kind.into(),
+            status_code: status,
+            message: message.into(),
+        }
     }
     fn network(e: reqwest::Error) -> Self {
         Self::new("network", 0, format!("network error: {e}"))
@@ -98,7 +102,8 @@ fn store_session(app: &tauri::AppHandle, token: &str, account_id: &str) -> Resul
         account_id: account_id.to_string(),
     })
     .map_err(|e| SyncError::storage(format!("serialize session: {e}")))?;
-    write_private_file(&path, &json).map_err(|e| SyncError::storage(format!("write session: {e}")))?;
+    write_private_file(&path, &json)
+        .map_err(|e| SyncError::storage(format!("write session: {e}")))?;
     Ok(())
 }
 
@@ -194,7 +199,9 @@ pub async fn auth_verify(
     let parsed: VerifyResponse = serde_json::from_str(&text)
         .map_err(|e| SyncError::protocol(format!("bad verify response: {e}")))?;
     store_session(&app, &parsed.token, &parsed.account_id)?;
-    Ok(AuthSession { account_id: parsed.account_id })
+    Ok(AuthSession {
+        account_id: parsed.account_id,
+    })
 }
 
 /// The signed-in account id, or `None` if signed out. Lets the webview reflect
@@ -257,7 +264,11 @@ struct ListResponse {
 
 /// Write a blob at `key` (overwrite).
 #[tauri::command]
-pub async fn sync_write(app: tauri::AppHandle, key: String, content: String) -> Result<(), SyncError> {
+pub async fn sync_write(
+    app: tauri::AppHandle,
+    key: String,
+    content: String,
+) -> Result<(), SyncError> {
     let token = require_token(&app)?;
     let res = reqwest::Client::new()
         .put(format!("{SYNC_BASE}/sync/blob/{key}"))
@@ -355,19 +366,28 @@ mod tests {
 
     #[test]
     fn extract_error_reads_error_field() {
-        assert_eq!(extract_error(r#"{"error":"nope"}"#), Some("nope".to_string()));
+        assert_eq!(
+            extract_error(r#"{"error":"nope"}"#),
+            Some("nope".to_string())
+        );
         assert_eq!(extract_error("not json"), None);
         assert_eq!(extract_error(r#"{"ok":true}"#), None);
     }
 
     #[test]
     fn from_response_classifies_status() {
-        assert_eq!(SyncError::from_response(reqwest::StatusCode::UNAUTHORIZED, "").kind, "auth");
+        assert_eq!(
+            SyncError::from_response(reqwest::StatusCode::UNAUTHORIZED, "").kind,
+            "auth"
+        );
         assert_eq!(
             SyncError::from_response(reqwest::StatusCode::TOO_MANY_REQUESTS, "").kind,
             "rate_limit"
         );
-        assert_eq!(SyncError::from_response(reqwest::StatusCode::BAD_REQUEST, "").kind, "client");
+        assert_eq!(
+            SyncError::from_response(reqwest::StatusCode::BAD_REQUEST, "").kind,
+            "client"
+        );
         assert_eq!(
             SyncError::from_response(reqwest::StatusCode::INTERNAL_SERVER_ERROR, "").kind,
             "server"
