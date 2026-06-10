@@ -20,7 +20,6 @@ import {
 
 interface FeatureFlagsState {
   flags: RemoteFlags;
-  source: 'default' | 'cache' | 'remote';
   isLoaded: boolean;
   loadFlags: () => Promise<void>;
   isEnabled: (key: FlagKey) => boolean;
@@ -28,16 +27,15 @@ interface FeatureFlagsState {
 
 export const useFeatureFlagsStore = create<FeatureFlagsState>()((set, get) => ({
   flags: { ...DEFAULT_FLAGS },
-  source: 'default',
   isLoaded: false,
 
   loadFlags: async () => {
     try {
       const cached = await readCachedFlags();
-      if (cached) set({ flags: cached, source: 'cache' });
+      if (cached) set({ flags: cached });
 
       const remote = await fetchRemoteFlags();
-      if (remote) set({ flags: remote, source: 'remote' });
+      if (remote) set({ flags: remote });
     } finally {
       set({ isLoaded: true });
     }

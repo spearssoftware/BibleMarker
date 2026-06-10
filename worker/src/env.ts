@@ -27,9 +27,8 @@ export interface Env {
  * Hand-written so the project type-checks before the Flagship app exists;
  * replace with the generated type from `npx wrangler types` once `app_id` is
  * set in `wrangler.toml`. Only `flags.ts` should reference this directly.
+ * Only boolean flags are used today — add string/number methods when needed.
  */
 export interface FlagshipBinding {
   getBooleanValue(key: string, defaultValue: boolean, context: object): Promise<boolean>;
-  getStringValue(key: string, defaultValue: string, context: object): Promise<string>;
-  getNumberValue(key: string, defaultValue: number, context: object): Promise<number>;
 }

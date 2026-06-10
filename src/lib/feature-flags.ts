@@ -94,7 +94,8 @@ export async function readCachedFlags(): Promise<RemoteFlags | null> {
  */
 export async function isFlagEnabled(key: FlagKey): Promise<boolean> {
   const cached = await readCachedFlags();
-  return (cached ?? DEFAULT_FLAGS)[key] ?? DEFAULT_FLAGS[key];
+  // normalizeFlags guarantees every key is present, so no second fallback needed.
+  return (cached ?? DEFAULT_FLAGS)[key];
 }
 
 /**
@@ -119,6 +120,12 @@ export async function fetchRemoteFlags(): Promise<RemoteFlags | null> {
     const res = await fetch(CONFIG_URL, { headers, signal: controller.signal });
     if (!res.ok) return null;
     const body = (await res.json()) as { flags?: unknown; evaluatedAt?: unknown };
+    // Require a real flags object before caching — a 200 with a missing/array
+    // body (captive portal, misconfigured proxy) must not overwrite a good
+    // cached snapshot with all-defaults.
+    if (typeof body?.flags !== 'object' || body.flags === null || Array.isArray(body.flags)) {
+      return null;
+    }
     const flags = normalizeFlags(body.flags);
     const snapshot: CachedConfig = {
       flags,

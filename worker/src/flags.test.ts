@@ -8,6 +8,7 @@ import {
   FLAG_KEYS,
   FLAG_DEFAULTS,
 } from './flags';
+import { sha256Hex } from './auth';
 import type { Session } from './auth';
 import type { Env } from './env';
 import { MemoryD1, MemoryFlags, MemoryR2, asBucket, asDb, asFlags } from './test-mocks';
@@ -31,8 +32,7 @@ describe('buildFlagContext', () => {
         'X-Device-Id': 'device-1',
         'X-Client-Platform': 'macos',
         'X-Client-Version': '2.1.1',
-      }),
-      new URL('https://biblemarker.app/config')
+      })
     );
     expect(ctx).toEqual({
       targetingKey: 'device-1',
@@ -43,7 +43,7 @@ describe('buildFlagContext', () => {
   });
 
   it('falls back to an anonymous targeting key with no device header', () => {
-    const ctx = buildFlagContext(req('/config'), new URL('https://biblemarker.app/config'));
+    const ctx = buildFlagContext(req('/config'));
     expect(ctx.targetingKey).toBe('anonymous');
     expect(ctx.deviceId).toBeUndefined();
     expect(ctx.accountId).toBeUndefined();
@@ -51,17 +51,13 @@ describe('buildFlagContext', () => {
 
   it('adds accountId from a verified session', () => {
     const session: Session = { accountId: 'acct-9', deviceId: 'device-1' };
-    const ctx = buildFlagContext(
-      req('/config', { 'X-Device-Id': 'device-1' }),
-      new URL('https://biblemarker.app/config'),
-      session
-    );
+    const ctx = buildFlagContext(req('/config', { 'X-Device-Id': 'device-1' }), session);
     expect(ctx.accountId).toBe('acct-9');
     expect(ctx.targetingKey).toBe('device-1'); // rollouts still hash per-install
   });
 
   it('ignores blank header values', () => {
-    const ctx = buildFlagContext(req('/config', { 'X-Device-Id': '   ' }), new URL('https://biblemarker.app/config'));
+    const ctx = buildFlagContext(req('/config', { 'X-Device-Id': '   ' }));
     expect(ctx.deviceId).toBeUndefined();
     expect(ctx.targetingKey).toBe('anonymous');
   });
@@ -96,6 +92,14 @@ describe('buildClientConfig', () => {
     const cfg = await buildClientConfig(env, globalContext());
     expect(cfg.flags[FLAG_KEYS.syncEnabled]).toBe(false);
     expect(cfg.flags[FLAG_KEYS.httpBackend]).toBe(true);
+  });
+
+  it('fails open to defaults when the binding rejects', async () => {
+    const throwing = { getBooleanValue: () => Promise.reject(new Error('binding down')) };
+    const env = { FLAGS: throwing as unknown as Env['FLAGS'] } as unknown as Env;
+    const cfg = await buildClientConfig(env, globalContext());
+    expect(cfg.flags[FLAG_KEYS.syncEnabled]).toBe(true); // default, not a thrown 500
+    expect(cfg.flags[FLAG_KEYS.httpBackend]).toBe(false);
   });
 });
 
@@ -185,12 +189,30 @@ describe('server-side enforcement', () => {
     );
     expect(res.status).toBe(503);
   });
+
+  it('allows /sync/* (fails open) when the binding rejects, never 500', async () => {
+    const d1 = new MemoryD1();
+    const { token } = await sessionFor(d1, 'acct-1', 'a1b2c3d4-1111-2222-3333-444455556666');
+    const throwing = { getBooleanValue: () => Promise.reject(new Error('binding down')) };
+    const env = {
+      FLAGS: throwing as unknown as Env['FLAGS'],
+      DB: asDb(d1),
+      SYNC_BUCKET: asBucket(new MemoryR2()),
+    } as unknown as Env;
+    const res = await worker.fetch(
+      new Request('https://biblemarker.app/sync/list', {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+      env
+    );
+    expect(res.status).toBe(200); // default sync-enabled=true, not a 500
+  });
 });
 
 /** Insert a live session into the MemoryD1 and return its plaintext token. */
 async function sessionFor(d1: MemoryD1, accountId: string, deviceId: string) {
   const token = `tok-${accountId}`;
-  const tokenHash = await sha256(token);
+  const tokenHash = await sha256Hex(token);
   d1.sessions.set(tokenHash, {
     token_hash: tokenHash,
     account_id: accountId,
@@ -199,9 +221,4 @@ async function sessionFor(d1: MemoryD1, accountId: string, deviceId: string) {
     revoked: 0,
   });
   return { token, tokenHash };
-}
-
-async function sha256(input: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }

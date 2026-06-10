@@ -8,21 +8,14 @@
  */
 
 import type { Env } from './env';
-import { jsonError, jsonOk } from './http';
+import { jsonError } from './http';
 import { handleModuleRequest } from './modules';
 import { authenticate } from './auth';
 import { handleSync } from './sync';
 import { handleAccountDelete } from './account';
 import { PostmarkSender } from './email';
 import { handleAuthRequest, handleAuthVerify, handleAuthRevoke } from './auth-routes';
-import {
-  FLAG_KEYS,
-  buildFlagContext,
-  buildClientConfig,
-  accountContext,
-  globalContext,
-  getBool,
-} from './flags';
+import { handleConfig, isSyncEnabled, isOtpEnabled } from './flags';
 
 export type { Env };
 
@@ -41,7 +34,7 @@ export default {
       if (request.method !== 'POST') return jsonError(405, 'Method Not Allowed');
       if (path === '/auth/request') {
         // OTP rollout gate: a plain on/off kill-switch for sign-in emails.
-        if (!(await getBool(env, FLAG_KEYS.otpEnabled, true, globalContext()))) {
+        if (!(await isOtpEnabled(env))) {
           return jsonError(503, 'Sign-in temporarily unavailable');
         }
         const sender = new PostmarkSender(env.POSTMARK_SERVER_TOKEN, env.OTP_FROM_EMAIL);
@@ -52,25 +45,8 @@ export default {
       return jsonError(404, 'Not Found');
     }
 
-    // Feature-flag snapshot for the offline client. Public, but enriched with
-    // the verified accountId when a bearer token is present. A bad/absent token
-    // degrades to an anonymous evaluation (200), never a 401.
-    if (path === '/config') {
-      if (request.method !== 'GET') return jsonError(405, 'Method Not Allowed');
-      // A bad/absent token yields null (anonymous); a D1 outage throws — both
-      // degrade to an anonymous snapshot rather than failing the client.
-      let session: Awaited<ReturnType<typeof authenticate>> = null;
-      try {
-        session = await authenticate(env, request);
-      } catch {
-        /* D1 unavailable — evaluate anonymously */
-      }
-      const ctx = buildFlagContext(request, url, session ?? undefined);
-      const res = jsonOk(await buildClientConfig(env, ctx));
-      // Per-device-targeted — must never be served from an edge/proxy cache.
-      res.headers.set('Cache-Control', 'private, no-store');
-      return res;
-    }
+    // Feature-flag snapshot for the offline client.
+    if (path === '/config') return handleConfig(request, env);
 
     if (path.startsWith('/sync/') || path === '/account') {
       const session = await authenticate(env, request);
@@ -83,7 +59,7 @@ export default {
 
       // Sync kill-switch: keyed on the verified account (account deletion above
       // is intentionally exempt so users can always leave).
-      if (!(await getBool(env, FLAG_KEYS.syncEnabled, true, accountContext(session)))) {
+      if (!(await isSyncEnabled(env, session))) {
         return jsonError(503, 'Sync temporarily disabled');
       }
 

@@ -196,29 +196,18 @@ export function asDb(mock: MemoryD1): D1Database {
  * so tests can assert what was sent (targetingKey, accountId, headers).
  */
 export class MemoryFlags {
-  /** Every evaluation context seen, in order. */
-  readonly contexts: unknown[] = [];
+  private readonly contexts: unknown[] = [];
 
-  constructor(private readonly values: Record<string, boolean | number | string> = {}) {}
+  constructor(private readonly values: Record<string, boolean> = {}) {}
 
-  /** Context of the most recent evaluation. */
+  /** Context of the most recent evaluation (for assertions). */
   get lastContext(): unknown {
     return this.contexts.at(-1) ?? null;
   }
 
   async getBooleanValue(key: string, def: boolean, ctx: object): Promise<boolean> {
     this.contexts.push(ctx);
-    return key in this.values ? (this.values[key] as boolean) : def;
-  }
-
-  async getNumberValue(key: string, def: number, ctx: object): Promise<number> {
-    this.contexts.push(ctx);
-    return key in this.values ? (this.values[key] as number) : def;
-  }
-
-  async getStringValue(key: string, def: string, ctx: object): Promise<string> {
-    this.contexts.push(ctx);
-    return key in this.values ? (this.values[key] as string) : def;
+    return key in this.values ? this.values[key] : def;
   }
 }
 

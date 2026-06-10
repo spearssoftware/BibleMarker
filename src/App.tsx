@@ -140,13 +140,12 @@ export default function App() {
       getDebugFlags();
       autoBackupService.start();
 
-      // Refresh remote feature flags first, then start sync — its kill-switch
-      // reads the freshly cached `sync-enabled`. loadFlags never throws and
-      // times out quickly offline, so sync init is not meaningfully delayed.
-      useFeatureFlagsStore.getState().loadFlags().finally(() => {
-        initializeSync().catch(err => {
-          console.error('[App] Failed to initialize sync:', err);
-        });
+      // Refresh remote feature flags in the background (updates the SQLite cache
+      // + store). Sync starts independently — its kill-switch reads the cached
+      // `sync-enabled` directly, so it must not block on the network fetch.
+      useFeatureFlagsStore.getState().loadFlags();
+      initializeSync().catch(err => {
+        console.error('[App] Failed to initialize sync:', err);
       });
 
       if (!isCapacitor()) {

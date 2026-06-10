@@ -106,6 +106,13 @@ describe('fetchRemoteFlags', () => {
     expect(mockSetSyncConfig).not.toHaveBeenCalled();
   });
 
+  it('returns null and does not cache on a 200 without a flags object', async () => {
+    // A proxy/captive-portal 200 with a non-flags body must not clobber the cache.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [] }));
+    expect(await fetchRemoteFlags()).toBeNull();
+    expect(mockSetSyncConfig).not.toHaveBeenCalled();
+  });
+
   it('returns null on a network error (never throws)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
     await expect(fetchRemoteFlags()).resolves.toBeNull();
