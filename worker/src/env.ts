@@ -14,4 +14,8 @@ export interface Env {
   SYNC_BUCKET: R2Bucket;
   /** D1 database holding accounts, devices, sessions, and OTP codes. */
   DB: D1Database;
+  /** Postmark server API token for sending OTP sign-in emails. */
+  POSTMARK_SERVER_TOKEN: string;
+  /** Verified Postmark sender address for OTP emails (e.g. noreply@spearssoftware.com). */
+  OTP_FROM_EMAIL: string;
 }

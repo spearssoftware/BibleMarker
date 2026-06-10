@@ -101,12 +101,35 @@ The same Worker also backs cross-device sync for the app. Routes:
 | `/sync/list?prefix={p}` | `GET` | list immediate children of a logical prefix |
 | `/sync/device` | `POST` | register a device for the account-management UI |
 | `/account` | `DELETE` | delete the account, its devices/sessions, and all blobs |
-| `/auth/*` | — | email-OTP sign-in (added in Phase 2) |
+| `/auth/request` | `POST` | request a 6-digit sign-in code (emailed) |
+| `/auth/verify` | `POST` | verify a code → `{ token, accountId }` |
+| `/auth/revoke` | `POST` | revoke the caller's session (sign out) |
 
 All sync routes require `Authorization: Bearer <session-token>`. Only the token's
 SHA-256 hash is stored (in D1 `sessions`), and `accountId` is derived from the
 session — never from the request path. Blobs are stored in R2 under
 `sync/{accountId}/...`, which is the account-isolation boundary.
+
+### Email-OTP sign-in (`/auth/*`)
+
+Passwordless: a user enters their email, gets a 6-digit code, and types it back.
+`/auth/request` always returns 200 for a syntactically valid email and `/auth/verify`
+returns one generic error for unknown/expired/wrong codes, so neither reveals whether
+an account exists. Codes are single-use, expire in 10 minutes, lock after 5 wrong
+attempts, and are rate-limited by a 60s per-email resend cooldown. Sessions are opaque
+tokens (stored hash-only) valid for 1 year.
+
+Emails are sent via **Postmark** (shared with spearssoftware.com). The send is behind
+an `EmailSender` interface, so the provider is swappable and tests use a fake.
+
+```bash
+# Postmark server token (from the Postmark server's API Tokens tab)
+echo -n "<postmark-server-token>" | npx wrangler secret put POSTMARK_SERVER_TOKEN --env production
+```
+
+`OTP_FROM_EMAIL` (the verified sender address) is a plain var in `wrangler.toml` —
+default `noreply@spearssoftware.com` (already a verified Postmark sending domain).
+Change it if you verify `biblemarker.app` in Postmark for branding.
 
 ### One-time setup for sync
 
