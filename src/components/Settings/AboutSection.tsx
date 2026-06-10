@@ -9,6 +9,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { checkForUpdateIfDue, checkForUpdateNow, type UpdateCheckResult } from '@/lib/updateCheck';
 import { isFlatpak } from '@/lib/platform';
+import { getDeviceId } from '@/lib/sqlite-db';
 import { UpdateBanner } from '@/components/shared';
 
 interface AboutSectionProps {
@@ -27,10 +28,29 @@ export function AboutSection({
   );
   const [showUpdateBanner, setShowUpdateBanner] = useState(false);
   const [inFlatpak, setInFlatpak] = useState(false);
+  const [deviceId, setDeviceId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     isFlatpak().then(setInFlatpak);
+    try {
+      const id = getDeviceId();
+      queueMicrotask(() => setDeviceId(id));
+    } catch {
+      /* DB not ready yet — leave the row hidden */
+    }
   }, []);
+
+  const handleCopyDeviceId = useCallback(async () => {
+    if (!deviceId) return;
+    try {
+      await navigator.clipboard.writeText(deviceId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable — no-op */
+    }
+  }, [deviceId]);
 
   useEffect(() => {
     if (inFlatpak) {
@@ -112,6 +132,18 @@ export function AboutSection({
           <p className="text-xs text-scripture-muted">
             An inductive Bible study app with keyword marking, observation lists, and multi-translation support.
           </p>
+          {deviceId && (
+            <div className="flex items-center gap-2 pt-1">
+              <span className="text-xs text-scripture-muted">Device ID</span>
+              <code className="text-xs text-scripture-muted font-mono break-all">{deviceId}</code>
+              <button
+                onClick={handleCopyDeviceId}
+                className="text-xs text-scripture-accent hover:underline flex-shrink-0"
+              >
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

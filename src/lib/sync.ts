@@ -14,6 +14,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { isApplePlatform, isIOS } from './platform';
 import { getPreferences } from './database';
+import { isFlagEnabled, FLAG_KEYS } from './feature-flags';
 import {
   initSyncEngine,
   stopSyncEngine,
@@ -112,18 +113,30 @@ export function onSyncStatusChange(listener: SyncStatusListener): () => void {
  */
 async function isSyncAllowed(): Promise<{ allowed: boolean; reason?: string }> {
   const isDev = import.meta.env.DEV;
-  if (!isDev) return { allowed: true };
 
-  try {
-    const prefs = await getPreferences();
-    if (prefs.debug?.forceSyncEnabled) {
-      return { allowed: true, reason: 'force-enabled via debug flag' };
+  if (isDev) {
+    // `forceSyncEnabled` is an explicit developer override — it wins outright,
+    // skipping the remote kill-switch so a global flag can't block local testing.
+    try {
+      const prefs = await getPreferences();
+      if (prefs.debug?.forceSyncEnabled) {
+        return { allowed: true, reason: 'force-enabled via debug flag' };
+      }
+    } catch (err) {
+      console.warn('[Sync] Failed to read forceSyncEnabled flag:', err);
     }
-  } catch (err) {
-    console.warn('[Sync] Failed to read forceSyncEnabled flag:', err);
+    return { allowed: false, reason: 'dev build' };
   }
 
-  return { allowed: false, reason: 'dev build' };
+  // Remote kill-switch: reflect the server `sync.enabled` flag (read straight
+  // from the SQLite cache so it works offline and before the store hydrates).
+  // The worker is authoritative; this avoids hammering a disabled backend and
+  // surfaces the disabled state in the UI.
+  if (!(await isFlagEnabled(FLAG_KEYS.syncEnabled))) {
+    return { allowed: false, reason: 'disabled by remote flag (sync.enabled)' };
+  }
+
+  return { allowed: true };
 }
 
 export async function initializeSync(): Promise<void> {

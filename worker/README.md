@@ -104,6 +104,7 @@ The same Worker also backs cross-device sync for the app. Routes:
 | `/auth/request` | `POST` | request a 6-digit sign-in code (emailed) |
 | `/auth/verify` | `POST` | verify a code → `{ token, accountId }` |
 | `/auth/revoke` | `POST` | revoke the caller's session (sign out) |
+| `/config` | `GET` | feature-flag snapshot for the client (public; enriched when authed) |
 
 All sync routes require `Authorization: Bearer <session-token>`. Only the token's
 SHA-256 hash is stored (in D1 `sessions`), and `accountId` is derived from the
@@ -130,6 +131,47 @@ echo -n "<postmark-server-token>" | npx wrangler secret put POSTMARK_SERVER_TOKE
 `OTP_FROM_EMAIL` (the verified sender address) is a plain var in `wrangler.toml` —
 default `noreply@spearssoftware.com` (already a verified Postmark sending domain).
 Change it if you verify `biblemarker.app` in Postmark for branding.
+
+### Feature flags (Cloudflare Flagship)
+
+Flags are evaluated **server-side** via the `FLAGS` Flagship binding and used two ways:
+
+- **Kill-switches / gates enforced in the Worker** — `sync.enabled` returns `503`
+  on `/sync/*`, `auth.otpEnabled` blocks `/auth/request`. These are keyed on the
+  verified `accountId` (or a global key), never a client header.
+- **Client snapshot** — `GET /config` returns `{ flags, evaluatedAt }`. The app
+  caches it in SQLite and falls back to coded defaults offline. All flag logic
+  lives in `src/flags.ts` (the single provider surface — swapping providers is a
+  one-file change).
+
+| Key | Type | Default | Purpose |
+|-----|------|---------|---------|
+| `sync.enabled` | bool | `true` | Global sync kill-switch |
+| `auth.otpEnabled` | bool | `true` | Gate OTP sign-in (route + UI) |
+| `sync.httpBackend` | bool | `false` | HTTP backend vs iCloud during the Phase 3 migration |
+| `sync.icloudMigration` | bool | `false` | One-shot iCloud drain (Phase 4) |
+
+**Setup:** create a Flagship app in the Cloudflare dashboard, then paste its
+`app_id` into `wrangler.toml` (both the top-level `[[flagship]]` block and
+`[[env.production.flagship]]`), replacing `REPLACE_WITH_FLAGSHIP_APP_ID`. Define
+the four flags above in the dashboard. `wrangler dev` may require a real
+`app_id`; the vitest suite mocks the binding, so tests don't need one. Re-run
+`npx wrangler types` after editing the binding.
+
+**Evaluation context** sent per request (client headers, all *advisory* —
+spoofable, so only for non-adversarial targeting): `X-Device-Id`,
+`X-Client-Platform`, `X-Client-Version`; plus the verified `accountId` when a
+bearer token is present. Percentage rollouts hash on `deviceId` (per-install).
+
+**Test on your own devices first:** in the dashboard, order a targeting rule
+*before* the percentage rollout — `deviceId in [<your UUIDs>]` (or
+`accountId in [<yours>]`) → ON. Grab a device's UUID from the app's
+Settings → About (Device ID → Copy).
+
+> Caveats: flags live in KV (eventually consistent — a flip propagates in
+> seconds-to-a-minute, not instantly). The `/sync/*` kill-switch only affects the
+> HTTP backend; current iCloud-file sync users are gated by the client-reflected
+> `sync.enabled` flag instead.
 
 ### One-time setup for sync
 

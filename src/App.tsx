@@ -30,6 +30,7 @@ import { getDebugFlags } from '@/lib/debug';
 import { useUndoToastStore } from '@/stores/undoToastStore';
 import { UndoToast } from '@/components/shared';
 import { initializeSync, shutdownSync } from '@/lib/sync';
+import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
 import { checkForUpdateIfDue, fetchWhatsNew, fetchWhatsNewForced } from '@/lib/updateCheck';
 import { isCapacitor } from '@/lib/platform';
 import { UpdateBanner, WhatsNewModal } from '@/components/shared';
@@ -139,8 +140,13 @@ export default function App() {
       getDebugFlags();
       autoBackupService.start();
 
-      initializeSync().catch(err => {
-        console.error('[App] Failed to initialize sync:', err);
+      // Refresh remote feature flags first, then start sync — its kill-switch
+      // reads the freshly cached `sync.enabled`. loadFlags never throws and
+      // times out quickly offline, so sync init is not meaningfully delayed.
+      useFeatureFlagsStore.getState().loadFlags().finally(() => {
+        initializeSync().catch(err => {
+          console.error('[App] Failed to initialize sync:', err);
+        });
       });
 
       if (!isCapacitor()) {

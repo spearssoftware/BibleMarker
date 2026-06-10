@@ -18,4 +18,18 @@ export interface Env {
   POSTMARK_SERVER_TOKEN: string;
   /** Verified Postmark sender address for OTP emails (e.g. noreply@spearssoftware.com). */
   OTP_FROM_EMAIL: string;
+  /** Cloudflare Flagship feature-flag binding (see `flags.ts`). */
+  FLAGS: FlagshipBinding;
+}
+
+/**
+ * Minimal shape of the Cloudflare Flagship Workers binding we depend on.
+ * Hand-written so the project type-checks before the Flagship app exists;
+ * replace with the generated type from `npx wrangler types` once `app_id` is
+ * set in `wrangler.toml`. Only `flags.ts` should reference this directly.
+ */
+export interface FlagshipBinding {
+  getBooleanValue(key: string, defaultValue: boolean, context: object): Promise<boolean>;
+  getStringValue(key: string, defaultValue: string, context: object): Promise<string>;
+  getNumberValue(key: string, defaultValue: number, context: object): Promise<number>;
 }

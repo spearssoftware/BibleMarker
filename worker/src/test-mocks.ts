@@ -1,7 +1,9 @@
 /**
- * Lightweight in-memory test doubles for R2 / D1. Not bundled — only reachable
- * from *.test.ts, never from index.ts.
+ * Lightweight in-memory test doubles for R2 / D1 / Flagship. Not bundled — only
+ * reachable from *.test.ts, never from index.ts.
  */
+
+import type { Env } from './env';
 
 async function toText(value: unknown): Promise<string> {
   if (typeof value === 'string') return value;
@@ -186,4 +188,41 @@ export class MemoryD1 {
 /** Cast a MemoryD1 to the D1Database type the handlers expect. */
 export function asDb(mock: MemoryD1): D1Database {
   return mock as unknown as D1Database;
+}
+
+/**
+ * In-memory Flagship binding. Returns preset values for known keys and the
+ * supplied default for everything else, and records the last evaluation context
+ * so tests can assert what was sent (targetingKey, accountId, headers).
+ */
+export class MemoryFlags {
+  /** Every evaluation context seen, in order. */
+  readonly contexts: unknown[] = [];
+
+  constructor(private readonly values: Record<string, boolean | number | string> = {}) {}
+
+  /** Context of the most recent evaluation. */
+  get lastContext(): unknown {
+    return this.contexts.at(-1) ?? null;
+  }
+
+  async getBooleanValue(key: string, def: boolean, ctx: object): Promise<boolean> {
+    this.contexts.push(ctx);
+    return key in this.values ? (this.values[key] as boolean) : def;
+  }
+
+  async getNumberValue(key: string, def: number, ctx: object): Promise<number> {
+    this.contexts.push(ctx);
+    return key in this.values ? (this.values[key] as number) : def;
+  }
+
+  async getStringValue(key: string, def: string, ctx: object): Promise<string> {
+    this.contexts.push(ctx);
+    return key in this.values ? (this.values[key] as string) : def;
+  }
+}
+
+/** Cast a MemoryFlags to the Flagship binding type the handlers expect. */
+export function asFlags(mock: MemoryFlags): Env['FLAGS'] {
+  return mock as unknown as Env['FLAGS'];
 }
