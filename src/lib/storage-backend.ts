@@ -81,3 +81,31 @@ export class FolderStorageBackend implements StorageBackend {
     }
   }
 }
+
+/**
+ * Sync-server-backed storage. Each method invokes a Rust `sync_*` command,
+ * which attaches the session token (kept in Rust) and talks to the account-
+ * scoped `/sync` routes.
+ *
+ * Unlike `FolderStorageBackend`, this does NOT collapse errors to `null`/`[]`:
+ * `sync_read` returns `null` only for a genuine 404, and network/401/5xx surface
+ * as a thrown structured `SyncError` so the engine can react (retry, or drop to
+ * an auth-expired state) instead of mistaking a failure for "absent".
+ */
+export class HttpStorageBackend implements StorageBackend {
+  async write(key: string, content: string): Promise<void> {
+    await invoke('sync_write', { key, content });
+  }
+
+  async readText(key: string): Promise<string | null> {
+    return invoke<string | null>('sync_read', { key });
+  }
+
+  async list(prefix: string): Promise<ListEntry[]> {
+    return invoke<ListEntry[]>('sync_list', { prefix });
+  }
+
+  async remove(key: string): Promise<void> {
+    await invoke('sync_remove', { key });
+  }
+}
