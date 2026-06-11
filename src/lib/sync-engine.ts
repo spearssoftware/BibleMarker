@@ -213,6 +213,11 @@ export async function initSyncEngine(): Promise<void> {
  * Called by sync.ts after verifySignInCode resolves.
  */
 export async function configureHttpBackend(): Promise<void> {
+  // Tear down any prior backend/timer first — defends against a folder backend
+  // still running if the flag flipped on mid-session.
+  stopFlushTimer();
+  stopOnlineListener();
+  inFlight = false;
   backend = new HttpStorageBackend();
   consecutiveFailures = 0;
   startFlushTimer();
@@ -339,7 +344,13 @@ export async function sync(): Promise<void> {
       stopOnlineListener();
       consecutiveFailures = 0;
       inFlight = false;
-      void clearLocalSession();
+      // Await so a failed token-clear is logged rather than silently leaving a
+      // stale token that would 401 again on next launch.
+      try {
+        await clearLocalSession();
+      } catch (clearErr) {
+        console.error('[SyncEngine] Failed to clear session token after 401:', clearErr);
+      }
       notifyStatusChange({
         state: 'auth-expired',
         connectedDevices: [],
@@ -643,6 +654,7 @@ async function bootstrapFromSnapshot(remoteDevice: string): Promise<PullResult> 
     console.log(`[SyncEngine] Bootstrapped ${applied} records from ${remoteDevice} snapshot`);
     return { applied, tables };
   } catch (error) {
+    if (isSyncError(error) && error.kind === 'auth') throw error; // 401 → propagate up
     console.error(`[SyncEngine] Failed to load snapshot ${latestSnapshot}:`, error);
     return { applied: 0, tables: new Set() };
   }
@@ -871,8 +883,10 @@ function stopFlushTimer(): void {
 function startOnlineListener(): void {
   stopOnlineListener();
   if (typeof window === 'undefined') return;
+  // Route through scheduledSync so the inFlight guard is honored — calling sync()
+  // raw here could double-fire alongside a timer tick.
   const handler = (): void => {
-    if (backend && !inFlight) void sync();
+    if (backend) void scheduledSync();
   };
   window.addEventListener('online', handler);
   onlineListener = handler;

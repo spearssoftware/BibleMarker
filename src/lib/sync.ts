@@ -370,11 +370,14 @@ export async function signInWithCode(email: string, code: string): Promise<strin
 }
 
 /**
- * Sign out: revoke the server session and disable sync locally.
+ * Sign out: disable sync locally first, then revoke the server session.
+ * Order matters — revoking the token before stopping the engine would let an
+ * in-flight sync hit a 401 and flip the UI to 'auth-expired' instead of the
+ * clean signed-out state.
  */
 export async function signOut(): Promise<void> {
-  await accountSignOut();
   await engineDisableSync();
+  await accountSignOut();
 }
 
 // ============================================================================

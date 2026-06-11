@@ -157,6 +157,9 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
 
   // Cloud sync sign-in state (HTTP backend)
   const isHttpBackendEnabled = useFeatureFlagsStore(s => s.isEnabled(FLAG_KEYS.httpBackend));
+  // OTP sign-in can be independently killed server-side; already-signed-in
+  // users are unaffected (the gate only hides the new sign-in form).
+  const isOtpEnabled = useFeatureFlagsStore(s => s.isEnabled(FLAG_KEYS.otpEnabled));
   const [signedInAccount, setSignedInAccount] = useState<string | null>(null);
   const [signInStep, setSignInStep] = useState<'email' | 'code'>('email');
   const [signInEmail, setSignInEmail] = useState('');
@@ -332,6 +335,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
       setSignInStep('email');
       setSignInEmail('');
       setSignInCode('');
+      setSignInError(null);
     } catch (e) {
       setSignInError(e instanceof Error ? e.message : 'Invalid or expired code. Please try again.');
     } finally {
@@ -1355,6 +1359,10 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                           {signInLoading ? 'Signing out...' : 'Sign Out'}
                         </Button>
                       </>
+                    ) : !isOtpEnabled ? (
+                      <p className="text-sm text-scripture-muted">
+                        Cloud sign-in is temporarily unavailable. Please try again later.
+                      </p>
                     ) : signInStep === 'email' ? (
                       <>
                         <p className="text-sm text-scripture-muted">
