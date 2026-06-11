@@ -4,6 +4,7 @@ vi.mock('./sqlite-db', () => ({
   getSyncConfig: vi.fn(),
   setSyncConfig: vi.fn().mockResolvedValue(undefined),
   getDeviceId: vi.fn().mockReturnValue('device-xyz'),
+  getSqliteDb: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('./platform', () => ({
