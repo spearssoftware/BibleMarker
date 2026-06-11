@@ -39,7 +39,7 @@ async function getLocalDeviceId(): Promise<string> {
   return getDeviceId();
 }
 
-/** Request that a 6-digit sign-in code be emailed to `email`. */
+/** Request that an 8-digit sign-in code be emailed to `email`. */
 export async function requestSignInCode(email: string): Promise<void> {
   await invoke('auth_request', { email });
 }

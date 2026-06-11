@@ -127,9 +127,9 @@ export async function handleAuthVerify(request: Request, env: Env): Promise<Resp
   if (decision === 'mismatch') {
     // Conditional increment so the counter can't be pushed past the cap by
     // concurrent verifies. (A tiny TOCTOU window can still let a few concurrent
-    // requests each compare on the same snapshot — negligible against a 10^6
+    // requests each compare on the same snapshot — negligible against a 10^8
     // keyspace with a hard lockout, and sustained brute force is already blocked
-    // by random codes + the per-email resend cooldown.)
+    // by random codes + the per-email resend cooldown + per-IP rate limiting.)
     await env.DB.prepare(
       'UPDATE otp_codes SET attempts = attempts + 1 WHERE email_hash = ? AND attempts < ?'
     )

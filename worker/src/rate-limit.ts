@@ -16,11 +16,6 @@ export interface RateLimiter {
   limit(opts: { key: string }): Promise<{ success: boolean }>;
 }
 
-/** Code-request limit: 5 per 60s per IP (mirrors the `[[ratelimits]]` config). */
-export const AUTH_REQUEST_LIMIT = { limit: 5, period: 60 } as const;
-/** Verify limit: 10 per 60s per IP (mirrors the `[[ratelimits]]` config). */
-export const AUTH_VERIFY_LIMIT = { limit: 10, period: 60 } as const;
-
 /**
  * The client IP to rate-limit on. `CF-Connecting-IP` is set by Cloudflare at the
  * edge on the deployed routes and can't be spoofed by the caller. When it's

@@ -353,7 +353,7 @@ export function getSyncStatusIcon(status: SyncStatus): string {
 // ============================================================================
 
 /**
- * Request a 6-digit sign-in code to be emailed to `email`.
+ * Request an 8-digit sign-in code to be emailed to `email`.
  * Delegates to the Rust auth_request command.
  */
 export async function requestSignInCode(email: string): Promise<void> {
