@@ -54,6 +54,12 @@ name = "MODULES_LIMITER"
 namespace_id = "1004"
 simple = { limit = 60, period = 60 }
 
+# Per-account limiter for /sync/* (keyed on the verified accountId, not IP).
+[[ratelimits]]
+name = "SYNC_LIMITER"
+namespace_id = "1005"
+simple = { limit = 60, period = 60 }
+
 # Daily cleanup of expired OTP codes + dead sessions (src/cleanup.ts).
 [triggers]
 crons = ["0 3 * * *"]
@@ -113,6 +119,11 @@ simple = { limit = 30, period = 60 }
 [[env.production.ratelimits]]
 name = "MODULES_LIMITER"
 namespace_id = "1004"
+simple = { limit = 60, period = 60 }
+
+[[env.production.ratelimits]]
+name = "SYNC_LIMITER"
+namespace_id = "1005"
 simple = { limit = 60, period = 60 }
 
 [env.production.triggers]

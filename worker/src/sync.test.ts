@@ -11,12 +11,16 @@ import {
 } from './sync';
 import type { Session } from './auth';
 import type { Env } from './env';
-import { MemoryR2, asBucket } from './test-mocks';
+import { MemoryD1, MemoryR2, MemoryRateLimiter, asBucket, asDb } from './test-mocks';
 
 const SESSION: Session = { accountId: 'acct-A', deviceId: 'dev-1' };
 
-function envWith(bucket: MemoryR2): Env {
-  return { SYNC_BUCKET: asBucket(bucket) } as unknown as Env;
+function envWith(bucket: MemoryR2, d1: MemoryD1 = new MemoryD1()): Env {
+  return {
+    SYNC_BUCKET: asBucket(bucket),
+    DB: asDb(d1),
+    SYNC_LIMITER: new MemoryRateLimiter(),
+  } as unknown as Env;
 }
 
 describe('key validation', () => {

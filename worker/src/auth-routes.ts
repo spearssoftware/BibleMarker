@@ -31,6 +31,9 @@ import {
 const CODE_RE = new RegExp(`^\\d{${OTP_DIGITS}}$`);
 const DEVICE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Keep at most this many live sessions per account; prune the oldest beyond it. */
+const MAX_SESSIONS_PER_ACCOUNT = 10;
+
 export async function handleAuthRequest(
   request: Request,
   env: Env,
@@ -158,6 +161,22 @@ export async function handleAuthVerify(request: Request, env: Env): Promise<Resp
       new Date(Date.now() + SESSION_TTL_MS).toISOString()
     )
     .run();
+
+  // Cap concurrent sessions per account: keep the newest N, prune the rest.
+  // Bounds unbounded session growth and shrinks a leaked token's blast radius.
+  // Best-effort — a prune failure must never fail the sign-in we just completed.
+  try {
+    await env.DB.prepare(
+      `DELETE FROM sessions WHERE account_id = ?1 AND token_hash NOT IN (
+         SELECT token_hash FROM sessions WHERE account_id = ?1
+         ORDER BY created_at DESC LIMIT ?2
+       )`
+    )
+      .bind(accountId, MAX_SESSIONS_PER_ACCOUNT)
+      .run();
+  } catch {
+    /* session cap is best-effort — never fail a sign-in over pruning */
+  }
 
   return jsonOk({ token, accountId });
 }

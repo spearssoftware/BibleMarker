@@ -28,6 +28,7 @@ function envWith(flags: MemoryFlags, d1: MemoryD1 = new MemoryD1()): Env {
     SYNC_BUCKET: asBucket(new MemoryR2()),
     CONFIG_LIMITER: new MemoryRateLimiter(),
     MODULES_LIMITER: new MemoryRateLimiter(),
+    SYNC_LIMITER: new MemoryRateLimiter(),
   } as unknown as Env;
 }
 
@@ -225,6 +226,7 @@ describe('server-side enforcement', () => {
       FLAGS: throwing as unknown as Env['FLAGS'],
       DB: asDb(d1),
       SYNC_BUCKET: asBucket(new MemoryR2()),
+      SYNC_LIMITER: new MemoryRateLimiter(),
     } as unknown as Env;
     const res = await worker.fetch(
       new Request('https://biblemarker.app/sync/list', {
