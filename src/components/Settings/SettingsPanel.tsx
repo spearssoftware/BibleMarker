@@ -395,7 +395,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
       return (
         <>
           <p className="text-sm text-scripture-muted">
-            Sign in with your email to sync study data across devices. A 6-digit code will be sent to your inbox.
+            Sign in with your email to sync study data across devices. An 8-digit code will be sent to your inbox.
           </p>
           {syncStatus?.state === 'auth-expired' && (
             <p className="text-xs text-scripture-warning">
@@ -429,24 +429,24 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     return (
       <>
         <p className="text-sm text-scripture-muted">
-          Enter the 6-digit code sent to <span className="text-scripture-text">{signInEmail}</span>.
+          Enter the 8-digit code sent to <span className="text-scripture-text">{signInEmail}</span>.
         </p>
         <div className="flex gap-2">
           <input
             type="text"
             inputMode="numeric"
-            maxLength={6}
+            maxLength={8}
             value={signInCode}
             onChange={e => setSignInCode(e.target.value.replace(/\D/g, ''))}
             onKeyDown={e => e.key === 'Enter' && void handleVerifySignInCode()}
-            placeholder="123456"
+            placeholder="12345678"
             className={`${BASE_INPUT_CLASSES} flex-1 placeholder-scripture-muted tracking-widest font-mono`}
             disabled={signInLoading}
           />
           <Button
             variant="primary"
             size="sm"
-            disabled={signInLoading || signInCode.length !== 6}
+            disabled={signInLoading || signInCode.length !== 8}
             onClick={() => void handleVerifySignInCode()}
           >
             {signInLoading ? 'Verifying...' : 'Sign In'}

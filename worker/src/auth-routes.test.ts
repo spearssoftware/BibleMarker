@@ -3,7 +3,7 @@ import { handleAuthRequest, handleAuthVerify, handleAuthRevoke } from './auth-ro
 import { authenticate } from './auth';
 import type { Env } from './env';
 import type { EmailSender } from './email';
-import { MemoryD1, asDb } from './test-mocks';
+import { MemoryD1, asDb, MemoryRateLimiter } from './test-mocks';
 
 class FakeSender implements EmailSender {
   readonly sent: { to: string; code: string }[] = [];
@@ -14,8 +14,15 @@ class FakeSender implements EmailSender {
   }
 }
 
-function envWith(d1: MemoryD1): Env {
-  return { DB: asDb(d1) } as unknown as Env;
+function envWith(
+  d1: MemoryD1,
+  limiters: { request?: MemoryRateLimiter; verify?: MemoryRateLimiter } = {}
+): Env {
+  return {
+    DB: asDb(d1),
+    AUTH_REQUEST_LIMITER: limiters.request ?? new MemoryRateLimiter(),
+    AUTH_VERIFY_LIMITER: limiters.verify ?? new MemoryRateLimiter(),
+  } as unknown as Env;
 }
 
 function post(path: string, body: unknown, headers: Record<string, string> = {}): Request {
@@ -42,8 +49,34 @@ describe('handleAuthRequest', () => {
     const res = await handleAuthRequest(post('/auth/request', { email: 'a@b.com' }), envWith(d1), sender);
     expect(res.status).toBe(200);
     expect(sender.sent).toHaveLength(1);
-    expect(sender.sent[0].code).toMatch(/^\d{6}$/);
+    expect(sender.sent[0].code).toMatch(/^\d{8}$/);
     expect(d1.otp.size).toBe(1);
+  });
+
+  it('returns 429 when the per-IP request limiter denies', async () => {
+    const d1 = new MemoryD1();
+    const env = envWith(d1, { request: new MemoryRateLimiter({ allow: false }) });
+    const sender = new FakeSender();
+    const res = await handleAuthRequest(post('/auth/request', { email: 'a@b.com' }), env, sender);
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Retry-After')).toBe('60');
+    expect(sender.sent).toHaveLength(0); // throttled before any email
+    expect(d1.otp.size).toBe(0); // throttled before any DB write
+  });
+
+  it('throttles per IP — distinct IPs get independent buckets', async () => {
+    const d1 = new MemoryD1();
+    const env = envWith(d1, { request: new MemoryRateLimiter({ limit: 1 }) });
+    const sender = new FakeSender();
+    const ip1 = { 'CF-Connecting-IP': '1.1.1.1' };
+    const ip2 = { 'CF-Connecting-IP': '2.2.2.2' };
+
+    const a = await handleAuthRequest(post('/auth/request', { email: 'a@b.com' }, ip1), env, sender);
+    const b = await handleAuthRequest(post('/auth/request', { email: 'c@d.com' }, ip1), env, sender);
+    const c = await handleAuthRequest(post('/auth/request', { email: 'e@f.com' }, ip2), env, sender);
+    expect(a.status).toBe(200); // first from ip1
+    expect(b.status).toBe(429); // second from ip1 over the limit
+    expect(c.status).toBe(200); // ip2 has its own bucket
   });
 
   it('rejects an invalid email with 400', async () => {
@@ -148,6 +181,20 @@ describe('handleAuthVerify', () => {
     }
     const locked = await handleAuthVerify(post('/auth/verify', { email: 'a@b.com', code: wrong }), env);
     expect(locked.status).toBe(429);
+  });
+
+  it('returns 429 when the per-IP verify limiter denies, before touching the DB', async () => {
+    const d1 = new MemoryD1();
+    const env = envWith(d1, { verify: new MemoryRateLimiter({ allow: false }) });
+    const sender = new FakeSender();
+    await handleAuthRequest(post('/auth/request', { email: 'a@b.com' }), env, sender);
+    const res = await handleAuthVerify(
+      post('/auth/verify', { email: 'a@b.com', code: sender.sent[0].code }),
+      env
+    );
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Retry-After')).toBe('60');
+    expect(d1.otp.size).toBe(1); // code untouched — no verify attempt consumed
   });
 
   it('rejects an expired code with 401', async () => {

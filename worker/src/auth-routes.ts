@@ -1,7 +1,7 @@
 /**
  * Email-OTP sign-in routes.
  *
- *   POST /auth/request {email}                request a 6-digit code (emailed)
+ *   POST /auth/request {email}                request an 8-digit code (emailed)
  *   POST /auth/verify  {email, code, ...}     verify a code → { token, accountId }
  *   POST /auth/revoke                          revoke the caller's session (sign out)
  *
@@ -15,6 +15,7 @@ import type { Env } from './env';
 import { sha256Hex, emailHash, parseBearer } from './auth';
 import type { EmailSender } from './email';
 import { jsonOk, jsonError } from './http';
+import { clientIp } from './rate-limit';
 import {
   normalizeEmail,
   isValidEmail,
@@ -31,11 +32,24 @@ import {
 const CODE_RE = new RegExp(`^\\d{${OTP_DIGITS}}$`);
 const DEVICE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** 429 with a Retry-After header (the shared `jsonError` can't carry extra headers). */
+function tooManyRequests(): Response {
+  return new Response(JSON.stringify({ error: 'Too many requests' }), {
+    status: 429,
+    headers: { 'Content-Type': 'application/json', 'Retry-After': '60' },
+  });
+}
+
 export async function handleAuthRequest(
   request: Request,
   env: Env,
   sender: EmailSender
 ): Promise<Response> {
+  // Per-IP throttle before any DB work (caps email-bomb / cost abuse).
+  if (!(await env.AUTH_REQUEST_LIMITER.limit({ key: clientIp(request) })).success) {
+    return tooManyRequests();
+  }
+
   const body = await readJson(request);
   if (!body) return jsonError(400, 'Invalid JSON body');
 
@@ -86,6 +100,11 @@ export async function handleAuthRequest(
 }
 
 export async function handleAuthVerify(request: Request, env: Env): Promise<Response> {
+  // Per-IP throttle before any DB work (caps rapid brute-force guessing).
+  if (!(await env.AUTH_VERIFY_LIMITER.limit({ key: clientIp(request) })).success) {
+    return tooManyRequests();
+  }
+
   const body = await readJson(request);
   if (!body) return jsonError(400, 'Invalid JSON body');
 

@@ -16,6 +16,7 @@ import { handleAccountDelete } from './account';
 import { PostmarkSender } from './email';
 import { handleAuthRequest, handleAuthVerify, handleAuthRevoke } from './auth-routes';
 import { handleConfig, isSyncEnabled, isOtpEnabled } from './flags';
+import { cleanupExpired } from './cleanup';
 
 export type { Env };
 
@@ -67,5 +68,12 @@ export default {
     }
 
     return jsonError(404, 'Not Found');
+  },
+
+  // Daily cron (see `[triggers]` in wrangler.toml): sweep expired OTP codes and
+  // revoked/expired sessions so the auth tables don't grow unbounded.
+  async scheduled(_event: ScheduledController, env: Env): Promise<void> {
+    const result = await cleanupExpired(env.DB, new Date().toISOString());
+    console.log('[cleanup]', JSON.stringify(result));
   },
 };
