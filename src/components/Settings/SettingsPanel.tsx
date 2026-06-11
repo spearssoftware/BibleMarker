@@ -376,13 +376,15 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
       if (isSyncError(e) && e.kind === 'network') {
         setSignInError('You must be online to delete your account.');
       } else if (isSyncError(e) && e.statusCode === 401) {
-        // Session already invalid — the account is effectively gone. Drop the
-        // local token and return to the signed-out card. (A 403 is NOT treated
-        // this way: it means authenticated-but-forbidden, so the account likely
-        // still exists — fall through to the generic retryable error below.)
+        // The session is invalid (expired, revoked, or swept) — the server
+        // rejected the delete, so the account was NOT necessarily removed. Drop
+        // the dead token and return to the sign-in card, but tell the user the
+        // deletion didn't complete so they can sign in again and retry. (We
+        // deliberately do NOT present this as a successful deletion.)
         await clearLocalSession();
         setSignedInAccount(null);
         setSignInStep('email');
+        setSignInError('Your session expired before the account could be deleted. Sign in again to finish deleting it.');
       } else {
         setSignInError('Couldn’t delete account — please try again.');
       }
