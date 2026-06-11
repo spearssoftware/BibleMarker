@@ -11,13 +11,23 @@ import {
 import { sha256Hex } from './auth';
 import type { Session } from './auth';
 import type { Env } from './env';
-import { MemoryD1, MemoryFlags, MemoryR2, asBucket, asDb, asFlags } from './test-mocks';
+import {
+  MemoryD1,
+  MemoryFlags,
+  MemoryR2,
+  MemoryRateLimiter,
+  asBucket,
+  asDb,
+  asFlags,
+} from './test-mocks';
 
 function envWith(flags: MemoryFlags, d1: MemoryD1 = new MemoryD1()): Env {
   return {
     FLAGS: asFlags(flags),
     DB: asDb(d1),
     SYNC_BUCKET: asBucket(new MemoryR2()),
+    CONFIG_LIMITER: new MemoryRateLimiter(),
+    MODULES_LIMITER: new MemoryRateLimiter(),
   } as unknown as Env;
 }
 

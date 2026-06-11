@@ -16,8 +16,6 @@ export const OTP_TTL_MS = 10 * 60 * 1000;
 export const RESEND_COOLDOWN_MS = 60 * 1000;
 /** Wrong-code attempts allowed before the code is burned. */
 export const MAX_OTP_ATTEMPTS = 5;
-/** Session lifetime: 1 year (re-auth via OTP on expiry). */
-export const SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();

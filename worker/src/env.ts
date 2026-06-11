@@ -26,6 +26,10 @@ export interface Env {
   AUTH_REQUEST_LIMITER: RateLimiter;
   /** Per-IP rate limiter for `POST /auth/verify` (10 / 60s). */
   AUTH_VERIFY_LIMITER: RateLimiter;
+  /** Per-IP rate limiter for `GET /config` (30 / 60s). */
+  CONFIG_LIMITER: RateLimiter;
+  /** Per-IP rate limiter for `GET/HEAD /modules/*` (60 / 60s). */
+  MODULES_LIMITER: RateLimiter;
 }
 
 /**

@@ -13,6 +13,7 @@
 
 import type { Env } from './env';
 import { jsonError } from './http';
+import { clientIp, tooManyRequests } from './rate-limit';
 
 const TOKEN_VALIDITY_SECONDS = 3600;
 const MODULE_PATH_RE = /^\/modules\/([A-Za-z0-9_.-]+\.zip)$/;
@@ -21,6 +22,14 @@ const AUTH_HEADER_RE = /^BibleMarker\s+(\d+)\.([A-Za-z0-9_-]+)$/;
 export async function handleModuleRequest(request: Request, env: Env, url: URL): Promise<Response> {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return jsonError(405, 'Method Not Allowed');
+  }
+
+  // Per-IP throttle on module egress. The HMAC build-auth below proves the
+  // request came from something holding SIGNING_KEY, but that key ships in every
+  // release binary and is extractable — so this rate limit, not the signature,
+  // is what actually caps bulk R2 egress abuse.
+  if (!(await env.MODULES_LIMITER.limit({ key: clientIp(request) })).success) {
+    return tooManyRequests();
   }
 
   const match = MODULE_PATH_RE.exec(url.pathname);

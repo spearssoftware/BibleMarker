@@ -12,10 +12,10 @@
  */
 
 import type { Env } from './env';
-import { sha256Hex, emailHash, parseBearer } from './auth';
+import { sha256Hex, emailHash, parseBearer, SESSION_TTL_MS } from './auth';
 import type { EmailSender } from './email';
 import { jsonOk, jsonError } from './http';
-import { clientIp } from './rate-limit';
+import { clientIp, tooManyRequests } from './rate-limit';
 import {
   normalizeEmail,
   isValidEmail,
@@ -25,20 +25,11 @@ import {
   OTP_DIGITS,
   OTP_TTL_MS,
   RESEND_COOLDOWN_MS,
-  SESSION_TTL_MS,
   MAX_OTP_ATTEMPTS,
 } from './otp';
 
 const CODE_RE = new RegExp(`^\\d{${OTP_DIGITS}}$`);
 const DEVICE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** 429 with a Retry-After header (the shared `jsonError` can't carry extra headers). */
-function tooManyRequests(): Response {
-  return new Response(JSON.stringify({ error: 'Too many requests' }), {
-    status: 429,
-    headers: { 'Content-Type': 'application/json', 'Retry-After': '60' },
-  });
-}
 
 export async function handleAuthRequest(
   request: Request,

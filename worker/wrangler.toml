@@ -2,6 +2,9 @@ name = "biblemarker-modules"
 main = "src/index.ts"
 compatibility_date = "2026-04-29"
 migrations_dir = "migrations"
+# No *.workers.dev URL — the only ingress is the biblemarker.app routes below, so
+# zone-level WAF/rules can't be bypassed via a preview subdomain.
+workers_dev = false
 
 # Top-level config is used by `wrangler dev` for local development.
 # Production deploys go through [env.production] below.
@@ -38,6 +41,19 @@ name = "AUTH_VERIFY_LIMITER"
 namespace_id = "1002"
 simple = { limit = 10, period = 60 }
 
+# Per-IP limiter for the unauthenticated GET /config snapshot (no edge cache).
+[[ratelimits]]
+name = "CONFIG_LIMITER"
+namespace_id = "1003"
+simple = { limit = 30, period = 60 }
+
+# Per-IP limiter for /modules/* downloads (caps egress abuse — the build-auth
+# signing key ships in the client and is extractable, so this is the real cap).
+[[ratelimits]]
+name = "MODULES_LIMITER"
+namespace_id = "1004"
+simple = { limit = 60, period = 60 }
+
 # Daily cleanup of expired OTP codes + dead sessions (src/cleanup.ts).
 [triggers]
 crons = ["0 3 * * *"]
@@ -53,6 +69,7 @@ enabled = true
 # When --env is passed, wrangler ONLY uses config under [env.X], so bindings
 # must be repeated here even if also defined at the top level.
 [env.production]
+workers_dev = false
 routes = [
   { pattern = "biblemarker.app/modules/*", zone_name = "biblemarker.app" },
   { pattern = "biblemarker.app/sync/*", zone_name = "biblemarker.app" },
@@ -87,6 +104,16 @@ simple = { limit = 5, period = 60 }
 name = "AUTH_VERIFY_LIMITER"
 namespace_id = "1002"
 simple = { limit = 10, period = 60 }
+
+[[env.production.ratelimits]]
+name = "CONFIG_LIMITER"
+namespace_id = "1003"
+simple = { limit = 30, period = 60 }
+
+[[env.production.ratelimits]]
+name = "MODULES_LIMITER"
+namespace_id = "1004"
+simple = { limit = 60, period = 60 }
 
 [env.production.triggers]
 crons = ["0 3 * * *"]

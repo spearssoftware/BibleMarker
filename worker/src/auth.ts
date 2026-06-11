@@ -11,6 +11,14 @@ import type { Env } from './env';
 
 const BEARER_RE = /^Bearer\s+([A-Za-z0-9_-]+)$/;
 
+/**
+ * Session lifetime: 90 days, slid forward on every authenticated request (see
+ * `authenticate`). Lives here (not `otp.ts`) so `auth.ts` doesn't import back
+ * from `otp.ts` — `otp.ts` already imports `constantTimeEqual` from here, and a
+ * cycle would otherwise form.
+ */
+export const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+
 export interface Session {
   accountId: string;
   deviceId: string | null;
@@ -66,11 +74,16 @@ export async function authenticate(env: Env, request: Request): Promise<Session 
   if (!row) return null;
 
   try {
-    await env.DB.prepare('UPDATE sessions SET last_used_at = ? WHERE token_hash = ?')
-      .bind(new Date().toISOString(), tokenHash)
+    // Slide the expiry forward so active sessions stay alive while idle ones
+    // age out in SESSION_TTL_MS. Best-effort, like last_used_at: a failed bump
+    // must never fail the request — worst case the session expires at its
+    // current expires_at instead of being extended.
+    const nowIso = new Date().toISOString();
+    await env.DB.prepare('UPDATE sessions SET last_used_at = ?, expires_at = ? WHERE token_hash = ?')
+      .bind(nowIso, new Date(Date.now() + SESSION_TTL_MS).toISOString(), tokenHash)
       .run();
   } catch {
-    /* last_used_at is advisory — never fail a request over it */
+    /* last_used_at + sliding expiry are advisory — never fail a request over them */
   }
 
   return { accountId: row.account_id, deviceId: row.device_id };
