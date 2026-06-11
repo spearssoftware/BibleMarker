@@ -140,12 +140,34 @@ export async function buildClientConfig(env: Env, ctx: FlagContext): Promise<Cli
 }
 
 /**
+ * CORS headers for `/config`. This is the ONLY route the webview fetches
+ * directly (sync/auth/modules all go through the Rust HTTP layer), so it needs
+ * to satisfy the browser's preflight. It's public, read-only, and credential-
+ * free, so a wildcard origin is safe; the custom client headers and an optional
+ * bearer must be allow-listed for the preflight to pass.
+ */
+const CONFIG_CORS_HEADERS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Authorization, X-Device-Id, X-Client-Platform, X-Client-Version',
+  'Access-Control-Max-Age': '86400',
+};
+
+/**
  * `GET /config` — the client's feature-flag snapshot. Public, but enriched with
  * the verified accountId when a bearer token is present. A bad/absent token or a
  * D1 outage degrades to an anonymous evaluation (200), never a 401/500.
  */
 export async function handleConfig(request: Request, env: Env): Promise<Response> {
-  if (request.method !== 'GET') return jsonError(405, 'Method Not Allowed');
+  // Preflight: the webview sends custom headers, so the browser fires OPTIONS first.
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: CONFIG_CORS_HEADERS });
+  }
+  if (request.method !== 'GET') {
+    const res = jsonError(405, 'Method Not Allowed');
+    for (const [k, v] of Object.entries(CONFIG_CORS_HEADERS)) res.headers.set(k, v);
+    return res;
+  }
 
   let session: Session | null = null;
   try {
@@ -158,5 +180,6 @@ export async function handleConfig(request: Request, env: Env): Promise<Response
   const res = jsonOk(await buildClientConfig(env, ctx));
   // Per-device-targeted — must never be served from an edge/proxy cache.
   res.headers.set('Cache-Control', 'private, no-store');
+  for (const [k, v] of Object.entries(CONFIG_CORS_HEADERS)) res.headers.set(k, v);
   return res;
 }
