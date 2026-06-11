@@ -16,8 +16,7 @@ bucket_name = "biblemarker-sync"
 [[d1_databases]]
 binding = "DB"
 database_name = "biblemarker-sync"
-# Set after `wrangler d1 create biblemarker-sync` (see worker/README.md).
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "92706dec-cbd8-43a7-942b-227a5b6ed866"
 
 # Cloudflare Flagship feature flags (app_id is an identifier, not a secret —
 # see worker/README.md for the flag catalog). The vitest suite mocks the binding.
@@ -55,14 +54,14 @@ bucket_name = "biblemarker-sync"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "biblemarker-sync"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "92706dec-cbd8-43a7-942b-227a5b6ed866"
 
 [[env.production.flagship]]
 binding = "FLAGS"
 app_id = "283ab531-376d-4508-8530-bceb96de4d7b"
 
 [env.production.vars]
-OTP_FROM_EMAIL = "noreply@spearssoftware.com"
+OTP_FROM_EMAIL = "noreply@biblemarker.app"
 
 [env.production.observability]
 enabled = true
