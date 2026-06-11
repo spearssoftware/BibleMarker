@@ -55,23 +55,7 @@ export function SyncStatusIndicator({
     return null;
   }
 
-  const getStatusColor = () => {
-    switch (status.state) {
-      case 'synced': return 'text-scripture-success';
-      case 'syncing': return 'text-scripture-info';
-      case 'offline': return 'text-scripture-warning';
-      case 'error': return 'text-scripture-error';
-      case 'auth-expired': return 'text-scripture-warning';
-      case 'signed-out':
-      case 'unavailable':
-      default: return 'text-scripture-muted';
-    }
-  };
-
-  // 'disabled' is already excluded by the early return above
-  const canSyncNow = status.state !== 'unavailable'
-    && status.state !== 'signed-out'
-    && status.state !== 'auth-expired';
+  const canSyncNow = canManuallySync(status.state);
 
   if (compact) {
     return (
@@ -80,7 +64,7 @@ export function SyncStatusIndicator({
           onClick={() => setShowDetails(!showDetails)}
           className={`
             relative p-1 rounded hover:bg-white/10 transition-colors
-            ${getStatusColor()}
+            ${getStatusColorClass(status.state)}
             ${className}
           `}
           title={getSyncStatusMessage(status)}
@@ -108,7 +92,7 @@ export function SyncStatusIndicator({
         <span
           className={`
             text-lg
-            ${getStatusColor()}
+            ${getStatusColorClass(status.state)}
             ${status.state === 'syncing' ? 'animate-spin' : ''}
           `}
         >
@@ -237,9 +221,7 @@ function SyncDetailsPanel({
           >
             Close
           </button>
-          {status.state !== 'unavailable'
-          && status.state !== 'signed-out'
-          && status.state !== 'auth-expired' && (
+          {canManuallySync(status.state) && (
             <button
               onClick={onSync}
               disabled={isSyncing}
@@ -272,6 +254,11 @@ function getStatusColorClass(state: SyncStatus['state']): string {
     case 'signed-out':
     default: return 'text-scripture-muted';
   }
+}
+
+/** States where a manual "Sync Now" makes sense (no folder/account problem). */
+function canManuallySync(state: SyncStatus['state']): boolean {
+  return state !== 'unavailable' && state !== 'signed-out' && state !== 'auth-expired';
 }
 
 export default SyncStatusIndicator;

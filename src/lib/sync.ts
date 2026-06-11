@@ -26,6 +26,7 @@ import {
   sync as engineSync,
   configureSyncFolder,
   configureHttpBackend,
+  getBackendMode,
   disableSync as engineDisableSync,
   onSyncEngineStatusChange,
   getSyncEngineStatus,
@@ -170,13 +171,13 @@ export async function initializeSync(): Promise<void> {
     notifySyncStatusChange(engineStatusToSyncStatus(es));
   });
 
-  // Initialize the sync engine (loads saved config)
+  // Initialize the sync engine (loads saved config). The engine resolves the
+  // sync-http-backend flag and reports which backend it selected.
   await initSyncEngine();
 
-  // iCloud auto-config only runs when the HTTP backend flag is off.
-  // When the flag is on, initSyncEngine handles the HttpStorageBackend path.
-  const useHttpBackend = await isFlagEnabled(FLAG_KEYS.httpBackend);
-  if (!useHttpBackend) {
+  // iCloud auto-config only runs when the engine chose the folder backend.
+  // When it chose HTTP, initSyncEngine already handled the HttpStorageBackend path.
+  if (getBackendMode() !== 'http') {
     // If sync isn't configured yet (or folder went missing) and we're on Apple,
     // (re-)configure with iCloud.
     const configured = await tryConfigureICloud();
@@ -341,8 +342,8 @@ export function getSyncStatusIcon(status: SyncStatus): string {
     case 'error': return '\u26A0';
     case 'unavailable': return '\u2212';
     case 'disabled': return '\u2212';
-    case 'signed-out': return '\u2192'; // \u2192
-    case 'auth-expired': return '\u26a0'; // \u26a0
+    case 'signed-out': return '\u2192';
+    case 'auth-expired': return '\u26a0';
     default: return '?';
   }
 }

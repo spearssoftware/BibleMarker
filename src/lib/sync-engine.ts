@@ -107,6 +107,14 @@ const BACKOFF_INTERVALS_MS = [30_000, 60_000, 300_000];
 const COMPACTION_THRESHOLD = 100;
 
 let backend: StorageBackend | null = null;
+/**
+ * Which backend the engine selected this session, independent of whether a
+ * `backend` instance is currently set (an `'http'` engine with no signed-in
+ * account has `backend === null` but is still in HTTP mode). `sync.ts` reads
+ * this to decide whether to run iCloud auto-config, so the flag is resolved in
+ * exactly one place.
+ */
+let backendMode: 'http' | 'folder' | null = null;
 let deviceId: string = '';
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let inFlight = false;
@@ -160,19 +168,17 @@ export async function initSyncEngine(): Promise<void> {
   const useHttpBackend = await isFlagEnabled(FLAG_KEYS.httpBackend);
 
   if (useHttpBackend) {
+    backendMode = 'http';
     const accountId = await getSignedInAccount();
     if (accountId) {
-      backend = new HttpStorageBackend();
-      startFlushTimer();
-      startOnlineListener();
-      notifyStatusChange({ state: 'idle', syncFolderPath: null, error: null });
-      await sync();
+      await activateHttpBackend({ snapshot: false });
     } else {
       notifyStatusChange({ state: 'signed-out', syncFolderPath: null, error: null });
     }
     return;
   }
 
+  backendMode = 'folder';
   // --- iCloud / folder backend path (unchanged until Phase 4 removal) ---
   const savedPath = await getSyncConfig('sync_folder_path');
   const enabled = await getSyncConfig('sync_enabled');
@@ -213,20 +219,35 @@ export async function initSyncEngine(): Promise<void> {
  * Called by sync.ts after verifySignInCode resolves.
  */
 export async function configureHttpBackend(): Promise<void> {
-  // Tear down any prior backend/timer first — defends against a folder backend
-  // still running if the flag flipped on mid-session.
+  backendMode = 'http';
+  await activateHttpBackend({ snapshot: true });
+}
+
+/** The backend the engine selected this session (drives iCloud auto-config in sync.ts). */
+export function getBackendMode(): 'http' | 'folder' | null {
+  return backendMode;
+}
+
+/**
+ * Activate the HTTP backend: tear down any prior backend/timer, start fresh
+ * timers/listeners, optionally write an initial snapshot (sign-in only), then
+ * run an initial sync. Shared by `initSyncEngine` and `configureHttpBackend`.
+ */
+async function activateHttpBackend({ snapshot }: { snapshot: boolean }): Promise<void> {
   stopFlushTimer();
   stopOnlineListener();
   inFlight = false;
-  backend = new HttpStorageBackend();
   consecutiveFailures = 0;
+  backend = new HttpStorageBackend();
   startFlushTimer();
   startOnlineListener();
   notifyStatusChange({ state: 'idle', syncFolderPath: null, error: null });
-  try {
-    await writeSnapshot();
-  } catch (err) {
-    console.error('[SyncEngine] Failed to write initial snapshot (non-fatal):', err);
+  if (snapshot) {
+    try {
+      await writeSnapshot();
+    } catch (err) {
+      console.error('[SyncEngine] Failed to write initial snapshot (non-fatal):', err);
+    }
   }
   await sync();
 }
@@ -235,6 +256,7 @@ export async function configureHttpBackend(): Promise<void> {
  * Configure the sync folder path and enable sync.
  */
 export async function configureSyncFolder(folderPath: string): Promise<void> {
+  backendMode = 'folder';
   backend = new FolderStorageBackend(folderPath);
   await setSyncConfig('sync_folder_path', folderPath);
   await setSyncConfig('sync_enabled', 'true');
