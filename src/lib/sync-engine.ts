@@ -325,6 +325,11 @@ export async function stopSyncEngine(): Promise<void> {
  */
 export async function sync(): Promise<void> {
   if (!backend) return;
+  // Guard against overlapping runs from any caller (timer tick, initial sync,
+  // manual "Sync Now", online event) — concurrent runs race journal flushes and
+  // watermark writes. The guard lives here so it covers direct callers too.
+  if (inFlight) return;
+  inFlight = true;
 
   try {
     notifyStatusChange({ state: 'syncing' });
@@ -359,19 +364,20 @@ export async function sync(): Promise<void> {
       }
     }
   } catch (error) {
-    // 401 from HttpStorageBackend: session expired. Clear token and stop — do not retry.
-    if (isSyncError(error) && error.kind === 'auth' && error.statusCode === 401) {
+    // Auth error (session expired/revoked): clear token and stop — do not retry.
+    // Match any 'auth'-kind error, not just 401, so a revoked-but-403 session
+    // can't fall through to the generic branch and retry forever.
+    if (isSyncError(error) && error.kind === 'auth') {
       backend = null;
       stopFlushTimer();
       stopOnlineListener();
       consecutiveFailures = 0;
-      inFlight = false;
       // Await so a failed token-clear is logged rather than silently leaving a
       // stale token that would 401 again on next launch.
       try {
         await clearLocalSession();
       } catch (clearErr) {
-        console.error('[SyncEngine] Failed to clear session token after 401:', clearErr);
+        console.error('[SyncEngine] Failed to clear session token after auth error:', clearErr);
       }
       notifyStatusChange({
         state: 'auth-expired',
@@ -386,6 +392,8 @@ export async function sync(): Promise<void> {
       state: 'error',
       error: error instanceof Error ? error.message : String(error),
     });
+  } finally {
+    inFlight = false;
   }
 }
 
@@ -879,18 +887,13 @@ function startFlushTimer(): void {
 }
 
 async function scheduledSync(): Promise<void> {
-  if (inFlight) {
-    // Previous sync still running — skip this tick, reschedule
-    if (backend) startFlushTimer();
-    return;
-  }
-  inFlight = true;
+  // sync() self-guards against overlap (early-returns if already in flight) and
+  // resets backoff on success, so the next interval is computed correctly here.
   try {
     await sync();
   } catch (error) {
     console.error('[SyncEngine] Periodic sync failed:', error);
   } finally {
-    inFlight = false;
     if (backend) startFlushTimer();
   }
 }

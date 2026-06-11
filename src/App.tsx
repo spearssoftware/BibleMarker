@@ -144,12 +144,13 @@ export default function App() {
       // reads flag values from the SQLite cache, so the remote fetch must
       // complete (or time out) before sync starts — otherwise it always reads
       // the previous run's cached value. loadFlags() has a 5s network timeout
-      // and never throws, so this delay is bounded and safe.
-      useFeatureFlagsStore.getState().loadFlags().then(() => {
+      // and never throws, so this delay is bounded and safe. The .catch is
+      // insurance: a future throw in loadFlags must not wedge sync startup.
+      const startSync = () =>
         initializeSync().catch(err => {
           console.error('[App] Failed to initialize sync:', err);
         });
-      });
+      useFeatureFlagsStore.getState().loadFlags().then(startSync, startSync);
 
       if (!isCapacitor()) {
         checkForUpdateIfDue().then(result => {
