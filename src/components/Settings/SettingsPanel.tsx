@@ -45,7 +45,18 @@ import { GettingStartedSection } from './GettingStartedSection';
 import { Button, ConfirmationDialog, Input, DropdownSelect, Checkbox, SegmentedControl } from '@/components/shared';
 import { resetAllStores } from '@/lib/storeReset';
 import { useStudyStore } from '@/stores/studyStore';
-import { onSyncStatusChange, getSyncStatusMessage, triggerSync, type SyncStatus } from '@/lib/sync';
+import {
+  onSyncStatusChange,
+  getSyncStatusMessage,
+  triggerSync,
+  requestSignInCode,
+  signInWithCode,
+  signOut,
+  type SyncStatus,
+} from '@/lib/sync';
+import { getSignedInAccount } from '@/lib/sync-account';
+import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
+import { FLAG_KEYS } from '@/lib/feature-flags';
 import {
   esvClient,
   saveApiConfig as saveApiConfigToDb,
@@ -143,6 +154,15 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
   const [syncDiagnostics, setSyncDiagnostics] = useState<SyncDiagnostics | null>(null);
   const [showSyncDiagnostics, setShowSyncDiagnostics] = useState(false);
   const [syncDirListing, setSyncDirListing] = useState<string | null>(null);
+
+  // Cloud sync sign-in state (HTTP backend)
+  const isHttpBackendEnabled = useFeatureFlagsStore(s => s.isEnabled(FLAG_KEYS.httpBackend));
+  const [signedInAccount, setSignedInAccount] = useState<string | null>(null);
+  const [signInStep, setSignInStep] = useState<'email' | 'code'>('email');
+  const [signInEmail, setSignInEmail] = useState('');
+  const [signInCode, setSignInCode] = useState('');
+  const [signInLoading, setSignInLoading] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
 
   // Studies state
   const { studies, activeStudyId, loadStudies, createStudy, updateStudy, deleteStudy, setActiveStudy } = useStudyStore();
@@ -281,6 +301,56 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     const unsubscribe = onSyncStatusChange(setSyncStatus);
     return unsubscribe;
   }, []);
+
+  // Load signed-in account when the HTTP backend is enabled
+  useEffect(() => {
+    if (!isHttpBackendEnabled) return;
+    getSignedInAccount().then(setSignedInAccount).catch(() => setSignedInAccount(null));
+  }, [isHttpBackendEnabled, syncStatus?.state]);
+
+  async function handleRequestSignInCode() {
+    if (!signInEmail.trim()) return;
+    setSignInLoading(true);
+    setSignInError(null);
+    try {
+      await requestSignInCode(signInEmail.trim());
+      setSignInStep('code');
+    } catch (e) {
+      setSignInError(e instanceof Error ? e.message : 'Failed to send code. Please try again.');
+    } finally {
+      setSignInLoading(false);
+    }
+  }
+
+  async function handleVerifySignInCode() {
+    if (!signInCode.trim()) return;
+    setSignInLoading(true);
+    setSignInError(null);
+    try {
+      const accountId = await signInWithCode(signInEmail.trim(), signInCode.trim());
+      setSignedInAccount(accountId);
+      setSignInStep('email');
+      setSignInEmail('');
+      setSignInCode('');
+    } catch (e) {
+      setSignInError(e instanceof Error ? e.message : 'Invalid or expired code. Please try again.');
+    } finally {
+      setSignInLoading(false);
+    }
+  }
+
+  async function handleSignOut() {
+    setSignInLoading(true);
+    try {
+      await signOut();
+      setSignedInAccount(null);
+      setSignInStep('email');
+    } catch (e) {
+      console.error('[Settings] Sign out failed:', e);
+    } finally {
+      setSignInLoading(false);
+    }
+  }
 
   async function loadSyncDiagnostics() {
     try {
@@ -1253,17 +1323,121 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
           {activeTab === 'data' && (
             <div role="tabpanel" id="settings-tabpanel-data" aria-labelledby="settings-tab-data">
             <div className="space-y-0">
-              {/* Sync Status */}
+              {/* Sync Section */}
               <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Sync</h3>
+
+                {/* Cloud sync account UI (HTTP backend, gated by feature flag) */}
+                {isHttpBackendEnabled && (
+                  <div className="mb-4 p-4 bg-scripture-elevated/50 rounded-lg border border-scripture-border/50 space-y-3">
+                    {signedInAccount ? (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block w-2.5 h-2.5 rounded-full bg-scripture-success" />
+                          <span className="text-sm font-medium text-scripture-text">Signed in</span>
+                        </div>
+                        <p className="text-xs text-scripture-muted font-mono break-all">{signedInAccount}</p>
+                        {syncStatus?.connected_devices && syncStatus.connected_devices.length > 0 && (
+                          <p className="text-xs text-scripture-muted">
+                            <span className="font-medium">Devices:</span>{' '}
+                            {syncStatus.connected_devices.join(', ')}
+                          </p>
+                        )}
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={signInLoading}
+                          onClick={handleSignOut}
+                        >
+                          {signInLoading ? 'Signing out...' : 'Sign Out'}
+                        </Button>
+                      </>
+                    ) : signInStep === 'email' ? (
+                      <>
+                        <p className="text-sm text-scripture-muted">
+                          Sign in with your email to sync study data across devices. A 6-digit code will be sent to your inbox.
+                        </p>
+                        {(syncStatus?.state === 'auth-expired') && (
+                          <p className="text-xs text-scripture-warning">
+                            Your session expired. Sign in again to resume syncing.
+                          </p>
+                        )}
+                        <div className="flex gap-2">
+                          <input
+                            type="email"
+                            value={signInEmail}
+                            onChange={e => setSignInEmail(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && void handleRequestSignInCode()}
+                            placeholder="you@example.com"
+                            className="flex-1 px-3 py-1.5 text-sm bg-scripture-bg border border-scripture-border rounded-lg
+                                       text-scripture-text placeholder:text-scripture-muted/50 focus:outline-none
+                                       focus:ring-1 focus:ring-scripture-accent"
+                            disabled={signInLoading}
+                          />
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            disabled={signInLoading || !signInEmail.trim()}
+                            onClick={() => void handleRequestSignInCode()}
+                          >
+                            {signInLoading ? 'Sending...' : 'Send Code'}
+                          </Button>
+                        </div>
+                        {signInError && (
+                          <p className="text-xs text-scripture-error">{signInError}</p>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-scripture-muted">
+                          Enter the 6-digit code sent to <span className="text-scripture-text">{signInEmail}</span>.
+                        </p>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={6}
+                            value={signInCode}
+                            onChange={e => setSignInCode(e.target.value.replace(/\D/g, ''))}
+                            onKeyDown={e => e.key === 'Enter' && void handleVerifySignInCode()}
+                            placeholder="123456"
+                            className="flex-1 px-3 py-1.5 text-sm bg-scripture-bg border border-scripture-border rounded-lg
+                                       text-scripture-text placeholder:text-scripture-muted/50 focus:outline-none
+                                       focus:ring-1 focus:ring-scripture-accent tracking-widest font-mono"
+                            disabled={signInLoading}
+                          />
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            disabled={signInLoading || signInCode.length !== 6}
+                            onClick={() => void handleVerifySignInCode()}
+                          >
+                            {signInLoading ? 'Verifying...' : 'Sign In'}
+                          </Button>
+                        </div>
+                        <button
+                          onClick={() => { setSignInStep('email'); setSignInCode(''); setSignInError(null); }}
+                          className="text-xs text-scripture-muted hover:text-scripture-text transition-colors"
+                        >
+                          Use a different email
+                        </button>
+                        {signInError && (
+                          <p className="text-xs text-scripture-error">{signInError}</p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Sync status (shown for all backends) */}
                 {syncStatus ? (
                   <div className="space-y-3">
                     <div className="p-3 bg-scripture-elevated/50 rounded-lg border border-scripture-border/50 space-y-2">
                       <div className="flex items-center gap-2">
                         <span className={`inline-block w-2.5 h-2.5 rounded-full ${
                           syncStatus.state === 'synced' ? 'bg-scripture-success' :
-                          syncStatus.state === 'syncing' ? 'bg-scripture-info' :
-                          syncStatus.state === 'error' ? 'bg-scripture-error' :
+                          syncStatus.state === 'syncing' ? 'bg-scripture-info animate-pulse' :
+                          syncStatus.state === 'error' || syncStatus.state === 'auth-expired' ? 'bg-scripture-error' :
                           'bg-scripture-muted'
                         }`} />
                         <span className="text-sm font-medium text-scripture-text">
@@ -1276,28 +1450,25 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                           <span className="font-mono break-all">{syncStatus.sync_folder}</span>
                         </div>
                       )}
-                      {syncStatus.connected_devices.length > 0 && (
+                      {syncStatus.connected_devices.length > 0 && !isHttpBackendEnabled && (
                         <div className="text-xs text-scripture-muted">
                           <span className="font-medium">Devices:</span>{' '}
                           {syncStatus.connected_devices.join(', ')}
                         </div>
                       )}
                       {syncStatus.error && (
-                        <div className="text-xs text-scripture-errorText">
+                        <div className="text-xs text-scripture-error">
                           <span className="font-medium">Error:</span> {syncStatus.error}
                         </div>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      {syncStatus.state !== 'disabled' && (
+                      {syncStatus.state === 'synced' || syncStatus.state === 'syncing' ? (
                         <button
                           onClick={async () => {
                             setSyncLoading(true);
-                            try {
-                              await triggerSync();
-                            } finally {
-                              setSyncLoading(false);
-                            }
+                            try { await triggerSync(); }
+                            finally { setSyncLoading(false); }
                           }}
                           disabled={syncLoading}
                           className="px-3 py-1.5 text-xs font-ui bg-scripture-elevated hover:bg-scripture-border/50
@@ -1306,7 +1477,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                         >
                           {syncLoading ? 'Syncing...' : 'Sync Now'}
                         </button>
-                      )}
+                      ) : null}
                       <button
                         onClick={loadSyncDiagnostics}
                         className="px-3 py-1.5 text-xs font-ui bg-scripture-elevated hover:bg-scripture-border/50

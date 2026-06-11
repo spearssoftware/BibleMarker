@@ -61,10 +61,17 @@ export function SyncStatusIndicator({
       case 'syncing': return 'text-scripture-info';
       case 'offline': return 'text-scripture-warning';
       case 'error': return 'text-scripture-error';
-      case 'unavailable': return 'text-scripture-muted';
+      case 'auth-expired': return 'text-scripture-warning';
+      case 'signed-out':
+      case 'unavailable':
       default: return 'text-scripture-muted';
     }
   };
+
+  // 'disabled' is already excluded by the early return above
+  const canSyncNow = status.state !== 'unavailable'
+    && status.state !== 'signed-out'
+    && status.state !== 'auth-expired';
 
   if (compact) {
     return (
@@ -112,7 +119,7 @@ export function SyncStatusIndicator({
         </span>
       </div>
 
-      {status.state !== 'syncing' && status.state !== 'unavailable' && (
+      {status.state !== 'syncing' && canSyncNow && (
         <button
           onClick={handleSync}
           disabled={isSyncing}
@@ -230,7 +237,9 @@ function SyncDetailsPanel({
           >
             Close
           </button>
-          {status.state !== 'unavailable' && status.state !== 'disabled' && (
+          {status.state !== 'unavailable'
+          && status.state !== 'signed-out'
+          && status.state !== 'auth-expired' && (
             <button
               onClick={onSync}
               disabled={isSyncing}
@@ -257,8 +266,10 @@ function getStatusColorClass(state: SyncStatus['state']): string {
     case 'syncing': return 'text-scripture-info';
     case 'offline': return 'text-scripture-warning';
     case 'error': return 'text-scripture-error';
-    case 'unavailable': return 'text-scripture-muted';
-    case 'disabled': return 'text-scripture-muted';
+    case 'auth-expired': return 'text-scripture-warning';
+    case 'unavailable':
+    case 'disabled':
+    case 'signed-out':
     default: return 'text-scripture-muted';
   }
 }

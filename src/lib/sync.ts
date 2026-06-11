@@ -16,10 +16,16 @@ import { isApplePlatform, isIOS } from './platform';
 import { getPreferences } from './database';
 import { isFlagEnabled, FLAG_KEYS } from './feature-flags';
 import {
+  requestSignInCode as accountRequestCode,
+  verifySignInCode as accountVerifyCode,
+  signOut as accountSignOut,
+} from './sync-account';
+import {
   initSyncEngine,
   stopSyncEngine,
   sync as engineSync,
   configureSyncFolder,
+  configureHttpBackend,
   disableSync as engineDisableSync,
   onSyncEngineStatusChange,
   getSyncEngineStatus,
@@ -32,7 +38,7 @@ import {
 // ============================================================================
 
 /** Sync state for UI display */
-export type SyncState = 'synced' | 'syncing' | 'offline' | 'error' | 'unavailable' | 'disabled';
+export type SyncState = 'synced' | 'syncing' | 'offline' | 'error' | 'unavailable' | 'disabled' | 'signed-out' | 'auth-expired';
 
 /** Sync status from the engine, shaped for the UI */
 export interface SyncStatus {
@@ -67,6 +73,8 @@ function mapEngineState(engineState: SyncEngineState): SyncState {
     case 'disabled': return 'disabled';
     case 'no-folder': return 'unavailable';
     case 'error': return 'error';
+    case 'signed-out': return 'signed-out';
+    case 'auth-expired': return 'auth-expired';
     default: return 'disabled';
   }
 }
@@ -165,18 +173,19 @@ export async function initializeSync(): Promise<void> {
   // Initialize the sync engine (loads saved config)
   await initSyncEngine();
 
-  // If sync isn't configured yet (or folder went missing) and we're on Apple,
-  // (re-)configure with iCloud. On iOS, the iCloud container may not be locally
-  // materialized until URLForUbiquityContainerIdentifier is called, so
-  // initSyncEngine's exists() check can return false on subsequent launches.
-  const configured = await tryConfigureICloud();
+  // iCloud auto-config only runs when the HTTP backend flag is off.
+  // When the flag is on, initSyncEngine handles the HttpStorageBackend path.
+  const useHttpBackend = await isFlagEnabled(FLAG_KEYS.httpBackend);
+  if (!useHttpBackend) {
+    // If sync isn't configured yet (or folder went missing) and we're on Apple,
+    // (re-)configure with iCloud.
+    const configured = await tryConfigureICloud();
 
-  // On iOS first launch, the iCloud container may not be materialized yet.
-  // The first URLForUbiquityContainerIdentifier call triggers materialization
-  // but can return nil before it's ready. Retry after a delay.
-  if (!configured && isIOS()) {
-    console.log('[Sync] iCloud not ready on iOS, will retry in background...');
-    retryICloudConfiguration();
+    // On iOS first launch, the iCloud container may not be materialized yet.
+    if (!configured && isIOS()) {
+      console.log('[Sync] iCloud not ready on iOS, will retry in background...');
+      retryICloudConfiguration();
+    }
   }
 
   console.log('[Sync] Sync system initialized, state:', getSyncEngineStatus().state);
@@ -312,6 +321,10 @@ export function getSyncStatusMessage(status: SyncStatus): string {
       return 'Sync folder not found';
     case 'disabled':
       return 'Sync disabled';
+    case 'signed-out':
+      return 'Sign in to sync across devices';
+    case 'auth-expired':
+      return 'Session expired — sign in again';
     default:
       return 'Unknown status';
   }
@@ -328,8 +341,40 @@ export function getSyncStatusIcon(status: SyncStatus): string {
     case 'error': return '\u26A0';
     case 'unavailable': return '\u2212';
     case 'disabled': return '\u2212';
+    case 'signed-out': return '\u2192'; // \u2192
+    case 'auth-expired': return '\u26a0'; // \u26a0
     default: return '?';
   }
+}
+
+// ============================================================================
+// Account / Sign-in (HTTP backend only)
+// ============================================================================
+
+/**
+ * Request a 6-digit sign-in code to be emailed to `email`.
+ * Delegates to the Rust auth_request command.
+ */
+export async function requestSignInCode(email: string): Promise<void> {
+  await accountRequestCode(email);
+}
+
+/**
+ * Verify the emailed code. On success, wires up the HttpStorageBackend and
+ * starts syncing. Returns the account ID.
+ */
+export async function signInWithCode(email: string, code: string): Promise<string> {
+  const { accountId } = await accountVerifyCode(email, code);
+  await configureHttpBackend();
+  return accountId;
+}
+
+/**
+ * Sign out: revoke the server session and disable sync locally.
+ */
+export async function signOut(): Promise<void> {
+  await accountSignOut();
+  await engineDisableSync();
 }
 
 // ============================================================================

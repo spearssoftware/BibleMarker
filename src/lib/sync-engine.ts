@@ -21,7 +21,9 @@
  */
 
 import { exists } from '@tauri-apps/plugin-fs';
-import { FolderStorageBackend, type StorageBackend } from './storage-backend';
+import { FolderStorageBackend, HttpStorageBackend, type StorageBackend } from './storage-backend';
+import { getSignedInAccount, clearLocalSession, isSyncError } from './sync-account';
+import { isFlagEnabled, FLAG_KEYS } from './feature-flags';
 import {
   getUnflushedChanges,
   markChangesFlushed,
@@ -77,7 +79,7 @@ interface SnapshotFile {
 }
 
 /** Current state of the sync engine */
-export type SyncEngineState = 'idle' | 'syncing' | 'disabled' | 'error' | 'no-folder';
+export type SyncEngineState = 'idle' | 'syncing' | 'disabled' | 'error' | 'no-folder' | 'signed-out' | 'auth-expired';
 
 export interface SyncEngineStatus {
   state: SyncEngineState;
@@ -98,12 +100,18 @@ type StatusListener = (status: SyncEngineStatus) => void;
 /** Flush interval in milliseconds (30 seconds) */
 const FLUSH_INTERVAL_MS = 30_000;
 
+/** Backoff intervals for repeated failures: 30s → 1m → 5m */
+const BACKOFF_INTERVALS_MS = [30_000, 60_000, 300_000];
+
 /** Compaction threshold: compact when journal files exceed this count per device */
 const COMPACTION_THRESHOLD = 100;
 
 let backend: StorageBackend | null = null;
 let deviceId: string = '';
-let flushTimer: ReturnType<typeof setInterval> | null = null;
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+let inFlight = false;
+let consecutiveFailures = 0;
+let onlineListener: (() => void) | null = null;
 let currentStatus: SyncEngineStatus = {
   state: 'disabled',
   syncFolderPath: null,
@@ -142,13 +150,30 @@ export function getSyncEngineStatus(): SyncEngineStatus {
 
 /**
  * Initialize the sync engine.
- * Loads config, sets up the device identity, and starts the flush timer.
+ * When the `sync-http-backend` flag is on, checks for a signed-in account and
+ * wires up HttpStorageBackend. Otherwise falls back to the existing iCloud
+ * FolderStorageBackend path so current users are unaffected during rollout.
  */
 export async function initSyncEngine(): Promise<void> {
-  // Load device ID from SQLite (not localStorage, which iCloud syncs across devices)
   deviceId = await getLocalDeviceId();
 
-  // Load configured sync folder
+  const useHttpBackend = await isFlagEnabled(FLAG_KEYS.httpBackend);
+
+  if (useHttpBackend) {
+    const accountId = await getSignedInAccount();
+    if (accountId) {
+      backend = new HttpStorageBackend();
+      startFlushTimer();
+      startOnlineListener();
+      notifyStatusChange({ state: 'idle', syncFolderPath: null, error: null });
+      await sync();
+    } else {
+      notifyStatusChange({ state: 'signed-out', syncFolderPath: null, error: null });
+    }
+    return;
+  }
+
+  // --- iCloud / folder backend path (unchanged until Phase 4 removal) ---
   const savedPath = await getSyncConfig('sync_folder_path');
   const enabled = await getSyncConfig('sync_enabled');
 
@@ -157,12 +182,9 @@ export async function initSyncEngine(): Promise<void> {
       const folderExists = await exists(savedPath);
       if (folderExists) {
         backend = new FolderStorageBackend(savedPath);
-        notifyStatusChange({
-          state: 'idle',
-          syncFolderPath: savedPath,
-        });
-        // Refresh meta.json on every startup so the device folder is non-empty
-        // (iCloud won't sync empty folders) and other devices can see this device.
+        notifyStatusChange({ state: 'idle', syncFolderPath: savedPath });
+        // Refresh meta.json on startup so the device folder is non-empty (iCloud
+        // won't sync empty folders) and other devices can see this device.
         try {
           const currentSeq = await getCurrentMaxSeq();
           await writeDeviceMeta(currentSeq);
@@ -170,7 +192,6 @@ export async function initSyncEngine(): Promise<void> {
           console.error('[SyncEngine] Failed to write meta on init (non-fatal):', err);
         }
         startFlushTimer();
-        // Do an initial sync
         await sync();
       } else {
         notifyStatusChange({
@@ -180,14 +201,29 @@ export async function initSyncEngine(): Promise<void> {
         });
       }
     } catch (error) {
-      notifyStatusChange({
-        state: 'error',
-        error: `Failed to access sync folder: ${error}`,
-      });
+      notifyStatusChange({ state: 'error', error: `Failed to access sync folder: ${error}` });
     }
   } else {
     notifyStatusChange({ state: 'disabled', syncFolderPath: null });
   }
+}
+
+/**
+ * Wire up the HTTP backend after a successful sign-in.
+ * Called by sync.ts after verifySignInCode resolves.
+ */
+export async function configureHttpBackend(): Promise<void> {
+  backend = new HttpStorageBackend();
+  consecutiveFailures = 0;
+  startFlushTimer();
+  startOnlineListener();
+  notifyStatusChange({ state: 'idle', syncFolderPath: null, error: null });
+  try {
+    await writeSnapshot();
+  } catch (err) {
+    console.error('[SyncEngine] Failed to write initial snapshot (non-fatal):', err);
+  }
+  await sync();
 }
 
 /**
@@ -221,10 +257,13 @@ export async function configureSyncFolder(folderPath: string): Promise<void> {
 }
 
 /**
- * Disable sync.
+ * Disable sync (sign-out or manual disable).
  */
 export async function disableSync(): Promise<void> {
   stopFlushTimer();
+  stopOnlineListener();
+  inFlight = false;
+  consecutiveFailures = 0;
   backend = null;
   await setSyncConfig('sync_enabled', 'false');
   notifyStatusChange({
@@ -240,7 +279,7 @@ export async function disableSync(): Promise<void> {
  */
 export async function stopSyncEngine(): Promise<void> {
   stopFlushTimer();
-  // Flush any remaining changes before shutdown
+  stopOnlineListener();
   if (backend) {
     try {
       await flushChanges();
@@ -273,6 +312,7 @@ export async function sync(): Promise<void> {
     await maybeCompact();
 
     // 4. Update status
+    consecutiveFailures = 0;
     const devices = await listConnectedDevices();
     notifyStatusChange({
       state: 'idle',
@@ -292,6 +332,22 @@ export async function sync(): Promise<void> {
       }
     }
   } catch (error) {
+    // 401 from HttpStorageBackend: session expired. Clear token and stop — do not retry.
+    if (isSyncError(error) && error.kind === 'auth' && error.statusCode === 401) {
+      backend = null;
+      stopFlushTimer();
+      stopOnlineListener();
+      consecutiveFailures = 0;
+      inFlight = false;
+      void clearLocalSession();
+      notifyStatusChange({
+        state: 'auth-expired',
+        connectedDevices: [],
+        error: 'Session expired — sign in again to resume sync',
+      });
+      return;
+    }
+    consecutiveFailures++;
     console.error('[SyncEngine] Sync failed:', error);
     notifyStatusChange({
       state: 'error',
@@ -375,6 +431,7 @@ async function pullChanges(): Promise<PullResult> {
       totalApplied += result.applied;
       result.tables.forEach((t) => allTables.add(t));
     } catch (error) {
+      if (isSyncError(error) && error.kind === 'auth') throw error; // 401 → propagate to sync()
       console.error(`[SyncEngine] Failed to pull from device ${remoteDevice}:`, error);
     }
   }
@@ -448,6 +505,7 @@ async function pullFromDevice(remoteDevice: string): Promise<PullResult> {
       // Update watermark after processing each file
       await setSyncWatermark(remoteDevice, fileSeq);
     } catch (error) {
+      if (isSyncError(error) && error.kind === 'auth') throw error; // 401 → propagate up
       console.error(`[SyncEngine] Failed to process journal ${fileName}:`, error);
       // Skip corrupted/partial files, will retry on next sync
     }
@@ -780,19 +838,50 @@ export function camelToSnakeTable(name: string): string {
 
 function startFlushTimer(): void {
   stopFlushTimer();
-  flushTimer = setInterval(async () => {
-    try {
-      await sync();
-    } catch (error) {
-      console.error('[SyncEngine] Periodic sync failed:', error);
-    }
-  }, FLUSH_INTERVAL_MS);
+  const interval = consecutiveFailures > 0
+    ? BACKOFF_INTERVALS_MS[Math.min(consecutiveFailures - 1, BACKOFF_INTERVALS_MS.length - 1)]
+    : FLUSH_INTERVAL_MS;
+  flushTimer = setTimeout(() => void scheduledSync(), interval);
+}
+
+async function scheduledSync(): Promise<void> {
+  if (inFlight) {
+    // Previous sync still running — skip this tick, reschedule
+    if (backend) startFlushTimer();
+    return;
+  }
+  inFlight = true;
+  try {
+    await sync();
+  } catch (error) {
+    console.error('[SyncEngine] Periodic sync failed:', error);
+  } finally {
+    inFlight = false;
+    if (backend) startFlushTimer();
+  }
 }
 
 function stopFlushTimer(): void {
   if (flushTimer !== null) {
-    clearInterval(flushTimer);
+    clearTimeout(flushTimer);
     flushTimer = null;
+  }
+}
+
+function startOnlineListener(): void {
+  stopOnlineListener();
+  if (typeof window === 'undefined') return;
+  const handler = (): void => {
+    if (backend && !inFlight) void sync();
+  };
+  window.addEventListener('online', handler);
+  onlineListener = handler;
+}
+
+function stopOnlineListener(): void {
+  if (onlineListener !== null && typeof window !== 'undefined') {
+    window.removeEventListener('online', onlineListener);
+    onlineListener = null;
   }
 }
 
