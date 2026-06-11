@@ -11,7 +11,7 @@
  * per-device-evaluated flags.
  */
 
-import { getSyncConfig, setSyncConfig, getDeviceId } from './sqlite-db';
+import { getSyncConfig, setSyncConfig, getDeviceId, getSqliteDb } from './sqlite-db';
 import { isIOS, isAndroid, isMacOS, isTauri } from './platform';
 
 /**
@@ -109,9 +109,10 @@ export async function fetchRemoteFlags(): Promise<RemoteFlags | null> {
     'X-Client-Platform': platformTag(),
   };
   try {
+    await getSqliteDb(); // ensure cachedDeviceId is set before reading it
     headers['X-Device-Id'] = getDeviceId();
   } catch {
-    /* DB not ready — fetch anonymously */
+    /* DB init failed — fetch anonymously, flag targeting won't match device rules */
   }
 
   const controller = new AbortController();

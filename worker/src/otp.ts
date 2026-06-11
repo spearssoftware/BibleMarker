@@ -9,7 +9,7 @@ import { constantTimeEqual } from './auth';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export const OTP_DIGITS = 6;
+export const OTP_DIGITS = 8;
 /** Code lifetime: 10 minutes. */
 export const OTP_TTL_MS = 10 * 60 * 1000;
 /** Don't re-issue/re-send a code within this window of the last one. */

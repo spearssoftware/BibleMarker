@@ -132,6 +132,23 @@ describe('GET /config dispatch', () => {
     );
     expect(res.status).toBe(405);
   });
+
+  it('answers the CORS preflight so the webview fetch can proceed', async () => {
+    const env = envWith(new MemoryFlags());
+    const res = await worker.fetch(
+      new Request('https://biblemarker.app/config', { method: 'OPTIONS' }),
+      env
+    );
+    expect(res.status).toBe(204);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
+    expect(res.headers.get('Access-Control-Allow-Headers')).toContain('X-Device-Id');
+  });
+
+  it('tags the GET response with CORS headers', async () => {
+    const env = envWith(new MemoryFlags());
+    const res = await worker.fetch(req('/config', { 'X-Device-Id': 'device-1' }), env);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
 });
 
 describe('server-side enforcement', () => {

@@ -148,9 +148,28 @@ export class MemoryD1 {
     return null;
   }
 
-  private run(sql: string, args: unknown[]): { success: true } {
-    if (sql.startsWith('DELETE FROM otp_codes')) {
-      this.otp.delete(args[0] as string);
+  private run(sql: string, args: unknown[]): { success: true; meta: { changes: number } } {
+    let changes = 0;
+    if (sql.startsWith('DELETE FROM otp_codes WHERE expires_at')) {
+      // Scheduled cleanup: drop every expired code (args[0] = now ISO).
+      const now = args[0] as string;
+      for (const [k, r] of this.otp) {
+        if (r.expires_at < now) {
+          this.otp.delete(k);
+          changes++;
+        }
+      }
+    } else if (sql.startsWith('DELETE FROM sessions WHERE revoked')) {
+      // Scheduled cleanup: drop revoked or expired sessions (args[0] = now ISO).
+      const now = args[0] as string;
+      for (const [k, s] of this.sessions) {
+        if (s.revoked === 1 || (s.expires_at !== null && s.expires_at < now)) {
+          this.sessions.delete(k);
+          changes++;
+        }
+      }
+    } else if (sql.startsWith('DELETE FROM otp_codes')) {
+      changes = this.otp.delete(args[0] as string) ? 1 : 0;
     } else if (sql.startsWith('INSERT INTO otp_codes')) {
       this.otp.set(args[0] as string, {
         email_hash: args[0] as string,
@@ -159,14 +178,19 @@ export class MemoryD1 {
         attempts: 0,
         created_at: args[3] as string,
       });
+      changes = 1;
     } else if (sql.startsWith('UPDATE otp_codes SET attempts')) {
       const r = this.otp.get(args[0] as string);
-      if (r) r.attempts += 1;
+      if (r) {
+        r.attempts += 1;
+        changes = 1;
+      }
     } else if (sql.startsWith('INSERT INTO accounts')) {
       if (this.accounts.some((a) => a.email === args[1])) {
         throw new Error('UNIQUE constraint failed: accounts.email');
       }
       this.accounts.push({ id: args[0] as string, email: args[1] as string, created_at: args[2] as string });
+      changes = 1;
     } else if (sql.startsWith('INSERT INTO sessions')) {
       this.sessions.set(args[0] as string, {
         token_hash: args[0] as string,
@@ -175,13 +199,17 @@ export class MemoryD1 {
         expires_at: (args[5] as string | null) ?? null,
         revoked: 0,
       });
+      changes = 1;
     } else if (sql.startsWith('UPDATE sessions SET revoked')) {
       const s = this.sessions.get(args[0] as string);
-      if (s) s.revoked = 1;
+      if (s) {
+        s.revoked = 1;
+        changes = 1;
+      }
     } else if (sql.startsWith('UPDATE sessions SET last_used_at')) {
       /* advisory no-op */
     }
-    return { success: true };
+    return { success: true, meta: { changes } };
   }
 }
 
@@ -214,4 +242,28 @@ export class MemoryFlags {
 /** Cast a MemoryFlags to the Flagship binding type the handlers expect. */
 export function asFlags(mock: MemoryFlags): Env['FLAGS'] {
   return mock as unknown as Env['FLAGS'];
+}
+
+/**
+ * In-memory stand-in for the Cloudflare Rate Limiting binding. Either always
+ * allows (`new MemoryRateLimiter()`), always denies (`{ allow: false }`), or
+ * counts hits per key against a fixed limit (`{ limit: N }`) so handler tests
+ * can drive the Nth+1 request into a 429. Records keys for assertions.
+ */
+export class MemoryRateLimiter {
+  readonly keys: string[] = [];
+  private readonly counts = new Map<string, number>();
+
+  constructor(private readonly opts: { allow?: boolean; limit?: number } = {}) {}
+
+  async limit({ key }: { key: string }): Promise<{ success: boolean }> {
+    this.keys.push(key);
+    if (this.opts.allow === false) return { success: false };
+    if (this.opts.limit !== undefined) {
+      const next = (this.counts.get(key) ?? 0) + 1;
+      this.counts.set(key, next);
+      return { success: next <= this.opts.limit };
+    }
+    return { success: true };
+  }
 }

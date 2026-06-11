@@ -43,9 +43,21 @@ import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { AboutSection } from './AboutSection';
 import { GettingStartedSection } from './GettingStartedSection';
 import { Button, ConfirmationDialog, Input, DropdownSelect, Checkbox, SegmentedControl } from '@/components/shared';
+import { BASE_INPUT_CLASSES } from '@/components/shared/Form';
 import { resetAllStores } from '@/lib/storeReset';
 import { useStudyStore } from '@/stores/studyStore';
-import { onSyncStatusChange, getSyncStatusMessage, triggerSync, type SyncStatus } from '@/lib/sync';
+import {
+  onSyncStatusChange,
+  getSyncStatusMessage,
+  triggerSync,
+  requestSignInCode,
+  signInWithCode,
+  signOut,
+  type SyncStatus,
+} from '@/lib/sync';
+import { getSignedInAccount } from '@/lib/sync-account';
+import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
+import { FLAG_KEYS } from '@/lib/feature-flags';
 import {
   esvClient,
   saveApiConfig as saveApiConfigToDb,
@@ -143,6 +155,18 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
   const [syncDiagnostics, setSyncDiagnostics] = useState<SyncDiagnostics | null>(null);
   const [showSyncDiagnostics, setShowSyncDiagnostics] = useState(false);
   const [syncDirListing, setSyncDirListing] = useState<string | null>(null);
+
+  // Cloud sync sign-in state (HTTP backend)
+  const isHttpBackendEnabled = useFeatureFlagsStore(s => s.isEnabled(FLAG_KEYS.httpBackend));
+  // OTP sign-in can be independently killed server-side; already-signed-in
+  // users are unaffected (the gate only hides the new sign-in form).
+  const isOtpEnabled = useFeatureFlagsStore(s => s.isEnabled(FLAG_KEYS.otpEnabled));
+  const [signedInAccount, setSignedInAccount] = useState<string | null>(null);
+  const [signInStep, setSignInStep] = useState<'email' | 'code'>('email');
+  const [signInEmail, setSignInEmail] = useState('');
+  const [signInCode, setSignInCode] = useState('');
+  const [signInLoading, setSignInLoading] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
 
   // Studies state
   const { studies, activeStudyId, loadStudies, createStudy, updateStudy, deleteStudy, setActiveStudy } = useStudyStore();
@@ -282,6 +306,163 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     return unsubscribe;
   }, []);
 
+  // Load signed-in account when the HTTP backend is enabled. Refresh only on the
+  // auth-expired edge (the engine cleared the token) — sign-in/out handlers set
+  // the account directly, so we don't re-hit the Rust command on every sync tick.
+  const isAuthExpired = syncStatus?.state === 'auth-expired';
+  useEffect(() => {
+    if (!isHttpBackendEnabled) return;
+    getSignedInAccount().then(setSignedInAccount).catch(() => setSignedInAccount(null));
+  }, [isHttpBackendEnabled, isAuthExpired]);
+
+  async function handleRequestSignInCode() {
+    if (!signInEmail.trim()) return;
+    setSignInLoading(true);
+    setSignInError(null);
+    try {
+      await requestSignInCode(signInEmail.trim());
+      setSignInStep('code');
+    } catch (e) {
+      setSignInError(e instanceof Error ? e.message : 'Failed to send code. Please try again.');
+    } finally {
+      setSignInLoading(false);
+    }
+  }
+
+  async function handleVerifySignInCode() {
+    if (!signInCode.trim()) return;
+    setSignInLoading(true);
+    setSignInError(null);
+    try {
+      const accountId = await signInWithCode(signInEmail.trim(), signInCode.trim());
+      setSignedInAccount(accountId);
+      setSignInStep('email');
+      setSignInEmail('');
+      setSignInCode('');
+      setSignInError(null);
+    } catch (e) {
+      setSignInError(e instanceof Error ? e.message : 'Invalid or expired code. Please try again.');
+    } finally {
+      setSignInLoading(false);
+    }
+  }
+
+  async function handleSignOut() {
+    setSignInLoading(true);
+    try {
+      await signOut();
+      setSignedInAccount(null);
+      setSignInStep('email');
+    } catch (e) {
+      console.error('[Settings] Sign out failed:', e);
+    } finally {
+      setSignInLoading(false);
+    }
+  }
+
+  /** Cloud-sync account card body — one of four mutually exclusive render modes. */
+  function renderCloudSyncAccount() {
+    if (signedInAccount) {
+      return (
+        <>
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-scripture-success" />
+            <span className="text-sm font-medium text-scripture-text">Signed in</span>
+          </div>
+          <p className="text-xs text-scripture-muted font-mono break-all">{signedInAccount}</p>
+          {syncStatus?.connected_devices && syncStatus.connected_devices.length > 0 && (
+            <p className="text-xs text-scripture-muted">
+              <span className="font-medium">Devices:</span>{' '}
+              {syncStatus.connected_devices.join(', ')}
+            </p>
+          )}
+          <Button variant="secondary" size="sm" disabled={signInLoading} onClick={handleSignOut}>
+            {signInLoading ? 'Signing out...' : 'Sign Out'}
+          </Button>
+        </>
+      );
+    }
+
+    if (!isOtpEnabled) {
+      return (
+        <p className="text-sm text-scripture-muted">
+          Cloud sign-in is temporarily unavailable. Please try again later.
+        </p>
+      );
+    }
+
+    if (signInStep === 'email') {
+      return (
+        <>
+          <p className="text-sm text-scripture-muted">
+            Sign in with your email to sync study data across devices. An 8-digit code will be sent to your inbox.
+          </p>
+          {syncStatus?.state === 'auth-expired' && (
+            <p className="text-xs text-scripture-warning">
+              Your session expired. Sign in again to resume syncing.
+            </p>
+          )}
+          <div className="flex gap-2">
+            <input
+              type="email"
+              value={signInEmail}
+              onChange={e => setSignInEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && void handleRequestSignInCode()}
+              placeholder="you@example.com"
+              className={`${BASE_INPUT_CLASSES} flex-1 placeholder-scripture-muted`}
+              disabled={signInLoading}
+            />
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={signInLoading || !signInEmail.trim()}
+              onClick={() => void handleRequestSignInCode()}
+            >
+              {signInLoading ? 'Sending...' : 'Send Code'}
+            </Button>
+          </div>
+          {signInError && <p className="text-xs text-scripture-error">{signInError}</p>}
+        </>
+      );
+    }
+
+    return (
+      <>
+        <p className="text-sm text-scripture-muted">
+          Enter the 8-digit code sent to <span className="text-scripture-text">{signInEmail}</span>.
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={8}
+            value={signInCode}
+            onChange={e => setSignInCode(e.target.value.replace(/\D/g, ''))}
+            onKeyDown={e => e.key === 'Enter' && void handleVerifySignInCode()}
+            placeholder="12345678"
+            className={`${BASE_INPUT_CLASSES} flex-1 placeholder-scripture-muted tracking-widest font-mono`}
+            disabled={signInLoading}
+          />
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={signInLoading || signInCode.length !== 8}
+            onClick={() => void handleVerifySignInCode()}
+          >
+            {signInLoading ? 'Verifying...' : 'Sign In'}
+          </Button>
+        </div>
+        <button
+          onClick={() => { setSignInStep('email'); setSignInCode(''); setSignInError(null); }}
+          className="text-xs text-scripture-muted hover:text-scripture-text transition-colors"
+        >
+          Use a different email
+        </button>
+        {signInError && <p className="text-xs text-scripture-error">{signInError}</p>}
+      </>
+    );
+  }
+
   async function loadSyncDiagnostics() {
     try {
       const diag = await getSyncDiagnostics();
@@ -290,6 +471,9 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     } catch (e) {
       console.error('[Settings] Failed to load sync diagnostics:', e);
     }
+    // iCloud-specific probes — only meaningful on the folder backend. On the
+    // HTTP backend sync_folder is null, so these are skipped and the panel shows
+    // just the backend-agnostic schema/change-log/device diagnostics.
     if (syncStatus?.sync_folder) {
       try {
         const listing = await invoke<string>('list_sync_dir', { path: syncStatus.sync_folder });
@@ -297,12 +481,12 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
       } catch (e) {
         setSyncDirListing(`Error: ${e}`);
       }
-    }
-    try {
-      const writeTest = await invoke<string>('test_icloud_write');
-      setSyncDirListing(prev => (prev ?? '') + '\nWrite test: ' + writeTest);
-    } catch (e) {
-      setSyncDirListing(prev => (prev ?? '') + '\nWrite test error: ' + e);
+      try {
+        const writeTest = await invoke<string>('test_icloud_write');
+        setSyncDirListing(prev => (prev ?? '') + '\nWrite test: ' + writeTest);
+      } catch (e) {
+        setSyncDirListing(prev => (prev ?? '') + '\nWrite test error: ' + e);
+      }
     }
   }
 
@@ -1253,17 +1437,26 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
           {activeTab === 'data' && (
             <div role="tabpanel" id="settings-tabpanel-data" aria-labelledby="settings-tab-data">
             <div className="space-y-0">
-              {/* Sync Status */}
+              {/* Sync Section */}
               <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Sync</h3>
+
+                {/* Cloud sync account UI (HTTP backend, gated by feature flag) */}
+                {isHttpBackendEnabled && (
+                  <div className="mb-4 p-4 bg-scripture-elevated/50 rounded-lg border border-scripture-border/50 space-y-3">
+                    {renderCloudSyncAccount()}
+                  </div>
+                )}
+
+                {/* Sync status (shown for all backends) */}
                 {syncStatus ? (
                   <div className="space-y-3">
                     <div className="p-3 bg-scripture-elevated/50 rounded-lg border border-scripture-border/50 space-y-2">
                       <div className="flex items-center gap-2">
                         <span className={`inline-block w-2.5 h-2.5 rounded-full ${
                           syncStatus.state === 'synced' ? 'bg-scripture-success' :
-                          syncStatus.state === 'syncing' ? 'bg-scripture-info' :
-                          syncStatus.state === 'error' ? 'bg-scripture-error' :
+                          syncStatus.state === 'syncing' ? 'bg-scripture-info animate-pulse' :
+                          syncStatus.state === 'error' || syncStatus.state === 'auth-expired' ? 'bg-scripture-error' :
                           'bg-scripture-muted'
                         }`} />
                         <span className="text-sm font-medium text-scripture-text">
@@ -1276,28 +1469,25 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                           <span className="font-mono break-all">{syncStatus.sync_folder}</span>
                         </div>
                       )}
-                      {syncStatus.connected_devices.length > 0 && (
+                      {syncStatus.connected_devices.length > 0 && !isHttpBackendEnabled && (
                         <div className="text-xs text-scripture-muted">
                           <span className="font-medium">Devices:</span>{' '}
                           {syncStatus.connected_devices.join(', ')}
                         </div>
                       )}
                       {syncStatus.error && (
-                        <div className="text-xs text-scripture-errorText">
+                        <div className="text-xs text-scripture-error">
                           <span className="font-medium">Error:</span> {syncStatus.error}
                         </div>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      {syncStatus.state !== 'disabled' && (
+                      {(syncStatus.state === 'synced' || syncStatus.state === 'syncing') && (
                         <button
                           onClick={async () => {
                             setSyncLoading(true);
-                            try {
-                              await triggerSync();
-                            } finally {
-                              setSyncLoading(false);
-                            }
+                            try { await triggerSync(); }
+                            finally { setSyncLoading(false); }
                           }}
                           disabled={syncLoading}
                           className="px-3 py-1.5 text-xs font-ui bg-scripture-elevated hover:bg-scripture-border/50

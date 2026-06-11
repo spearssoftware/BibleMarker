@@ -5,6 +5,8 @@
  * distribution (`/modules/*`). `SYNC_BUCKET` + `DB` back the per-account sync
  * server (`/sync/*`, `/account`, and the Phase-2 `/auth/*` routes).
  */
+import type { RateLimiter } from './rate-limit';
+
 export interface Env {
   /** Shared HMAC secret for module-download tokens. */
   SIGNING_KEY: string;
@@ -20,6 +22,10 @@ export interface Env {
   OTP_FROM_EMAIL: string;
   /** Cloudflare Flagship feature-flag binding (see `flags.ts`). */
   FLAGS: FlagshipBinding;
+  /** Per-IP rate limiter for `POST /auth/request` (5 / 60s). */
+  AUTH_REQUEST_LIMITER: RateLimiter;
+  /** Per-IP rate limiter for `POST /auth/verify` (10 / 60s). */
+  AUTH_VERIFY_LIMITER: RateLimiter;
 }
 
 /**

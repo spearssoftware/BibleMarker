@@ -16,14 +16,31 @@ bucket_name = "biblemarker-sync"
 [[d1_databases]]
 binding = "DB"
 database_name = "biblemarker-sync"
-# Set after `wrangler d1 create biblemarker-sync` (see worker/README.md).
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "92706dec-cbd8-43a7-942b-227a5b6ed866"
 
 # Cloudflare Flagship feature flags (app_id is an identifier, not a secret —
 # see worker/README.md for the flag catalog). The vitest suite mocks the binding.
 [[flagship]]
 binding = "FLAGS"
 app_id = "283ab531-376d-4508-8530-bceb96de4d7b"
+
+# Per-IP rate limiters for the unauthenticated /auth/* routes. Distinct
+# namespace_ids give independent buckets. period is restricted to 10 or 60.
+# Note: these do NOT count in `wrangler dev` (local limit() always succeeds) —
+# real enforcement is on the deployed Worker; unit tests use MemoryRateLimiter.
+[[ratelimits]]
+name = "AUTH_REQUEST_LIMITER"
+namespace_id = "1001"
+simple = { limit = 5, period = 60 }
+
+[[ratelimits]]
+name = "AUTH_VERIFY_LIMITER"
+namespace_id = "1002"
+simple = { limit = 10, period = 60 }
+
+# Daily cleanup of expired OTP codes + dead sessions (src/cleanup.ts).
+[triggers]
+crons = ["0 3 * * *"]
 
 [vars]
 # Verified Postmark sender address for OTP emails (not a secret).
@@ -55,14 +72,27 @@ bucket_name = "biblemarker-sync"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "biblemarker-sync"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "92706dec-cbd8-43a7-942b-227a5b6ed866"
 
 [[env.production.flagship]]
 binding = "FLAGS"
 app_id = "283ab531-376d-4508-8530-bceb96de4d7b"
 
+[[env.production.ratelimits]]
+name = "AUTH_REQUEST_LIMITER"
+namespace_id = "1001"
+simple = { limit = 5, period = 60 }
+
+[[env.production.ratelimits]]
+name = "AUTH_VERIFY_LIMITER"
+namespace_id = "1002"
+simple = { limit = 10, period = 60 }
+
+[env.production.triggers]
+crons = ["0 3 * * *"]
+
 [env.production.vars]
-OTP_FROM_EMAIL = "noreply@spearssoftware.com"
+OTP_FROM_EMAIL = "noreply@biblemarker.app"
 
 [env.production.observability]
 enabled = true

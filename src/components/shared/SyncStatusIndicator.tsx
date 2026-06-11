@@ -55,16 +55,7 @@ export function SyncStatusIndicator({
     return null;
   }
 
-  const getStatusColor = () => {
-    switch (status.state) {
-      case 'synced': return 'text-scripture-success';
-      case 'syncing': return 'text-scripture-info';
-      case 'offline': return 'text-scripture-warning';
-      case 'error': return 'text-scripture-error';
-      case 'unavailable': return 'text-scripture-muted';
-      default: return 'text-scripture-muted';
-    }
-  };
+  const canSyncNow = canManuallySync(status.state);
 
   if (compact) {
     return (
@@ -73,7 +64,7 @@ export function SyncStatusIndicator({
           onClick={() => setShowDetails(!showDetails)}
           className={`
             relative p-1 rounded hover:bg-white/10 transition-colors
-            ${getStatusColor()}
+            ${getStatusColorClass(status.state)}
             ${className}
           `}
           title={getSyncStatusMessage(status)}
@@ -101,7 +92,7 @@ export function SyncStatusIndicator({
         <span
           className={`
             text-lg
-            ${getStatusColor()}
+            ${getStatusColorClass(status.state)}
             ${status.state === 'syncing' ? 'animate-spin' : ''}
           `}
         >
@@ -112,7 +103,7 @@ export function SyncStatusIndicator({
         </span>
       </div>
 
-      {status.state !== 'syncing' && status.state !== 'unavailable' && (
+      {status.state !== 'syncing' && canSyncNow && (
         <button
           onClick={handleSync}
           disabled={isSyncing}
@@ -230,7 +221,7 @@ function SyncDetailsPanel({
           >
             Close
           </button>
-          {status.state !== 'unavailable' && status.state !== 'disabled' && (
+          {canManuallySync(status.state) && (
             <button
               onClick={onSync}
               disabled={isSyncing}
@@ -257,10 +248,17 @@ function getStatusColorClass(state: SyncStatus['state']): string {
     case 'syncing': return 'text-scripture-info';
     case 'offline': return 'text-scripture-warning';
     case 'error': return 'text-scripture-error';
-    case 'unavailable': return 'text-scripture-muted';
-    case 'disabled': return 'text-scripture-muted';
+    case 'auth-expired': return 'text-scripture-warning';
+    case 'unavailable':
+    case 'disabled':
+    case 'signed-out':
     default: return 'text-scripture-muted';
   }
+}
+
+/** States where a manual "Sync Now" makes sense (no folder/account problem). */
+function canManuallySync(state: SyncStatus['state']): boolean {
+  return state !== 'unavailable' && state !== 'signed-out' && state !== 'auth-expired';
 }
 
 export default SyncStatusIndicator;

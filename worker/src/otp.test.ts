@@ -24,10 +24,10 @@ describe('email helpers', () => {
 });
 
 describe('generateNumericCode', () => {
-  it('always returns a zero-padded 6-digit string', () => {
+  it('always returns a zero-padded 8-digit string', () => {
     for (let i = 0; i < 500; i++) {
       const code = generateNumericCode();
-      expect(code).toMatch(/^\d{6}$/);
+      expect(code).toMatch(/^\d{8}$/);
     }
   });
 });
