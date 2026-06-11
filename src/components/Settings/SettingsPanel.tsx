@@ -360,6 +360,9 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     } catch (e) {
       console.error('[Settings] Failed to load sync diagnostics:', e);
     }
+    // iCloud-specific probes — only meaningful on the folder backend. On the
+    // HTTP backend sync_folder is null, so these are skipped and the panel shows
+    // just the backend-agnostic schema/change-log/device diagnostics.
     if (syncStatus?.sync_folder) {
       try {
         const listing = await invoke<string>('list_sync_dir', { path: syncStatus.sync_folder });
@@ -367,12 +370,12 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
       } catch (e) {
         setSyncDirListing(`Error: ${e}`);
       }
-    }
-    try {
-      const writeTest = await invoke<string>('test_icloud_write');
-      setSyncDirListing(prev => (prev ?? '') + '\nWrite test: ' + writeTest);
-    } catch (e) {
-      setSyncDirListing(prev => (prev ?? '') + '\nWrite test error: ' + e);
+      try {
+        const writeTest = await invoke<string>('test_icloud_write');
+        setSyncDirListing(prev => (prev ?? '') + '\nWrite test: ' + writeTest);
+      } catch (e) {
+        setSyncDirListing(prev => (prev ?? '') + '\nWrite test error: ' + e);
+      }
     }
   }
 
