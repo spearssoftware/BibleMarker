@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { handleAuthRequest, handleAuthVerify, handleAuthRevoke } from './auth-routes';
-import { authenticate } from './auth';
+import { authenticate, sha256Hex } from './auth';
+import { hmacSha256 } from './hmac';
+import { SERVER_FLAG_KEYS } from './flags';
 import type { Env } from './env';
 import type { EmailSender } from './email';
-import { MemoryD1, asDb, MemoryRateLimiter } from './test-mocks';
+import { MemoryD1, MemoryFlags, asDb, asFlags, MemoryRateLimiter } from './test-mocks';
 
 class FakeSender implements EmailSender {
   readonly sent: { to: string; code: string }[] = [];
@@ -226,5 +228,67 @@ describe('handleAuthRevoke', () => {
       headers: { Authorization: `Bearer ${body.token}` },
     }));
     expect(session).toBeNull();
+  });
+});
+
+describe('per-account session cap', () => {
+  it('keeps at most 10 sessions, pruning the oldest on sign-in', async () => {
+    const d1 = new MemoryD1();
+    const env = envWith(d1);
+    // Each full sign-in consumes its code, so the next request issues a fresh
+    // one (no cooldown). 11 sign-ins for the same account → prune back to 10.
+    for (let i = 0; i < 11; i++) await signIn(d1, env, 'a@b.com');
+    expect(d1.accounts).toHaveLength(1);
+    expect(d1.sessions.size).toBe(10);
+  });
+});
+
+describe('attestation enforcement', () => {
+  const KEY = 'attest-key';
+
+  function attestEnv(d1: MemoryD1, enforced: boolean): Env {
+    return {
+      DB: asDb(d1),
+      AUTH_REQUEST_LIMITER: new MemoryRateLimiter(),
+      AUTH_VERIFY_LIMITER: new MemoryRateLimiter(),
+      ATTEST_KEY: KEY,
+      FLAGS: asFlags(new MemoryFlags({ [SERVER_FLAG_KEYS.attestEnforced]: enforced })),
+    } as unknown as Env;
+  }
+
+  async function attestedRequest(email: string): Promise<Request> {
+    const body = JSON.stringify({ email });
+    const ts = Math.floor(Date.now() / 1000);
+    const hmac = await hmacSha256(KEY, `${ts}:POST:/auth/request:${await sha256Hex(body)}`);
+    return new Request('https://x/auth/request', {
+      method: 'POST',
+      body,
+      headers: { 'Content-Type': 'application/json', 'X-BM-Attest': `${ts}.${hmac}` },
+    });
+  }
+
+  it('rejects an unattested request with 403 when enforced', async () => {
+    const res = await handleAuthRequest(
+      post('/auth/request', { email: 'a@b.com' }),
+      attestEnv(new MemoryD1(), true),
+      new FakeSender()
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('accepts a validly attested request when enforced', async () => {
+    const sender = new FakeSender();
+    const res = await handleAuthRequest(await attestedRequest('a@b.com'), attestEnv(new MemoryD1(), true), sender);
+    expect(res.status).toBe(200);
+    expect(sender.sent).toHaveLength(1);
+  });
+
+  it('allows an unattested request when not enforced (soft-launch)', async () => {
+    const res = await handleAuthRequest(
+      post('/auth/request', { email: 'a@b.com' }),
+      attestEnv(new MemoryD1(), false),
+      new FakeSender()
+    );
+    expect(res.status).toBe(200);
   });
 });

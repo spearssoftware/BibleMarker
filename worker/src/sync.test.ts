@@ -228,3 +228,47 @@ describe('handleSync — blob', () => {
     expect(res.status).toBe(413);
   });
 });
+
+describe('handleSync — abuse controls', () => {
+  it('throttles per account with 429 when the limiter denies', async () => {
+    const env = {
+      SYNC_BUCKET: asBucket(new MemoryR2()),
+      DB: asDb(new MemoryD1()),
+      SYNC_LIMITER: new MemoryRateLimiter({ allow: false }),
+    } as unknown as Env;
+    const url = new URL('https://x/sync/list');
+    const res = await handleSync(new Request(url), env, SESSION, url);
+    expect(res.status).toBe(429);
+  });
+});
+
+describe('cross-account isolation (adversarial)', () => {
+  const SESSION_B: Session = { accountId: 'acct-B', deviceId: 'dev-2' };
+
+  it("a GET cannot read another account's blob via the same logical key", async () => {
+    const bucket = new MemoryR2();
+    await bucket.put('sync/acct-A/dev/secret.json', '{"a":1}');
+    const url = new URL('https://x/sync/blob/dev/secret.json');
+    const res = await handleSync(new Request(url), envWith(bucket), SESSION_B, url);
+    expect(res.status).toBe(404); // B reads sync/acct-B/... which is empty
+  });
+
+  it("a PUT cannot overwrite another account's blob", async () => {
+    const bucket = new MemoryR2();
+    await bucket.put('sync/acct-A/dev/x.json', 'A-data');
+    const url = new URL('https://x/sync/blob/dev/x.json');
+    await handleSync(new Request(url, { method: 'PUT', body: 'B-data' }), envWith(bucket), SESSION_B, url);
+    expect(bucket.store.get('sync/acct-A/dev/x.json')).toBe('A-data'); // untouched
+    expect(bucket.store.get('sync/acct-B/dev/x.json')).toBe('B-data'); // B's own scope
+  });
+
+  it("a LIST returns only the requesting account's entries", async () => {
+    const bucket = new MemoryR2();
+    await bucket.put('sync/acct-A/dev/0000000001.json', '{}');
+    await bucket.put('sync/acct-B/dev/0000000002.json', '{}');
+    const url = new URL('https://x/sync/list?prefix=dev');
+    const res = await handleSync(new Request(url), envWith(bucket), SESSION_B, url);
+    const body = (await res.json()) as { entries: { name: string }[] };
+    expect(body.entries.map((e) => e.name)).toEqual(['0000000002.json']);
+  });
+});

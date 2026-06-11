@@ -160,6 +160,14 @@ describe('GET /config dispatch', () => {
     const res = await worker.fetch(req('/config', { 'X-Device-Id': 'device-1' }), env);
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
   });
+
+  it('throttles per IP with 429 (still CORS-tagged) when the limiter denies', async () => {
+    const env = envWith(new MemoryFlags());
+    env.CONFIG_LIMITER = new MemoryRateLimiter({ allow: false });
+    const res = await worker.fetch(req('/config', { 'X-Device-Id': 'device-1' }), env);
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
 });
 
 describe('server-side enforcement', () => {
