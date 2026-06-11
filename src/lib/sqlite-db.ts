@@ -1786,6 +1786,17 @@ export async function setSyncWatermark(remoteDeviceId: string, lastSeq: number):
   );
 }
 
+/**
+ * Clear all per-device pull watermarks. Used on account deletion so a later
+ * re-sign-in (possibly to a re-created remote) bootstraps cleanly rather than
+ * skipping low-seq entries against stale watermarks. This is sync bookkeeping
+ * only — it does not touch user study data.
+ */
+export async function clearSyncWatermarks(): Promise<void> {
+  const db = await getSqliteDb();
+  await db.execute(`DELETE FROM sync_watermarks`);
+}
+
 // ============================================================================
 // Sync Config
 // ============================================================================

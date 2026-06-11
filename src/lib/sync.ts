@@ -19,7 +19,9 @@ import {
   requestSignInCode as accountRequestCode,
   verifySignInCode as accountVerifyCode,
   signOut as accountSignOut,
+  deleteAccount as accountDeleteAccount,
 } from './sync-account';
+import { clearSyncWatermarks } from './sqlite-db';
 import {
   initSyncEngine,
   stopSyncEngine,
@@ -379,6 +381,22 @@ export async function signInWithCode(email: string, code: string): Promise<strin
 export async function signOut(): Promise<void> {
   await engineDisableSync();
   await accountSignOut();
+}
+
+/**
+ * Permanently delete the account and all server-side data, then sign out.
+ * Non-destructive locally — the user's study data on this device is kept.
+ *
+ * Order: disable the engine first (so no in-flight sync hits the deleted
+ * account), then the authenticated `DELETE /account` (Rust drops the local
+ * token on success), then clear stale pull watermarks so a later re-sign-in
+ * bootstraps cleanly. Throws a SyncError if the server delete fails (the token
+ * is preserved for a retry); callers map the error for the UI.
+ */
+export async function deleteAccount(): Promise<void> {
+  await engineDisableSync();
+  await accountDeleteAccount();
+  await clearSyncWatermarks();
 }
 
 // ============================================================================

@@ -80,6 +80,7 @@ impl AppBuilder {
                 sync_client::sync_read,
                 sync_client::sync_list,
                 sync_client::sync_remove,
+                sync_client::delete_account,
             ])
             .setup(move |app| {
                 if let Some(setup) = setup {

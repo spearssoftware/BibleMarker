@@ -53,9 +53,10 @@ import {
   requestSignInCode,
   signInWithCode,
   signOut,
+  deleteAccount,
   type SyncStatus,
 } from '@/lib/sync';
-import { getSignedInAccount } from '@/lib/sync-account';
+import { getSignedInAccount, clearLocalSession, isSyncError } from '@/lib/sync-account';
 import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
 import { FLAG_KEYS } from '@/lib/feature-flags';
 import {
@@ -167,6 +168,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
   const [signInCode, setSignInCode] = useState('');
   const [signInLoading, setSignInLoading] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
+  const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
 
   // Studies state
   const { studies, activeStudyId, loadStudies, createStudy, updateStudy, deleteStudy, setActiveStudy } = useStudyStore();
@@ -360,6 +362,35 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     }
   }
 
+  async function handleDeleteAccount() {
+    if (signInLoading) return; // re-entry guard
+    setShowDeleteAccountConfirm(false);
+    setSignInLoading(true);
+    setSignInError(null);
+    try {
+      await deleteAccount();
+      setSignedInAccount(null);
+      setSignInStep('email');
+    } catch (e) {
+      console.error('[Settings] Delete account failed:', e);
+      if (isSyncError(e) && e.kind === 'network') {
+        setSignInError('You must be online to delete your account.');
+      } else if (isSyncError(e) && e.statusCode === 401) {
+        // Session already invalid — the account is effectively gone. Drop the
+        // local token and return to the signed-out card. (A 403 is NOT treated
+        // this way: it means authenticated-but-forbidden, so the account likely
+        // still exists — fall through to the generic retryable error below.)
+        await clearLocalSession();
+        setSignedInAccount(null);
+        setSignInStep('email');
+      } else {
+        setSignInError('Couldn’t delete account — please try again.');
+      }
+    } finally {
+      setSignInLoading(false);
+    }
+  }
+
   /** Cloud-sync account card body — one of four mutually exclusive render modes. */
   function renderCloudSyncAccount() {
     if (signedInAccount) {
@@ -376,9 +407,20 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
               {syncStatus.connected_devices.join(', ')}
             </p>
           )}
-          <Button variant="secondary" size="sm" disabled={signInLoading} onClick={handleSignOut}>
-            {signInLoading ? 'Signing out...' : 'Sign Out'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" disabled={signInLoading} onClick={handleSignOut}>
+              {signInLoading ? 'Signing out...' : 'Sign Out'}
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={signInLoading}
+              onClick={() => setShowDeleteAccountConfirm(true)}
+            >
+              Delete Account
+            </Button>
+          </div>
+          {signInError && <p className="text-xs text-scripture-error">{signInError}</p>}
         </>
       );
     }
@@ -888,6 +930,16 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
         cancelLabel="Cancel"
         onConfirm={confirmClearBook}
         onCancel={() => setShowClearBookConfirm(false)}
+        destructive={true}
+      />
+      <ConfirmationDialog
+        isOpen={showDeleteAccountConfirm}
+        title="Delete Account"
+        message="This permanently deletes your account and all study data stored on our servers. Your studies on this device are kept. This cannot be undone."
+        confirmLabel="Delete Account"
+        cancelLabel="Cancel"
+        onConfirm={handleDeleteAccount}
+        onCancel={() => setShowDeleteAccountConfirm(false)}
         destructive={true}
       />
       <div

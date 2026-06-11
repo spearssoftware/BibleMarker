@@ -71,3 +71,12 @@ export async function signOut(): Promise<void> {
 export async function clearLocalSession(): Promise<void> {
   await invoke('clear_session_token');
 }
+
+/**
+ * Permanently delete the signed-in account and all its server-side data, then
+ * drop the local token. Throws a {@link SyncError} on failure (token kept so the
+ * caller can retry). Local study data on this device is untouched.
+ */
+export async function deleteAccount(): Promise<void> {
+  await invoke('delete_account');
+}

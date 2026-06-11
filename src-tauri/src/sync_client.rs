@@ -337,6 +337,24 @@ pub async fn sync_remove(app: tauri::AppHandle, key: String) -> Result<(), SyncE
     parse_empty(res).await
 }
 
+/// Permanently delete the signed-in account and all its server-side data
+/// (`DELETE /account`), then drop the local token. The token is cleared **only
+/// on success** so a failed delete can be retried — deliberately unlike
+/// `auth_revoke`, which drops the token unconditionally.
+#[tauri::command]
+pub async fn delete_account(app: tauri::AppHandle) -> Result<(), SyncError> {
+    let token = require_token(&app)?;
+    let res = reqwest::Client::new()
+        .delete(format!("{SYNC_BASE}/account"))
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(SyncError::network)?;
+    parse_empty(res).await?;
+    delete_session(&app);
+    Ok(())
+}
+
 // ============================================================================
 // HTTP helper
 // ============================================================================
