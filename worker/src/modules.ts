@@ -14,6 +14,7 @@
 import type { Env } from './env';
 import { jsonError } from './http';
 import { clientIp, tooManyRequests } from './rate-limit';
+import { hmacSha256, timingSafeEqual } from './hmac';
 
 const TOKEN_VALIDITY_SECONDS = 3600;
 const MODULE_PATH_RE = /^\/modules\/([A-Za-z0-9_.-]+\.zip)$/;
@@ -102,35 +103,10 @@ export async function verifyToken(
   return timingSafeEqual(expected, providedToken);
 }
 
-export async function computeToken(
+export function computeToken(
   moduleName: string,
   timestamp: number,
   signingKey: string
 ): Promise<string> {
-  const enc = new TextEncoder();
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    enc.encode(signingKey),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const message = `${moduleName}:${timestamp}`;
-  const sig = await crypto.subtle.sign('HMAC', cryptoKey, enc.encode(message));
-  return base64url(new Uint8Array(sig));
-}
-
-function base64url(bytes: Uint8Array): string {
-  let s = '';
-  for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return result === 0;
+  return hmacSha256(signingKey, `${moduleName}:${timestamp}`);
 }

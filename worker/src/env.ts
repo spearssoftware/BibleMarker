@@ -10,6 +10,8 @@ import type { RateLimiter } from './rate-limit';
 export interface Env {
   /** Shared HMAC secret for module-download tokens. */
   SIGNING_KEY: string;
+  /** Shared HMAC secret for the `/auth/*` client-attestation header (attest.ts). */
+  ATTEST_KEY: string;
   /** R2 bucket holding `<module>.zip` files. */
   MODULES_BUCKET: R2Bucket;
   /** R2 bucket holding per-account sync blobs under `sync/{accountId}/...`. */

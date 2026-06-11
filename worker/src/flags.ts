@@ -30,12 +30,22 @@ export const FLAG_KEYS = {
   icloudMigration: 'sync-icloud-migration',
 } as const;
 
+/**
+ * Server-only flags — enforced inline in the Worker, never shipped to clients
+ * via `/config` (so they're deliberately excluded from `CLIENT_FLAG_KEYS`).
+ */
+export const SERVER_FLAG_KEYS = {
+  /** Enforce the `/auth/*` client-attestation header (soft-launch while off). */
+  attestEnforced: 'auth-attestation-enforced',
+} as const;
+
 /** Safe defaults used when a flag is undefined or the binding is unreachable. */
 export const FLAG_DEFAULTS: Record<string, boolean> = {
   [FLAG_KEYS.syncEnabled]: true,
   [FLAG_KEYS.otpEnabled]: true,
   [FLAG_KEYS.httpBackend]: false,
   [FLAG_KEYS.icloudMigration]: false,
+  [SERVER_FLAG_KEYS.attestEnforced]: false,
 };
 
 /** The flag subset shipped to clients via `GET /config` — currently all of them. */
@@ -127,6 +137,16 @@ export function isSyncEnabled(env: Env, session: Session): Promise<boolean> {
 /** OTP sign-in gate, evaluated pre-auth as a global on/off. Defaults on. */
 export function isOtpEnabled(env: Env): Promise<boolean> {
   return getBool(env, FLAG_KEYS.otpEnabled, true, globalContext());
+}
+
+/**
+ * Whether to REJECT `/auth/*` requests that lack a valid client attestation.
+ * Defaults OFF: while off, a missing/bad attestation is logged but allowed
+ * (soft-launch), so clients without the header keep working until a build that
+ * sends it has rolled out. Flip on only after that.
+ */
+export function isAttestationEnforced(env: Env): Promise<boolean> {
+  return getBool(env, SERVER_FLAG_KEYS.attestEnforced, false, globalContext());
 }
 
 /** Evaluate the client-facing flag subset into a snapshot for `GET /config`. */

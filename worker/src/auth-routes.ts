@@ -16,6 +16,8 @@ import { sha256Hex, emailHash, parseBearer, SESSION_TTL_MS } from './auth';
 import type { EmailSender } from './email';
 import { jsonOk, jsonError } from './http';
 import { clientIp, tooManyRequests } from './rate-limit';
+import { verifyAttestation } from './attest';
+import { isAttestationEnforced } from './flags';
 import {
   normalizeEmail,
   isValidEmail,
@@ -44,8 +46,8 @@ export async function handleAuthRequest(
     return tooManyRequests();
   }
 
-  const body = await readJson(request);
-  if (!body) return jsonError(400, 'Invalid JSON body');
+  const body = await attestAndParse(env, request);
+  if (body instanceof Response) return body;
 
   const email = normalizeEmail(typeof body.email === 'string' ? body.email : '');
   if (!isValidEmail(email)) return jsonError(400, 'Invalid email');
@@ -99,8 +101,8 @@ export async function handleAuthVerify(request: Request, env: Env): Promise<Resp
     return tooManyRequests();
   }
 
-  const body = await readJson(request);
-  if (!body) return jsonError(400, 'Invalid JSON body');
+  const body = await attestAndParse(env, request);
+  if (body instanceof Response) return body;
 
   const email = normalizeEmail(typeof body.email === 'string' ? body.email : '');
   const code = typeof body.code === 'string' ? body.code.trim() : '';
@@ -215,10 +217,37 @@ async function upsertAccount(env: Env, email: string): Promise<string> {
   }
 }
 
-async function readJson(request: Request): Promise<Record<string, unknown> | null> {
+/**
+ * Read the raw body once, verify the client attestation against it, then parse
+ * JSON. Returns the parsed body, or a `Response` to short-circuit with (403 when
+ * attestation is enforced and missing/invalid, 400 for an unparseable body).
+ * Reads the body as text so the attestation can bind its exact bytes — the JSON
+ * parse reuses that text rather than re-reading the consumed stream.
+ */
+async function attestAndParse(
+  env: Env,
+  request: Request
+): Promise<Record<string, unknown> | Response> {
+  const rawBody = await request.text();
+
+  // Attestation is only processed once `ATTEST_KEY` is configured — before the
+  // secret is set (and in unit tests) the routes behave exactly as before.
+  // Enforcement therefore depends on the key being present; set the secret
+  // before flipping `auth-attestation-enforced` on.
+  if (env.ATTEST_KEY && !(await verifyAttestation(env, request, rawBody))) {
+    if (await isAttestationEnforced(env)) {
+      return jsonError(403, 'Client attestation required');
+    }
+    // Soft-launch: log unattested traffic but allow it, so clients without the
+    // header keep working until enforcement is flipped on.
+    console.warn(`[attest] unattested ${new URL(request.url).pathname}`);
+  }
+
   try {
-    return (await request.json()) as Record<string, unknown>;
+    const parsed = JSON.parse(rawBody) as unknown;
+    if (!parsed || typeof parsed !== 'object') return jsonError(400, 'Invalid JSON body');
+    return parsed as Record<string, unknown>;
   } catch {
-    return null;
+    return jsonError(400, 'Invalid JSON body');
   }
 }
