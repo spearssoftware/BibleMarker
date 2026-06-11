@@ -20,6 +20,8 @@ import {
   verifySignInCode as accountVerifyCode,
   signOut as accountSignOut,
   deleteAccount as accountDeleteAccount,
+  clearLocalSession as accountClearLocalSession,
+  isSyncError,
 } from './sync-account';
 import { clearSyncWatermarks } from './sqlite-db';
 import {
@@ -395,7 +397,18 @@ export async function signOut(): Promise<void> {
  */
 export async function deleteAccount(): Promise<void> {
   await engineDisableSync();
-  await accountDeleteAccount();
+  try {
+    await accountDeleteAccount();
+  } catch (e) {
+    // A 401 means the session is invalid (expired/revoked/swept) — the server
+    // rejected the delete, so the account may still exist. Drop the dead local
+    // token here (token lifecycle belongs in this layer, not the UI), then
+    // rethrow so the caller can tell the user the deletion didn't complete.
+    if (isSyncError(e) && e.statusCode === 401) {
+      await accountClearLocalSession();
+    }
+    throw e;
+  }
   await clearSyncWatermarks();
 }
 

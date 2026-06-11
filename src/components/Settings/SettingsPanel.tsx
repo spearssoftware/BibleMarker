@@ -56,7 +56,8 @@ import {
   deleteAccount,
   type SyncStatus,
 } from '@/lib/sync';
-import { getSignedInAccount, clearLocalSession, isSyncError } from '@/lib/sync-account';
+import { getSignedInAccount, isSyncError } from '@/lib/sync-account';
+import { isNetworkError, getNetworkErrorMessage } from '@/lib/offline';
 import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
 import { FLAG_KEYS } from '@/lib/feature-flags';
 import {
@@ -373,15 +374,13 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
       setSignInStep('email');
     } catch (e) {
       console.error('[Settings] Delete account failed:', e);
-      if (isSyncError(e) && e.kind === 'network') {
-        setSignInError('You must be online to delete your account.');
+      if (isNetworkError(e)) {
+        setSignInError(getNetworkErrorMessage(e)); // retryable — stay signed in
       } else if (isSyncError(e) && e.statusCode === 401) {
-        // The session is invalid (expired, revoked, or swept) — the server
-        // rejected the delete, so the account was NOT necessarily removed. Drop
-        // the dead token and return to the sign-in card, but tell the user the
-        // deletion didn't complete so they can sign in again and retry. (We
-        // deliberately do NOT present this as a successful deletion.)
-        await clearLocalSession();
+        // Session invalid (expired/revoked/swept): the delete was rejected, so
+        // the account may still exist. sync.ts already dropped the dead token;
+        // return to the sign-in card and tell the user the deletion did NOT
+        // complete (deliberately not presented as a successful deletion).
         setSignedInAccount(null);
         setSignInStep('email');
         setSignInError('Your session expired before the account could be deleted. Sign in again to finish deleting it.');
