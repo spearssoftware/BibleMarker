@@ -55,10 +55,13 @@ namespace_id = "1004"
 simple = { limit = 60, period = 60 }
 
 # Per-account limiter for /sync/* (keyed on the verified accountId, not IP).
+# Generous: one legitimate pull can issue 1 list + ~100 blob GETs per device
+# (the engine compacts at 100 journals), so a fresh-device backlog catch-up
+# bursts well past a tight cap. This bounds runaway/abusive op cost, not normal sync.
 [[ratelimits]]
 name = "SYNC_LIMITER"
 namespace_id = "1005"
-simple = { limit = 60, period = 60 }
+simple = { limit = 600, period = 60 }
 
 # Daily cleanup of expired OTP codes + dead sessions (src/cleanup.ts).
 [triggers]
@@ -124,7 +127,7 @@ simple = { limit = 60, period = 60 }
 [[env.production.ratelimits]]
 name = "SYNC_LIMITER"
 namespace_id = "1005"
-simple = { limit = 60, period = 60 }
+simple = { limit = 600, period = 60 }
 
 [env.production.triggers]
 crons = ["0 3 * * *"]

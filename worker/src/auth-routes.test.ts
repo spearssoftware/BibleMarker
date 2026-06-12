@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { handleAuthRequest, handleAuthVerify, handleAuthRevoke } from './auth-routes';
 import { authenticate, sha256Hex } from './auth';
 import { hmacSha256 } from './hmac';
@@ -232,14 +232,31 @@ describe('handleAuthRevoke', () => {
 });
 
 describe('per-account session cap', () => {
-  it('keeps at most 10 sessions, pruning the oldest on sign-in', async () => {
-    const d1 = new MemoryD1();
-    const env = envWith(d1);
-    // Each full sign-in consumes its code, so the next request issues a fresh
-    // one (no cooldown). 11 sign-ins for the same account → prune back to 10.
-    for (let i = 0; i < 11; i++) await signIn(d1, env, 'a@b.com');
-    expect(d1.accounts).toHaveLength(1);
-    expect(d1.sessions.size).toBe(10);
+  it('keeps 10 sessions and never prunes the just-issued one', async () => {
+    // Freeze the clock so all 11 sign-ins share an identical created_at — the
+    // exact tie case where a prune without a rowid tiebreaker would delete the
+    // session it just issued. Each full sign-in still consumes its code, so the
+    // next request issues a fresh one (no cooldown) even under a frozen clock.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-11T00:00:00.000Z'));
+    try {
+      const d1 = new MemoryD1();
+      const env = envWith(d1);
+      let lastToken = '';
+      for (let i = 0; i < 11; i++) lastToken = (await signIn(d1, env, 'a@b.com')).body.token;
+
+      expect(d1.accounts).toHaveLength(1);
+      expect(d1.sessions.size).toBe(10);
+
+      // The most recently issued token must survive the prune (highest rowid).
+      const session = await authenticate(
+        env,
+        new Request('https://x/sync/list', { headers: { Authorization: `Bearer ${lastToken}` } })
+      );
+      expect(session).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

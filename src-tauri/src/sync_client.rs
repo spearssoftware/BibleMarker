@@ -229,6 +229,9 @@ pub fn get_session_account(app: tauri::AppHandle) -> Option<String> {
 pub async fn auth_revoke(app: tauri::AppHandle) -> Result<(), SyncError> {
     if let Some(session) = read_session(&app) {
         // Best-effort — even if the network call fails, we still clear locally.
+        // Note: this bypasses `post_json`, so it sends no `X-BM-Attest` header.
+        // That's intentional — revoke is bearer-authenticated and the Worker only
+        // attests `/auth/request` + `/auth/verify`, never `/auth/revoke`.
         let _ = reqwest::Client::new()
             .post(format!("{SYNC_BASE}/auth/revoke"))
             .header("Authorization", format!("Bearer {}", session.token))

@@ -23,8 +23,13 @@ import { hmacSha256, timingSafeEqual } from './hmac';
 
 const HEADER = 'X-BM-Attest';
 const HEADER_RE = /^(\d{1,15})\.([A-Za-z0-9_-]+)$/;
-/** Accepted clock skew between client and edge, in seconds. */
-const SKEW_SECONDS = 300;
+/**
+ * Accepted clock skew between client and edge, in seconds (±1h). Matches the
+ * `/modules` token window — consumer device clocks drift, and a tighter bound
+ * would 403 a skewed phone out of sign-in once enforcement is on. The wider
+ * replay window is immaterial: the key is extractable, so this is a speed-bump.
+ */
+const SKEW_SECONDS = 3600;
 
 /**
  * Whether the request carries a valid attestation for `rawBody`. Returns false

@@ -169,9 +169,12 @@ export async function handleAuthVerify(request: Request, env: Env): Promise<Resp
   // Best-effort — a prune failure must never fail the sign-in we just completed.
   try {
     await env.DB.prepare(
+      // `rowid DESC` is the tiebreaker: with millisecond `created_at`, a burst of
+      // sign-ins can share a timestamp, and without it SQLite could keep the
+      // oldest rows and prune the session we just issued. Newest rowid always wins.
       `DELETE FROM sessions WHERE account_id = ?1 AND token_hash NOT IN (
          SELECT token_hash FROM sessions WHERE account_id = ?1
-         ORDER BY created_at DESC LIMIT ?2
+         ORDER BY created_at DESC, rowid DESC LIMIT ?2
        )`
     )
       .bind(accountId, MAX_SESSIONS_PER_ACCOUNT)

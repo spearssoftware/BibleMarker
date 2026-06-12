@@ -215,15 +215,18 @@ export class MemoryD1 {
       });
       changes = 1;
     } else if (sql.startsWith('DELETE FROM sessions WHERE account_id') && sql.includes('NOT IN')) {
-      // Session-cap prune: keep the newest `limit` by created_at, drop the rest.
+      // Session-cap prune. Mirrors real D1's `ORDER BY created_at DESC, rowid DESC`:
+      // on equal created_at the later-inserted row (higher rowid) wins. Map
+      // iteration is insertion order, so a higher index == a higher rowid.
       const accountId = args[0] as string;
       const limit = args[1] as number;
       const keep = new Set(
         [...this.sessions.values()]
-          .filter((s) => s.account_id === accountId)
-          .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
+          .map((s, i) => ({ s, i }))
+          .filter((r) => r.s.account_id === accountId)
+          .sort((a, b) => (b.s.created_at ?? '').localeCompare(a.s.created_at ?? '') || b.i - a.i)
           .slice(0, limit)
-          .map((s) => s.token_hash)
+          .map((r) => r.s.token_hash)
       );
       for (const [k, s] of this.sessions) {
         if (s.account_id === accountId && !keep.has(k)) {
@@ -247,7 +250,11 @@ export class MemoryD1 {
         changes = 1;
       }
     } else if (sql.startsWith('UPDATE sessions SET last_used_at')) {
-      /* advisory no-op */
+      // Models the sliding-expiry write: `SET last_used_at = ?1, expires_at = ?2
+      // WHERE token_hash = ?3`. last_used_at isn't tracked; expires_at is, so
+      // tests can assert the slide actually moved the expiry forward.
+      const s = this.sessions.get(args[2] as string);
+      if (s) s.expires_at = args[1] as string;
     }
     return { success: true, meta: { changes } };
   }

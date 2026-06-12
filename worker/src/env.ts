@@ -32,7 +32,7 @@ export interface Env {
   CONFIG_LIMITER: RateLimiter;
   /** Per-IP rate limiter for `GET/HEAD /modules/*` (60 / 60s). */
   MODULES_LIMITER: RateLimiter;
-  /** Per-account rate limiter for `/sync/*` (60 / 60s), keyed on accountId. */
+  /** Per-account rate limiter for `/sync/*` (600 / 60s), keyed on accountId. */
   SYNC_LIMITER: RateLimiter;
 }
 

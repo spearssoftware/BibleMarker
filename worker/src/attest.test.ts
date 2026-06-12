@@ -46,7 +46,7 @@ describe('verifyAttestation', () => {
   it('rejects a timestamp outside the skew window', async () => {
     const body = '{}';
     const req = await attested('/auth/request', 'POST', body, {
-      ts: Math.floor(Date.now() / 1000) - 400,
+      ts: Math.floor(Date.now() / 1000) - 4000, // > SKEW_SECONDS (3600) in the past
     });
     expect(await verifyAttestation(env, req, body)).toBe(false);
   });
