@@ -245,9 +245,9 @@ async function attestAndParse(
 
   try {
     const parsed = JSON.parse(rawBody) as unknown;
-    if (!parsed || typeof parsed !== 'object') return jsonError(400, 'Invalid JSON body');
-    return parsed as Record<string, unknown>;
+    if (parsed && typeof parsed === 'object') return parsed as Record<string, unknown>;
   } catch {
-    return jsonError(400, 'Invalid JSON body');
+    /* fall through to the 400 below */
   }
+  return jsonError(400, 'Invalid JSON body');
 }

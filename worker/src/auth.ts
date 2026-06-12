@@ -13,9 +13,7 @@ const BEARER_RE = /^Bearer\s+([A-Za-z0-9_-]+)$/;
 
 /**
  * Session lifetime: 90 days, slid forward on every authenticated request (see
- * `authenticate`). Lives here (not `otp.ts`) so `auth.ts` doesn't import back
- * from `otp.ts` — `otp.ts` already imports `constantTimeEqual` from here, and a
- * cycle would otherwise form.
+ * `authenticate`). A session-lifetime constant belongs with the auth code.
  */
 export const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -29,14 +27,6 @@ export function parseBearer(header: string | null): string | null {
   if (!header) return null;
   const m = BEARER_RE.exec(header);
   return m ? m[1] : null;
-}
-
-/** Constant-time equality for two equal-length strings (e.g. hex hashes). */
-export function constantTimeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let result = 0;
-  for (let i = 0; i < a.length; i++) result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return result === 0;
 }
 
 /** Lowercase hex SHA-256 of a string. */
@@ -78,9 +68,10 @@ export async function authenticate(env: Env, request: Request): Promise<Session 
     // age out in SESSION_TTL_MS. Best-effort, like last_used_at: a failed bump
     // must never fail the request — worst case the session expires at its
     // current expires_at instead of being extended.
-    const nowIso = new Date().toISOString();
+    const now = Date.now();
+    const nowIso = new Date(now).toISOString();
     await env.DB.prepare('UPDATE sessions SET last_used_at = ?, expires_at = ? WHERE token_hash = ?')
-      .bind(nowIso, new Date(Date.now() + SESSION_TTL_MS).toISOString(), tokenHash)
+      .bind(nowIso, new Date(now + SESSION_TTL_MS).toISOString(), tokenHash)
       .run();
   } catch {
     /* last_used_at + sliding expiry are advisory — never fail a request over them */

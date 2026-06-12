@@ -5,7 +5,7 @@
  * critical branches are exhaustively unit-tested without a DB or fake timers.
  */
 
-import { constantTimeEqual } from './auth';
+import { base64url, timingSafeEqual } from './hmac';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -23,12 +23,6 @@ export function normalizeEmail(email: string): string {
 
 export function isValidEmail(email: string): boolean {
   return email.length > 0 && email.length <= 254 && EMAIL_RE.test(email);
-}
-
-function base64url(bytes: Uint8Array): string {
-  let s = '';
-  for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 /** A zero-padded N-digit numeric code, drawn without modulo bias. */
@@ -73,6 +67,6 @@ export function decideOtp(
   if (!row) return 'no-code';
   if (row.attempts >= maxAttempts) return 'too-many-attempts';
   if (Date.parse(row.expires_at) <= nowMs) return 'expired';
-  if (!constantTimeEqual(row.code_hash, submittedCodeHash)) return 'mismatch';
+  if (!timingSafeEqual(row.code_hash, submittedCodeHash)) return 'mismatch';
   return 'ok';
 }
