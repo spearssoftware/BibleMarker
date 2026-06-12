@@ -16,6 +16,7 @@ import {
   getSignedInAccount,
   signOut,
   clearLocalSession,
+  deleteAccount,
   isSyncError,
 } from './sync-account';
 
@@ -56,6 +57,23 @@ describe('sync-account', () => {
     invoke.mockResolvedValue(undefined);
     await clearLocalSession();
     expect(invoke).toHaveBeenCalledWith('clear_session_token');
+  });
+
+  it('deleteAccount invokes delete_account', async () => {
+    invoke.mockResolvedValue(undefined);
+    await deleteAccount();
+    expect(invoke).toHaveBeenCalledWith('delete_account');
+  });
+
+  it('deleteAccount propagates a SyncError so the caller can retry', async () => {
+    const err = Object.assign(new Error('offline'), { kind: 'network', statusCode: 0 });
+    invoke.mockRejectedValueOnce(err);
+    let caught: unknown;
+    await deleteAccount().catch((e) => {
+      caught = e;
+    });
+    expect(caught).toBe(err);
+    expect(isSyncError(caught)).toBe(true);
   });
 });
 
