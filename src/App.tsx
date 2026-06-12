@@ -11,6 +11,14 @@ import { useStudyStore } from '@/stores/studyStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useListStore } from '@/stores/listStore';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
+import { useMarkingPresetStore } from '@/stores/markingPresetStore';
+import { usePeopleStore } from '@/stores/peopleStore';
+import { usePlaceStore } from '@/stores/placeStore';
+import { useTimeStore } from '@/stores/timeStore';
+import { useConclusionStore } from '@/stores/conclusionStore';
+import { useInterpretationStore } from '@/stores/interpretationStore';
+import { useApplicationStore } from '@/stores/applicationStore';
+import { useEntityNoteStore } from '@/stores/entityNoteStore';
 import { isMarkingStyle } from '@/types';
 import { NavigationBar } from '@/components/BibleReader';
 import { MultiTranslationView } from '@/components/BibleReader/MultiTranslationView';
@@ -203,6 +211,20 @@ export default function App() {
       loadStudies();
       loadLists();
       loadActiveView();
+      // Pulled changes land in the DB but not the in-memory stores the reader and
+      // panels render from, so reload those too — otherwise synced keywords,
+      // entities, and observations only appear after an app restart.
+      await Promise.all([
+        useMarkingPresetStore.getState().loadPresets(),
+        useKeywordExclusionStore.getState().loadExclusions(),
+        usePeopleStore.getState().loadPeople(),
+        usePlaceStore.getState().loadPlaces(),
+        useTimeStore.getState().loadTimeExpressions(),
+        useConclusionStore.getState().loadConclusions(),
+        useInterpretationStore.getState().loadInterpretations(),
+        useApplicationStore.getState().loadApplications(),
+        useEntityNoteStore.getState().loadNotes(),
+      ]);
     };
     window.addEventListener('syncDataChanged', handleSyncDataChanged);
     return () => window.removeEventListener('syncDataChanged', handleSyncDataChanged);
