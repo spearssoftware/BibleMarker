@@ -1,10 +1,9 @@
 /**
- * Shared HMAC-SHA256 primitives.
+ * Shared HMAC-SHA256 + base64url primitives.
  *
- * Two callers prove a request holds a shared key: the `/modules` build-auth
- * tokens (`modules.ts`) and the `/auth/*` client-attestation header
- * (`attest.ts`). Both keys ship inside the client and are therefore extractable
- * — these primitives gate casual/scripted abuse, not a determined attacker.
+ * `modules.ts` uses the HMAC to mint `/modules` build-auth tokens; `otp.ts` uses
+ * `base64url` (session tokens) and `timingSafeEqual` (OTP-hash compare). Single
+ * source so the encoding/compare can't drift between callers.
  */
 
 /** URL-safe base64 of raw bytes, no padding. */

@@ -150,16 +150,6 @@ Flags are evaluated **server-side** via the `FLAGS` Flagship binding and used tw
 | `auth-otp-enabled` | bool | `true` | Gate OTP sign-in (route + UI) |
 | `sync-http-backend` | bool | `false` | HTTP backend vs iCloud during the Phase 3 migration |
 | `sync-icloud-migration` | bool | `false` | One-shot iCloud drain (Phase 4) |
-| `auth-attestation-enforced` | bool | `false` | Reject `/auth/*` requests without a valid `X-BM-Attest` header (server-only — not shipped in `/config`) |
-
-> **`auth-attestation-enforced` rollout (order matters):** the verifier no-ops
-> unless the `ATTEST_KEY` secret is set, so flipping this on *before* the secret
-> exists silently enforces nothing. Sequence: (1) `wrangler secret put ATTEST_KEY
-> --env production` and add the same value as the `ATTEST_KEY` GitHub Actions
-> secret, (2) deploy the Worker, (3) ship an app build that sends the header,
-> (4) only then flip the flag on. The header is a speed-bump (the key ships in
-> the client and is extractable) — the durable controls are the per-email
-> cooldown, per-IP limits, and per-account quotas.
 
 **Setup:** create a Flagship app in the Cloudflare dashboard, then paste its
 `app_id` into `wrangler.toml` (both the top-level `[[flagship]]` block and

@@ -15,24 +15,12 @@
 //! Errors are structured (`{ kind, statusCode, message }`) so the TS layer can
 //! branch: 401 → re-auth, 0/5xx → retry, other 4xx → fatal. See `offline.ts`.
 
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-use hmac::{Hmac, KeyInit, Mac};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::Manager;
 
 const SYNC_BASE: &str = "https://biblemarker.app";
 const SESSION_FILE: &str = "sync_session.json";
-
-/// Compile-time-injected client-attestation key for `/auth/*` (via `option_env!`,
-/// like `NASB_SIGNING_KEY`). `None` in dev/fork builds — those simply omit the
-/// header, which the Worker accepts until `auth-attestation-enforced` is flipped
-/// on. SPEED-BUMP ONLY: the key ships in the binary and is extractable.
-const ATTEST_KEY: Option<&str> = option_env!("ATTEST_KEY");
-
-type HmacSha256 = Hmac<Sha256>;
 
 // ============================================================================
 // Structured error
@@ -229,9 +217,6 @@ pub fn get_session_account(app: tauri::AppHandle) -> Option<String> {
 pub async fn auth_revoke(app: tauri::AppHandle) -> Result<(), SyncError> {
     if let Some(session) = read_session(&app) {
         // Best-effort — even if the network call fails, we still clear locally.
-        // Note: this bypasses `post_json`, so it sends no `X-BM-Attest` header.
-        // That's intentional — revoke is bearer-authenticated and the Worker only
-        // attests `/auth/request` + `/auth/verify`, never `/auth/revoke`.
         let _ = reqwest::Client::new()
             .post(format!("{SYNC_BASE}/auth/revoke"))
             .header("Authorization", format!("Bearer {}", session.token))
@@ -367,38 +352,13 @@ async fn parse_empty(res: reqwest::Response) -> Result<(), SyncError> {
 }
 
 async fn post_json(path: &str, body: &serde_json::Value) -> Result<reqwest::Response, SyncError> {
-    // Sign the EXACT bytes we send so the Worker's body-hash check matches.
-    let raw = body.to_string();
-    let mut req = reqwest::Client::new()
+    reqwest::Client::new()
         .post(format!("{SYNC_BASE}{path}"))
-        .header("Content-Type", "application/json");
-    if let Some(attest) = attest_header("POST", path, &raw) {
-        req = req.header("X-BM-Attest", attest);
-    }
-    req.body(raw).send().await.map_err(SyncError::network)
-}
-
-/// Lowercase hex SHA-256 of `input` (matches the Worker's `sha256Hex`).
-fn hex_sha256(input: &str) -> String {
-    Sha256::digest(input.as_bytes())
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect()
-}
-
-/// Build the `X-BM-Attest: <ts>.<hmac>` header for a request, or `None` when the
-/// build has no attestation key (dev/fork). The HMAC signs
-/// `<ts>:<METHOD>:<path>:<sha256(body)>` so a captured header can't be replayed
-/// against a different request. SPEED-BUMP ONLY — the key ships in the binary;
-/// see `worker/src/attest.ts` for the matching verifier and its limits.
-fn attest_header(method: &str, path: &str, body: &str) -> Option<String> {
-    let key = ATTEST_KEY?;
-    let ts = SystemTime::now().duration_since(UNIX_EPOCH).ok()?.as_secs();
-    let message = format!("{ts}:{method}:{path}:{}", hex_sha256(body));
-    let mut mac = HmacSha256::new_from_slice(key.as_bytes()).ok()?;
-    mac.update(message.as_bytes());
-    let hmac = URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes());
-    Some(format!("{ts}.{hmac}"))
+        .header("Content-Type", "application/json")
+        .body(body.to_string())
+        .send()
+        .await
+        .map_err(SyncError::network)
 }
 
 #[cfg(test)]
@@ -436,16 +396,6 @@ mod tests {
         assert_eq!(
             SyncError::from_response(reqwest::StatusCode::INSUFFICIENT_STORAGE, "").kind,
             "storage_full"
-        );
-    }
-
-    #[test]
-    fn hex_sha256_matches_worker_format() {
-        // Locks the body-hash wire format against the Worker's sha256Hex so the
-        // attestation message can't silently drift. sha256("") is a known vector.
-        assert_eq!(
-            hex_sha256(""),
-            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         );
     }
 

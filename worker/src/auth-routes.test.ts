@@ -1,11 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { handleAuthRequest, handleAuthVerify, handleAuthRevoke } from './auth-routes';
-import { authenticate, sha256Hex } from './auth';
-import { hmacSha256 } from './hmac';
-import { SERVER_FLAG_KEYS } from './flags';
+import { authenticate } from './auth';
 import type { Env } from './env';
 import type { EmailSender } from './email';
-import { MemoryD1, MemoryFlags, asDb, asFlags, MemoryRateLimiter } from './test-mocks';
+import { MemoryD1, asDb, MemoryRateLimiter } from './test-mocks';
 
 class FakeSender implements EmailSender {
   readonly sent: { to: string; code: string }[] = [];
@@ -257,55 +255,5 @@ describe('per-account session cap', () => {
     } finally {
       vi.useRealTimers();
     }
-  });
-});
-
-describe('attestation enforcement', () => {
-  const KEY = 'attest-key';
-
-  function attestEnv(d1: MemoryD1, enforced: boolean): Env {
-    return {
-      DB: asDb(d1),
-      AUTH_REQUEST_LIMITER: new MemoryRateLimiter(),
-      AUTH_VERIFY_LIMITER: new MemoryRateLimiter(),
-      ATTEST_KEY: KEY,
-      FLAGS: asFlags(new MemoryFlags({ [SERVER_FLAG_KEYS.attestEnforced]: enforced })),
-    } as unknown as Env;
-  }
-
-  async function attestedRequest(email: string): Promise<Request> {
-    const body = JSON.stringify({ email });
-    const ts = Math.floor(Date.now() / 1000);
-    const hmac = await hmacSha256(KEY, `${ts}:POST:/auth/request:${await sha256Hex(body)}`);
-    return new Request('https://x/auth/request', {
-      method: 'POST',
-      body,
-      headers: { 'Content-Type': 'application/json', 'X-BM-Attest': `${ts}.${hmac}` },
-    });
-  }
-
-  it('rejects an unattested request with 403 when enforced', async () => {
-    const res = await handleAuthRequest(
-      post('/auth/request', { email: 'a@b.com' }),
-      attestEnv(new MemoryD1(), true),
-      new FakeSender()
-    );
-    expect(res.status).toBe(403);
-  });
-
-  it('accepts a validly attested request when enforced', async () => {
-    const sender = new FakeSender();
-    const res = await handleAuthRequest(await attestedRequest('a@b.com'), attestEnv(new MemoryD1(), true), sender);
-    expect(res.status).toBe(200);
-    expect(sender.sent).toHaveLength(1);
-  });
-
-  it('allows an unattested request when not enforced (soft-launch)', async () => {
-    const res = await handleAuthRequest(
-      post('/auth/request', { email: 'a@b.com' }),
-      attestEnv(new MemoryD1(), false),
-      new FakeSender()
-    );
-    expect(res.status).toBe(200);
   });
 });

@@ -140,5 +140,4 @@ enabled = true
 
 # Secrets (set via `wrangler secret put ... --env production`, never committed):
 #   SIGNING_KEY            — HMAC key for /modules auth
-#   ATTEST_KEY             — HMAC key for the /auth/* client-attestation header
 #   POSTMARK_SERVER_TOKEN  — Postmark server token for /auth OTP emails
