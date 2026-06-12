@@ -13,6 +13,7 @@
 import type { Env } from './env';
 import { authenticate, type Session } from './auth';
 import { jsonOk, jsonError } from './http';
+import { clientIp, tooManyRequests } from './rate-limit';
 
 /**
  * Logical flag keys, mirrored exactly in the Flagship dashboard.
@@ -165,6 +166,15 @@ export async function handleConfig(request: Request, env: Env): Promise<Response
   }
   if (request.method !== 'GET') {
     const res = jsonError(405, 'Method Not Allowed');
+    for (const [k, v] of Object.entries(CONFIG_CORS_HEADERS)) res.headers.set(k, v);
+    return res;
+  }
+
+  // Per-IP throttle. The snapshot is per-device-targeted and `no-store`, so every
+  // GET is a Worker invoke + Flagship eval + a D1 auth read with no edge cache to
+  // absorb a flood. Applied after the preflight so OPTIONS stays free.
+  if (!(await env.CONFIG_LIMITER.limit({ key: clientIp(request) })).success) {
+    const res = tooManyRequests();
     for (const [k, v] of Object.entries(CONFIG_CORS_HEADERS)) res.headers.set(k, v);
     return res;
   }

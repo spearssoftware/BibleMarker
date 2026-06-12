@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { computeToken, verifyToken } from './modules';
+import { computeToken, verifyToken, handleModuleRequest } from './modules';
+import type { Env } from './env';
+import { MemoryR2, MemoryRateLimiter, asBucket } from './test-mocks';
 
 const KEY = 'test-signing-key-1234567890abcdef';
 
@@ -66,5 +68,43 @@ describe('computeToken / verifyToken', () => {
     const ts = Math.floor(Date.now() / 1000);
     const auth = `BibleMarker ${ts}.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`;
     expect(await verifyToken(auth, 'NASB-2020.zip', KEY)).toBe(false);
+  });
+});
+
+describe('handleModuleRequest — rate limit + serve', () => {
+  function modEnv(limiter: MemoryRateLimiter = new MemoryRateLimiter()) {
+    const bucket = new MemoryR2();
+    const env = {
+      SIGNING_KEY: KEY,
+      MODULES_BUCKET: asBucket(bucket),
+      MODULES_LIMITER: limiter,
+    } as unknown as Env;
+    return { env, bucket };
+  }
+
+  it('returns 429 when the modules limiter denies (before auth)', async () => {
+    const { env } = modEnv(new MemoryRateLimiter({ allow: false }));
+    const url = new URL('https://x/modules/NASB-2020.zip');
+    const res = await handleModuleRequest(
+      new Request(url, { headers: { Authorization: 'BibleMarker still-rejected' } }),
+      env,
+      url
+    );
+    expect(res.status).toBe(429);
+  });
+
+  it('serves a module to a validly signed request', async () => {
+    const { env, bucket } = modEnv();
+    await bucket.put('NASB-2020.zip', 'ZIPDATA');
+    const ts = Math.floor(Date.now() / 1000);
+    const token = await computeToken('NASB-2020.zip', ts, KEY);
+    const url = new URL('https://x/modules/NASB-2020.zip');
+    const res = await handleModuleRequest(
+      new Request(url, { headers: { Authorization: `BibleMarker ${ts}.${token}` } }),
+      env,
+      url
+    );
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('ZIPDATA');
   });
 });

@@ -13,6 +13,8 @@
 
 import type { Env } from './env';
 import { jsonError } from './http';
+import { clientIp, tooManyRequests } from './rate-limit';
+import { hmacSha256, timingSafeEqual } from './hmac';
 
 const TOKEN_VALIDITY_SECONDS = 3600;
 const MODULE_PATH_RE = /^\/modules\/([A-Za-z0-9_.-]+\.zip)$/;
@@ -21,6 +23,14 @@ const AUTH_HEADER_RE = /^BibleMarker\s+(\d+)\.([A-Za-z0-9_-]+)$/;
 export async function handleModuleRequest(request: Request, env: Env, url: URL): Promise<Response> {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return jsonError(405, 'Method Not Allowed');
+  }
+
+  // Per-IP throttle on module egress. The HMAC build-auth below proves the
+  // request came from something holding SIGNING_KEY, but that key ships in every
+  // release binary and is extractable — so this rate limit, not the signature,
+  // is what actually caps bulk R2 egress abuse.
+  if (!(await env.MODULES_LIMITER.limit({ key: clientIp(request) })).success) {
+    return tooManyRequests();
   }
 
   const match = MODULE_PATH_RE.exec(url.pathname);
@@ -93,35 +103,10 @@ export async function verifyToken(
   return timingSafeEqual(expected, providedToken);
 }
 
-export async function computeToken(
+export function computeToken(
   moduleName: string,
   timestamp: number,
   signingKey: string
 ): Promise<string> {
-  const enc = new TextEncoder();
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    enc.encode(signingKey),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const message = `${moduleName}:${timestamp}`;
-  const sig = await crypto.subtle.sign('HMAC', cryptoKey, enc.encode(message));
-  return base64url(new Uint8Array(sig));
-}
-
-function base64url(bytes: Uint8Array): string {
-  let s = '';
-  for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return result === 0;
+  return hmacSha256(signingKey, `${moduleName}:${timestamp}`);
 }

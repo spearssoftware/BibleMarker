@@ -16,6 +16,8 @@
 import type { Env } from './env';
 import type { Session } from './auth';
 import { jsonError, jsonOk } from './http';
+import { tooManyRequests } from './rate-limit';
+import { isAtQuota, incrementUsage, decrementUsage } from './usage';
 
 /** Max blob size accepted by PUT (snapshots of large libraries are a few MB). */
 export const MAX_BLOB_BYTES = 25 * 1024 * 1024;
@@ -135,6 +137,12 @@ export async function handleSync(
 ): Promise<Response> {
   const path = url.pathname;
 
+  // Per-account throttle: bounds upload velocity + R2/D1 op cost regardless of
+  // IP rotation. Keyed on the verified accountId, never a spoofable header.
+  if (!(await env.SYNC_LIMITER.limit({ key: session.accountId })).success) {
+    return tooManyRequests();
+  }
+
   if (path === '/sync/list') {
     if (request.method !== 'GET') return jsonError(405, 'Method Not Allowed');
     return handleList(env, session, url);
@@ -188,16 +196,39 @@ async function handleBlob(
     if (declared && Number(declared) > MAX_BLOB_BYTES) {
       return jsonError(413, 'Blob too large');
     }
+    // Object-count quota: only a NEW key consumes a slot, so re-uploaded
+    // snapshots/journals (overwrites) never count against the cap.
+    const exists = (await env.SYNC_BUCKET.head(scoped)) !== null;
+    if (!exists && (await isAtQuota(env, session.accountId))) {
+      return jsonError(507, 'Storage quota exceeded');
+    }
     const bytes = await request.arrayBuffer();
     if (bytes.byteLength > MAX_BLOB_BYTES) {
       return jsonError(413, 'Blob too large');
     }
     await env.SYNC_BUCKET.put(scoped, bytes);
+    if (!exists) {
+      // Bookkeeping only — a failed bump under-counts (lenient), so it must
+      // never fail a PUT whose object is already stored.
+      try {
+        await incrementUsage(env, session.accountId);
+      } catch {
+        /* under-count drift is acceptable; reconciliation isn't needed */
+      }
+    }
     return new Response(null, { status: 204 });
   }
 
   if (request.method === 'DELETE') {
+    const existed = (await env.SYNC_BUCKET.head(scoped)) !== null;
     await env.SYNC_BUCKET.delete(scoped); // R2 delete of a missing key is a no-op
+    if (existed) {
+      try {
+        await decrementUsage(env, session.accountId);
+      } catch {
+        /* never fail an idempotent DELETE over the usage counter */
+      }
+    }
     return new Response(null, { status: 204 });
   }
 

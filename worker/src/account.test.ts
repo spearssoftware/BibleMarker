@@ -52,10 +52,11 @@ describe('handleAccountDelete', () => {
     // Account A's blob gone, account B untouched.
     expect([...bucket.store.keys()]).toEqual(['sync/acct-B/dev/0.json']);
 
-    // sessions, devices, accounts, and (email known) otp_codes all deleted.
+    // sessions, devices, usage, accounts, and (email known) otp_codes all deleted.
     expect(batched).toEqual([
       'DELETE FROM sessions',
       'DELETE FROM devices',
+      'DELETE FROM account_usage',
       'DELETE FROM accounts',
       'DELETE FROM otp_codes',
     ]);

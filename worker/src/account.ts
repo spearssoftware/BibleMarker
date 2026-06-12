@@ -47,6 +47,7 @@ export async function handleAccountDelete(env: Env, session: Session): Promise<R
   const statements = [
     env.DB.prepare('DELETE FROM sessions WHERE account_id = ?').bind(accountId),
     env.DB.prepare('DELETE FROM devices WHERE account_id = ?').bind(accountId),
+    env.DB.prepare('DELETE FROM account_usage WHERE account_id = ?').bind(accountId),
     env.DB.prepare('DELETE FROM accounts WHERE id = ?').bind(accountId),
   ];
   if (account?.email) {
