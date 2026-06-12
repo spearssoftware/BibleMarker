@@ -11,13 +11,24 @@ import {
 import { sha256Hex } from './auth';
 import type { Session } from './auth';
 import type { Env } from './env';
-import { MemoryD1, MemoryFlags, MemoryR2, asBucket, asDb, asFlags } from './test-mocks';
+import {
+  MemoryD1,
+  MemoryFlags,
+  MemoryR2,
+  MemoryRateLimiter,
+  asBucket,
+  asDb,
+  asFlags,
+} from './test-mocks';
 
 function envWith(flags: MemoryFlags, d1: MemoryD1 = new MemoryD1()): Env {
   return {
     FLAGS: asFlags(flags),
     DB: asDb(d1),
     SYNC_BUCKET: asBucket(new MemoryR2()),
+    CONFIG_LIMITER: new MemoryRateLimiter(),
+    MODULES_LIMITER: new MemoryRateLimiter(),
+    SYNC_LIMITER: new MemoryRateLimiter(),
   } as unknown as Env;
 }
 
@@ -149,6 +160,14 @@ describe('GET /config dispatch', () => {
     const res = await worker.fetch(req('/config', { 'X-Device-Id': 'device-1' }), env);
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
   });
+
+  it('throttles per IP with 429 (still CORS-tagged) when the limiter denies', async () => {
+    const env = envWith(new MemoryFlags());
+    env.CONFIG_LIMITER = new MemoryRateLimiter({ allow: false });
+    const res = await worker.fetch(req('/config', { 'X-Device-Id': 'device-1' }), env);
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
 });
 
 describe('server-side enforcement', () => {
@@ -215,6 +234,7 @@ describe('server-side enforcement', () => {
       FLAGS: throwing as unknown as Env['FLAGS'],
       DB: asDb(d1),
       SYNC_BUCKET: asBucket(new MemoryR2()),
+      SYNC_LIMITER: new MemoryRateLimiter(),
     } as unknown as Env;
     const res = await worker.fetch(
       new Request('https://biblemarker.app/sync/list', {

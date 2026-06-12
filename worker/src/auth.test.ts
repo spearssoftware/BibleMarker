@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parseBearer, sha256Hex, authenticate } from './auth';
+import { parseBearer, sha256Hex, authenticate, SESSION_TTL_MS } from './auth';
 import type { Env } from './env';
+import { MemoryD1, asDb } from './test-mocks';
 
 describe('parseBearer', () => {
   it('extracts the token from a Bearer header', () => {
@@ -70,5 +71,28 @@ describe('authenticate', () => {
   it('returns null when no Authorization header is present', async () => {
     const env = fakeEnv(null, null);
     expect(await authenticate(env, new Request('https://x/sync/list'))).toBeNull();
+  });
+
+  it('slides the session expiry forward on use', async () => {
+    const d1 = new MemoryD1();
+    const tokenHash = await sha256Hex('slide-tok');
+    // Session about to expire in a minute.
+    d1.sessions.set(tokenHash, {
+      token_hash: tokenHash,
+      account_id: 'acct-1',
+      device_id: null,
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+      revoked: 0,
+    });
+    const env = { DB: asDb(d1) } as unknown as Env;
+
+    await authenticate(
+      env,
+      new Request('https://x/sync/list', { headers: { Authorization: 'Bearer slide-tok' } })
+    );
+
+    // Expiry should now be ~SESSION_TTL_MS out, not the original one minute.
+    const slid = Date.parse(d1.sessions.get(tokenHash)!.expires_at!);
+    expect(slid).toBeGreaterThan(Date.now() + SESSION_TTL_MS - 60_000);
   });
 });

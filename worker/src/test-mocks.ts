@@ -36,6 +36,13 @@ export class MemoryR2 {
     return { body: content, size: new TextEncoder().encode(content).length };
   }
 
+  /** Metadata-only existence check (the quota path's new-vs-overwrite probe). */
+  async head(key: string): Promise<{ size: number } | null> {
+    if (!this.store.has(key)) return null;
+    const content = this.store.get(key) as string;
+    return { size: new TextEncoder().encode(content).length };
+  }
+
   async delete(keys: string | string[]): Promise<void> {
     const arr = Array.isArray(keys) ? keys : [keys];
     for (const k of arr) this.store.delete(k);
@@ -104,6 +111,7 @@ interface SessionRecord {
   device_id: string | null;
   expires_at: string | null;
   revoked: number;
+  created_at?: string; // set by the INSERT handler; used by the session-cap prune
 }
 
 /**
@@ -115,6 +123,7 @@ export class MemoryD1 {
   readonly otp = new Map<string, OtpRecord>(); // one active code per email_hash
   readonly accounts: AccountRecord[] = [];
   readonly sessions = new Map<string, SessionRecord>();
+  readonly usage = new Map<string, number>(); // account_id -> object_count
 
   prepare(sql: string) {
     return {
@@ -144,6 +153,10 @@ export class MemoryD1 {
       if (!s || s.revoked !== 0) return null;
       if (s.expires_at !== null && s.expires_at <= nowIso) return null;
       return { account_id: s.account_id, device_id: s.device_id };
+    }
+    if (sql.includes('SELECT object_count FROM account_usage')) {
+      const c = this.usage.get(args[0] as string);
+      return c === undefined ? null : { object_count: c };
     }
     return null;
   }
@@ -196,10 +209,40 @@ export class MemoryD1 {
         token_hash: args[0] as string,
         account_id: args[1] as string,
         device_id: (args[2] as string | null) ?? null,
+        created_at: args[3] as string,
         expires_at: (args[5] as string | null) ?? null,
         revoked: 0,
       });
       changes = 1;
+    } else if (sql.startsWith('DELETE FROM sessions WHERE account_id') && sql.includes('NOT IN')) {
+      // Session-cap prune. Mirrors real D1's `ORDER BY created_at DESC, rowid DESC`:
+      // on equal created_at the later-inserted row (higher rowid) wins. Map
+      // iteration is insertion order, so a higher index == a higher rowid.
+      const accountId = args[0] as string;
+      const limit = args[1] as number;
+      const keep = new Set(
+        [...this.sessions.values()]
+          .map((s, i) => ({ s, i }))
+          .filter((r) => r.s.account_id === accountId)
+          .sort((a, b) => (b.s.created_at ?? '').localeCompare(a.s.created_at ?? '') || b.i - a.i)
+          .slice(0, limit)
+          .map((r) => r.s.token_hash)
+      );
+      for (const [k, s] of this.sessions) {
+        if (s.account_id === accountId && !keep.has(k)) {
+          this.sessions.delete(k);
+          changes++;
+        }
+      }
+    } else if (sql.startsWith('INSERT INTO account_usage')) {
+      this.usage.set(args[0] as string, (this.usage.get(args[0] as string) ?? 0) + 1);
+      changes = 1;
+    } else if (sql.startsWith('UPDATE account_usage SET object_count')) {
+      const c = this.usage.get(args[0] as string);
+      if (c !== undefined) {
+        this.usage.set(args[0] as string, Math.max(0, c - 1));
+        changes = 1;
+      }
     } else if (sql.startsWith('UPDATE sessions SET revoked')) {
       const s = this.sessions.get(args[0] as string);
       if (s) {
@@ -207,7 +250,11 @@ export class MemoryD1 {
         changes = 1;
       }
     } else if (sql.startsWith('UPDATE sessions SET last_used_at')) {
-      /* advisory no-op */
+      // Models the sliding-expiry write: `SET last_used_at = ?1, expires_at = ?2
+      // WHERE token_hash = ?3`. last_used_at isn't tracked; expires_at is, so
+      // tests can assert the slide actually moved the expiry forward.
+      const s = this.sessions.get(args[2] as string);
+      if (s) s.expires_at = args[1] as string;
     }
     return { success: true, meta: { changes } };
   }

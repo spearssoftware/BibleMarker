@@ -17,6 +17,18 @@ export interface RateLimiter {
 }
 
 /**
+ * 429 with a `Retry-After` header, shared by every rate-limited route. (The plain
+ * `jsonError` helper can't carry the extra header.) Kept here so `/auth/*`,
+ * `/config`, `/modules`, and `/sync/*` all answer a throttle identically.
+ */
+export function tooManyRequests(): Response {
+  return new Response(JSON.stringify({ error: 'Too many requests' }), {
+    status: 429,
+    headers: { 'Content-Type': 'application/json', 'Retry-After': '60' },
+  });
+}
+
+/**
  * The client IP to rate-limit on. `CF-Connecting-IP` is set by Cloudflare at the
  * edge on the deployed routes and can't be spoofed by the caller. When it's
  * absent (local dev, misconfiguration) we fall back to a single shared bucket so

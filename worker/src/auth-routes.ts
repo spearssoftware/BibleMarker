@@ -12,10 +12,10 @@
  */
 
 import type { Env } from './env';
-import { sha256Hex, emailHash, parseBearer } from './auth';
+import { sha256Hex, emailHash, parseBearer, SESSION_TTL_MS } from './auth';
 import type { EmailSender } from './email';
 import { jsonOk, jsonError } from './http';
-import { clientIp } from './rate-limit';
+import { clientIp, tooManyRequests } from './rate-limit';
 import {
   normalizeEmail,
   isValidEmail,
@@ -25,20 +25,14 @@ import {
   OTP_DIGITS,
   OTP_TTL_MS,
   RESEND_COOLDOWN_MS,
-  SESSION_TTL_MS,
   MAX_OTP_ATTEMPTS,
 } from './otp';
 
 const CODE_RE = new RegExp(`^\\d{${OTP_DIGITS}}$`);
 const DEVICE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** 429 with a Retry-After header (the shared `jsonError` can't carry extra headers). */
-function tooManyRequests(): Response {
-  return new Response(JSON.stringify({ error: 'Too many requests' }), {
-    status: 429,
-    headers: { 'Content-Type': 'application/json', 'Retry-After': '60' },
-  });
-}
+/** Keep at most this many live sessions per account; prune the oldest beyond it. */
+const MAX_SESSIONS_PER_ACCOUNT = 10;
 
 export async function handleAuthRequest(
   request: Request,
@@ -167,6 +161,25 @@ export async function handleAuthVerify(request: Request, env: Env): Promise<Resp
       new Date(Date.now() + SESSION_TTL_MS).toISOString()
     )
     .run();
+
+  // Cap concurrent sessions per account: keep the newest N, prune the rest.
+  // Bounds unbounded session growth and shrinks a leaked token's blast radius.
+  // Best-effort — a prune failure must never fail the sign-in we just completed.
+  try {
+    await env.DB.prepare(
+      // `rowid DESC` is the tiebreaker: with millisecond `created_at`, a burst of
+      // sign-ins can share a timestamp, and without it SQLite could keep the
+      // oldest rows and prune the session we just issued. Newest rowid always wins.
+      `DELETE FROM sessions WHERE account_id = ?1 AND token_hash NOT IN (
+         SELECT token_hash FROM sessions WHERE account_id = ?1
+         ORDER BY created_at DESC, rowid DESC LIMIT ?2
+       )`
+    )
+      .bind(accountId, MAX_SESSIONS_PER_ACCOUNT)
+      .run();
+  } catch {
+    /* session cap is best-effort — never fail a sign-in over pruning */
+  }
 
   return jsonOk({ token, accountId });
 }

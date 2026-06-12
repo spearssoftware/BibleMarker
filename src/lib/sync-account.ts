@@ -14,7 +14,11 @@ export type SyncErrorKind =
   | 'rate_limit'
   | 'server'
   | 'client'
-  | 'storage';
+  | 'storage'
+  // Server rejected a blob PUT for exceeding the per-account object quota (507).
+  // Non-retryable (isNetworkError excludes 507) and distinct from a local
+  // 'storage' (token file) error.
+  | 'storage_full';
 
 /** Structured error surfaced by the Rust sync commands. */
 export interface SyncError {

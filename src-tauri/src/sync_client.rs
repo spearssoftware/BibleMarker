@@ -59,6 +59,7 @@ impl SyncError {
         let kind = match code {
             401 | 403 => "auth",
             429 => "rate_limit",
+            507 => "storage_full",
             400..=499 => "client",
             _ => "server",
         };
@@ -391,6 +392,10 @@ mod tests {
         assert_eq!(
             SyncError::from_response(reqwest::StatusCode::INTERNAL_SERVER_ERROR, "").kind,
             "server"
+        );
+        assert_eq!(
+            SyncError::from_response(reqwest::StatusCode::INSUFFICIENT_STORAGE, "").kind,
+            "storage_full"
         );
     }
 
