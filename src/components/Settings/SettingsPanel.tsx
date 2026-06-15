@@ -82,6 +82,8 @@ interface SettingsPanelProps {
   initialTab?: SettingsTab;
 }
 
+const PRIVACY_URL = 'https://biblemarker.app/privacy/';
+
 export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const {
@@ -465,6 +467,23 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
             </Button>
           </div>
           {signInError && <p className="text-xs text-scripture-error">{signInError}</p>}
+          <p className="text-[10px] text-scripture-muted leading-tight">
+            Creating an account stores your email and synced study data on our servers.{' '}
+            See our{' '}
+            <a
+              href={PRIVACY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-scripture-accent hover:underline"
+              onClick={(e) => {
+                e.preventDefault();
+                import('@/lib/platform').then(({ openUrl }) => openUrl(PRIVACY_URL));
+              }}
+            >
+              Privacy Policy
+            </a>
+            .
+          </p>
         </>
       );
     }
