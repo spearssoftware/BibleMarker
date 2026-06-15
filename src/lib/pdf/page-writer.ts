@@ -14,6 +14,9 @@ export type JsPDFDoc = {
   internal: { pageSize: { getWidth: () => number; getHeight: () => number } };
   setFont(family: string, style?: string): JsPDFDoc;
   setFontSize(size: number): JsPDFDoc;
+  getFontSize(): number;
+  getFont(): { fontName: string; fontStyle: string };
+  getTextColor(): string;
   setTextColor(r: number, g: number, b: number): JsPDFDoc;
   setDrawColor(r: number, g: number, b: number): JsPDFDoc;
   setFillColor(r: number, g: number, b: number): JsPDFDoc;
@@ -122,11 +125,25 @@ export class PageWriter {
     if (!this.headerText) return;
     // Page 1 carries the prominent title block instead of the running header.
     if (this.pageNo <= 1) return;
+
+    // Snapshot and restore the caller's text state around the header draw:
+    // callers expect their font to survive a page break. (Without this, the
+    // first verse on a new page renders at the header's 9pt inside word slots
+    // measured at the body's 11pt, leaving wide gaps.) GState/opacity is not
+    // snapshotted — no caller holds a non-default opacity across a break.
+    const font = this.doc.getFont();
+    const fontSize = this.doc.getFontSize();
+    const [r, g, b] = hexToRgb(this.doc.getTextColor());
+
     this.doc.setFont('helvetica', 'normal');
     this.doc.setFontSize(9);
     this.doc.setTextColor(110, 110, 110);
     // Header text sits above marginTop so it doesn't push content down on new pages.
     this.doc.text(this.headerText, this.pageWidth / 2, this.opts.marginTop - 18, { align: 'center' });
+
+    this.doc.setFont(font.fontName, font.fontStyle);
+    this.doc.setFontSize(fontSize);
+    this.doc.setTextColor(r, g, b);
   }
 
   private bottomLimit(): number {
