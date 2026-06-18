@@ -108,7 +108,7 @@ export function ChapterTitleEditor({
 
   return (
     <div 
-      className="chapter-title py-3 px-4 font-ui text-2xl font-bold text-scripture-accent cursor-pointer 
+      className="chapter-title px-4 font-ui text-2xl font-bold text-scripture-accent cursor-pointer
                  transition-all duration-200 flex items-center justify-center group relative
                  bg-transparent"
       onClick={() => setIsEditing(true)}
