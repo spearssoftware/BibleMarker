@@ -10,7 +10,7 @@ import {
   Scales, Scroll, Seal, SealCheck, Shield, Skull, Sparkle, SpeakerHigh, Smiley, Square, Star, StarOfDavid, Sun, Sword,
   Synagogue, Target, Tent, ThumbsUp, Tree, Triangle, UsersThree, Warning, WarningDiamond, Waves, X,
 } from '@phosphor-icons/react';
-import type { SymbolKey } from '@/types/annotation';
+import { LEGACY_SYMBOL_ALIASES, type SymbolKey } from '@/types/annotation';
 
 type PhosphorIcon = ComponentType<IconProps>;
 
@@ -150,16 +150,8 @@ const TEXT_FALLBACK: Partial<Record<SymbolKey, string>> = {
   number5: '5', number6: '6', number7: '7', number8: '8', number9: '9',
 };
 
-// Back-compat: existing user data pointing to dropped keys renders as the closest surviving symbol.
-const LEGACY_ALIAS: Record<string, SymbolKey> = {
-  heartSparkle: 'heart',
-  starOutline: 'star',
-  lamb: 'cross',      // dropped: no lamb icon existed; Lamb of God → Jesus
-  rock: 'mountain',   // dropped: was a duplicate of the mountain icon
-};
-
 function resolveKey(key: SymbolKey | string): SymbolKey | null {
-  if (key in LEGACY_ALIAS) return LEGACY_ALIAS[key as keyof typeof LEGACY_ALIAS];
+  if (key in LEGACY_SYMBOL_ALIASES) return LEGACY_SYMBOL_ALIASES[key];
   if (key in ICON_MAP || key in TEXT_FALLBACK) return key as SymbolKey;
   return null;
 }

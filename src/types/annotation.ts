@@ -248,6 +248,23 @@ export const SYMBOLS = {
 
 export type SymbolKey = keyof typeof SYMBOLS;
 
+/**
+ * Symbol keys that were removed but may still exist in saved data (annotations,
+ * presets, backups). Each maps to a surviving symbol for display, and they stay
+ * valid for validation so legacy data is never dropped on restore.
+ */
+export const LEGACY_SYMBOL_ALIASES: Record<string, SymbolKey> = {
+  heartSparkle: 'heart',
+  starOutline: 'star',
+  lamb: 'cross',      // dropped: no lamb icon existed; Lamb of God → Jesus
+  rock: 'mountain',   // dropped: was a duplicate of the mountain icon
+};
+
+/** True if a stored symbol value is known — either a current key or a legacy alias. */
+export function isKnownSymbolKey(key: string): boolean {
+  return key in SYMBOLS || key in LEGACY_SYMBOL_ALIASES;
+}
+
 /** Short, human-readable labels for each symbol — shown under the icon in the picker. */
 export const SYMBOL_LABELS: Record<SymbolKey, string> = {
   triangle: 'God', cross: 'Jesus', dove: 'Spirit', flame: 'Flame', angel: 'Angel',
