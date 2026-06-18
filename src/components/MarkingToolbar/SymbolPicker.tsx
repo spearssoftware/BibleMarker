@@ -21,7 +21,7 @@ type AccordionSection = 'symbols' | 'letters';
 const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   {
     name: 'Identity',
-    symbols: ['triangle', 'cross', 'dove', 'flame', 'angel', 'lamb', 'anchor', 'cloud'],
+    symbols: ['triangle', 'cross', 'dove', 'flame', 'angel', 'anchor', 'cloud'],
   },
   {
     name: 'People & Characters',
@@ -33,7 +33,7 @@ const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   },
   {
     name: 'Concepts & Themes',
-    symbols: ['star', 'heart', 'joy', 'peace', 'mercy', 'wisdom', 'praise', 'repentance', 'glory', 'lightning', 'skull', 'sin', 'shield', 'scales', 'key', 'sun', 'moon', 'cup', 'sword', 'vine', 'bread', 'rock', 'door', 'harvest', 'warning'],
+    symbols: ['star', 'heart', 'joy', 'peace', 'mercy', 'wisdom', 'praise', 'repentance', 'glory', 'lightning', 'skull', 'sin', 'shield', 'scales', 'key', 'sun', 'moon', 'cup', 'sword', 'vine', 'bread', 'door', 'harvest', 'warning'],
   },
   {
     name: 'Scripture & Teaching',

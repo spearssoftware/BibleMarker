@@ -15,7 +15,7 @@ import type { Person } from '@/types';
 import type { InterpretationEntry } from '@/types';
 import type { ApplicationEntry } from '@/types';
 import type { VerseRef } from '@/types';
-import { HIGHLIGHT_COLORS, SYMBOLS } from '@/types';
+import { HIGHLIGHT_COLORS, isKnownSymbolKey } from '@/types';
 
 /** Validation error with details */
 export class ValidationError extends Error {
@@ -97,7 +97,7 @@ export function validateAnnotation(annotation: unknown): Annotation {
   if (a.type === 'symbol') {
     const symAnn = annotation as SymbolAnnotation;
     validateVerseRef(symAnn.ref);
-    if (!symAnn.symbol || !(symAnn.symbol in SYMBOLS)) {
+    if (!symAnn.symbol || !isKnownSymbolKey(symAnn.symbol)) {
       throw new ValidationError('Symbol annotation must have a valid symbol', 'symbol', symAnn.symbol);
     }
     if (!['before', 'after', 'center'].includes(symAnn.position)) {
@@ -217,7 +217,7 @@ export function validateMarkingPreset(preset: unknown): MarkingPreset {
   if (!p.symbol && !p.highlight) {
     throw new ValidationError('Marking preset must have at least symbol or highlight', 'preset', preset);
   }
-  if (p.symbol && !(p.symbol in SYMBOLS)) {
+  if (p.symbol && !isKnownSymbolKey(p.symbol)) {
     throw new ValidationError('Marking preset must have a valid symbol if provided', 'symbol', p.symbol);
   }
   if (p.highlight) {

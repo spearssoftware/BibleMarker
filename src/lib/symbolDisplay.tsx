@@ -1,16 +1,16 @@
 import { type ComponentType } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
-  Anchor, ArrowFatDown, ArrowLeft, ArrowRight, ArrowsLeftRight, ArrowUUpLeft, Article, Asterisk,
-  Bird, BookOpen, Bread, Buildings, Calendar, Cherries, Check, Church, Circle, Clock, Cloud,
-  Crown, Cross, Diamond, Door, Drop, Ear, Eye, Farm, Fire, Flame, Footprints, Gavel, Globe, Hand,
-  HandHeart, HandsPraying, Heart, Hexagon, Hourglass, House, Key, Lamp, Lightbulb, Lightning,
+  Anchor, ArrowFatDown, ArrowFatUp, ArrowLeft, ArrowRight, ArrowsClockwise, ArrowsLeftRight, ArrowUUpLeft, Article, Asterisk,
+  Baby, Bird, BookOpen, Brain, Bread, Buildings, Butterfly, Calendar, Campfire, Cherries, Check, Church, Circle, Clock, Cloud,
+  CloudSun, Coins, Crown, Cross, Diamond, Door, Drop, Ear, Eraser, Eye, Farm, Fire, FireSimple, Flame, Footprints, Gavel, Gift, Globe, Hand,
+  Handshake, HandHeart, HandsPraying, Heart, Hexagon, Hourglass, House, Key, Lamp, Lifebuoy, Lightbulb, Lightning,
   Link, LinkBreak, type IconProps, MapPin, MapTrifold, Megaphone, Minus, Moon, Mountains,
-  MusicNotes, Peace, PersonArmsSpread, Person, PersonSimpleCircle, PintGlass, Plant, Plus, Question,
-  Scales, Scroll, Shield, Skull, Sparkle, SpeakerHigh, Smiley, Square, Star, StarOfDavid, Sun, Sword,
-  Synagogue, ThumbsUp, Tree, Triangle, UsersThree, Warning, WarningDiamond, Waves, X,
+  MusicNotes, Path, Peace, PersonArmsSpread, Person, PersonSimpleCircle, PintGlass, Plant, Plus, Question,
+  Scales, Scroll, Seal, SealCheck, Shield, Skull, Sparkle, SpeakerHigh, Smiley, Square, Star, StarOfDavid, Sun, Sword,
+  Synagogue, Target, Tent, ThumbsUp, Tree, Triangle, UsersThree, Warning, WarningDiamond, Waves, X,
 } from '@phosphor-icons/react';
-import type { SymbolKey } from '@/types/annotation';
+import { LEGACY_SYMBOL_ALIASES, type SymbolKey } from '@/types/annotation';
 
 type PhosphorIcon = ComponentType<IconProps>;
 
@@ -25,7 +25,6 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   dove: { Icon: Bird },
   flame: { Icon: Flame },
   angel: { Icon: PersonArmsSpread },
-  lamb: { Icon: Circle },
   anchor: { Icon: Anchor },
   cloud: { Icon: Cloud },
 
@@ -34,6 +33,9 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   peopleGroup: { Icon: UsersThree },
   crown: { Icon: Crown },
   prayer: { Icon: HandsPraying },
+  shepherd: { Icon: Path },
+  child: { Icon: Baby },
+  covenant: { Icon: Handshake },
 
   // Obedience & freedom
   obey: { Icon: ThumbsUp },
@@ -47,6 +49,17 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   gavel: { Icon: Gavel },
   skull: { Icon: Skull },
   sin: { Icon: ArrowFatDown },
+  righteous: { Icon: ArrowFatUp },
+  good: { Icon: SealCheck },
+  will: { Icon: Target },
+  salvation: { Icon: Lifebuoy },
+  holiness: { Icon: Seal },
+  forgiveness: { Icon: Eraser },
+  blessing: { Icon: Gift },
+  wrath: { Icon: FireSimple },
+  sacrifice: { Icon: Campfire },
+  resurrection: { Icon: Butterfly },
+  money: { Icon: Coins },
   shield: { Icon: Shield },
   scales: { Icon: Scales },
   key: { Icon: Key },
@@ -57,7 +70,6 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   sword: { Icon: Sword },
   vine: { Icon: Plant },
   bread: { Icon: Bread },
-  rock: { Icon: Mountains },
   door: { Icon: Door },
   harvest: { Icon: Farm },
   fruit: { Icon: Cherries },
@@ -76,6 +88,7 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   scroll: { Icon: Scroll },
   book: { Icon: BookOpen },
   tablet: { Icon: Article },
+  knowledge: { Icon: Brain },
 
   // Time & place
   clock: { Icon: Clock },
@@ -84,6 +97,7 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   arrowRight: { Icon: ArrowRight },
   arrowLeft: { Icon: ArrowLeft },
   doubleArrow: { Icon: ArrowsLeftRight },
+  return: { Icon: ArrowsClockwise },
 
   // Geography
   mapPin: { Icon: MapPin },
@@ -93,6 +107,8 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   tree: { Icon: Tree },
   river: { Icon: Waves },
   house: { Icon: House },
+  tabernacle: { Icon: Tent },
+  heaven: { Icon: CloudSun },
   temple: { Icon: Synagogue },
   church: { Icon: Church },
   city: { Icon: Buildings },
@@ -134,14 +150,8 @@ const TEXT_FALLBACK: Partial<Record<SymbolKey, string>> = {
   number5: '5', number6: '6', number7: '7', number8: '8', number9: '9',
 };
 
-// Back-compat: existing user data pointing to dropped keys renders as the closest surviving symbol.
-const LEGACY_ALIAS: Record<string, SymbolKey> = {
-  heartSparkle: 'heart',
-  starOutline: 'star',
-};
-
 function resolveKey(key: SymbolKey | string): SymbolKey | null {
-  if (key in LEGACY_ALIAS) return LEGACY_ALIAS[key as keyof typeof LEGACY_ALIAS];
+  if (key in LEGACY_SYMBOL_ALIASES) return LEGACY_SYMBOL_ALIASES[key];
   if (key in ICON_MAP || key in TEXT_FALLBACK) return key as SymbolKey;
   return null;
 }

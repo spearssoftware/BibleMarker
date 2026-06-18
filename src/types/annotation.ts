@@ -91,7 +91,6 @@ export const SYMBOLS = {
   dove: '🕊',        // Holy Spirit / Spirit
   flame: '🕯',       // Holy Spirit (alternative)
   angel: '👼',       // Angels / Heavenly beings
-  lamb: '🐑',        // Lamb of God / Sacrifice
   anchor: '⚓',       // Hope / Steadfast
   cloud: '☁',        // God's presence / Glory / Heaven
 
@@ -100,6 +99,9 @@ export const SYMBOLS = {
   peopleGroup: '👥', // People group / Nation (as people)
   crown: '👑',       // King / Authority / Title
   prayer: '🙏',      // Prayer / Worship
+  shepherd: '🦯',    // Shepherd / Sheep / Flock (crook/path metaphor)
+  child: '👶',       // Child / Offspring / Seed
+  covenant: '🤝',    // Covenant / Oath / Binding agreement
 
   // Obedience & Freedom
   obey: '🙇',        // Obey / Submit / Bow
@@ -113,6 +115,17 @@ export const SYMBOLS = {
   gavel: '⚖',        // Judgment / Verdict
   skull: '💀',       // Death
   sin: '↓',         // Sin / Falling short / Missing the mark
+  righteous: '↑',   // Righteous / Upright (mirror of sin)
+  good: '✅',        // Good / Approved / Pleasing
+  will: '🎯',        // Will / Purpose / Intent
+  salvation: '🛟',   // Salvation / Save / Redeem / Deliver
+  holiness: '😇',    // Holy / Holiness / Sanctify / Set apart
+  forgiveness: '🧽', // Forgive / Forgiveness / Pardon
+  blessing: '🎁',    // Bless / Blessing
+  wrath: '😠',       // Wrath / Anger / Fury
+  sacrifice: '🔥',   // Sacrifice / Offering / Altar
+  resurrection: '🦋',// Resurrection / Eternal life / New life
+  money: '🪙',       // Money / Riches / Wealth / Mammon
   shield: '🛡',      // Protection / Faith
   scales: '⚖',      // Justice / Judgment
   key: '🔑',         // Authority / Kingdom / Access
@@ -123,7 +136,6 @@ export const SYMBOLS = {
   sword: '⚔',        // Word of God / Battle / Judgment
   vine: '🌿',        // Vine / Branch / Abide
   bread: '🍞',       // Bread of Life / Communion / Manna
-  rock: '🪨',        // Rock / Cornerstone / Foundation
   door: '🚪',        // Door / Gate / Access
   harvest: '🌾',     // Harvest / Grain / Sowing
   fruit: '🍎',       // Fruit / Bearing fruit / Produce
@@ -142,6 +154,7 @@ export const SYMBOLS = {
   scroll: '📜',      // Law / Commandment / Scripture
   book: '📖',        // Gospel / Word / Teaching
   tablet: '⛰',      // Commandments (alternative to scroll)
+  knowledge: '🧠',   // Knowledge / Know / Understanding
 
   // Time & Sequence
   clock: '🕐',       // Time / When / Chronology
@@ -150,6 +163,7 @@ export const SYMBOLS = {
   arrowRight: '→',   // Therefore / Conclusion
   arrowLeft: '←',    // Because / Cause
   doubleArrow: '⇔',  // Comparison / Contrast
+  return: '🔄',      // Return / Second coming / Come again
 
   // Geography & Place
   mapPin: '📍',      // Place / Location / Geography
@@ -163,6 +177,8 @@ export const SYMBOLS = {
   temple: '⛪',      // Temple / Sanctuary / Holy Place (Synagogue icon)
   church: '⛪',      // Church / Sanctuary (Church icon)
   city: '🏙️',       // City / Urban / Civilization
+  tabernacle: '⛺',  // Tabernacle / Tent / Dwelling
+  heaven: '🌤',      // Heaven / The heavens
 
   // Actions & States
   water: '💧',       // Baptism / Cleansing
@@ -232,25 +248,46 @@ export const SYMBOLS = {
 
 export type SymbolKey = keyof typeof SYMBOLS;
 
+/**
+ * Symbol keys that were removed but may still exist in saved data (annotations,
+ * presets, backups). Each maps to a surviving symbol for display, and they stay
+ * valid for validation so legacy data is never dropped on restore.
+ */
+export const LEGACY_SYMBOL_ALIASES: Record<string, SymbolKey> = {
+  heartSparkle: 'heart',
+  starOutline: 'star',
+  lamb: 'cross',      // dropped: no lamb icon existed; Lamb of God → Jesus
+  rock: 'mountain',   // dropped: was a duplicate of the mountain icon
+};
+
+/** True if a stored symbol value is known — either a current key or a legacy alias. */
+export function isKnownSymbolKey(key: string): boolean {
+  return key in SYMBOLS || key in LEGACY_SYMBOL_ALIASES;
+}
+
 /** Short, human-readable labels for each symbol — shown under the icon in the picker. */
 export const SYMBOL_LABELS: Record<SymbolKey, string> = {
   triangle: 'God', cross: 'Jesus', dove: 'Spirit', flame: 'Flame', angel: 'Angel',
-  lamb: 'Lamb', anchor: 'Hope', cloud: 'Cloud',
+  anchor: 'Hope', cloud: 'Cloud',
   person: 'Person', peopleGroup: 'People', crown: 'King', prayer: 'Prayer',
+  shepherd: 'Shepherd', child: 'Child', covenant: 'Covenant',
   obey: 'Obey', chains: 'Bondage', liberty: 'Freedom',
   star: 'Promise', heart: 'Love', lightning: 'Lightning', gavel: 'Judgment',
-  skull: 'Death', sin: 'Sin', shield: 'Faith', scales: 'Justice', key: 'Kingdom',
+  skull: 'Death', sin: 'Sin', righteous: 'Righteous', good: 'Good', will: 'Will',
+  salvation: 'Salvation', holiness: 'Holy', forgiveness: 'Forgive', blessing: 'Bless',
+  wrath: 'Wrath', sacrifice: 'Sacrifice', resurrection: 'Risen', money: 'Money',
+  shield: 'Faith', scales: 'Justice', key: 'Kingdom',
   sun: 'Light', moon: 'Seasons', lamp: 'Truth', cup: 'Cup', sword: 'Sword',
-  vine: 'Vine', bread: 'Bread', rock: 'Rock', door: 'Door', harvest: 'Harvest',
+  vine: 'Vine', bread: 'Bread', door: 'Door', harvest: 'Harvest',
   fruit: 'Fruit', warning: 'Warning', warningDiamond: 'Judgment', idol: 'Idol',
   joy: 'Joy', peace: 'Peace', mercy: 'Mercy',
   wisdom: 'Wisdom', repentance: 'Repent', praise: 'Praise', glory: 'Glory',
-  scroll: 'Law', book: 'Book', tablet: 'Commands',
+  scroll: 'Law', book: 'Book', tablet: 'Commands', knowledge: 'Know',
   clock: 'Time', calendar: 'Date', hourglass: 'Waiting',
-  arrowRight: 'Therefore', arrowLeft: 'Because', doubleArrow: 'Contrast',
+  arrowRight: 'Therefore', arrowLeft: 'Because', doubleArrow: 'Contrast', return: 'Return',
   mapPin: 'Place', mountain: 'Mountain', nationLand: 'Nation', globe: 'World',
   tree: 'Tree', river: 'River', house: 'House', temple: 'Temple', church: 'Church',
-  city: 'City', starOfDavid: 'Israel',
+  city: 'City', starOfDavid: 'Israel', tabernacle: 'Tabernacle', heaven: 'Heaven',
   water: 'Water', fire: 'Fire', check: 'Done', x: 'Reject', hand: 'Deed',
   eye: 'See', mouth: 'Speak', ear: 'Hear', megaphone: 'Proclaim', foot: 'Walk',
   circle: 'Circle', square: 'Square', diamond: 'Diamond', hexagon: 'Hexagon',
@@ -277,25 +314,25 @@ export function isLetterOrNumberSymbol(key: SymbolKey): boolean {
 
 /** Symbol grouping for the picker, Precept-method ordering. Letters/numbers excluded. */
 export const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
-  { name: 'Identity', symbols: ['angel', 'anchor', 'cloud', 'cross', 'dove', 'flame', 'lamb', 'triangle'] },
-  { name: 'People & Relationships', symbols: ['chains', 'crown', 'liberty', 'obey', 'peopleGroup', 'person'] },
+  { name: 'Identity', symbols: ['angel', 'anchor', 'cloud', 'cross', 'dove', 'flame', 'triangle'] },
+  { name: 'People & Relationships', symbols: ['chains', 'child', 'covenant', 'crown', 'liberty', 'obey', 'peopleGroup', 'person', 'shepherd'] },
   {
     name: 'Virtues & Heart',
-    symbols: ['glory', 'heart', 'idol', 'joy', 'mercy', 'peace', 'praise', 'prayer', 'repentance', 'sin', 'warning', 'wisdom'],
+    symbols: ['blessing', 'forgiveness', 'glory', 'good', 'heart', 'holiness', 'idol', 'joy', 'mercy', 'peace', 'praise', 'prayer', 'repentance', 'righteous', 'salvation', 'sin', 'warning', 'will', 'wisdom'],
   },
   {
     name: 'Power & Judgment',
-    symbols: ['gavel', 'key', 'lightning', 'scales', 'shield', 'skull', 'sword', 'warningDiamond'],
+    symbols: ['gavel', 'key', 'lightning', 'scales', 'shield', 'skull', 'sword', 'warningDiamond', 'wrath'],
   },
   {
     name: 'Signs & Metaphors',
-    symbols: ['bread', 'cup', 'door', 'fruit', 'harvest', 'moon', 'rock', 'star', 'sun', 'tree', 'vine'],
+    symbols: ['bread', 'cup', 'door', 'fruit', 'harvest', 'money', 'moon', 'resurrection', 'sacrifice', 'star', 'sun', 'tree', 'vine'],
   },
-  { name: 'Scripture & Teaching', symbols: ['book', 'lamp', 'scroll', 'tablet'] },
-  { name: 'Time & Sequence', symbols: ['arrowLeft', 'arrowRight', 'calendar', 'clock', 'doubleArrow', 'hourglass'] },
+  { name: 'Scripture & Teaching', symbols: ['book', 'knowledge', 'lamp', 'scroll', 'tablet'] },
+  { name: 'Time & Sequence', symbols: ['arrowLeft', 'arrowRight', 'calendar', 'clock', 'doubleArrow', 'hourglass', 'return'] },
   {
     name: 'Geography & Place',
-    symbols: ['church', 'city', 'globe', 'house', 'mapPin', 'mountain', 'nationLand', 'river', 'starOfDavid', 'temple'],
+    symbols: ['church', 'city', 'globe', 'heaven', 'house', 'mapPin', 'mountain', 'nationLand', 'river', 'starOfDavid', 'tabernacle', 'temple'],
   },
   {
     name: 'Actions & Senses',

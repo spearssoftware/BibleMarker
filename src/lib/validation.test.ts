@@ -65,6 +65,30 @@ describe('validateAnnotation', () => {
       validateAnnotation({ ...validHighlight, type: 'invalid' })
     ).toThrow(ValidationError)
   })
+
+  const validSymbol = {
+    id: 's1',
+    moduleId: 'eng-ESV',
+    type: 'symbol',
+    ref: { book: 'Gen', chapter: 1, verse: 1 },
+    position: 'before',
+    symbol: 'cross',
+    createdAt: iso,
+    updatedAt: iso,
+  }
+
+  it('accepts a legacy symbol key that was dropped from the picker', () => {
+    // 'lamb' was removed from SYMBOLS but must still validate so old
+    // backups/annotations are not silently dropped on restore.
+    const result = validateAnnotation({ ...validSymbol, symbol: 'lamb' })
+    expect((result as { symbol: string }).symbol).toBe('lamb')
+  })
+
+  it('throws on a symbol that is neither current nor a legacy alias', () => {
+    expect(() =>
+      validateAnnotation({ ...validSymbol, symbol: 'notARealSymbol' })
+    ).toThrow(ValidationError)
+  })
 })
 
 describe('validateStudy', () => {
