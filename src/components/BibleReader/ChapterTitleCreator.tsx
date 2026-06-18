@@ -42,7 +42,7 @@ export function ChapterTitleCreator({
   };
 
   return (
-    <div className="chapter-title-creator py-3 px-4 flex items-center justify-center gap-2 animate-slide-up" role="dialog" aria-label="Create chapter title">
+    <div className="chapter-title-creator px-4 flex items-center justify-center gap-2 animate-slide-up" role="dialog" aria-label="Create chapter title">
       <label htmlFor="chapter-title-input" className="sr-only">
         Chapter title
       </label>
