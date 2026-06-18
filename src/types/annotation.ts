@@ -100,6 +100,7 @@ export const SYMBOLS = {
   peopleGroup: '👥', // People group / Nation (as people)
   crown: '👑',       // King / Authority / Title
   prayer: '🙏',      // Prayer / Worship
+  shepherd: '🦯',    // Shepherd / Sheep / Flock (crook/path metaphor)
 
   // Obedience & Freedom
   obey: '🙇',        // Obey / Submit / Bow
@@ -113,6 +114,9 @@ export const SYMBOLS = {
   gavel: '⚖',        // Judgment / Verdict
   skull: '💀',       // Death
   sin: '↓',         // Sin / Falling short / Missing the mark
+  righteous: '↑',   // Righteous / Upright (mirror of sin)
+  good: '✅',        // Good / Approved / Pleasing
+  will: '🎯',        // Will / Purpose / Intent
   shield: '🛡',      // Protection / Faith
   scales: '⚖',      // Justice / Judgment
   key: '🔑',         // Authority / Kingdom / Access
@@ -237,9 +241,11 @@ export const SYMBOL_LABELS: Record<SymbolKey, string> = {
   triangle: 'God', cross: 'Jesus', dove: 'Spirit', flame: 'Flame', angel: 'Angel',
   lamb: 'Lamb', anchor: 'Hope', cloud: 'Cloud',
   person: 'Person', peopleGroup: 'People', crown: 'King', prayer: 'Prayer',
+  shepherd: 'Shepherd',
   obey: 'Obey', chains: 'Bondage', liberty: 'Freedom',
   star: 'Promise', heart: 'Love', lightning: 'Lightning', gavel: 'Judgment',
-  skull: 'Death', sin: 'Sin', shield: 'Faith', scales: 'Justice', key: 'Kingdom',
+  skull: 'Death', sin: 'Sin', righteous: 'Righteous', good: 'Good', will: 'Will',
+  shield: 'Faith', scales: 'Justice', key: 'Kingdom',
   sun: 'Light', moon: 'Seasons', lamp: 'Truth', cup: 'Cup', sword: 'Sword',
   vine: 'Vine', bread: 'Bread', rock: 'Rock', door: 'Door', harvest: 'Harvest',
   fruit: 'Fruit', warning: 'Warning', warningDiamond: 'Judgment', idol: 'Idol',
@@ -278,10 +284,10 @@ export function isLetterOrNumberSymbol(key: SymbolKey): boolean {
 /** Symbol grouping for the picker, Precept-method ordering. Letters/numbers excluded. */
 export const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   { name: 'Identity', symbols: ['angel', 'anchor', 'cloud', 'cross', 'dove', 'flame', 'lamb', 'triangle'] },
-  { name: 'People & Relationships', symbols: ['chains', 'crown', 'liberty', 'obey', 'peopleGroup', 'person'] },
+  { name: 'People & Relationships', symbols: ['chains', 'crown', 'liberty', 'obey', 'peopleGroup', 'person', 'shepherd'] },
   {
     name: 'Virtues & Heart',
-    symbols: ['glory', 'heart', 'idol', 'joy', 'mercy', 'peace', 'praise', 'prayer', 'repentance', 'sin', 'warning', 'wisdom'],
+    symbols: ['glory', 'good', 'heart', 'idol', 'joy', 'mercy', 'peace', 'praise', 'prayer', 'repentance', 'righteous', 'sin', 'warning', 'will', 'wisdom'],
   },
   {
     name: 'Power & Judgment',

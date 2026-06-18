@@ -1,14 +1,14 @@
 import { type ComponentType } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
-  Anchor, ArrowFatDown, ArrowLeft, ArrowRight, ArrowsLeftRight, ArrowUUpLeft, Article, Asterisk,
+  Anchor, ArrowFatDown, ArrowFatUp, ArrowLeft, ArrowRight, ArrowsLeftRight, ArrowUUpLeft, Article, Asterisk,
   Bird, BookOpen, Bread, Buildings, Calendar, Cherries, Check, Church, Circle, Clock, Cloud,
   Crown, Cross, Diamond, Door, Drop, Ear, Eye, Farm, Fire, Flame, Footprints, Gavel, Globe, Hand,
   HandHeart, HandsPraying, Heart, Hexagon, Hourglass, House, Key, Lamp, Lightbulb, Lightning,
   Link, LinkBreak, type IconProps, MapPin, MapTrifold, Megaphone, Minus, Moon, Mountains,
-  MusicNotes, Peace, PersonArmsSpread, Person, PersonSimpleCircle, PintGlass, Plant, Plus, Question,
-  Scales, Scroll, Shield, Skull, Sparkle, SpeakerHigh, Smiley, Square, Star, StarOfDavid, Sun, Sword,
-  Synagogue, ThumbsUp, Tree, Triangle, UsersThree, Warning, WarningDiamond, Waves, X,
+  MusicNotes, Path, Peace, PersonArmsSpread, Person, PersonSimpleCircle, PintGlass, Plant, Plus, Question,
+  Scales, Scroll, SealCheck, Shield, Skull, Sparkle, SpeakerHigh, Smiley, Square, Star, StarOfDavid, Sun, Sword,
+  Synagogue, Target, ThumbsUp, Tree, Triangle, UsersThree, Warning, WarningDiamond, Waves, X,
 } from '@phosphor-icons/react';
 import type { SymbolKey } from '@/types/annotation';
 
@@ -34,6 +34,7 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   peopleGroup: { Icon: UsersThree },
   crown: { Icon: Crown },
   prayer: { Icon: HandsPraying },
+  shepherd: { Icon: Path },
 
   // Obedience & freedom
   obey: { Icon: ThumbsUp },
@@ -47,6 +48,9 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   gavel: { Icon: Gavel },
   skull: { Icon: Skull },
   sin: { Icon: ArrowFatDown },
+  righteous: { Icon: ArrowFatUp },
+  good: { Icon: SealCheck },
+  will: { Icon: Target },
   shield: { Icon: Shield },
   scales: { Icon: Scales },
   key: { Icon: Key },
