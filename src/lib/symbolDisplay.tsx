@@ -1,14 +1,14 @@
 import { type ComponentType } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
-  Anchor, ArrowFatDown, ArrowFatUp, ArrowLeft, ArrowRight, ArrowsLeftRight, ArrowUUpLeft, Article, Asterisk,
-  Bird, BookOpen, Bread, Buildings, Calendar, Cherries, Check, Church, Circle, Clock, Cloud,
-  Crown, Cross, Diamond, Door, Drop, Ear, Eye, Farm, Fire, Flame, Footprints, Gavel, Globe, Hand,
-  HandHeart, HandsPraying, Heart, Hexagon, Hourglass, House, Key, Lamp, Lightbulb, Lightning,
+  Anchor, ArrowFatDown, ArrowFatUp, ArrowLeft, ArrowRight, ArrowsClockwise, ArrowsLeftRight, ArrowUUpLeft, Article, Asterisk,
+  Baby, Bird, BookOpen, Brain, Bread, Buildings, Butterfly, Calendar, Campfire, Cherries, Check, Church, Circle, Clock, Cloud,
+  CloudSun, Coins, Crown, Cross, Diamond, Door, Drop, Ear, Eraser, Eye, Farm, Fire, FireSimple, Flame, Footprints, Gavel, Gift, Globe, Hand,
+  Handshake, HandHeart, HandsPraying, Heart, Hexagon, Hourglass, House, Key, Lamp, Lifebuoy, Lightbulb, Lightning,
   Link, LinkBreak, type IconProps, MapPin, MapTrifold, Megaphone, Minus, Moon, Mountains,
   MusicNotes, Path, Peace, PersonArmsSpread, Person, PersonSimpleCircle, PintGlass, Plant, Plus, Question,
-  Scales, Scroll, SealCheck, Shield, Skull, Sparkle, SpeakerHigh, Smiley, Square, Star, StarOfDavid, Sun, Sword,
-  Synagogue, Target, ThumbsUp, Tree, Triangle, UsersThree, Warning, WarningDiamond, Waves, X,
+  Scales, Scroll, Seal, SealCheck, Shield, Skull, Sparkle, SpeakerHigh, Smiley, Square, Star, StarOfDavid, Sun, Sword,
+  Synagogue, Target, Tent, ThumbsUp, Tree, Triangle, UsersThree, Warning, WarningDiamond, Waves, X,
 } from '@phosphor-icons/react';
 import type { SymbolKey } from '@/types/annotation';
 
@@ -35,6 +35,8 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   crown: { Icon: Crown },
   prayer: { Icon: HandsPraying },
   shepherd: { Icon: Path },
+  child: { Icon: Baby },
+  covenant: { Icon: Handshake },
 
   // Obedience & freedom
   obey: { Icon: ThumbsUp },
@@ -51,6 +53,14 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   righteous: { Icon: ArrowFatUp },
   good: { Icon: SealCheck },
   will: { Icon: Target },
+  salvation: { Icon: Lifebuoy },
+  holiness: { Icon: Seal },
+  forgiveness: { Icon: Eraser },
+  blessing: { Icon: Gift },
+  wrath: { Icon: FireSimple },
+  sacrifice: { Icon: Campfire },
+  resurrection: { Icon: Butterfly },
+  money: { Icon: Coins },
   shield: { Icon: Shield },
   scales: { Icon: Scales },
   key: { Icon: Key },
@@ -80,6 +90,7 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   scroll: { Icon: Scroll },
   book: { Icon: BookOpen },
   tablet: { Icon: Article },
+  knowledge: { Icon: Brain },
 
   // Time & place
   clock: { Icon: Clock },
@@ -88,6 +99,7 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   arrowRight: { Icon: ArrowRight },
   arrowLeft: { Icon: ArrowLeft },
   doubleArrow: { Icon: ArrowsLeftRight },
+  return: { Icon: ArrowsClockwise },
 
   // Geography
   mapPin: { Icon: MapPin },
@@ -97,6 +109,8 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   tree: { Icon: Tree },
   river: { Icon: Waves },
   house: { Icon: House },
+  tabernacle: { Icon: Tent },
+  heaven: { Icon: CloudSun },
   temple: { Icon: Synagogue },
   church: { Icon: Church },
   city: { Icon: Buildings },
