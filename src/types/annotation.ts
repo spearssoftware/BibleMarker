@@ -91,7 +91,6 @@ export const SYMBOLS = {
   dove: '🕊',        // Holy Spirit / Spirit
   flame: '🕯',       // Holy Spirit (alternative)
   angel: '👼',       // Angels / Heavenly beings
-  lamb: '🐑',        // Lamb of God / Sacrifice
   anchor: '⚓',       // Hope / Steadfast
   cloud: '☁',        // God's presence / Glory / Heaven
 
@@ -137,7 +136,6 @@ export const SYMBOLS = {
   sword: '⚔',        // Word of God / Battle / Judgment
   vine: '🌿',        // Vine / Branch / Abide
   bread: '🍞',       // Bread of Life / Communion / Manna
-  rock: '🪨',        // Rock / Cornerstone / Foundation
   door: '🚪',        // Door / Gate / Access
   harvest: '🌾',     // Harvest / Grain / Sowing
   fruit: '🍎',       // Fruit / Bearing fruit / Produce
@@ -253,7 +251,7 @@ export type SymbolKey = keyof typeof SYMBOLS;
 /** Short, human-readable labels for each symbol — shown under the icon in the picker. */
 export const SYMBOL_LABELS: Record<SymbolKey, string> = {
   triangle: 'God', cross: 'Jesus', dove: 'Spirit', flame: 'Flame', angel: 'Angel',
-  lamb: 'Lamb', anchor: 'Hope', cloud: 'Cloud',
+  anchor: 'Hope', cloud: 'Cloud',
   person: 'Person', peopleGroup: 'People', crown: 'King', prayer: 'Prayer',
   shepherd: 'Shepherd', child: 'Child', covenant: 'Covenant',
   obey: 'Obey', chains: 'Bondage', liberty: 'Freedom',
@@ -263,7 +261,7 @@ export const SYMBOL_LABELS: Record<SymbolKey, string> = {
   wrath: 'Wrath', sacrifice: 'Sacrifice', resurrection: 'Risen', money: 'Money',
   shield: 'Faith', scales: 'Justice', key: 'Kingdom',
   sun: 'Light', moon: 'Seasons', lamp: 'Truth', cup: 'Cup', sword: 'Sword',
-  vine: 'Vine', bread: 'Bread', rock: 'Rock', door: 'Door', harvest: 'Harvest',
+  vine: 'Vine', bread: 'Bread', door: 'Door', harvest: 'Harvest',
   fruit: 'Fruit', warning: 'Warning', warningDiamond: 'Judgment', idol: 'Idol',
   joy: 'Joy', peace: 'Peace', mercy: 'Mercy',
   wisdom: 'Wisdom', repentance: 'Repent', praise: 'Praise', glory: 'Glory',
@@ -299,7 +297,7 @@ export function isLetterOrNumberSymbol(key: SymbolKey): boolean {
 
 /** Symbol grouping for the picker, Precept-method ordering. Letters/numbers excluded. */
 export const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
-  { name: 'Identity', symbols: ['angel', 'anchor', 'cloud', 'cross', 'dove', 'flame', 'lamb', 'triangle'] },
+  { name: 'Identity', symbols: ['angel', 'anchor', 'cloud', 'cross', 'dove', 'flame', 'triangle'] },
   { name: 'People & Relationships', symbols: ['chains', 'child', 'covenant', 'crown', 'liberty', 'obey', 'peopleGroup', 'person', 'shepherd'] },
   {
     name: 'Virtues & Heart',
@@ -311,7 +309,7 @@ export const SYMBOL_CATEGORIES: { name: string; symbols: SymbolKey[] }[] = [
   },
   {
     name: 'Signs & Metaphors',
-    symbols: ['bread', 'cup', 'door', 'fruit', 'harvest', 'money', 'moon', 'resurrection', 'rock', 'sacrifice', 'star', 'sun', 'tree', 'vine'],
+    symbols: ['bread', 'cup', 'door', 'fruit', 'harvest', 'money', 'moon', 'resurrection', 'sacrifice', 'star', 'sun', 'tree', 'vine'],
   },
   { name: 'Scripture & Teaching', symbols: ['book', 'knowledge', 'lamp', 'scroll', 'tablet'] },
   { name: 'Time & Sequence', symbols: ['arrowLeft', 'arrowRight', 'calendar', 'clock', 'doubleArrow', 'hourglass', 'return'] },

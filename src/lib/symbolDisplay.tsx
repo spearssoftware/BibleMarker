@@ -25,7 +25,6 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   dove: { Icon: Bird },
   flame: { Icon: Flame },
   angel: { Icon: PersonArmsSpread },
-  lamb: { Icon: Circle },
   anchor: { Icon: Anchor },
   cloud: { Icon: Cloud },
 
@@ -71,7 +70,6 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   sword: { Icon: Sword },
   vine: { Icon: Plant },
   bread: { Icon: Bread },
-  rock: { Icon: Mountains },
   door: { Icon: Door },
   harvest: { Icon: Farm },
   fruit: { Icon: Cherries },
@@ -156,6 +154,8 @@ const TEXT_FALLBACK: Partial<Record<SymbolKey, string>> = {
 const LEGACY_ALIAS: Record<string, SymbolKey> = {
   heartSparkle: 'heart',
   starOutline: 'star',
+  lamb: 'cross',      // dropped: no lamb icon existed; Lamb of God → Jesus
+  rock: 'mountain',   // dropped: was a duplicate of the mountain icon
 };
 
 function resolveKey(key: SymbolKey | string): SymbolKey | null {
