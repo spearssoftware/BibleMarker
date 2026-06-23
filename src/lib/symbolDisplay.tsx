@@ -6,7 +6,7 @@ import {
   CloudSun, Coins, Crown, Cross, Diamond, Door, Drop, Ear, Eraser, Eye, Farm, Fire, FireSimple, Flame, Footprints, Gavel, Gift, Globe, Hand,
   Handshake, HandHeart, HandsPraying, Heart, Hexagon, Hourglass, House, Key, Lamp, Leaf, Lifebuoy, Lightbulb, Lightning,
   Link, LinkBreak, type IconProps, MapPin, MapTrifold, Megaphone, Minus, Moon, Mountains,
-  MusicNotes, Path, PersonArmsSpread, Person, PersonSimpleCircle, PintGlass, Plant, Plus, Question,
+  MusicNotes, PersonArmsSpread, Person, PersonSimpleCircle, PersonSimpleHike, PintGlass, Plant, Plus, Question,
   Scales, Scroll, Seal, SealCheck, Shield, Skull, Sparkle, SpeakerHigh, Smiley, Square, Star, StarOfDavid, Sun, Sword,
   Synagogue, Target, Tent, ThumbsUp, Tree, Triangle, UsersThree, Warning, WarningDiamond, Waves, X,
 } from '@phosphor-icons/react';
@@ -33,7 +33,7 @@ const ICON_MAP: Partial<Record<SymbolKey, IconSpec>> = {
   peopleGroup: { Icon: UsersThree },
   crown: { Icon: Crown },
   prayer: { Icon: HandsPraying },
-  shepherd: { Icon: Path },
+  shepherd: { Icon: PersonSimpleHike },
   child: { Icon: Baby },
   covenant: { Icon: Handshake },
 
