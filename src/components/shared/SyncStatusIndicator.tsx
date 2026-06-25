@@ -1,8 +1,9 @@
 /**
  * Sync Status Indicator Component
  *
- * Displays sync status for journal-based cross-device sync.
- * Shows current sync state, connected devices, and allows manual sync.
+ * Displays cross-device sync status: current state, connected devices, and a
+ * manual sync trigger. Compact mode renders an icon for the toolbar that opens
+ * a details popover (anchored under the bar, matching the other toolbar panels).
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -14,6 +15,8 @@ import {
   triggerSync,
 } from '@/lib/sync';
 import { usePanelStore } from '@/stores/panelStore';
+import { ModalBackdrop } from './ModalBackdrop';
+import { Z_INDEX } from '@/lib/modalConstants';
 
 interface SyncStatusIndicatorProps {
   /** Show in compact mode (icon only) */
@@ -147,24 +150,33 @@ function SyncDetailsPanel({
   isSyncing,
 }: SyncDetailsPanelProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="
-        w-full max-w-md m-4 p-4 rounded-lg
-        bg-scripture-surface border border-scripture-border
-        shadow-xl
-      ">
+    <>
+      <ModalBackdrop onClick={onClose} zIndex={Z_INDEX.BACKDROP} />
+
+      <div
+        className="fixed top-[60px] left-4 right-4 sm:left-auto sm:right-4 sm:w-[22rem]
+                   bg-scripture-surface rounded-2xl shadow-modal dark:shadow-modal-dark animate-slide-down
+                   max-h-[80vh] overflow-y-auto custom-scrollbar mt-safe-top"
+        style={{ zIndex: Z_INDEX.MODAL }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Sync status"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-medium text-scripture-text">Sync</h2>
+        <div className="flex items-center justify-between p-4 border-b border-scripture-border/30">
+          <h2 className="text-lg font-semibold text-scripture-text">Sync</h2>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-white/10 rounded transition-colors"
+            className="p-2 -mr-2 rounded-full hover:bg-scripture-elevated transition-colors"
             aria-label="Close"
           >
-            <span className="text-scripture-muted hover:text-scripture-text">&times;</span>
+            <svg className="w-5 h-5 text-scripture-muted" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
+        <div className="p-4">
         {/* Status */}
         <div className="mb-4 p-3 rounded bg-scripture-bg/50">
           <div className="flex items-center gap-2 mb-2">
@@ -249,8 +261,9 @@ function SyncDetailsPanel({
             </button>
           )}
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
