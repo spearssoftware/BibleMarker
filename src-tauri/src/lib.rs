@@ -5,8 +5,8 @@ mod mobile;
 #[cfg(mobile)]
 pub use mobile::*;
 
-// iCloud integration for macOS/iOS
-mod icloud;
+// Database maintenance (corruption recovery)
+mod db_maintenance;
 
 // File download (bypasses webview CORS)
 mod download;
@@ -60,12 +60,7 @@ impl AppBuilder {
 
         builder
             .invoke_handler(tauri::generate_handler![
-                icloud::check_icloud_status,
-                icloud::get_sync_folder_path,
-                icloud::write_sync_file,
-                icloud::list_sync_dir,
-                icloud::test_icloud_write,
-                icloud::delete_local_database,
+                db_maintenance::delete_local_database,
                 download::download_file,
                 download::install_bundled_module,
                 flatpak::check_flatpak,
