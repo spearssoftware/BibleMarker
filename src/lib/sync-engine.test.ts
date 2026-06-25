@@ -268,7 +268,7 @@ describe('initSyncEngine', () => {
 })
 
 describe('disableSync', () => {
-  it('sets state to disabled and clears folder path', async () => {
+  it('sets state to signed-out so the user can sign back in', async () => {
     vi.resetModules()
 
     const mockSetSyncConfig = vi.fn().mockResolvedValue(undefined)
@@ -302,9 +302,8 @@ describe('disableSync', () => {
     await disableSync()
 
     const status = getSyncEngineStatus()
-    expect(status.state).toBe('disabled')
+    expect(status.state).toBe('signed-out')
     expect(status.connectedDevices).toEqual([])
-    expect(mockSetSyncConfig).toHaveBeenCalledWith('sync_enabled', 'false')
   })
 })
 

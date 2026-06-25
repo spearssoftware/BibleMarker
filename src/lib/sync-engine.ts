@@ -184,7 +184,10 @@ async function activateHttpBackend({ snapshot }: { snapshot: boolean }): Promise
 }
 
 /**
- * Disable sync (sign-out or manual disable).
+ * Disable sync (sign-out or account deletion). Leaves the engine in the
+ * 'signed-out' state — same as a fresh launch with no account — so the UI keeps
+ * offering a way to sign back in. ('disabled' is reserved for sync being gated
+ * off entirely, e.g. dev/beta builds or the remote kill-switch.)
  */
 export async function disableSync(): Promise<void> {
   stopFlushTimer();
@@ -192,9 +195,8 @@ export async function disableSync(): Promise<void> {
   inFlight = false;
   consecutiveFailures = 0;
   backend = null;
-  await setSyncConfig('sync_enabled', 'false');
   notifyStatusChange({
-    state: 'disabled',
+    state: 'signed-out',
     connectedDevices: [],
     error: null,
   });
