@@ -7,12 +7,10 @@
  * engine's conflict-resolution / watermark / snapshot logic stays identical
  * whether the bytes land in an iCloud folder or a remote object store.
  *
- * `FolderStorageBackend` is the filesystem implementation (iCloud Drive,
- * OneDrive, Dropbox, …). A future `HttpStorageBackend` will speak the same
- * interface against a sync server.
+ * `HttpStorageBackend` is the sole backend, speaking the same interface
+ * against a sync server.
  */
 
-import { readDir, readTextFile, remove } from '@tauri-apps/plugin-fs';
 import { invoke } from '@tauri-apps/api/core';
 
 /** A single entry returned by `StorageBackend.list`. */
@@ -38,56 +36,11 @@ export interface StorageBackend {
 }
 
 /**
- * Filesystem-backed storage rooted at a cloud-synced folder.
- *
- * Writes go through the `write_sync_file` Rust command (which uses
- * `std::fs::write` + `create_dir_all` — required for the iCloud ubiquity
- * container, where the JS fs plugin lacks permission). Reads/listing/removal
- * use the fs plugin directly.
- */
-export class FolderStorageBackend implements StorageBackend {
-  constructor(private readonly root: string) {}
-
-  private resolve(key: string): string {
-    return key ? `${this.root}/${key}` : this.root;
-  }
-
-  async write(key: string, content: string): Promise<void> {
-    await invoke('write_sync_file', { path: this.resolve(key), content });
-  }
-
-  async readText(key: string): Promise<string | null> {
-    try {
-      return await readTextFile(this.resolve(key));
-    } catch {
-      return null;
-    }
-  }
-
-  async list(prefix: string): Promise<ListEntry[]> {
-    try {
-      const entries = await readDir(this.resolve(prefix));
-      return entries.map((e) => ({ name: e.name ?? '', isDirectory: e.isDirectory }));
-    } catch {
-      return [];
-    }
-  }
-
-  async remove(key: string): Promise<void> {
-    try {
-      await remove(this.resolve(key));
-    } catch {
-      /* idempotent — already gone is success */
-    }
-  }
-}
-
-/**
  * Sync-server-backed storage. Each method invokes a Rust `sync_*` command,
  * which attaches the session token (kept in Rust) and talks to the account-
  * scoped `/sync` routes.
  *
- * Unlike `FolderStorageBackend`, this does NOT collapse errors to `null`/`[]`:
+ * Unlike a folder backend, this does NOT collapse errors to `null`/`[]`:
  * `sync_read` returns `null` only for a genuine 404, and network/401/5xx surface
  * as a thrown structured `SyncError` so the engine can react (retry, or drop to
  * an auth-expired state) instead of mistaking a failure for "absent".

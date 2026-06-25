@@ -23,10 +23,6 @@ export const FLAG_KEYS = {
   syncEnabled: 'sync-enabled',
   /** Gate the OTP sign-in UI. */
   otpEnabled: 'auth-otp-enabled',
-  /** Toggle the HTTP storage backend vs iCloud during the Phase 3 migration. */
-  httpBackend: 'sync-http-backend',
-  /** Enable the one-shot iCloud drain (Phase 4). */
-  icloudMigration: 'sync-icloud-migration',
 } as const;
 
 export type FlagKey = (typeof FLAG_KEYS)[keyof typeof FLAG_KEYS];
@@ -37,8 +33,6 @@ export type RemoteFlags = Record<string, boolean>;
 export const DEFAULT_FLAGS: RemoteFlags = {
   [FLAG_KEYS.syncEnabled]: true,
   [FLAG_KEYS.otpEnabled]: true,
-  [FLAG_KEYS.httpBackend]: false,
-  [FLAG_KEYS.icloudMigration]: false,
 };
 
 const CONFIG_URL = 'https://biblemarker.app/config';

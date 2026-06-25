@@ -1,18 +1,10 @@
 /**
  * Sync Module
  *
- * Public API for the sync system. Wraps the sync engine with
- * status management and platform-specific folder detection.
- *
- * The sync system uses a file-based change journal:
- * - Database is always stored locally (never in a cloud-synced directory)
- * - Small JSON journal files are written to a cloud-synced folder
- * - Each device reads other devices' journals and applies changes locally
- * - Works with any cloud storage: iCloud Drive, OneDrive, Dropbox, etc.
+ * Public API for the sync system. Wraps the sync engine with status management.
+ * HTTP is the only sync transport; sign in with email-OTP to enable sync.
  */
 
-import { invoke } from '@tauri-apps/api/core';
-import { isApplePlatform, isIOS } from './platform';
 import { getPreferences } from './database';
 import { isFlagEnabled, FLAG_KEYS } from './feature-flags';
 import {
@@ -28,9 +20,7 @@ import {
   initSyncEngine,
   stopSyncEngine,
   sync as engineSync,
-  configureSyncFolder,
   configureHttpBackend,
-  getBackendMode,
   disableSync as engineDisableSync,
   onSyncEngineStatusChange,
   getSyncEngineStatus,
@@ -43,7 +33,7 @@ import {
 // ============================================================================
 
 /** Sync state for UI display */
-export type SyncState = 'synced' | 'syncing' | 'offline' | 'error' | 'unavailable' | 'disabled' | 'signed-out' | 'auth-expired';
+export type SyncState = 'synced' | 'syncing' | 'offline' | 'error' | 'disabled' | 'signed-out' | 'auth-expired';
 
 /** Sync status from the engine, shaped for the UI */
 export interface SyncStatus {
@@ -76,7 +66,6 @@ function mapEngineState(engineState: SyncEngineState): SyncState {
     case 'idle': return 'synced';
     case 'syncing': return 'syncing';
     case 'disabled': return 'disabled';
-    case 'no-folder': return 'unavailable';
     case 'error': return 'error';
     case 'signed-out': return 'signed-out';
     case 'auth-expired': return 'auth-expired';
@@ -116,13 +105,8 @@ export function onSyncStatusChange(listener: SyncStatusListener): () => void {
 // ============================================================================
 
 /**
- * Initialize the sync system.
- * On Apple platforms, auto-detects iCloud Drive as the default sync folder.
- */
-/**
- * Determine whether sync should run. Dev builds are gated off by default so
- * experimental code can't corrupt iCloud journals; the `forceSyncEnabled`
- * debug flag overrides this. Release builds always sync.
+ * Determine whether sync should run. Dev builds are gated off by default;
+ * the `forceSyncEnabled` debug flag overrides this. Release builds always sync.
  */
 async function isSyncAllowed(): Promise<{ allowed: boolean; reason?: string }> {
   const isDev = import.meta.env.DEV;
@@ -175,75 +159,9 @@ export async function initializeSync(): Promise<void> {
     notifySyncStatusChange(engineStatusToSyncStatus(es));
   });
 
-  // Initialize the sync engine (loads saved config). The engine resolves the
-  // sync-http-backend flag and reports which backend it selected.
   await initSyncEngine();
 
-  // iCloud auto-config only runs when the engine chose the folder backend.
-  // When it chose HTTP, initSyncEngine already handled the HttpStorageBackend path.
-  if (getBackendMode() !== 'http') {
-    // If sync isn't configured yet (or folder went missing) and we're on Apple,
-    // (re-)configure with iCloud.
-    const configured = await tryConfigureICloud();
-
-    // On iOS first launch, the iCloud container may not be materialized yet.
-    if (!configured && isIOS()) {
-      console.log('[Sync] iCloud not ready on iOS, will retry in background...');
-      retryICloudConfiguration();
-    }
-  }
-
   console.log('[Sync] Sync system initialized, state:', getSyncEngineStatus().state);
-}
-
-/**
- * Attempt to configure iCloud sync folder if on an Apple platform
- * and sync is not yet configured. Returns true if configured successfully.
- */
-async function tryConfigureICloud(): Promise<boolean> {
-  const status = getSyncEngineStatus();
-  if ((status.state === 'disabled' || status.state === 'no-folder') && isApplePlatform()) {
-    try {
-      const icloudSyncPath = await invoke<string>('get_sync_folder_path');
-      console.log('[Sync] Auto-configuring iCloud sync folder:', icloudSyncPath);
-      await configureSyncFolder(icloudSyncPath);
-      return true;
-    } catch (error) {
-      console.log('[Sync] iCloud not available, sync disabled:', error);
-      return false;
-    }
-  }
-  return status.state !== 'disabled' && status.state !== 'no-folder';
-}
-
-/**
- * Retry iCloud configuration with increasing delays.
- * On iOS, the first URLForUbiquityContainerIdentifier call triggers container
- * materialization. Subsequent calls may succeed once the OS finishes.
- */
-function retryICloudConfiguration(): void {
-  const delays = [3_000, 10_000]; // 3s, then 10s
-  let attempt = 0;
-
-  function scheduleRetry() {
-    if (attempt >= delays.length) {
-      console.log('[Sync] iCloud retry attempts exhausted, sync remains disabled');
-      return;
-    }
-    const delay = delays[attempt];
-    attempt++;
-    setTimeout(async () => {
-      console.log(`[Sync] iCloud retry attempt ${attempt}/${delays.length}...`);
-      const configured = await tryConfigureICloud();
-      if (configured) {
-        console.log('[Sync] iCloud configured on retry');
-      } else {
-        scheduleRetry();
-      }
-    }, delay);
-  }
-
-  scheduleRetry();
 }
 
 /**
@@ -268,13 +186,6 @@ export async function triggerSync(): Promise<boolean> {
     console.error('[Sync] Manual sync failed:', error);
     return false;
   }
-}
-
-/**
- * Configure sync with a specific folder path.
- */
-export async function setupSyncFolder(folderPath: string): Promise<void> {
-  await configureSyncFolder(folderPath);
 }
 
 /**
@@ -322,8 +233,6 @@ export function getSyncStatusMessage(status: SyncStatus): string {
       return `Offline (${status.pending_changes} pending)`;
     case 'error':
       return `Sync error: ${status.error || 'Unknown'}`;
-    case 'unavailable':
-      return 'Sync folder not found';
     case 'disabled':
       return 'Sync disabled';
     case 'signed-out':
@@ -344,7 +253,6 @@ export function getSyncStatusIcon(status: SyncStatus): string {
     case 'syncing': return '\u21BB';
     case 'offline': return '\u25CB';
     case 'error': return '\u26A0';
-    case 'unavailable': return '\u2212';
     case 'disabled': return '\u2212';
     case 'signed-out': return '\u2192';
     case 'auth-expired': return '\u26a0';

@@ -20,10 +20,8 @@
  *       {device_id}_{seq}.json — full database snapshot
  */
 
-import { exists } from '@tauri-apps/plugin-fs';
-import { FolderStorageBackend, HttpStorageBackend, type StorageBackend } from './storage-backend';
+import { HttpStorageBackend, type StorageBackend } from './storage-backend';
 import { getSignedInAccount, clearLocalSession, isSyncError } from './sync-account';
-import { isFlagEnabled, FLAG_KEYS } from './feature-flags';
 import {
   getUnflushedChanges,
   markChangesFlushed,
@@ -79,7 +77,7 @@ interface SnapshotFile {
 }
 
 /** Current state of the sync engine */
-export type SyncEngineState = 'idle' | 'syncing' | 'disabled' | 'error' | 'no-folder' | 'signed-out' | 'auth-expired';
+export type SyncEngineState = 'idle' | 'syncing' | 'disabled' | 'error' | 'signed-out' | 'auth-expired';
 
 export interface SyncEngineStatus {
   state: SyncEngineState;
@@ -107,14 +105,7 @@ const BACKOFF_INTERVALS_MS = [30_000, 60_000, 300_000];
 const COMPACTION_THRESHOLD = 100;
 
 let backend: StorageBackend | null = null;
-/**
- * Which backend the engine selected this session, independent of whether a
- * `backend` instance is currently set (an `'http'` engine with no signed-in
- * account has `backend === null` but is still in HTTP mode). `sync.ts` reads
- * this to decide whether to run iCloud auto-config, so the flag is resolved in
- * exactly one place.
- */
-let backendMode: 'http' | 'folder' | null = null;
+let backendMode: 'http' | null = null;
 let deviceId: string = '';
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let inFlight = false;
@@ -158,59 +149,18 @@ export function getSyncEngineStatus(): SyncEngineStatus {
 
 /**
  * Initialize the sync engine.
- * When the `sync-http-backend` flag is on, checks for a signed-in account and
- * wires up HttpStorageBackend. Otherwise falls back to the existing iCloud
- * FolderStorageBackend path so current users are unaffected during rollout.
+ * HTTP is the only backend. Checks for a signed-in account and wires up
+ * HttpStorageBackend when found; otherwise reports signed-out.
  */
 export async function initSyncEngine(): Promise<void> {
   deviceId = await getLocalDeviceId();
 
-  const useHttpBackend = await isFlagEnabled(FLAG_KEYS.httpBackend);
-
-  if (useHttpBackend) {
-    backendMode = 'http';
-    const accountId = await getSignedInAccount();
-    if (accountId) {
-      await activateHttpBackend({ snapshot: false });
-    } else {
-      notifyStatusChange({ state: 'signed-out', syncFolderPath: null, error: null });
-    }
-    return;
-  }
-
-  backendMode = 'folder';
-  // --- iCloud / folder backend path (unchanged until Phase 4 removal) ---
-  const savedPath = await getSyncConfig('sync_folder_path');
-  const enabled = await getSyncConfig('sync_enabled');
-
-  if (savedPath && enabled === 'true') {
-    try {
-      const folderExists = await exists(savedPath);
-      if (folderExists) {
-        backend = new FolderStorageBackend(savedPath);
-        notifyStatusChange({ state: 'idle', syncFolderPath: savedPath });
-        // Refresh meta.json on startup so the device folder is non-empty (iCloud
-        // won't sync empty folders) and other devices can see this device.
-        try {
-          const currentSeq = await getCurrentMaxSeq();
-          await writeDeviceMeta(currentSeq);
-        } catch (err) {
-          console.error('[SyncEngine] Failed to write meta on init (non-fatal):', err);
-        }
-        startFlushTimer();
-        await sync();
-      } else {
-        notifyStatusChange({
-          state: 'no-folder',
-          syncFolderPath: savedPath,
-          error: 'Sync folder not found',
-        });
-      }
-    } catch (error) {
-      notifyStatusChange({ state: 'error', error: `Failed to access sync folder: ${error}` });
-    }
+  backendMode = 'http';
+  const accountId = await getSignedInAccount();
+  if (accountId) {
+    await activateHttpBackend({ snapshot: false });
   } else {
-    notifyStatusChange({ state: 'disabled', syncFolderPath: null });
+    notifyStatusChange({ state: 'signed-out', syncFolderPath: null, error: null });
   }
 }
 
@@ -221,11 +171,6 @@ export async function initSyncEngine(): Promise<void> {
 export async function configureHttpBackend(): Promise<void> {
   backendMode = 'http';
   await activateHttpBackend({ snapshot: true });
-}
-
-/** The backend the engine selected this session (drives iCloud auto-config in sync.ts). */
-export function getBackendMode(): 'http' | 'folder' | null {
-  return backendMode;
 }
 
 /**
@@ -248,37 +193,6 @@ async function activateHttpBackend({ snapshot }: { snapshot: boolean }): Promise
     } catch (err) {
       console.error('[SyncEngine] Failed to write initial snapshot (non-fatal):', err);
     }
-  }
-  await sync();
-}
-
-/**
- * Configure the sync folder path and enable sync.
- */
-export async function configureSyncFolder(folderPath: string): Promise<void> {
-  backendMode = 'folder';
-  backend = new FolderStorageBackend(folderPath);
-  await setSyncConfig('sync_folder_path', folderPath);
-  await setSyncConfig('sync_enabled', 'true');
-
-  // Write initial meta.json so the device folder is non-empty (iCloud won't sync
-  // empty folders). The first write lazily creates the device folder and root, so
-  // no explicit mkdir is needed (callers already pass an existing root).
-  await writeDeviceMeta(0);
-  startFlushTimer();
-
-  notifyStatusChange({
-    state: 'idle',
-    syncFolderPath: folderPath,
-    error: null,
-  });
-
-  // Initial sync: write snapshot so other devices can bootstrap.
-  // Wrapped in try/catch — snapshot failure shouldn't block sync from running.
-  try {
-    await writeSnapshot();
-  } catch (err) {
-    console.error('[SyncEngine] Failed to write initial snapshot (non-fatal):', err);
   }
   await sync();
 }
@@ -907,7 +821,7 @@ function stopFlushTimer(): void {
 
 function startOnlineListener(): void {
   stopOnlineListener();
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
   // Route through scheduledSync so the inFlight guard is honored — calling sync()
   // raw here could double-fire alongside a timer tick.
   const handler = (): void => {
@@ -938,13 +852,3 @@ async function sqlSelect<T>(sql: string, params?: unknown[]): Promise<T[]> {
   return db.select<T[]>(sql, params);
 }
 
-async function getCurrentMaxSeq(): Promise<number> {
-  try {
-    const rows = await sqlSelect<{ max_seq: number }>(
-      'SELECT MAX(seq) as max_seq FROM change_log'
-    );
-    return rows[0]?.max_seq ?? 0;
-  } catch {
-    return 0;
-  }
-}

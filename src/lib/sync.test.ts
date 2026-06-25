@@ -61,11 +61,6 @@ describe('getSyncStatusMessage', () => {
     expect(getSyncStatusMessage(status)).toBe('Sync error: Unknown');
   });
 
-  it('returns "Sync folder not found" for unavailable state', () => {
-    const status = makeSyncStatus({ state: 'unavailable' });
-    expect(getSyncStatusMessage(status)).toBe('Sync folder not found');
-  });
-
   it('returns "Sync disabled" for disabled state', () => {
     const status = makeSyncStatus({ state: 'disabled' });
     expect(getSyncStatusMessage(status)).toBe('Sync disabled');
@@ -87,10 +82,6 @@ describe('getSyncStatusIcon', () => {
 
   it('returns warning for error', () => {
     expect(getSyncStatusIcon(makeSyncStatus({ state: 'error' }))).toBe('\u26A0');
-  });
-
-  it('returns minus for unavailable', () => {
-    expect(getSyncStatusIcon(makeSyncStatus({ state: 'unavailable' }))).toBe('\u2212');
   });
 
   it('returns minus for disabled', () => {

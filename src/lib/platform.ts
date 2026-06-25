@@ -102,14 +102,6 @@ export function isMacOS(): boolean {
 }
 
 /**
- * Check if iCloud sync is available
- * Available on iOS and macOS when running in Tauri
- */
-export function isICloudAvailable(): boolean {
-  return isTauri() && isApplePlatform();
-}
-
-/**
  * Check if running inside a Flatpak sandbox.
  *
  * Detected by querying a Tauri command that checks for `/.flatpak-info`,
