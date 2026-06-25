@@ -34,7 +34,6 @@ function makeStatus(overrides: Partial<SyncStatus> = {}): SyncStatus {
     last_sync: null,
     pending_changes: 0,
     error: null,
-    sync_folder: null,
     connected_devices: [],
     ...overrides,
   };

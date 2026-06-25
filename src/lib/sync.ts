@@ -41,7 +41,6 @@ export interface SyncStatus {
   last_sync: string | null;
   pending_changes: number;
   error: string | null;
-  sync_folder: string | null;
   connected_devices: string[];
 }
 
@@ -54,7 +53,6 @@ let currentSyncStatus: SyncStatus = {
   last_sync: null,
   pending_changes: 0,
   error: null,
-  sync_folder: null,
   connected_devices: [],
 };
 
@@ -79,7 +77,6 @@ function engineStatusToSyncStatus(es: SyncEngineStatus): SyncStatus {
     last_sync: es.lastSyncTime,
     pending_changes: es.pendingChanges,
     error: es.error,
-    sync_folder: es.syncFolderPath,
     connected_devices: es.connectedDevices,
   };
 }
@@ -145,7 +142,6 @@ export async function initializeSync(): Promise<void> {
       last_sync: null,
       pending_changes: 0,
       error: null,
-      sync_folder: null,
       connected_devices: [],
     });
     return;

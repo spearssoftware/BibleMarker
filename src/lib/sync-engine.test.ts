@@ -72,20 +72,18 @@ describe('SyncEngineStatus', () => {
   it('has correct shape for disabled state', () => {
     const status: SyncEngineStatus = {
       state: 'disabled',
-      syncFolderPath: null,
       lastSyncTime: null,
       pendingChanges: 0,
       connectedDevices: [],
       error: null,
     }
     expect(status.state).toBe('disabled')
-    expect(status.syncFolderPath).toBeNull()
+    expect(status.connectedDevices).toEqual([])
   })
 
   it('has correct shape for active sync state', () => {
     const status: SyncEngineStatus = {
       state: 'idle',
-      syncFolderPath: null,
       lastSyncTime: '2025-01-01T00:00:00.000Z',
       pendingChanges: 3,
       connectedDevices: ['Mac', 'iPhone'],
@@ -147,7 +145,6 @@ describe('sync engine status listener', () => {
   it('returns initial status as disabled', () => {
     const status = getSyncEngineStatus()
     expect(status.state).toBe('disabled')
-    expect(status.syncFolderPath).toBeNull()
     expect(status.connectedDevices).toEqual([])
   })
 
@@ -217,7 +214,6 @@ describe('initSyncEngine', () => {
 
     const status = getSyncEngineStatus()
     expect(status.state).toBe('signed-out')
-    expect(status.syncFolderPath).toBeNull()
   })
 
   it('activates HTTP backend when account is present', async () => {
@@ -307,7 +303,6 @@ describe('disableSync', () => {
 
     const status = getSyncEngineStatus()
     expect(status.state).toBe('disabled')
-    expect(status.syncFolderPath).toBeNull()
     expect(status.connectedDevices).toEqual([])
     expect(mockSetSyncConfig).toHaveBeenCalledWith('sync_enabled', 'false')
   })
@@ -329,7 +324,6 @@ describe('sync.ts state mapping', () => {
       onSyncEngineStatusChange: vi.fn(),
       getSyncEngineStatus: vi.fn().mockReturnValue({
         state: 'disabled',
-        syncFolderPath: null,
         lastSyncTime: null,
         pendingChanges: 0,
         connectedDevices: [],
@@ -358,7 +352,6 @@ describe('sync.ts state mapping', () => {
       onSyncEngineStatusChange: vi.fn(),
       getSyncEngineStatus: vi.fn().mockReturnValue({
         state: 'disabled',
-        syncFolderPath: null,
         lastSyncTime: null,
         pendingChanges: 0,
         connectedDevices: [],
@@ -385,7 +378,6 @@ describe('sync.ts state mapping', () => {
       onSyncEngineStatusChange: vi.fn(),
       getSyncEngineStatus: vi.fn().mockReturnValue({
         state: 'idle',
-        syncFolderPath: null,
         lastSyncTime: null,
         pendingChanges: 0,
         connectedDevices: [],
@@ -412,7 +404,6 @@ describe('sync.ts state mapping', () => {
       onSyncEngineStatusChange: vi.fn(),
       getSyncEngineStatus: vi.fn().mockReturnValue({
         state: 'disabled',
-        syncFolderPath: null,
         lastSyncTime: null,
         pendingChanges: 0,
         connectedDevices: [],

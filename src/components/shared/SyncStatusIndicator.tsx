@@ -175,11 +175,6 @@ function SyncDetailsPanel({
               {getSyncStatusMessage(status)}
             </span>
           </div>
-          {status.sync_folder && (
-            <p className="text-xs text-scripture-muted truncate" title={status.sync_folder}>
-              Folder: {status.sync_folder}
-            </p>
-          )}
           {status.error && (
             <p className="mt-2 text-sm text-scripture-error">{status.error}</p>
           )}

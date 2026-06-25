@@ -1,23 +1,14 @@
 /**
- * Sync Engine — File-Based Change Journal
+ * Sync Engine — Change Journal over the HTTP sync backend
  *
- * Syncs data between devices using small JSON journal files stored in a
- * cloud-synced folder (iCloud Drive, OneDrive, Dropbox, etc.).
+ * Syncs data between devices via the HTTP sync backend.
  *
  * Architecture:
  * - Each device keeps its own local SQLite database
  * - Writes are recorded in a local change_log table
- * - Periodically, changes are flushed to journal files in the sync folder
- * - Each device reads other devices' journal files and applies changes locally
+ * - Periodically, changes are flushed to journal blobs on the sync backend
+ * - Each device reads other devices' journals and applies changes locally
  * - Conflict resolution: newest wins (by updated_at timestamp)
- *
- * Folder structure:
- *   sync_folder/
- *     {device_id}/
- *       meta.json           — device info + last seq
- *       {max_seq}.json      — journal batch file
- *     snapshots/
- *       {device_id}_{seq}.json — full database snapshot
  */
 
 import { HttpStorageBackend, type StorageBackend } from './storage-backend';
@@ -57,7 +48,7 @@ interface JournalFile {
   entries: ChangeEntry[];
 }
 
-/** Device metadata stored in sync_folder/{device_id}/meta.json */
+/** Device metadata stored at {device_id}/meta.json */
 interface DeviceMeta {
   deviceId: string;
   deviceName: string;
@@ -81,7 +72,6 @@ export type SyncEngineState = 'idle' | 'syncing' | 'disabled' | 'error' | 'signe
 
 export interface SyncEngineStatus {
   state: SyncEngineState;
-  syncFolderPath: string | null;
   lastSyncTime: string | null;
   pendingChanges: number;
   connectedDevices: string[];
@@ -112,7 +102,6 @@ let consecutiveFailures = 0;
 let onlineListener: (() => void) | null = null;
 let currentStatus: SyncEngineStatus = {
   state: 'disabled',
-  syncFolderPath: null,
   lastSyncTime: null,
   pendingChanges: 0,
   connectedDevices: [],
@@ -158,7 +147,7 @@ export async function initSyncEngine(): Promise<void> {
   if (accountId) {
     await activateHttpBackend({ snapshot: false });
   } else {
-    notifyStatusChange({ state: 'signed-out', syncFolderPath: null, error: null });
+    notifyStatusChange({ state: 'signed-out', error: null });
   }
 }
 
@@ -183,7 +172,7 @@ async function activateHttpBackend({ snapshot }: { snapshot: boolean }): Promise
   backend = new HttpStorageBackend();
   startFlushTimer();
   startOnlineListener();
-  notifyStatusChange({ state: 'idle', syncFolderPath: null, error: null });
+  notifyStatusChange({ state: 'idle', error: null });
   if (snapshot) {
     try {
       await writeSnapshot();
@@ -206,7 +195,6 @@ export async function disableSync(): Promise<void> {
   await setSyncConfig('sync_enabled', 'false');
   notifyStatusChange({
     state: 'disabled',
-    syncFolderPath: null,
     connectedDevices: [],
     error: null,
   });

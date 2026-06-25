@@ -5,7 +5,7 @@
  * (e.g. `{deviceId}/0000000050.json`, `snapshots/{deviceId}_50.json`). A
  * `StorageBackend` owns all path/scoping concerns and the actual I/O, so the
  * engine's conflict-resolution / watermark / snapshot logic stays identical
- * whether the bytes land in an iCloud folder or a remote object store.
+ * whether the bytes land in a remote object store or elsewhere.
  *
  * `HttpStorageBackend` is the sole backend, speaking the same interface
  * against a sync server.

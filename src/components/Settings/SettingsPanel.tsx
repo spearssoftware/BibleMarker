@@ -1511,12 +1511,6 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                           {getSyncStatusMessage(syncStatus)}
                         </span>
                       </div>
-                      {syncStatus.sync_folder && (
-                        <div className="text-xs text-scripture-muted">
-                          <span className="font-medium">Sync folder:</span>{' '}
-                          <span className="font-mono break-all">{syncStatus.sync_folder}</span>
-                        </div>
-                      )}
                       {syncStatus.connected_devices.length > 0 && (
                         <div className="text-xs text-scripture-muted">
                           <span className="font-medium">Devices:</span>{' '}
@@ -2369,7 +2363,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                       <div className="flex-1">
                         <div className="text-sm font-medium text-scripture-text">Force-Enable Sync</div>
                         <div className="text-xs text-scripture-muted mt-0.5">
-                          Sync is disabled by default on dev/beta builds to protect stable users' iCloud data. Enable to test sync changes.
+                          Sync is disabled by default on dev builds. Enable to test sync changes.
                         </div>
                       </div>
                       <input
