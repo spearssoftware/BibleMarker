@@ -38,7 +38,6 @@ import {
   getBackupLocation,
   type StoredBackup 
 } from '@/lib/autoBackup';
-import { invoke } from '@tauri-apps/api/core';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { AboutSection } from './AboutSection';
 import { GettingStartedSection } from './GettingStartedSection';
@@ -158,10 +157,8 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncDiagnostics, setSyncDiagnostics] = useState<SyncDiagnostics | null>(null);
   const [showSyncDiagnostics, setShowSyncDiagnostics] = useState(false);
-  const [syncDirListing, setSyncDirListing] = useState<string | null>(null);
 
-  // Cloud sync sign-in state (HTTP backend)
-  const isHttpBackendEnabled = useFeatureFlagsStore(s => s.isEnabled(FLAG_KEYS.httpBackend));
+  // Cloud sync sign-in state
   // OTP sign-in can be independently killed server-side; already-signed-in
   // users are unaffected (the gate only hides the new sign-in form).
   const isOtpEnabled = useFeatureFlagsStore(s => s.isEnabled(FLAG_KEYS.otpEnabled));
@@ -311,14 +308,12 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     return unsubscribe;
   }, []);
 
-  // Load signed-in account when the HTTP backend is enabled. Refresh only on the
-  // auth-expired edge (the engine cleared the token) — sign-in/out handlers set
-  // the account directly, so we don't re-hit the Rust command on every sync tick.
+  // Refresh the signed-in account on auth-expired edge (the engine cleared the token).
+  // Sign-in/out handlers set it directly, so we don't re-hit the Rust command on every sync tick.
   const isAuthExpired = syncStatus?.state === 'auth-expired';
   useEffect(() => {
-    if (!isHttpBackendEnabled) return;
     getSignedInAccount().then(setSignedInAccount).catch(() => setSignedInAccount(null));
-  }, [isHttpBackendEnabled, isAuthExpired]);
+  }, [isAuthExpired]);
 
   async function handleRequestSignInCode() {
     if (!signInEmail.trim()) return;
@@ -532,23 +527,6 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
       setShowSyncDiagnostics(true);
     } catch (e) {
       console.error('[Settings] Failed to load sync diagnostics:', e);
-    }
-    // iCloud-specific probes — only meaningful on the folder backend. On the
-    // HTTP backend sync_folder is null, so these are skipped and the panel shows
-    // just the backend-agnostic schema/change-log/device diagnostics.
-    if (syncStatus?.sync_folder) {
-      try {
-        const listing = await invoke<string>('list_sync_dir', { path: syncStatus.sync_folder });
-        setSyncDirListing(listing);
-      } catch (e) {
-        setSyncDirListing(`Error: ${e}`);
-      }
-      try {
-        const writeTest = await invoke<string>('test_icloud_write');
-        setSyncDirListing(prev => (prev ?? '') + '\nWrite test: ' + writeTest);
-      } catch (e) {
-        setSyncDirListing(prev => (prev ?? '') + '\nWrite test error: ' + e);
-      }
     }
   }
 
@@ -1513,12 +1491,10 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
               <div className="p-4">
                 <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Sync</h3>
 
-                {/* Cloud sync account UI (HTTP backend, gated by feature flag) */}
-                {isHttpBackendEnabled && (
-                  <div className="mb-4 p-4 bg-scripture-elevated/50 rounded-lg border border-scripture-border/50 space-y-3">
-                    {renderCloudSyncAccount()}
-                  </div>
-                )}
+                {/* Cloud sync account UI */}
+                <div className="mb-4 p-4 bg-scripture-elevated/50 rounded-lg border border-scripture-border/50 space-y-3">
+                  {renderCloudSyncAccount()}
+                </div>
 
                 {/* Sync status (shown for all backends) */}
                 {syncStatus ? (
@@ -1535,13 +1511,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                           {getSyncStatusMessage(syncStatus)}
                         </span>
                       </div>
-                      {syncStatus.sync_folder && (
-                        <div className="text-xs text-scripture-muted">
-                          <span className="font-medium">Sync folder:</span>{' '}
-                          <span className="font-mono break-all">{syncStatus.sync_folder}</span>
-                        </div>
-                      )}
-                      {syncStatus.connected_devices.length > 0 && !isHttpBackendEnabled && (
+                      {syncStatus.connected_devices.length > 0 && (
                         <div className="text-xs text-scripture-muted">
                           <span className="font-medium">Devices:</span>{' '}
                           {syncStatus.connected_devices.join(', ')}
@@ -1592,11 +1562,6 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                         <div className="text-xs text-scripture-muted font-mono break-all">
                           Device ID: {syncDiagnostics.deviceId}
                         </div>
-                        {syncDirListing && (
-                          <div className="text-xs text-scripture-muted font-mono break-all mt-1 pt-1 border-t border-scripture-border/30">
-                            Sync dir: {syncDirListing}
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
@@ -2398,7 +2363,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                       <div className="flex-1">
                         <div className="text-sm font-medium text-scripture-text">Force-Enable Sync</div>
                         <div className="text-xs text-scripture-muted mt-0.5">
-                          Sync is disabled by default on dev/beta builds to protect stable users' iCloud data. Enable to test sync changes.
+                          Sync is disabled by default on dev builds. Enable to test sync changes.
                         </div>
                       </div>
                       <input

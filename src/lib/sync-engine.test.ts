@@ -6,7 +6,6 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
   readDir: vi.fn(),
   readTextFile: vi.fn(),
   mkdir: vi.fn(),
-  exists: vi.fn(),
   remove: vi.fn(),
 }))
 
@@ -73,20 +72,18 @@ describe('SyncEngineStatus', () => {
   it('has correct shape for disabled state', () => {
     const status: SyncEngineStatus = {
       state: 'disabled',
-      syncFolderPath: null,
       lastSyncTime: null,
       pendingChanges: 0,
       connectedDevices: [],
       error: null,
     }
     expect(status.state).toBe('disabled')
-    expect(status.syncFolderPath).toBeNull()
+    expect(status.connectedDevices).toEqual([])
   })
 
   it('has correct shape for active sync state', () => {
     const status: SyncEngineStatus = {
       state: 'idle',
-      syncFolderPath: '/path/to/sync',
       lastSyncTime: '2025-01-01T00:00:00.000Z',
       pendingChanges: 3,
       connectedDevices: ['Mac', 'iPhone'],
@@ -109,7 +106,6 @@ describe('sync engine status listener', () => {
       readDir: vi.fn(),
       readTextFile: vi.fn(),
       mkdir: vi.fn(),
-      exists: vi.fn(),
       remove: vi.fn(),
     }))
     vi.doMock('@tauri-apps/api/core', () => ({
@@ -149,7 +145,6 @@ describe('sync engine status listener', () => {
   it('returns initial status as disabled', () => {
     const status = getSyncEngineStatus()
     expect(status.state).toBe('disabled')
-    expect(status.syncFolderPath).toBeNull()
     expect(status.connectedDevices).toEqual([])
   })
 
@@ -181,14 +176,13 @@ describe('initSyncEngine', () => {
     vi.restoreAllMocks()
   })
 
-  it('initializes with disabled state when no sync folder configured', async () => {
+  it('transitions to signed-out when no account is signed in', async () => {
     vi.resetModules()
 
     vi.doMock('@tauri-apps/plugin-fs', () => ({
       readDir: vi.fn(),
       readTextFile: vi.fn(),
       mkdir: vi.fn(),
-      exists: vi.fn(),
       remove: vi.fn(),
     }))
     vi.doMock('@tauri-apps/api/core', () => ({
@@ -208,48 +202,58 @@ describe('initSyncEngine', () => {
       sqliteExportAll: vi.fn(),
       SYNCED_TABLES: new Set(['annotations']),
     }))
+    vi.doMock('./sync-account', () => ({
+      getSignedInAccount: vi.fn().mockResolvedValue(null),
+      clearLocalSession: vi.fn(),
+      isSyncError: vi.fn().mockReturnValue(false),
+    }))
 
     const { initSyncEngine, getSyncEngineStatus } = await import('./sync-engine')
 
     await initSyncEngine()
 
     const status = getSyncEngineStatus()
-    expect(status.state).toBe('disabled')
-    expect(status.syncFolderPath).toBeNull()
+    expect(status.state).toBe('signed-out')
   })
 
-  it('transitions to no-folder when configured folder does not exist', async () => {
+  it('activates HTTP backend when account is present', async () => {
     vi.resetModules()
 
-    const mockExists = vi.fn().mockResolvedValue(false)
+    const mockInvoke = vi.fn().mockResolvedValue([]) // sync_list returns empty
 
     vi.doMock('@tauri-apps/plugin-fs', () => ({
       readDir: vi.fn(),
       readTextFile: vi.fn(),
       mkdir: vi.fn(),
-      exists: mockExists,
       remove: vi.fn(),
     }))
     vi.doMock('@tauri-apps/api/core', () => ({
-      invoke: vi.fn(),
+      invoke: mockInvoke,
     }))
     vi.doMock('./sqlite-db', () => ({
-      getSqliteDb: vi.fn().mockResolvedValue({ select: vi.fn().mockResolvedValue([]) }),
+      getSqliteDb: vi.fn().mockResolvedValue({ select: vi.fn().mockResolvedValue([{ max_seq: 0 }]) }),
       getDeviceId: vi.fn().mockReturnValue('device-aaaa-bbbb-cccc-ddddeeeeeeee'),
       getUnflushedChanges: vi.fn().mockResolvedValue([]),
       markChangesFlushed: vi.fn().mockResolvedValue(undefined),
       pruneChangeLog: vi.fn().mockResolvedValue(undefined),
       getSyncWatermark: vi.fn().mockResolvedValue(0),
       setSyncWatermark: vi.fn().mockResolvedValue(undefined),
-      getSyncConfig: vi.fn().mockImplementation((key: string) => {
-        if (key === 'sync_folder_path') return '/iCloud/BibleMarker'
-        if (key === 'sync_enabled') return 'true'
-        return null
-      }),
+      getSyncConfig: vi.fn().mockResolvedValue(null),
       setSyncConfig: vi.fn().mockResolvedValue(undefined),
       applyRemoteChange: vi.fn().mockResolvedValue(true),
-      sqliteExportAll: vi.fn(),
+      sqliteExportAll: vi.fn().mockResolvedValue({
+        annotations: [], sectionHeadings: [], chapterTitles: [], notes: [],
+        markingPresets: [], studies: [], multiTranslationViews: [],
+        observationLists: [], timeExpressions: [],
+        places: [], people: [], conclusions: [], interpretations: [],
+        applications: [], preferences: null, entityNotes: [], keywordExclusions: [],
+      }),
       SYNCED_TABLES: new Set(['annotations']),
+    }))
+    vi.doMock('./sync-account', () => ({
+      getSignedInAccount: vi.fn().mockResolvedValue('account-123'),
+      clearLocalSession: vi.fn(),
+      isSyncError: vi.fn().mockReturnValue(false),
     }))
 
     const { initSyncEngine, getSyncEngineStatus } = await import('./sync-engine')
@@ -257,14 +261,14 @@ describe('initSyncEngine', () => {
     await initSyncEngine()
 
     const status = getSyncEngineStatus()
-    expect(status.state).toBe('no-folder')
-    expect(status.syncFolderPath).toBe('/iCloud/BibleMarker')
-    expect(status.error).toBe('Sync folder not found')
+    // After activating, engine is in idle or synced state (not signed-out)
+    expect(status.state).not.toBe('signed-out')
+    expect(status.state).not.toBe('disabled')
   })
 })
 
 describe('disableSync', () => {
-  it('sets state to disabled and clears folder path', async () => {
+  it('sets state to signed-out so the user can sign back in', async () => {
     vi.resetModules()
 
     const mockSetSyncConfig = vi.fn().mockResolvedValue(undefined)
@@ -273,7 +277,6 @@ describe('disableSync', () => {
       readDir: vi.fn(),
       readTextFile: vi.fn(),
       mkdir: vi.fn(),
-      exists: vi.fn(),
       remove: vi.fn(),
     }))
     vi.doMock('@tauri-apps/api/core', () => ({
@@ -299,10 +302,8 @@ describe('disableSync', () => {
     await disableSync()
 
     const status = getSyncEngineStatus()
-    expect(status.state).toBe('disabled')
-    expect(status.syncFolderPath).toBeNull()
+    expect(status.state).toBe('signed-out')
     expect(status.connectedDevices).toEqual([])
-    expect(mockSetSyncConfig).toHaveBeenCalledWith('sync_enabled', 'false')
   })
 })
 
@@ -318,12 +319,10 @@ describe('sync.ts state mapping', () => {
       initSyncEngine: vi.fn(),
       stopSyncEngine: vi.fn(),
       sync: vi.fn(),
-      configureSyncFolder: vi.fn(),
       disableSync: vi.fn(),
       onSyncEngineStatusChange: vi.fn(),
       getSyncEngineStatus: vi.fn().mockReturnValue({
         state: 'disabled',
-        syncFolderPath: null,
         lastSyncTime: null,
         pendingChanges: 0,
         connectedDevices: [],
@@ -332,10 +331,6 @@ describe('sync.ts state mapping', () => {
     }))
     vi.doMock('@tauri-apps/api/core', () => ({
       invoke: vi.fn(),
-    }))
-    vi.doMock('./platform', () => ({
-      isApplePlatform: vi.fn().mockReturnValue(false),
-      isIOS: vi.fn().mockReturnValue(false),
     }))
 
     const { getSyncStatus } = await import('./sync')
@@ -352,12 +347,10 @@ describe('sync.ts state mapping', () => {
       initSyncEngine: vi.fn(),
       stopSyncEngine: vi.fn(),
       sync: vi.fn().mockRejectedValue(new Error('sync failed')),
-      configureSyncFolder: vi.fn(),
       disableSync: vi.fn(),
       onSyncEngineStatusChange: vi.fn(),
       getSyncEngineStatus: vi.fn().mockReturnValue({
         state: 'disabled',
-        syncFolderPath: null,
         lastSyncTime: null,
         pendingChanges: 0,
         connectedDevices: [],
@@ -366,10 +359,6 @@ describe('sync.ts state mapping', () => {
     }))
     vi.doMock('@tauri-apps/api/core', () => ({
       invoke: vi.fn(),
-    }))
-    vi.doMock('./platform', () => ({
-      isApplePlatform: vi.fn().mockReturnValue(false),
-      isIOS: vi.fn().mockReturnValue(false),
     }))
 
     const { triggerSync } = await import('./sync')
@@ -384,12 +373,10 @@ describe('sync.ts state mapping', () => {
       initSyncEngine: vi.fn(),
       stopSyncEngine: vi.fn(),
       sync: vi.fn().mockResolvedValue(undefined),
-      configureSyncFolder: vi.fn(),
       disableSync: vi.fn(),
       onSyncEngineStatusChange: vi.fn(),
       getSyncEngineStatus: vi.fn().mockReturnValue({
         state: 'idle',
-        syncFolderPath: '/sync',
         lastSyncTime: null,
         pendingChanges: 0,
         connectedDevices: [],
@@ -398,10 +385,6 @@ describe('sync.ts state mapping', () => {
     }))
     vi.doMock('@tauri-apps/api/core', () => ({
       invoke: vi.fn(),
-    }))
-    vi.doMock('./platform', () => ({
-      isApplePlatform: vi.fn().mockReturnValue(false),
-      isIOS: vi.fn().mockReturnValue(false),
     }))
 
     const { triggerSync } = await import('./sync')
@@ -416,12 +399,10 @@ describe('sync.ts state mapping', () => {
       initSyncEngine: vi.fn(),
       stopSyncEngine: vi.fn(),
       sync: vi.fn(),
-      configureSyncFolder: vi.fn(),
       disableSync: vi.fn(),
       onSyncEngineStatusChange: vi.fn(),
       getSyncEngineStatus: vi.fn().mockReturnValue({
         state: 'disabled',
-        syncFolderPath: null,
         lastSyncTime: null,
         pendingChanges: 0,
         connectedDevices: [],
@@ -430,10 +411,6 @@ describe('sync.ts state mapping', () => {
     }))
     vi.doMock('@tauri-apps/api/core', () => ({
       invoke: vi.fn(),
-    }))
-    vi.doMock('./platform', () => ({
-      isApplePlatform: vi.fn().mockReturnValue(false),
-      isIOS: vi.fn().mockReturnValue(false),
     }))
 
     const { getPendingConflicts, markPendingSync, clearPendingSync, decrementPendingSync } = await import('./sync')

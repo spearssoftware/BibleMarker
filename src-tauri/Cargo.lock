@@ -290,8 +290,6 @@ version = "3.0.0"
 dependencies = [
  "base64 0.22.1",
  "hmac 0.13.0",
- "objc2",
- "objc2-foundation",
  "reqwest 0.12.28",
  "rusqlite",
  "serde",

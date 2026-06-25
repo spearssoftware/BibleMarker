@@ -57,10 +57,10 @@ describe('readCachedFlags', () => {
   });
 
   it('ignores unknown keys and non-boolean values', async () => {
-    mockGetSyncConfig.mockResolvedValue(cached({ bogus: true, [FLAG_KEYS.httpBackend]: 'yes' }));
+    mockGetSyncConfig.mockResolvedValue(cached({ bogus: true, [FLAG_KEYS.syncEnabled]: 'yes' }));
     const flags = await readCachedFlags();
     expect(flags!['bogus']).toBeUndefined();
-    expect(flags![FLAG_KEYS.httpBackend]).toBe(false); // non-boolean → default
+    expect(flags![FLAG_KEYS.syncEnabled]).toBe(true); // non-boolean → default (which is true)
   });
 });
 
@@ -76,9 +76,9 @@ describe('isFlagEnabled', () => {
   });
 
   it('uses the default for a key absent from an existing cache', async () => {
-    // Cache present but only sets syncEnabled — httpBackend should be its default.
+    // Cache present but only sets syncEnabled — otpEnabled should be its default.
     mockGetSyncConfig.mockResolvedValue(cached({ [FLAG_KEYS.syncEnabled]: false }));
-    expect(await isFlagEnabled(FLAG_KEYS.httpBackend)).toBe(DEFAULT_FLAGS[FLAG_KEYS.httpBackend]);
+    expect(await isFlagEnabled(FLAG_KEYS.otpEnabled)).toBe(DEFAULT_FLAGS[FLAG_KEYS.otpEnabled]);
   });
 });
 

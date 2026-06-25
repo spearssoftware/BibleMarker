@@ -13,6 +13,7 @@ import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { Search } from '@/components/Search';
 import { TranslationPicker, UnifiedPicker } from './pickers';
 import { ExportPopover } from './ExportPopover';
+import { SyncStatusIndicator } from '@/components/shared';
 export function NavigationBar() {
   const {
     currentBook,
@@ -362,6 +363,8 @@ export function NavigationBar() {
 
         {/* Right side: Export, Search, and Next buttons */}
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          {/* Sync status icon */}
+          <SyncStatusIndicator compact className="p-2 rounded-lg hover:bg-scripture-elevated touch-target" />
           {/* Export / Share button — opens chapter export popover */}
           <button
             onClick={(e) => {
