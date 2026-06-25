@@ -105,7 +105,6 @@ const BACKOFF_INTERVALS_MS = [30_000, 60_000, 300_000];
 const COMPACTION_THRESHOLD = 100;
 
 let backend: StorageBackend | null = null;
-let backendMode: 'http' | null = null;
 let deviceId: string = '';
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let inFlight = false;
@@ -155,7 +154,6 @@ export function getSyncEngineStatus(): SyncEngineStatus {
 export async function initSyncEngine(): Promise<void> {
   deviceId = await getLocalDeviceId();
 
-  backendMode = 'http';
   const accountId = await getSignedInAccount();
   if (accountId) {
     await activateHttpBackend({ snapshot: false });
@@ -169,7 +167,6 @@ export async function initSyncEngine(): Promise<void> {
  * Called by sync.ts after verifySignInCode resolves.
  */
 export async function configureHttpBackend(): Promise<void> {
-  backendMode = 'http';
   await activateHttpBackend({ snapshot: true });
 }
 
