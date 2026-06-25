@@ -13,6 +13,7 @@ import {
   getSyncStatusIcon,
   triggerSync,
 } from '@/lib/sync';
+import { usePanelStore } from '@/stores/panelStore';
 
 interface SyncStatusIndicatorProps {
   /** Show in compact mode (icon only) */
@@ -63,7 +64,7 @@ export function SyncStatusIndicator({
         <button
           onClick={() => setShowDetails(!showDetails)}
           className={`
-            relative p-1 rounded hover:bg-white/10 transition-colors
+            relative transition-colors
             ${getStatusColorClass(status.state)}
             ${className}
           `}
@@ -221,6 +222,22 @@ function SyncDetailsPanel({
           >
             Close
           </button>
+          {(status.state === 'signed-out' || status.state === 'auth-expired') && (
+            <button
+              onClick={() => {
+                usePanelStore.getState().openPanel('settings', { settingsInitialTab: 'data' });
+                onClose();
+              }}
+              className="
+                px-4 py-2 text-sm rounded
+                bg-scripture-accent hover:bg-scripture-accent/80
+                text-white
+                transition-colors
+              "
+            >
+              Sign in
+            </button>
+          )}
           {canManuallySync(status.state) && (
             <button
               onClick={onSync}
@@ -249,16 +266,15 @@ function getStatusColorClass(state: SyncStatus['state']): string {
     case 'offline': return 'text-scripture-warning';
     case 'error': return 'text-scripture-error';
     case 'auth-expired': return 'text-scripture-warning';
-    case 'unavailable':
     case 'disabled':
     case 'signed-out':
     default: return 'text-scripture-muted';
   }
 }
 
-/** States where a manual "Sync Now" makes sense (no folder/account problem). */
+/** States where a manual "Sync Now" makes sense (no account problem). */
 function canManuallySync(state: SyncStatus['state']): boolean {
-  return state !== 'unavailable' && state !== 'signed-out' && state !== 'auth-expired';
+  return state !== 'signed-out' && state !== 'auth-expired';
 }
 
 export default SyncStatusIndicator;
