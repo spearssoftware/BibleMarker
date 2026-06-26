@@ -87,6 +87,8 @@ export function SyncStatusIndicator({
           `}
           title={getSyncStatusMessage(status)}
           aria-label="Sync status"
+          aria-haspopup="dialog"
+          aria-expanded={showDetails}
         >
           <span className={`text-lg ${status.state === 'syncing' ? 'animate-spin' : ''}`}>
             {getSyncStatusIcon(status)}

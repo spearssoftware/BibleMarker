@@ -81,10 +81,10 @@ export function NavigationBar() {
 
   const bookInfo = getBookById(currentBook);
   
-  // Get translation abbreviation(s) for the chip. With multiple translations
+  // Translation abbreviation(s) for the chip. With multiple translations
   // selected, join their abbreviations (e.g. "NASB+ESV") rather than showing a
   // bare count; the chip truncates if it gets long.
-  const getTranslationAbbrev = () => {
+  const translationAbbrev = useMemo(() => {
     if (!activeView || activeView.translationIds.length === 0) return 'Select';
     return activeView.translationIds
       .map((id) => {
@@ -92,7 +92,7 @@ export function NavigationBar() {
         return trans?.abbreviation || trans?.id?.toUpperCase() || 'Bible';
       })
       .join('+');
-  };
+  }, [activeView, translations]);
   
   // Seed the displayed verse from loaded chapter data — but only when the
   // loaded chapter actually matches the current location. On chapter change
@@ -248,6 +248,11 @@ export function NavigationBar() {
 
   const openSearch = () => { closeAllPanels(); setShowSearch(true); };
   const openExport = () => { closeAllPanels(); setShowExportPopover(true); };
+  // Toggle one panel closed/open, closing every other panel first.
+  const togglePanel = (isOpen: boolean, setOpen: (v: boolean) => void) => {
+    closeAllPanels();
+    setOpen(!isOpen);
+  };
 
   return (
     <>
@@ -336,9 +341,7 @@ export function NavigationBar() {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              const next = !showTranslationPicker;
-              closeAllPanels();
-              setShowTranslationPicker(next);
+              togglePanel(showTranslationPicker, setShowTranslationPicker);
             }}
             onMouseDown={(e) => {
               e.preventDefault();
@@ -346,7 +349,7 @@ export function NavigationBar() {
             }}
             className={`px-2.5 sm:px-3 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
                        border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center gap-1.5
-                       select-none min-w-[44px] flex-shrink-0
+                       select-none min-w-[44px] flex-shrink-0 max-w-[40vw] sm:max-w-[10rem]
                        ${showTranslationPicker
                          ? 'bg-scripture-accent text-scripture-bg shadow-md'
                          : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
@@ -356,7 +359,7 @@ export function NavigationBar() {
             aria-expanded={showTranslationPicker}
             aria-haspopup="dialog"
           >
-            <span className="truncate">{getTranslationAbbrev()}</span>
+            <span className="truncate">{translationAbbrev}</span>
           </button>
 
           {/* Location chip (Book Chapter) */}
@@ -365,9 +368,7 @@ export function NavigationBar() {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              const next = !showUnifiedPicker;
-              closeAllPanels();
-              setShowUnifiedPicker(next);
+              togglePanel(showUnifiedPicker, setShowUnifiedPicker);
             }}
             onMouseDown={(e) => {
               e.preventDefault();
@@ -401,9 +402,7 @@ export function NavigationBar() {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              const next = !showOverflowMenu;
-              closeAllPanels();
-              setShowOverflowMenu(next);
+              togglePanel(showOverflowMenu, setShowOverflowMenu);
             }}
             onMouseDown={(e) => {
               e.preventDefault();
