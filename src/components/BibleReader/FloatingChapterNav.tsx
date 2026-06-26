@@ -1,31 +1,55 @@
 /**
- * Floating Chapter Navigation
+ * Floating Chapter Navigation (desktop gutters)
  *
- * Previous/next chapter arrows that float over the reading column (YouVersion
- * style) instead of crowding the top toolbar. They sit at the vertical center
- * of the reading area, fade out while the reader is actively scrolling, and
- * fade back in once it settles. Each arrow hides when there's no chapter in
- * that direction (e.g. no "previous" at Genesis 1).
+ * Previous/next chapter arrows for desktop, placed in the whitespace gutters
+ * beside the centered reading column so they never overlap the text. Hidden on
+ * phones and narrow/split panes (where there's no gutter) — touch users change
+ * chapters by swiping (see useSwipeNavigation in MultiTranslationView). The
+ * arrows fade out while the reader is actively scrolling and fade back once it
+ * settles, and each hides when there's no chapter in that direction.
  *
- * Mounted inside SplitLayout's scripture pane, so it's scoped to the reading
- * column and never overlaps the side panel.
+ * Mounted inside SplitLayout's scripture pane; the overlay measures the pane so
+ * the arrows only appear when the pane is wide enough to have real gutters.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 
 const SCROLL_IDLE_MS = 1100;
+// The reading column is capped at max-w-4xl (896px). Only show the gutter arrows
+// once the pane is wide enough to leave clear margin beside that column.
+const MIN_PANE_PX = 1024;
+// Half the reading column (448px) plus a small gap — used to park each arrow
+// just outside the column edge via calc(50% ± OFFSET).
+const ARROW_OFFSET_PX = 456;
+const ARROW_W_PX = 44;
 
 export function FloatingChapterNav() {
   const previousChapter = useBibleStore((s) => s.previousChapter);
   const nextChapter = useBibleStore((s) => s.nextChapter);
   // Compute availability inside the selector so it re-evaluates on each chapter
-  // change (and the component re-renders only when the boolean flips).
+  // change (and re-renders only when the boolean flips).
   const showPrev = useBibleStore((s) => s.canGoPrevious());
   const showNext = useBibleStore((s) => s.canGoNext());
 
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const [wide, setWide] = useState(false);
   const [scrolling, setScrolling] = useState(false);
 
+  // Show only when the pane (reading column + gutters) is wide enough.
+  useEffect(() => {
+    const el = overlayRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 0;
+      setWide(w >= MIN_PANE_PX);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Fade while scrolling. Capture phase catches the reader's inner scroll
+  // container (scroll events don't bubble).
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     const onScroll = () => {
@@ -33,8 +57,6 @@ export function FloatingChapterNav() {
       clearTimeout(timer);
       timer = setTimeout(() => setScrolling(false), SCROLL_IDLE_MS);
     };
-    // Capture phase so we catch scroll from the reader's inner scroll container
-    // (scroll events don't bubble).
     window.addEventListener('scroll', onScroll, true);
     return () => {
       window.removeEventListener('scroll', onScroll, true);
@@ -42,18 +64,19 @@ export function FloatingChapterNav() {
     };
   }, []);
 
-  const fade = scrolling ? 'opacity-0 pointer-events-none' : 'opacity-60 hover:opacity-100';
+  const fade = scrolling ? 'opacity-0 pointer-events-none' : 'opacity-70 hover:opacity-100';
   const base =
-    'absolute top-1/2 -translate-y-1/2 z-20 w-11 h-11 inline-flex items-center justify-center ' +
-    'rounded-full bg-scripture-surface/80 backdrop-blur-sm shadow-md border border-scripture-border/30 ' +
+    'pointer-events-auto absolute top-1/2 -translate-y-1/2 w-11 h-11 inline-flex items-center justify-center ' +
+    'rounded-full bg-scripture-surface/90 backdrop-blur-sm shadow-md border border-scripture-border/40 ' +
     'text-scripture-text transition-opacity duration-300 select-none';
 
   return (
-    <>
-      {showPrev && (
+    <div ref={overlayRef} className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden={!wide}>
+      {wide && showPrev && (
         <button
           onClick={previousChapter}
-          className={`${base} left-2 ${fade}`}
+          className={`${base} ${fade}`}
+          style={{ left: `calc(50% - ${ARROW_OFFSET_PX + ARROW_W_PX}px)` }}
           aria-label="Previous chapter"
           title="Previous chapter"
         >
@@ -62,10 +85,11 @@ export function FloatingChapterNav() {
           </svg>
         </button>
       )}
-      {showNext && (
+      {wide && showNext && (
         <button
           onClick={nextChapter}
-          className={`${base} right-2 ${fade}`}
+          className={`${base} ${fade}`}
+          style={{ left: `calc(50% + ${ARROW_OFFSET_PX}px)` }}
           aria-label="Next chapter"
           title="Next chapter"
         >
@@ -74,6 +98,6 @@ export function FloatingChapterNav() {
           </svg>
         </button>
       )}
-    </>
+    </div>
   );
 }
