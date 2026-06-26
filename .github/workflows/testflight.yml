@@ -86,7 +86,7 @@ jobs:
           const files = fs.readdirSync(dir).filter(f => f.endsWith('.png'));
           Promise.all(files.map(async f => {
             const p = path.join(dir, f);
-            const buf = await sharp(p).flatten({ background: { r: 26, g: 26, b: 46 } }).png().toBuffer();
+            const buf = await sharp(p).flatten({ background: { r: 16, g: 30, b: 63 } }).png().toBuffer();
             fs.writeFileSync(p, buf);
           })).then(() => console.log('Stripped alpha from', files.length, 'icons'));
           "
