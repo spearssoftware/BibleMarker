@@ -6,7 +6,7 @@
  * a details popover (anchored under the bar, matching the other toolbar panels).
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, type RefObject } from 'react';
 import {
   type SyncStatus,
   onSyncStatusChange,
@@ -15,14 +15,44 @@ import {
   triggerSync,
 } from '@/lib/sync';
 import { usePanelStore } from '@/stores/panelStore';
-import { ModalBackdrop } from './ModalBackdrop';
-import { Z_INDEX } from '@/lib/modalConstants';
+import { ToolbarPopover } from './ToolbarPopover';
 
 interface SyncStatusIndicatorProps {
   /** Show in compact mode (icon only) */
   compact?: boolean;
   /** Custom class name */
   className?: string;
+}
+
+interface UseSyncStatusResult {
+  status: SyncStatus | null;
+  isSyncing: boolean;
+  handleSync: () => Promise<void>;
+}
+
+/**
+ * Headless sync state: the current status plus a manual-sync trigger.
+ */
+function useSyncStatus(): UseSyncStatusResult {
+  const [status, setStatus] = useState<SyncStatus | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onSyncStatusChange(setStatus);
+    return unsubscribe;
+  }, []);
+
+  const handleSync = useCallback(async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    try {
+      await triggerSync();
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isSyncing]);
+
+  return { status, isSyncing, handleSync };
 }
 
 /**
@@ -33,26 +63,9 @@ export function SyncStatusIndicator({
   compact = false,
   className = '',
 }: SyncStatusIndicatorProps) {
-  const [status, setStatus] = useState<SyncStatus | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const { status, isSyncing, handleSync } = useSyncStatus();
   const [showDetails, setShowDetails] = useState(false);
-
-  // Subscribe to sync status changes
-  useEffect(() => {
-    const unsubscribe = onSyncStatusChange(setStatus);
-    return unsubscribe;
-  }, []);
-
-  // Handle manual sync
-  const handleSync = useCallback(async () => {
-    if (isSyncing) return;
-    setIsSyncing(true);
-    try {
-      await triggerSync();
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [isSyncing]);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Don't render if sync is disabled or no status
   if (!status || status.state === 'disabled') {
@@ -65,6 +78,7 @@ export function SyncStatusIndicator({
     return (
       <>
         <button
+          ref={buttonRef}
           onClick={() => setShowDetails(!showDetails)}
           className={`
             relative transition-colors
@@ -73,6 +87,8 @@ export function SyncStatusIndicator({
           `}
           title={getSyncStatusMessage(status)}
           aria-label="Sync status"
+          aria-haspopup="dialog"
+          aria-expanded={showDetails}
         >
           <span className={`text-lg ${status.state === 'syncing' ? 'animate-spin' : ''}`}>
             {getSyncStatusIcon(status)}
@@ -84,6 +100,7 @@ export function SyncStatusIndicator({
             onClose={() => setShowDetails(false)}
             onSync={handleSync}
             isSyncing={isSyncing}
+            triggerRef={buttonRef}
           />
         )}
       </>
@@ -130,6 +147,7 @@ export function SyncStatusIndicator({
           onClose={() => setShowDetails(false)}
           onSync={handleSync}
           isSyncing={isSyncing}
+          triggerRef={buttonRef}
         />
       )}
     </div>
@@ -141,6 +159,8 @@ interface SyncDetailsPanelProps {
   onClose: () => void;
   onSync: () => void;
   isSyncing: boolean;
+  /** Toolbar button this popover anchors under (desktop). */
+  triggerRef: RefObject<HTMLElement | null>;
 }
 
 function SyncDetailsPanel({
@@ -148,20 +168,17 @@ function SyncDetailsPanel({
   onClose,
   onSync,
   isSyncing,
+  triggerRef,
 }: SyncDetailsPanelProps) {
   return (
-    <>
-      <ModalBackdrop onClick={onClose} zIndex={Z_INDEX.BACKDROP} />
-
-      <div
-        className="fixed top-[60px] left-4 right-4 sm:left-auto sm:right-4 sm:w-[22rem]
-                   bg-scripture-surface rounded-2xl shadow-modal dark:shadow-modal-dark animate-slide-down
-                   max-h-[80vh] overflow-y-auto custom-scrollbar mt-safe-top"
-        style={{ zIndex: Z_INDEX.MODAL }}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Sync status"
-      >
+    <ToolbarPopover
+      triggerRef={triggerRef}
+      alignment="right"
+      width={352}
+      label="Sync status"
+      onClose={onClose}
+      panelClassName="max-h-[80vh] overflow-y-auto custom-scrollbar"
+    >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-scripture-border/30">
           <h2 className="text-lg font-semibold text-scripture-text">Sync</h2>
@@ -262,8 +279,7 @@ function SyncDetailsPanel({
           )}
         </div>
         </div>
-      </div>
-    </>
+    </ToolbarPopover>
   );
 }
 

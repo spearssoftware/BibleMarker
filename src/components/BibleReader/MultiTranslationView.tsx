@@ -570,7 +570,7 @@ export function MultiTranslationView() {
       )}
 
       {/* Translation headers - sticky */}
-      <div 
+      <div
         className={`grid gap-4 px-4 py-2 bg-scripture-elevated flex-shrink-0 ${gridColsClass}`}
       >
         {translationList.map(({ translation, isLoading, error }) => {

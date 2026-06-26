@@ -3,6 +3,7 @@
  */
 
 export { ModalBackdrop } from './ModalBackdrop';
+export { ToolbarPopover } from './ToolbarPopover';
 export { ConfirmationDialog } from './ConfirmationDialog';
 export { Modal } from './Modal';
 export { Overlay } from './Overlay';

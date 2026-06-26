@@ -9,10 +9,8 @@
  * One chapter cap, copyright in the popover and on every PDF page footer.
  */
 
-import { useEffect, useState } from 'react';
-import { ModalBackdrop, Button, Select, Checkbox } from '@/components/shared';
-import { useModal } from '@/hooks/useModal';
-import { Z_INDEX } from '@/lib/modalConstants';
+import { useEffect, useState, type RefObject } from 'react';
+import { ToolbarPopover, Button, Select, Checkbox } from '@/components/shared';
 import { getBookById } from '@/types';
 import type { Annotation, ChapterTitle, Note, SectionHeading, Verse } from '@/types';
 import type { ApiTranslation } from '@/lib/bible-api';
@@ -42,6 +40,8 @@ interface ExportPopoverProps {
   chapter: number;
   verses: Verse[];
   onClose: () => void;
+  /** Toolbar button this popover anchors under (desktop). */
+  triggerRef: RefObject<HTMLElement | null>;
 }
 
 type ActionState =
@@ -50,7 +50,7 @@ type ActionState =
   | { status: 'error'; message: string }
   | { status: 'success'; message: string };
 
-export function ExportPopover({ translation, book, chapter, verses, onClose }: ExportPopoverProps) {
+export function ExportPopover({ translation, book, chapter, verses, onClose, triggerRef }: ExportPopoverProps) {
   const { activeStudyId } = useStudyStore();
   const activeStudy = useStudyStore((s) => s.studies.find((st) => st.id === s.activeStudyId) ?? null);
   const presets = useMarkingPresetStore((s) => s.presets);
@@ -75,13 +75,6 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
   const [headings, setHeadings] = useState<SectionHeading[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [chapterTitle, setChapterTitle] = useState<ChapterTitle | null>(null);
-
-  const { handleBackdropClick } = useModal({
-    isOpen: true,
-    onClose,
-    lockScroll: false,
-    handleEscape: true,
-  });
 
   useEffect(() => {
     let cancelled = false;
@@ -192,19 +185,15 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
   const busy = action.status === 'busy';
 
   return (
-    <>
-      <ModalBackdrop onClick={handleBackdropClick} zIndex={Z_INDEX.BACKDROP} />
-
-      <div
-        className="fixed top-[60px] left-4 right-4 sm:left-auto sm:right-4 sm:w-[22rem]
-                   bg-scripture-surface rounded-2xl shadow-modal dark:shadow-modal-dark animate-slide-down
-                   max-h-[80vh] overflow-y-auto custom-scrollbar mt-safe-top"
-        style={{ zIndex: Z_INDEX.MODAL }}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Export page"
-      >
-        <div className="flex items-center justify-between p-4 border-b border-scripture-border/30">
+    <ToolbarPopover
+      triggerRef={triggerRef}
+      alignment="right"
+      width={352}
+      label="Export page"
+      onClose={onClose}
+      panelClassName="max-h-[80vh] overflow-y-auto custom-scrollbar"
+    >
+      <div className="flex items-center justify-between p-4 border-b border-scripture-border/30">
           <h2 className="text-lg font-semibold text-scripture-text">Export {bookName} {chapter}</h2>
           <button
             onClick={onClose}
@@ -280,7 +269,6 @@ export function ExportPopover({ translation, book, chapter, verses, onClose }: E
             <p className="text-[11px] text-scripture-muted leading-relaxed">{attribution}</p>
           </div>
         </div>
-      </div>
-    </>
+    </ToolbarPopover>
   );
 }

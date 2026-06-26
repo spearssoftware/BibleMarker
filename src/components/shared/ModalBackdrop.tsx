@@ -14,8 +14,8 @@ interface ModalBackdropProps {
   className?: string;
 }
 
-export function ModalBackdrop({ 
-  onClick, 
+export function ModalBackdrop({
+  onClick,
   zIndex = 40,
   className = '',
 }: ModalBackdropProps) {

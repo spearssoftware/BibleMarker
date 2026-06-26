@@ -9,11 +9,9 @@
  * Designed for mobile-first with bottom sheet presentation.
  */
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, type RefObject } from 'react';
 import { getOTBooks, getNTBooks, getBookById, getVerseCount, type BookInfo } from '@/types';
-import { useModal } from '@/hooks/useModal';
-import { ModalBackdrop } from '@/components/shared';
-import { Z_INDEX } from '@/lib/modalConstants';
+import { ToolbarPopover } from '@/components/shared';
 import { getPreferences, updatePreferences } from '@/lib/database';
 
 interface UnifiedPickerProps {
@@ -22,14 +20,17 @@ interface UnifiedPickerProps {
   currentVerse?: number;
   onSelect: (bookId: string, chapter: number, verse?: number) => void;
   onClose: () => void;
+  /** Toolbar button this popover anchors under (desktop). */
+  triggerRef: RefObject<HTMLElement | null>;
 }
 
-export function UnifiedPicker({ 
-  currentBook, 
+export function UnifiedPicker({
+  currentBook,
   currentChapter,
   currentVerse = 1,
-  onSelect, 
-  onClose 
+  onSelect,
+  onClose,
+  triggerRef,
 }: UnifiedPickerProps) {
   // Default to the verse grid for the current chapter (the common case during
   // study/teaching: you stay in the same chapter and just hop verses). Fall
@@ -42,7 +43,6 @@ export function UnifiedPicker({
   const [selectedChapter, setSelectedChapter] = useState<number>(currentChapter);
   const [searchQuery, setSearchQuery] = useState('');
   const [recentBooks, setRecentBooks] = useState<string[]>([]);
-  const pickerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   // When the picker opens straight to the verse grid, focus the current verse
   // so the modal's auto-focus doesn't land on the breadcrumb book button
@@ -99,14 +99,6 @@ export function UnifiedPicker({
     };
   }, [searchQuery, otBooks, ntBooks]);
 
-  const { handleBackdropClick } = useModal({
-    isOpen: true,
-    onClose,
-    lockScroll: true,
-    handleEscape: true,
-    initialFocusRef: currentVerseRef,
-  });
-
   // Focus search input on mount (skip on iOS to avoid keyboard/zoom)
   useEffect(() => {
     if (step === 'book' && searchInputRef.current) {
@@ -149,27 +141,22 @@ export function UnifiedPicker({
   const verses = Array.from({ length: verseCount }, (_, i) => i + 1);
 
   return (
-    <>
-      {/* Backdrop */}
-      <ModalBackdrop onClick={handleBackdropClick} zIndex={Z_INDEX.BACKDROP} />
-
-      {/* Bottom sheet picker */}
-      <div 
-        ref={pickerRef}
-        className="fixed top-[60px] left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-full sm:max-w-md
-                   bg-scripture-surface rounded-2xl shadow-modal dark:shadow-modal-dark animate-slide-down 
-                   max-h-[70vh] flex flex-col mt-safe-top"
-        style={{ zIndex: Z_INDEX.MODAL }}
-        role="dialog"
-        aria-modal="true"
-        aria-label={
-          step === 'book' 
-            ? 'Select Bible book' 
-            : step === 'chapter'
-              ? `Select chapter in ${selectedBookInfo?.name}`
-              : `Select verse in ${selectedBookInfo?.name} ${selectedChapter}`
-        }
-      >
+    <ToolbarPopover
+      triggerRef={triggerRef}
+      alignment="center"
+      width={448}
+      onClose={onClose}
+      lockScroll
+      initialFocusRef={currentVerseRef}
+      panelClassName="max-h-[70vh] flex flex-col"
+      label={
+        step === 'book'
+          ? 'Select Bible book'
+          : step === 'chapter'
+            ? `Select chapter in ${selectedBookInfo?.name}`
+            : `Select verse in ${selectedBookInfo?.name} ${selectedChapter}`
+      }
+    >
         {/* Header — breadcrumb (Book › Chapter › Verse) lets the user jump
             straight up a level instead of stepping back one at a time. */}
         <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-scripture-border/30 flex-shrink-0">
@@ -386,7 +373,6 @@ export function UnifiedPicker({
             </div>
           </div>
         )}
-      </div>
-    </>
+    </ToolbarPopover>
   );
 }
