@@ -276,8 +276,29 @@ export function NavigationBar() {
             </svg>
           </button>
 
-          {/* Sync status (icon opens the sync details panel) */}
-          <SyncStatusIndicator compact className="p-2 rounded-lg hover:bg-scripture-elevated touch-target flex-shrink-0" />
+          {/* Search */}
+          <button
+            data-nav-search
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              openSearch();
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            className={`p-2 rounded-lg transition-all duration-200 touch-target select-none flex-shrink-0
+                       ${showSearch
+                         ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                         : 'hover:bg-scripture-elevated'}`}
+            aria-label="Search (Cmd/Ctrl+F)"
+            title="Search (Cmd/Ctrl+F)"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
 
           {/* Back button (visible when there's navigation history) */}
           {canGoBack() && (
@@ -364,31 +385,10 @@ export function NavigationBar() {
           </button>
         </div>
 
-        {/* Right: search and overflow menu */}
+        {/* Right: sync status and overflow menu */}
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-          {/* Search */}
-          <button
-            data-nav-search
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              openSearch();
-            }}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            className={`p-2 rounded-lg transition-all duration-200 touch-target select-none
-                       ${showSearch
-                         ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                         : 'hover:bg-scripture-elevated'}`}
-            aria-label="Search (Cmd/Ctrl+F)"
-            title="Search (Cmd/Ctrl+F)"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </button>
+          {/* Sync status (icon opens the sync details panel) */}
+          <SyncStatusIndicator compact className="p-2 rounded-lg hover:bg-scripture-elevated touch-target" />
 
           {/* Overflow menu — secondary actions (export, future items) */}
           <button

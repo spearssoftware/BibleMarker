@@ -171,7 +171,7 @@ function SyncDetailsPanel({
   return (
     <ToolbarPopover
       triggerRef={triggerRef}
-      alignment="left"
+      alignment="right"
       width={352}
       label="Sync status"
       onClose={onClose}
