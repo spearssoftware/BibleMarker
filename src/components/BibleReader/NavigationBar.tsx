@@ -13,13 +13,7 @@ import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { Search } from '@/components/Search';
 import { TranslationPicker, UnifiedPicker } from './pickers';
 import { ExportPopover } from './ExportPopover';
-import {
-  ToolbarPopover,
-  SyncDetailsPanel,
-  useSyncStatus,
-  syncNeedsAttention,
-  getStatusColorClass,
-} from '@/components/shared';
+import { ToolbarPopover, SyncStatusIndicator } from '@/components/shared';
 export function NavigationBar() {
   const {
     currentBook,
@@ -27,11 +21,7 @@ export function NavigationBar() {
     setLocation,
     setNavSelectedVerse,
     setCurrentModule,
-    nextChapter,
-    previousChapter,
     goBack,
-    canGoNext,
-    canGoPrevious,
     canGoBack,
   } = useBibleStore();
 
@@ -42,20 +32,14 @@ export function NavigationBar() {
   const [showUnifiedPicker, setShowUnifiedPicker] = useState(false);
   const [showExportPopover, setShowExportPopover] = useState(false);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
-  const [showSyncDetails, setShowSyncDetails] = useState(false);
 
   // Create refs for trigger buttons
   const translationButtonRef = useRef<HTMLButtonElement>(null);
   const referenceButtonRef = useRef<HTMLButtonElement>(null);
   const overflowButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Sync state drives the overflow-menu attention dot + details panel.
-  const { status: syncStatus, isSyncing: syncIsSyncing, handleSync: syncHandleSync } = useSyncStatus();
-  const syncAvailable = !!syncStatus && syncStatus.state !== 'disabled';
-  const showSyncDot = syncAvailable && syncNeedsAttention(syncStatus.state);
-
   // Lock scroll when any picker is open (but not for dropdowns - they use lockScroll: false in useModal)
-  const anyPickerOpen = showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker || showUnifiedPicker || showExportPopover || showOverflowMenu || showSyncDetails;
+  const anyPickerOpen = showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker || showUnifiedPicker || showExportPopover || showOverflowMenu;
   // Note: Individual pickers use useModal with lockScroll: false, so scroll locking here is optional
   // Keeping this commented for now as dropdowns shouldn't lock scroll
   // useScrollLock(anyPickerOpen);
@@ -220,7 +204,6 @@ export function NavigationBar() {
       setShowVersePicker(false);
       setShowUnifiedPicker(false);
       setShowOverflowMenu(false);
-      setShowSyncDetails(false);
     };
 
     // Keyboard shortcut for search (Cmd/Ctrl+F)
@@ -253,13 +236,11 @@ export function NavigationBar() {
     setShowUnifiedPicker(false);
     setShowOverflowMenu(false);
     setShowExportPopover(false);
-    setShowSyncDetails(false);
     setShowSearch(false);
   };
 
   const openSearch = () => { closeAllPanels(); setShowSearch(true); };
   const openExport = () => { closeAllPanels(); setShowExportPopover(true); };
-  const openSync = () => { closeAllPanels(); setShowSyncDetails(true); };
 
   return (
     <>
@@ -274,9 +255,12 @@ export function NavigationBar() {
       ) : null}
       <nav className="navigation-bar bg-scripture-surface/80 backdrop-blur-md shadow-sm sticky top-0 z-[45]
                       pt-safe-top pl-safe-left pr-safe-right" data-nav-bar role="navigation" aria-label="Bible navigation">
-        <div className="max-w-4xl mx-auto px-2 sm:px-4 py-2.5 flex items-center justify-between gap-1 sm:gap-2 relative">
-        {/* Left side: Previous button and Translation selector */}
-        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+        <div className="max-w-4xl mx-auto px-2 sm:px-4 py-2.5 flex items-center justify-between gap-2">
+        {/* Left: sync status, back, and the location + translation chips */}
+        <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+          {/* Sync status (icon opens the sync details panel) */}
+          <SyncStatusIndicator compact className="p-2 rounded-lg hover:bg-scripture-elevated touch-target flex-shrink-0" />
+
           {/* Back button (visible when there's navigation history) */}
           {canGoBack() && (
             <button
@@ -290,7 +274,7 @@ export function NavigationBar() {
                 e.stopPropagation();
               }}
               className="p-2 rounded-lg hover:bg-scripture-elevated transition-all duration-200 touch-target
-                         select-none text-scripture-accent"
+                         select-none text-scripture-accent flex-shrink-0"
               aria-label="Go back"
               title="Go back"
             >
@@ -299,65 +283,8 @@ export function NavigationBar() {
               </svg>
             </button>
           )}
-          {/* Previous button */}
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              previousChapter();
-            }}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            disabled={!canGoPrevious()}
-            className="p-2 rounded-lg hover:bg-scripture-elevated disabled:opacity-30
-                       disabled:cursor-not-allowed transition-all duration-200 touch-target
-                       select-none"
-            aria-label="Previous chapter"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
 
-          {/* Translation selector - abbreviation only */}
-          <div className="relative">
-            <button
-              ref={translationButtonRef}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const next = !showTranslationPicker;
-                closeAllPanels();
-                setShowTranslationPicker(next);
-              }}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              className={`px-2.5 sm:px-3 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
-                         border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center gap-1.5
-                         select-none min-w-[44px]
-                         ${showTranslationPicker
-                           ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                           : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
-              aria-label={activeView && activeView.translationIds.length > 0
-                ? `${activeView.translationIds.length} translation${activeView.translationIds.length !== 1 ? 's' : ''} selected. Click to change translations.`
-                : 'Select translation'}
-              aria-expanded={showTranslationPicker}
-              aria-haspopup="dialog"
-            >
-              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-              <span className="hidden sm:inline">{getTranslationAbbrev()}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Center: Combined reference button (Book Chapter:Verse) - absolutely positioned for true centering */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
+          {/* Location chip (Book Chapter:Verse) */}
           <button
             ref={referenceButtonRef}
             onClick={(e) => {
@@ -371,9 +298,9 @@ export function NavigationBar() {
               e.preventDefault();
               e.stopPropagation();
             }}
-            className={`px-3 sm:px-4 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
+            className={`px-2.5 sm:px-3 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
                        border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center gap-1.5
-                       select-none whitespace-nowrap
+                       select-none min-w-0 max-w-[45vw] sm:max-w-none
                        ${showUnifiedPicker
                          ? 'bg-scripture-accent text-scripture-bg shadow-md'
                          : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
@@ -381,16 +308,45 @@ export function NavigationBar() {
             aria-expanded={showUnifiedPicker}
             aria-haspopup="dialog"
           >
-            <span className="truncate">{bookInfo?.name || currentBook} {currentChapter}:{currentVerse || 1}</span>
+            <span className="truncate">{bookInfo?.name || currentBook} {currentChapter}</span>
             <svg className="w-3.5 h-3.5 flex-shrink-0 opacity-60" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
           </button>
+
+          {/* Translation chip (abbreviation) */}
+          <button
+            ref={translationButtonRef}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const next = !showTranslationPicker;
+              closeAllPanels();
+              setShowTranslationPicker(next);
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            className={`px-2.5 sm:px-3 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
+                       border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center gap-1.5
+                       select-none min-w-[44px] flex-shrink-0
+                       ${showTranslationPicker
+                         ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                         : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
+            aria-label={activeView && activeView.translationIds.length > 0
+              ? `${activeView.translationIds.length} translation${activeView.translationIds.length !== 1 ? 's' : ''} selected. Click to change translations.`
+              : 'Select translation'}
+            aria-expanded={showTranslationPicker}
+            aria-haspopup="dialog"
+          >
+            <span className="truncate">{getTranslationAbbrev()}</span>
+          </button>
         </div>
 
-        {/* Right side: Search (desktop), overflow menu, and Next */}
+        {/* Right: search and overflow menu */}
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-          {/* Search — visible on desktop; folded into the ⋯ menu on phone */}
+          {/* Search */}
           <button
             data-nav-search
             onClick={(e) => {
@@ -402,7 +358,7 @@ export function NavigationBar() {
               e.preventDefault();
               e.stopPropagation();
             }}
-            className={`hidden sm:inline-flex p-2 rounded-lg transition-all duration-200 touch-target select-none
+            className={`p-2 rounded-lg transition-all duration-200 touch-target select-none
                        ${showSearch
                          ? 'bg-scripture-accent text-scripture-bg shadow-md'
                          : 'hover:bg-scripture-elevated'}`}
@@ -414,7 +370,7 @@ export function NavigationBar() {
             </svg>
           </button>
 
-          {/* Overflow menu — secondary actions (export, sync, and search on phone) */}
+          {/* Overflow menu — secondary actions (export, future items) */}
           <button
             ref={overflowButtonRef}
             onClick={(e) => {
@@ -428,7 +384,7 @@ export function NavigationBar() {
               e.preventDefault();
               e.stopPropagation();
             }}
-            className={`relative p-2 rounded-lg transition-all duration-200 touch-target select-none
+            className={`p-2 rounded-lg transition-all duration-200 touch-target select-none
                        ${showOverflowMenu
                          ? 'bg-scripture-accent text-scripture-bg shadow-md'
                          : 'hover:bg-scripture-elevated'}`}
@@ -440,35 +396,6 @@ export function NavigationBar() {
               <circle cx="5" cy="12" r="2" />
               <circle cx="12" cy="12" r="2" />
               <circle cx="19" cy="12" r="2" />
-            </svg>
-            {showSyncDot && syncStatus && (
-              <span
-                className={`absolute top-1 right-1 w-2 h-2 rounded-full bg-current ring-2 ring-scripture-surface
-                           ${getStatusColorClass(syncStatus.state)}`}
-                aria-hidden="true"
-              />
-            )}
-          </button>
-
-          {/* Next button */}
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              nextChapter();
-            }}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            disabled={!canGoNext()}
-            className="p-2 rounded-lg hover:bg-scripture-elevated disabled:opacity-30
-                       disabled:cursor-not-allowed transition-all duration-200 touch-target
-                       select-none"
-            aria-label="Next chapter"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
@@ -584,19 +511,6 @@ export function NavigationBar() {
           panelClassName="py-1"
         >
           <div role="menu" aria-label="More actions">
-            {/* Search — only here on phone; on desktop it sits on the bar */}
-            <button
-              role="menuitem"
-              onClick={openSearch}
-              className="sm:hidden w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left
-                         text-scripture-text hover:bg-scripture-elevated transition-colors min-h-[44px]"
-            >
-              <svg className="w-5 h-5 flex-shrink-0 text-scripture-muted" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              Search
-            </button>
-
             <button
               role="menuitem"
               onClick={openExport}
@@ -611,25 +525,6 @@ export function NavigationBar() {
               </svg>
               Export page…
             </button>
-
-            {syncAvailable && (
-              <button
-                role="menuitem"
-                onClick={openSync}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left
-                           text-scripture-text hover:bg-scripture-elevated transition-colors min-h-[44px]"
-              >
-                <span className={`relative flex-shrink-0 ${getStatusColorClass(syncStatus.state)}`}>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  {showSyncDot && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-current ring-2 ring-scripture-surface" aria-hidden="true" />
-                  )}
-                </span>
-                Sync &amp; account
-              </button>
-            )}
           </div>
         </ToolbarPopover>
       )}
@@ -643,17 +538,6 @@ export function NavigationBar() {
           chapter={exportChapter.chapter}
           verses={exportChapter.verses}
           onClose={() => setShowExportPopover(false)}
-        />
-      )}
-
-      {/* SyncDetailsPanel - opened from the ⋯ menu, anchored under the ⋯ button */}
-      {showSyncDetails && syncStatus && (
-        <SyncDetailsPanel
-          status={syncStatus}
-          onClose={() => setShowSyncDetails(false)}
-          onSync={syncHandleSync}
-          isSyncing={syncIsSyncing}
-          triggerRef={overflowButtonRef}
         />
       )}
     </>

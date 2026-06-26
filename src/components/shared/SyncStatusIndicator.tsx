@@ -32,10 +32,8 @@ interface UseSyncStatusResult {
 
 /**
  * Headless sync state: the current status plus a manual-sync trigger.
- * Lets the toolbar drive an attention dot and open the details panel without
- * rendering the indicator itself.
  */
-export function useSyncStatus(): UseSyncStatusResult {
+function useSyncStatus(): UseSyncStatusResult {
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -55,17 +53,6 @@ export function useSyncStatus(): UseSyncStatusResult {
   }, [isSyncing]);
 
   return { status, isSyncing, handleSync };
-}
-
-/**
- * Sync states that warrant a visible attention dot — only states needing user
- * action, both of which map to a visible color. Deliberately excludes
- * `signed-out` (the default for users who never enabled sync; a permanent gray
- * dot would nag) and the transient `offline`. Those remain reachable via the
- * Sync row in the overflow menu.
- */
-export function syncNeedsAttention(state: SyncStatus['state']): boolean {
-  return state === 'error' || state === 'auth-expired';
 }
 
 /**
@@ -174,7 +161,7 @@ interface SyncDetailsPanelProps {
   triggerRef: RefObject<HTMLElement | null>;
 }
 
-export function SyncDetailsPanel({
+function SyncDetailsPanel({
   status,
   onClose,
   onSync,
@@ -184,7 +171,7 @@ export function SyncDetailsPanel({
   return (
     <ToolbarPopover
       triggerRef={triggerRef}
-      alignment="right"
+      alignment="left"
       width={352}
       label="Sync status"
       onClose={onClose}
@@ -294,7 +281,7 @@ export function SyncDetailsPanel({
   );
 }
 
-export function getStatusColorClass(state: SyncStatus['state']): string {
+function getStatusColorClass(state: SyncStatus['state']): string {
   switch (state) {
     case 'synced': return 'text-scripture-success';
     case 'syncing': return 'text-scripture-info';
