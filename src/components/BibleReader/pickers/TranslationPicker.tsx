@@ -67,7 +67,7 @@ export function TranslationPicker({
   return (
     <ToolbarPopover
       triggerRef={triggerRef}
-      alignment="left"
+      alignment="center"
       width={384}
       label="Select translation"
       onClose={onClose}

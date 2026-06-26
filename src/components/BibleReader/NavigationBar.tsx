@@ -259,7 +259,7 @@ export function NavigationBar() {
       ) : null}
       <nav className="navigation-bar bg-scripture-surface/80 backdrop-blur-md shadow-sm sticky top-0 z-[45]
                       pt-safe-top pl-safe-left pr-safe-right" data-nav-bar role="navigation" aria-label="Bible navigation">
-        <div className="max-w-4xl mx-auto px-2 sm:px-4 py-2.5 flex items-center justify-between gap-2 relative">
+        <div className="max-w-4xl mx-auto px-2 sm:px-4 py-2.5 flex items-center justify-between gap-2">
         {/* Left: prev chapter, sync status, back, and the location + translation chips */}
         <div className="flex items-center gap-1 sm:gap-2 min-w-0">
           {/* Previous chapter */}
@@ -323,6 +323,40 @@ export function NavigationBar() {
             </button>
           )}
 
+        </div>
+
+        {/* Center: location + translation chips, centered between the side clusters */}
+        <div className="flex-1 flex items-center justify-center gap-1 sm:gap-2 min-w-0">
+          {/* Location chip (Book Chapter) */}
+          <button
+            ref={referenceButtonRef}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const next = !showUnifiedPicker;
+              closeAllPanels();
+              setShowUnifiedPicker(next);
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            className={`px-3 sm:px-4 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
+                       border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center gap-1.5
+                       select-none min-w-0
+                       ${showUnifiedPicker
+                         ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                         : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
+            aria-label={`Current location: ${bookInfo?.name || currentBook} ${currentChapter}:${currentVerse || 1}. Click to navigate.`}
+            aria-expanded={showUnifiedPicker}
+            aria-haspopup="dialog"
+          >
+            <span className="truncate">{bookInfo?.name || currentBook} {currentChapter}</span>
+            <svg className="w-3.5 h-3.5 flex-shrink-0 opacity-60" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
           {/* Translation chip (abbreviation) */}
           <button
             ref={translationButtonRef}
@@ -350,38 +384,6 @@ export function NavigationBar() {
             aria-haspopup="dialog"
           >
             <span className="truncate">{getTranslationAbbrev()}</span>
-          </button>
-        </div>
-
-        {/* Center: location chip (Book Chapter) — absolutely centered */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center">
-          <button
-            ref={referenceButtonRef}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const next = !showUnifiedPicker;
-              closeAllPanels();
-              setShowUnifiedPicker(next);
-            }}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            className={`px-3 sm:px-4 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
-                       border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center gap-1.5
-                       select-none whitespace-nowrap max-w-[40vw] sm:max-w-none
-                       ${showUnifiedPicker
-                         ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                         : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
-            aria-label={`Current location: ${bookInfo?.name || currentBook} ${currentChapter}:${currentVerse || 1}. Click to navigate.`}
-            aria-expanded={showUnifiedPicker}
-            aria-haspopup="dialog"
-          >
-            <span className="truncate">{bookInfo?.name || currentBook} {currentChapter}</span>
-            <svg className="w-3.5 h-3.5 flex-shrink-0 opacity-60" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
           </button>
         </div>
 
