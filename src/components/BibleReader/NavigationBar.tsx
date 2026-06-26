@@ -81,14 +81,17 @@ export function NavigationBar() {
 
   const bookInfo = getBookById(currentBook);
   
-  // Get translation abbreviation for display
+  // Get translation abbreviation(s) for the chip. With multiple translations
+  // selected, join their abbreviations (e.g. "NASB+ESV") rather than showing a
+  // bare count; the chip truncates if it gets long.
   const getTranslationAbbrev = () => {
     if (!activeView || activeView.translationIds.length === 0) return 'Select';
-    if (activeView.translationIds.length === 1) {
-      const trans = translations.find(t => t.id === activeView.translationIds[0]);
-      return trans?.abbreviation || trans?.id?.toUpperCase() || 'Bible';
-    }
-    return `${activeView.translationIds.length}`;
+    return activeView.translationIds
+      .map((id) => {
+        const trans = translations.find(t => t.id === id);
+        return trans?.abbreviation || trans?.id?.toUpperCase() || 'Bible';
+      })
+      .join('+');
   };
   
   // Seed the displayed verse from loaded chapter data — but only when the
