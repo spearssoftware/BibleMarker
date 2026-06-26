@@ -20,7 +20,7 @@ import { useInterpretationStore } from '@/stores/interpretationStore';
 import { useApplicationStore } from '@/stores/applicationStore';
 import { useEntityNoteStore } from '@/stores/entityNoteStore';
 import { isMarkingStyle } from '@/types';
-import { NavigationBar, FloatingChapterNav } from '@/components/BibleReader';
+import { NavigationBar } from '@/components/BibleReader';
 import { MultiTranslationView } from '@/components/BibleReader/MultiTranslationView';
 import { Toolbar } from '@/components/MarkingToolbar';
 import { SplitLayout, PanelContainer } from '@/components/SplitLayout';
@@ -335,7 +335,6 @@ export default function App() {
       {/* Main reading area with split panel */}
       <SplitLayout panel={<PanelContainer />}>
         <MultiTranslationView />
-        <FloatingChapterNav />
       </SplitLayout>
 
       {/* Bottom tab bar */}

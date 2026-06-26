@@ -569,9 +569,10 @@ export function MultiTranslationView() {
         </div>
       )}
 
-      {/* Translation headers - sticky (bg spans full width, content centered) */}
-      <div className="bg-scripture-elevated flex-shrink-0">
-       <div className={`grid gap-4 px-4 py-2 max-w-4xl mx-auto ${gridColsClass}`}>
+      {/* Translation headers - sticky */}
+      <div
+        className={`grid gap-4 px-4 py-2 bg-scripture-elevated flex-shrink-0 ${gridColsClass}`}
+      >
         {translationList.map(({ translation, isLoading, error }) => {
           const isFallback = error?.startsWith(KJV_FALLBACK_ERROR_PREFIX);
           return (
@@ -590,12 +591,11 @@ export function MultiTranslationView() {
             </div>
           );
         })}
-       </div>
       </div>
 
-      {/* Verse rows - scrollable container (content centered to a readable column) */}
+      {/* Verse rows - scrollable container */}
       <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchStart={(e) => { swipeTouchStart(e); cancelSelectionCapture(); }} onTouchMove={cancelSelectionCapture} onTouchEnd={(e) => { swipeTouchEnd(e); handleTouchEnd(); }}>
-          <div key={layoutKey} className={`px-4 py-4 space-y-1.5 max-w-4xl mx-auto`}>
+          <div key={layoutKey} className={`px-4 py-4 space-y-1.5`}>
             {sortedVerseNumbers.map(verseNum => {
               const heading = getHeadingBefore(verseNum);
               const verseNotes = getVerseNotes(verseNum);
