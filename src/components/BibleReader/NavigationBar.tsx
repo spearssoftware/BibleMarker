@@ -13,7 +13,13 @@ import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { Search } from '@/components/Search';
 import { TranslationPicker, UnifiedPicker } from './pickers';
 import { ExportPopover } from './ExportPopover';
-import { SyncStatusIndicator } from '@/components/shared';
+import {
+  ToolbarPopover,
+  SyncDetailsPanel,
+  useSyncStatus,
+  syncNeedsAttention,
+  getStatusColorClass,
+} from '@/components/shared';
 export function NavigationBar() {
   const {
     currentBook,
@@ -35,13 +41,21 @@ export function NavigationBar() {
   const [showVersePicker, setShowVersePicker] = useState(false);
   const [showUnifiedPicker, setShowUnifiedPicker] = useState(false);
   const [showExportPopover, setShowExportPopover] = useState(false);
+  const [showOverflowMenu, setShowOverflowMenu] = useState(false);
+  const [showSyncDetails, setShowSyncDetails] = useState(false);
 
   // Create refs for trigger buttons
   const translationButtonRef = useRef<HTMLButtonElement>(null);
   const referenceButtonRef = useRef<HTMLButtonElement>(null);
+  const overflowButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Sync state drives the overflow-menu attention dot + details panel.
+  const { status: syncStatus, isSyncing: syncIsSyncing, handleSync: syncHandleSync } = useSyncStatus();
+  const syncAvailable = !!syncStatus && syncStatus.state !== 'disabled';
+  const showSyncDot = syncAvailable && syncNeedsAttention(syncStatus.state);
 
   // Lock scroll when any picker is open (but not for dropdowns - they use lockScroll: false in useModal)
-  const anyPickerOpen = showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker || showUnifiedPicker || showExportPopover;
+  const anyPickerOpen = showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker || showUnifiedPicker || showExportPopover || showOverflowMenu || showSyncDetails;
   // Note: Individual pickers use useModal with lockScroll: false, so scroll locking here is optional
   // Keeping this commented for now as dropdowns shouldn't lock scroll
   // useScrollLock(anyPickerOpen);
@@ -205,6 +219,8 @@ export function NavigationBar() {
       setShowChapterPicker(false);
       setShowVersePicker(false);
       setShowUnifiedPicker(false);
+      setShowOverflowMenu(false);
+      setShowSyncDetails(false);
     };
 
     // Keyboard shortcut for search (Cmd/Ctrl+F)
@@ -228,6 +244,22 @@ export function NavigationBar() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount - loadActiveView is stable from zustand
+
+  const closeAllPanels = () => {
+    setShowTranslationPicker(false);
+    setShowBookPicker(false);
+    setShowChapterPicker(false);
+    setShowVersePicker(false);
+    setShowUnifiedPicker(false);
+    setShowOverflowMenu(false);
+    setShowExportPopover(false);
+    setShowSyncDetails(false);
+    setShowSearch(false);
+  };
+
+  const openSearch = () => { closeAllPanels(); setShowSearch(true); };
+  const openExport = () => { closeAllPanels(); setShowExportPopover(true); };
+  const openSync = () => { closeAllPanels(); setShowSyncDetails(true); };
 
   return (
     <>
@@ -296,11 +328,9 @@ export function NavigationBar() {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setShowTranslationPicker(!showTranslationPicker);
-                setShowBookPicker(false);
-                setShowChapterPicker(false);
-                setShowUnifiedPicker(false);
-                setShowSearch(false);
+                const next = !showTranslationPicker;
+                closeAllPanels();
+                setShowTranslationPicker(next);
               }}
               onMouseDown={(e) => {
                 e.preventDefault();
@@ -316,7 +346,7 @@ export function NavigationBar() {
                 ? `${activeView.translationIds.length} translation${activeView.translationIds.length !== 1 ? 's' : ''} selected. Click to change translations.`
                 : 'Select translation'}
               aria-expanded={showTranslationPicker}
-              aria-haspopup="listbox"
+              aria-haspopup="dialog"
             >
               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -333,12 +363,9 @@ export function NavigationBar() {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              setShowUnifiedPicker(!showUnifiedPicker);
-              setShowTranslationPicker(false);
-              setShowBookPicker(false);
-              setShowChapterPicker(false);
-              setShowVersePicker(false);
-              setShowSearch(false);
+              const next = !showUnifiedPicker;
+              closeAllPanels();
+              setShowUnifiedPicker(next);
             }}
             onMouseDown={(e) => {
               e.preventDefault();
@@ -361,59 +388,21 @@ export function NavigationBar() {
           </button>
         </div>
 
-        {/* Right side: Export, Search, and Next buttons */}
+        {/* Right side: Search (desktop), overflow menu, and Next */}
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-          {/* Sync status icon */}
-          <SyncStatusIndicator compact className="p-2 rounded-lg hover:bg-scripture-elevated touch-target" />
-          {/* Export / Share button — opens chapter export popover */}
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowExportPopover(true);
-              setShowTranslationPicker(false);
-              setShowBookPicker(false);
-              setShowChapterPicker(false);
-              setShowVersePicker(false);
-              setShowUnifiedPicker(false);
-              setShowSearch(false);
-            }}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            disabled={!exportTranslation || !exportChapter}
-            className={`p-2 rounded-lg transition-all duration-200 touch-target select-none
-                       disabled:opacity-30 disabled:cursor-not-allowed
-                       ${showExportPopover
-                         ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                         : 'hover:bg-scripture-elevated'}`}
-            aria-label="Export this page (print, save as PDF, or copy)"
-            title="Export this page"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4" />
-            </svg>
-          </button>
-
-          {/* Search button */}
+          {/* Search — visible on desktop; folded into the ⋯ menu on phone */}
           <button
             data-nav-search
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              setShowSearch(true);
-              setShowTranslationPicker(false);
-              setShowBookPicker(false);
-              setShowChapterPicker(false);
-              setShowVersePicker(false);
-              setShowUnifiedPicker(false);
+              openSearch();
             }}
             onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
             }}
-            className={`p-2 rounded-lg transition-all duration-200 touch-target select-none
+            className={`hidden sm:inline-flex p-2 rounded-lg transition-all duration-200 touch-target select-none
                        ${showSearch
                          ? 'bg-scripture-accent text-scripture-bg shadow-md'
                          : 'hover:bg-scripture-elevated'}`}
@@ -423,6 +412,42 @@ export function NavigationBar() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
+          </button>
+
+          {/* Overflow menu — secondary actions (export, sync, and search on phone) */}
+          <button
+            ref={overflowButtonRef}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const next = !showOverflowMenu;
+              closeAllPanels();
+              setShowOverflowMenu(next);
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            className={`relative p-2 rounded-lg transition-all duration-200 touch-target select-none
+                       ${showOverflowMenu
+                         ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                         : 'hover:bg-scripture-elevated'}`}
+            aria-label="More actions"
+            aria-haspopup="menu"
+            aria-expanded={showOverflowMenu}
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <circle cx="5" cy="12" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="19" cy="12" r="2" />
+            </svg>
+            {showSyncDot && syncStatus && (
+              <span
+                className={`absolute top-1 right-1 w-2 h-2 rounded-full bg-current ring-2 ring-scripture-surface
+                           ${getStatusColorClass(syncStatus.state)}`}
+                aria-hidden="true"
+              />
+            )}
           </button>
 
           {/* Next button */}
@@ -476,6 +501,7 @@ export function NavigationBar() {
       {/* TranslationPicker - rendered outside nav to escape backdrop-blur stacking context */}
       {showTranslationPicker && (
         <TranslationPicker
+          triggerRef={translationButtonRef}
           translations={translations}
           activeView={activeView}
           onSelect={async (translationId) => {
@@ -518,6 +544,7 @@ export function NavigationBar() {
       {/* UnifiedPicker - rendered outside nav to escape backdrop-blur stacking context */}
       {showUnifiedPicker && (
         <UnifiedPicker
+          triggerRef={referenceButtonRef}
           currentBook={currentBook}
           currentChapter={currentChapter}
           currentVerse={currentVerse || 1}
@@ -546,14 +573,87 @@ export function NavigationBar() {
         />
       )}
 
+      {/* Overflow menu — secondary actions, anchored under the ⋯ button */}
+      {showOverflowMenu && (
+        <ToolbarPopover
+          triggerRef={overflowButtonRef}
+          alignment="right"
+          width={232}
+          label="More actions"
+          onClose={() => setShowOverflowMenu(false)}
+          panelClassName="py-1"
+        >
+          <div role="menu" aria-label="More actions">
+            {/* Search — only here on phone; on desktop it sits on the bar */}
+            <button
+              role="menuitem"
+              onClick={openSearch}
+              className="sm:hidden w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left
+                         text-scripture-text hover:bg-scripture-elevated transition-colors min-h-[44px]"
+            >
+              <svg className="w-5 h-5 flex-shrink-0 text-scripture-muted" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              Search
+            </button>
+
+            <button
+              role="menuitem"
+              onClick={openExport}
+              disabled={!exportTranslation || !exportChapter}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left
+                         text-scripture-text hover:bg-scripture-elevated transition-colors min-h-[44px]
+                         disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Export this page (print, save as PDF, or copy)"
+            >
+              <svg className="w-5 h-5 flex-shrink-0 text-scripture-muted" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4" />
+              </svg>
+              Export page…
+            </button>
+
+            {syncAvailable && (
+              <button
+                role="menuitem"
+                onClick={openSync}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left
+                           text-scripture-text hover:bg-scripture-elevated transition-colors min-h-[44px]"
+              >
+                <span className={`relative flex-shrink-0 ${getStatusColorClass(syncStatus.state)}`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  {showSyncDot && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-current ring-2 ring-scripture-surface" aria-hidden="true" />
+                  )}
+                </span>
+                Sync &amp; account
+              </button>
+            )}
+          </div>
+        </ToolbarPopover>
+      )}
+
       {/* ExportPopover - chapter/range export to Print, PDF, or clipboard */}
       {showExportPopover && exportTranslation && exportChapter && (
         <ExportPopover
+          triggerRef={overflowButtonRef}
           translation={exportTranslation}
           book={exportChapter.book}
           chapter={exportChapter.chapter}
           verses={exportChapter.verses}
           onClose={() => setShowExportPopover(false)}
+        />
+      )}
+
+      {/* SyncDetailsPanel - opened from the ⋯ menu, anchored under the ⋯ button */}
+      {showSyncDetails && syncStatus && (
+        <SyncDetailsPanel
+          status={syncStatus}
+          onClose={() => setShowSyncDetails(false)}
+          onSync={syncHandleSync}
+          isSyncing={syncIsSyncing}
+          triggerRef={overflowButtonRef}
         />
       )}
     </>

@@ -4,19 +4,19 @@
  * Simple picker for selecting from installed SWORD modules + ESV.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type RefObject } from 'react';
 import { type ApiTranslation, hasModuleStrongs } from '@/lib/bible-api';
 import { getPreferences } from '@/lib/database';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
-import { useModal } from '@/hooks/useModal';
-import { ModalBackdrop } from '@/components/shared';
-import { Z_INDEX } from '@/lib/modalConstants';
+import { ToolbarPopover } from '@/components/shared';
 
 interface TranslationPickerProps {
   translations: ApiTranslation[];
   activeView?: { translationIds: string[] } | null;
   onSelect: (translationId: string) => void;
   onClose: () => void;
+  /** Toolbar button this popover anchors under (desktop). */
+  triggerRef: RefObject<HTMLElement | null>;
 }
 
 export function TranslationPicker({
@@ -24,15 +24,9 @@ export function TranslationPicker({
   activeView,
   onSelect,
   onClose,
+  triggerRef,
 }: TranslationPickerProps) {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-
-  const { handleBackdropClick } = useModal({
-    isOpen: true,
-    onClose,
-    lockScroll: false,
-    handleEscape: true,
-  });
 
   useEffect(() => {
     async function loadData() {
@@ -71,18 +65,14 @@ export function TranslationPicker({
   const otherTranslations = translations.filter((t) => !favorites.has(t.id));
 
   return (
-    <>
-      <ModalBackdrop onClick={handleBackdropClick} zIndex={Z_INDEX.BACKDROP} />
-
-      <div
-        className="fixed top-[60px] left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-full sm:max-w-sm
-                   bg-scripture-surface rounded-2xl shadow-modal dark:shadow-modal-dark animate-slide-down
-                   max-h-[70vh] flex flex-col mt-safe-top"
-        style={{ zIndex: Z_INDEX.MODAL }}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Select translation"
-      >
+    <ToolbarPopover
+      triggerRef={triggerRef}
+      alignment="left"
+      width={384}
+      label="Select translation"
+      onClose={onClose}
+      panelClassName="max-h-[70vh] flex flex-col"
+    >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-scripture-border/30 flex-shrink-0">
           <h2 className="text-lg font-semibold text-scripture-text">Select Translation</h2>
@@ -195,8 +185,7 @@ export function TranslationPicker({
             </div>
           )}
         </div>
-      </div>
-    </>
+    </ToolbarPopover>
   );
 }
 
