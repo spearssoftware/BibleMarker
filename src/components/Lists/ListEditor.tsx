@@ -117,6 +117,20 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
     return scoped;
   }, [presets, selectedStudyId, scopeBook, selectedKeywordId]);
 
+  const keywordOptions = useMemo(
+    () => [
+      { value: '', label: 'Select a keyword...' },
+      ...keywordPresets
+        .slice()
+        .sort((a, b) => (a.word ?? '').localeCompare(b.word ?? ''))
+        .map(preset => ({
+          value: preset.id,
+          label: `${preset.word}${preset.symbol ? ` (${preset.symbol})` : ''}`,
+        })),
+    ],
+    [keywordPresets]
+  );
+
   const formContent = (
     <>
       {inline && (
@@ -151,16 +165,7 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
                   value={selectedKeywordId}
                   onChange={handleKeywordChange}
                   placeholder="Select a keyword..."
-                  options={[
-                    { value: '', label: 'Select a keyword...' },
-                    ...keywordPresets
-                      .slice()
-                      .sort((a, b) => (a.word ?? '').localeCompare(b.word ?? ''))
-                      .map(preset => ({
-                        value: preset.id,
-                        label: `${preset.word}${preset.symbol ? ` (${preset.symbol})` : ''}`
-                      }))
-                  ]}
+                  options={keywordOptions}
                 />
                 {keywordPresets.length === 0 && (
                   <p className="mt-2 text-xs text-scripture-muted">
