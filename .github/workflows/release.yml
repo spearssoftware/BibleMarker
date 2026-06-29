@@ -15,7 +15,7 @@ jobs:
     container:
       image: ghcr.io/spearssoftware/biblemarker/ci-node:latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install dependencies
         run: pnpm install
       - name: Lint
@@ -34,7 +34,7 @@ jobs:
       release_id: ${{ steps.get-release-id.outputs.id }}
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: pnpm/action-setup@v6
@@ -91,7 +91,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download gnosis-lite.db
         run: |
@@ -353,7 +353,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Create and upload latest.json
         run: node scripts/create-latest-json.js app-v${{ needs.prepare.outputs.version }} ${{ needs.prepare.outputs.version }}
         env:
@@ -366,7 +366,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download gnosis-lite.db
         run: |
@@ -510,7 +510,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download gnosis-lite.db
         run: |
