@@ -4,13 +4,14 @@
  * Create or edit an observation list.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useListStore } from '@/stores/listStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
+import { filterPresetsByStudy } from '@/lib/studyFilter';
 import type { ObservationList } from '@/types';
-import { BIBLE_BOOKS, getBookById } from '@/types';
+import { BIBLE_BOOKS, getBookById, presetMatchesBook } from '@/types';
 import { Button, Modal, Input, DropdownSelect, Label } from '@/components/shared';
 
 interface ListEditorProps {
@@ -106,8 +107,22 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
     onSave();
   };
 
-  // Get keyword presets (only those with words)
-  const keywordPresets = presets.filter(p => p.word);
+  // Keyword presets relevant to this list's context: only those with words,
+  // scoped to the linked study (global + study keywords) and the selected book.
+  // The currently-selected keyword is always kept so editing an out-of-scope list works.
+  const keywordPresets = useMemo(() => {
+    const withWords = presets.filter(p => p.word);
+    const studyFiltered = filterPresetsByStudy(withWords, selectedStudyId || null);
+    const scoped = scopeBook
+      ? studyFiltered.filter(p => presetMatchesBook(p, scopeBook))
+      : studyFiltered;
+
+    if (selectedKeywordId && !scoped.some(p => p.id === selectedKeywordId)) {
+      const current = withWords.find(p => p.id === selectedKeywordId);
+      if (current) return [...scoped, current];
+    }
+    return scoped;
+  }, [presets, selectedStudyId, scopeBook, selectedKeywordId]);
 
   const formContent = (
     <>
