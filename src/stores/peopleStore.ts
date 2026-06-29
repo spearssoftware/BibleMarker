@@ -13,6 +13,8 @@ import type { VerseRef } from '@/types';
 import { validatePerson, sanitizeData, ValidationError } from '@/lib/validation';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 import { getSymbolsForTracker } from '@/lib/observationSymbols';
+import { resolvePersonDates } from '@/lib/gnosisPersonDates';
+import { getGnosisMode } from '@/lib/gnosis';
 
 interface PeopleState {
   people: Person[];
@@ -36,6 +38,25 @@ export const usePeopleStore = create<PeopleState>()(
       loadPeople: async () => {
         const all = await dbGetAllPeople();
         set({ people: all });
+
+        // Backfill life-dates from Gnosis for people that have none. Gated to
+        // local (offline) mode so we never fan out network calls on startup.
+        if (getGnosisMode() !== 'local') return;
+        const toBackfill = all.filter(p =>
+          p.yearStart == null && p.yearEnd == null && p.name.trim()
+        );
+        if (toBackfill.length === 0) return;
+        let changed = false;
+        for (const person of toBackfill) {
+          const dates = await resolvePersonDates(person.name);
+          if (!dates) continue;
+          await dbSavePerson({ ...person, ...dates, updatedAt: new Date() });
+          changed = true;
+        }
+        if (changed) {
+          const refreshed = await dbGetAllPeople();
+          set({ people: refreshed });
+        }
       },
 
       createPerson: async (name, verseRef, notes, presetId, annotationId, studyId) => {
@@ -54,6 +75,9 @@ export const usePeopleStore = create<PeopleState>()(
         });
         if (existing) return existing;
 
+        // Auto-resolve life-dates from Gnosis (mirrors place coordinate resolution).
+        const dates = await resolvePersonDates(name.trim());
+
         const newPerson: Person = {
           id: crypto.randomUUID(),
           name: name.trim(),
@@ -62,6 +86,7 @@ export const usePeopleStore = create<PeopleState>()(
           presetId,
           annotationId,
           studyId,
+          ...dates,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
