@@ -41,18 +41,23 @@ export async function resolvePersonDates(name: string): Promise<ResolvedPersonDa
   try {
     const { data } = await getGnosisProvider().searchPeople(trimmed, { limit: 25 });
     const exact = data.filter(p => p.name.trim().toLowerCase() === key);
-    // Only resolve when the name maps to exactly one Gnosis person — otherwise
-    // it's ambiguous and we'd risk attaching the wrong dates.
-    if (exact.length === 1) {
-      const start = toEraYear(exact[0].birthYear);
-      const end = toEraYear(exact[0].deathYear);
-      if (start || end) {
-        resolved = {
+    // Map each exact match to dates, preferring precise birth/death years but
+    // falling back to the span of years the person is mentioned (e.g. a
+    // prophet's ministry) — many figures have only the latter.
+    const dated = exact
+      .map(p => {
+        const start = toEraYear(p.birthYear) ?? toEraYear(p.earliestYearMentioned);
+        const end = toEraYear(p.deathYear) ?? toEraYear(p.latestYearMentioned);
+        if (!start && !end) return null;
+        return {
           ...(start && { yearStart: start.year, yearStartEra: start.era }),
           ...(end && { yearEnd: end.year, yearEndEra: end.era }),
-        };
-      }
-    }
+        } satisfies ResolvedPersonDates;
+      })
+      .filter((d): d is ResolvedPersonDates => d !== null);
+    // Use the dates only when a single exact match carries them — if two
+    // distinct people share the name and both have dates, it's ambiguous.
+    if (dated.length === 1) resolved = dated[0];
   } catch (error) {
     console.error('[resolvePersonDates] Failed:', error);
     resolved = null;
