@@ -4,13 +4,14 @@
  * Create or edit an observation list.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useListStore } from '@/stores/listStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
+import { filterPresetsByStudy } from '@/lib/studyFilter';
 import type { ObservationList } from '@/types';
-import { BIBLE_BOOKS, getBookById } from '@/types';
+import { BIBLE_BOOKS, getBookById, presetMatchesBook } from '@/types';
 import { Button, Modal, Input, DropdownSelect, Label } from '@/components/shared';
 
 interface ListEditorProps {
@@ -28,17 +29,10 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
   const [title, setTitle] = useState(list?.title || '');
   const [titleManuallyEdited, setTitleManuallyEdited] = useState(!!list?.title);
   const [selectedKeywordId, setSelectedKeywordId] = useState<string>(list?.keyWordId || '');
-  const [selectedStudyId, setSelectedStudyId] = useState<string>(list?.studyId || '');
-  const [scopeBook, setScopeBook] = useState<string>(list?.scope?.book || '');
+  // New lists default to the current study and book (book-scoped only, no chapter).
+  const [selectedStudyId, setSelectedStudyId] = useState<string>(list ? (list.studyId ?? '') : (activeStudyId ?? ''));
+  const [scopeBook, setScopeBook] = useState<string>(list ? (list.scope?.book ?? '') : (currentBook ?? ''));
   const [autoPopulate, setAutoPopulate] = useState(false);
-
-  useEffect(() => {
-    // If creating new list, default to current study and book (book-scoped only, no chapter)
-    if (!list) {
-      if (currentBook) queueMicrotask(() => setScopeBook(currentBook));
-      if (activeStudyId) queueMicrotask(() => setSelectedStudyId(activeStudyId));
-    }
-  }, [list, currentBook, activeStudyId]);
 
   // Auto-generate title when keyword is selected (only if user hasn't manually typed a title)
   const handleKeywordChange = (presetId: string) => {
@@ -106,8 +100,36 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
     onSave();
   };
 
-  // Get keyword presets (only those with words)
-  const keywordPresets = presets.filter(p => p.word);
+  // Keyword presets relevant to this list's context: only those with words,
+  // scoped to the linked study (global + study keywords) and the selected book.
+  // The currently-selected keyword is always kept so editing an out-of-scope list works.
+  const keywordPresets = useMemo(() => {
+    const withWords = presets.filter(p => p.word);
+    const studyFiltered = filterPresetsByStudy(withWords, selectedStudyId || null);
+    const scoped = scopeBook
+      ? studyFiltered.filter(p => presetMatchesBook(p, scopeBook))
+      : studyFiltered;
+
+    if (selectedKeywordId && !scoped.some(p => p.id === selectedKeywordId)) {
+      const current = withWords.find(p => p.id === selectedKeywordId);
+      if (current) return [...scoped, current];
+    }
+    return scoped;
+  }, [presets, selectedStudyId, scopeBook, selectedKeywordId]);
+
+  const keywordOptions = useMemo(
+    () => [
+      { value: '', label: 'Select a keyword...' },
+      ...keywordPresets
+        .slice()
+        .sort((a, b) => (a.word ?? '').localeCompare(b.word ?? ''))
+        .map(preset => ({
+          value: preset.id,
+          label: `${preset.word}${preset.symbol ? ` (${preset.symbol})` : ''}`,
+        })),
+    ],
+    [keywordPresets]
+  );
 
   const formContent = (
     <>
@@ -143,20 +165,13 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
                   value={selectedKeywordId}
                   onChange={handleKeywordChange}
                   placeholder="Select a keyword..."
-                  options={[
-                    { value: '', label: 'Select a keyword...' },
-                    ...keywordPresets
-                      .slice()
-                      .sort((a, b) => (a.word ?? '').localeCompare(b.word ?? ''))
-                      .map(preset => ({
-                        value: preset.id,
-                        label: `${preset.word}${preset.symbol ? ` (${preset.symbol})` : ''}`
-                      }))
-                  ]}
+                  options={keywordOptions}
                 />
                 {keywordPresets.length === 0 && (
                   <p className="mt-2 text-xs text-scripture-muted">
-                    No keywords yet. Create a keyword first from the toolbar.
+                    {presets.some(p => p.word)
+                      ? 'No keywords match this study and book. Try a different scope, or create a keyword from the toolbar.'
+                      : 'No keywords yet. Create a keyword first from the toolbar.'}
                   </p>
                 )}
                 {selectedKeywordId && !list && (
