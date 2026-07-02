@@ -17,9 +17,12 @@ import type { ObservationList, ObservationItem } from '@/types';
 import type { VerseRef } from '@/types';
 import { ListEditor } from '@/components/Lists/ListEditor';
 import { ConclusionTracker } from './ConclusionTracker';
+import { PeopleTracker } from './PeopleTracker';
+import { PlaceTracker } from './PlaceTracker';
+import { TimeTracker } from './TimeTracker';
 import { Button, Checkbox, ConfirmationDialog, Textarea } from '@/components/shared';
 
-export type ObservationTab = 'lists' | 'conclusions';
+export type ObservationTab = 'lists' | 'people' | 'places' | 'time' | 'flow';
 
 interface ObservationToolsPanelProps {
   onClose: () => void;
@@ -226,7 +229,10 @@ export function ObservationToolsPanel({
 
   const allTabs: { id: ObservationTab; label: string; icon: string }[] = [
     { id: 'lists', label: 'Lists', icon: '📝' },
-    { id: 'conclusions', label: 'Conclusions', icon: '→' },
+    { id: 'people', label: 'People', icon: '👤' },
+    { id: 'places', label: 'Places', icon: '📍' },
+    { id: 'time', label: 'Time', icon: '🕐' },
+    { id: 'flow', label: 'Flow', icon: '→' },
   ];
 
   const tabs = allTabs;
@@ -400,7 +406,10 @@ export function ObservationToolsPanel({
 
   const newButtonLabels: Record<ObservationTab, string> = {
     lists: '+ New List',
-    conclusions: '+ New Conclusion',
+    people: '+ New Person',
+    places: '+ New Place',
+    time: '+ New Time',
+    flow: '+ New Conclusion',
   };
 
   const isAnyCreatingOrEditing = activeTab === 'lists'
@@ -884,8 +893,41 @@ export function ObservationToolsPanel({
               </div>
             )}
           </div>
-        ) : activeTab === 'conclusions' ? (
-          <div role="tabpanel" id="observation-tabpanel-conclusions" aria-labelledby="observation-tab-conclusions">
+        ) : activeTab === 'people' ? (
+          <div role="tabpanel" id="observation-tabpanel-people" aria-labelledby="observation-tab-people">
+            <PeopleTracker
+              selectedText={selectedText}
+              verseRef={verseRef}
+              filterByChapter={filterByChapter}
+              isCreating={trackerIsCreating}
+              setIsCreating={setTrackerIsCreating}
+              onNavigate={handleNavigateToVerse}
+            />
+          </div>
+        ) : activeTab === 'places' ? (
+          <div role="tabpanel" id="observation-tabpanel-places" aria-labelledby="observation-tab-places">
+            <PlaceTracker
+              selectedText={selectedText}
+              verseRef={verseRef}
+              filterByChapter={filterByChapter}
+              isCreating={trackerIsCreating}
+              setIsCreating={setTrackerIsCreating}
+              onNavigate={handleNavigateToVerse}
+            />
+          </div>
+        ) : activeTab === 'time' ? (
+          <div role="tabpanel" id="observation-tabpanel-time" aria-labelledby="observation-tab-time">
+            <TimeTracker
+              selectedText={selectedText}
+              verseRef={verseRef}
+              filterByChapter={filterByChapter}
+              isCreating={trackerIsCreating}
+              setIsCreating={setTrackerIsCreating}
+              onNavigate={handleNavigateToVerse}
+            />
+          </div>
+        ) : activeTab === 'flow' ? (
+          <div role="tabpanel" id="observation-tabpanel-flow" aria-labelledby="observation-tab-flow">
             <ConclusionTracker
               selectedText={selectedText}
               verseRef={verseRef}
