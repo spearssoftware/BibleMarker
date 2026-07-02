@@ -8,7 +8,7 @@
  * "Mary" are left for manual entry rather than guessed.
  */
 
-import { isGnosisAvailable, getGnosisProvider } from '@/lib/gnosis';
+import { isGnosisAvailable, getGnosisProvider, getGnosisMode } from '@/lib/gnosis';
 
 export interface ResolvedPersonDates {
   yearStart?: number;
@@ -25,8 +25,10 @@ function toEraYear(signed: number | null): { year: number; era: 'BC' | 'AD' } | 
   return { year: signed, era: 'AD' };
 }
 
-// Cache by lowercased name so repeated lookups (same person across verses, or
-// across create + load-backfill) only hit Gnosis once per session.
+// Cache by mode + lowercased name so repeated lookups (same person across
+// verses, or across create + load-backfill) only hit Gnosis once per session.
+// Keying on the mode means a switch (e.g. local -> API, a richer dataset)
+// naturally re-resolves names previously cached as null under the old mode.
 const cache = new Map<string, ResolvedPersonDates | null>();
 
 export async function resolvePersonDates(name: string): Promise<ResolvedPersonDates | null> {
@@ -34,13 +36,14 @@ export async function resolvePersonDates(name: string): Promise<ResolvedPersonDa
   const trimmed = name.trim();
   if (!trimmed) return null;
 
-  const key = trimmed.toLowerCase();
-  if (cache.has(key)) return cache.get(key) ?? null;
+  const nameLower = trimmed.toLowerCase();
+  const cacheKey = `${getGnosisMode()}:${nameLower}`;
+  if (cache.has(cacheKey)) return cache.get(cacheKey) ?? null;
 
   let resolved: ResolvedPersonDates | null = null;
   try {
     const { data } = await getGnosisProvider().searchPeople(trimmed, { limit: 25 });
-    const exact = data.filter(p => p.name.trim().toLowerCase() === key);
+    const exact = data.filter(p => p.name.trim().toLowerCase() === nameLower);
     // Map each exact match to dates, preferring precise birth/death years but
     // falling back to the span of years the person is mentioned (e.g. a
     // prophet's ministry) — many figures have only the latter.
@@ -63,6 +66,6 @@ export async function resolvePersonDates(name: string): Promise<ResolvedPersonDa
     resolved = null;
   }
 
-  cache.set(key, resolved);
+  cache.set(cacheKey, resolved);
   return resolved;
 }

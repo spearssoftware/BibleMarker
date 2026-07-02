@@ -423,6 +423,7 @@ export function PeopleTracker({
                       onClick={(e) => { e.stopPropagation(); handleStartEditGroupYears(key); }}
                       className="px-2 py-1 text-xs text-scripture-muted hover:text-scripture-accent transition-colors rounded hover:bg-scripture-elevated shrink-0 flex items-center gap-1"
                       title="Add or edit life-dates (auto-filled from Gnosis when known)"
+                      aria-label={withYears ? 'Edit dates' : 'Add dates'}
                     >
                       <span aria-hidden="true">📅</span>
                       <span className="hidden sm:inline">{withYears ? 'Dates' : 'Add dates'}</span>

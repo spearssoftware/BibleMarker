@@ -75,7 +75,10 @@ export const usePeopleStore = create<PeopleState>()(
         });
         if (existing) return existing;
 
-        // Auto-resolve life-dates from Gnosis (mirrors place coordinate resolution).
+        // Auto-resolve life-dates from Gnosis (mirrors place coordinate
+        // resolution). Unlike the place resolver this is DB/network-bound, but
+        // it short-circuits when Gnosis is unavailable and is cached per name,
+        // so auto-populate pays at most one lookup per distinct name per chapter.
         const dates = await resolvePersonDates(name.trim());
 
         const newPerson: Person = {
