@@ -229,6 +229,17 @@ Prefer `--notes` over editing the draft on GitHub after the fact — the script 
 
 The script creates a `release/vX.Y.Z` branch with the version bump, pushes it, and opens a PR. When the PR is merged, the `release-tag` workflow automatically creates the `app-vX.Y.Z` tag, which triggers the publish workflow and creates a draft GitHub Release.
 
+### Prerelease gate (desktop)
+
+The publish workflow publishes every release as a **prerelease** (`gh release edit --draft=false --prerelease` in the `publish-release` job). GitHub's `/releases/latest` excludes prereleases, and that endpoint backs all three desktop update paths — the Tauri updater's `releases/latest/download/latest.json`, the in-app "update available" nudge, and the What's New popup (`src/lib/updateCheck.ts`). So a fresh release does **not** auto-ship to desktop/stable users; they stay on the last **promoted** release. iOS/TestFlight is a separate pipeline and is unaffected — you can cut a release to test on TestFlight without pushing desktop.
+
+**Promote to stable** when ready (makes it the target for desktop auto-update + What's New):
+- Run the `promote-release` workflow (Actions tab → promote-release → Run workflow) with the version (e.g. `3.1.3`), or
+- `gh release edit app-vX.Y.Z --prerelease=false --latest --repo spearssoftware/BibleMarker`, or
+- untick "Set as a pre-release" and tick "Set as the latest release" on the GitHub Release.
+
+Add the `## What's New` section to the release you promote (not necessarily the first prerelease) so the in-app popup shows it once it's live.
+
 Retagging (e.g. to add a hotfix):
 ```bash
 gh release delete app-vX.Y.Z --yes

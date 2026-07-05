@@ -1,0 +1,36 @@
+name: promote-release
+
+# Promote a gated (prerelease) release to the latest stable release.
+# Releases are published as prereleases by the `publish` workflow so they don't
+# auto-ship to desktop/stable users. Running this marks the given version as the
+# latest stable release, which makes it the target for the Tauri updater's
+# latest.json endpoint, the in-app update nudge, and the What's New popup.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to promote to stable (e.g. 3.1.3 — leading v / app-v optional)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Promote release to latest stable
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          INPUT: ${{ inputs.version }}
+        run: |
+          # Accept "3.1.3", "v3.1.3", or "app-v3.1.3" and normalize to the tag.
+          VER="${INPUT#app-v}"
+          VER="${VER#v}"
+          TAG="app-v${VER}"
+          echo "Promoting $TAG to latest stable in $REPO"
+          gh release edit "$TAG" --prerelease=false --latest --repo "$REPO"
+          echo "Done — $TAG is now the latest stable release."
