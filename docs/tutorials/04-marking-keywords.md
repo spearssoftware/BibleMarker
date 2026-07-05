@@ -1,44 +1,43 @@
 # 04 — Marking Keywords
 
-- **Length:** ~2 minutes
-- **Goal:** Teach the full key word workflow — create one, choose its look, add variants, apply it to pronouns, and control where it applies (scope).
-- **Audience:** New user who has the app open and understands the five tabs (Video 01).
-- **Prep:** Open to a passage with an obvious repeated word — e.g. John 1, where "Word", "light", and "life" repeat. A study can be active or not; call it out if it is.
+- **Length:** ~2 minutes (2:30 is fine — don't rush it)
+- **Goal:** Walk through marking one key word from start to finish: create it, give it a color and symbol, catch its other forms, mark a pronoun, and choose where it applies.
+- **Audience:** Someone who's watched Video 01 and knows where the five buttons are. May be nervous about "getting it wrong."
+- **Prep:** Open to a passage with an obvious repeated word — e.g. John 1, where "light" repeats. Start with **no active study** so the demo stays simple (see recorder notes).
 
 ## Flow
 
 | On screen | Voiceover |
 |-----------|-----------|
-| Reading view, John 1. Nothing marked. | "Key words are the backbone of BibleMarker. Let's mark one and see everything it can do." |
-| Highlight the word "light" in the text. The selection menu appears with the selected text shown in a chip. | "Select any word in the passage, and this menu pops up. To turn it into a key word, tap **➕ Key Word**." |
-| Tap **➕ Key Word**. The keyword form opens with "light" pre-filled in **Word or Phrase**. | "The word's already filled in for me under **Word or Phrase**." |
-| Under **Marking**, tap through **None**, **Underline**, **Highlight** — settle on **Highlight**. | "**Marking** controls how it looks in the text — nothing, an underline, or a full highlight. I'll pick **Highlight**." |
-| Tap **Color**, choose a color from the grid (e.g. gold). | "Pick a **Color**…" |
-| Tap **Symbol**, open the **Symbols** section, choose one (e.g. a sun). | "…and a **Symbol**, so the mark is easy to spot even at a glance." |
-| Tap **Save**. The passage updates — every "light" is now marked. | "Save it — and every 'light' in view lights up." |
-| Highlight "shines" (or another form). Selection menu opens; tap **➕ Add as Variant**, pick "light" from the list. | "Words change form. To catch 'shines' or 'shining' under the same key word, select it and choose **➕ Add as Variant**, then pick the key word it belongs to." |
-| Scroll to a verse with a pronoun referring to the key word (e.g. "him"). Highlight it. Selection menu opens; tap **🔑 Apply Key Word**, choose the key word. | "Pronouns matter too. When 'him' or 'it' points back to your key word, select it and tap **🔑 Apply Key Word** to mark that one spot — without adding 'him' as a variant everywhere." |
-| Go to the **Mark** tab. Show the key word in the list, grouped under **🌍 Global**. Open it for editing. | "Every key word lives in the **Mark** tab. Open one to fine-tune it." |
-| In the edit form, scroll to **Scope**. Show it reads "Global — matches in all books". Tap **+ Add Scope**, choose a **Book** (and optionally a **Ch.**). | "By default a key word is **Global** — it matches in every book. If a word only matters in the book you're studying, tap **+ Add Scope** and pin it to a book, or even a single chapter." |
-| Point to the **Study (Optional)** dropdown showing "Global (all studies)" and any study names. | "And if you keep separate studies, the **Study** dropdown ties this key word to just one of them." |
-| Tap **Save**. Return to the reading view, marks intact. | "That's the full loop — mark it, shape it, catch its variants and pronouns, and control exactly where it applies. This one habit is most of what you'll do in BibleMarker." |
+| Reading view, John 1. Nothing marked. Hold a moment. | "Marking a key word is the main thing you'll do in BibleMarker. Let's do one together, step by step. Don't worry about getting it perfect — everything here can be changed later." |
+| Slowly drag across the word "light" to highlight it. A little menu appears with the word shown at the top. Pause. | "Find a word you want to follow — I'll use the word 'light.' Drag your finger across it, and this little menu appears. To turn it into a key word, tap the button that says **Key Word**." |
+| Tap **➕ Key Word**. The form opens with "light" already filled in at the top under **Word or Phrase**. | "A form opens, and notice the word is already filled in for you — you don't have to type anything." |
+| Point to **Marking**. Tap **Highlight**. | "First, how should it look? Under **Marking**, I'll tap **Highlight** — just like a highlighter pen. You could also pick **Underline**, or **None** if you'd rather mark it only with a symbol." |
+| Tap **Color**. The colors open. Choose gold. Pause. | "Next, tap **Color** and pick one you like. I'll choose gold for 'light.'" |
+| Tap **Symbol**. Open the **Symbols** section. Choose a sun. Pause. | "You can also give it a little **Symbol** — a small picture that sits on the word. I'll pick a sun. This is optional, so skip it if you'd like." |
+| Tap **Save**. The passage updates — every "light" is now gold. Pause on the result. | "Now tap **Save**. And there it is — every place the word 'light' appears is marked, all at once." |
+| Drag across a different form of the word, e.g. "lights" or "lit". The menu appears. Tap **➕ Add as Variant**, then pick "light" from the list. Pause on each step. | "Sometimes the same word shows up in a slightly different form — like 'lights' instead of 'light.' To mark those the same way, select the word and tap **Add as Variant**. 'Variant' just means a different form of the same word. Then pick which key word it belongs to. Now they all match." |
+| Scroll to a verse where a pronoun stands in for the word (e.g. "it" referring to the light). Drag across "it." The menu appears. Tap **🔑 Apply Key Word**, choose "light." Pause. | "You can also mark a word like 'it' or 'him' when it's pointing back to your key word. Select it, tap **Apply Key Word**, and choose the key word. That marks just this one spot — it won't mark every 'it' in the Bible." |
+| Tap the **Mark** button along the bottom. Show "light" in the list. Tap it to open it for editing. | "All your key words are kept in the **Mark** button along the bottom. Tap any one to open it back up and make changes — remember, nothing is set in stone." |
+| In the form, scroll to **Scope**. Read it aloud: "Global — matches in all books." Tap **+ Add Scope**, choose a **Book**. Pause. | "One more thing. Near the bottom is **Scope**. Right now it says 'Global,' which means this key word is marked everywhere in the Bible. If your word only matters in the book you're studying, tap **+ Add Scope** and choose that book — and it'll only appear there." |
+| Tap **Save**. Return to the reading view with the marks intact. | "Tap **Save**, and you're done. That's the whole thing: mark a word, give it a color, catch its other forms and its pronouns, and decide where it should appear. Do this a few times and it'll feel like second nature." |
 
 ## Notes for the recorder
 
-- If a study is active when you create the key word, mention it: the **Study** field will default to that study, not Global. Either narrate it or clear the active study first for a clean "Global" demo.
-- The **Add as Variant** option only appears when at least one key word already exists and the selected text isn't a common pronoun — so mark the key word *before* trying to add a variant.
-- Cross-translation: if the "This translation only" checkbox appears in the apply/variant submenu, ignore it for this video (it's an advanced case).
+- **Keep it simple: no active study.** If a study is active, the form's **Study** field defaults to that study instead of "Global," which adds a concept we're not explaining here. Clear the active study before recording so **Scope** reads a clean "Global."
+- The **Add as Variant** button only shows up once at least one key word exists and the selected word isn't a common pronoun — so mark "light" *first*, then add the variant.
+- If a "This translation only" checkbox appears when applying a key word, ignore it — it's an advanced option we cover elsewhere.
+- Pause after every **Save** so viewers can see the result before you move on.
 
 ## YouTube description
 
-**Mark key words in BibleMarker — the core of inductive study.** Create a key word, style it with colors and symbols, catch its variants, apply it to pronouns, and control where it applies.
+**Mark your first key word in BibleMarker, step by step.** Follow a repeated word through a passage — give it a color, catch its other forms, mark the pronouns, and choose where it appears. Nothing you do is permanent.
 
 In this video:
-- Turn any word into a key word from the selection menu
-- Choose Marking (None / Underline / Highlight), Color, and Symbol
-- Add variants so different word forms share one key word
-- Apply a key word to a pronoun without over-marking
-- Set Scope — Global, a single book, or one chapter
-- Assign a key word to a specific study
+- Turn any word into a key word from the pop-up menu
+- Give it a Highlight (or Underline), a Color, and a Symbol
+- Add a "variant" so different forms of the word match
+- Mark a pronoun like "it" or "him" without over-marking
+- Use Scope to keep a key word in just one book
 
-▶ Next: People, Places & Time
+▶ Next: Following the People, Places & Time

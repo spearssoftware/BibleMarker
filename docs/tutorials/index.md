@@ -14,6 +14,22 @@ Every script uses the same shape:
 
 Keep each video to **one task**. If a sub-feature needs its own two minutes, give it its own video.
 
+## Tone & audience
+
+The audience is **older, less tech-savvy Bible study users** — many come from paper, highlighters,
+and colored pencils. Write and record accordingly:
+
+- **Plain words.** No jargon. Don't say "inductive," "workflow," "scope," or "UI." If the app
+  uses a word like "variants," say the exact label but explain it in plain terms right after.
+- **Say where things are.** "The row of buttons along the bottom of the screen," not "the nav bar."
+  Point and move slowly; assume they're following along on their own device.
+- **Reassure constantly.** "You can't break anything." "You can always change this later."
+  "If you tap the wrong thing, just tap Cancel." Fear of breaking something is the #1 blocker.
+- **One idea at a time.** Fewer steps, slower pace. It's fine for a "2-minute" video to run 2:30
+  if it means the viewer keeps up.
+- **Familiar analogies.** Colored pencils, highlighters, sticky notes, a notebook in the margin.
+- **No rushing the taps.** On screen, pause on each button after tapping so viewers can find it.
+
 ## Series
 
 Recommended viewing order. Status: `scripted` → `recorded` → `published`.
