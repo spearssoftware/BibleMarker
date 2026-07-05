@@ -323,7 +323,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
                               ? 'bg-scripture-accent text-scripture-bg'
                               : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'}`}
               >
-                🌍 Global
+                🌍 All Books
               </button>
               <button
                 onClick={() => setFilterScope('book')}
@@ -460,12 +460,12 @@ function KeywordListByScope({
 
   return (
     <div className="space-y-4">
-      {/* Global Keywords Section */}
+      {/* All Books Keywords Section */}
       {grouped.global.length > 0 && (
         <div className="border border-scripture-border/50 rounded-lg bg-scripture-surface/30 p-3">
           <div className="flex items-center gap-2 mb-3 pb-2 border-b border-scripture-border/30">
             <span className="text-lg">🌍</span>
-            <h3 className="text-sm font-semibold text-scripture-text">Global</h3>
+            <h3 className="text-sm font-semibold text-scripture-text">All Books</h3>
             <span className="text-xs text-scripture-muted ml-auto">
               {grouped.global.length} {grouped.global.length === 1 ? 'keyword' : 'keywords'}
             </span>
@@ -600,7 +600,7 @@ function KeyWordCard({
               </span>
             ) : (
               <span className="text-xs px-2 py-0.5 bg-scripture-elevated text-scripture-muted rounded">
-                🌐 Global
+                🌐 All Books
               </span>
             )}
             {preset.caseSensitive && (
@@ -795,7 +795,7 @@ function KeyWordEditor({
         />
 
         <div>
-          <Label>Variants</Label>
+          <Label>Also Matches</Label>
           <div className="space-y-2">
             {variants.map((variant, index) => (
               <VariantEditor
@@ -820,7 +820,7 @@ function KeyWordEditor({
               className="w-full sm:w-auto"
               onClick={() => setVariants([...variants, { text: '' }])}
             >
-              + Add Variant
+              + Add a Match
             </Button>
           </div>
         </div>
@@ -901,7 +901,7 @@ function KeyWordEditor({
             onChange={(val) => setStudyId(val || undefined)}
             helpText="Assign to a specific study"
             options={[
-              { value: '', label: 'Global (all studies)' },
+              { value: '', label: 'All Studies' },
               ...studies.map(study => ({
                 value: study.id,
                 label: study.name
@@ -930,7 +930,7 @@ function KeyWordEditor({
             Scope
           </label>
           {scopes.length === 0 ? (
-            <p className="text-sm text-scripture-muted mb-2">Global — matches in all books</p>
+            <p className="text-sm text-scripture-muted mb-2">Matches in all books</p>
           ) : (
             <div className="space-y-2 mb-2">
               {scopes.map((scope, index) => {
@@ -1008,7 +1008,7 @@ function KeyWordEditor({
                 size="sm"
                 onClick={() => setScopes([])}
               >
-                Make Global
+                Match in All Books
               </Button>
             )}
           </div>
@@ -1094,7 +1094,7 @@ function VariantEditor({
             type="text"
             value={variant.text}
             onChange={(e) => onChange({ ...variant, text: e.target.value })}
-            placeholder="Variant text"
+            placeholder="Matching word"
           />
         </div>
         <div className="flex items-center gap-3 text-xs">
@@ -1108,7 +1108,7 @@ function VariantEditor({
                 onChange={() => setScopeType(opt)}
                 className="w-3 h-3"
               />
-              <span className="capitalize">{opt}</span>
+              <span className="capitalize">{opt === 'global' ? 'all books' : opt}</span>
             </label>
           ))}
         </div>
@@ -1116,7 +1116,7 @@ function VariantEditor({
           type="button"
           onClick={onRemove}
           className="p-1.5 text-scripture-muted hover:text-scripture-error hover:bg-scripture-errorBg rounded transition-colors"
-          aria-label="Remove variant"
+          aria-label="Remove match"
         >
           <Trash size={16} weight="regular" />
         </button>

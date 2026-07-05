@@ -20,7 +20,7 @@ The audience is **older, less tech-savvy Bible study users** — many come from 
 and colored pencils. Write and record accordingly:
 
 - **Plain words.** No jargon. Don't say "inductive," "workflow," "scope," or "UI." If the app
-  uses a word like "variants," say the exact label but explain it in plain terms right after.
+  uses a word like "Scope," say the exact label but explain it in plain terms right after.
 - **Say where things are.** "The row of buttons along the bottom of the screen," not "the nav bar."
   Point and move slowly; assume they're following along on their own device.
 - **Reassure constantly.** "You can't break anything." "You can always change this later."
@@ -43,7 +43,7 @@ Recommended viewing order. Status: `scripted` → `recorded` → `published`.
 | 05 | People, Places & Time | [05-people-places-time.md](05-people-places-time.md) | ~2min | planned | — |
 | 06 | Lists & Flow | [06-lists-and-flow.md](06-lists-and-flow.md) | ~2min | planned | — |
 | 07 | The Analyze Tab | [07-analyze-tab.md](07-analyze-tab.md) | ~2min | planned | — |
-| 08 | The Reference Tab | [08-reference-tab.md](08-reference-tab.md) | ~90s | planned | — |
+| 08 | The Study Tools Tab | [08-reference-tab.md](08-reference-tab.md) | ~90s | planned | — |
 | 09 | Export & Share (PDF) | [09-export-and-share.md](09-export-and-share.md) | ~90s | planned | — |
 | 10 | Settings & Backups | [10-settings-and-backups.md](10-settings-and-backups.md) | ~2min | planned | — |
 
@@ -51,13 +51,13 @@ Recommended viewing order. Status: `scripted` → `recorded` → `published`.
 
 The bottom toolbar has five tabs — use these exact names in scripts:
 
-- **Mark** (✏️) — keywords: create, scope, variants, apply, appearance
+- **Key Words** (✏️) — keywords: create, scope, matches, apply, appearance
 - **Observe** (🔍) — Lists · People · Places · Time · Flow
 - **Analyze** (📊) — Chapter · Overview · Timeline · Places · Themes · Interpret · Apply
-- **Reference** (📖) — Chapter · Search · Strong's · Hebrew/Greek · Cross-Refs
-- **Settings** (⚙️) — Appearance · Bible · Data · Studies · Help
+- **Study Tools** (📖) — Chapter · Search · Strong's · Hebrew/Greek · Cross-Refs
+- **Settings** (⚙️) — Appearance · Bible · Backup & Sync · Studies · Help
 
 Export lives in the **navigation bar** (top), not a tab — the "Save as PDF" popover.
 
-> Note: there is **no Contrasts tracker** and the **Reference tab is research tools**, not the
+> Note: there is **no Contrasts tracker** and the **Study Tools tab is research tools**, not the
 > Bible reader. Don't script either as if they were something else.

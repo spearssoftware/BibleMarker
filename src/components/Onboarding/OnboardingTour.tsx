@@ -27,18 +27,18 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'reading',
     title: 'Bible Reading',
-    description: 'Read Scripture here. Select text to open the selection menu, where you can apply key words, add as a keyword variant, add to observation lists, or jump straight to Reference for the Strong’s entry or cross-references. Click verse numbers to add notes.',
+    description: 'Read Scripture here. Select text to open the selection menu, where you can apply key words, add a match to a key word, add to observation lists, or jump straight to Study Tools for the Strong’s entry or cross-references. Click verse numbers to add notes.',
     target: '[data-bible-reader]',
   },
   {
     id: 'toolbar',
     title: 'Marking Toolbar',
-    description: 'The toolbar opens Mark, Observe, Analyze, and Reference. All text marking flows through keywords for consistency across translations. Press 1–3 for quick access to Mark, Observe, and Analyze.',
+    description: 'The toolbar opens Key Words, Observe, Analyze, and Study Tools. All text marking flows through keywords for consistency across translations. Press 1–3 for quick access to Key Words, Observe, and Analyze.',
     target: '[data-marking-toolbar]',
   },
   {
     id: 'keywords',
-    title: 'Mark: Keyword, Variant, Apply',
+    title: 'Key Words: Keyword, Match, Apply',
     description: (
       <div className="space-y-2.5">
         <p>Three things to know:</p>
@@ -48,16 +48,16 @@ const TOUR_STEPS: TourStep[] = [
           <p className="ml-5 italic text-xs">Example: keyword <strong>&ldquo;God&rdquo;</strong> → every &ldquo;God&rdquo; auto-highlights.</p>
         </div>
         <div>
-          <div className="font-medium text-scripture-text">➕ Add as Variant</div>
+          <div className="font-medium text-scripture-text">➕ Add as a Match</div>
           <p className="ml-5">Adds another word to an existing keyword so it also auto-matches.</p>
-          <p className="ml-5 italic text-xs">Example: add <strong>&ldquo;LORD&rdquo;</strong> as a variant of &ldquo;God&rdquo; → both highlight everywhere.</p>
+          <p className="ml-5 italic text-xs">Example: add <strong>&ldquo;LORD&rdquo;</strong> as a match for &ldquo;God&rdquo; → both highlight everywhere.</p>
         </div>
         <div>
           <div className="font-medium text-scripture-text">🎯 Apply</div>
           <p className="ml-5">Marks just this one occurrence. Does <em>not</em> change what the keyword matches elsewhere.</p>
-          <p className="ml-5 italic text-xs">Example: in &ldquo;And <strong>He</strong> spoke…&rdquo; the &ldquo;He&rdquo; means Jesus. Apply the Jesus keyword to that &ldquo;He&rdquo; only. Not every &ldquo;He&rdquo; in the Bible refers to Jesus, so you don&rsquo;t want it as a variant.</p>
+          <p className="ml-5 italic text-xs">Example: in &ldquo;And <strong>He</strong> spoke…&rdquo; the &ldquo;He&rdquo; means Jesus. Apply the Jesus keyword to that &ldquo;He&rdquo; only. Not every &ldquo;He&rdquo; in the Bible refers to Jesus, so you don&rsquo;t want it as a match.</p>
         </div>
-        <p className="text-xs">Open Mark from the toolbar (✏️ or press 1).</p>
+        <p className="text-xs">Open Key Words from the toolbar (✏️ or press 1).</p>
       </div>
     ),
     target: '[data-toolbar-keywords]',
@@ -76,7 +76,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'reference',
-    title: 'Reference',
+    title: 'Study Tools',
     description: 'Look up the people, places, Strong’s entries, Hebrew/Greek words, and cross-references for what you’re reading. The Chapter tab shows everything tied to the current chapter; you can also lookup any word, verse, or Strong’s number directly from the selection menu. Access from the toolbar (book icon).',
     target: '[data-toolbar-reference]',
   },

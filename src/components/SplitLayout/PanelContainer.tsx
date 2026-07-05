@@ -9,10 +9,10 @@ import { SettingsPanel } from '@/components/Settings';
 import type { VerseRef } from '@/types';
 
 const PANEL_TITLES: Record<PanelType, string> = {
-  keywords: 'Mark',
+  keywords: 'Key Words',
   observe: 'Observe',
   analyze: 'Analyze',
-  reference: 'Reference',
+  reference: 'Study Tools',
   settings: 'Settings',
 };
 

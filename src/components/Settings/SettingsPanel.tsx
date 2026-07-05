@@ -597,7 +597,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
   const tabs: { id: SettingsTab; label: string; icon: string }[] = [
     { id: 'appearance', label: 'Appearance', icon: '🎨' },
     { id: 'bible', label: 'Bible', icon: '📖' },
-    { id: 'data', label: 'Data', icon: '💾' },
+    { id: 'data', label: 'Backup & Sync', icon: '💾' },
     { id: 'studies', label: 'Studies', icon: '📝' },
     { id: 'help', label: 'Help', icon: '❓' },
   ];
@@ -2106,7 +2106,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                       value={newStudyBook}
                       onChange={(value) => setNewStudyBook(value)}
                       options={[
-                        { value: '', label: 'All books (global study)' },
+                        { value: '', label: 'All books' },
                         ...BIBLE_BOOKS.map(book => ({ value: book.id, label: book.name }))
                       ]}
                     />
@@ -2193,7 +2193,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                                   )}
                                 </div>
                                 <div className="text-sm text-scripture-muted">
-                                  {study.book ? `Scoped to: ${getBookById(study.book)?.name || study.book}` : 'Global study'}
+                                  {study.book ? `Scoped to: ${getBookById(study.book)?.name || study.book}` : 'All books'}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">

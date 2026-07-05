@@ -29,10 +29,10 @@ import type { ObservationTab } from '@/components/Observation';
 import type { AnalyzeTab } from '@/components/Analyze';
 
 const TOOLS: { type: 'keywords' | 'observe' | 'analyze' | 'reference'; icon: string; label: string }[] = [
-  { type: 'keywords', icon: '✏️', label: 'Mark' },
+  { type: 'keywords', icon: '✏️', label: 'Key Words' },
   { type: 'observe', icon: '🔍', label: 'Observe' },
   { type: 'analyze', icon: '📊', label: 'Analyze' },
-  { type: 'reference', icon: '📖', label: 'Reference' },
+  { type: 'reference', icon: '📖', label: 'Study Tools' },
 ];
 
 export function Toolbar() {
@@ -220,7 +220,7 @@ export function Toolbar() {
     }
   };
 
-  // Add the selection as a variant to a key word and apply
+  // Add the selection as a match to a key word and apply
   const addToVariantsAndApply = async (preset: MarkingPreset) => {
     if (!selection) return;
     const trimmed = selection.text.trim();
