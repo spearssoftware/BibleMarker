@@ -619,7 +619,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Publish draft release
-        run: gh release edit "app-v${{ needs.prepare.outputs.version }}" --draft=false --repo "$GITHUB_REPOSITORY"
+      # Publish as a prerelease so it does NOT become the "latest" release.
+      # GitHub's /releases/latest (used by the Tauri updater's latest.json endpoint,
+      # the in-app update nudge, and the What's New popup) excludes prereleases, so
+      # desktop/stable users stay on the last promoted release. iOS/TestFlight is a
+      # separate pipeline and is unaffected. Promote with the promote-release workflow.
+      - name: Publish draft release as prerelease
+        run: gh release edit "app-v${{ needs.prepare.outputs.version }}" --draft=false --prerelease --repo "$GITHUB_REPOSITORY"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
