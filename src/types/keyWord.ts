@@ -125,9 +125,9 @@ export function presetMatchesVerse(preset: MarkingPreset, book: string, chapter:
   });
 }
 
-/** Human-readable scope label: "John 15, Gal 5" or "Global" */
+/** Human-readable scope label: "John 15, Gal 5" or "All Books" */
 export function scopeLabel(scopes?: PresetScope[]): string {
-  if (!scopes || scopes.length === 0) return 'Global';
+  if (!scopes || scopes.length === 0) return 'All Books';
   return scopes.map(s => {
     const bookInfo = getBookById(s.book);
     const name = bookInfo?.name || s.book;
@@ -142,7 +142,7 @@ const COMMON_PRONOUNS = new Set([
   'herself', 'itself', 'ourselves', 'yourselves', 'themselves',
 ]);
 
-/** True if the trimmed, lowercased text is a common pronoun. Used to hide "Add as variant" for pronouns. */
+/** True if the trimmed, lowercased text is a common pronoun. Used to hide "Add as a Match" for pronouns. */
 export function isCommonPronoun(text: string): boolean {
   const t = text.trim().toLowerCase();
   return t.length > 0 && COMMON_PRONOUNS.has(t);

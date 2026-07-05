@@ -98,8 +98,8 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                           <div className="text-xs italic mt-0.5">e.g. keyword <strong>&ldquo;God&rdquo;</strong> &rarr; every &ldquo;God&rdquo; lights up automatically.</div>
                         </li>
                         <li>
-                          <strong className="text-scripture-text">Add as Variant.</strong> Expands the keyword to also match a related word everywhere.
-                          <div className="text-xs italic mt-0.5">e.g. add <strong>&ldquo;LORD&rdquo;</strong> as a variant of &ldquo;God&rdquo; &rarr; both auto-highlight from then on.</div>
+                          <strong className="text-scripture-text">Add as a Match.</strong> Expands the keyword to also match a related word everywhere.
+                          <div className="text-xs italic mt-0.5">e.g. add <strong>&ldquo;LORD&rdquo;</strong> as a match for &ldquo;God&rdquo; &rarr; both auto-highlight from then on.</div>
                         </li>
                         <li>
                           <strong className="text-scripture-text">Apply.</strong> Marks <em>just this one occurrence</em>. Doesn&rsquo;t change what the keyword matches elsewhere.
@@ -122,7 +122,7 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                   <div className="flex gap-4">
                     <div className="text-2xl flex-shrink-0">{'\u{1F4D6}'}</div>
                     <div>
-                      <div className="font-medium text-scripture-text mb-1">Reference</div>
+                      <div className="font-medium text-scripture-text mb-1">Study Tools</div>
                       <p className="text-scripture-muted">
                         Look up Strong&rsquo;s entries, Hebrew/Greek roots, cross-references, and the people and places tied to your chapter. Open it from the toolbar or jump straight in from the selection menu.
                       </p>
@@ -147,7 +147,7 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                   <ul className="space-y-1.5 text-xs text-scripture-muted ml-4 list-disc">
                     <li>Select text to open the selection menu (mark, add to list, observe)</li>
                     <li>Use arrow keys or J/K to navigate between chapters</li>
-                    <li>Press 1{'\u{2013}'}3 for Mark, Observe, Analyze</li>
+                    <li>Press 1{'\u{2013}'}3 for Key Words, Observe, Analyze</li>
                     <li>Press Cmd/Ctrl+F to search</li>
                     <li>Click verse numbers to add notes</li>
                   </ul>

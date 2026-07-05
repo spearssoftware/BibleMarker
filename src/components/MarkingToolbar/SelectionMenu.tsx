@@ -195,7 +195,7 @@ export function SelectionMenu({
                    text-scripture-text placeholder:text-scripture-muted focus:outline-none focus:ring-2 focus:ring-scripture-accent"
       />
       <div className="max-h-[60vh] overflow-y-auto py-1.5 custom-scrollbar">
-        {renderScopeSection('Global', presetsByScope.global, action)}
+        {renderScopeSection('All Books', presetsByScope.global, action)}
         {renderScopeSection('Book', presetsByScope.book, action)}
         {renderScopeSection('Chapter', presetsByScope.chapter, action)}
       </div>
@@ -254,7 +254,7 @@ export function SelectionMenu({
             <span>Key Word</span>
           </button>
 
-            {/* Add as Variant */}
+            {/* Add as a Match */}
             {!isCommonPronoun(selection.text) && keywordPresets.length > 0 && (
               <div className="relative">
                 <button
@@ -272,12 +272,12 @@ export function SelectionMenu({
                              : 'bg-scripture-elevated hover:bg-scripture-border'
                            }`}
                   role="menuitem"
-                  aria-label="Add as variant"
+                  aria-label="Add as a match"
                   aria-expanded={showAddVariantSubmenu}
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-lg" aria-hidden="true">➕</span>
-                    <span>Add as Variant</span>
+                    <span>Add as a Match</span>
                   </div>
                   <span className="text-xs opacity-70 ml-2">▶</span>
                 </button>
@@ -386,10 +386,10 @@ export function SelectionMenu({
                      transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
                      hover:shadow-sm text-scripture-text"
             role="menuitem"
-            aria-label="Look up in reference"
+            aria-label="Look up in study tools"
           >
             <span className="text-lg" aria-hidden="true">📖</span>
-            <span>Reference</span>
+            <span>Study Tools</span>
           </button>
 
           {/* Divider */}

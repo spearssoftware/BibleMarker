@@ -195,7 +195,7 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
                 value={selectedStudyId}
                 onChange={setSelectedStudyId}
                 options={[
-                  { value: '', label: 'Global (all studies)' },
+                  { value: '', label: 'All Studies' },
                   ...studies.map(study => ({
                     value: study.id,
                     label: study.name

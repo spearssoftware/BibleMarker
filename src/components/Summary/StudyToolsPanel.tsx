@@ -191,7 +191,7 @@ export function StudyToolsPanel({ onClose: _onClose, initialTab = 'interpretatio
                       value={newStudyBook}
                       onChange={(value) => setNewStudyBook(value)}
                       options={[
-                        { value: '', label: 'All books (global study)' },
+                        { value: '', label: 'All books' },
                         ...BIBLE_BOOKS.map(book => ({
                           value: book.id,
                           label: book.name
@@ -277,7 +277,7 @@ export function StudyToolsPanel({ onClose: _onClose, initialTab = 'interpretatio
                                   )}
                                 </div>
                                 <div className="text-sm text-scripture-muted">
-                                  {study.book ? `Scoped to: ${getBookById(study.book)?.name || study.book}` : 'Global study'}
+                                  {study.book ? `Scoped to: ${getBookById(study.book)?.name || study.book}` : 'All books'}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">

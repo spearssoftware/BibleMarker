@@ -24,7 +24,7 @@ export function GettingStartedSection() {
           </div>
 
           <div>
-            <div className="font-medium text-scripture-text mb-2">✏️ Key Words: Keyword vs Variant vs Apply</div>
+            <div className="font-medium text-scripture-text mb-2">✏️ Key Words: Keyword vs Match vs Apply</div>
             <p className="text-scripture-muted mb-2">
               Three different actions, often confused. Here&rsquo;s how they differ:
             </p>
@@ -35,14 +35,14 @@ export function GettingStartedSection() {
                 <p className="italic text-[11px] mt-0.5">Example: create a keyword <strong>&ldquo;God&rdquo;</strong> → every &ldquo;God&rdquo; lights up automatically wherever it appears.</p>
               </div>
               <div>
-                <div className="font-medium text-scripture-text">➕ Add as Variant</div>
+                <div className="font-medium text-scripture-text">➕ Add as a Match</div>
                 <p>Expands an existing keyword so it also auto-matches another word.</p>
-                <p className="italic text-[11px] mt-0.5">Example: add <strong>&ldquo;LORD&rdquo;</strong> as a variant of &ldquo;God&rdquo; → from then on, both &ldquo;God&rdquo; and &ldquo;LORD&rdquo; highlight everywhere.</p>
+                <p className="italic text-[11px] mt-0.5">Example: add <strong>&ldquo;LORD&rdquo;</strong> as a match for &ldquo;God&rdquo; → from then on, both &ldquo;God&rdquo; and &ldquo;LORD&rdquo; highlight everywhere.</p>
               </div>
               <div>
                 <div className="font-medium text-scripture-text">🎯 Apply</div>
                 <p>Marks <em>just this one occurrence</em> with a keyword&rsquo;s color/symbol. Does <strong>not</strong> change what the keyword matches anywhere else.</p>
-                <p className="italic text-[11px] mt-0.5">Example: in &ldquo;And <strong>He</strong> spoke…&rdquo; the &ldquo;He&rdquo; refers to Jesus. Apply the Jesus keyword just to this &ldquo;He&rdquo;. Not every &ldquo;He&rdquo; in the Bible refers to Jesus, so you don&rsquo;t want it as a variant.</p>
+                <p className="italic text-[11px] mt-0.5">Example: in &ldquo;And <strong>He</strong> spoke…&rdquo; the &ldquo;He&rdquo; refers to Jesus. Apply the Jesus keyword just to this &ldquo;He&rdquo;. Not every &ldquo;He&rdquo; in the Bible refers to Jesus, so you don&rsquo;t want it as a match.</p>
               </div>
             </div>
             <p className="text-scripture-muted mt-3">
@@ -72,9 +72,9 @@ export function GettingStartedSection() {
           </div>
 
           <div>
-            <div className="font-medium text-scripture-text mb-2">📖 Reference</div>
+            <div className="font-medium text-scripture-text mb-2">📖 Study Tools</div>
             <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
-              <li>Open Reference (📖 from the toolbar) to look up information for what you&rsquo;re reading</li>
+              <li>Open Study Tools (📖 from the toolbar) to look up information for what you&rsquo;re reading</li>
               <li>📖 Chapter: every person, place, topic, and event tied to the current chapter</li>
               <li>🔎 Search: find any person, place, or topic across the reference data</li>
               <li>🔤 Strong&rsquo;s: Hebrew and Greek lexicon entries (also accessible from the selection menu)</li>

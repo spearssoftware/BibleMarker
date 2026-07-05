@@ -414,7 +414,7 @@ export function InterpretationWorksheet({ verseRef: initialVerseRef, isCreating,
             value={formStudyId}
             onChange={setFormStudyId}
             options={[
-              { value: '', label: 'No study (global)' },
+              { value: '', label: 'No study (all books)' },
               ...studies.map(study => ({ value: study.id, label: study.name }))
             ]}
           />
