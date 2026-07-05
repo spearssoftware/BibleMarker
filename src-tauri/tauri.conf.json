@@ -46,12 +46,12 @@
       "minimumSystemVersion": "10.13",
       "hardenedRuntime": true,
       "exceptionDomain": "",
-      "signingIdentity": "Developer ID Application: Kevin Spears (GRR34N6W9V)",
+      "signingIdentity": "Developer ID Application: Spears Software LLC (8699D47AJD)",
       "providerShortName": null,
       "entitlements": "entitlements.plist"
     },
     "iOS": {
-      "developmentTeam": "GRR34N6W9V"
+      "developmentTeam": "8699D47AJD"
     }
   },
   "plugins": {
