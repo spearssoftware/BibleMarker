@@ -25,12 +25,6 @@
         },
         {
           "path": "$DOWNLOAD/**"
-        },
-        {
-          "path": "$HOME/Library/Mobile Documents/iCloud~app~biblemarker/**"
-        },
-        {
-          "path": "/private/var/mobile/Library/Mobile Documents/iCloud~app~biblemarker/**"
         }
       ]
     },

@@ -11,7 +11,7 @@ BUNDLE_DIR="${1:-$ROOT_DIR/src-tauri/target/release/bundle/macos}"
 APP_NAME="BibleMarker"
 BINARY_NAME="biblemarker"
 ENTITLEMENTS="$ROOT_DIR/src-tauri/entitlements.plist"
-IDENTITY="${APPLE_SIGNING_IDENTITY:-Developer ID Application: Your Name (GRR34N6W9V)}"
+IDENTITY="${APPLE_SIGNING_IDENTITY:-Developer ID Application: Spears Software LLC (8699D47AJD)}"
 
 APP_PATH="$BUNDLE_DIR/$APP_NAME.app"
 BINARY_PATH="$APP_PATH/Contents/MacOS/$BINARY_NAME"
