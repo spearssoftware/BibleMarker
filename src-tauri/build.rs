@@ -12,8 +12,8 @@ fn main() {
     // (forks, Flathub) the key stays unset and NASB downloads are disabled with a
     // clear message — the intended behavior.
     println!("cargo:rerun-if-env-changed=NASB_SIGNING_KEY");
-    let key_file = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap_or_default())
-        .join("nasb_signing_key.txt");
+    let key_file =
+        Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap_or_default()).join("nasb_signing_key.txt");
     println!("cargo:rerun-if-changed={}", key_file.display());
 
     let key = env::var("NASB_SIGNING_KEY")
