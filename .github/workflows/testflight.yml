@@ -118,8 +118,15 @@ jobs:
               f.write(content)
           '
 
+      # Unique, increasing CFBundleVersion per build (epoch seconds) so every
+      # TestFlight upload of the same app version is a distinct build — otherwise
+      # App Store Connect rejects a re-upload with "bundle version already used".
       - name: Build iOS app
-        run: pnpm tauri ios build --export-method app-store-connect
+        run: |
+          BUILD_NUMBER=$(date +%s)
+          echo "CFBundleVersion (build number): $BUILD_NUMBER"
+          printf '{"bundle":{"iOS":{"bundleVersion":"%s"}}}' "$BUILD_NUMBER" > "$RUNNER_TEMP/bundle-version.json"
+          pnpm tauri ios build --export-method app-store-connect --config "$RUNNER_TEMP/bundle-version.json"
         env:
           CI: true
           APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
