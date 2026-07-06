@@ -126,6 +126,9 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APPLE_API_KEY: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APPLE_API_KEY_PATH: ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+          # Embed the NASB download signing key so TestFlight builds behave like the
+          # official app (NASB/NASB95 downloads work); release.yml sets this too.
+          NASB_SIGNING_KEY: ${{ secrets.NASB_SIGNING_KEY }}
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v7
