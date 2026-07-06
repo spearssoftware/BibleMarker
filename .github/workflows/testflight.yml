@@ -123,6 +123,9 @@ jobs:
       # App Store Connect rejects a re-upload with "bundle version already used".
       - name: Build iOS app
         run: |
+          # Xcode's Rust build phase doesn't inherit step env vars (tauri#13856),
+          # so write the NASB key to a file build.rs reads to embed it.
+          printf '%s' "$NASB_SIGNING_KEY" > src-tauri/nasb_signing_key.txt
           BUILD_NUMBER=$(date +%s)
           echo "CFBundleVersion (build number): $BUILD_NUMBER"
           printf '{"bundle":{"iOS":{"bundleVersion":"%s"}}}' "$BUILD_NUMBER" > "$RUNNER_TEMP/bundle-version.json"
