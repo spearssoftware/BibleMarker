@@ -1048,30 +1048,27 @@ export async function sqliteDeleteNote(id: string): Promise<void> {
 // Marking Preset Operations
 // ============================================================================
 
-export async function sqliteGetAllMarkingPresets(): Promise<MarkingPreset[]> {
-  const db = await getSqliteDb();
-  const rows = await db.select<
-    {
-      id: string;
-      word: string | null;
-      variants: string;
-      symbol: string | null;
-      highlight: string | null;
-      category: string | null;
-      description: string | null;
-      auto_suggest: number;
-      usage_count: number;
-      book_scope: string | null;
-      chapter_scope: number | null;
-      scopes: string | null;
-      module_scope: string | null;
-      study_id: string | null;
-      created_at: string;
-      updated_at: string;
-    }[]
-  >(`SELECT * FROM marking_presets`);
+interface MarkingPresetRow {
+  id: string;
+  word: string | null;
+  variants: string;
+  symbol: string | null;
+  highlight: string | null;
+  category: string | null;
+  description: string | null;
+  auto_suggest: number;
+  usage_count: number;
+  book_scope: string | null;
+  chapter_scope: number | null;
+  scopes: string | null;
+  module_scope: string | null;
+  study_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
-  return rows.map((row): MarkingPreset => ({
+function mapMarkingPresetRow(row: MarkingPresetRow): MarkingPreset {
+  return {
     id: row.id,
     word: row.word ?? undefined,
     variants: JSON.parse(row.variants),
@@ -1086,7 +1083,23 @@ export async function sqliteGetAllMarkingPresets(): Promise<MarkingPreset[]> {
     studyId: row.study_id ?? undefined,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
-  }));
+  };
+}
+
+export async function sqliteGetAllMarkingPresets(): Promise<MarkingPreset[]> {
+  const db = await getSqliteDb();
+  const rows = await db.select<MarkingPresetRow[]>(`SELECT * FROM marking_presets`);
+  return rows.map(mapMarkingPresetRow);
+}
+
+/** Single-row fetch by id — avoids loading + parsing the whole table on the marking hot path. */
+export async function sqliteGetMarkingPreset(id: string): Promise<MarkingPreset | undefined> {
+  const db = await getSqliteDb();
+  const rows = await db.select<MarkingPresetRow[]>(
+    `SELECT * FROM marking_presets WHERE id = ?`,
+    [id]
+  );
+  return rows[0] ? mapMarkingPresetRow(rows[0]) : undefined;
 }
 
 export async function sqliteSaveMarkingPreset(preset: MarkingPreset): Promise<string> {

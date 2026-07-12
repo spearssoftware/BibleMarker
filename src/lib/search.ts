@@ -6,6 +6,7 @@
 
 import {
   getAllCachedChapters,
+  getCachedChaptersForRef,
   getAllNotes,
   getAllSectionHeadings,
   getAllChapterTitles,
@@ -415,11 +416,7 @@ async function searchVerseReference(
       // Module not available
     }
   } else {
-    let allChapters = await getAllCachedChapters();
-    allChapters = allChapters.filter(c => c.book === verseRef.book && c.chapter === verseRef.chapter);
-    if (moduleId) {
-      allChapters = allChapters.filter(c => c.moduleId === moduleId);
-    }
+    const allChapters = await getCachedChaptersForRef(verseRef.book, verseRef.chapter, moduleId);
     for (const cached of allChapters) {
       const verseText = cached.verses[verseRef.verse];
       if (verseText) {
@@ -489,11 +486,7 @@ async function searchInChapter(
     })));
   } else {
     const normalizedQuery = query.toLowerCase();
-    let chapters = await getAllCachedChapters();
-    chapters = chapters.filter(c => c.book === book && c.chapter === chapter);
-    if (moduleId) {
-      chapters = chapters.filter(c => c.moduleId === moduleId);
-    }
+    const chapters = await getCachedChaptersForRef(book, chapter, moduleId);
     for (const chapterCache of chapters) {
       for (const [verseNum, verseText] of Object.entries(chapterCache.verses)) {
         const text = verseText as string;
@@ -504,8 +497,8 @@ async function searchInChapter(
           const end = Math.min(text.length, index + normalizedQuery.length + 50);
           results.push({
             type: 'verse',
-            book: chapterCache.book,
-            chapter: chapterCache.chapter,
+            book,
+            chapter,
             verse: parseInt(verseNum, 10),
             text,
             context: text.substring(start, end),

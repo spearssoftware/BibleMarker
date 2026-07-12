@@ -393,8 +393,8 @@ export async function getAllMarkingPresets(): Promise<MarkingPreset[]> {
 }
 
 export async function getMarkingPreset(id: string): Promise<MarkingPreset | undefined> {
-  const all = await getAllMarkingPresets();
-  return all.find(p => p.id === id);
+  const mod = await sqlite();
+  return mod.sqliteGetMarkingPreset(id);
 }
 
 export async function getMarkingPresetsByCategory(category: string): Promise<MarkingPreset[]> {
@@ -936,6 +936,27 @@ export async function getBookCachedChapters(
     result.set(row.chapter, JSON.parse(row.verses));
   }
   return result;
+}
+
+/**
+ * Cached chapters matching a single book+chapter (optionally one module),
+ * filtered in SQL. Avoids loading + JSON.parsing the entire chapter_cache
+ * table just to pick out one verse/chapter (search hot path).
+ */
+export async function getCachedChaptersForRef(
+  book: string,
+  chapter: number,
+  moduleId?: string
+): Promise<Array<{ moduleId: string; verses: Record<number, string> }>> {
+  const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const rows = await db.select<{ module_id: string; verses: string }[]>(
+    moduleId
+      ? `SELECT module_id, verses FROM chapter_cache WHERE book = ? AND chapter = ? AND module_id = ?`
+      : `SELECT module_id, verses FROM chapter_cache WHERE book = ? AND chapter = ?`,
+    moduleId ? [book, chapter, moduleId] : [book, chapter]
+  );
+  return rows.map(r => ({ moduleId: r.module_id, verses: JSON.parse(r.verses) }));
 }
 
 export async function clearChapterCache(): Promise<void> {
