@@ -105,59 +105,70 @@ function generateBackupFilename(): string {
 /**
  * Export all user data to a backup file
  */
+/**
+ * Assemble the common BackupData payload: all synced data, default preferences,
+ * and cleaned multi-translation views. Shared by exportBackup (manual export)
+ * and the auto-backup service so the field list lives in exactly one place —
+ * a table added to the backup used to require editing both call sites.
+ * Cached chapters are NOT included here; exportBackup adds those separately
+ * since the cache is outside the core data abstraction.
+ */
+export async function assembleBackupData(): Promise<BackupData> {
+  // Collect all data via database abstraction (routes to SQLite on native, IndexedDB on web)
+  const allData = await exportAllData();
+
+  // Ensure preferences exist
+  const prefs = allData.preferences || {
+    id: 'main',
+    marking: {
+      recentColors: [],
+      recentSymbols: [],
+      defaultTool: 'highlight',
+      defaultColor: 'yellow',
+      defaultSymbol: 'cross',
+      toolbarPosition: 'bottom',
+      showToolbarByDefault: true,
+    },
+    fontSize: 'base',
+    theme: 'dark',
+    favoriteTranslations: [],
+    recentTranslations: [],
+  };
+
+  // Clean up multi-translation views - remove primaryTranslationId if present (it's computed dynamically)
+  const cleanedMultiTranslationViews = allData.multiTranslationViews.map(view => {
+    const { primaryTranslationId: _pt, ...cleanedView } = view as MultiTranslationView & { primaryTranslationId?: string };
+    return cleanedView;
+  });
+
+  return {
+    version: APP_VERSION,
+    timestamp: new Date().toISOString(),
+    data: {
+      preferences: prefs,
+      annotations: allData.annotations,
+      sectionHeadings: allData.sectionHeadings,
+      chapterTitles: allData.chapterTitles,
+      notes: allData.notes,
+      markingPresets: allData.markingPresets,
+      studies: allData.studies,
+      multiTranslationViews: cleanedMultiTranslationViews,
+      observationLists: allData.observationLists,
+      timeExpressions: allData.timeExpressions,
+      places: allData.places,
+      people: allData.people,
+      conclusions: allData.conclusions,
+      interpretations: allData.interpretations,
+      applications: allData.applications,
+      entityNotes: allData.entityNotes,
+      keywordExclusions: allData.keywordExclusions,
+    },
+  };
+}
+
 export async function exportBackup(includeCache: boolean = false): Promise<string | void> {
   try {
-    // Collect all data via database abstraction (routes to SQLite on native, IndexedDB on web)
-    const allData = await exportAllData();
-
-    // Ensure preferences exist
-    const prefs = allData.preferences || {
-      id: 'main',
-      marking: {
-        recentColors: [],
-        recentSymbols: [],
-        defaultTool: 'highlight',
-        defaultColor: 'yellow',
-        defaultSymbol: 'cross',
-        toolbarPosition: 'bottom',
-        showToolbarByDefault: true,
-      },
-      fontSize: 'base',
-      theme: 'dark',
-      favoriteTranslations: [],
-      recentTranslations: [],
-    };
-
-    // Clean up multi-translation views - remove primaryTranslationId if present (it's computed dynamically)
-    const cleanedMultiTranslationViews = allData.multiTranslationViews.map(view => {
-      const { primaryTranslationId: _pt, ...cleanedView } = view as MultiTranslationView & { primaryTranslationId?: string };
-      return cleanedView;
-    });
-
-    // Prepare backup data
-    const backup: BackupData = {
-      version: APP_VERSION,
-      timestamp: new Date().toISOString(),
-      data: {
-        preferences: prefs,
-        annotations: allData.annotations,
-        sectionHeadings: allData.sectionHeadings,
-        chapterTitles: allData.chapterTitles,
-        notes: allData.notes,
-        markingPresets: allData.markingPresets,
-        studies: allData.studies,
-        multiTranslationViews: cleanedMultiTranslationViews,
-        observationLists: allData.observationLists,
-        timeExpressions: allData.timeExpressions,
-        places: allData.places,
-        people: allData.people,
-        conclusions: allData.conclusions,
-        interpretations: allData.interpretations,
-        applications: allData.applications,
-        entityNotes: allData.entityNotes,
-        keywordExclusions: allData.keywordExclusions,
-      },
-    };
+    const backup = await assembleBackupData();
 
     // Include cached chapters if requested (cache is not part of the main data abstraction)
     if (includeCache && !isTauri()) {
