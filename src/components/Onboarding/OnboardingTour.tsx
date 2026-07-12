@@ -321,7 +321,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     <>
       {/* Backdrop with cutout */}
       <div
-        className="fixed inset-0 z-[300] bg-black/60 transition-opacity"
+        className="fixed inset-0 z-[300] bg-scripture-scrim/60 transition-opacity"
         onClick={handleNext}
         style={{
           clipPath: highlightRect

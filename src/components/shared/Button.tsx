@@ -24,7 +24,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: 'bg-scripture-accent text-scripture-bg hover:bg-scripture-accent/90 active:bg-scripture-accent/80',
   secondary: 'bg-scripture-elevated text-scripture-text border border-scripture-border/50 hover:bg-scripture-border/50 active:bg-scripture-border',
-  destructive: 'bg-scripture-error text-white hover:bg-scripture-error/90 active:bg-scripture-error/80',
+  destructive: 'bg-scripture-error text-scripture-onAccent hover:bg-scripture-error/90 active:bg-scripture-error/80',
   ghost: 'bg-scripture-muted/20 text-scripture-text hover:bg-scripture-muted/30 active:bg-scripture-muted/40',
 };
 

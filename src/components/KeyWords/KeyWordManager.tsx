@@ -351,7 +351,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
 
       {/* Delete Confirmation Dialog */}
       {confirmDeleteId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-scripture-scrim/50 flex items-center justify-center z-50">
           <div className="bg-scripture-surface border border-scripture-border rounded-lg p-6 max-w-md mx-4 shadow-xl">
             <h3 className="text-lg font-semibold text-scripture-text mb-2">
               Delete Key Word?

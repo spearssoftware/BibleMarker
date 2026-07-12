@@ -681,7 +681,7 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
                                 <div className="flex items-center gap-1.5">
                                   <button
                                     onClick={() => handleSaveGroupYear(key, chGroup.key)}
-                                    className="px-3 py-1 text-xs bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
+                                    className="px-3 py-1 text-xs bg-scripture-accent text-scripture-onAccent rounded hover:bg-scripture-accent/90 transition-colors"
                                   >
                                     Save
                                   </button>

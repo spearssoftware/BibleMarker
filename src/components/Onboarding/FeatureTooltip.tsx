@@ -83,7 +83,7 @@ export function FeatureTooltip({
         <>
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 z-[250] bg-black/20"
+            className="fixed inset-0 z-[250] bg-scripture-scrim/20"
             onClick={handleDismiss}
           />
           

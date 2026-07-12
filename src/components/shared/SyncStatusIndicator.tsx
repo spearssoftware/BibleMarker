@@ -130,7 +130,7 @@ export function SyncStatusIndicator({
           disabled={isSyncing}
           className="
             px-2 py-1 text-xs rounded
-            bg-white/5 hover:bg-white/10
+            hover:bg-scripture-elevated
             text-scripture-muted hover:text-scripture-text
             disabled:opacity-50 disabled:cursor-not-allowed
             transition-colors
@@ -255,7 +255,7 @@ function SyncDetailsPanel({
               className="
                 px-4 py-2 text-sm rounded
                 bg-scripture-accent hover:bg-scripture-accent/80
-                text-white
+                text-scripture-onAccent
                 transition-colors
               "
             >
@@ -269,7 +269,7 @@ function SyncDetailsPanel({
               className="
                 px-4 py-2 text-sm rounded
                 bg-scripture-accent hover:bg-scripture-accent/80
-                text-white
+                text-scripture-onAccent
                 disabled:opacity-50 disabled:cursor-not-allowed
                 transition-colors
               "

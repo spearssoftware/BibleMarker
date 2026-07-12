@@ -447,7 +447,7 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef, isCreating, se
                       }}
                       className={`px-3 py-1.5 text-xs rounded transition-colors ${
                         isLinked
-                          ? 'bg-scripture-accent text-white'
+                          ? 'bg-scripture-accent text-scripture-onAccent'
                           : 'bg-scripture-surface text-scripture-text border border-scripture-border/50 hover:bg-scripture-border/50'
                       }`}
                     >

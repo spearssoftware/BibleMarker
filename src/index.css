@@ -115,10 +115,12 @@ select:focus-visible {
     --scripture-border: 198 198 200; /* #c6c6c8 in RGB format for opacity support */
     --scripture-separator: 198 198 200;
     --scripture-overlay-border: 198 198 200;
+    --scripture-scrim: 0 0 0; /* backdrop scrim behind menus/modals, in RGB format for opacity support */
     --scripture-text: #000000;
     --scripture-muted: #8e8e93;
     --scripture-accent: #007aff;
     --scripture-accent-muted: #0051d5;
+    --scripture-on-accent: #ffffff; /* text/icon color on filled accent/error/warning backgrounds */
     /* Theme-aware semantic colors - iOS style */
     --scripture-error: #ff3b30;
     --scripture-error-bg: #ffe5e3;
@@ -148,10 +150,12 @@ select:focus-visible {
     --scripture-border: 100 100 100; /* #646464 in RGB format for opacity support - lighter grey for better visibility */
     --scripture-separator: 100 100 100;
     --scripture-overlay-border: 100 100 100;
+    --scripture-scrim: 0 0 0;
     --scripture-text: #ffffff;
     --scripture-muted: #98989d;
     --scripture-accent: #0a84ff;
     --scripture-accent-muted: #409cff;
+    --scripture-on-accent: #ffffff;
     /* Theme-aware semantic colors - iOS dark mode */
     --scripture-error: #ff453a;
     --scripture-error-bg: #3d1f1f;
