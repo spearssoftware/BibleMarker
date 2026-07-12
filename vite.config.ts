@@ -23,7 +23,7 @@ export default defineConfig({
   },
   server: {
     host: true, // Allow access from local network (for iPad testing)
-    port: 5173, // Change this to your preferred port
+    port: 5273, // BibleMarker's dedicated dev port (5173 collides with other Vite apps)
     strictPort: false, // If true, will fail if port is in use; if false, will try next available port
     proxy: {
       // Proxy Biblia API requests to avoid CORS issues
