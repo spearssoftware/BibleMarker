@@ -152,6 +152,26 @@ async function ensureTablesExist(db: Database): Promise<void> {
       device_id TEXT
     )
   `);
+  // Auto-backup metadata tables (v2). Some DBs are missing these — the v2
+  // migration only runs when upgrading from < 2 — which silently broke all
+  // auto-backup metadata persistence (files were written to disk but never
+  // listed/restorable). Recreating them here lets those DBs self-heal.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS backup_files (
+      id TEXT PRIMARY KEY,
+      filename TEXT NOT NULL,
+      filepath TEXT,
+      timestamp TEXT NOT NULL,
+      size INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+  await db.execute(`CREATE INDEX IF NOT EXISTS idx_backup_files_timestamp ON backup_files(timestamp)`);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS backup_data (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL
+    )
+  `);
 }
 
 async function initializeSchema(db: Database): Promise<void> {
