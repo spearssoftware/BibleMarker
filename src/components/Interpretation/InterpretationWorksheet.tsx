@@ -541,12 +541,9 @@ export function InterpretationWorksheet({ verseRef: initialVerseRef, isCreating,
             <p className="text-scripture-muted text-xs mb-4">
               Use the interpretation worksheet to record insights about the meaning, context, and implications of scripture passages.
             </p>
-            <button
-              onClick={handleStartCreate}
-              className="px-4 py-2 bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-            >
+            <Button onClick={handleStartCreate}>
               Create Your First Entry
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="space-y-3">

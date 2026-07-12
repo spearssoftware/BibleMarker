@@ -76,6 +76,10 @@ export async function closeDatabase(): Promise<void> {
 
 export type { SyncDiagnostics } from './sqlite-db';
 
+// Re-export the synchronous device-id accessor so components import it from the
+// sanctioned database module rather than reaching into sqlite-db.ts directly.
+export { getDeviceId } from './sqlite-db';
+
 export async function getSyncDiagnostics() {
   const mod = await sqlite();
   return mod.getSyncDiagnostics();

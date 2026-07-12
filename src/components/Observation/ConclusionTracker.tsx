@@ -281,12 +281,9 @@ export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, fil
           <p className="text-scripture-muted text-xs mb-4">
             Record conclusion terms and logical flow you observe in the text. Use the → symbol to mark conclusion terms, then add details here.
           </p>
-          <button
-            onClick={() => setIsCreating(true)}
-            className="px-4 py-2 bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-          >
+          <Button onClick={() => setIsCreating(true)}>
             Create Your First Conclusion
-          </button>
+          </Button>
         </div>
       )}
 

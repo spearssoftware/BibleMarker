@@ -587,12 +587,9 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
           <p className="text-scripture-muted text-xs mb-4">
             Record time expressions and chronological sequences you observe in the text. Use the 🕐, 📅, or ⏳ symbols to mark time references, then add details here.
           </p>
-          <button
-            onClick={() => setIsCreating(true)}
-            className="px-4 py-2 bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-          >
+          <Button onClick={() => setIsCreating(true)}>
             Create Your First Time Expression
-          </button>
+          </Button>
         </div>
       )}
 
