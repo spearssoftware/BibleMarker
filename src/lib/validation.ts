@@ -14,6 +14,10 @@ import type { Place } from '@/types';
 import type { Person } from '@/types';
 import type { InterpretationEntry } from '@/types';
 import type { ApplicationEntry } from '@/types';
+import type { Conclusion } from '@/types';
+import type { TimeExpression } from '@/types';
+import type { EntityNote } from '@/types';
+import type { KeywordExclusion } from '@/types';
 import type { VerseRef } from '@/types';
 import { HIGHLIGHT_COLORS, isKnownSymbolKey } from '@/types';
 
@@ -516,6 +520,147 @@ export function validatePerson(person: unknown): Person {
   validateDate(p.createdAt, 'createdAt');
   validateDate(p.updatedAt, 'updatedAt');
   return p;
+}
+
+/**
+ * Validate a conclusion entry
+ */
+export function validateConclusion(conclusion: unknown): Conclusion {
+  if (!conclusion || typeof conclusion !== 'object') {
+    throw new ValidationError('Conclusion must be an object', 'conclusion', conclusion);
+  }
+  const c = conclusion as Conclusion;
+  if (typeof c.id !== 'string' || c.id.trim() === '') {
+    throw new ValidationError('Conclusion must have a valid id', 'id', c.id);
+  }
+  if (typeof c.term !== 'string' || c.term.trim() === '') {
+    throw new ValidationError('Conclusion must have a valid term', 'term', c.term);
+  }
+  validateVerseRef(c.verseRef);
+  if (c.notes !== undefined && typeof c.notes !== 'string') {
+    throw new ValidationError('Conclusion notes must be a string if provided', 'notes', c.notes);
+  }
+  if (c.presetId !== undefined && typeof c.presetId !== 'string') {
+    throw new ValidationError('Conclusion presetId must be a string if provided', 'presetId', c.presetId);
+  }
+  if (c.annotationId !== undefined && typeof c.annotationId !== 'string') {
+    throw new ValidationError('Conclusion annotationId must be a string if provided', 'annotationId', c.annotationId);
+  }
+  if (c.flowOrder !== undefined && typeof c.flowOrder !== 'number') {
+    throw new ValidationError('Conclusion flowOrder must be a number if provided', 'flowOrder', c.flowOrder);
+  }
+  validateDate(c.createdAt, 'createdAt');
+  validateDate(c.updatedAt, 'updatedAt');
+  return c;
+}
+
+/**
+ * Validate a time expression entry
+ */
+export function validateTimeExpression(expression: unknown): TimeExpression {
+  if (!expression || typeof expression !== 'object') {
+    throw new ValidationError('Time expression must be an object', 'expression', expression);
+  }
+  const t = expression as TimeExpression;
+  if (typeof t.id !== 'string' || t.id.trim() === '') {
+    throw new ValidationError('Time expression must have a valid id', 'id', t.id);
+  }
+  if (typeof t.expression !== 'string' || t.expression.trim() === '') {
+    throw new ValidationError('Time expression must have a valid expression', 'expression', t.expression);
+  }
+  validateVerseRef(t.verseRef);
+  if (t.notes !== undefined && typeof t.notes !== 'string') {
+    throw new ValidationError('Time expression notes must be a string if provided', 'notes', t.notes);
+  }
+  if (t.presetId !== undefined && typeof t.presetId !== 'string') {
+    throw new ValidationError('Time expression presetId must be a string if provided', 'presetId', t.presetId);
+  }
+  if (t.annotationId !== undefined && typeof t.annotationId !== 'string') {
+    throw new ValidationError('Time expression annotationId must be a string if provided', 'annotationId', t.annotationId);
+  }
+  if (t.studyId !== undefined && (typeof t.studyId !== 'string' || t.studyId.trim() === '')) {
+    throw new ValidationError('Time expression studyId must be a valid string if provided', 'studyId', t.studyId);
+  }
+  if (t.timeOrder !== undefined && typeof t.timeOrder !== 'number') {
+    throw new ValidationError('Time expression timeOrder must be a number if provided', 'timeOrder', t.timeOrder);
+  }
+  if (t.year !== undefined && typeof t.year !== 'number') {
+    throw new ValidationError('Time expression year must be a number if provided', 'year', t.year);
+  }
+  if (t.yearEra !== undefined && t.yearEra !== 'BC' && t.yearEra !== 'AD') {
+    throw new ValidationError('Time expression yearEra must be BC or AD if provided', 'yearEra', t.yearEra);
+  }
+  validateDate(t.createdAt, 'createdAt');
+  validateDate(t.updatedAt, 'updatedAt');
+  return t;
+}
+
+/**
+ * Validate an entity note
+ */
+export function validateEntityNote(note: unknown): EntityNote {
+  if (!note || typeof note !== 'object') {
+    throw new ValidationError('Entity note must be an object', 'note', note);
+  }
+  const n = note as EntityNote;
+  if (typeof n.id !== 'string' || n.id.trim() === '') {
+    throw new ValidationError('Entity note must have a valid id', 'id', n.id);
+  }
+  if (!['person', 'place', 'event', 'topic'].includes(n.entityType)) {
+    throw new ValidationError('Entity note must have a valid entityType', 'entityType', n.entityType);
+  }
+  if (typeof n.entitySlug !== 'string' || n.entitySlug.trim() === '') {
+    throw new ValidationError('Entity note must have a valid entitySlug', 'entitySlug', n.entitySlug);
+  }
+  if (typeof n.entityName !== 'string' || n.entityName.trim() === '') {
+    throw new ValidationError('Entity note must have a valid entityName', 'entityName', n.entityName);
+  }
+  if (typeof n.content !== 'string') {
+    throw new ValidationError('Entity note must have content', 'content', n.content);
+  }
+  if (n.studyId !== undefined && (typeof n.studyId !== 'string' || n.studyId.trim() === '')) {
+    throw new ValidationError('Entity note studyId must be a valid string if provided', 'studyId', n.studyId);
+  }
+  validateDate(n.createdAt, 'createdAt');
+  validateDate(n.updatedAt, 'updatedAt');
+  return n;
+}
+
+/**
+ * Validate a keyword exclusion
+ */
+export function validateKeywordExclusion(exclusion: unknown): KeywordExclusion {
+  if (!exclusion || typeof exclusion !== 'object') {
+    throw new ValidationError('Keyword exclusion must be an object', 'exclusion', exclusion);
+  }
+  const k = exclusion as KeywordExclusion;
+  if (typeof k.id !== 'string' || k.id.trim() === '') {
+    throw new ValidationError('Keyword exclusion must have a valid id', 'id', k.id);
+  }
+  if (typeof k.presetId !== 'string' || k.presetId.trim() === '') {
+    throw new ValidationError('Keyword exclusion must have a valid presetId', 'presetId', k.presetId);
+  }
+  if (typeof k.book !== 'string' || k.book.trim() === '') {
+    throw new ValidationError('Keyword exclusion must have a valid book', 'book', k.book);
+  }
+  if (typeof k.chapter !== 'number' || k.chapter < 1) {
+    throw new ValidationError('Keyword exclusion must have a valid chapter (>= 1)', 'chapter', k.chapter);
+  }
+  if (typeof k.verse !== 'number' || k.verse < 1) {
+    throw new ValidationError('Keyword exclusion must have a valid verse (>= 1)', 'verse', k.verse);
+  }
+  if (typeof k.matchedText !== 'string' || k.matchedText.trim() === '') {
+    throw new ValidationError('Keyword exclusion must have valid matchedText', 'matchedText', k.matchedText);
+  }
+  if (k.startOffset !== undefined && typeof k.startOffset !== 'number') {
+    throw new ValidationError('Keyword exclusion startOffset must be a number if provided', 'startOffset', k.startOffset);
+  }
+  if (k.studyId !== undefined && (typeof k.studyId !== 'string' || k.studyId.trim() === '')) {
+    throw new ValidationError('Keyword exclusion studyId must be a valid string if provided', 'studyId', k.studyId);
+  }
+  validateDate(k.createdAt, 'createdAt');
+  validateDate(k.updatedAt, 'updatedAt');
+  return k;
 }
 
 /**

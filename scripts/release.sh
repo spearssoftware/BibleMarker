@@ -87,7 +87,7 @@ fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 
 pnpm run version:sync
 
-git add package.json src-tauri/Cargo.toml
+git add package.json src-tauri/Cargo.toml src-tauri/Cargo.lock
 # Also stage iOS/Xcode files if they were modified
 git add src-tauri/gen/apple/biblemarker_iOS/Info.plist 2>/dev/null || true
 git add src-tauri/gen/apple/project.yml 2>/dev/null || true

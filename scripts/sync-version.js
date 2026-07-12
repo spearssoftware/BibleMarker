@@ -21,6 +21,19 @@ cargo = cargo.replace(/^version\s*=\s*"[^"]*"/m, `version = "${version}"`);
 writeFileSync(cargoPath, cargo);
 console.log(`Synced version ${version} to src-tauri/Cargo.toml`);
 
+// Sync to Cargo.lock (the biblemarker package entry), so the committed lockfile
+// matches Cargo.toml without needing cargo installed to regenerate it.
+const cargoLockPath = join(root, 'src-tauri', 'Cargo.lock');
+if (existsSync(cargoLockPath)) {
+  let lock = readFileSync(cargoLockPath, 'utf-8');
+  lock = lock.replace(
+    /(\[\[package\]\]\nname = "biblemarker"\nversion = ")[^"]*(")/,
+    `$1${version}$2`
+  );
+  writeFileSync(cargoLockPath, lock);
+  console.log(`Synced version ${version} to src-tauri/Cargo.lock`);
+}
+
 // Sync to iOS Info.plist
 const iosInfoPath = join(root, 'src-tauri', 'gen', 'apple', 'biblemarker_iOS', 'Info.plist');
 if (existsSync(iosInfoPath)) {

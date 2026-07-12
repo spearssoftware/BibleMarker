@@ -549,7 +549,7 @@ export async function getAllObservationLists(): Promise<ObservationList[]> {
 
 export async function saveObservationList(list: ObservationList): Promise<string> {
   const mod = await sqlite();
-  const result = await mod.sqliteSaveToTable('observation_lists', list);
+  const result = await mod.sqliteSaveToTableWithStudyId('observation_lists', list, list.studyId);
   await logChange('observation_lists', 'upsert', list.id, list);
   return result;
 }
@@ -669,7 +669,7 @@ export async function getAllInterpretations(): Promise<InterpretationEntry[]> {
 
 export async function saveInterpretation(entry: InterpretationEntry): Promise<string> {
   const mod = await sqlite();
-  const result = await mod.sqliteSaveToTable('interpretations', entry);
+  const result = await mod.sqliteSaveToTableWithStudyId('interpretations', entry, entry.studyId);
   await logChange('interpretations', 'upsert', entry.id, entry);
   return result;
 }
@@ -688,7 +688,7 @@ export async function getAllApplications(): Promise<ApplicationEntry[]> {
 
 export async function saveApplication(entry: ApplicationEntry): Promise<string> {
   const mod = await sqlite();
-  const result = await mod.sqliteSaveToTable('applications', entry);
+  const result = await mod.sqliteSaveToTableWithStudyId('applications', entry, entry.studyId);
   await logChange('applications', 'upsert', entry.id, entry);
   return result;
 }
