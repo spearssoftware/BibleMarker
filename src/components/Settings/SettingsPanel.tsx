@@ -1156,7 +1156,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                     aria-label="Toggle high contrast mode"
                   >
                     <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-scripture-onAccent shadow ring-0 transition duration-200 ease-in-out ${
                         highContrast ? 'translate-x-5' : 'translate-x-0'
                       }`}
                     />
@@ -1700,7 +1700,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                       <div className="flex gap-3">
                         <button
                           onClick={handleRestore}
-                          className="flex-1 px-3 py-2 bg-scripture-warning text-white rounded-lg hover:bg-scripture-warning/90 
+                          className="flex-1 px-3 py-2 bg-scripture-warning text-scripture-onAccent rounded-lg hover:bg-scripture-warning/90
                                    transition-all duration-200 font-ui text-sm shadow-md"
                         >
                           ⚠️ Restore Backup

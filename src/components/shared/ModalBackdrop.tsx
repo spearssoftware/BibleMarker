@@ -21,7 +21,7 @@ export function ModalBackdrop({
 }: ModalBackdropProps) {
   return (
     <div
-      className={`fixed inset-0 bg-black/40 ${className}`}
+      className={`fixed inset-0 bg-scripture-scrim/40 ${className}`}
       style={{ zIndex }}
       onClick={onClick}
       aria-hidden="true"

@@ -206,7 +206,7 @@ export function SelectionMenu({
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 z-40 bg-black/20" 
+        className="fixed inset-0 z-40 bg-scripture-scrim/20" 
         onClick={onClose}
         aria-hidden="true"
       />

@@ -51,7 +51,7 @@ export function Overlay({
     <>
       {showBackdrop && (
         <div
-          className="fixed inset-0 bg-black/40"
+          className="fixed inset-0 bg-scripture-scrim/40"
           style={{ zIndex: zIndex - 1 }}
           onClick={handleBackdropClick}
           aria-hidden="true"
