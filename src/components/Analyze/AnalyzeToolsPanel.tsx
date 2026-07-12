@@ -17,7 +17,7 @@ import { usePlaceStore } from '@/stores/placeStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useChapterEntities, useGnosisEntity } from '@/hooks/useGnosis';
-import { Checkbox } from '@/components/shared';
+import { Button, Checkbox } from '@/components/shared';
 import type { GnosisPlace, Place, VerseRef } from '@/types';
 
 export type AnalyzeTab = 'overview' | 'chapter' | 'themes' | 'timeline' | 'places-map' | 'interpretation' | 'application';
@@ -123,13 +123,13 @@ export function AnalyzeToolsPanel({
       {(activeTab === 'places-map' || activeTab === 'timeline' || activeTab === 'interpretation' || activeTab === 'application') && (
         <div className="flex items-center gap-3 px-4 py-2 flex-shrink-0 border-b border-scripture-border/30">
           {(activeTab === 'interpretation' || activeTab === 'application') && (
-            <button
+            <Button
+              size="sm"
               onClick={() => setIsCreating(true)}
               disabled={isCreating || isEditing}
-              className="px-3 py-1.5 text-sm bg-scripture-accent text-scripture-bg rounded hover:bg-scripture-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {activeTab === 'interpretation' ? '+ New Interpretation' : '+ New Entry'}
-            </button>
+            </Button>
           )}
           {activeTab === 'timeline' ? (
             <Checkbox
