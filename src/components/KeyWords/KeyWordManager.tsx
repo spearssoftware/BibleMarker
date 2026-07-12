@@ -17,6 +17,7 @@ import { useAnnotationStore } from '@/stores/annotationStore';
 import { Input, Textarea, Label, DropdownSelect, Checkbox, Button, SegmentedControl } from '@/components/shared';
 import { getBookById, BIBLE_BOOKS } from '@/types';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
+import { toast } from '@/stores/toastStore';
 
 /** A word/phrase counts as multi-word when it has 2+ whitespace-separated tokens. */
 function isMultiWordText(text: string): boolean {
@@ -148,11 +149,11 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
     try {
       // Must produce something visible: a symbol, or a decoration that has a color.
       if (!formData.symbol && formData.marking === 'none') {
-        alert('Add a symbol, an underline, or a highlight.');
+        toast.error('Add a symbol, an underline, or a highlight.');
         return;
       }
       if (formData.marking !== 'none' && !formData.color) {
-        alert('Pick a color for the underline or highlight.');
+        toast.error('Pick a color for the underline or highlight.');
         return;
       }
       // Keep highlight present (carrying color) so the symbol stays tinted even when
@@ -199,7 +200,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
       handleCancel();
     } catch (error) {
       console.error('Failed to save key word:', error);
-      alert('Failed to save key word. Please try again.');
+      toast.error('Failed to save key word. Please try again.');
     }
   }
 
@@ -226,7 +227,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
       await removePreset(idToDelete);
     } catch (error) {
       console.error('Failed to delete key word:', error);
-      alert('Failed to delete key word. Please try again.');
+      toast.error('Failed to delete key word. Please try again.');
     } finally {
       setDeletingId(null);
     }
@@ -754,7 +755,7 @@ function KeyWordEditor({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!word.trim()) {
-      alert('Please enter a word or phrase');
+      toast.error('Please enter a word or phrase');
       return;
     }
 

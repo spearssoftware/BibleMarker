@@ -15,6 +15,7 @@ import type { TimeExpression } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
 import { Button, ConfirmationDialog, Input, Textarea } from '@/components/shared';
+import { toast } from '@/stores/toastStore';
 
 function highlightWords(text: string, words: string[]): React.ReactNode {
   const filtered = words.filter(w => w.trim());
@@ -322,7 +323,7 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
   const handleCreate = async () => {
     const verseRef = getCurrentVerseRef();
     if (!verseRef || !newExpression.trim()) {
-      alert('Please fill in the time expression and ensure you have a verse reference.');
+      toast.error('Please fill in the time expression and ensure you have a verse reference.');
       return;
     }
 
@@ -367,7 +368,7 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
 
   const handleSaveEdit = async (timeExpressionId: string) => {
     if (!editingExpression.trim()) {
-      alert('Time expression is required.');
+      toast.error('Time expression is required.');
       return;
     }
 

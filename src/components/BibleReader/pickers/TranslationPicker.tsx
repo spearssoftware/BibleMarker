@@ -9,6 +9,7 @@ import { type ApiTranslation, hasModuleStrongs } from '@/lib/bible-api';
 import { getPreferences } from '@/lib/database';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { ToolbarPopover } from '@/components/shared';
+import { confirmDialog } from '@/stores/confirmDialogStore';
 
 interface TranslationPickerProps {
   translations: ApiTranslation[];
@@ -97,7 +98,7 @@ export function TranslationPicker({
                 </div>
                 <button
                   onClick={async () => {
-                    if (confirm('Clear all selected translations?')) {
+                    if (await confirmDialog({ title: 'Clear translations', message: 'Clear all selected translations?', confirmLabel: 'Clear All' })) {
                       await useMultiTranslationStore.getState().clearView();
                     }
                   }}

@@ -14,6 +14,7 @@ import { formatVerseRef } from '@/types';
 import { stripSymbols } from '@/lib/textUtils';
 import { useModal } from '@/hooks/useModal';
 import { Modal, Button, Textarea, DropdownSelect, ReadOnlyField, Input } from '@/components/shared';
+import { toast } from '@/stores/toastStore';
 
 interface AddToListProps {
   verseRef: VerseRef;
@@ -107,12 +108,12 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
 
   const handleAdd = async () => {
     if (!effectiveListId) {
-      alert('Please select a list');
+      toast.error('Please select a list');
       return;
     }
 
     if (!observationText.trim()) {
-      alert('Please enter an observation');
+      toast.error('Please enter an observation');
       return;
     }
 
@@ -130,15 +131,15 @@ export function AddToList({ verseRef, selectedText, annotationId, onClose, onAdd
 
   const handleCreateAndAdd = async () => {
     if (!newListTitle.trim()) {
-      alert('Please enter a list title');
+      toast.error('Please enter a list title');
       return;
     }
     if (!newListKeywordId) {
-      alert('Please select a keyword. Observation lists are about specific keywords.');
+      toast.error('Please select a keyword. Observation lists are about specific keywords.');
       return;
     }
     if (!observationText.trim()) {
-      alert('Please enter an observation');
+      toast.error('Please enter an observation');
       return;
     }
 

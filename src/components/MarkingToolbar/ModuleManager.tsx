@@ -20,6 +20,7 @@ import {
   type ApiTranslation,
 } from '@/lib/bible-api';
 import { Modal, Button } from '@/components/shared';
+import { confirmDialog } from '@/stores/confirmDialogStore';
 
 interface ModuleManagerProps {
   onClose: () => void;
@@ -84,7 +85,7 @@ export function ModuleManager({ onClose, onTranslationsUpdated }: ModuleManagerP
   }
 
   async function handleDeleteModule(moduleId: string) {
-    if (!confirm('Remove this Bible module? You can re-download it later.')) return;
+    if (!(await confirmDialog({ title: 'Remove module', message: 'Remove this Bible module? You can re-download it later.', confirmLabel: 'Remove' }))) return;
     try {
       await deleteModule(moduleId);
       setModuleStatuses(prev => ({ ...prev, [moduleId]: 'not-installed' }));

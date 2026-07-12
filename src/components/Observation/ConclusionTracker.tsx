@@ -11,6 +11,7 @@ import type { Conclusion } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
 import { Button, ConfirmationDialog, Input, Textarea } from '@/components/shared';
+import { toast } from '@/stores/toastStore';
 
 interface ConclusionTrackerProps {
   selectedText?: string;
@@ -123,7 +124,7 @@ export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, fil
   const handleCreate = async () => {
     const verseRef = getCurrentVerseRef();
     if (!verseRef || !newTerm.trim()) {
-      alert('Please fill in the conclusion term and ensure you have a verse reference.');
+      toast.error('Please fill in the conclusion term and ensure you have a verse reference.');
       return;
     }
 
@@ -162,7 +163,7 @@ export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, fil
 
   const handleSaveEdit = async (conclusionId: string) => {
     if (!editingTerm.trim()) {
-      alert('Conclusion term is required.');
+      toast.error('Conclusion term is required.');
       return;
     }
 

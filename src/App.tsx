@@ -36,7 +36,7 @@ import { useVirtualKeyboard } from '@/hooks/useVirtualKeyboard';
 import { autoBackupService } from '@/lib/autoBackup';
 import { getDebugFlags } from '@/lib/debug';
 import { useUndoToastStore } from '@/stores/undoToastStore';
-import { UndoToast } from '@/components/shared';
+import { UndoToast, ToastHost, ConfirmDialogHost } from '@/components/shared';
 import { initializeSync, shutdownSync } from '@/lib/sync';
 import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
 import { checkForUpdateIfDue, fetchWhatsNew, fetchWhatsNewForced } from '@/lib/updateCheck';
@@ -342,6 +342,10 @@ export default function App() {
 
       {/* Undo toast */}
       <GlobalUndoToast />
+
+      {/* Global toasts + confirm dialogs */}
+      <ToastHost />
+      <ConfirmDialogHost />
 
       {/* Onboarding */}
       {!isCheckingOnboarding && showWelcome && (
