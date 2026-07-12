@@ -705,20 +705,22 @@ function getPlatformName(): string {
 async function writeDeviceMeta(lastSeq: number): Promise<void> {
   if (!backend) return;
 
+  let createdAt = await getSyncConfig('device_created_at');
+  if (!createdAt) {
+    createdAt = new Date().toISOString();
+    await setSyncConfig('device_created_at', createdAt);
+  }
+
   const meta: DeviceMeta = {
     deviceId,
     deviceName: getDeviceName(),
     platform: getPlatformName(),
     lastSeq,
-    createdAt: (await getSyncConfig('device_created_at')) ?? new Date().toISOString(),
+    createdAt,
     updatedAt: new Date().toISOString(),
   };
 
   await backend.write(`${deviceId}/meta.json`, JSON.stringify(meta, null, 2));
-
-  if (!meta.createdAt) {
-    await setSyncConfig('device_created_at', meta.createdAt);
-  }
 }
 
 const DEVICE_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

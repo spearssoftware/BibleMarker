@@ -298,7 +298,7 @@ export async function loadApiConfigs(): Promise<void> {
 
   // Clean up stale SWORD chapter cache (SWORD modules are local, no caching needed)
   try {
-    await sqlExecute(`DELETE FROM cached_chapters WHERE module_id LIKE 'sword-%'`);
+    await sqlExecute(`DELETE FROM chapter_cache WHERE module_id LIKE 'sword-%'`);
   } catch {
     // ignore
   }

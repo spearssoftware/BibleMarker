@@ -216,9 +216,6 @@ export function applyTheme(theme: Theme, highContrast: boolean = false): void {
   }
 }
 
-// Store current theme preference for watcher (reserved for future use)
-let _currentThemePreference: Theme = 'dark';
-
 /**
  * Watch OS theme changes and update when in auto mode
  */
@@ -257,7 +254,6 @@ export async function initTheme(): Promise<void> {
     const prefs = await getPreferences();
     const theme = prefs.theme || 'auto';
     const highContrast = prefs.highContrast || false;
-    _currentThemePreference = theme;
     applyTheme(theme, highContrast);
     if (prefs.scriptureFont) {
       applyScriptureFont(prefs.scriptureFont);
@@ -277,7 +273,6 @@ export async function initTheme(): Promise<void> {
   } catch (error) {
     console.error('Error initializing theme:', error);
     // Fallback to auto theme (follows OS)
-    _currentThemePreference = 'auto';
     applyTheme('auto', false);
   }
 }

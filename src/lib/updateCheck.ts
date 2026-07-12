@@ -153,8 +153,6 @@ async function fetchAndCompareVersion(): Promise<UpdateCheckResult | null> {
 
   const latestVersion = tag.replace(/^app-v?/i, '').replace(/^v/i, '').trim();
 
-  await updatePreferences({ lastUpdateCheck: new Date().toISOString() });
-
   if (isNewer(latestVersion, currentVersion)) {
     return { version: latestVersion, url: RELEASES_PAGE_URL };
   }
@@ -176,7 +174,7 @@ export async function checkForUpdateIfDue(): Promise<UpdateCheckResult | null> {
   try {
     return await fetchAndCompareVersion();
   } catch {
-    await updatePreferences({ lastUpdateCheck: new Date().toISOString() });
+    // Network or parse error — ignore, we'll retry on the next launch.
   }
   return null;
 }
@@ -216,8 +214,7 @@ export async function fetchWhatsNewForced(): Promise<WhatsNewResult | null> {
 }
 
 /**
- * Manually check for updates, bypassing the 24-hour throttle.
- * Use this when the user explicitly requests an update check.
+ * Manually check for updates when the user explicitly requests it.
  */
 export async function checkForUpdateNow(): Promise<UpdateCheckResult | null> {
   if (isAndroid() || isIOS()) return null;
@@ -226,8 +223,7 @@ export async function checkForUpdateNow(): Promise<UpdateCheckResult | null> {
   try {
     return await fetchAndCompareVersion();
   } catch {
-    // Network or parse error: still record that we tried
-    await updatePreferences({ lastUpdateCheck: new Date().toISOString() });
+    // Network or parse error — ignore.
   }
   return null;
 }
