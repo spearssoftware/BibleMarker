@@ -493,34 +493,6 @@ export async function getTotalBackupSize(): Promise<number> {
   }
 }
 
-/**
- * Restore from the most recent auto-backup
- * Returns BackupData that can be used with restoreBackup()
- */
-export async function restoreFromLatestBackup(): Promise<BackupData | null> {
-  try {
-    const backups = await getStoredBackups();
-    if (backups.length === 0) {
-      console.warn('[AutoBackup] No backups available to restore from');
-      return null;
-    }
-    
-    const latestBackup = backups[0];
-    const backupData = await getStoredBackup(latestBackup.id);
-    
-    if (!backupData) {
-      console.error('[AutoBackup] Failed to load backup data');
-      return null;
-    }
-    
-    console.log(`[AutoBackup] Restoring from backup: ${latestBackup.filename} (${new Date(latestBackup.timestamp).toLocaleString()})`);
-    return backupData;
-  } catch (error) {
-    console.error('[AutoBackup] Failed to restore from backup:', error);
-    return null;
-  }
-}
-
 /** Auto-backup service instance */
 class AutoBackupService {
   private intervalId: number | null = null;
