@@ -14,6 +14,7 @@ import { Search } from '@/components/Search';
 import { TranslationPicker, UnifiedPicker } from './pickers';
 import { ExportPopover } from './ExportPopover';
 import { ToolbarPopover, SyncStatusIndicator } from '@/components/shared';
+import { toast } from '@/stores/toastStore';
 export function NavigationBar() {
   const {
     currentBook,
@@ -478,7 +479,7 @@ export function NavigationBar() {
               } else {
                 // Check if we've reached the limit
                 if (activeView && activeView.translationIds.length >= 3) {
-                  alert('Maximum of 3 translations allowed. Remove one first.');
+                  toast.error('Maximum of 3 translations allowed. Remove one first.');
                   return;
                 }
                 // Add to multi-translation view

@@ -6,6 +6,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAnnotationStore } from '@/stores/annotationStore';
+import { toast } from '@/stores/toastStore';
+import { confirmDialog } from '@/stores/confirmDialogStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { getBookById, BIBLE_BOOKS, MARKING_STYLE_OPTIONS, type MarkingStyle } from '@/types';
 import { updatePreferences, clearBookAnnotations, clearDatabase, getPreferences, getSyncDiagnostics, type SyncDiagnostics } from '@/lib/database';
@@ -579,7 +581,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
   }
 
   async function handleDeleteModule(moduleId: string) {
-    if (!confirm(`Remove this Bible module? You can re-download it later.`)) return;
+    if (!(await confirmDialog({ title: 'Remove module', message: 'Remove this Bible module? You can re-download it later.', confirmLabel: 'Remove' }))) return;
     try {
       await deleteModule(moduleId);
       setModuleStatuses(prev => ({ ...prev, [moduleId]: 'not-installed' }));
@@ -762,9 +764,8 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
       console.error('Error clearing database:', error);
       setIsClearing(false);
       setShowClearConfirm(false);
-      // Show error inline instead of blocking alert
       const errorMsg = error instanceof Error ? error.message : 'Failed to clear database. Check console for details.';
-      alert(errorMsg); // Only show alert on error, user can dismiss it
+      toast.error(errorMsg);
     }
   };
 
@@ -1467,8 +1468,8 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                 </div>
                 {esvClient.isConfigured() && (
                   <button
-                    onClick={() => {
-                      if (confirm('Are you sure you want to remove the ESV API key?')) {
+                    onClick={async () => {
+                      if (await confirmDialog({ title: 'Remove API key', message: 'Are you sure you want to remove the ESV API key?', confirmLabel: 'Remove' })) {
                         saveEsvConfig('');
                         setEsvApiKey('');
                       }
@@ -1930,7 +1931,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                       {storedBackups.length > 0 && (
                         <button
                           onClick={async () => {
-                            if (!confirm('Restore from the most recent auto-backup? This will replace your current data.')) {
+                            if (!(await confirmDialog({ title: 'Restore backup', message: 'Restore from the most recent auto-backup? This will replace your current data.', confirmLabel: 'Restore' }))) {
                               return;
                             }
                             setIsCreatingBackup(true);
@@ -1938,14 +1939,14 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                               const backupData = await restoreFromLatestBackup();
                               if (backupData) {
                                 await restoreBackup(backupData);
-                                alert('Backup restored successfully! The page will reload.');
+                                toast.success('Backup restored successfully! The page will reload.');
                                 window.location.reload();
                               } else {
-                                alert('Failed to load backup data.');
+                                toast.error('Failed to load backup data.');
                               }
                             } catch (error) {
                               console.error('Failed to restore backup:', error);
-                              alert(`Failed to restore backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                              toast.error(`Failed to restore backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
                             } finally {
                               setIsCreatingBackup(false);
                             }

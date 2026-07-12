@@ -15,6 +15,7 @@ import type { Person } from '@/types';
 import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
 import { Button, ConfirmationDialog, Input, Textarea } from '@/components/shared';
+import { toast } from '@/stores/toastStore';
 
 function highlightWords(text: string, words: string[]): React.ReactNode {
   const filtered = words.filter(w => w.trim());
@@ -183,7 +184,7 @@ export function PeopleTracker({
   const handleCreate = async () => {
     const verseRef = getCurrentVerseRef();
     if (!verseRef || !newName.trim()) {
-      alert('Please fill in the person name and ensure you have a verse reference.');
+      toast.error('Please fill in the person name and ensure you have a verse reference.');
       return;
     }
     await createPerson(newName.trim(), verseRef, newNotes.trim() || undefined);
@@ -212,7 +213,7 @@ export function PeopleTracker({
   };
 
   const handleSaveEdit = async (personId: string) => {
-    if (!editingName.trim()) { alert('Person name is required.'); return; }
+    if (!editingName.trim()) { toast.error('Person name is required.'); return; }
     const person = people.find(p => p.id === personId);
     if (!person) return;
     await updatePerson({ ...person, name: editingName.trim(), notes: editingNotes.trim() || undefined });

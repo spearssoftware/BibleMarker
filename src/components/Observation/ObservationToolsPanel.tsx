@@ -21,6 +21,7 @@ import { PeopleTracker } from './PeopleTracker';
 import { PlaceTracker } from './PlaceTracker';
 import { TimeTracker } from './TimeTracker';
 import { Button, Checkbox, ConfirmationDialog, Textarea } from '@/components/shared';
+import { toast } from '@/stores/toastStore';
 
 export type ObservationTab = 'lists' | 'people' | 'places' | 'time' | 'flow';
 
@@ -293,9 +294,9 @@ export function ObservationToolsPanel({
 
     const text = lines.join('\n');
     navigator.clipboard.writeText(text).then(() => {
-      alert('List copied to clipboard!');
+      toast.success('List copied to clipboard');
     }).catch(() => {
-      prompt('Copy this text:', text);
+      toast.error('Could not copy to clipboard');
     });
   };
 
@@ -342,7 +343,7 @@ export function ObservationToolsPanel({
 
   const handleSaveEdit = async (listId: string, itemId: string) => {
     if (!editingItemText.trim()) {
-      alert('Observation cannot be empty');
+      toast.error('Observation cannot be empty');
       return;
     }
     

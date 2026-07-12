@@ -14,6 +14,7 @@ import type { InterpretationEntry } from '@/types';
 import type { VerseRef } from '@/types';
 import { Button, Textarea, ConfirmationDialog, DropdownSelect } from '@/components/shared';
 import { getChapterAnnotations } from '@/lib/database';
+import { toast } from '@/stores/toastStore';
 
 interface InterpretationWorksheetProps {
   selectedText?: string;
@@ -232,7 +233,7 @@ export function InterpretationWorksheet({ verseRef: initialVerseRef, isCreating,
 
   const handleSave = async () => {
     if (!formVerseRef) {
-      alert('Please select a verse reference');
+      toast.error('Please select a verse reference');
       return;
     }
 
@@ -247,7 +248,7 @@ export function InterpretationWorksheet({ verseRef: initialVerseRef, isCreating,
                        formInsights.trim();
     
     if (!hasContent) {
-      alert('Please fill in at least one field');
+      toast.error('Please fill in at least one field');
       return;
     }
 
@@ -294,7 +295,7 @@ export function InterpretationWorksheet({ verseRef: initialVerseRef, isCreating,
       await loadInterpretations();
     } catch (error) {
       console.error('Error saving interpretation entry:', error);
-      alert('Failed to save entry. Please try again.');
+      toast.error('Failed to save entry. Please try again.');
     }
   };
 
@@ -313,7 +314,7 @@ export function InterpretationWorksheet({ verseRef: initialVerseRef, isCreating,
       await loadInterpretations();
     } catch (error) {
       console.error('Error deleting entry:', error);
-      alert('Failed to delete entry. Please try again.');
+      toast.error('Failed to delete entry. Please try again.');
     }
   };
 

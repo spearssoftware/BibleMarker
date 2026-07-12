@@ -13,6 +13,7 @@ import type { ObservationList, ObservationItem } from '@/types';
 import type { VerseRef } from '@/types';
 import { ListEditor } from './ListEditor';
 import { Button, Modal, ConfirmationDialog } from '@/components/shared';
+import { toast } from '@/stores/toastStore';
 
 interface ListPanelProps {
   onClose?: () => void;
@@ -147,10 +148,9 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
     
     // Copy to clipboard
     navigator.clipboard.writeText(text).then(() => {
-      alert('List copied to clipboard!');
+      toast.success('List copied to clipboard');
     }).catch(() => {
-      // Fallback: show in prompt
-      prompt('Copy this text:', text);
+      toast.error('Could not copy to clipboard');
     });
   };
 
@@ -195,7 +195,7 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
 
   const handleSaveEdit = async (listId: string, itemId: string) => {
     if (!editingItemText.trim()) {
-      alert('Observation cannot be empty');
+      toast.error('Observation cannot be empty');
       return;
     }
     

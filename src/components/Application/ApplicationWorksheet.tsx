@@ -20,6 +20,7 @@ import type { ApplicationEntry } from '@/types';
 import type { VerseRef } from '@/types';
 import { Button, Textarea, ConfirmationDialog } from '@/components/shared';
 import { getChapterAnnotations } from '@/lib/database';
+import { toast } from '@/stores/toastStore';
 
 interface ApplicationWorksheetProps {
   selectedText?: string;
@@ -216,7 +217,7 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef, isCreating, se
 
   const handleSave = async () => {
     if (!formVerseRef) {
-      alert('Please select a verse reference');
+      toast.error('Please select a verse reference');
       return;
     }
 
@@ -228,7 +229,7 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef, isCreating, se
                        formNotes.trim();
     
     if (!hasContent) {
-      alert('Please fill in at least one field');
+      toast.error('Please fill in at least one field');
       return;
     }
 
@@ -266,7 +267,7 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef, isCreating, se
       await loadApplications();
     } catch (error) {
       console.error('Error saving application entry:', error);
-      alert('Failed to save entry. Please try again.');
+      toast.error('Failed to save entry. Please try again.');
     }
   };
 
@@ -285,7 +286,7 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef, isCreating, se
       await loadApplications();
     } catch (error) {
       console.error('Error deleting entry:', error);
-      alert('Failed to delete entry. Please try again.');
+      toast.error('Failed to delete entry. Please try again.');
     }
   };
 

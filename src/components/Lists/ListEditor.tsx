@@ -13,6 +13,7 @@ import { filterPresetsByStudy } from '@/lib/studyFilter';
 import type { ObservationList } from '@/types';
 import { BIBLE_BOOKS, getBookById, presetMatchesBook } from '@/types';
 import { Button, Modal, Input, DropdownSelect, Label } from '@/components/shared';
+import { toast } from '@/stores/toastStore';
 
 interface ListEditorProps {
   list?: ObservationList;
@@ -54,12 +55,12 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
 
   const handleSave = async () => {
     if (!title.trim()) {
-      alert('Please enter a title for the list');
+      toast.error('Please enter a title for the list');
       return;
     }
 
     if (!selectedKeywordId) {
-      alert('Please select a keyword. Observation lists are about specific keywords.');
+      toast.error('Please select a keyword. Observation lists are about specific keywords.');
       return;
     }
 
@@ -93,7 +94,7 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
     if (autoPopulate) {
       const count = await autoPopulateFromKeyword(finalList.id, selectedKeywordId);
       if (count > 0) {
-        alert(`Added ${count} observation${count === 1 ? '' : 's'} from marked instances.`);
+        toast.success(`Added ${count} observation${count === 1 ? '' : 's'} from marked instances.`);
       }
     }
 
