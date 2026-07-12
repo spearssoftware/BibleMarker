@@ -26,6 +26,18 @@ import type { ApplicationEntry } from '@/types';
 import type { EntityNote } from '@/types';
 import type { KeywordExclusion } from '@/types';
 import type { UserPreferences } from '@/types';
+import {
+  VALID_TABLE_NAMES,
+  SYNCED_TABLES,
+  STUDY_COLUMN_DATA_TABLES,
+  STUDY_SCOPED_COLUMN_TABLES,
+  CLEARED_TABLES,
+} from './table-registry';
+
+// Re-exported so existing importers (sync-engine, snapshot-coverage.test) keep
+// their `from './sqlite-db'` path. The single source of truth is table-registry.
+export { SYNCED_TABLES };
+
 // ============================================================================
 // Database Connection
 // ============================================================================
@@ -1188,16 +1200,7 @@ export async function sqliteFindStudyScopedIds(studyId: string): Promise<{ table
   const results: { table: string; ids: string[] }[] = [];
 
   // Tables with a direct study_id column
-  const directTables = [
-    'marking_presets',
-    'section_headings',
-    'chapter_titles',
-    'observation_lists',
-    'interpretations',
-    'applications',
-    'entity_notes',
-  ];
-  for (const table of directTables) {
+  for (const table of STUDY_SCOPED_COLUMN_TABLES) {
     const rows = await db.select<{ id: string }[]>(
       `SELECT id FROM ${table} WHERE study_id = ?`, [studyId]
     );
@@ -1257,16 +1260,7 @@ export async function sqliteCascadeDeleteStudy(studyId: string): Promise<void> {
   );
 
   // Tables with a direct study_id column
-  const directTables = [
-    'marking_presets',
-    'section_headings',
-    'chapter_titles',
-    'observation_lists',
-    'interpretations',
-    'applications',
-    'entity_notes',
-  ];
-  for (const table of directTables) {
+  for (const table of STUDY_SCOPED_COLUMN_TABLES) {
     await db.execute(`DELETE FROM ${table} WHERE study_id = ?`, [studyId]);
   }
 
@@ -1292,16 +1286,7 @@ export async function sqliteCleanupOrphanedStudyRecords(): Promise<number> {
   let totalDeleted = 0;
 
   // Tables with a direct study_id column
-  const directTables = [
-    'marking_presets',
-    'section_headings',
-    'chapter_titles',
-    'observation_lists',
-    'interpretations',
-    'applications',
-    'entity_notes',
-  ];
-  for (const table of directTables) {
+  for (const table of STUDY_SCOPED_COLUMN_TABLES) {
     const result = await db.execute(
       `DELETE FROM ${table} WHERE study_id IS NOT NULL AND study_id NOT IN (SELECT id FROM studies)`,
       []
@@ -1369,37 +1354,6 @@ export async function sqliteSavePreferences(prefs: UserPreferences): Promise<voi
 // ============================================================================
 
 // Whitelist of valid table names to prevent SQL injection
-const VALID_TABLE_NAMES = new Set([
-  'annotations',
-  'section_headings',
-  'chapter_titles',
-  'notes',
-  'marking_presets',
-  'studies',
-  'multi_translation_views',
-  'observation_lists',
-  'time_expressions',
-  'places',
-  'people',
-  'conclusions',
-  'interpretations',
-  'applications',
-  'entity_notes',
-  'preferences',
-  'chapter_cache',
-  'keyword_exclusions',
-]);
-
-// Generic JSON-data tables that also maintain a real study_id column. Study
-// cascade delete and orphan cleanup filter these tables by that column, so
-// every write path (local save, sync apply, import) must populate it.
-const STUDY_COLUMN_DATA_TABLES = new Set([
-  'observation_lists',
-  'interpretations',
-  'applications',
-  'entity_notes',
-]);
-
 function validateTableName(tableName: string): void {
   if (!VALID_TABLE_NAMES.has(tableName)) {
     throw new Error(`Invalid table name: ${tableName}`);
@@ -1698,26 +1652,6 @@ export async function sqliteImportAll(data: SqliteExportData): Promise<void> {
 // ============================================================================
 
 /** Tables that are synced between devices via the journal */
-export const SYNCED_TABLES = new Set([
-  'annotations',
-  'section_headings',
-  'chapter_titles',
-  'notes',
-  'marking_presets',
-  'studies',
-  'multi_translation_views',
-  'observation_lists',
-  'time_expressions',
-  'places',
-  'people',
-  'conclusions',
-  'interpretations',
-  'applications',
-  'entity_notes',
-  'preferences',
-  'keyword_exclusions',
-]);
-
 /**
  * Record a change in the change_log for sync.
  * Called after every write to a synced table.
@@ -2032,29 +1966,7 @@ async function applyStructuredUpsert(
 export async function sqliteClearDatabase(): Promise<void> {
   const db = await getSqliteDb();
 
-  const tables = [
-    'annotations',
-    'section_headings',
-    'chapter_titles',
-    'notes',
-    'marking_presets',
-    'studies',
-    'multi_translation_views',
-    'observation_lists',
-    'time_expressions',
-    'places',
-    'people',
-    'conclusions',
-    'interpretations',
-    'applications',
-    'reading_history',
-    'chapter_cache',
-    'translation_cache',
-    'entity_notes',
-    'keyword_exclusions',
-  ];
-
-  for (const table of tables) {
+  for (const table of CLEARED_TABLES) {
     await db.execute(`DELETE FROM ${table}`);
   }
 

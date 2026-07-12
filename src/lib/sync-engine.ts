@@ -25,6 +25,11 @@ import {
   sqliteExportAll,
   SYNCED_TABLES,
 } from './sqlite-db';
+import { SNAPSHOT_TABLE_KEYS, camelToSnakeTable } from './table-registry';
+
+// Re-exported so existing importers (snapshot-coverage.test) keep their
+// `from './sync-engine'` path. The single source of truth is table-registry.
+export { SNAPSHOT_TABLE_KEYS, camelToSnakeTable } from './table-registry';
 
 // ============================================================================
 // Types
@@ -461,32 +466,6 @@ async function pullFromDevice(remoteDevice: string): Promise<PullResult> {
 // ============================================================================
 
 /**
- * camelCase keys written into a snapshot's `tables` (excluding `preferences`,
- * which is special-cased as a single-element array). Each maps 1:1 to a
- * `SqliteExportData` field and, via `camelToSnakeTable`, to a `SYNCED_TABLES`
- * entry. This is the single source of truth for snapshot table coverage —
- * a test asserts these map onto every synced table.
- */
-export const SNAPSHOT_TABLE_KEYS = [
-  'annotations',
-  'sectionHeadings',
-  'chapterTitles',
-  'notes',
-  'markingPresets',
-  'studies',
-  'multiTranslationViews',
-  'observationLists',
-  'timeExpressions',
-  'places',
-  'people',
-  'conclusions',
-  'interpretations',
-  'applications',
-  'entityNotes',
-  'keywordExclusions',
-] as const;
-
-/**
  * Write a full database snapshot for bootstrapping new devices.
  */
 async function writeSnapshot(): Promise<void> {
@@ -505,7 +484,7 @@ async function writeSnapshot(): Promise<void> {
   // table without listing it here would silently drop it from snapshots/bootstrap.
   const tables: Record<string, unknown[]> = {};
   for (const key of SNAPSHOT_TABLE_KEYS) {
-    tables[key] = exportData[key] as unknown[];
+    tables[key] = exportData[key as keyof typeof exportData] as unknown[];
   }
   tables.preferences = exportData.preferences ? [exportData.preferences] : [];
 
@@ -755,30 +734,6 @@ async function listConnectedDevices(): Promise<string[]> {
   }
 
   return names;
-}
-
-/** Map camelCase export table names to snake_case DB table names */
-export function camelToSnakeTable(name: string): string {
-  const map: Record<string, string> = {
-    annotations: 'annotations',
-    sectionHeadings: 'section_headings',
-    chapterTitles: 'chapter_titles',
-    notes: 'notes',
-    markingPresets: 'marking_presets',
-    studies: 'studies',
-    multiTranslationViews: 'multi_translation_views',
-    observationLists: 'observation_lists',
-    timeExpressions: 'time_expressions',
-    places: 'places',
-    people: 'people',
-    conclusions: 'conclusions',
-    interpretations: 'interpretations',
-    applications: 'applications',
-    entityNotes: 'entity_notes',
-    keywordExclusions: 'keyword_exclusions',
-    preferences: 'preferences',
-  };
-  return map[name] ?? name;
 }
 
 function startFlushTimer(): void {
