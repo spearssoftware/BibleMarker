@@ -112,7 +112,7 @@ export async function closeSqliteDb(): Promise<void> {
 // Schema Initialization
 // ============================================================================
 
-const SCHEMA_VERSION = 10;
+const SCHEMA_VERSION = 11;
 
 /**
  * Safety net: ensure all expected tables exist.
@@ -408,6 +408,20 @@ async function migrateSchema(
         AND json_extract(highlight, '$.style') = 'highlight'
     `);
     console.log('[SQLite] v10 migration: set symbol+highlight presets to marking none');
+  }
+
+  // Version 11: Backfill study_id columns from JSON data. Local saves and sync
+  // apply historically wrote these tables without the study_id column, so study
+  // cascade delete / orphan cleanup (which filter by the column) missed the rows.
+  if (fromVersion < 11) {
+    for (const table of STUDY_COLUMN_DATA_TABLES) {
+      await db.execute(`
+        UPDATE ${table}
+        SET study_id = json_extract(data, '$.studyId')
+        WHERE study_id IS NULL AND json_extract(data, '$.studyId') IS NOT NULL
+      `);
+    }
+    console.log('[SQLite] v11 migration: backfilled study_id columns from JSON data');
   }
 
   // Update schema version
@@ -1376,6 +1390,16 @@ const VALID_TABLE_NAMES = new Set([
   'keyword_exclusions',
 ]);
 
+// Generic JSON-data tables that also maintain a real study_id column. Study
+// cascade delete and orphan cleanup filter these tables by that column, so
+// every write path (local save, sync apply, import) must populate it.
+const STUDY_COLUMN_DATA_TABLES = new Set([
+  'observation_lists',
+  'interpretations',
+  'applications',
+  'entity_notes',
+]);
+
 function validateTableName(tableName: string): void {
   if (!VALID_TABLE_NAMES.has(tableName)) {
     throw new Error(`Invalid table name: ${tableName}`);
@@ -1645,13 +1669,13 @@ export async function sqliteImportAll(data: SqliteExportData): Promise<void> {
     await sqliteSaveToTable('conclusions', item);
   }
   for (const item of data.interpretations) {
-    await sqliteSaveToTable('interpretations', item);
+    await sqliteSaveToTableWithStudyId('interpretations', item, item.studyId);
   }
   for (const item of data.applications) {
-    await sqliteSaveToTable('applications', item);
+    await sqliteSaveToTableWithStudyId('applications', item, item.studyId);
   }
   for (const item of data.observationLists) {
-    await sqliteSaveToTable('observation_lists', item);
+    await sqliteSaveToTableWithStudyId('observation_lists', item, item.studyId);
   }
   for (const item of data.multiTranslationViews) {
     await sqliteSaveToTable('multi_translation_views', item);
@@ -1881,11 +1905,21 @@ export async function applyRemoteChange(
     // Generic data tables (observation types) — use the data column approach
     const parsed = JSON.parse(data);
     const createdAt = parsed.createdAt ? new Date(parsed.createdAt).toISOString() : remoteUpdatedAt;
-    await db.execute(
-      `INSERT OR REPLACE INTO ${tableName} (id, data, created_at, updated_at, sync_status, device_id)
-       VALUES (?, ?, ?, ?, 'synced', ?)`,
-      [rowId, data, createdAt, remoteUpdatedAt, remoteDeviceId]
-    );
+    if (STUDY_COLUMN_DATA_TABLES.has(tableName)) {
+      // Study cascade delete and orphan cleanup filter these tables by the
+      // study_id column, so it must be populated on synced rows too.
+      await db.execute(
+        `INSERT OR REPLACE INTO ${tableName} (id, data, study_id, created_at, updated_at, sync_status, device_id)
+         VALUES (?, ?, ?, ?, ?, 'synced', ?)`,
+        [rowId, data, parsed.studyId ?? null, createdAt, remoteUpdatedAt, remoteDeviceId]
+      );
+    } else {
+      await db.execute(
+        `INSERT OR REPLACE INTO ${tableName} (id, data, created_at, updated_at, sync_status, device_id)
+         VALUES (?, ?, ?, ?, 'synced', ?)`,
+        [rowId, data, createdAt, remoteUpdatedAt, remoteDeviceId]
+      );
+    }
   }
 
   return true;
@@ -2016,6 +2050,8 @@ export async function sqliteClearDatabase(): Promise<void> {
     'reading_history',
     'chapter_cache',
     'translation_cache',
+    'entity_notes',
+    'keyword_exclusions',
   ];
 
   for (const table of tables) {

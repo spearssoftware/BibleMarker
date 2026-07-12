@@ -298,6 +298,36 @@ describe('restoreBackup', () => {
     expect(importedData.annotations).toHaveLength(2)
   })
 
+  it('validates conclusions, time expressions, entity notes, and keyword exclusions', async () => {
+    const backup = makeFullBackup()
+    backup.data.entityNotes = [
+      {
+        id: 'en-1', entityType: 'person', entitySlug: 'moses', entityName: 'Moses',
+        content: 'Led Israel out of Egypt', createdAt: new Date(now), updatedAt: new Date(now),
+      },
+      { id: '', entityType: 'alien' } as never,
+    ]
+    backup.data.keywordExclusions = [
+      {
+        id: 'ke-1', presetId: 'preset-1', book: 'Genesis', chapter: 1, verse: 1,
+        matchedText: 'god', createdAt: new Date(now), updatedAt: new Date(now),
+      },
+      { id: 'ke-2', presetId: '', book: 'Genesis', chapter: 0 } as never,
+    ]
+    backup.data.conclusions.push({ id: '', term: '' } as never)
+    backup.data.timeExpressions.push({ id: 'time-bad', expression: '' } as never)
+
+    await restoreBackup(backup)
+
+    const importedData = mockImportAllData.mock.calls[0][0]
+    // Invalid records dropped, valid ones kept — previously these four types
+    // bypassed validation entirely on restore.
+    expect(importedData.conclusions).toHaveLength(1)
+    expect(importedData.timeExpressions).toHaveLength(1)
+    expect(importedData.entityNotes).toEqual([expect.objectContaining({ id: 'en-1' })])
+    expect(importedData.keywordExclusions).toEqual([expect.objectContaining({ id: 'ke-1' })])
+  })
+
   it('rejects restore when all section headings are invalid', async () => {
     const backup = makeFullBackup()
     backup.data.sectionHeadings = [{ id: 'sh-1', title: '' } as never]

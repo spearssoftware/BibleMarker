@@ -37,6 +37,10 @@ import {
   validateInterpretation,
   validatePlace,
   validatePerson,
+  validateConclusion,
+  validateTimeExpression,
+  validateEntityNote,
+  validateKeywordExclusion,
   validateArray,
   ValidationError,
 } from './validation';
@@ -55,8 +59,6 @@ export interface BackupData {
     studies: Study[];
     multiTranslationViews: MultiTranslationView[];
     observationLists: ObservationList[];
-    fiveWAndH?: unknown[];
-    contrasts?: unknown[];
     timeExpressions: TimeExpression[];
     places: Place[];
     people: Person[];
@@ -146,8 +148,6 @@ export async function exportBackup(includeCache: boolean = false): Promise<strin
         studies: allData.studies,
         multiTranslationViews: cleanedMultiTranslationViews,
         observationLists: allData.observationLists,
-        fiveWAndH: [],
-        contrasts: [],
         timeExpressions: allData.timeExpressions,
         places: allData.places,
         people: allData.people,
@@ -388,7 +388,6 @@ export function getBackupPreview(backup: BackupData): Record<string, number> {
  * Import backup from file (returns backup data for preview)
  */
 export async function importBackup(): Promise<BackupData> {
-  let _fileHandle: FileSystemFileHandle | null = null;  // Reserved for future use (e.g. close)
   let file: File;
   let text: string;
 
@@ -427,7 +426,6 @@ export async function importBackup(): Promise<BackupData> {
           multiple: false,
         });
 
-        _fileHandle = handle;
         file = await handle.getFile();
         text = await file.text();
       } catch (error: unknown) {
@@ -594,6 +592,34 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
       validatedApplications = valid;
     }
 
+    // Validate conclusions
+    let validatedConclusions: Conclusion[] = [];
+    if (backup.data.conclusions && backup.data.conclusions.length > 0) {
+      const { valid } = validateArray(backup.data.conclusions, validateConclusion, 'conclusion');
+      validatedConclusions = valid;
+    }
+
+    // Validate time expressions
+    let validatedTimeExpressions: TimeExpression[] = [];
+    if (backup.data.timeExpressions && backup.data.timeExpressions.length > 0) {
+      const { valid } = validateArray(backup.data.timeExpressions, validateTimeExpression, 'time expression');
+      validatedTimeExpressions = valid;
+    }
+
+    // Validate entity notes
+    let validatedEntityNotes: EntityNote[] = [];
+    if (backup.data.entityNotes && backup.data.entityNotes.length > 0) {
+      const { valid } = validateArray(backup.data.entityNotes, validateEntityNote, 'entity note');
+      validatedEntityNotes = valid;
+    }
+
+    // Validate keyword exclusions
+    let validatedKeywordExclusions: KeywordExclusion[] = [];
+    if (backup.data.keywordExclusions && backup.data.keywordExclusions.length > 0) {
+      const { valid } = validateArray(backup.data.keywordExclusions, validateKeywordExclusion, 'keyword exclusion');
+      validatedKeywordExclusions = valid;
+    }
+
     // --- Create safety backup before clearing database ---
     try {
       const { performBackup } = await import('./autoBackup');
@@ -616,14 +642,14 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
       studies: validatedStudies,
       multiTranslationViews: validatedViews,
       observationLists: validatedLists,
-      timeExpressions: backup.data.timeExpressions || [],
+      timeExpressions: validatedTimeExpressions,
       places: validatedPlaces,
       people: validatedPeople,
-      conclusions: backup.data.conclusions || [],
+      conclusions: validatedConclusions,
       interpretations: validatedInterpretations,
       applications: validatedApplications,
-      entityNotes: backup.data.entityNotes || [],
-      keywordExclusions: backup.data.keywordExclusions || [],
+      entityNotes: validatedEntityNotes,
+      keywordExclusions: validatedKeywordExclusions,
       preferences: backup.data.preferences || null,
     });
 

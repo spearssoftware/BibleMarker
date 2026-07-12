@@ -65,7 +65,6 @@ impl AppBuilder {
                 download::install_bundled_module,
                 flatpak::check_flatpak,
                 signed_download::download_signed_module,
-                signed_download::has_signing_key,
                 sync_client::auth_request,
                 sync_client::auth_verify,
                 sync_client::get_session_account,
