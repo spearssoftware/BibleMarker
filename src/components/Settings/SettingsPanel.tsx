@@ -32,11 +32,11 @@ import { clearDebugFlagsCache, getDebugFlags } from '@/lib/debug';
 import { 
   getAutoBackupConfig, 
   updateAutoBackupConfig, 
-  getStoredBackups, 
+  getStoredBackups,
+  getStoredBackup,
   getTotalBackupSize,
   autoBackupService,
   performBackup,
-  restoreFromLatestBackup,
   getBackupLocation,
   type StoredBackup 
 } from '@/lib/autoBackup';
@@ -899,6 +899,32 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     } catch (error) {
       setImportError(error instanceof Error ? error.message : 'Failed to restore backup');
       setImportStep('preview');
+    }
+  };
+
+  const handleRestoreStoredBackup = async (id: string) => {
+    if (!(await confirmDialog({
+      title: 'Restore backup',
+      message: 'Restore this backup? This will replace your current data with the snapshot from that time.',
+      confirmLabel: 'Restore',
+    }))) {
+      return;
+    }
+    setIsCreatingBackup(true);
+    try {
+      const backupData = await getStoredBackup(id);
+      if (backupData) {
+        await restoreBackup(backupData);
+        toast.success('Backup restored successfully! The page will reload.');
+        window.location.reload();
+      } else {
+        toast.error('Failed to load backup data.');
+      }
+    } catch (error) {
+      console.error('Failed to restore backup:', error);
+      toast.error(`Failed to restore backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsCreatingBackup(false);
     }
   };
 
@@ -1927,47 +1953,42 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                         </div>
                       </div>
 
-                      {/* Restore from Latest Backup */}
+                      {/* Restore a Backup — pick any kept snapshot */}
                       {storedBackups.length > 0 && (
-                        <button
-                          onClick={async () => {
-                            if (!(await confirmDialog({ title: 'Restore backup', message: 'Restore from the most recent auto-backup? This will replace your current data.', confirmLabel: 'Restore' }))) {
-                              return;
-                            }
-                            setIsCreatingBackup(true);
-                            try {
-                              const backupData = await restoreFromLatestBackup();
-                              if (backupData) {
-                                await restoreBackup(backupData);
-                                toast.success('Backup restored successfully! The page will reload.');
-                                window.location.reload();
-                              } else {
-                                toast.error('Failed to load backup data.');
-                              }
-                            } catch (error) {
-                              console.error('Failed to restore backup:', error);
-                              toast.error(`Failed to restore backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
-                            } finally {
-                              setIsCreatingBackup(false);
-                            }
-                          }}
-                          disabled={isCreatingBackup || savingAutoBackup}
-                          className="w-full px-3 py-2 text-sm font-ui bg-scripture-warningBg text-scripture-warningText rounded-lg
-                                   hover:bg-scripture-warningBg/80 disabled:opacity-50 disabled:cursor-not-allowed
-                                   transition-all duration-200 shadow-md flex items-center justify-center gap-2"
-                        >
-                          {isCreatingBackup ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin"></div>
-                              <span>Restoring...</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>🔄</span>
-                              <span>Restore from Latest Backup</span>
-                            </>
-                          )}
-                        </button>
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium text-scripture-text">Restore a Backup</div>
+                          <p className="text-xs text-scripture-muted">
+                            Restoring replaces your current data with the snapshot from that time, then reloads.
+                          </p>
+                          <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1">
+                            {storedBackups.map((b, i) => (
+                              <div
+                                key={b.id}
+                                className="flex items-center justify-between gap-2 p-2 rounded-lg bg-scripture-elevated/50 border border-scripture-border/50"
+                              >
+                                <div className="min-w-0">
+                                  <div className="text-sm text-scripture-text">
+                                    {new Date(b.timestamp).toLocaleString()}
+                                    {i === 0 && (
+                                      <span className="ml-2 text-xs text-scripture-muted">(latest)</span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-scripture-muted">
+                                    {(b.size / 1024).toFixed(1)} KB
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => handleRestoreStoredBackup(b.id)}
+                                  disabled={isCreatingBackup || savingAutoBackup}
+                                  className="shrink-0 px-3 py-1.5 text-sm font-ui bg-scripture-warningBg text-scripture-warningText rounded-lg
+                                           hover:bg-scripture-warningBg/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  Restore
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
 
                       {/* Manual Backup Button */}
