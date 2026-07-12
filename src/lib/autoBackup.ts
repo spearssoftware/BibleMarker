@@ -6,10 +6,9 @@
  * protection against database corruption. Uses existing restoreBackup function for recovery.
  */
 
-import { exportAllData, getPreferences as getDbPreferences, updatePreferences as updateDbPreferences, type AutoBackupConfig, sqlSelect, sqlExecute } from './database';
-import { type BackupData } from './backup';
+import { getPreferences as getDbPreferences, updatePreferences as updateDbPreferences, type AutoBackupConfig, sqlSelect, sqlExecute } from './database';
+import { type BackupData, assembleBackupData } from './backup';
 import { isTauri, isCapacitor } from './platform';
-import type { MultiTranslationView } from '@/types';
 
 /** Backup file metadata */
 export interface BackupFileMetadata {
@@ -239,59 +238,8 @@ async function storeBackupInDB(backup: BackupData, metadataId: string): Promise<
  * Create backup data (reuses logic from backup.ts)
  */
 async function createBackupData(): Promise<BackupData> {
-  // Collect all data via database abstraction (routes to SQLite on native, IndexedDB on web)
-  const allData = await exportAllData();
-
-  // Ensure preferences exist
-  const prefs = allData.preferences || {
-    id: 'main',
-    marking: {
-      recentColors: [],
-      recentSymbols: [],
-      defaultTool: 'highlight',
-      defaultColor: 'yellow',
-      defaultSymbol: 'cross',
-      toolbarPosition: 'bottom',
-      showToolbarByDefault: true,
-    },
-    fontSize: 'base',
-    theme: 'dark',
-    favoriteTranslations: [],
-    recentTranslations: [],
-  };
-
-  // Clean up multi-translation views - remove primaryTranslationId if present (it's computed dynamically)
-  const cleanedMultiTranslationViews = allData.multiTranslationViews.map(view => {
-    const { primaryTranslationId: _, ...cleanedView } = view as MultiTranslationView & { primaryTranslationId?: string };
-    return cleanedView;
-  });
-
-  // Prepare backup data
-  const backup: BackupData = {
-    version: __APP_VERSION__,
-    timestamp: new Date().toISOString(),
-    data: {
-      preferences: prefs,
-      annotations: allData.annotations,
-      sectionHeadings: allData.sectionHeadings,
-      chapterTitles: allData.chapterTitles,
-      notes: allData.notes,
-      markingPresets: allData.markingPresets,
-      studies: allData.studies,
-      multiTranslationViews: cleanedMultiTranslationViews,
-      observationLists: allData.observationLists,
-      timeExpressions: allData.timeExpressions,
-      places: allData.places,
-      people: allData.people,
-      conclusions: allData.conclusions,
-      interpretations: allData.interpretations,
-      applications: allData.applications,
-      entityNotes: allData.entityNotes,
-      keywordExclusions: allData.keywordExclusions,
-    },
-  };
-
-  return backup;
+  // Shared with the manual export path so the backup field list stays in one place.
+  return assembleBackupData();
 }
 
 /**
