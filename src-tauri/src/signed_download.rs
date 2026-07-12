@@ -91,13 +91,6 @@ pub async fn download_signed_module(module: String, dest_path: String) -> Result
     Ok(())
 }
 
-/// True if this build has an embedded signing key. Used by the frontend to
-/// decide whether to enable the signed-module download UI.
-#[tauri::command]
-pub fn has_signing_key() -> bool {
-    NASB_SIGNING_KEY.is_some()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

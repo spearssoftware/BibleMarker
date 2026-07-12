@@ -235,7 +235,7 @@ export async function searchHeadings(
 }
 
 /**
- * Search observations (5W+H, contrasts, conclusions, interpretations, applications)
+ * Search observations (conclusions, interpretations, applications)
  */
 export async function searchObservations(
   query: string,

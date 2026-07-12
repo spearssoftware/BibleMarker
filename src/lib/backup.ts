@@ -59,8 +59,6 @@ export interface BackupData {
     studies: Study[];
     multiTranslationViews: MultiTranslationView[];
     observationLists: ObservationList[];
-    fiveWAndH?: unknown[];
-    contrasts?: unknown[];
     timeExpressions: TimeExpression[];
     places: Place[];
     people: Person[];
@@ -150,8 +148,6 @@ export async function exportBackup(includeCache: boolean = false): Promise<strin
         studies: allData.studies,
         multiTranslationViews: cleanedMultiTranslationViews,
         observationLists: allData.observationLists,
-        fiveWAndH: [],
-        contrasts: [],
         timeExpressions: allData.timeExpressions,
         places: allData.places,
         people: allData.people,
@@ -392,7 +388,6 @@ export function getBackupPreview(backup: BackupData): Record<string, number> {
  * Import backup from file (returns backup data for preview)
  */
 export async function importBackup(): Promise<BackupData> {
-  let _fileHandle: FileSystemFileHandle | null = null;  // Reserved for future use (e.g. close)
   let file: File;
   let text: string;
 
@@ -431,7 +426,6 @@ export async function importBackup(): Promise<BackupData> {
           multiple: false,
         });
 
-        _fileHandle = handle;
         file = await handle.getFile();
         text = await file.text();
       } catch (error: unknown) {
