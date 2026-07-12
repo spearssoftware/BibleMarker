@@ -9,7 +9,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { checkForUpdateIfDue, checkForUpdateNow, type UpdateCheckResult } from '@/lib/updateCheck';
 import { isFlatpak } from '@/lib/platform';
-import { getDeviceId } from '@/lib/sqlite-db';
+import { getDeviceId } from '@/lib/database';
 import { UpdateBanner } from '@/components/shared';
 
 interface AboutSectionProps {

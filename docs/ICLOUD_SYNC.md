@@ -1,5 +1,10 @@
 # iCloud Sync for iOS and macOS
 
+> **⚠️ Historical / deprecated.** iCloud file sync was removed in 3.1.0. Current
+> sync uses the Cloudflare Worker over HTTP, keyed to a signed-in account — see
+> `worker/`, `src/lib/storage-backend.ts`, and `src/lib/sync-engine.ts`. This
+> document is retained only for historical context on the journal design.
+
 BibleMarker supports automatic sync across iOS and macOS devices using iCloud Drive with a journal-based sync system.
 
 ## Overview

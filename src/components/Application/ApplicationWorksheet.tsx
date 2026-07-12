@@ -478,12 +478,9 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef, isCreating, se
             <p className="text-scripture-muted text-xs mb-4">
               Use the Application worksheet to record how Scripture applies to your life through teaching, reproof, correction, and training in righteousness (2 Timothy 3:16-17).
             </p>
-            <button
-              onClick={() => { resetForm(); setIsCreating(true); }}
-              className="px-4 py-2 bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-            >
+            <Button onClick={() => { resetForm(); setIsCreating(true); }}>
               Create Your First Entry
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="space-y-3">

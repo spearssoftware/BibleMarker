@@ -459,12 +459,9 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
           <p className="text-scripture-muted text-xs mb-4">
             Record geographic locations and places you observe in the text. Use the 📍, ⛰, or 🏙️ symbols to mark places, then add details here.
           </p>
-          <button
-            onClick={() => setIsCreating(true)}
-            className="px-4 py-2 bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-          >
+          <Button onClick={() => setIsCreating(true)}>
             Create Your First Place
-          </button>
+          </Button>
         </div>
       )}
 

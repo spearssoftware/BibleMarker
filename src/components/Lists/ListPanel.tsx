@@ -274,25 +274,22 @@ export function ListPanel({ onClose }: ListPanelProps = {}) {
       title="Observation Lists"
       size="lg"
       headerActions={
-        <button
+        <Button
+          size="sm"
           onClick={() => setIsCreating(true)}
-          className="px-3 py-1.5 text-sm bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
           aria-label="Create new observation list"
         >
           + New List
-        </button>
+        </Button>
       }
     >
             {lists.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-scripture-muted text-sm mb-4">No observation lists yet.</p>
                 <p className="text-scripture-muted text-xs mb-4">Create a list to record observations about a specific keyword found in scripture.</p>
-                <button
-                  onClick={() => setIsCreating(true)}
-                  className="px-4 py-2 bg-scripture-accent text-white rounded hover:bg-scripture-accent/90 transition-colors"
-                >
+                <Button onClick={() => setIsCreating(true)}>
                   Create Your First List
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="space-y-3">

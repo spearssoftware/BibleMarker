@@ -2,11 +2,11 @@
 
 ## Tech Stack
 
-- **Frontend**: React 19, TypeScript, Tailwind CSS 4, Vite 7
+- **Frontend**: React 19, TypeScript, Tailwind CSS 4, Vite 8
 - **State**: Zustand (stores in `src/stores/`)
 - **Database**: SQLite via `@tauri-apps/plugin-sql` (native only — no web/PWA)
 - **Desktop/Mobile**: Tauri 2 (Rust in `src-tauri/`)
-- **Sync**: Journal-based file sync to iCloud Documents (macOS/iOS)
+- **Sync**: Journal-based sync to the Cloudflare Worker over HTTP, keyed to a signed-in account (`worker/`). (Legacy iCloud file sync was removed in 3.1.0.)
 - **Build**: pnpm, Vitest, ESLint
 
 ## Folder Structure
@@ -121,10 +121,11 @@ Conventions:
 
 - `src/lib/sqlite-db.ts` — raw SQLite driver (never import directly)
 - `src/lib/database.ts` — all CRUD, cache ops, raw SQL; **always import from here**
-- `src/lib/sync-engine.ts` — journal-based file sync
+- `src/lib/sync-engine.ts` — journal-based sync engine (writes JSON journals through a storage backend)
+- `src/lib/storage-backend.ts` — `HttpStorageBackend`, the sole backend, talks to the Cloudflare Worker
 - `src/lib/sync.ts` — public sync API and status management
 
-The database lives in the app data directory (`sqlite:biblemarker.db`). It is **never** placed in the cloud sync folder. Sync is handled by writing JSON journal files to a separate sync folder.
+The database lives in the app data directory (`sqlite:biblemarker.db`) and is never synced as a file. Sync works by writing JSON journal files through the storage backend to the Cloudflare Worker (`worker/`), scoped to the signed-in account.
 
 All write operations via `database.ts` automatically log to `change_log` for sync.
 
@@ -177,9 +178,16 @@ For a specific target: `CARGO_HOME="$(pwd)/.cargo-home" unset CI && pnpm tauri b
 
 | Workflow | Trigger | Jobs |
 |----------|---------|------|
-| `ci` | push/PR to main | `pnpm run lint`, `pnpm test` |
-| `publish` | tag `app-v*` | Tauri builds (macOS, Linux, Windows, iOS) |
-| `security` | push/PR to main | semgrep static analysis |
+| `ci` | push/PR to main (non-docs) | `pnpm run lint`, `pnpm test`, Rust format/checks |
+| `ci-docs-skip` | PR to main (docs-only) | stub jobs that satisfy branch protection without building |
+| `security` | push/PR to main | semgrep static analysis + CodeQL |
+| `dependency-review` | PR to main | flags vulnerable dependency changes |
+| `release` | tag `app-v*` / manual | Tauri builds (macOS, Linux, Windows, iOS, Android) + draft release |
+| `release-tag` | release PR merged | creates the `app-vX.Y.Z` tag that triggers `release` |
+| `promote-release` | manual | flips a prerelease to the stable/latest release |
+| `testflight` | manual | iOS build + TestFlight upload |
+| `build-ci-images` | weekly / manual | rebuilds the CI container images |
+| `regenerate-flatpak-sources` | manual | regenerates vendored Flatpak sources (parked) |
 
 Local reproduction:
 
