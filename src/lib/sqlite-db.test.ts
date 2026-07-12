@@ -178,6 +178,65 @@ describe('applyRemoteChange', () => {
   });
 });
 
+/**
+ * The structured (column-based) tables route their sync-apply through the local
+ * save functions. These guard that the routed rows are written 'synced' with the
+ * remote timestamp/device, in the correct column order — the sync-apply path was
+ * previously untested.
+ */
+describe('applyRemoteChange — structured tables', () => {
+  it('upserts annotations as synced with the remote timestamp and device', async () => {
+    const mod = await loadModule();
+    const obj = {
+      id: 'ann-1', moduleId: 'NASB', type: 'highlight', presetId: 'p1',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    };
+    const data = JSON.stringify(obj);
+
+    await mod.applyRemoteChange('annotations', 'upsert', 'ann-1', data, '2026-01-02T00:00:00.000Z', 'remote-dev');
+
+    const inserts = findCalls(/INSERT OR REPLACE INTO annotations/);
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0].params).toEqual([
+      'ann-1', 'NASB', 'highlight', data, 'p1',
+      '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z', 'synced', 'remote-dev',
+    ]);
+  });
+
+  it('normalizes legacy bookScope/chapterScope into scopes for marking_presets', async () => {
+    const mod = await loadModule();
+    const obj = {
+      id: 'mp-1', word: 'God', variants: [], autoSuggest: true, usageCount: 5,
+      bookScope: 'John', chapterScope: 3, createdAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    await mod.applyRemoteChange('marking_presets', 'upsert', 'mp-1', JSON.stringify(obj), '2026-01-02T00:00:00.000Z', 'remote-dev');
+
+    const inserts = findCalls(/INSERT OR REPLACE INTO marking_presets/);
+    expect(inserts).toHaveLength(1);
+    const p = inserts[0].params ?? [];
+    expect(p[9]).toBe('John');                                       // book_scope
+    expect(p[10]).toBe(3);                                           // chapter_scope
+    expect(p[11]).toBe(JSON.stringify([{ book: 'John', chapter: 3 }])); // scopes
+    expect(p[p.length - 2]).toBe('synced');                         // sync_status
+    expect(p[p.length - 1]).toBe('remote-dev');                     // device_id
+  });
+
+  it('upserts studies as synced', async () => {
+    const mod = await loadModule();
+    const obj = { id: 's-1', name: 'Romans', book: 'Rom', isActive: true, createdAt: '2026-01-01T00:00:00.000Z' };
+
+    await mod.applyRemoteChange('studies', 'upsert', 's-1', JSON.stringify(obj), '2026-01-02T00:00:00.000Z', 'remote-dev');
+
+    const inserts = findCalls(/INSERT OR REPLACE INTO studies/);
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0].params).toEqual([
+      's-1', 'Romans', 'Rom', 1,
+      '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z', 'synced', 'remote-dev',
+    ]);
+  });
+});
+
 describe('schema migration v11', () => {
   it('backfills study_id from JSON data for all study-column tables', async () => {
     state.schemaVersion = 10;
