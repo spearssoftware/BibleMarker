@@ -18,7 +18,7 @@ import { BibleApiError } from './types';
 import { esvClient, parseVerseText } from './esv';
 import { swordClient } from './sword';
 import type { Chapter } from '@/types';
-import { getPreferences, updatePreferences, getCachedChapter, setCachedChapter, getAllCachedChapters, clearChapterCache, sqlSelect, sqlExecute } from '@/lib/database';
+import { getPreferences, updatePreferences, getCachedChapter, setCachedChapter, getAllCachedChapters, getBookCachedChapters, clearChapterCache, sqlSelect, sqlExecute } from '@/lib/database';
 import { retryWithBackoff, isNetworkError, getNetworkErrorMessage, isOnline } from '../offline';
 
 // Re-export types
@@ -200,10 +200,8 @@ export async function fetchChapter(
       const maxVerses = Math.min(500, halfBook);
 
       if (verseCount <= maxVerses) {
-        const allCached = await getAllCachedChapters();
-        const cachedChapters = allCached.filter(c => c.moduleId === translationId && c.book === book);
-        const chapterNumbers = new Set<number>();
-        cachedChapters.forEach(c => { if (c.chapter !== undefined) chapterNumbers.add(c.chapter); });
+        const cachedChapters = await getBookCachedChapters(translationId, book);
+        const chapterNumbers = new Set<number>(cachedChapters.keys());
         chapterNumbers.add(chapter);
         const sortedChapters = Array.from(chapterNumbers).sort((a, b) => a - b);
 
@@ -217,8 +215,8 @@ export async function fetchChapter(
               sequenceVerses += verseCount;
               includesNewChapter = true;
             } else {
-              const cc = cachedChapters.find(c => c.chapter === sortedChapters[j]);
-              sequenceVerses += cc ? Object.keys(cc.verses || {}).length : getVC(book, sortedChapters[j]);
+              const ccVerses = cachedChapters.get(sortedChapters[j]);
+              sequenceVerses += ccVerses ? Object.keys(ccVerses).length : getVC(book, sortedChapters[j]);
             }
           }
           if (includesNewChapter) {
