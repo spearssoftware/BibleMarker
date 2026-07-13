@@ -13,7 +13,10 @@ import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { Search } from '@/components/Search';
 import { TranslationPicker, UnifiedPicker } from './pickers';
 import { ExportPopover } from './ExportPopover';
-import { ToolbarPopover, SyncStatusIndicator } from '@/components/shared';
+import { ToolbarPopover } from '@/components/shared';
+import { SyncDetailsPanel } from '@/components/shared/SyncStatusIndicator';
+import { useSyncStatus, getStatusColorClass } from '@/hooks/useSyncStatus';
+import { getSyncStatusIcon, getSyncStatusMessage } from '@/lib/sync';
 import { toast } from '@/stores/toastStore';
 export function NavigationBar() {
   const {
@@ -37,6 +40,11 @@ export function NavigationBar() {
   const [showUnifiedPicker, setShowUnifiedPicker] = useState(false);
   const [showExportPopover, setShowExportPopover] = useState(false);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
+  const [showSyncPanel, setShowSyncPanel] = useState(false);
+
+  // Sync status now lives in the overflow menu (keeps the top bar uncluttered).
+  const { status: syncStatus, isSyncing, handleSync } = useSyncStatus();
+  const syncAvailable = !!syncStatus && syncStatus.state !== 'disabled';
 
   // Create refs for trigger buttons
   const translationButtonRef = useRef<HTMLButtonElement>(null);
@@ -44,7 +52,7 @@ export function NavigationBar() {
   const overflowButtonRef = useRef<HTMLButtonElement>(null);
 
   // Lock scroll when any picker is open (but not for dropdowns - they use lockScroll: false in useModal)
-  const anyPickerOpen = showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker || showUnifiedPicker || showExportPopover || showOverflowMenu;
+  const anyPickerOpen = showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker || showUnifiedPicker || showExportPopover || showOverflowMenu || showSyncPanel;
   // Note: Individual pickers use useModal with lockScroll: false, so scroll locking here is optional
   // Keeping this commented for now as dropdowns shouldn't lock scroll
   // useScrollLock(anyPickerOpen);
@@ -244,6 +252,7 @@ export function NavigationBar() {
     setShowUnifiedPicker(false);
     setShowOverflowMenu(false);
     setShowExportPopover(false);
+    setShowSyncPanel(false);
     setShowSearch(false);
   };
 
@@ -392,12 +401,9 @@ export function NavigationBar() {
           </button>
         </div>
 
-        {/* Right: sync status and overflow menu */}
+        {/* Right: overflow menu and next chapter (sync moved into the overflow menu) */}
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-          {/* Sync status (icon opens the sync details panel) */}
-          <SyncStatusIndicator compact className="p-2 rounded-lg hover:bg-scripture-elevated touch-target" />
-
-          {/* Overflow menu — secondary actions (export, future items) */}
+          {/* Overflow menu — secondary actions (sync, export, future items) */}
           <button
             ref={overflowButtonRef}
             onClick={(e) => {
@@ -550,6 +556,21 @@ export function NavigationBar() {
           panelClassName="py-1"
         >
           <div role="menu" aria-label="More actions">
+            {syncAvailable && (
+              <button
+                role="menuitem"
+                onClick={() => { setShowOverflowMenu(false); setShowSyncPanel(true); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left
+                           text-scripture-text hover:bg-scripture-elevated transition-colors min-h-[44px]"
+                title={getSyncStatusMessage(syncStatus)}
+              >
+                <span className={`text-lg flex-shrink-0 ${getStatusColorClass(syncStatus.state)} ${syncStatus.state === 'syncing' ? 'animate-spin' : ''}`}>
+                  {getSyncStatusIcon(syncStatus)}
+                </span>
+                <span className="flex-1 min-w-0">Sync</span>
+                <span className="text-xs text-scripture-muted truncate max-w-[45%]">{getSyncStatusMessage(syncStatus)}</span>
+              </button>
+            )}
             <button
               role="menuitem"
               onClick={openExport}
@@ -566,6 +587,17 @@ export function NavigationBar() {
             </button>
           </div>
         </ToolbarPopover>
+      )}
+
+      {/* Sync details - opened from the overflow menu, anchored to the ⋯ button */}
+      {showSyncPanel && syncStatus && (
+        <SyncDetailsPanel
+          status={syncStatus}
+          onClose={() => setShowSyncPanel(false)}
+          onSync={handleSync}
+          isSyncing={isSyncing}
+          triggerRef={overflowButtonRef}
+        />
       )}
 
       {/* ExportPopover - chapter/range export to Print, PDF, or clipboard */}
