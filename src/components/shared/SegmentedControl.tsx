@@ -29,11 +29,14 @@ const GRID_COLS_CLASSES: Record<SegmentedColumns, string> = {
 };
 
 const SIZE_CLASSES: Record<SegmentedSize, string> = {
-  sm: 'px-3 py-1 text-xs',
-  md: 'px-3 py-2 text-sm',
+  sm: 'px-2 py-1 text-xs',
+  md: 'px-2 py-2 text-sm',
 };
 
-const BASE_BUTTON_CLASSES = 'font-ui rounded-lg transition-colors text-center';
+// min-w-0 lets each grid cell shrink below its content, and break-words wraps a
+// long single-word label onto a second line instead of overflowing into the
+// neighbouring chip on narrow panels (e.g. "Underline" / "Extra Large").
+const BASE_BUTTON_CLASSES = 'font-ui rounded-lg transition-colors text-center min-w-0 break-words leading-tight';
 const SELECTED_CLASSES = 'bg-scripture-accent text-scripture-bg';
 const UNSELECTED_CLASSES = 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50';
 
