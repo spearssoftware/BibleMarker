@@ -348,9 +348,9 @@ export function NavigationBar() {
               e.preventDefault();
               e.stopPropagation();
             }}
-            className={`px-2.5 sm:px-3 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
+            className={`px-2 sm:px-3 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
                        border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center gap-1.5
-                       select-none min-w-[44px] flex-shrink-0 max-w-[40vw] sm:max-w-[10rem]
+                       select-none min-w-[44px] flex-shrink max-w-[32vw] sm:max-w-[10rem]
                        ${showTranslationPicker
                          ? 'bg-scripture-accent text-scripture-bg shadow-md'
                          : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
@@ -375,8 +375,8 @@ export function NavigationBar() {
               e.preventDefault();
               e.stopPropagation();
             }}
-            className={`px-3 sm:px-4 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
-                       border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center gap-1.5
+            className={`px-2 sm:px-4 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
+                       border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center gap-1
                        select-none min-w-0
                        ${showUnifiedPicker
                          ? 'bg-scripture-accent text-scripture-bg shadow-md'
