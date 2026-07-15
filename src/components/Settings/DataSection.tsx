@@ -13,7 +13,6 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { getBookById } from '@/types';
 import { clearBookAnnotations, clearDatabase, getSyncDiagnostics, type SyncDiagnostics } from '@/lib/database';
 import { exportBackup, importBackup, restoreBackup, validateBackup, getBackupPreview, type BackupData } from '@/lib/backup';
-import { exportStudyData } from '@/lib/export';
 import {
   getAutoBackupConfig,
   updateAutoBackupConfig,
@@ -78,11 +77,6 @@ export function DataSection() {
   const [includeCache, setIncludeCache] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportSuccess, setExportSuccess] = useState<string | boolean>(false);
-
-  // Study Export state
-  const [isExportingStudy, setIsExportingStudy] = useState(false);
-  const [studyExportError, setStudyExportError] = useState<string | null>(null);
-  const [studyExportSuccess, setStudyExportSuccess] = useState<string | boolean>(false);
 
   const [importStep, setImportStep] = useState<'select' | 'preview' | 'restoring'>('select');
   const [backupPreview, setBackupPreview] = useState<BackupData | null>(null);
@@ -451,27 +445,6 @@ export function DataSection() {
     }
   };
 
-  const handleExportStudy = async () => {
-    setIsExportingStudy(true);
-    setStudyExportError(null);
-    setStudyExportSuccess(false);
-
-    try {
-      const result = await exportStudyData();
-      setStudyExportSuccess(result || true);
-      setTimeout(() => {
-        setStudyExportSuccess(false);
-      }, 3000);
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Failed to export study data';
-      if (msg !== 'Export cancelled') {
-        setStudyExportError(msg);
-      }
-    } finally {
-      setIsExportingStudy(false);
-    }
-  };
-
   const handleImportSelect = async () => {
     setIsImporting(true);
     setImportError(null);
@@ -600,7 +573,10 @@ export function DataSection() {
       <div className="space-y-0">
         {/* Sync Section */}
         <div className="p-4">
-          <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Sync</h3>
+          <h3 className="text-base font-ui font-semibold text-scripture-text mb-1">Sync across devices</h3>
+          <p className="text-sm text-scripture-muted mb-4">
+            Sign in to keep your studies saved online and up to date on every device you use. This is the easiest way to keep your work safe.
+          </p>
 
           {/* Cloud sync account UI */}
           <div className="mb-4 p-4 bg-scripture-elevated/50 rounded-lg border border-scripture-border/50 space-y-3">
@@ -687,9 +663,9 @@ export function DataSection() {
 
         {/* Backup & Restore Section */}
         <div className="p-4">
-          <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Data Backup & Restore</h3>
+          <h3 className="text-base font-ui font-semibold text-scripture-text mb-1">Save a backup file</h3>
           <p className="text-sm text-scripture-muted mb-4">
-            Create a complete backup of all your data (annotations, keywords, notes, studies, etc.) as a JSON file for data recovery. This backup can be restored to recover your work if needed. You can save backups to your cloud folder (iCloud Drive, Google Drive, etc.) for automatic syncing. <strong>Note:</strong> This creates a technical backup file, not a readable document. For a formatted, readable export of your study notes, use the Study Export section below.
+            Save a copy of everything (your keywords, notes, studies, and highlights) to a single file you can keep somewhere safe, like iCloud Drive or Google Drive, or move to another device. Use Restore to bring that data back later.
           </p>
 
           {importStep === 'select' && (
@@ -861,55 +837,11 @@ export function DataSection() {
 
         <div className="border-t border-scripture-border/30 my-4"></div>
 
-        {/* Study Export Section */}
-        <div className="p-4">
-          <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Study Export</h3>
-          <p className="text-sm text-scripture-muted mb-4">
-            Export your study observations, interpretations, and applications as a formatted Markdown document. This creates a readable summary of your Bible study organized by book and chapter.
-          </p>
-
-          <button
-            onClick={handleExportStudy}
-            disabled={isExportingStudy}
-            className="w-full px-3 py-2 bg-scripture-accent text-scripture-bg rounded-lg hover:bg-scripture-accent/90
-                     disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200
-                     font-ui text-sm shadow-md flex items-center justify-center gap-2"
-          >
-            {isExportingStudy ? (
-              <>
-                <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin"></div>
-                <span>Exporting...</span>
-              </>
-            ) : (
-              <>
-                <span>📄</span>
-                <span>Export Study Data (Markdown)</span>
-              </>
-            )}
-          </button>
-
-          {studyExportSuccess && (
-            <div className="mt-3 p-3 bg-scripture-successBg border border-scripture-success/30 rounded-lg text-scripture-successText text-sm">
-              ✓ Study data exported successfully!{typeof studyExportSuccess === 'string' && (
-                <> Saved to Documents/{studyExportSuccess}</>
-              )}
-            </div>
-          )}
-
-          {studyExportError && (
-            <div className="mt-3 p-3 bg-scripture-errorBg border border-scripture-error/30 rounded-lg text-scripture-errorText text-sm">
-              ✗ {studyExportError}
-            </div>
-          )}
-        </div>
-
-        <div className="border-t border-scripture-border/30 my-4"></div>
-
         {/* Auto-Backup Section */}
         <div className="p-4">
-          <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Auto-Backup</h3>
+          <h3 className="text-base font-ui font-semibold text-scripture-text mb-1">Automatic backups</h3>
           <p className="text-sm text-scripture-muted mb-4">
-            Automatically backup your data at regular intervals. Backups are stored as JSON files (separate from the database) and rotated to keep only the most recent ones. This protects your data if the database becomes corrupted.
+            BibleMarker automatically saves recent snapshots of your data on this device, so you can go back to an earlier point if something goes wrong. These are kept separately from the main database.
           </p>
 
           <div className="space-y-4">
@@ -1119,7 +1051,10 @@ export function DataSection() {
         <div className="border-t border-scripture-border/30 my-4"></div>
 
         <div className="p-4">
-          <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Clear Data</h3>
+          <h3 className="text-base font-ui font-semibold text-scripture-text mb-1">Clear data</h3>
+          <p className="text-sm text-scripture-muted mb-4">
+            Permanently remove data from this device. Back up first if you might want it later.
+          </p>
 
           <div className="space-y-3">
             <div>
@@ -1163,7 +1098,7 @@ export function DataSection() {
                 <span>{isClearing ? 'Clearing...' : 'Clear All Data'}</span>
               </button>
               <p className="text-xs text-scripture-muted mt-2">
-                Remove all annotations, notes, and cached Bible text (for testing)
+                Remove all annotations, notes, and cached Bible text from this device
               </p>
             </div>
           </div>
