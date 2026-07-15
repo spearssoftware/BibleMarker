@@ -6,14 +6,13 @@
  * a details popover (anchored under the bar, matching the other toolbar panels).
  */
 
-import { useState, useEffect, useCallback, useRef, type RefObject } from 'react';
+import { useState, useRef, type RefObject } from 'react';
 import {
   type SyncStatus,
-  onSyncStatusChange,
   getSyncStatusMessage,
   getSyncStatusIcon,
-  triggerSync,
 } from '@/lib/sync';
+import { useSyncStatus, getStatusColorClass } from '@/hooks/useSyncStatus';
 import { usePanelStore } from '@/stores/panelStore';
 import { ToolbarPopover } from './ToolbarPopover';
 
@@ -24,36 +23,6 @@ interface SyncStatusIndicatorProps {
   className?: string;
 }
 
-interface UseSyncStatusResult {
-  status: SyncStatus | null;
-  isSyncing: boolean;
-  handleSync: () => Promise<void>;
-}
-
-/**
- * Headless sync state: the current status plus a manual-sync trigger.
- */
-function useSyncStatus(): UseSyncStatusResult {
-  const [status, setStatus] = useState<SyncStatus | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-
-  useEffect(() => {
-    const unsubscribe = onSyncStatusChange(setStatus);
-    return unsubscribe;
-  }, []);
-
-  const handleSync = useCallback(async () => {
-    if (isSyncing) return;
-    setIsSyncing(true);
-    try {
-      await triggerSync();
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [isSyncing]);
-
-  return { status, isSyncing, handleSync };
-}
 
 /**
  * Sync status indicator for the UI.
@@ -163,7 +132,7 @@ interface SyncDetailsPanelProps {
   triggerRef: RefObject<HTMLElement | null>;
 }
 
-function SyncDetailsPanel({
+export function SyncDetailsPanel({
   status,
   onClose,
   onSync,
@@ -281,19 +250,6 @@ function SyncDetailsPanel({
         </div>
     </ToolbarPopover>
   );
-}
-
-function getStatusColorClass(state: SyncStatus['state']): string {
-  switch (state) {
-    case 'synced': return 'text-scripture-success';
-    case 'syncing': return 'text-scripture-info';
-    case 'offline': return 'text-scripture-warning';
-    case 'error': return 'text-scripture-error';
-    case 'auth-expired': return 'text-scripture-warning';
-    case 'disabled':
-    case 'signed-out':
-    default: return 'text-scripture-muted';
-  }
 }
 
 /** States where a manual "Sync Now" makes sense (no account problem). */

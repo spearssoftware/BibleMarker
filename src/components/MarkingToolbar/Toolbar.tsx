@@ -44,7 +44,7 @@ export function Toolbar() {
     toolbarVisible,
   } = useAnnotationStore();
 
-  useBibleStore();
+  const { previousChapter, nextChapter, canGoNext, canGoPrevious } = useBibleStore();
   const { createTextAnnotation, createSymbolAnnotation, createAnnotationsAcrossTranslations, loadAnnotations } = useAnnotations();
   const { presets, loadPresets, addPreset, markPresetUsed, updatePreset } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
@@ -292,6 +292,33 @@ export function Toolbar() {
 
   return (
     <>
+      {/* Chapter arrows — faint, floated at the screen edges (YouVersion-style),
+          so they take no layout space. Sit just above the bottom tab bar. */}
+      <button
+        onClick={() => previousChapter()}
+        disabled={!canGoPrevious()}
+        className="fixed left-0 z-20 pl-0.5 pr-2 py-3 text-scripture-muted/40 hover:text-scripture-text
+                   disabled:opacity-0 transition-opacity touch-target"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px)', left: 'env(safe-area-inset-left, 0px)' }}
+        aria-label="Previous chapter"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <button
+        onClick={() => nextChapter()}
+        disabled={!canGoNext()}
+        className="fixed right-0 z-20 pr-0.5 pl-2 py-3 text-scripture-muted/40 hover:text-scripture-text
+                   disabled:opacity-0 transition-opacity touch-target"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px)', right: 'env(safe-area-inset-right, 0px)' }}
+        aria-label="Next chapter"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+
       <div className="fixed left-0 right-0 z-30"
            style={{
              bottom: 'var(--keyboard-height, 0px)',
