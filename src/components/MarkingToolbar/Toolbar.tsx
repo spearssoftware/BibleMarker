@@ -299,7 +299,11 @@ export function Toolbar() {
         disabled={!canGoPrevious()}
         className="fixed left-0 z-20 pl-0.5 pr-2 py-3 text-scripture-muted/40 hover:text-scripture-text
                    disabled:opacity-0 transition-opacity touch-target"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px)', left: 'env(safe-area-inset-left, 0px)' }}
+        style={{
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px + var(--reader-inset-bottom, 0px))',
+          left: 'env(safe-area-inset-left, 0px)',
+          transition: 'bottom 300ms ease-out, opacity 150ms',
+        }}
         aria-label="Previous chapter"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -311,7 +315,11 @@ export function Toolbar() {
         disabled={!canGoNext()}
         className="fixed right-0 z-20 pr-0.5 pl-2 py-3 text-scripture-muted/40 hover:text-scripture-text
                    disabled:opacity-0 transition-opacity touch-target"
-        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px)', right: 'env(safe-area-inset-right, 0px)' }}
+        style={{
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px + var(--reader-inset-bottom, 0px))',
+          right: 'calc(env(safe-area-inset-right, 0px) + var(--reader-inset-right, 0px))',
+          transition: 'right 300ms ease-out, bottom 300ms ease-out, opacity 150ms',
+        }}
         aria-label="Next chapter"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
