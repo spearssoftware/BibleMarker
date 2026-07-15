@@ -70,6 +70,22 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
     ? isHorizontal ? { width: panelSize } : { height: panelSize }
     : undefined;
 
+  // Publish the reader pane's inset (panel + divider) as :root CSS variables so
+  // viewport-fixed overlays outside this subtree — the chapter-turn arrows in
+  // the bottom Toolbar — can hug the reading area instead of the panel edge.
+  const panelInset = showPanel ? panelSize + dividerSize : 0;
+  const readerInsetRight = isHorizontal ? panelInset : 0;
+  const readerInsetBottom = isHorizontal ? 0 : panelInset;
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--reader-inset-right', `${readerInsetRight}px`);
+    root.style.setProperty('--reader-inset-bottom', `${readerInsetBottom}px`);
+    return () => {
+      root.style.removeProperty('--reader-inset-right');
+      root.style.removeProperty('--reader-inset-bottom');
+    };
+  }, [readerInsetRight, readerInsetBottom]);
+
   return (
     <div
       className="flex-1 min-h-0 flex flex-col"
