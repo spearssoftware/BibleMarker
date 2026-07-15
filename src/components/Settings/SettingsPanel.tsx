@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { getBookById, BIBLE_BOOKS } from '@/types';
 import { updatePreferences, getPreferences } from '@/lib/database';
 import { saveStudyObservationPdf, openSavedPdf } from '@/lib/observation-pdf';
+import { exportStudyData } from '@/lib/export';
 import type { Study } from '@/types';
 import { applyTheme } from '@/lib/theme';
 import { clearDebugFlagsCache, getDebugFlags } from '@/lib/debug';
@@ -42,6 +43,11 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
   // Study PDF export state (per-study, Studies tab)
   const [exportingStudyPdfId, setExportingStudyPdfId] = useState<string | null>(null);
   const [studyPdfError, setStudyPdfError] = useState<string | null>(null);
+
+  // Study Markdown export state (all studies, Studies tab)
+  const [isExportingStudy, setIsExportingStudy] = useState(false);
+  const [studyExportError, setStudyExportError] = useState<string | null>(null);
+  const [studyExportSuccess, setStudyExportSuccess] = useState<string | boolean>(false);
 
   // Studies state
   const { studies, activeStudyId, loadStudies, createStudy, updateStudy, deleteStudy, setActiveStudy } = useStudyStore();
@@ -143,6 +149,28 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
       setStudyPdfError(`${study.name}: ${msg}`);
     } finally {
       setExportingStudyPdfId(null);
+    }
+  };
+
+  // Export all study notes as a single Markdown document.
+  const handleExportStudy = async () => {
+    setIsExportingStudy(true);
+    setStudyExportError(null);
+    setStudyExportSuccess(false);
+
+    try {
+      const result = await exportStudyData();
+      setStudyExportSuccess(result || true);
+      setTimeout(() => {
+        setStudyExportSuccess(false);
+      }, 3000);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Failed to export study data';
+      if (msg !== 'Export cancelled') {
+        setStudyExportError(msg);
+      }
+    } finally {
+      setIsExportingStudy(false);
     }
   };
 
@@ -377,6 +405,50 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                           )}
                         </div>
                       ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-scripture-border/30 my-4"></div>
+
+                {/* Export study notes (all studies, Markdown) */}
+                <div className="p-4">
+                  <h3 className="text-base font-ui font-semibold text-scripture-text mb-1">Export study notes</h3>
+                  <p className="text-sm text-scripture-muted mb-4">
+                    Save all your study notes (observations, interpretations, and applications) as a readable Markdown document, organized by book and chapter. For a single study as a PDF, use Export PDF above.
+                  </p>
+
+                  <button
+                    onClick={handleExportStudy}
+                    disabled={isExportingStudy}
+                    className="w-full px-3 py-2 bg-scripture-accent text-scripture-bg rounded-lg hover:bg-scripture-accent/90
+                             disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200
+                             font-ui text-sm shadow-md flex items-center justify-center gap-2"
+                  >
+                    {isExportingStudy ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin"></div>
+                        <span>Exporting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>📄</span>
+                        <span>Export Study Notes (Markdown)</span>
+                      </>
+                    )}
+                  </button>
+
+                  {studyExportSuccess && (
+                    <div className="mt-3 p-3 bg-scripture-successBg border border-scripture-success/30 rounded-lg text-scripture-successText text-sm">
+                      ✓ Study notes exported successfully!{typeof studyExportSuccess === 'string' && (
+                        <> Saved to Documents/{studyExportSuccess}</>
+                      )}
+                    </div>
+                  )}
+
+                  {studyExportError && (
+                    <div className="mt-3 p-3 bg-scripture-errorBg border border-scripture-error/30 rounded-lg text-scripture-errorText text-sm">
+                      ✗ {studyExportError}
                     </div>
                   )}
                 </div>
