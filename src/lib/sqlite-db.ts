@@ -818,15 +818,29 @@ export async function sqliteGetBookKeywordMarkCounts(book: string): Promise<Reco
   return counts;
 }
 
-export async function sqliteSaveAnnotation(annotation: Annotation): Promise<string> {
+/**
+ * Sync metadata for saving an already-synced remote row. When passed to a
+ * structured save function it flips sync_status to 'synced' and uses the
+ * remote's updated_at + device_id instead of a fresh local timestamp/device.
+ * Absent (the local-write case) the row is written 'pending' with `now` and
+ * this device's id. This lets applyStructuredUpsert reuse the save functions
+ * as the single source of truth for each table's column layout.
+ */
+interface RemoteSyncMeta {
+  updatedAt: string;
+  deviceId: string;
+}
+
+export async function sqliteSaveAnnotation(annotation: Annotation, remote?: RemoteSyncMeta): Promise<string> {
   const db = await getSqliteDb();
-  const now = toISOString(new Date());
-  const deviceId = getDeviceId();
+  const syncStatus = remote ? 'synced' : 'pending';
+  const updatedAt = remote?.updatedAt ?? toISOString(new Date());
+  const deviceId = remote?.deviceId ?? getDeviceId();
 
   await db.execute(
-    `INSERT OR REPLACE INTO annotations 
+    `INSERT OR REPLACE INTO annotations
      (id, module_id, type, data, preset_id, created_at, updated_at, sync_status, device_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       annotation.id,
       annotation.moduleId,
@@ -834,7 +848,8 @@ export async function sqliteSaveAnnotation(annotation: Annotation): Promise<stri
       JSON.stringify(annotation),
       annotation.presetId ?? null,
       toISOString(annotation.createdAt),
-      now,
+      updatedAt,
+      syncStatus,
       deviceId,
     ]
   );
@@ -886,15 +901,16 @@ export async function sqliteGetChapterHeadings(
   }));
 }
 
-export async function sqliteSaveSectionHeading(heading: SectionHeading): Promise<string> {
+export async function sqliteSaveSectionHeading(heading: SectionHeading, remote?: RemoteSyncMeta): Promise<string> {
   const db = await getSqliteDb();
-  const now = toISOString(new Date());
-  const deviceId = getDeviceId();
+  const syncStatus = remote ? 'synced' : 'pending';
+  const updatedAt = remote?.updatedAt ?? toISOString(new Date());
+  const deviceId = remote?.deviceId ?? getDeviceId();
 
   await db.execute(
-    `INSERT OR REPLACE INTO section_headings 
+    `INSERT OR REPLACE INTO section_headings
      (id, before_ref, title, covers_until, study_id, created_at, updated_at, sync_status, device_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       heading.id,
       JSON.stringify(heading.beforeRef),
@@ -902,7 +918,8 @@ export async function sqliteSaveSectionHeading(heading: SectionHeading): Promise
       heading.coversUntil ? JSON.stringify(heading.coversUntil) : null,
       heading.studyId ?? null,
       toISOString(heading.createdAt),
-      now,
+      updatedAt,
+      syncStatus,
       deviceId,
     ]
   );
@@ -962,15 +979,16 @@ export async function sqliteGetChapterTitle(
   };
 }
 
-export async function sqliteSaveChapterTitle(title: ChapterTitle): Promise<string> {
+export async function sqliteSaveChapterTitle(title: ChapterTitle, remote?: RemoteSyncMeta): Promise<string> {
   const db = await getSqliteDb();
-  const now = toISOString(new Date());
-  const deviceId = getDeviceId();
+  const syncStatus = remote ? 'synced' : 'pending';
+  const updatedAt = remote?.updatedAt ?? toISOString(new Date());
+  const deviceId = remote?.deviceId ?? getDeviceId();
 
   await db.execute(
-    `INSERT OR REPLACE INTO chapter_titles 
+    `INSERT OR REPLACE INTO chapter_titles
      (id, book, chapter, title, theme, supporting_preset_ids, study_id, created_at, updated_at, sync_status, device_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       title.id,
       title.book,
@@ -980,7 +998,8 @@ export async function sqliteSaveChapterTitle(title: ChapterTitle): Promise<strin
       title.supportingPresetIds ? JSON.stringify(title.supportingPresetIds) : null,
       title.studyId ?? null,
       toISOString(title.createdAt),
-      now,
+      updatedAt,
+      syncStatus,
       deviceId,
     ]
   );
@@ -1035,15 +1054,16 @@ export async function sqliteGetChapterNotes(
     });
 }
 
-export async function sqliteSaveNote(note: Note): Promise<string> {
+export async function sqliteSaveNote(note: Note, remote?: RemoteSyncMeta): Promise<string> {
   const db = await getSqliteDb();
-  const now = toISOString(new Date());
-  const deviceId = getDeviceId();
+  const syncStatus = remote ? 'synced' : 'pending';
+  const updatedAt = remote?.updatedAt ?? toISOString(new Date());
+  const deviceId = remote?.deviceId ?? getDeviceId();
 
   await db.execute(
-    `INSERT OR REPLACE INTO notes 
+    `INSERT OR REPLACE INTO notes
      (id, module_id, ref, range, content, created_at, updated_at, sync_status, device_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       note.id,
       note.moduleId,
@@ -1051,7 +1071,8 @@ export async function sqliteSaveNote(note: Note): Promise<string> {
       note.range ? JSON.stringify(note.range) : null,
       note.content,
       toISOString(note.createdAt),
-      now,
+      updatedAt,
+      syncStatus,
       deviceId,
     ]
   );
@@ -1122,17 +1143,26 @@ export async function sqliteGetMarkingPreset(id: string): Promise<MarkingPreset 
   return rows[0] ? mapMarkingPresetRow(rows[0]) : undefined;
 }
 
-export async function sqliteSaveMarkingPreset(preset: MarkingPreset): Promise<string> {
+export async function sqliteSaveMarkingPreset(preset: MarkingPreset, remote?: RemoteSyncMeta): Promise<string> {
   const db = await getSqliteDb();
-  const now = toISOString(new Date());
-  const deviceId = getDeviceId();
+  const syncStatus = remote ? 'synced' : 'pending';
+  const updatedAt = remote?.updatedAt ?? toISOString(new Date());
+  const deviceId = remote?.deviceId ?? getDeviceId();
 
-  const firstScope = preset.scopes?.[0];
+  // Normalize legacy bookScope/chapterScope (from older devices synced in) into
+  // the scopes array. Local writes already carry scopes, so this is a no-op for
+  // them; it only matters when applying a remote row that predates scopes.
+  const legacy = preset as MarkingPreset & { bookScope?: string; chapterScope?: number };
+  const scopes = legacy.scopes ?? (legacy.bookScope
+    ? [{ book: legacy.bookScope, ...(legacy.chapterScope !== undefined ? { chapter: legacy.chapterScope } : {}) }]
+    : undefined);
+  const firstScope = scopes?.[0];
+
   await db.execute(
     `INSERT OR REPLACE INTO marking_presets
      (id, word, variants, symbol, highlight, category, description, auto_suggest, usage_count,
       book_scope, chapter_scope, scopes, module_scope, study_id, created_at, updated_at, sync_status, device_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       preset.id,
       preset.word ?? null,
@@ -1142,14 +1172,15 @@ export async function sqliteSaveMarkingPreset(preset: MarkingPreset): Promise<st
       preset.category ?? null,
       preset.description ?? null,
       preset.autoSuggest ? 1 : 0,
-      preset.usageCount,
+      preset.usageCount ?? 0,
       firstScope?.book ?? null,
       firstScope?.chapter ?? null,
-      preset.scopes ? JSON.stringify(preset.scopes) : null,
+      scopes ? JSON.stringify(scopes) : null,
       preset.moduleScope ?? null,
       preset.studyId ?? null,
       toISOString(preset.createdAt),
-      now,
+      updatedAt,
+      syncStatus,
       deviceId,
     ]
   );
@@ -1196,22 +1227,24 @@ export async function sqliteGetAllStudies(): Promise<Study[]> {
   }));
 }
 
-export async function sqliteSaveStudy(study: Study): Promise<string> {
+export async function sqliteSaveStudy(study: Study, remote?: RemoteSyncMeta): Promise<string> {
   const db = await getSqliteDb();
-  const now = toISOString(new Date());
-  const deviceId = getDeviceId();
+  const syncStatus = remote ? 'synced' : 'pending';
+  const updatedAt = remote?.updatedAt ?? toISOString(new Date());
+  const deviceId = remote?.deviceId ?? getDeviceId();
 
   await db.execute(
-    `INSERT OR REPLACE INTO studies 
+    `INSERT OR REPLACE INTO studies
      (id, name, book, is_active, created_at, updated_at, sync_status, device_id)
-     VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       study.id,
       study.name,
       study.book ?? null,
       study.isActive ? 1 : 0,
       toISOString(study.createdAt),
-      now,
+      updatedAt,
+      syncStatus,
       deviceId,
     ]
   );
@@ -1867,7 +1900,7 @@ export async function applyRemoteChange(
     );
   } else if (['annotations', 'section_headings', 'chapter_titles', 'notes', 'marking_presets', 'studies'].includes(tableName)) {
     // Tables with structured columns — parse data and upsert
-    await applyStructuredUpsert(db, tableName, data, remoteUpdatedAt, remoteDeviceId);
+    await applyStructuredUpsert(tableName, data, remoteUpdatedAt, remoteDeviceId);
   } else {
     // Generic data tables (observation types) — use the data column approach
     const parsed = JSON.parse(data);
@@ -1896,98 +1929,35 @@ export async function applyRemoteChange(
  * Apply an upsert to a table with structured columns.
  */
 async function applyStructuredUpsert(
-  db: Database,
   tableName: string,
   data: string,
   updatedAt: string,
   deviceId: string
 ): Promise<void> {
+  // Route through the local save functions (single source of truth for each
+  // table's column layout), passing remote sync metadata so the row is written
+  // 'synced' with the remote's timestamp/device instead of a fresh local one.
   const parsed = JSON.parse(data);
+  const remote: RemoteSyncMeta = { updatedAt, deviceId };
 
   switch (tableName) {
     case 'annotations':
-      await db.execute(
-        `INSERT OR REPLACE INTO annotations
-         (id, module_id, type, data, preset_id, created_at, updated_at, sync_status, device_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'synced', ?)`,
-        [
-          parsed.id, parsed.moduleId, parsed.type, data,
-          parsed.presetId ?? null, toISOString(parsed.createdAt), updatedAt, deviceId,
-        ]
-      );
+      await sqliteSaveAnnotation(parsed, remote);
       break;
     case 'section_headings':
-      await db.execute(
-        `INSERT OR REPLACE INTO section_headings
-         (id, before_ref, title, covers_until, study_id, created_at, updated_at, sync_status, device_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'synced', ?)`,
-        [
-          parsed.id, JSON.stringify(parsed.beforeRef), parsed.title,
-          parsed.coversUntil ? JSON.stringify(parsed.coversUntil) : null,
-          parsed.studyId ?? null,
-          toISOString(parsed.createdAt), updatedAt, deviceId,
-        ]
-      );
+      await sqliteSaveSectionHeading(parsed, remote);
       break;
     case 'chapter_titles':
-      await db.execute(
-        `INSERT OR REPLACE INTO chapter_titles
-         (id, book, chapter, title, theme, supporting_preset_ids, study_id, created_at, updated_at, sync_status, device_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?)`,
-        [
-          parsed.id, parsed.book, parsed.chapter, parsed.title,
-          parsed.theme ?? null,
-          parsed.supportingPresetIds ? JSON.stringify(parsed.supportingPresetIds) : null,
-          parsed.studyId ?? null,
-          toISOString(parsed.createdAt), updatedAt, deviceId,
-        ]
-      );
+      await sqliteSaveChapterTitle(parsed, remote);
       break;
     case 'notes':
-      await db.execute(
-        `INSERT OR REPLACE INTO notes
-         (id, module_id, ref, range, content, created_at, updated_at, sync_status, device_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'synced', ?)`,
-        [
-          parsed.id, parsed.moduleId, JSON.stringify(parsed.ref),
-          parsed.range ? JSON.stringify(parsed.range) : null,
-          parsed.content, toISOString(parsed.createdAt), updatedAt, deviceId,
-        ]
-      );
+      await sqliteSaveNote(parsed, remote);
       break;
-    case 'marking_presets': {
-      const scopes = parsed.scopes ?? (parsed.bookScope
-        ? [{ book: parsed.bookScope, ...(parsed.chapterScope !== undefined ? { chapter: parsed.chapterScope } : {}) }]
-        : undefined);
-      const firstSyncScope = scopes?.[0];
-      await db.execute(
-        `INSERT OR REPLACE INTO marking_presets
-         (id, word, variants, symbol, highlight, category, description, auto_suggest, usage_count,
-          book_scope, chapter_scope, scopes, module_scope, study_id, created_at, updated_at, sync_status, device_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?)`,
-        [
-          parsed.id, parsed.word ?? null, JSON.stringify(parsed.variants),
-          parsed.symbol ?? null, parsed.highlight ? JSON.stringify(parsed.highlight) : null,
-          parsed.category ?? null, parsed.description ?? null,
-          parsed.autoSuggest ? 1 : 0, parsed.usageCount ?? 0,
-          firstSyncScope?.book ?? null, firstSyncScope?.chapter ?? null,
-          scopes ? JSON.stringify(scopes) : null,
-          parsed.moduleScope ?? null, parsed.studyId ?? null,
-          toISOString(parsed.createdAt), updatedAt, deviceId,
-        ]
-      );
+    case 'marking_presets':
+      await sqliteSaveMarkingPreset(parsed, remote);
       break;
-    }
     case 'studies':
-      await db.execute(
-        `INSERT OR REPLACE INTO studies
-         (id, name, book, is_active, created_at, updated_at, sync_status, device_id)
-         VALUES (?, ?, ?, ?, ?, ?, 'synced', ?)`,
-        [
-          parsed.id, parsed.name, parsed.book ?? null,
-          parsed.isActive ? 1 : 0, toISOString(parsed.createdAt), updatedAt, deviceId,
-        ]
-      );
+      await sqliteSaveStudy(parsed, remote);
       break;
   }
 }
