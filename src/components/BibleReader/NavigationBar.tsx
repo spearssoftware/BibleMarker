@@ -25,11 +25,7 @@ export function NavigationBar() {
     setLocation,
     setNavSelectedVerse,
     setCurrentModule,
-    nextChapter,
-    previousChapter,
     goBack,
-    canGoNext,
-    canGoPrevious,
     canGoBack,
   } = useBibleStore();
 
@@ -280,19 +276,6 @@ export function NavigationBar() {
         <div className="max-w-4xl mx-auto px-2 sm:px-4 py-2.5 flex items-center justify-between gap-2">
         {/* Left: prev chapter, sync status, back, and the location + translation chips */}
         <div className="flex items-center gap-1 sm:gap-2 min-w-0">
-          {/* Previous chapter */}
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); previousChapter(); }}
-            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-            disabled={!canGoPrevious()}
-            className="p-2 rounded-lg hover:bg-scripture-elevated disabled:opacity-30 disabled:cursor-not-allowed
-                       transition-all duration-200 touch-target select-none flex-shrink-0"
-            aria-label="Previous chapter"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
 
           {/* Search */}
           <button
@@ -359,7 +342,7 @@ export function NavigationBar() {
             }}
             className={`px-2 sm:px-3 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
                        border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center gap-1.5
-                       select-none min-w-[44px] flex-shrink max-w-[32vw] sm:max-w-[10rem]
+                       select-none flex-shrink-0 max-w-[40vw] sm:max-w-[10rem]
                        ${showTranslationPicker
                          ? 'bg-scripture-accent text-scripture-bg shadow-md'
                          : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
@@ -430,19 +413,6 @@ export function NavigationBar() {
             </svg>
           </button>
 
-          {/* Next chapter */}
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); nextChapter(); }}
-            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-            disabled={!canGoNext()}
-            className="p-2 rounded-lg hover:bg-scripture-elevated disabled:opacity-30 disabled:cursor-not-allowed
-                       transition-all duration-200 touch-target select-none"
-            aria-label="Next chapter"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
         </div>
       </div>
 

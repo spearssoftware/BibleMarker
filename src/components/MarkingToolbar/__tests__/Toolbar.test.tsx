@@ -43,7 +43,12 @@ vi.mock('@/stores/markingPresetStore', () => ({
   }),
 }));
 vi.mock('@/stores/bibleStore', () => ({
-  useBibleStore: () => ({}),
+  useBibleStore: () => ({
+    previousChapter: vi.fn(),
+    nextChapter: vi.fn(),
+    canGoNext: () => false,
+    canGoPrevious: () => false,
+  }),
 }));
 vi.mock('@/stores/studyStore', () => ({
   useStudyStore: () => ({ activeStudyId: null }),

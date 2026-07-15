@@ -594,8 +594,8 @@ export function MultiTranslationView() {
       </div>
 
       {/* Verse rows - scrollable container */}
-      <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0" onMouseUp={handleMouseUp} onTouchStart={(e) => { swipeTouchStart(e); cancelSelectionCapture(); }} onTouchMove={cancelSelectionCapture} onTouchEnd={(e) => { swipeTouchEnd(e); handleTouchEnd(); }}>
-          <div key={layoutKey} className={`px-4 py-4 space-y-1.5`}>
+      <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0 [scrollbar-gutter:stable_both-edges]" onMouseUp={handleMouseUp} onTouchStart={(e) => { swipeTouchStart(e); cancelSelectionCapture(); }} onTouchMove={cancelSelectionCapture} onTouchEnd={(e) => { swipeTouchEnd(e); handleTouchEnd(); }}>
+          <div key={layoutKey} className={`px-6 py-4 space-y-1.5`}>
             {sortedVerseNumbers.map(verseNum => {
               const heading = getHeadingBefore(verseNum);
               const verseNotes = getVerseNotes(verseNum);
