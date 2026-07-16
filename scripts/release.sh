@@ -11,7 +11,14 @@ shift || true
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --notes)
-      WHATS_NEW="${2:-}"
+      # Require a value: `--notes` with nothing after it (or an empty string)
+      # would otherwise trip `shift 2` under `set -euo pipefail` and abort with
+      # no explanation. Fail loudly instead.
+      if [ $# -lt 2 ] || [ -z "${2:-}" ]; then
+        echo "Error: --notes requires a non-empty value" >&2
+        exit 1
+      fi
+      WHATS_NEW="$2"
       shift 2
       ;;
     *)

@@ -170,7 +170,7 @@ pnpm run ios:dev          # iOS simulator
 pnpm run ios:build        # iOS production
 ```
 
-**Never** run bare `pnpm tauri dev` — always use `pnpm run tauri:dev` (uses `scripts/tauri-dev.sh`).
+**Never** run bare `pnpm tauri dev` — always use `pnpm run tauri:dev` (uses `scripts/tauri.sh`).
 
 For a specific target: `CARGO_HOME="$(pwd)/.cargo-home" unset CI && pnpm tauri build --target aarch64-apple-darwin`
 
