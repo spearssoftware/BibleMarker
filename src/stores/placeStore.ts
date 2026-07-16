@@ -10,7 +10,8 @@ import type { Place } from '@/types';
 import { presetMatchesVerse } from '@/types';
 import { getAllPlaces as dbGetAllPlaces, savePlace as dbSavePlace, deletePlace as dbDeletePlace, getMarkingPreset } from '@/lib/database';
 import type { VerseRef } from '@/types';
-import { validatePlace, sanitizeData, ValidationError } from '@/lib/validation';
+import { validatePlace, sanitizeData } from '@/lib/validation';
+import { saveValidated, filterByExactVerse, filterByBook } from './entityStoreHelpers';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 import { getSymbolsForTracker } from '@/lib/observationSymbols';
 import { resolveCoordinates } from '@/lib/bible-geocoding';
@@ -104,47 +105,26 @@ export const usePlaceStore = create<PlaceState>()(
           updatedAt: new Date(),
         };
         
-        try {
-          const validated = sanitizeData(newPlace, validatePlace);
-          await dbSavePlace(validated);
-          
-          set({ 
-            places: [...allPlaces, validated],
-          });
-          
-          return validated;
-        } catch (error) {
-          if (error instanceof ValidationError) {
-            console.error('[createPlace] Validation error:', error.message, error.field, error.value);
-            throw new Error(`Invalid place data: ${error.message}`);
-          }
-          throw error;
-        }
+        const validated = await saveValidated(newPlace, validatePlace, dbSavePlace, {
+          logPrefix: 'createPlace',
+          dataLabel: 'place',
+        });
+        set({ places: [...allPlaces, validated] });
+        return validated;
       },
-      
+
       updatePlace: async (place) => {
-        try {
-          const updated = {
-            ...place,
-            name: place.name.trim(),
-            notes: place.notes?.trim() || undefined,
-            updatedAt: new Date(),
-          };
-          
-          const validated = sanitizeData(updated, validatePlace);
-          await dbSavePlace(validated);
-          
-          const { places } = get();
-          set({ 
-            places: places.map(p => p.id === place.id ? validated : p),
-          });
-        } catch (error) {
-          if (error instanceof ValidationError) {
-            console.error('[updatePlace] Validation error:', error.message, error.field, error.value);
-            throw new Error(`Invalid place data: ${error.message}`);
-          }
-          throw error;
-        }
+        const updated = {
+          ...place,
+          name: place.name.trim(),
+          notes: place.notes?.trim() || undefined,
+          updatedAt: new Date(),
+        };
+        const validated = await saveValidated(updated, validatePlace, dbSavePlace, {
+          logPrefix: 'updatePlace',
+          dataLabel: 'place',
+        });
+        set({ places: get().places.map(p => p.id === place.id ? validated : p) });
       },
       
       deletePlace: async (placeId) => {
@@ -161,19 +141,9 @@ export const usePlaceStore = create<PlaceState>()(
         return places.find(p => p.id === placeId) || null;
       },
       
-      getPlacesByVerse: (verseRef) => {
-        const { places } = get();
-        return places.filter(p => 
-          p.verseRef.book === verseRef.book &&
-          p.verseRef.chapter === verseRef.chapter &&
-          p.verseRef.verse === verseRef.verse
-        );
-      },
-      
-      getPlacesByBook: (book) => {
-        const { places } = get();
-        return places.filter(p => p.verseRef.book === book);
-      },
+      getPlacesByVerse: (verseRef) => filterByExactVerse(get().places, verseRef),
+
+      getPlacesByBook: (book) => filterByBook(get().places, book),
       
       autoImportFromAnnotations: async () => {
         // Get place symbols (mapPin, mountain, city)

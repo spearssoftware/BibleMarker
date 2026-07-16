@@ -10,7 +10,8 @@ import type { Person } from '@/types';
 import { presetMatchesVerse } from '@/types';
 import { getAllPeople as dbGetAllPeople, savePerson as dbSavePerson, deletePerson as dbDeletePerson, getMarkingPreset } from '@/lib/database';
 import type { VerseRef } from '@/types';
-import { validatePerson, sanitizeData, ValidationError } from '@/lib/validation';
+import { validatePerson, sanitizeData } from '@/lib/validation';
+import { saveValidated, filterByExactVerse, filterByBook } from './entityStoreHelpers';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 import { getSymbolsForTracker } from '@/lib/observationSymbols';
 import { resolvePersonDates } from '@/lib/gnosisPersonDates';
@@ -93,39 +94,26 @@ export const usePeopleStore = create<PeopleState>()(
           createdAt: new Date(),
           updatedAt: new Date(),
         };
-        try {
-          const validated = sanitizeData(newPerson, validatePerson);
-          await dbSavePerson(validated);
-          set({ people: [...all, validated] });
-          return validated;
-        } catch (error) {
-          if (error instanceof ValidationError) {
-            console.error('[createPerson] Validation error:', error.message, error.field, error.value);
-            throw new Error(`Invalid person data: ${error.message}`);
-          }
-          throw error;
-        }
+        const validated = await saveValidated(newPerson, validatePerson, dbSavePerson, {
+          logPrefix: 'createPerson',
+          dataLabel: 'person',
+        });
+        set({ people: [...all, validated] });
+        return validated;
       },
 
       updatePerson: async (person) => {
-        try {
-          const updated = {
-            ...person,
-            name: person.name.trim(),
-            notes: person.notes?.trim() || undefined,
-            updatedAt: new Date(),
-          };
-          const validated = sanitizeData(updated, validatePerson);
-          await dbSavePerson(validated);
-          const { people } = get();
-          set({ people: people.map(p => p.id === person.id ? validated : p) });
-        } catch (error) {
-          if (error instanceof ValidationError) {
-            console.error('[updatePerson] Validation error:', error.message, error.field, error.value);
-            throw new Error(`Invalid person data: ${error.message}`);
-          }
-          throw error;
-        }
+        const updated = {
+          ...person,
+          name: person.name.trim(),
+          notes: person.notes?.trim() || undefined,
+          updatedAt: new Date(),
+        };
+        const validated = await saveValidated(updated, validatePerson, dbSavePerson, {
+          logPrefix: 'updatePerson',
+          dataLabel: 'person',
+        });
+        set({ people: get().people.map(p => p.id === person.id ? validated : p) });
       },
 
       deletePerson: async (personId) => {
@@ -139,19 +127,9 @@ export const usePeopleStore = create<PeopleState>()(
         return people.find(p => p.id === personId) || null;
       },
 
-      getPeopleByVerse: (verseRef) => {
-        const { people } = get();
-        return people.filter(p =>
-          p.verseRef.book === verseRef.book &&
-          p.verseRef.chapter === verseRef.chapter &&
-          p.verseRef.verse === verseRef.verse
-        );
-      },
+      getPeopleByVerse: (verseRef) => filterByExactVerse(get().people, verseRef),
 
-      getPeopleByBook: (book) => {
-        const { people } = get();
-        return people.filter(p => p.verseRef.book === book);
-      },
+      getPeopleByBook: (book) => filterByBook(get().people, book),
 
       autoImportFromAnnotations: async () => {
         const peopleSymbols = getSymbolsForTracker('people');
