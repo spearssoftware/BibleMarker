@@ -9,9 +9,10 @@ import { useConclusionStore } from '@/stores/conclusionStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import type { Conclusion } from '@/types';
 import type { VerseRef } from '@/types';
-import { formatVerseRef, getBookById } from '@/types';
+import { formatVerseRef } from '@/types';
 import { Button, ConfirmationDialog, Input, Textarea } from '@/components/shared';
 import { toast } from '@/stores/toastStore';
+import { groupByVerse, sortVerseGroups } from './trackerHelpers';
 
 interface ConclusionTrackerProps {
   selectedText?: string;
@@ -21,57 +22,6 @@ interface ConclusionTrackerProps {
   setIsCreating: (value: boolean) => void;
   onNavigate?: (verseRef: VerseRef) => void;
 }
-
-// Helper to create a unique key for a verse reference
-const getVerseKey = (ref: VerseRef): string => {
-  return `${ref.book}:${ref.chapter}:${ref.verse}`;
-};
-
-// Group conclusions by verse
-const groupByVerse = (conclusions: Conclusion[]): Map<string, Conclusion[]> => {
-  const map = new Map<string, Conclusion[]>();
-  conclusions.forEach(conclusion => {
-    const key = getVerseKey(conclusion.verseRef);
-    if (!map.has(key)) {
-      map.set(key, []);
-    }
-    map.get(key)!.push(conclusion);
-  });
-  return map;
-};
-
-// Sort verse groups by canonical order
-const sortVerseGroups = (groups: Map<string, Conclusion[]>): Array<[string, Conclusion[]]> => {
-  return Array.from(groups.entries()).sort(([keyA], [keyB]) => {
-    const [bookA, chapterA, verseA] = keyA.split(':');
-    const [bookB, chapterB, verseB] = keyB.split(':');
-    
-    // Compare books using canonical order
-    const bookInfoA = getBookById(bookA);
-    const bookInfoB = getBookById(bookB);
-    
-    if (bookInfoA && bookInfoB && bookInfoA.order !== bookInfoB.order) {
-      return bookInfoA.order - bookInfoB.order;
-    }
-    
-    // If one book not found, put found book first (shouldn't happen normally)
-    if (!bookInfoA && !bookInfoB) return 0;
-    if (!bookInfoA) return 1;
-    if (!bookInfoB) return -1;
-    
-    // Same book: compare chapters
-    const chapterANum = parseInt(chapterA, 10);
-    const chapterBNum = parseInt(chapterB, 10);
-    if (chapterANum !== chapterBNum) {
-      return chapterANum - chapterBNum;
-    }
-    
-    // Same chapter: compare verses
-    const verseANum = parseInt(verseA, 10);
-    const verseBNum = parseInt(verseB, 10);
-    return verseANum - verseBNum;
-  });
-};
 
 export function ConclusionTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = true, isCreating, setIsCreating, onNavigate }: ConclusionTrackerProps) {
   const { conclusions, loadConclusions, createConclusion, updateConclusion, deleteConclusion } = useConclusionStore();
