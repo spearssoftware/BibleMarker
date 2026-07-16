@@ -9,7 +9,8 @@ import { persist } from 'zustand/middleware';
 import type { ApplicationEntry } from '@/types';
 import type { VerseRef } from '@/types';
 import { getAllApplications as dbGetAllApplications, saveApplication as dbSaveApplication, deleteApplication as dbDeleteApplication } from '@/lib/database';
-import { validateApplication, sanitizeData, ValidationError } from '@/lib/validation';
+import { validateApplication } from '@/lib/validation';
+import { saveValidated, filterByExactVerse, filterByChapter } from './entityStoreHelpers';
 
 interface ApplicationState {
   // Application entries (cached)
@@ -41,74 +42,35 @@ export const useApplicationStore = create<ApplicationState>()(
           createdAt: new Date(),
           updatedAt: new Date(),
         };
-        
-        try {
-          const validated = sanitizeData(newEntry, validateApplication);
-          await dbSaveApplication(validated);
-          
-          const { applicationEntries } = get();
-          set({ 
-            applicationEntries: [...applicationEntries, validated],
-          });
-          
-          return validated;
-        } catch (error) {
-          if (error instanceof ValidationError) {
-            console.error('[createApplication] Validation error:', error.message, error.field, error.value);
-            throw new Error(`Invalid application entry data: ${error.message}`);
-          }
-          throw error;
-        }
+
+        const validated = await saveValidated(newEntry, validateApplication, dbSaveApplication, {
+          logPrefix: 'createApplication',
+          dataLabel: 'application entry',
+        });
+        set({ applicationEntries: [...get().applicationEntries, validated] });
+        return validated;
       },
-      
+
       updateApplication: async (entry) => {
-        try {
-          const updated = {
-            ...entry,
-            updatedAt: new Date(),
-          };
-          
-          const validated = sanitizeData(updated, validateApplication);
-          await dbSaveApplication(validated);
-          
-          const { applicationEntries } = get();
-          set({ 
-            applicationEntries: applicationEntries.map(e => e.id === entry.id ? validated : e),
-          });
-        } catch (error) {
-          if (error instanceof ValidationError) {
-            console.error('[updateApplication] Validation error:', error.message, error.field, error.value);
-            throw new Error(`Invalid application entry data: ${error.message}`);
-          }
-          throw error;
-        }
+        const validated = await saveValidated({ ...entry, updatedAt: new Date() }, validateApplication, dbSaveApplication, {
+          logPrefix: 'updateApplication',
+          dataLabel: 'application entry',
+        });
+        set({ applicationEntries: get().applicationEntries.map(e => e.id === entry.id ? validated : e) });
       },
-      
+
       deleteApplication: async (entryId) => {
         await dbDeleteApplication(entryId);
-        
+
         const { applicationEntries } = get();
-        set({ 
+        set({
           applicationEntries: applicationEntries.filter(e => e.id !== entryId),
         });
       },
-      
-      getApplicationsByVerse: (verseRef) => {
-        const { applicationEntries } = get();
-        return applicationEntries.filter(e => 
-          e.verseRef.book === verseRef.book &&
-          e.verseRef.chapter === verseRef.chapter &&
-          e.verseRef.verse === verseRef.verse
-        );
-      },
-      
-      getApplicationsByChapter: (book, chapter) => {
-        const { applicationEntries } = get();
-        return applicationEntries.filter(e => 
-          e.verseRef.book === book &&
-          e.verseRef.chapter === chapter
-        );
-      },
+
+      getApplicationsByVerse: (verseRef) => filterByExactVerse(get().applicationEntries, verseRef),
+
+      getApplicationsByChapter: (book, chapter) => filterByChapter(get().applicationEntries, book, chapter),
     }),
     {
       name: 'application-store',

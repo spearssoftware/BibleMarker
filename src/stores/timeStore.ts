@@ -12,6 +12,7 @@ import type { VerseRef } from '@/types';
 import { getBookById, presetMatchesVerse } from '@/types';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 import { getSymbolsForTracker } from '@/lib/observationSymbols';
+import { filterByExactVerse, filterByBook } from './entityStoreHelpers';
 
 interface TimeState {
   // Time expressions (cached)
@@ -124,19 +125,9 @@ export const useTimeStore = create<TimeState>()(
         return timeExpressions.find(t => t.id === timeExpressionId) || null;
       },
       
-      getTimeExpressionsByVerse: (verseRef) => {
-        const { timeExpressions } = get();
-        return timeExpressions.filter(t => 
-          t.verseRef.book === verseRef.book &&
-          t.verseRef.chapter === verseRef.chapter &&
-          t.verseRef.verse === verseRef.verse
-        );
-      },
-      
-      getTimeExpressionsByBook: (book) => {
-        const { timeExpressions } = get();
-        return timeExpressions.filter(t => t.verseRef.book === book);
-      },
+      getTimeExpressionsByVerse: (verseRef) => filterByExactVerse(get().timeExpressions, verseRef),
+
+      getTimeExpressionsByBook: (book) => filterByBook(get().timeExpressions, book),
       
       autoImportFromAnnotations: async () => {
         // Get time symbols (clock, calendar, hourglass)

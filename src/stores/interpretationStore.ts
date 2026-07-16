@@ -9,7 +9,8 @@ import { persist } from 'zustand/middleware';
 import type { InterpretationEntry } from '@/types';
 import type { VerseRef } from '@/types';
 import { getAllInterpretations as dbGetAllInterpretations, saveInterpretation as dbSaveInterpretation, deleteInterpretation as dbDeleteInterpretation } from '@/lib/database';
-import { validateInterpretation, sanitizeData, ValidationError } from '@/lib/validation';
+import { validateInterpretation } from '@/lib/validation';
+import { saveValidated, filterByChapter, filterByStudy } from './entityStoreHelpers';
 
 interface InterpretationState {
   // Interpretation entries (cached)
@@ -42,58 +43,32 @@ export const useInterpretationStore = create<InterpretationState>()(
           createdAt: new Date(),
           updatedAt: new Date(),
         };
-        
-        try {
-          const validated = sanitizeData(newEntry, validateInterpretation);
-          await dbSaveInterpretation(validated);
-          
-          const { interpretationEntries } = get();
-          set({ 
-            interpretationEntries: [...interpretationEntries, validated],
-          });
-          
-          return validated;
-        } catch (error) {
-          if (error instanceof ValidationError) {
-            console.error('[createInterpretation] Validation error:', error.message, error.field, error.value);
-            throw new Error(`Invalid interpretation entry data: ${error.message}`);
-          }
-          throw error;
-        }
+
+        const validated = await saveValidated(newEntry, validateInterpretation, dbSaveInterpretation, {
+          logPrefix: 'createInterpretation',
+          dataLabel: 'interpretation entry',
+        });
+        set({ interpretationEntries: [...get().interpretationEntries, validated] });
+        return validated;
       },
-      
+
       updateInterpretation: async (entry) => {
-        try {
-          const updated = {
-            ...entry,
-            updatedAt: new Date(),
-          };
-          
-          const validated = sanitizeData(updated, validateInterpretation);
-          await dbSaveInterpretation(validated);
-          
-          const { interpretationEntries } = get();
-          set({ 
-            interpretationEntries: interpretationEntries.map(e => e.id === entry.id ? validated : e),
-          });
-        } catch (error) {
-          if (error instanceof ValidationError) {
-            console.error('[updateInterpretation] Validation error:', error.message, error.field, error.value);
-            throw new Error(`Invalid interpretation entry data: ${error.message}`);
-          }
-          throw error;
-        }
+        const validated = await saveValidated({ ...entry, updatedAt: new Date() }, validateInterpretation, dbSaveInterpretation, {
+          logPrefix: 'updateInterpretation',
+          dataLabel: 'interpretation entry',
+        });
+        set({ interpretationEntries: get().interpretationEntries.map(e => e.id === entry.id ? validated : e) });
       },
-      
+
       deleteInterpretation: async (entryId) => {
         await dbDeleteInterpretation(entryId);
-        
+
         const { interpretationEntries } = get();
-        set({ 
+        set({
           interpretationEntries: interpretationEntries.filter(e => e.id !== entryId),
         });
       },
-      
+
       getInterpretationByVerse: (verseRef) => {
         const { interpretationEntries } = get();
         return interpretationEntries.filter(e => {
@@ -110,18 +85,9 @@ export const useInterpretationStore = create<InterpretationState>()(
         });
       },
       
-      getInterpretationByChapter: (book, chapter) => {
-        const { interpretationEntries } = get();
-        return interpretationEntries.filter(e => 
-          e.verseRef.book === book &&
-          e.verseRef.chapter === chapter
-        );
-      },
-      
-      getInterpretationByStudy: (studyId) => {
-        const { interpretationEntries } = get();
-        return interpretationEntries.filter(e => e.studyId === studyId);
-      },
+      getInterpretationByChapter: (book, chapter) => filterByChapter(get().interpretationEntries, book, chapter),
+
+      getInterpretationByStudy: (studyId) => filterByStudy(get().interpretationEntries, studyId),
     }),
     {
       name: 'interpretation-store',

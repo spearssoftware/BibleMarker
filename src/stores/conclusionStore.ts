@@ -12,6 +12,7 @@ import type { VerseRef } from '@/types';
 import { getBookById } from '@/types';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 import { getSymbolsForTracker } from '@/lib/observationSymbols';
+import { filterByExactVerse, filterByBook } from './entityStoreHelpers';
 
 interface ConclusionState {
   // Conclusions (cached)
@@ -91,19 +92,9 @@ export const useConclusionStore = create<ConclusionState>()(
         return conclusions.find(c => c.id === conclusionId) || null;
       },
       
-      getConclusionsByVerse: (verseRef) => {
-        const { conclusions } = get();
-        return conclusions.filter(c => 
-          c.verseRef.book === verseRef.book &&
-          c.verseRef.chapter === verseRef.chapter &&
-          c.verseRef.verse === verseRef.verse
-        );
-      },
-      
-      getConclusionsByBook: (book) => {
-        const { conclusions } = get();
-        return conclusions.filter(c => c.verseRef.book === book);
-      },
+      getConclusionsByVerse: (verseRef) => filterByExactVerse(get().conclusions, verseRef),
+
+      getConclusionsByBook: (book) => filterByBook(get().conclusions, book),
       
       autoImportFromAnnotations: async () => {
         // Get conclusion symbols (arrowRight)
