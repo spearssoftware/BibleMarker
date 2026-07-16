@@ -13,29 +13,10 @@ import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { fetchChapter } from '@/lib/bible-api';
 import type { Person } from '@/types';
 import type { VerseRef } from '@/types';
-import { formatVerseRef, getBookById } from '@/types';
+import { formatVerseRef } from '@/types';
 import { Button, ConfirmationDialog, Input, Textarea } from '@/components/shared';
 import { toast } from '@/stores/toastStore';
-
-function highlightWords(text: string, words: string[]): React.ReactNode {
-  const filtered = words.filter(w => w.trim());
-  if (!filtered.length || !text) return text;
-  const escaped = filtered.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  escaped.sort((a, b) => b.length - a.length);
-  const pattern = new RegExp(escaped.join('|'), 'gi');
-  const result: React.ReactNode[] = [];
-  let lastIndex = 0;
-  for (const match of text.matchAll(pattern)) {
-    const idx = match.index!;
-    if (idx > lastIndex) result.push(text.slice(lastIndex, idx));
-    result.push(
-      <mark key={idx} className="bg-scripture-accent/25 text-scripture-text rounded-sm px-0.5 not-italic font-medium">{match[0]}</mark>
-    );
-    lastIndex = idx + match[0].length;
-  }
-  if (lastIndex < text.length) result.push(text.slice(lastIndex));
-  return result.length > 0 ? <>{result}</> : text;
-}
+import { getVerseKey, highlightWords, groupByVerse, groupByKeyword, sortKeywordGroups, sortVerseGroups } from './trackerHelpers';
 
 interface PeopleTrackerProps {
   selectedText?: string;
@@ -45,77 +26,6 @@ interface PeopleTrackerProps {
   setIsCreating: (value: boolean) => void;
   onNavigate?: (verseRef: VerseRef) => void;
 }
-
-const getVerseKey = (ref: VerseRef): string => `${ref.book}:${ref.chapter}:${ref.verse}`;
-
-function groupByVerse(people: Person[]): Map<string, Person[]> {
-  const map = new Map<string, Person[]>();
-  people.forEach(person => {
-    const key = getVerseKey(person.verseRef);
-    if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(person);
-  });
-  return map;
-}
-
-function groupByKeyword(
-  items: Person[],
-  presetMap: Map<string, { word?: string }>
-): Array<{ key: string; label: string; items: Person[] }> {
-  const byKey = new Map<string, Person[]>();
-  for (const item of items) {
-    const key = item.presetId || `manual:${item.name.toLowerCase().trim()}`;
-    if (!byKey.has(key)) byKey.set(key, []);
-    byKey.get(key)!.push(item);
-  }
-  return Array.from(byKey.entries()).map(([key, keywordItems]) => {
-    const label = key.startsWith('manual:') ? keywordItems[0].name : (presetMap.get(key)?.word ?? 'Unknown');
-    return { key, label, items: keywordItems };
-  });
-}
-
-function sortKeywordGroups(
-  groups: Array<{ key: string; label: string; items: Person[] }>
-): Array<{ key: string; label: string; items: Person[] }> {
-  return [...groups].sort((a, b) => {
-    if (a.key.startsWith('manual:') && !b.key.startsWith('manual:')) return 1;
-    if (b.key.startsWith('manual:') && !a.key.startsWith('manual:')) return -1;
-    const nameCmp = a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
-    if (nameCmp !== 0) return nameCmp;
-    const minVerse = (items: Person[]) => {
-      if (items.length === 0) return '';
-      const keys = items.map(p => getVerseKey(p.verseRef));
-      keys.sort((ka, kb) => {
-        const [bookA, chA, vA] = ka.split(':');
-        const [bookB, chB, vB] = kb.split(':');
-        const ordA = getBookById(bookA)?.order ?? 999;
-        const ordB = getBookById(bookB)?.order ?? 999;
-        if (ordA !== ordB) return ordA - ordB;
-        if (parseInt(chA, 10) !== parseInt(chB, 10)) return parseInt(chA, 10) - parseInt(chB, 10);
-        return parseInt(vA, 10) - parseInt(vB, 10);
-      });
-      return keys[0];
-    };
-    return minVerse(a.items).localeCompare(minVerse(b.items));
-  });
-}
-
-const sortVerseGroups = (groups: Map<string, Person[]>): Array<[string, Person[]]> => {
-  return Array.from(groups.entries()).sort(([keyA], [keyB]) => {
-    const [bookA, chapterA, verseA] = keyA.split(':');
-    const [bookB, chapterB, verseB] = keyB.split(':');
-    const bookInfoA = getBookById(bookA);
-    const bookInfoB = getBookById(bookB);
-    if (bookInfoA && bookInfoB && bookInfoA.order !== bookInfoB.order) return bookInfoA.order - bookInfoB.order;
-    if (!bookInfoA && !bookInfoB) return 0;
-    if (!bookInfoA) return 1;
-    if (!bookInfoB) return -1;
-    const chapterANum = parseInt(chapterA, 10);
-    const chapterBNum = parseInt(chapterB, 10);
-    if (chapterANum !== chapterBNum) return chapterANum - chapterBNum;
-    return parseInt(verseA, 10) - parseInt(verseB, 10);
-  });
-};
 
 export function PeopleTracker({
   selectedText,
@@ -318,8 +228,12 @@ export function PeopleTracker({
   }, [filteredPeople, primaryModuleId]);
 
   const keywordGroups = useMemo(() => {
-    const grouped = groupByKeyword(filteredPeople, presetMap);
-    return sortKeywordGroups(grouped);
+    const grouped = groupByKeyword(
+      filteredPeople,
+      p => p.presetId || `manual:${p.name.toLowerCase().trim()}`,
+      (key, items) => (key.startsWith('manual:') ? items[0].name : (presetMap.get(key)?.word ?? 'Unknown'))
+    );
+    return sortKeywordGroups(grouped, key => key.startsWith('manual:'));
   }, [filteredPeople, presetMap]);
 
   const toggleKeyword = (key: string) => {

@@ -13,29 +13,10 @@ import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { fetchChapter } from '@/lib/bible-api';
 import type { Place } from '@/types';
 import type { VerseRef } from '@/types';
-import { formatVerseRef, getBookById } from '@/types';
+import { formatVerseRef } from '@/types';
 import { Button, ConfirmationDialog, Input, Textarea } from '@/components/shared';
 import { toast } from '@/stores/toastStore';
-
-function highlightWords(text: string, words: string[]): React.ReactNode {
-  const filtered = words.filter(w => w.trim());
-  if (!filtered.length || !text) return text;
-  const escaped = filtered.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  escaped.sort((a, b) => b.length - a.length);
-  const pattern = new RegExp(escaped.join('|'), 'gi');
-  const result: React.ReactNode[] = [];
-  let lastIndex = 0;
-  for (const match of text.matchAll(pattern)) {
-    const idx = match.index!;
-    if (idx > lastIndex) result.push(text.slice(lastIndex, idx));
-    result.push(
-      <mark key={idx} className="bg-scripture-accent/25 text-scripture-text rounded-sm px-0.5 not-italic font-medium">{match[0]}</mark>
-    );
-    lastIndex = idx + match[0].length;
-  }
-  if (lastIndex < text.length) result.push(text.slice(lastIndex));
-  return result.length > 0 ? <>{result}</> : text;
-}
+import { getVerseKey, highlightWords, groupByVerse, groupByKeyword, sortKeywordGroups, sortVerseGroups } from './trackerHelpers';
 
 interface PlaceTrackerProps {
   selectedText?: string;
@@ -45,101 +26,6 @@ interface PlaceTrackerProps {
   setIsCreating: (value: boolean) => void;
   onNavigate?: (verseRef: VerseRef) => void;
 }
-
-// Helper to create a unique key for a verse reference
-const getVerseKey = (ref: VerseRef): string => {
-  return `${ref.book}:${ref.chapter}:${ref.verse}`;
-};
-
-// Group places by verse
-const groupByVerse = (places: Place[]): Map<string, Place[]> => {
-  const map = new Map<string, Place[]>();
-  places.forEach(place => {
-    const key = getVerseKey(place.verseRef);
-    if (!map.has(key)) {
-      map.set(key, []);
-    }
-    map.get(key)!.push(place);
-  });
-  return map;
-};
-
-// Group places by keyword (presetId), with "Manual" for items without presetId
-function groupByKeyword(
-  items: Place[],
-  presetMap: Map<string, { word?: string }>
-): Array<{ key: string; label: string; items: Place[] }> {
-  const byKey = new Map<string, Place[]>();
-  for (const item of items) {
-    const key = item.presetId || 'manual';
-    if (!byKey.has(key)) byKey.set(key, []);
-    byKey.get(key)!.push(item);
-  }
-  return Array.from(byKey.entries()).map(([key, keywordItems]) => {
-    const label = key === 'manual' ? 'Manual' : (presetMap.get(key)?.word ?? 'Unknown');
-    return { key, label, items: keywordItems };
-  });
-}
-
-// Sort keyword groups by label (Manual last), then by earliest verse
-function sortKeywordGroups(
-  groups: Array<{ key: string; label: string; items: Place[] }>
-): Array<{ key: string; label: string; items: Place[] }> {
-  return [...groups].sort((a, b) => {
-    if (a.key === 'manual' && b.key !== 'manual') return 1;
-    if (b.key === 'manual' && a.key !== 'manual') return -1;
-    const nameCmp = a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
-    if (nameCmp !== 0) return nameCmp;
-    const minVerse = (items: Place[]) => {
-      if (items.length === 0) return '';
-      const keys = items.map(p => getVerseKey(p.verseRef));
-      keys.sort((ka, kb) => {
-        const [bookA, chA, vA] = ka.split(':');
-        const [bookB, chB, vB] = kb.split(':');
-        const ordA = getBookById(bookA)?.order ?? 999;
-        const ordB = getBookById(bookB)?.order ?? 999;
-        if (ordA !== ordB) return ordA - ordB;
-        if (parseInt(chA, 10) !== parseInt(chB, 10)) return parseInt(chA, 10) - parseInt(chB, 10);
-        return parseInt(vA, 10) - parseInt(vB, 10);
-      });
-      return keys[0];
-    };
-    return minVerse(a.items).localeCompare(minVerse(b.items));
-  });
-}
-
-// Sort verse groups by canonical order
-const sortVerseGroups = (groups: Map<string, Place[]>): Array<[string, Place[]]> => {
-  return Array.from(groups.entries()).sort(([keyA], [keyB]) => {
-    const [bookA, chapterA, verseA] = keyA.split(':');
-    const [bookB, chapterB, verseB] = keyB.split(':');
-    
-    // Compare books using canonical order
-    const bookInfoA = getBookById(bookA);
-    const bookInfoB = getBookById(bookB);
-    
-    if (bookInfoA && bookInfoB && bookInfoA.order !== bookInfoB.order) {
-      return bookInfoA.order - bookInfoB.order;
-    }
-    
-    // If one book not found, put found book first (shouldn't happen normally)
-    if (!bookInfoA && !bookInfoB) return 0;
-    if (!bookInfoA) return 1;
-    if (!bookInfoB) return -1;
-    
-    // Same book: compare chapters
-    const chapterANum = parseInt(chapterA, 10);
-    const chapterBNum = parseInt(chapterB, 10);
-    if (chapterANum !== chapterBNum) {
-      return chapterANum - chapterBNum;
-    }
-    
-    // Same chapter: compare verses
-    const verseANum = parseInt(verseA, 10);
-    const verseBNum = parseInt(verseB, 10);
-    return verseANum - verseBNum;
-  });
-};
 
 export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = true, isCreating, setIsCreating, onNavigate }: PlaceTrackerProps) {
   const { places, loadPlaces, createPlace, updatePlace, deletePlace, autoImportFromAnnotations, removeDuplicates, removeOrphaned, autoPopulateFromChapter } = usePlaceStore();
@@ -394,8 +280,12 @@ export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterBy
   }, [filteredPlaces, primaryModuleId]);
 
   const keywordGroups = useMemo(() => {
-    const grouped = groupByKeyword(filteredPlaces, presetMap);
-    return sortKeywordGroups(grouped);
+    const grouped = groupByKeyword(
+      filteredPlaces,
+      p => p.presetId || 'manual',
+      (key) => (key === 'manual' ? 'Manual' : (presetMap.get(key)?.word ?? 'Unknown'))
+    );
+    return sortKeywordGroups(grouped, key => key === 'manual');
   }, [filteredPlaces, presetMap]);
 
   const toggleKeyword = (key: string) => {

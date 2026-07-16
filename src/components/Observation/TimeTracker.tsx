@@ -16,26 +16,7 @@ import type { VerseRef } from '@/types';
 import { formatVerseRef, getBookById } from '@/types';
 import { Button, ConfirmationDialog, Input, Textarea } from '@/components/shared';
 import { toast } from '@/stores/toastStore';
-
-function highlightWords(text: string, words: string[]): React.ReactNode {
-  const filtered = words.filter(w => w.trim());
-  if (!filtered.length || !text) return text;
-  const escaped = filtered.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  escaped.sort((a, b) => b.length - a.length);
-  const pattern = new RegExp(escaped.join('|'), 'gi');
-  const result: React.ReactNode[] = [];
-  let lastIndex = 0;
-  for (const match of text.matchAll(pattern)) {
-    const idx = match.index!;
-    if (idx > lastIndex) result.push(text.slice(lastIndex, idx));
-    result.push(
-      <mark key={idx} className="bg-scripture-accent/25 text-scripture-text rounded-sm px-0.5 not-italic font-medium">{match[0]}</mark>
-    );
-    lastIndex = idx + match[0].length;
-  }
-  if (lastIndex < text.length) result.push(text.slice(lastIndex));
-  return result.length > 0 ? <>{result}</> : text;
-}
+import { getVerseKey, highlightWords, groupByVerse, groupByKeyword, sortKeywordGroups, sortVerseGroups } from './trackerHelpers';
 
 interface TimeTrackerProps {
   selectedText?: string;
@@ -47,108 +28,13 @@ interface TimeTrackerProps {
   onNavigate?: (verseRef: VerseRef) => void;
 }
 
-// Helper to create a unique key for a verse reference
-const getVerseKey = (ref: VerseRef): string => {
-  return `${ref.book}:${ref.chapter}:${ref.verse}`;
-};
+const getChapterKey = (ref: VerseRef): string => `${ref.book}:${ref.chapter}`;
 
-// Group time expressions by verse
-const groupByVerse = (timeExpressions: TimeExpression[]): Map<string, TimeExpression[]> => {
-  const map = new Map<string, TimeExpression[]>();
-  timeExpressions.forEach(timeExpression => {
-    const key = getVerseKey(timeExpression.verseRef);
-    if (!map.has(key)) {
-      map.set(key, []);
-    }
-    map.get(key)!.push(timeExpression);
-  });
-  return map;
-};
-
+/** Time groups its "manual" (non-keyword) bucket per book+chapter. */
 function getTimeGroupKey(item: TimeExpression): string {
   if (item.presetId) return item.presetId;
   return `manual:${item.verseRef.book}:${item.verseRef.chapter}`;
 }
-
-function groupByKeyword(
-  items: TimeExpression[],
-  presetMap: Map<string, { word?: string }>
-): Array<{ key: string; label: string; items: TimeExpression[] }> {
-  const byKey = new Map<string, TimeExpression[]>();
-  for (const item of items) {
-    const key = getTimeGroupKey(item);
-    if (!byKey.has(key)) byKey.set(key, []);
-    byKey.get(key)!.push(item);
-  }
-  return Array.from(byKey.entries()).map(([key, keywordItems]) => {
-    if (key.startsWith('manual:')) {
-      const ref = keywordItems[0].verseRef;
-      return { key, label: `${ref.book} ${ref.chapter}`, items: keywordItems };
-    }
-    const label = presetMap.get(key)?.word ?? 'Unknown';
-    return { key, label, items: keywordItems };
-  });
-}
-
-// Sort keyword groups by label (Manual last), then by earliest verse
-function sortKeywordGroups(
-  groups: Array<{ key: string; label: string; items: TimeExpression[] }>
-): Array<{ key: string; label: string; items: TimeExpression[] }> {
-  return [...groups].sort((a, b) => {
-    const aManual = a.key.startsWith('manual:');
-    const bManual = b.key.startsWith('manual:');
-    if (aManual && !bManual) return 1;
-    if (bManual && !aManual) return -1;
-    const nameCmp = a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
-    if (nameCmp !== 0) return nameCmp;
-    const minVerse = (items: TimeExpression[]) => {
-      if (items.length === 0) return '';
-      const keys = items.map(t => getVerseKey(t.verseRef));
-      keys.sort((ka, kb) => {
-        const [bookA, chA, vA] = ka.split(':');
-        const [bookB, chB, vB] = kb.split(':');
-        const ordA = getBookById(bookA)?.order ?? 999;
-        const ordB = getBookById(bookB)?.order ?? 999;
-        if (ordA !== ordB) return ordA - ordB;
-        if (parseInt(chA, 10) !== parseInt(chB, 10)) return parseInt(chA, 10) - parseInt(chB, 10);
-        return parseInt(vA, 10) - parseInt(vB, 10);
-      });
-      return keys[0];
-    };
-    return minVerse(a.items).localeCompare(minVerse(b.items));
-  });
-}
-
-// Sort verse groups by canonical order
-const sortVerseGroups = (groups: Map<string, TimeExpression[]>): Array<[string, TimeExpression[]]> => {
-  return Array.from(groups.entries()).sort(([keyA], [keyB]) => {
-    const [bookA, chapterA, verseA] = keyA.split(':');
-    const [bookB, chapterB, verseB] = keyB.split(':');
-    
-    const bookInfoA = getBookById(bookA);
-    const bookInfoB = getBookById(bookB);
-    
-    if (bookInfoA && bookInfoB && bookInfoA.order !== bookInfoB.order) {
-      return bookInfoA.order - bookInfoB.order;
-    }
-    
-    if (!bookInfoA && !bookInfoB) return 0;
-    if (!bookInfoA) return 1;
-    if (!bookInfoB) return -1;
-    
-    const chapterANum = parseInt(chapterA, 10);
-    const chapterBNum = parseInt(chapterB, 10);
-    if (chapterANum !== chapterBNum) {
-      return chapterANum - chapterBNum;
-    }
-    
-    const verseANum = parseInt(verseA, 10);
-    const verseBNum = parseInt(verseB, 10);
-    return verseANum - verseBNum;
-  });
-};
-
-const getChapterKey = (ref: VerseRef): string => `${ref.book}:${ref.chapter}`;
 
 interface ChapterGroup {
   key: string;
@@ -487,8 +373,18 @@ export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreat
   }, [filteredTimeExpressions, primaryModuleId]);
 
   const keywordGroups = useMemo(() => {
-    const grouped = groupByKeyword(filteredTimeExpressions, presetMap);
-    return sortKeywordGroups(grouped);
+    const grouped = groupByKeyword(
+      filteredTimeExpressions,
+      getTimeGroupKey,
+      (key, items) => {
+        if (key.startsWith('manual:')) {
+          const ref = items[0].verseRef;
+          return `${ref.book} ${ref.chapter}`;
+        }
+        return presetMap.get(key)?.word ?? 'Unknown';
+      }
+    );
+    return sortKeywordGroups(grouped, key => key.startsWith('manual:'));
   }, [filteredTimeExpressions, presetMap]);
 
   const toggleKeyword = (key: string) => {
