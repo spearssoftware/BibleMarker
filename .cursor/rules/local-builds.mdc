@@ -14,7 +14,7 @@ pnpm run tauri:dev
 pnpm run tauri:build
 ```
 
-Scripts: `scripts/tauri-dev.sh`, `scripts/tauri-build.sh`
+Scripts: `scripts/tauri.sh` (`dev` / `build` subcommand)
 
 **Build for specific target:**
 

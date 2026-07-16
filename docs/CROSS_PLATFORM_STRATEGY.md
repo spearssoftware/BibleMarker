@@ -80,11 +80,11 @@ See [ICLOUD_SYNC.md](./ICLOUD_SYNC.md) for details on the journal-based sync sys
 
 ```bash
 # Development
-pnpm run tauri:dev        # macOS desktop (uses scripts/tauri-dev.sh)
+pnpm run tauri:dev        # macOS desktop (uses scripts/tauri.sh)
 pnpm run ios:dev          # iOS simulator
 
 # Production builds
-pnpm run tauri:build      # macOS/Windows/Linux (uses scripts/tauri-build.sh)
+pnpm run tauri:build      # macOS/Windows/Linux (uses scripts/tauri.sh)
 pnpm run ios:build        # iOS
 
 # Specific desktop target

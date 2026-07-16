@@ -13,7 +13,7 @@ When the user asks to run the dev server, do a dev build, start a test, or run t
 pnpm run tauri:dev
 ```
 
-The `tauri:dev` script runs `scripts/tauri-dev.sh`, which sets `CARGO_HOME` to `.cargo-home/` (workspace) and unsets `CI`. This avoids Cursor sandbox blocking Cargo crate downloads.
+The `tauri:dev` script runs `scripts/tauri.sh dev`, which sets `CARGO_HOME` to `.cargo-home/` (workspace) and unsets `CI`. This avoids Cursor sandbox blocking Cargo crate downloads.
 
 Never run bare `pnpm tauri dev` — use `pnpm run tauri:dev`.
 
