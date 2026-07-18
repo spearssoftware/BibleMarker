@@ -1,11 +1,37 @@
 use sha2::{Digest, Sha256};
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use tauri::Manager;
 #[cfg(target_os = "android")]
 use tauri_plugin_fs::FsExt;
 
 const HASH_BUFFER_SIZE: usize = 64 * 1024;
+
+/// Hosts `download_file` is permitted to fetch from. The webview only ever
+/// passes CrossWire SWORD package URLs; treating this as an arbitrary fetcher
+/// (e.g. via a compromised/XSS'd webview) is refused.
+const ALLOWED_DOWNLOAD_HOSTS: &[&str] = &["crosswire.org"];
+
+/// Allow only `https://` URLs whose host is in [`ALLOWED_DOWNLOAD_HOSTS`].
+fn is_allowed_download_url(url: &str) -> bool {
+    match reqwest::Url::parse(url) {
+        Ok(u) => {
+            u.scheme() == "https"
+                && u.host_str()
+                    .is_some_and(|h| ALLOWED_DOWNLOAD_HOSTS.contains(&h))
+        }
+        Err(_) => false,
+    }
+}
+
+/// Require `dest` to sit inside `sword_dir` with no parent-directory traversal.
+/// `dest` does not exist yet, so the containment check is purely lexical.
+fn is_allowed_dest(dest: &Path, sword_dir: &Path) -> bool {
+    if dest.components().any(|c| matches!(c, Component::ParentDir)) {
+        return false;
+    }
+    dest.starts_with(sword_dir)
+}
 
 /// Encode bytes as a lowercase hex string.
 ///
@@ -47,8 +73,28 @@ fn hash_bytes(bytes: &[u8]) -> String {
 /// Download a file from `url` and save it to `dest_path`.
 /// Creates parent directories if needed.
 #[tauri::command]
-pub async fn download_file(url: String, dest_path: String) -> Result<(), String> {
+pub async fn download_file(
+    app: tauri::AppHandle,
+    url: String,
+    dest_path: String,
+) -> Result<(), String> {
+    if !is_allowed_download_url(&url) {
+        return Err(format!("Refusing to download from disallowed URL: {url}"));
+    }
+
+    let sword_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to resolve app data dir: {e}"))?
+        .join("sword");
+
     let path = PathBuf::from(&dest_path);
+    if !is_allowed_dest(&path, &sword_dir) {
+        return Err(format!(
+            "Refusing to write outside the modules directory: {dest_path}"
+        ));
+    }
+
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {e}"))?;
     }
@@ -258,4 +304,50 @@ pub async fn install_bundled_module(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn allows_crosswire_https() {
+        assert!(is_allowed_download_url(
+            "https://crosswire.org/ftpmirror/pub/sword/packages/rawzip/KJV.zip"
+        ));
+    }
+
+    #[test]
+    fn rejects_non_https_and_other_hosts() {
+        assert!(!is_allowed_download_url(
+            "http://crosswire.org/pub/sword/KJV.zip"
+        ));
+        assert!(!is_allowed_download_url(
+            "https://evil.example.com/payload.zip"
+        ));
+        assert!(!is_allowed_download_url(
+            "https://crosswire.org.evil.com/KJV.zip"
+        ));
+        assert!(!is_allowed_download_url("file:///etc/passwd"));
+        assert!(!is_allowed_download_url("not a url"));
+    }
+
+    #[test]
+    fn allows_dest_inside_sword_dir() {
+        let sword = Path::new("/home/u/.local/share/app.biblemarker/sword");
+        assert!(is_allowed_dest(&sword.join("KJV.zip"), sword));
+    }
+
+    #[test]
+    fn rejects_dest_outside_or_traversing() {
+        let sword = Path::new("/home/u/.local/share/app.biblemarker/sword");
+        assert!(!is_allowed_dest(
+            Path::new("/home/u/.ssh/authorized_keys"),
+            sword
+        ));
+        assert!(!is_allowed_dest(
+            Path::new("/home/u/.local/share/app.biblemarker/sword/../../evil.zip"),
+            sword
+        ));
+    }
 }
