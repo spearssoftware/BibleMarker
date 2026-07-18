@@ -106,6 +106,14 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
+/* Suppress nav focus outlines while a picker/search modal is open. Kept here in
+   the bundled stylesheet (rather than a runtime <style>) so it carries the CSP
+   nonce — React 19 hoists JSX <style> tags into <head> without one. */
+[data-nav-bar][data-modal-open] button:focus-visible,
+[data-nav-bar][data-modal-open] button:focus {
+  outline: none !important;
+}
+
 @layer base {
   /* iOS-inspired Light theme colors - Clean, crisp, high contrast */
   :root {

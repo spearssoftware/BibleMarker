@@ -262,17 +262,13 @@ export function NavigationBar() {
 
   return (
     <>
-      {/* Hide focus outlines and remove backdrop blur from nav when modals are open */}
-      {anyPickerOpen || showSearch ? (
-        <style>{`
-          [data-nav-bar] button:focus-visible,
-          [data-nav-bar] button:focus {
-            outline: none !important;
-          }
-        `}</style>
-      ) : null}
+      {/* Focus outlines on nav buttons are suppressed while a picker/search is
+          open via the [data-modal-open] rule in index.css (kept out of a runtime
+          <style> so it carries the CSP nonce). */}
       <nav className="navigation-bar bg-scripture-surface/80 backdrop-blur-md shadow-sm sticky top-0 z-[45]
-                      pt-safe-top pl-safe-left pr-safe-right" data-nav-bar role="navigation" aria-label="Bible navigation">
+                      pt-safe-top pl-safe-left pr-safe-right" data-nav-bar
+           data-modal-open={anyPickerOpen || showSearch ? '' : undefined}
+           role="navigation" aria-label="Bible navigation">
         <div className="max-w-4xl mx-auto px-2 sm:px-4 py-2.5 flex items-center justify-between gap-2">
         {/* Left: prev chapter, sync status, back, and the location + translation chips */}
         <div className="flex items-center gap-1 sm:gap-2 min-w-0">
