@@ -155,7 +155,7 @@ export function StudiesSection() {
               {studies.map(study => (
                 <div
                   key={study.id}
-                  className="p-4 bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm flex items-center justify-between"
+                  className="p-4 bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   {editingStudy?.id === study.id ? (
                     <div className="flex-1 space-y-2">
@@ -187,9 +187,9 @@ export function StudiesSection() {
                     </div>
                   ) : (
                     <>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <div className="font-medium text-scripture-text">{study.name}</div>
+                          <div className="font-medium text-scripture-text break-words">{study.name}</div>
                           {activeStudyId === study.id && (
                             <span className="px-2 py-0.5 text-xs bg-scripture-accent text-scripture-bg rounded">Active</span>
                           )}
@@ -198,7 +198,7 @@ export function StudiesSection() {
                           {study.book ? `Scoped to: ${getBookById(study.book)?.name || study.book}` : 'All books'}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap sm:flex-shrink-0">
                         {activeStudyId !== study.id && (
                           <button
                             onClick={() => setActiveStudy(study.id)}
