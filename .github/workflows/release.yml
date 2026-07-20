@@ -470,15 +470,17 @@ jobs:
               f.write(content)
           '
 
-      # Unique, increasing CFBundleVersion per build (epoch seconds) so re-runs of
+      # Unique, increasing CFBundleVersion per build (epoch minutes) so re-runs of
       # publish for the same app version upload as distinct builds instead of being
-      # rejected with "bundle version already used".
+      # rejected with "bundle version already used". Minutes (not seconds) so iOS and
+      # Android share one scheme — Android's versionCode must stay under Google Play's
+      # ~2.1B cap, which epoch seconds would hit around 2036.
       - name: Build iOS app
         run: |
           # Xcode's Rust build phase doesn't inherit step env vars (tauri#13856),
           # so write the NASB key to a file build.rs reads to embed it.
           printf '%s' "$NASB_SIGNING_KEY" > src-tauri/nasb_signing_key.txt
-          BUILD_NUMBER=$(date +%s)
+          BUILD_NUMBER=$(( $(date +%s) / 60 ))
           echo "CFBundleVersion (build number): $BUILD_NUMBER"
           printf '{"bundle":{"iOS":{"bundleVersion":"%s"}}}' "$BUILD_NUMBER" > "$RUNNER_TEMP/bundle-version.json"
           pnpm tauri ios build --export-method app-store-connect --config "$RUNNER_TEMP/bundle-version.json"
@@ -586,7 +588,16 @@ jobs:
         run: python3 scripts/patch-android-signing.py
 
       - name: Build Android AAB
-        run: pnpm tauri android build --aab --target aarch64
+        run: |
+          # Android versionCode: epoch minutes, matching the iOS CFBundleVersion scheme.
+          # Unique and always-increasing per build with no stored counter, and stays
+          # well under Google Play's ~2.1B versionCode ceiling (epoch seconds would hit
+          # it around 2036). Overrides Tauri's default major*1e6+minor*1e3+patch, which
+          # collides when the same app version is re-cut.
+          VERSION_CODE=$(( $(date +%s) / 60 ))
+          echo "Android versionCode: $VERSION_CODE"
+          printf '{"bundle":{"android":{"versionCode":%s}}}' "$VERSION_CODE" > "$RUNNER_TEMP/version-code.json"
+          pnpm tauri android build --aab --target aarch64 --config "$RUNNER_TEMP/version-code.json"
         env:
           CI: true
           NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
