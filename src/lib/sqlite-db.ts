@@ -1016,13 +1016,16 @@ export async function sqliteDeleteChapterTitle(id: string): Promise<void> {
 // Note Operations
 // ============================================================================
 
+/**
+ * Notes are translation-agnostic — a note belongs to a verse, not to a
+ * translation, so every note on the chapter is returned regardless of the
+ * module it was written under.
+ */
 export async function sqliteGetChapterNotes(
-  moduleId: string,
   book: string,
   chapter: number
 ): Promise<Note[]> {
   const db = await getSqliteDb();
-  const normalizedModuleId = moduleId.toUpperCase();
 
   const rows = await db.select<
     {
@@ -1034,7 +1037,7 @@ export async function sqliteGetChapterNotes(
       created_at: string;
       updated_at: string;
     }[]
-  >(`SELECT * FROM notes WHERE UPPER(module_id) = ?`, [normalizedModuleId]);
+  >(`SELECT * FROM notes`);
 
   return rows
     .map((row) => ({

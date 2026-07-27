@@ -64,15 +64,11 @@ export function useAnnotations() {
    * Load notes for the current chapter
    */
   const loadNotes = useCallback(async () => {
-    if (!currentModuleId) return;
-    
-    const notes = await getChapterNotes(
-      currentModuleId,
-      currentBook,
-      currentChapter
-    );
+    // Notes are translation-agnostic — every note on the chapter loads,
+    // whichever translation it was written under.
+    const notes = await getChapterNotes(null, currentBook, currentChapter);
     setNotes(notes);
-  }, [currentModuleId, currentBook, currentChapter, setNotes]);
+  }, [currentBook, currentChapter, setNotes]);
 
   /**
    * Create a highlight, text color, or underline annotation

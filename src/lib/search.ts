@@ -106,10 +106,13 @@ async function searchCachedChapters(
 
 /**
  * Search notes by content
+ *
+ * Notes are translation-agnostic, so `_moduleId` is ignored — results match
+ * what the reader shows for a verse under any translation.
  */
 export async function searchNotes(
   query: string,
-  moduleId?: string,
+  _moduleId?: string,
   limit = 100
 ): Promise<SearchResult[]> {
   if (!query.trim()) return [];
@@ -117,10 +120,7 @@ export async function searchNotes(
   const normalizedQuery = query.toLowerCase();
   const results: SearchResult[] = [];
 
-  let allNotes = await getAllNotes();
-  if (moduleId) {
-    allNotes = allNotes.filter(n => n.moduleId === moduleId);
-  }
+  const allNotes = await getAllNotes();
 
   for (const note of allNotes) {
     const content = note.content.toLowerCase();
@@ -435,11 +435,9 @@ async function searchVerseReference(
 
   // Also search for notes on this verse
   if (scope === 'all' || scope === 'notes') {
-    let notes = await getAllNotes();
-    if (moduleId) {
-      notes = notes.filter(n => n.moduleId === moduleId);
-    }
-    notes = notes.filter(n =>
+    // Notes are translation-agnostic — not filtered by moduleId.
+    const allNotes = await getAllNotes();
+    const notes = allNotes.filter(n =>
       n.ref.book === verseRef.book &&
       n.ref.chapter === verseRef.chapter &&
       n.ref.verse === verseRef.verse
@@ -510,14 +508,12 @@ async function searchInChapter(
     }
   }
 
-  // Notes in this chapter
+  // Notes in this chapter — translation-agnostic, not filtered by moduleId.
   const normalizedQuery = query.toLowerCase();
-  let allNotes = await getAllNotes();
-  allNotes = allNotes.filter(n => n.ref.book === book && n.ref.chapter === chapter);
-  if (moduleId) {
-    allNotes = allNotes.filter(n => n.moduleId === moduleId);
-  }
-  for (const note of allNotes) {
+  const chapterNotes = (await getAllNotes()).filter(
+    n => n.ref.book === book && n.ref.chapter === chapter
+  );
+  for (const note of chapterNotes) {
     if (note.content.toLowerCase().includes(normalizedQuery)) {
       results.push({
         type: 'note',
