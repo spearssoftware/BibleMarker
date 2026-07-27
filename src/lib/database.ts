@@ -339,7 +339,6 @@ export async function getAllChapterTitles(): Promise<ChapterTitle[]> {
 // ============================================================================
 
 export async function getChapterNotes(
-  _moduleId: string | null | undefined,
   book: string,
   chapter: number
 ): Promise<Note[]> {

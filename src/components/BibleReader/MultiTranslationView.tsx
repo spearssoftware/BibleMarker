@@ -218,7 +218,7 @@ export function MultiTranslationView() {
   }, [currentBook, currentChapter, activeStudyId]);
   
   const loadNotes = useCallback(async () => {
-    const notesData = await getChapterNotes(null, currentBook, currentChapter);
+    const notesData = await getChapterNotes(currentBook, currentChapter);
     setNotes(notesData);
   }, [currentBook, currentChapter]);
 

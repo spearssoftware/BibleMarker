@@ -107,12 +107,11 @@ async function searchCachedChapters(
 /**
  * Search notes by content
  *
- * Notes are translation-agnostic, so `_moduleId` is ignored — results match
- * what the reader shows for a verse under any translation.
+ * Not scoped to a translation — notes are translation-agnostic, so results
+ * match what the reader shows for a verse under any translation.
  */
 export async function searchNotes(
   query: string,
-  _moduleId?: string,
   limit = 100
 ): Promise<SearchResult[]> {
   if (!query.trim()) return [];
@@ -365,7 +364,7 @@ export async function searchAll(
   }
 
   if (scope === 'all' || scope === 'notes') {
-    const noteResults = await searchNotes(query, moduleId, limit - results.length);
+    const noteResults = await searchNotes(query, limit - results.length);
     results.push(...noteResults);
   }
 

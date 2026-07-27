@@ -107,14 +107,32 @@ describe('sqliteGetChapterNotes', () => {
     expect(notes.map((n) => n.id).sort()).toEqual(['esv-note', 'kjv-note', 'nasb-note']);
   });
 
-  it('issues SQL with no module_id predicate', async () => {
+  // The driver mock cannot evaluate a WHERE clause, so the filtering tests
+  // below exercise the JS filter only. These assertions are the sole guard on
+  // the SQL predicate itself — a wrong JSON path would otherwise ship green
+  // and return nothing on a real database.
+  it('filters by book and chapter in SQL, with no module_id predicate', async () => {
     const mod = await loadModule();
     await mod.sqliteGetChapterNotes('John', 3);
 
     const noteSelect = state.selectCalls.find((c) => c.sql.includes('FROM notes'));
     expect(noteSelect).toBeDefined();
     expect(noteSelect!.sql).not.toMatch(/module_id/);
-    expect(noteSelect!.params ?? []).toEqual([]);
+    expect(noteSelect!.params).toEqual(['John', 3]);
+  });
+
+  it('keys the SQL predicate off range.start with a fallback to ref', async () => {
+    const mod = await loadModule();
+    await mod.sqliteGetChapterNotes('John', 3);
+
+    const sql = state.selectCalls.find((c) => c.sql.includes('FROM notes'))!.sql;
+    expect(sql).toMatch(/json_extract\(\s*range\s*,\s*'\$\.start\.book'\s*\)/);
+    expect(sql).toMatch(/json_extract\(\s*range\s*,\s*'\$\.start\.chapter'\s*\)/);
+    expect(sql).toMatch(/json_extract\(\s*ref\s*,\s*'\$\.book'\s*\)/);
+    expect(sql).toMatch(/json_extract\(\s*ref\s*,\s*'\$\.chapter'\s*\)/);
+    // Malformed JSON in either column must not abort the whole statement.
+    expect(sql).toMatch(/json_valid\(\s*range\s*\)/);
+    expect(sql).toMatch(/json_valid\(\s*ref\s*\)/);
   });
 
   it('still filters to the requested book and chapter', async () => {

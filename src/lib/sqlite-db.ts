@@ -1020,6 +1020,12 @@ export async function sqliteDeleteChapterTitle(id: string): Promise<void> {
  * Notes are translation-agnostic — a note belongs to a verse, not to a
  * translation, so every note on the chapter is returned regardless of the
  * module it was written under.
+ *
+ * The book/chapter filter runs in SQL so only the current chapter's rows cross
+ * the IPC boundary and get parsed. This is still a table scan (the COALESCE is
+ * not indexable), but it avoids shipping and JSON.parsing every note in the
+ * database on each reload — and this runs on every chapter change and every
+ * `annotationsUpdated` event.
  */
 export async function sqliteGetChapterNotes(
   book: string,
@@ -1037,8 +1043,26 @@ export async function sqliteGetChapterNotes(
       created_at: string;
       updated_at: string;
     }[]
-  >(`SELECT * FROM notes`);
+  >(
+    // Range notes key off range.start, plain notes off ref. json_valid guards
+    // each extract: bare json_extract on a malformed value aborts the whole
+    // statement, and SQLite does not guarantee AND short-circuits — CASE does.
+    // json_valid(NULL) is NULL, so a missing range still falls through to ref.
+    `SELECT * FROM notes
+     WHERE COALESCE(
+             CASE WHEN json_valid(range) THEN json_extract(range, '$.start.book') END,
+             CASE WHEN json_valid(ref) THEN json_extract(ref, '$.book') END
+           ) = ?
+       AND COALESCE(
+             CASE WHEN json_valid(range) THEN json_extract(range, '$.start.chapter') END,
+             CASE WHEN json_valid(ref) THEN json_extract(ref, '$.chapter') END
+           ) = ?`,
+    [book, chapter]
+  );
 
+  // The filter below repeats the SQL predicate. It is cheap once SQL has
+  // narrowed the rows, and keeps the behaviour unit-testable — the driver mock
+  // cannot evaluate a WHERE clause.
   return rows
     .map((row) => ({
       id: row.id,
