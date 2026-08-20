@@ -120,17 +120,23 @@ an account exists. Codes are single-use, expire in 10 minutes, lock after 5 wron
 attempts, and are rate-limited by a 60s per-email resend cooldown. Sessions are opaque
 tokens (stored hash-only) valid for 1 year.
 
-Emails are sent via **Postmark** (shared with spearssoftware.com). The send is behind
-an `EmailSender` interface, so the provider is swappable and tests use a fake.
+Emails are sent via **Cloudflare Email Sending**, through the `EMAIL` `send_email`
+binding — there is no API token to store or rotate. The send is behind an
+`EmailSender` interface, so the provider is swappable and tests use a fake.
+
+`biblemarker.app` is already onboarded as a sending domain (SPF/DKIM/DMARC records
+live in its Cloudflare zone). To check or re-run onboarding:
 
 ```bash
-# Postmark server token (from the Postmark server's API Tokens tab)
-echo -n "<postmark-server-token>" | npx wrangler secret put POSTMARK_SERVER_TOKEN --env production
+npx wrangler email sending list
+npx wrangler email sending enable biblemarker.app
 ```
 
-`OTP_FROM_EMAIL` (the verified sender address) is a plain var in `wrangler.toml` —
-default `noreply@spearssoftware.com` (already a verified Postmark sending domain).
-Change it if you verify `biblemarker.app` in Postmark for branding.
+`OTP_FROM_EMAIL` (the sender address) is a plain var in `wrangler.toml`, defaulting
+to `noreply@biblemarker.app`. The binding sets `allowed_sender_addresses` to that one
+address, so the Worker cannot send as anything else on the domain — change both
+together. `wrangler dev` simulates sends locally; add `remote = true` to the
+top-level `[[send_email]]` block to exercise real delivery in dev.
 
 ### Feature flags (Cloudflare Flagship)
 
