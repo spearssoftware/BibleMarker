@@ -27,6 +27,13 @@ database_id = "92706dec-cbd8-43a7-942b-227a5b6ed866"
 binding = "FLAGS"
 app_id = "283ab531-376d-4508-8530-bceb96de4d7b"
 
+# Cloudflare Email Sending binding for /auth OTP emails. Restricted to the one
+# sender address so a bug can't send as anything else on the domain.
+# `wrangler dev` simulates sends locally — add `remote = true` to send for real.
+[[send_email]]
+name = "EMAIL"
+allowed_sender_addresses = ["noreply@biblemarker.app"]
+
 # Per-IP rate limiters for the unauthenticated /auth/* routes. Distinct
 # namespace_ids give independent buckets. period is restricted to 10 or 60.
 # Note: these do NOT count in `wrangler dev` (local limit() always succeeds) —
@@ -68,8 +75,8 @@ simple = { limit = 600, period = 60 }
 crons = ["0 3 * * *"]
 
 [vars]
-# Verified Postmark sender address for OTP emails (not a secret).
-OTP_FROM_EMAIL = "noreply@spearssoftware.com"
+# Sender address for OTP emails, on the Email-Sending-onboarded domain (not a secret).
+OTP_FROM_EMAIL = "noreply@biblemarker.app"
 
 [observability]
 enabled = true
@@ -103,6 +110,10 @@ database_id = "92706dec-cbd8-43a7-942b-227a5b6ed866"
 [[env.production.flagship]]
 binding = "FLAGS"
 app_id = "283ab531-376d-4508-8530-bceb96de4d7b"
+
+[[env.production.send_email]]
+name = "EMAIL"
+allowed_sender_addresses = ["noreply@biblemarker.app"]
 
 [[env.production.ratelimits]]
 name = "AUTH_REQUEST_LIMITER"
@@ -140,4 +151,4 @@ enabled = true
 
 # Secrets (set via `wrangler secret put ... --env production`, never committed):
 #   SIGNING_KEY            — HMAC key for /modules auth
-#   POSTMARK_SERVER_TOKEN  — Postmark server token for /auth OTP emails
+# OTP email delivery uses the EMAIL binding above — no token to store.

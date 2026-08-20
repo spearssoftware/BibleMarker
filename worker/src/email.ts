@@ -2,42 +2,37 @@
  * Transactional email for sign-in codes.
  *
  * The send is behind an `EmailSender` interface so the provider is swappable and
- * unit tests use a fake. `PostmarkSender` is the production adapter — BibleMarker
- * shares Postmark with spearssoftware.com (already a verified sending domain).
+ * unit tests use a fake. `CloudflareEmailSender` is the production adapter — it
+ * uses the `send_email` Worker binding (Cloudflare Email Sending), so there is no
+ * API token to rotate and `biblemarker.app` is the onboarded sending domain.
  */
 
 export interface EmailSender {
   sendOtp(to: string, code: string): Promise<void>;
 }
 
-export class PostmarkSender implements EmailSender {
+export class CloudflareEmailSender implements EmailSender {
   constructor(
-    private readonly token: string,
+    private readonly binding: SendEmail,
     private readonly from: string
   ) {}
 
   async sendOtp(to: string, code: string): Promise<void> {
-    const res = await fetch('https://api.postmarkapp.com/email', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'X-Postmark-Server-Token': this.token,
-      },
-      body: JSON.stringify({
-        From: this.from,
-        To: to,
-        Subject: 'Your BibleMarker sign-in code',
-        TextBody:
+    try {
+      await this.binding.send({
+        from: { name: 'BibleMarker', email: this.from },
+        to,
+        subject: 'Your BibleMarker sign-in code',
+        text:
           `Your BibleMarker verification code is ${code}\n\n` +
           `It expires in 10 minutes. If you didn't request it, you can ignore this email.`,
-        MessageStream: 'outbound',
-      }),
-    });
-
-    if (!res.ok) {
-      const detail = await res.text().catch(() => '');
-      throw new Error(`Postmark send failed (${res.status}): ${detail.slice(0, 200)}`);
+      });
+    } catch (err) {
+      // The binding throws with an `E_*` code (e.g. E_RATE_LIMIT_EXCEEDED,
+      // E_RECIPIENT_SUPPRESSED). Surface it so the Worker logs say why.
+      const code = (err as { code?: string }).code ?? 'unknown';
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Email send failed (${code}): ${message.slice(0, 200)}`);
     }
   }
 }

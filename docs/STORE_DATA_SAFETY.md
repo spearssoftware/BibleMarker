@@ -12,7 +12,7 @@ sync (Cloudflare server + email-OTP accounts) becomes available.
 |------|------|---------------|---------------------|---------|
 | Install UUID + app version + platform | Every launch, **all users** | `GET /config` → Cloudflare Flagship | Device-linked, not identity-linked | App functionality / remote config |
 | IP address | Any server call (`/config`, `/auth`, `/sync`, `/modules`) | Cloudflare edge | Not used to identify; abuse-prevention only | Analytics-free; security / rate limiting |
-| Email address | Only if user creates a sync account | D1 (`accounts`) + Postmark (delivery) | Yes | Account / authentication |
+| Email address | Only if user creates a sync account | D1 (`accounts`) + Cloudflare Email Sending (delivery) | Yes | Account / authentication |
 | Study content (annotations, notes, keywords, studies) | Only if user creates an account **and** enables sync | R2 blobs keyed to account | Yes (linked to account email) | App functionality (cross-device sync) |
 | Session tokens (hashed) | After sign-in | D1 (`sessions`, SHA-256 only) | Yes | Authentication |
 | ESV API key | Only if user adds one | **Local device only** — never sent to our servers | N/A | App functionality |
@@ -45,7 +45,7 @@ Data types to declare:
 ## Google Play — Data safety form
 
 - **Data collection:** Yes. **Data sharing:** No (service providers acting on our
-  behalf — Cloudflare, Postmark — are processors, not third-party "sharing" under
+  behalf — Cloudflare — are processors, not third-party "sharing" under
   Play's definition).
 - **Encryption in transit:** Yes (HTTPS/TLS).
 - **User can request deletion:** Yes — in-app account deletion (Settings → Data) plus
@@ -61,7 +61,8 @@ Data types:
 
 - The install UUID is regenerated if the local DB is wiped; it is **not** an Apple
   IDFA / Android Advertising ID and must not be declared as one.
-- Postmark only ever receives the email address + the one-time code (to deliver it).
+- Sign-in emails go out through Cloudflare Email Sending, which only ever handles the
+  email address + the one-time code (to deliver it).
 - Crossway (ESV) calls go device → Crossway directly with the user's own key; we never
   see them — disclose as the user's relationship with Crossway, not ours.
 - iCloud sync (Apple) stores journal files in the user's **own** iCloud account; not
