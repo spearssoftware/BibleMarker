@@ -71,7 +71,7 @@ export interface UserPreferences {
     forceSyncEnabled?: boolean;
   };
   /**
-   * Shows the full Precept toolkit (Key Words, Observe, Analyze, Study Tools)
+   * Shows the full inductive toolkit (Key Words, Observe, Analyze, Study Tools)
    * in the bottom bar and selection menu. Absent == false. Deliberately not
    * added to DEFAULT_PREFERENCES so `undefined` stays meaningful for the
    * one-shot "upgrade nicety" check in `toolkitMigration.ts`.

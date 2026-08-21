@@ -2,7 +2,7 @@
  * Toolkit Migration ("upgrade nicety")
  *
  * Users who already have annotations, key words, or notes from before the
- * discovery-first pivot should not have the Precept toolkit disappear out
+ * discovery-first pivot should not have the inductive toolkit disappear out
  * from under them. On first launch after updating, auto-enable "inductive
  * tools" for any account that already has data — the toggle only ever
  * flips this once, since after it runs `inductiveToolsEnabled` is no longer

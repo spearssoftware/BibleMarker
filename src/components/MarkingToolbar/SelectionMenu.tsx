@@ -26,7 +26,7 @@ interface SelectionMenuProps {
    * toggle is hidden since there's nothing to propagate to. */
   canPropagate?: boolean;
   /** When false (tools off), only the quick-highlight swatches + Cancel
-   * render — the Precept toolkit items (Key Word, Observe, etc.) are hidden. */
+   * render — the inductive toolkit items (Key Word, Observe, etc.) are hidden. */
   advanced?: boolean;
   onApplyPreset: (preset: MarkingPreset, scope: ApplyScope) => void;
   onAddAsVariant: (preset: MarkingPreset) => void;

@@ -2,7 +2,7 @@
  * ConnectorPrompt — Connector Lens micro-prompt
  *
  * Anchored to the Connector chip. Shows the per-category Socratic prompt for
- * the tapped connector; "Add to Flow" only appears with the full Precept
+ * the tapped connector; "Add to Flow" only appears with the full inductive
  * toolkit enabled, since it lands in Observe → Flow.
  */
 

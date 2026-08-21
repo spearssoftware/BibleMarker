@@ -2,7 +2,7 @@
  * Toolkit Restored Banner
  *
  * One-shot notice shown after `maybeEnableInductiveTools` auto-enables the
- * Precept toolkit for an existing user whose data (marks, keywords, notes)
+ * inductive toolkit for an existing user whose data (marks, keywords, notes)
  * predates the discovery-first default. Mirrors the plain banner look used
  * by `UpdateBanner`'s web/Capacitor variant.
  */
