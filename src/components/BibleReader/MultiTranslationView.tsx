@@ -32,6 +32,10 @@ import { getBookById } from '@/types';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { usePanelStore } from '@/stores/panelStore';
 import { useTextSelection, type TranslationChapter } from '@/hooks/useTextSelection';
+import { useChapterAnalysis } from '@/hooks/useChapterAnalysis';
+import { useDiscoveryStore } from '@/stores/discoveryStore';
+import { DiscoveryBar } from '@/components/Discovery';
+import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import type { Annotation, Chapter, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
 
 const KJV_FALLBACK_ERROR_PREFIX = 'Showing KJV';
@@ -73,6 +77,15 @@ export function MultiTranslationView() {
   } = useAnnotations();
   const { presets } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
+
+  // Discover layer: chapter analysis for the primary translation, the
+  // Connector Lens toggle, and the tap handler that opens its micro-prompt.
+  const analysis = useChapterAnalysis(currentBook, currentChapter, primaryTranslationId);
+  const lensActive = useDiscoveryStore(s => s.lensActive);
+  const setActivePrompt = useDiscoveryStore(s => s.setActivePrompt);
+  const handleConnectorTap = useCallback((hit: ConnectorHit) => {
+    setActivePrompt(hit);
+  }, [setActivePrompt]);
 
   // Build preset map for annotation filtering
   const presetMap = useMemo(
@@ -281,6 +294,19 @@ export function MultiTranslationView() {
           existing.chapter.book === currentBook &&
           existing.chapter.chapter === currentChapter) {
         newChapters.set(translationId, existing);
+        // Republish for the primary translation even on this fast path — the
+        // primary can change to an already-loaded column (e.g. reordering
+        // translations), and without this activeChapterStore would keep
+        // showing the *previous* primary's verses, leaving chapter analysis
+        // and ChapterAtAGlance stale.
+        if (translationId === primaryTranslationId) {
+          setActiveChapterVerses(
+            translationId,
+            currentBook,
+            currentChapter,
+            existing.chapter.verses.map(v => ({ ref: v.ref, text: v.text }))
+          );
+        }
         continue;
       }
 
@@ -487,6 +513,9 @@ export function MultiTranslationView() {
 
   const translationList = Array.from(translationChapters.values());
   const bookInfo = getBookById(currentBook);
+  const primaryTranslationName = translationList.find(
+    ({ translation }) => translation.id === primaryTranslationId
+  )?.translation.name;
 
   // Close pickers when clicking on verse text (but allow text selection)
   const handleClick = (e: React.MouseEvent) => {
@@ -568,6 +597,13 @@ export function MultiTranslationView() {
           </button>
         </div>
       )}
+
+      {/* Discovery chip slot — stable insertion point for discovery-layer features */}
+      <DiscoveryBar
+        analysis={analysis}
+        translationCount={translationList.length}
+        primaryTranslationName={primaryTranslationName}
+      />
 
       {/* Translation headers - sticky */}
       <div
@@ -725,6 +761,17 @@ export function MultiTranslationView() {
                               selectionRange={
                                 selection?.moduleId === translation.id && selection?.startVerse === verseNum && selection?.startOffset != null && selection?.endOffset != null
                                   ? { startOffset: selection.startOffset, endOffset: selection.endOffset }
+                                  : undefined
+                              }
+                              lens={
+                                lensActive
+                                  ? {
+                                      ranges:
+                                        translation.id === primaryTranslationId
+                                          ? analysis?.connectorRangesByVerse.get(verseNum) ?? []
+                                          : [],
+                                      onConnectorTap: handleConnectorTap,
+                                    }
                                   : undefined
                               }
                             />

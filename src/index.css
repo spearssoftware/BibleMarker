@@ -148,6 +148,8 @@ select:focus-visible {
     --symbol-opacity: 0.85;
     /* Size of symbol marks as an em multiplier of the verse text. User-tunable in Appearance settings. */
     --symbol-size: 1.8em;
+    /* Opacity of dimmed text while the Connector Lens is active. */
+    --lens-dim-opacity: 0.28;
   }
 
   /* iOS-inspired Dark theme colors - True black with high contrast */
@@ -179,6 +181,8 @@ select:focus-visible {
     --scripture-info-text: #64b5ff;
     /* Backdrop/overlay opacity - darker theme needs more opacity */
     --scripture-backdrop-opacity: 0.6;
+    /* Dimmed text needs a touch more opacity in dark mode to stay legible. */
+    --lens-dim-opacity: 0.32;
   }
 
   * {
@@ -447,6 +451,21 @@ select:focus-visible {
      overriding the user's --symbol-opacity preference. */
   html.high-contrast .symbol-overlay {
     opacity: 1;
+  }
+
+  /* Connector Lens: everything except a hinge word dims; hinges themselves
+     get an underline + accent color so the argument skeleton reads at a
+     glance. */
+  .lens-dim {
+    opacity: var(--lens-dim-opacity);
+    transition: opacity 150ms;
+  }
+
+  .lens-connector {
+    font-weight: 600;
+    color: var(--scripture-accent);
+    cursor: pointer;
+    border-bottom: 1px dotted currentColor;
   }
 
   .symbol-overlay svg {
