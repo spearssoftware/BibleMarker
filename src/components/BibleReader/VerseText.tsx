@@ -391,17 +391,19 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
              (sym.endRef === undefined || sym.endRef.verse === verseNum);
     });
 
+    const noMarkup = verseAnnotations.length === 0 && verseCenterSymbols.length === 0 && !selectionRange;
+
     // If no annotations, no selection, and no lens pass, return as-is. The lens
     // pass must still run a verse with zero connectors (empty `lens.ranges`) so
     // it gets dimmed uniformly like every other non-primary column.
-    if (verseAnnotations.length === 0 && verseCenterSymbols.length === 0 && !selectionRange && !lens) {
+    if (noMarkup && !lens) {
       return sourceText;
     }
 
     // Fast path: lens on, but this verse has no connector hits, no annotations,
     // no symbols, and no active selection — the whole verse is just uniformly
     // dimmed, so skip the segment/boundary machinery below entirely.
-    if (lens && lens.ranges.length === 0 && verseAnnotations.length === 0 && verseCenterSymbols.length === 0 && !selectionRange) {
+    if (lens && lens.ranges.length === 0 && noMarkup) {
       return `<span class="lens-dim">${escapeHtml(sourceText)}</span>`;
     }
 

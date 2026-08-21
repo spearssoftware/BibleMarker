@@ -280,6 +280,19 @@ export function MultiTranslationView() {
   const loadChapters = async () => {
     if (!activeView || translations.length === 0) return;
 
+    // Publish verse text for the primary translation so ChapterAtAGlance can
+    // do keyword matching without an extra API call. No-ops for any other
+    // translation column.
+    const publishPrimaryVerses = (translationId: string, chapter: Chapter) => {
+      if (translationId !== primaryTranslationId) return;
+      setActiveChapterVerses(
+        translationId,
+        currentBook,
+        currentChapter,
+        chapter.verses.map(v => ({ ref: v.ref, text: v.text }))
+      );
+    };
+
     const newChapters = new Map<string, TranslationChapter>();
 
     // Initialize all translations with loading state
@@ -298,14 +311,7 @@ export function MultiTranslationView() {
         // to an already-loaded column (e.g. reordering translations), and without this
         // activeChapterStore would keep showing the *previous* primary's verses. setActiveChapterVerses
         // itself no-ops when nothing actually changed, so no need to check here.
-        if (translationId === primaryTranslationId) {
-          setActiveChapterVerses(
-            translationId,
-            currentBook,
-            currentChapter,
-            existing.chapter.verses.map(v => ({ ref: v.ref, text: v.text }))
-          );
-        }
+        publishPrimaryVerses(translationId, existing.chapter);
         continue;
       }
 
@@ -339,16 +345,7 @@ export function MultiTranslationView() {
         });
         setTranslationChapters(new Map(newChapters));
 
-        // Publish verse text for the primary translation so ChapterAtAGlance
-        // can do keyword matching without an extra API call.
-        if (translationId === primaryTranslationId) {
-          setActiveChapterVerses(
-            translationId,
-            currentBook,
-            currentChapter,
-            chapter.verses.map(v => ({ ref: v.ref, text: v.text }))
-          );
-        }
+        publishPrimaryVerses(translationId, chapter);
 
         // Auto-populate places and time expressions for keywords found in this chapter
         // Only do this once per chapter (use primary translation)

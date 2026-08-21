@@ -47,6 +47,8 @@ const FLUSH_AT_QUEUE_SIZE = 20;
 const MAX_EVENTS_PER_REQUEST = 30;
 /** Hard cap on the in-memory queue — oldest events are dropped beyond this. */
 const MAX_QUEUE_SIZE = 200;
+/** Hard cap on the dedupe set — oldest keys are evicted beyond this. */
+const MAX_SHOWN_CHIP_KEYS = 500;
 
 let queue: QueuedEvent[] = [];
 /** Per-launch, in-memory only — never persisted or synced. */
@@ -98,6 +100,10 @@ export function track(name: TelemetryEvent, props?: TelemetryProps): void {
     if (name === 'discovery_chip_shown' && props?.dedupeKey) {
       if (shownChipKeys.has(props.dedupeKey)) return;
       shownChipKeys.add(props.dedupeKey);
+      if (shownChipKeys.size > MAX_SHOWN_CHIP_KEYS) {
+        const oldestKey = shownChipKeys.keys().next().value;
+        if (oldestKey !== undefined) shownChipKeys.delete(oldestKey);
+      }
     }
 
     queue.push({ name, feature: props?.feature });

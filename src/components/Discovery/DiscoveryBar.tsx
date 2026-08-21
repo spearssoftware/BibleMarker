@@ -41,7 +41,7 @@ export function DiscoveryBar({ analysis, translationCount, primaryTranslationNam
   const setActivePrompt = useDiscoveryStore(s => s.setActivePrompt);
 
   const connectorChipRef = useRef<HTMLDivElement>(null);
-  const { entities, isLoading: entitiesLoading, error: entitiesError } = useChapterEntities(book ?? undefined, chapter ?? undefined);
+  const { entities, isLoading: entitiesLoading, error: entitiesError } = useChapterEntities(book ?? undefined, chapter ?? undefined, enabled);
 
   useEffect(() => {
     resetForChapter();

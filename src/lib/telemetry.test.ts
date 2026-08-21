@@ -190,4 +190,26 @@ describe('telemetry', () => {
     expect(raw.body as string).not.toContain('JHN');
     expect(raw.body as string).not.toContain('dedupeKey');
   });
+
+  it('evicts the oldest dedupe key once the dedupe set exceeds its 500-entry cap', async () => {
+    usePreferencesStore.setState({ telemetryEnabled: true });
+    initTelemetry();
+
+    for (let i = 0; i < 501; i++) {
+      track('discovery_chip_shown', { feature: 'repetition', dedupeKey: `key-${i}` });
+    }
+
+    // Fully drain the queue (bounded at 200 entries, 30 sent per flush) before
+    // isolating the event under test.
+    for (let i = 0; i < 7; i++) await shutdownTelemetry();
+    fetchMock.mockClear();
+
+    // key-0 was the oldest entry and should have been evicted, so tracking it
+    // again is not deduped and produces a fresh event.
+    track('discovery_chip_shown', { feature: 'repetition', dedupeKey: 'key-0' });
+    await shutdownTelemetry();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(lastRequestBody(fetchMock).events).toHaveLength(1);
+  });
 });

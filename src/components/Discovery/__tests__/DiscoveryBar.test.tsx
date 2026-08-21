@@ -46,7 +46,6 @@ let discoveryEnabled = true;
 vi.mock('@/lib/discovery-config', () => ({
   useDiscoveryEnabled: () => discoveryEnabled,
   useDiscoveryConfig: () => DEFAULT_DISCOVERY_THRESHOLDS,
-  isDiscoveryEnabled: () => discoveryEnabled,
 }));
 
 function makeAnalysis(): ChapterAnalysis {

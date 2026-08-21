@@ -34,7 +34,7 @@ export interface Env {
   SYNC_LIMITER: RateLimiter;
   /** Analytics Engine dataset for opt-in Discover-layer telemetry (see `events.ts`). Absent under `wrangler dev`. */
   EVENTS?: AnalyticsEngineDataset;
-  /** Per-IP rate limiter for `POST /events` (20 / 60s). */
+  /** Per-IP rate limiter for `POST /events` (6 / 60s). */
   EVENTS_LIMITER: RateLimiter;
 }
 

@@ -13,8 +13,6 @@ import type { AnalysisVerse, ConnectorCategory, ConnectorHit } from './types';
 export interface ConnectorDef {
   phrase: string;
   category: ConnectorCategory;
-  /** Only counts at a clause start: verse-initial, after a clause-boundary punctuation mark, or after a closing quote. */
-  clauseStartOnly?: boolean;
   prompt: string;
 }
 
@@ -80,18 +78,6 @@ const SORTED_CONNECTORS: readonly ConnectorDef[] = [...CONNECTORS].sort((a, b) =
   return b.phrase.length - a.phrase.length;
 });
 
-const CLAUSE_BOUNDARY_CHARS = new Set(['.', ';', ':', ',', '—', '–']);
-/** Closing quote set per the plan: straight/curly single and double closing quotes. */
-const CLOSING_QUOTE_CHARS = new Set(["'", '’', '"', '”']);
-
-function isClauseStart(text: string, matchStart: number): boolean {
-  let i = matchStart - 1;
-  while (i >= 0 && /\s/.test(text[i])) i -= 1;
-  if (i < 0) return true;
-  const ch = text[i];
-  return CLAUSE_BOUNDARY_CHARS.has(ch) || CLOSING_QUOTE_CHARS.has(ch);
-}
-
 export function findConnectors(verses: AnalysisVerse[]): ConnectorHit[] {
   const hits: ConnectorHit[] = [];
 
@@ -102,7 +88,6 @@ export function findConnectors(verses: AnalysisVerse[]): ConnectorHit[] {
       for (const match of findPhraseMatches(verse.text, def.phrase)) {
         const overlaps = claimedRanges.some(([start, end]) => match.startIndex < end && match.endIndex > start);
         if (overlaps) continue;
-        if (def.clauseStartOnly && !isClauseStart(verse.text, match.startIndex)) continue;
 
         claimedRanges.push([match.startIndex, match.endIndex]);
         hits.push({

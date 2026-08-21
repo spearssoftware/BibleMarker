@@ -281,25 +281,25 @@ export function SelectionMenu({
 
           {advanced && (
             <>
-          <div className="border-t border-scripture-border/30 my-1" />
+            <div className="border-t border-scripture-border/30 my-1" />
 
-          {/* Key Word */}
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onOpenKeyWordManager();
-              onClose();
-            }}
-            className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                     transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                     hover:shadow-sm text-scripture-text"
-            role="menuitem"
-            aria-label="Create key word"
-          >
-            <span className="text-lg" aria-hidden="true">➕</span>
-            <span>Key Word</span>
-          </button>
+            {/* Key Word */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onOpenKeyWordManager();
+                onClose();
+              }}
+              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                       hover:shadow-sm text-scripture-text"
+              role="menuitem"
+              aria-label="Create key word"
+            >
+              <span className="text-lg" aria-hidden="true">➕</span>
+              <span>Key Word</span>
+            </button>
 
             {/* Add as a Match */}
             {!isCommonPronoun(selection.text) && keywordPresets.length > 0 && (
@@ -367,77 +367,77 @@ export function SelectionMenu({
               </div>
             )}
 
-          {/* Add Person */}
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onQuickAddKeyword('person');
-              onClose();
-            }}
-            className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                     transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                     hover:shadow-sm text-scripture-text"
-            role="menuitem"
-            aria-label="Add person"
-          >
-            <span className="text-lg" aria-hidden="true">👤</span>
-            <span>Add Person</span>
-          </button>
+            {/* Add Person */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onQuickAddKeyword('person');
+                onClose();
+              }}
+              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                       hover:shadow-sm text-scripture-text"
+              role="menuitem"
+              aria-label="Add person"
+            >
+              <span className="text-lg" aria-hidden="true">👤</span>
+              <span>Add Person</span>
+            </button>
 
-          {/* Add Place */}
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onQuickAddKeyword('place');
-              onClose();
-            }}
-            className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                     transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                     hover:shadow-sm text-scripture-text"
-            role="menuitem"
-            aria-label="Add place"
-          >
-            <span className="text-lg" aria-hidden="true">📍</span>
-            <span>Add Place</span>
-          </button>
+            {/* Add Place */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onQuickAddKeyword('place');
+                onClose();
+              }}
+              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                       hover:shadow-sm text-scripture-text"
+              role="menuitem"
+              aria-label="Add place"
+            >
+              <span className="text-lg" aria-hidden="true">📍</span>
+              <span>Add Place</span>
+            </button>
 
-          {/* Observe */}
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onAddToList();
-              onClose();
-            }}
-            className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                     transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                     hover:shadow-sm text-scripture-text"
-            role="menuitem"
-            aria-label="Add observation"
-          >
-            <span className="text-lg" aria-hidden="true">🔍</span>
-            <span>Observe</span>
-          </button>
+            {/* Observe */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onAddToList();
+                onClose();
+              }}
+              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                       hover:shadow-sm text-scripture-text"
+              role="menuitem"
+              aria-label="Add observation"
+            >
+              <span className="text-lg" aria-hidden="true">🔍</span>
+              <span>Observe</span>
+            </button>
 
-          {/* Reference Lookup */}
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onReferenceLookup();
-              onClose();
-            }}
-            className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                     transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                     hover:shadow-sm text-scripture-text"
-            role="menuitem"
-            aria-label="Look up in study tools"
-          >
-            <span className="text-lg" aria-hidden="true">📖</span>
-            <span>Study Tools</span>
-          </button>
+            {/* Reference Lookup */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onReferenceLookup();
+                onClose();
+              }}
+              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                       hover:shadow-sm text-scripture-text"
+              role="menuitem"
+              aria-label="Look up in study tools"
+            >
+              <span className="text-lg" aria-hidden="true">📖</span>
+              <span>Study Tools</span>
+            </button>
             </>
           )}
 
