@@ -65,20 +65,30 @@ describe('RepetitionChip', () => {
       />
     );
 
-    const chip = screen.getByText('One word appears 7× in this chapter');
+    const chip = screen.getByText('One word appears 7× — can you find it?');
     expect(container.innerHTML.toLowerCase()).not.toContain('zephyr');
 
     fireEvent.click(chip);
-    expect(screen.getByText('It appears 7 times.')).toBeTruthy();
+    expect(screen.getByText('When you spot it, select the word in the text to check.')).toBeTruthy();
+    expect(screen.queryByText(/Look between/)).toBeNull();
     expect(container.innerHTML.toLowerCase()).not.toContain('zephyr');
 
-    fireEvent.click(chip);
+    const hintButton = screen.getByText('Need a hint?');
+    fireEvent.click(hintButton);
     expect(screen.getByText('Look between v.2 and v.9.')).toBeTruthy();
     expect(screen.queryByText(/name for/)).toBeNull();
     expect(container.innerHTML.toLowerCase()).not.toContain('zephyr');
+
+    fireEvent.click(screen.getByText('Need a hint?'));
+    expect(screen.getByText('It first shows up in v.2.')).toBeTruthy();
+    // Previously revealed hint stays visible.
+    expect(screen.getByText('Look between v.2 and v.9.')).toBeTruthy();
+    expect(screen.queryByText('Need a hint?')).toBeNull();
+    expect(screen.getByText("That's all the hints — keep looking.")).toBeTruthy();
+    expect(container.innerHTML.toLowerCase()).not.toContain('zephyr');
   });
 
-  it('shows the category hint rung when Gnosis has a matching entity, never rendering the token', () => {
+  it('shows the category hint rung first when Gnosis has a matching entity, never rendering the token', () => {
     const entities: ChapterEntities = { book: 'John', chapter: 1, people: ['zephyr'], places: [], events: [], topics: [] };
 
     const { container } = render(
@@ -92,16 +102,23 @@ describe('RepetitionChip', () => {
       />
     );
 
-    const chip = screen.getByText('One word appears 7× in this chapter');
+    const chip = screen.getByText('One word appears 7× — can you find it?');
     fireEvent.click(chip);
     expect(container.innerHTML.toLowerCase()).not.toContain('zephyr');
 
-    fireEvent.click(chip);
+    fireEvent.click(screen.getByText('Need a hint?'));
     expect(screen.getByText("It's a name for someone.")).toBeTruthy();
     expect(container.innerHTML.toLowerCase()).not.toContain('zephyr');
 
-    fireEvent.click(chip);
+    fireEvent.click(screen.getByText('Need a hint?'));
     expect(screen.getByText('Look between v.2 and v.9.')).toBeTruthy();
+    expect(screen.getByText("It's a name for someone.")).toBeTruthy();
+    expect(container.innerHTML.toLowerCase()).not.toContain('zephyr');
+
+    fireEvent.click(screen.getByText('Need a hint?'));
+    expect(screen.getByText('It first shows up in v.2.')).toBeTruthy();
+    expect(screen.queryByText('Need a hint?')).toBeNull();
+    expect(screen.getByText("That's all the hints — keep looking.")).toBeTruthy();
     expect(container.innerHTML.toLowerCase()).not.toContain('zephyr');
   });
 

@@ -1,13 +1,15 @@
 /**
  * RepetitionChip — Repetition Radar
  *
- * "One word appears N× in this chapter" never says which word. Tapping opens
- * a hint ladder (count → category hint, auto-skipped when Gnosis has no
- * matching entity → verse range) via `ToolbarPopover`. The chip only
- * confirms once the reader selects the word themselves in the primary
- * translation column; `RepetitionResult.token` never reaches the DOM (no
- * title/aria/data attribute renders it) — the hint ladder is deliberately
- * Socratic.
+ * "One word appears N× — can you find it?" never says which word. Tapping
+ * opens a popover with an instruction to select the word in the text, plus a
+ * "Need a hint?" button that reveals a hint ladder one press at a time
+ * (category hint, auto-skipped when Gnosis has no matching entity → verse
+ * range → first-occurrence verse) via `ToolbarPopover`. Previously revealed
+ * hints stay visible as the ladder grows. The chip only confirms once the
+ * reader selects the word themselves in the primary translation column;
+ * `RepetitionResult.token` never reaches the DOM (no title/aria/data
+ * attribute renders it) — the hint ladder is deliberately Socratic.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -33,7 +35,7 @@ interface RepetitionChipProps {
   entities: ChapterEntities | null;
 }
 
-type Rung = 'count' | 'hint' | 'range';
+type HintRung = 'hint' | 'range' | 'first';
 
 export function RepetitionChip({
   repetition,
@@ -46,7 +48,7 @@ export function RepetitionChip({
 }: RepetitionChipProps) {
   const triggerRef = useRef<HTMLDivElement>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const [rung, setRung] = useState(0);
+  const [revealedCount, setRevealedCount] = useState(0);
   const [confirmedSelection, setConfirmedSelection] = useState<TextSelection | null>(null);
 
   const selection = useAnnotationStore(s => s.selection);
@@ -63,7 +65,7 @@ export function RepetitionChip({
     [repetition, entities]
   );
 
-  const rungs: Rung[] = categoryHint ? ['count', 'hint', 'range'] : ['count', 'range'];
+  const rungs: HintRung[] = categoryHint ? ['hint', 'range', 'first'] : ['range', 'first'];
 
   useEffect(() => {
     if (!repetition || isFound || !selection) return;
@@ -107,28 +109,33 @@ export function RepetitionChip({
 
   const label =
     translationCount > 1 && primaryTranslationName
-      ? `One word appears ${repetition.count}× in this chapter (${primaryTranslationName})`
-      : `One word appears ${repetition.count}× in this chapter`;
+      ? `One word appears ${repetition.count}× (${primaryTranslationName}) — can you find it?`
+      : `One word appears ${repetition.count}× — can you find it?`;
 
   const handleChipClick = () => {
-    if (!popoverOpen) {
-      track('discovery_chip_tapped', { feature: 'repetition' });
-      setPopoverOpen(true);
-      setRung(0);
-    } else {
-      setRung(r => Math.min(r + 1, rungs.length - 1));
+    if (popoverOpen) {
+      setPopoverOpen(false);
+      return;
     }
+    track('discovery_chip_tapped', { feature: 'repetition' });
+    setPopoverOpen(true);
+    setRevealedCount(0);
   };
 
-  const currentRung = rungs[rung];
-  const rungText =
-    currentRung === 'count'
-      ? `It appears ${repetition.count} times.`
-      : currentRung === 'hint'
-        ? categoryHint === 'people'
-          ? "It's a name for someone."
-          : "It's a name for a place."
-        : `Look ${verseRangeLabel(repetition)}.`;
+  const handleHint = () => {
+    setRevealedCount(c => Math.min(c + 1, rungs.length));
+  };
+
+  const rungText = (r: HintRung) =>
+    r === 'hint'
+      ? categoryHint === 'people'
+        ? "It's a name for someone."
+        : "It's a name for a place."
+      : r === 'range'
+        ? `Look ${verseRangeLabel(repetition)}.`
+        : `It first shows up in v.${repetition.firstVerse}.`;
+
+  const allHintsShown = revealedCount >= rungs.length;
 
   return (
     <div ref={triggerRef} className="inline-block">
@@ -149,11 +156,21 @@ export function RepetitionChip({
           onClose={() => setPopoverOpen(false)}
         >
           <div className="p-4 space-y-3">
-            <p className="text-sm text-scripture-text">{rungText}</p>
+            <p className="text-sm text-scripture-text">
+              When you spot it, select the word in the text to check.
+            </p>
+            {rungs.slice(0, revealedCount).map(r => (
+              <p key={r} className="text-sm text-scripture-text">
+                {rungText(r)}
+              </p>
+            ))}
+            {allHintsShown && (
+              <p className="text-xs text-scripture-muted">{"That's all the hints — keep looking."}</p>
+            )}
             <div className="flex justify-end gap-2">
-              {rung < rungs.length - 1 && (
-                <Button variant="ghost" size="sm" onClick={handleChipClick}>
-                  Next hint
+              {!allHintsShown && (
+                <Button variant="ghost" size="sm" onClick={handleHint}>
+                  Need a hint?
                 </Button>
               )}
               <Button variant="secondary" size="sm" onClick={() => setPopoverOpen(false)}>

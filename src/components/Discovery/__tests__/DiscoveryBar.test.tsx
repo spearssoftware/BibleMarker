@@ -89,14 +89,14 @@ describe('DiscoveryBar', () => {
       <DiscoveryBar analysis={makeAnalysis()} translationCount={2} primaryTranslationName="NASB" />
     );
     expect(container.querySelector('[data-discovery-bar]')).toBeTruthy();
-    expect(screen.getByText('One word appears 11× in this chapter (NASB)')).toBeTruthy();
+    expect(screen.getByText('One word appears 11× (NASB) — can you find it?')).toBeTruthy();
     expect(screen.getByText('1 hinge in this chapter')).toBeTruthy();
     expect(screen.getByText('1 person')).toBeTruthy();
   });
 
   it('omits the translation suffix with a single translation column', () => {
     render(<DiscoveryBar analysis={makeAnalysis()} translationCount={1} primaryTranslationName="NASB" />);
-    expect(screen.getByText('One word appears 11× in this chapter')).toBeTruthy();
+    expect(screen.getByText('One word appears 11× — can you find it?')).toBeTruthy();
   });
 
   it('renders nothing when no chip would qualify (no repetition, no connectors, no entities)', () => {
