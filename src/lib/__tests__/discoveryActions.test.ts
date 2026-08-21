@@ -41,7 +41,7 @@ describe('markRepetitionAsKeyword', () => {
 
     expect(preset.word).toBe('Word');
     expect(preset.variants.map(v => v.text)).toEqual(['words']);
-    expect(preset.scopes).toEqual([{ book: 'John' }]);
+    expect(preset.scopes).toEqual([{ book: 'John', chapter: 1 }]);
     expect(preset.studyId).toBe('study-1');
     expect(preset.category).toBe('custom');
     expect(preset.highlight?.style).toBe('highlight');

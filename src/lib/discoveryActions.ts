@@ -32,12 +32,14 @@ export async function createBookScopedKeywordPreset(options: {
   word: string;
   variants?: string[] | Variant[];
   book: string;
+  /** Pin the preset to one chapter; omit for the whole book. */
+  chapter?: number;
   studyId?: string;
   category?: KeyWordCategory;
   symbol?: SymbolKey;
   highlight: { style: 'none' | 'highlight' | 'textColor' | 'underline'; color: HighlightColor };
 }): Promise<MarkingPreset> {
-  const { word, variants, book, studyId, category, symbol, highlight } = options;
+  const { word, variants, book, chapter, studyId, category, symbol, highlight } = options;
   const preset = createMarkingPreset({
     word,
     variants,
@@ -45,7 +47,7 @@ export async function createBookScopedKeywordPreset(options: {
     highlight,
     category,
     studyId,
-    scopes: [{ book }],
+    scopes: [chapter === undefined ? { book } : { book, chapter }],
   });
 
   await useMarkingPresetStore.getState().addPreset(preset);
@@ -53,7 +55,7 @@ export async function createBookScopedKeywordPreset(options: {
 }
 
 /**
- * Repetition Radar's "Highlight it everywhere" / "Mark it as a key word"
+ * Repetition Radar's "Highlight it in this chapter" / "Mark it as a key word"
  * action — a highlight-only preset (never `style: 'none'`, which would
  * produce no visible decoration at all per `presetHasDecoration`), no
  * symbol, `category: 'custom'`, scoped to the book the reader found it in.
@@ -77,6 +79,7 @@ export async function markRepetitionAsKeyword(
     word,
     variants: normalizeVariants(otherForms),
     book: selection.book,
+    chapter: selection.chapter,
     studyId: activeStudyId,
     category: 'custom',
     highlight: { style: 'highlight', color },

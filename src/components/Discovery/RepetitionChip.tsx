@@ -89,7 +89,7 @@ export function RepetitionChip({
   if (!repetition) return null;
 
   if (isFound) {
-    const buttonLabel = inductiveToolsEnabled ? 'Mark it as a key word' : 'Highlight it everywhere';
+    const buttonLabel = inductiveToolsEnabled ? 'Mark it as a key word' : 'Highlight it in this chapter';
     const handleMark = async () => {
       if (!confirmedSelection) return;
       await markRepetitionAsKeyword(confirmedSelection, activeStudyId, repetition);
