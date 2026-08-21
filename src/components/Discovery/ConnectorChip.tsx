@@ -9,6 +9,7 @@
 
 import { forwardRef } from 'react';
 import { Button } from '@/components/shared';
+import { pluralize } from '@/lib/textUtils';
 
 interface ConnectorChipProps {
   count: number;
@@ -32,7 +33,7 @@ export const ConnectorChip = forwardRef<HTMLDivElement, ConnectorChipProps>(func
         aria-pressed={active}
         onClick={onToggle}
       >
-        {count} hinge{count === 1 ? '' : 's'} in this chapter
+        {pluralize(count, 'hinge')} in this chapter
       </Button>
     </div>
   );

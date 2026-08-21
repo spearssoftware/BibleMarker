@@ -17,7 +17,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { usePanelStore } from '@/stores/panelStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
-import { usePreferencesStore } from '@/stores/preferencesStore';
+import { usePreferencesStore, useInductiveToolsVisible } from '@/stores/preferencesStore';
 import { deleteAnnotation } from '@/lib/database';
 import { getAllTranslations } from '@/lib/bible-api';
 import type { MarkingPreset, Verse } from '@/types';
@@ -53,8 +53,8 @@ export function Toolbar() {
   const { getOrCreateListForKeyword } = useListStore();
   const { activePanel, togglePanel, openPanel, isCollapsed } = usePanelStore();
   const chaptersByTranslation = useMultiTranslationStore(s => s.chaptersByTranslation);
-  const isPreferencesHydrated = usePreferencesStore(s => s.isHydrated);
   const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
+  const inductiveToolsVisible = useInductiveToolsVisible();
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
 
   // "Enable inductive tools" gates the tool tabs (Key Words/Observe/Analyze/
@@ -64,7 +64,7 @@ export function Toolbar() {
   // default — a gutted-then-restored flash for an existing user with the
   // toolkit on would be worse than just starting with Settings-only and
   // filling in the tabs once hydration lands.
-  const visibleTools = isPreferencesHydrated && inductiveToolsEnabled ? TOOLS : [];
+  const visibleTools = inductiveToolsVisible ? TOOLS : [];
 
   // Load marking presets on mount
   useEffect(() => {

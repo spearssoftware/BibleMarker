@@ -398,6 +398,13 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
       return sourceText;
     }
 
+    // Fast path: lens on, but this verse has no connector hits, no annotations,
+    // no symbols, and no active selection — the whole verse is just uniformly
+    // dimmed, so skip the segment/boundary machinery below entirely.
+    if (lens && lens.ranges.length === 0 && verseAnnotations.length === 0 && verseCenterSymbols.length === 0 && !selectionRange) {
+      return `<span class="lens-dim">${escapeHtml(sourceText)}</span>`;
+    }
+
     // sourceText is already plain text (SWORD strips OSIS tags, ESV strips HTML)
     // No further extraction needed
     const plainText = sourceText;

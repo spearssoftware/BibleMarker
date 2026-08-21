@@ -13,3 +13,9 @@ export function jsonOk(body: unknown, status = 200): Response {
     headers: { 'Content-Type': 'application/json' },
   });
 }
+
+/** Set every header in `headers` on `res`, returning it for chaining. */
+export function applyCors(res: Response, headers: Record<string, string>): Response {
+  for (const [k, v] of Object.entries(headers)) res.headers.set(k, v);
+  return res;
+}

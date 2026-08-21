@@ -118,4 +118,22 @@ describe('VerseText — Connector Lens', () => {
     const dimmedSymbol = verseContent!.querySelector('.lens-dim .symbol-inline');
     expect(dimmedSymbol).toBeTruthy();
   });
+
+  it('takes the all-dim fast path for a verse with no hits, annotations, symbols, or selection', () => {
+    const text = 'In the beginning was the Word.';
+    const verse: Verse = { ref: { book: 'John', chapter: 1, verse: 1 }, text };
+
+    const { container } = render(
+      <VerseText
+        verse={verse}
+        annotations={[]}
+        moduleId="sword-NASB"
+        lens={{ ranges: [] }}
+      />
+    );
+
+    const verseContent = container.querySelector('.verse-content');
+    expect(verseContent).toBeTruthy();
+    expect(verseContent!.innerHTML).toBe(`<span class="lens-dim">${text}</span>`);
+  });
 });

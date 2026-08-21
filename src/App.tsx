@@ -46,6 +46,19 @@ import { usePreferencesStore } from '@/stores/preferencesStore';
 import { maybeEnableInductiveTools } from '@/lib/toolkitMigration';
 import { initTelemetry, shutdownTelemetry } from '@/lib/telemetry';
 
+// Re-hydrate preferences from the DB and apply the "upgrade nicety" toolkit
+// auto-enable. Shared by the initial mount load and the post-sync refresh
+// (`syncDataChanged`), which both need the same sequence. Returns the loaded
+// prefs since the mount site also reads fields off them afterward.
+async function hydratePreferences(setToolkitRestored: (value: boolean) => void) {
+  const prefs = await getPreferences();
+  usePreferencesStore.getState().hydrate(prefs);
+  if (await maybeEnableInductiveTools(prefs)) {
+    setToolkitRestored(true);
+  }
+  return prefs;
+}
+
 function GlobalUndoToast() {
   const { message, onUndo, dismiss } = useUndoToastStore();
   if (!message || !onUndo) return null;
@@ -108,11 +121,7 @@ export default function App() {
       try {
         // Ensure database is initialized (schema migrations) before any queries
         await initDatabase();
-        const prefs = await getPreferences();
-        usePreferencesStore.getState().hydrate(prefs);
-        if (await maybeEnableInductiveTools(prefs)) {
-          setToolkitRestored(true);
-        }
+        const prefs = await hydratePreferences(setToolkitRestored);
         if (prefs.fontSize) {
           setFontSize(prefs.fontSize);
         }
@@ -242,11 +251,7 @@ export default function App() {
       // (and, via the upgrade nicety, the toolkit) here rather than waiting for
       // the next launch — re-read and re-hydrate since the pull may have
       // changed the preferences row.
-      const prefs = await getPreferences();
-      usePreferencesStore.getState().hydrate(prefs);
-      if (await maybeEnableInductiveTools(prefs)) {
-        setToolkitRestored(true);
-      }
+      await hydratePreferences(setToolkitRestored);
     };
     window.addEventListener('syncDataChanged', handleSyncDataChanged);
     return () => window.removeEventListener('syncDataChanged', handleSyncDataChanged);

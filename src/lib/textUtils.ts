@@ -26,6 +26,11 @@ export function stripSymbols(text: string): string {
   
   // Clean up extra whitespace that might be left behind
   cleaned = cleaned.replace(/\s+/g, ' ').trim();
-  
+
   return cleaned;
+}
+
+/** Format a count with its singular/plural noun, e.g. `pluralize(1, 'person', 'people')` -> "1 person". */
+export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
 }

@@ -27,11 +27,23 @@ interface ActiveChapterState {
   ) => void;
 }
 
-export const useActiveChapterStore = create<ActiveChapterState>((set) => ({
+export const useActiveChapterStore = create<ActiveChapterState>((set, get) => ({
   translationId: null,
   book: null,
   chapter: null,
   verses: [],
-  setActiveChapterVerses: (translationId, book, chapter, verses) =>
-    set({ translationId, book, chapter, verses }),
+  setActiveChapterVerses: (translationId, book, chapter, verses) => {
+    const current = get();
+    // Cheap identity proxy: same location + same verse count is treated as "already published",
+    // skipping a no-op set() that would otherwise churn memoized consumers with a new array identity.
+    if (
+      current.translationId === translationId &&
+      current.book === book &&
+      current.chapter === chapter &&
+      current.verses.length === verses.length
+    ) {
+      return;
+    }
+    set({ translationId, book, chapter, verses });
+  },
 }));

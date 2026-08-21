@@ -53,3 +53,12 @@ export const usePreferencesStore = create<PreferencesState>()((set) => ({
     }
   },
 }));
+
+/**
+ * Whether inductive-tools-gated UI should render. Before prefs finish
+ * hydrating, treat the toolkit as off rather than trusting the in-memory
+ * default — see the `visibleTools` comment in Toolbar.tsx for why.
+ */
+export function useInductiveToolsVisible(): boolean {
+  return usePreferencesStore(s => s.isHydrated && s.inductiveToolsEnabled);
+}

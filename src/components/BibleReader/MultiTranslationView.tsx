@@ -294,30 +294,17 @@ export function MultiTranslationView() {
           existing.chapter.book === currentBook &&
           existing.chapter.chapter === currentChapter) {
         newChapters.set(translationId, existing);
-        // Republish for the primary translation even on this fast path — the
-        // primary can change to an already-loaded column (e.g. reordering
-        // translations), and without this activeChapterStore would keep
-        // showing the *previous* primary's verses, leaving chapter analysis
-        // and ChapterAtAGlance stale. But skip the republish when the store
-        // already holds this exact {translationId, book, chapter} (e.g. a
-        // study switch re-running this effect with nothing actually
-        // changed) — otherwise the `.map()` below hands out a new `verses`
-        // array identity every time, churning memoized consumers for no
-        // reason.
+        // Republish for the primary translation even on this fast path — the primary can change
+        // to an already-loaded column (e.g. reordering translations), and without this
+        // activeChapterStore would keep showing the *previous* primary's verses. setActiveChapterVerses
+        // itself no-ops when nothing actually changed, so no need to check here.
         if (translationId === primaryTranslationId) {
-          const active = useActiveChapterStore.getState();
-          const alreadyPublished =
-            active.translationId === translationId &&
-            active.book === currentBook &&
-            active.chapter === currentChapter;
-          if (!alreadyPublished) {
-            setActiveChapterVerses(
-              translationId,
-              currentBook,
-              currentChapter,
-              existing.chapter.verses.map(v => ({ ref: v.ref, text: v.text }))
-            );
-          }
+          setActiveChapterVerses(
+            translationId,
+            currentBook,
+            currentChapter,
+            existing.chapter.verses.map(v => ({ ref: v.ref, text: v.text }))
+          );
         }
         continue;
       }

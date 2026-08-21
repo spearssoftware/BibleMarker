@@ -9,6 +9,7 @@
 
 import { Button } from '@/components/shared';
 import { track } from '@/lib/telemetry';
+import { pluralize } from '@/lib/textUtils';
 import { usePanelStore } from '@/stores/panelStore';
 import type { ChapterEntities } from '@/types';
 
@@ -28,8 +29,8 @@ export function EntityChips({ entities, isLoading, error }: EntityChipsProps) {
   if (peopleCount === 0 && placesCount === 0) return null;
 
   const parts: string[] = [];
-  if (peopleCount > 0) parts.push(`${peopleCount} ${peopleCount === 1 ? 'person' : 'people'}`);
-  if (placesCount > 0) parts.push(`${placesCount} ${placesCount === 1 ? 'place' : 'places'}`);
+  if (peopleCount > 0) parts.push(pluralize(peopleCount, 'person', 'people'));
+  if (placesCount > 0) parts.push(pluralize(placesCount, 'place'));
 
   return (
     <Button

@@ -26,17 +26,38 @@ export function useGnosis(): {
   return { provider, isAvailable: available, mode: getGnosisMode() };
 }
 
+/** Cap on the number of chapters cached at once; evicted oldest-first. */
+const CHAPTER_ENTITIES_CACHE_CAP = 20;
+
+/** Repeat mounts for the same chapter shouldn't re-query SQLite. */
+const chapterEntitiesCache = new Map<string, ChapterEntities>();
+
 export function useChapterEntities(book: string | undefined, chapter: number | undefined): {
   entities: ChapterEntities | null;
   isLoading: boolean;
   error: string | null;
 } {
-  const [entities, setEntities] = useState<ChapterEntities | null>(null);
+  const cacheKey = book && chapter !== undefined ? `${book}.${chapter}` : undefined;
+  const [entities, setEntities] = useState<ChapterEntities | null>(
+    () => (cacheKey ? chapterEntitiesCache.get(cacheKey) ?? null : null)
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Serve a cache hit for the new key synchronously during render (same pattern as
+  // useGnosisSearch's prevQuery check below) rather than setState-in-effect, which
+  // would trip set-state-in-effect and cost an extra render besides.
+  const [prevCacheKey, setPrevCacheKey] = useState(cacheKey);
+  if (cacheKey !== prevCacheKey) {
+    setPrevCacheKey(cacheKey);
+    setEntities(cacheKey ? chapterEntitiesCache.get(cacheKey) ?? null : null);
+    setError(null);
+  }
+
   useEffect(() => {
     if (!book || chapter === undefined) return;
+    const key = `${book}.${chapter}`;
+    if (chapterEntitiesCache.has(key)) return; // already served synchronously above
 
     let cancelled = false;
 
@@ -46,7 +67,14 @@ export function useChapterEntities(book: string | undefined, chapter: number | u
       try {
         const provider = await ensureProvider();
         const result = await provider.getChapterEntities(book, chapter);
-        if (!cancelled) setEntities(result);
+        if (!cancelled) {
+          setEntities(result);
+          chapterEntitiesCache.set(key, result);
+          if (chapterEntitiesCache.size > CHAPTER_ENTITIES_CACHE_CAP) {
+            const oldestKey = chapterEntitiesCache.keys().next().value;
+            if (oldestKey !== undefined) chapterEntitiesCache.delete(oldestKey);
+          }
+        }
       } catch (e) {
         console.error('[Gnosis] Chapter entities error:', e);
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));

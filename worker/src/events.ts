@@ -14,7 +14,7 @@
  */
 
 import type { Env } from './env';
-import { jsonError, jsonOk } from './http';
+import { jsonError, jsonOk, applyCors } from './http';
 import { clientIp, tooManyRequests } from './rate-limit';
 
 const MAX_BODY_BYTES = 8 * 1024;
@@ -61,8 +61,7 @@ const EVENTS_CORS_HEADERS: Record<string, string> = {
 };
 
 function withCors(res: Response): Response {
-  for (const [k, v] of Object.entries(EVENTS_CORS_HEADERS)) res.headers.set(k, v);
-  return res;
+  return applyCors(res, EVENTS_CORS_HEADERS);
 }
 
 /**

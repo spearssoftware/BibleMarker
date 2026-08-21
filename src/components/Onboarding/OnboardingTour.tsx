@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import { updatePreferences, getPreferences } from '@/lib/database';
 import { useStudyStore } from '@/stores/studyStore';
-import { usePreferencesStore } from '@/stores/preferencesStore';
+import { usePreferencesStore, useInductiveToolsVisible } from '@/stores/preferencesStore';
 
 interface TourStep {
   id: string;
@@ -126,7 +126,9 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   const [studyCreated, setStudyCreated] = useState(false);
   const { createStudy, setActiveStudy } = useStudyStore();
   const isHydrated = usePreferencesStore(s => s.isHydrated);
-  const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
+  // Once isHydrated is true (the branch below where this is read), this is
+  // equivalent to the raw inductiveToolsEnabled flag.
+  const inductiveToolsVisible = useInductiveToolsVisible();
   // Toolkit steps (Key Words/Observe/Analyze/Study Tools tabs) target elements
   // that don't render when the toolkit is off — filter them out rather than
   // let every one auto-skip after a 500ms timeout. The tour is only launched
@@ -135,8 +137,8 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   // an empty step list just holds the tour off until hydration lands rather
   // than baking in the wrong filter.
   const steps = useMemo(
-    () => (isHydrated ? TOUR_STEPS.filter(step => inductiveToolsEnabled || !step.toolkitOnly) : []),
-    [isHydrated, inductiveToolsEnabled]
+    () => (isHydrated ? TOUR_STEPS.filter(step => inductiveToolsVisible || !step.toolkitOnly) : []),
+    [isHydrated, inductiveToolsVisible]
   );
 
   async function handleComplete() {
