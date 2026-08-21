@@ -71,6 +71,13 @@ export const HIGHLIGHT_COLORS_SORTED: HighlightColor[] = [
   'brown', 'bronze', 'tan', 'beige', 'gray', 'slate', 'silver',
 ];
 
+/** Default fill for the quick-highlight swatch row — a hue spread (not the
+ *  hue-sorted list, which clusters reds together) so the row reads as 8
+ *  visually distinct colors before any "recently used" colors are added. */
+export const QUICK_HIGHLIGHT_DEFAULTS: HighlightColor[] = [
+  'yellow', 'green', 'blue', 'pink', 'orange', 'purple', 'teal', 'red',
+];
+
 /** Get hex for a color; falls back to gray for legacy annotations that used removed colors */
 export function getHighlightColorHex(color: string): string {
   const hex = HIGHLIGHT_COLORS[color as HighlightColor];
@@ -373,6 +380,16 @@ interface BaseAnnotation {
   moduleId: string;          // Which Bible translation
   createdAt: Date;
   updatedAt: Date;
+
+  /**
+   * Study this annotation belongs to, for annotations with no presetId
+   * (quick highlights/symbols made directly, not via a keyword preset).
+   * Set at creation time from the active study; undefined = default/global
+   * bucket. Annotations with a presetId infer their study from the preset
+   * instead (see filterAnnotationsByStudy in lib/studyFilter.ts) and never
+   * set this field.
+   */
+  studyId?: string;
 }
 
 /** Text selection annotation (highlight, text color, underline) */

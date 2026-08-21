@@ -9,6 +9,16 @@ import type { MarkingPreset } from '@/types';
 import type { Annotation } from '@/types';
 
 /**
+ * True if a preset-less annotation is visible under activeStudyId, based on
+ * its own studyId — falling back to the legacy default-bucket rule
+ * (`!activeStudyId`) for annotations created before studyId existed.
+ */
+function presetlessAnnotationVisible(studyId: string | undefined, activeStudyId: string | null): boolean {
+  if (studyId) return studyId === activeStudyId;
+  return !activeStudyId;
+}
+
+/**
  * Filter presets by active study.
  * - Global presets (preset.studyId null/undefined): always visible
  * - When activeStudyId is null: show global only (default study mode)
@@ -26,10 +36,14 @@ export function filterPresetsByStudy(
 }
 
 /**
- * Infer annotation study from preset: no preset or preset.studyId null = default bucket.
- * - Default bucket = annotations with no presetId or preset.studyId null (manual + global keyword annotations)
- * - Default mode (null): show default-bucket annotations only
- * - Study mode: show global (preset.studyId null) + study annotations only; hide default (manual/freeform) when study is active
+ * Infer annotation study from preset when one is set; otherwise from the
+ * annotation's own studyId (set at creation time for quick highlights/
+ * symbols made without a preset).
+ * - With a presetId: study comes from the preset (preset.studyId null = global, always visible)
+ * - Without a presetId: study comes from ann.studyId
+ *   - ann.studyId set: visible only when it matches activeStudyId
+ *   - ann.studyId unset (legacy data predating this field): default-bucket
+ *     rule — visible only when activeStudyId is null
  */
 export function filterAnnotationsByStudy(
   annotations: Annotation[],
@@ -40,7 +54,7 @@ export function filterAnnotationsByStudy(
     const presetId = 'presetId' in ann ? ann.presetId : undefined;
 
     if (!presetId) {
-      return !activeStudyId;
+      return presetlessAnnotationVisible(ann.studyId, activeStudyId);
     }
 
     const preset = presetMap.get(presetId);

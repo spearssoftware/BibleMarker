@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAnnotationStore, type TextSelection } from '@/stores/annotationStore';
 import type { MarkingPreset, HighlightColor } from '@/types';
-import { getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED } from '@/types';
+import { getHighlightColorHex, HIGHLIGHT_COLORS, QUICK_HIGHLIGHT_DEFAULTS } from '@/types';
 import { SymbolIcon } from '@/lib/symbolDisplay';
 import { isCommonPronoun } from '@/types';
 import { scopeLabel } from '@/types';
@@ -91,12 +91,13 @@ export function SelectionMenu({
 
 
   // Quick-highlight row: the reader's own recently-used colors first (most
-  // recent first), filled out to 8 total from the full sorted palette so the
-  // row stays a compact, glanceable strip instead of all 39 swatches.
+  // recent first), filled out to 8 total from a hue-spread default set (not
+  // the hue-sorted palette, which clusters reds/pinks together) so the row
+  // stays a compact, visually distinct strip instead of all 39 swatches.
   const recentColors = useAnnotationStore(s => s.preferences.recentColors);
   const quickColors = useMemo(() => {
     const colors: HighlightColor[] = [...recentColors];
-    for (const color of HIGHLIGHT_COLORS_SORTED) {
+    for (const color of QUICK_HIGHLIGHT_DEFAULTS) {
       if (colors.length >= QUICK_HIGHLIGHT_COUNT) break;
       if (!colors.includes(color)) colors.push(color);
     }

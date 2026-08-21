@@ -80,11 +80,11 @@ describe('SelectionMenu', () => {
     const user = userEvent.setup();
     const props = renderMenu();
 
-    // With no recent colors yet, the row fills from the front of the sorted
-    // palette - "red" is always the first swatch in that case.
-    await user.click(screen.getByLabelText('Highlight red'));
+    // With no recent colors yet, the row fills from the front of the
+    // hue-spread defaults - "yellow" is always the first swatch in that case.
+    await user.click(screen.getByLabelText('Highlight yellow'));
 
-    expect(props.onQuickHighlight).toHaveBeenCalledWith('red');
+    expect(props.onQuickHighlight).toHaveBeenCalledWith('yellow');
   });
 
   it('shows at most 8 swatches, with no duplicates', () => {
@@ -95,7 +95,7 @@ describe('SelectionMenu', () => {
     expect(new Set(labels).size).toBe(labels.length);
   });
 
-  it('shows recently-used colors first, filling the rest from the sorted palette', () => {
+  it('shows recently-used colors first, filling the rest from the hue-spread defaults', () => {
     useAnnotationStore.setState({
       preferences: { ...DEFAULT_MARKING_PREFERENCES, recentColors: ['teal', 'yellow'] },
     });
