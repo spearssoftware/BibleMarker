@@ -16,13 +16,13 @@
  * `createBookScopedKeywordPreset` and then its own `applyPresetToSelection`.
  */
 
-import type { VerseRef, MarkingPreset, KeyWordCategory, HighlightColor, SymbolKey } from '@/types';
-import { createMarkingPreset, getRandomHighlightColor } from '@/types';
+import type { VerseRef, MarkingPreset, KeyWordCategory, HighlightColor, SymbolKey, Variant } from '@/types';
+import { createMarkingPreset, getRandomHighlightColor, normalizeVariants } from '@/types';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useConclusionStore } from '@/stores/conclusionStore';
 import { usePanelStore } from '@/stores/panelStore';
 import type { TextSelection } from '@/stores/annotationStore';
-import type { ConnectorHit } from '@/lib/chapterAnalysis';
+import type { ConnectorHit, RepetitionResult } from '@/lib/chapterAnalysis';
 
 /**
  * Create a marking preset scoped to a single book (the discovery on-ramp
@@ -30,15 +30,17 @@ import type { ConnectorHit } from '@/lib/chapterAnalysis';
  */
 export async function createBookScopedKeywordPreset(options: {
   word: string;
+  variants?: string[] | Variant[];
   book: string;
   studyId?: string;
   category?: KeyWordCategory;
   symbol?: SymbolKey;
   highlight: { style: 'none' | 'highlight' | 'textColor' | 'underline'; color: HighlightColor };
 }): Promise<MarkingPreset> {
-  const { word, book, studyId, category, symbol, highlight } = options;
+  const { word, variants, book, studyId, category, symbol, highlight } = options;
   const preset = createMarkingPreset({
     word,
+    variants,
     symbol,
     highlight,
     category,
@@ -55,16 +57,25 @@ export async function createBookScopedKeywordPreset(options: {
  * action — a highlight-only preset (never `style: 'none'`, which would
  * produce no visible decoration at all per `presetHasDecoration`), no
  * symbol, `category: 'custom'`, scoped to the book the reader found it in.
+ *
+ * `repetition.forms` (the distinct raw surface forms that tallied into the
+ * token - e.g. "word"/"words") seed the preset's variants, minus whichever
+ * form matches the reader's own selected text, so the ripple also catches
+ * sibling forms without the reader having to add them by hand.
  */
 export async function markRepetitionAsKeyword(
   selection: TextSelection,
-  activeStudyId?: string
+  activeStudyId?: string,
+  repetition?: RepetitionResult | null
 ): Promise<MarkingPreset> {
   const word = selection.text.trim();
   const color = getRandomHighlightColor();
+  const normalizedWord = word.toLowerCase();
+  const otherForms = (repetition?.forms ?? []).filter(form => form.toLowerCase() !== normalizedWord);
 
   return createBookScopedKeywordPreset({
     word,
+    variants: normalizeVariants(otherForms),
     book: selection.book,
     studyId: activeStudyId,
     category: 'custom',

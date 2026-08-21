@@ -10,15 +10,15 @@
 import { Button } from '@/components/shared';
 import { track } from '@/lib/telemetry';
 import { usePanelStore } from '@/stores/panelStore';
-import { useChapterEntities } from '@/hooks/useGnosis';
+import type { ChapterEntities } from '@/types';
 
 interface EntityChipsProps {
-  book: string;
-  chapter: number;
+  entities: ChapterEntities | null;
+  isLoading: boolean;
+  error: string | null;
 }
 
-export function EntityChips({ book, chapter }: EntityChipsProps) {
-  const { entities, isLoading, error } = useChapterEntities(book, chapter);
+export function EntityChips({ entities, isLoading, error }: EntityChipsProps) {
   const openPanel = usePanelStore(s => s.openPanel);
 
   if (isLoading || error || !entities) return null;
@@ -28,8 +28,8 @@ export function EntityChips({ book, chapter }: EntityChipsProps) {
   if (peopleCount === 0 && placesCount === 0) return null;
 
   const parts: string[] = [];
-  if (peopleCount > 0) parts.push(`${peopleCount} people`);
-  if (placesCount > 0) parts.push(`${placesCount} places`);
+  if (peopleCount > 0) parts.push(`${peopleCount} ${peopleCount === 1 ? 'person' : 'people'}`);
+  if (placesCount > 0) parts.push(`${placesCount} ${placesCount === 1 ? 'place' : 'places'}`);
 
   return (
     <Button

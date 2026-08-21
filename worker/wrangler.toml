@@ -70,11 +70,13 @@ name = "SYNC_LIMITER"
 namespace_id = "1005"
 simple = { limit = 600, period = 60 }
 
-# Per-IP limiter for the opt-in telemetry ingestion (POST /events).
+# Per-IP limiter for the opt-in telemetry ingestion (POST /events). Charged
+# once per batch (request), not per event — tight because a batch already
+# caps at 30 events, so a legitimate client needs very few requests per minute.
 [[ratelimits]]
 name = "EVENTS_LIMITER"
 namespace_id = "1006"
-simple = { limit = 20, period = 60 }
+simple = { limit = 6, period = 60 }
 
 # Analytics Engine dataset backing opt-in Discover-layer telemetry (events.ts).
 # The dashboard shows the dataset only after its first write.
@@ -156,7 +158,7 @@ simple = { limit = 600, period = 60 }
 [[env.production.ratelimits]]
 name = "EVENTS_LIMITER"
 namespace_id = "1006"
-simple = { limit = 20, period = 60 }
+simple = { limit = 6, period = 60 }
 
 [[env.production.analytics_engine_datasets]]
 binding = "EVENTS"

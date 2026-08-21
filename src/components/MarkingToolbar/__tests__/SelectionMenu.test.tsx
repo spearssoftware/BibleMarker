@@ -3,11 +3,12 @@
  */
 
 import type { ComponentProps } from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SelectionMenu } from '../SelectionMenu';
-import type { TextSelection } from '@/stores/annotationStore';
+import { useAnnotationStore, type TextSelection } from '@/stores/annotationStore';
+import { DEFAULT_MARKING_PREFERENCES } from '@/types';
 
 function makeSelection(): TextSelection {
   return {
@@ -41,6 +42,10 @@ function renderMenu(overrides: Partial<ComponentProps<typeof SelectionMenu>> = {
 }
 
 describe('SelectionMenu', () => {
+  beforeEach(() => {
+    useAnnotationStore.setState({ preferences: { ...DEFAULT_MARKING_PREFERENCES, recentColors: [] } });
+  });
+
   afterEach(() => {
     cleanup();
   });
@@ -75,8 +80,30 @@ describe('SelectionMenu', () => {
     const user = userEvent.setup();
     const props = renderMenu();
 
-    await user.click(screen.getByLabelText('Highlight yellow'));
+    // With no recent colors yet, the row fills from the front of the sorted
+    // palette - "red" is always the first swatch in that case.
+    await user.click(screen.getByLabelText('Highlight red'));
 
-    expect(props.onQuickHighlight).toHaveBeenCalledWith('yellow');
+    expect(props.onQuickHighlight).toHaveBeenCalledWith('red');
+  });
+
+  it('shows at most 8 swatches, with no duplicates', () => {
+    renderMenu();
+    const group = screen.getByRole('group', { name: 'Highlight color' });
+    expect(group.children.length).toBe(8);
+    const labels = Array.from(group.children).map(el => el.getAttribute('aria-label'));
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
+  it('shows recently-used colors first, filling the rest from the sorted palette', () => {
+    useAnnotationStore.setState({
+      preferences: { ...DEFAULT_MARKING_PREFERENCES, recentColors: ['teal', 'yellow'] },
+    });
+    renderMenu();
+    const group = screen.getByRole('group', { name: 'Highlight color' });
+    const labels = Array.from(group.children).map(el => el.getAttribute('aria-label'));
+    expect(labels[0]).toBe('Highlight teal');
+    expect(labels[1]).toBe('Highlight yellow');
+    expect(group.children.length).toBe(8);
   });
 });

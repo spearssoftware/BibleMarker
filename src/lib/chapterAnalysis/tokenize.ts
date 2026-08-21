@@ -29,8 +29,12 @@ export function tokenizeVerse(text: string): WordToken[] {
 
 /**
  * Light singularizer for an already-normalized token - strips a trailing
- * possessive, then ies -> y, es after s/x/z/ch/sh, or a bare trailing s
- * (guarded against ss/us/is so "class"/"Jesus"/"basis" stay put).
+ * possessive, then ies -> y, sses/xes/zes/ches/shes -> strip "es", a bare
+ * ses -> strip just the final "s" (houses -> house, not "hous"), and
+ * otherwise a bare trailing s (guarded against ss/us/is so
+ * "class"/"jesus"/"basis"/"this"/"thus" stay put). Words ending in "ves"
+ * (wives, knives, lives) are left alone entirely - the -f/-fe singular
+ * isn't derivable from the plural without a dictionary.
  */
 export function singularize(normalized: string): string {
   if (normalized.endsWith("'s") || normalized.endsWith('’s')) {
@@ -39,12 +43,18 @@ export function singularize(normalized: string): string {
   if (normalized.endsWith('ies') && normalized.length > 4) {
     return `${normalized.slice(0, -3)}y`;
   }
-  if (/(?:s|x|z|ch|sh)es$/.test(normalized) && normalized.length > 5) {
+  if (/(?:sses|xes|zes|ches|shes)$/.test(normalized)) {
     return normalized.slice(0, -2);
+  }
+  if (normalized.endsWith('ses')) {
+    return normalized.slice(0, -1);
+  }
+  if (normalized.endsWith('ves')) {
+    return normalized;
   }
   if (
     normalized.endsWith('s') &&
-    normalized.length > 4 &&
+    normalized.length > 3 &&
     !normalized.endsWith('ss') &&
     !normalized.endsWith('us') &&
     !normalized.endsWith('is')

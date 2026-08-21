@@ -26,6 +26,12 @@ export interface RepetitionResult {
   firstVerse: number;
   lastVerse: number;
   occurrences: TokenOccurrence[];
+  /**
+   * Distinct raw surface forms (lowercased, punctuation-trimmed via
+   * `normalizeForMatching`, pre-singularization) that tallied into this
+   * token, in order of first appearance - e.g. ["word", "words"].
+   */
+  forms: string[];
 }
 
 export type ConnectorCategory = 'contrast' | 'conclusion' | 'condition' | 'purpose' | 'cause';
@@ -52,6 +58,6 @@ export interface DiscoveryThresholds {
 
 export const DEFAULT_DISCOVERY_THRESHOLDS: DiscoveryThresholds = {
   repetitionMinCount: 5,
-  repetitionMinWordLength: 4,
+  repetitionMinWordLength: 3,
   connectorChipMinCount: 1,
 };

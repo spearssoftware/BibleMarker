@@ -53,13 +53,18 @@ export function Toolbar() {
   const { getOrCreateListForKeyword } = useListStore();
   const { activePanel, togglePanel, openPanel, isCollapsed } = usePanelStore();
   const chaptersByTranslation = useMultiTranslationStore(s => s.chaptersByTranslation);
+  const isPreferencesHydrated = usePreferencesStore(s => s.isHydrated);
   const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
 
   // "Enable inductive tools" gates the tool tabs (Key Words/Observe/Analyze/
   // Study Tools) and the advanced selection-menu items. Settings stays visible
-  // either way so the toggle itself is always reachable.
-  const visibleTools = inductiveToolsEnabled ? TOOLS : [];
+  // either way so the toggle itself is always reachable. Before prefs finish
+  // hydrating, treat the toolkit as off rather than trusting the in-memory
+  // default — a gutted-then-restored flash for an existing user with the
+  // toolkit on would be worse than just starting with Settings-only and
+  // filling in the tabs once hydration lands.
+  const visibleTools = isPreferencesHydrated && inductiveToolsEnabled ? TOOLS : [];
 
   // Load marking presets on mount
   useEffect(() => {

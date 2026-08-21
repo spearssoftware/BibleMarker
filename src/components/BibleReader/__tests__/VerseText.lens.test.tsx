@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import { VerseText } from '../VerseText';
-import type { Verse, TextAnnotation } from '@/types';
+import type { Verse, TextAnnotation, SymbolAnnotation } from '@/types';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 
 vi.mock('@/lib/database', () => ({
@@ -41,6 +41,8 @@ describe('VerseText — Connector Lens', () => {
     const thereforeEnd = 'Therefore'.length;
     const loveStart = text.indexOf('love');
     const loveEnd = loveStart + 'love'.length;
+    const godStart = text.indexOf('God');
+    const godEnd = godStart + 'God'.length;
 
     const verse: Verse = { ref: { book: 'Rom', chapter: 5, verse: 1 }, text };
 
@@ -57,12 +59,25 @@ describe('VerseText — Connector Lens', () => {
       updatedAt: new Date(),
     };
 
+    const symbol: SymbolAnnotation = {
+      id: 'sym-1',
+      moduleId: 'sword-NASB',
+      type: 'symbol',
+      ref: verse.ref,
+      position: 'center',
+      symbol: 'triangle',
+      startOffset: godStart,
+      endOffset: godEnd,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
     const hit: ConnectorHit = { phrase: 'Therefore', category: 'conclusion', verse: 1, start: 0, end: thereforeEnd };
 
     const { container } = render(
       <VerseText
         verse={verse}
-        annotations={[annotation]}
+        annotations={[annotation, symbol]}
         moduleId="sword-NASB"
         lens={{ ranges: [hit], onConnectorTap: vi.fn() }}
       />
@@ -96,5 +111,11 @@ describe('VerseText — Connector Lens', () => {
     // still be dimmed — wrapped in .lens-dim rather than skipped.
     const dimmedAnnotation = verseContent!.querySelector('.lens-dim .annotation-group');
     expect(dimmedAnnotation).toBeTruthy();
+
+    // The symbol on "God" (the third `htmlSegments.push` site) isn't a
+    // connector either, so it must also be dimmed rather than left bright
+    // or dropped.
+    const dimmedSymbol = verseContent!.querySelector('.lens-dim .symbol-inline');
+    expect(dimmedSymbol).toBeTruthy();
   });
 });

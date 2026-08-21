@@ -67,7 +67,7 @@ describe('OnboardingTour', () => {
   });
 
   it('has no toolkit steps and includes the discovery step when tools are off', async () => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: false });
+    usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
     render(<OnboardingTour onComplete={vi.fn()} />);
 
     expect(screen.getByText('Navigation Bar')).toBeTruthy();
@@ -87,7 +87,7 @@ describe('OnboardingTour', () => {
   });
 
   it('includes the toolkit steps when tools are on', async () => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: true });
+    usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
     render(<OnboardingTour onComplete={vi.fn()} />);
 
     expect(screen.getByText('Navigation Bar')).toBeTruthy();
@@ -100,5 +100,11 @@ describe('OnboardingTour', () => {
     await clickNext();
 
     await waitFor(() => expect(screen.getByText('Marking Toolbar')).toBeTruthy());
+  });
+
+  it('renders nothing until preferences finish hydrating', () => {
+    usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: false });
+    const { container } = render(<OnboardingTour onComplete={vi.fn()} />);
+    expect(container.firstChild).toBeNull();
   });
 });

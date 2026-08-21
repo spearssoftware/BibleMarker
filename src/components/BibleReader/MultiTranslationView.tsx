@@ -298,14 +298,26 @@ export function MultiTranslationView() {
         // primary can change to an already-loaded column (e.g. reordering
         // translations), and without this activeChapterStore would keep
         // showing the *previous* primary's verses, leaving chapter analysis
-        // and ChapterAtAGlance stale.
+        // and ChapterAtAGlance stale. But skip the republish when the store
+        // already holds this exact {translationId, book, chapter} (e.g. a
+        // study switch re-running this effect with nothing actually
+        // changed) — otherwise the `.map()` below hands out a new `verses`
+        // array identity every time, churning memoized consumers for no
+        // reason.
         if (translationId === primaryTranslationId) {
-          setActiveChapterVerses(
-            translationId,
-            currentBook,
-            currentChapter,
-            existing.chapter.verses.map(v => ({ ref: v.ref, text: v.text }))
-          );
+          const active = useActiveChapterStore.getState();
+          const alreadyPublished =
+            active.translationId === translationId &&
+            active.book === currentBook &&
+            active.chapter === currentChapter;
+          if (!alreadyPublished) {
+            setActiveChapterVerses(
+              translationId,
+              currentBook,
+              currentChapter,
+              existing.chapter.verses.map(v => ({ ref: v.ref, text: v.text }))
+            );
+          }
         }
         continue;
       }
@@ -764,11 +776,11 @@ export function MultiTranslationView() {
                                   : undefined
                               }
                               lens={
-                                lensActive
+                                analysis && lensActive
                                   ? {
                                       ranges:
                                         translation.id === primaryTranslationId
-                                          ? analysis?.connectorRangesByVerse.get(verseNum) ?? []
+                                          ? analysis.connectorRangesByVerse.get(verseNum) ?? []
                                           : [],
                                       onConnectorTap: handleConnectorTap,
                                     }

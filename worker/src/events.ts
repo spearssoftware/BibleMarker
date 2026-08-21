@@ -9,7 +9,8 @@
  * Payload is deliberately minimal and allowlisted: an event `name` from a
  * fixed set, an optional `feature` tag, plus batch-level `appVersion`,
  * `platform`, and an in-memory-only `sessionId`. No book/chapter/verse/word,
- * account id, or device id is ever accepted or written.
+ * account id, device id, or IP-derived location (e.g. `cf.country`) is ever
+ * accepted or written.
  */
 
 import type { Env } from './env';
@@ -18,7 +19,7 @@ import { clientIp, tooManyRequests } from './rate-limit';
 
 const MAX_BODY_BYTES = 8 * 1024;
 const MIN_EVENTS_PER_BATCH = 1;
-const MAX_EVENTS_PER_BATCH = 50;
+const MAX_EVENTS_PER_BATCH = 30;
 
 /** Allowlisted event names — mirrored exactly on the client (`telemetry.ts`). */
 const EVENT_NAMES = new Set([
@@ -33,6 +34,8 @@ const PLATFORMS = new Set(['ios', 'android', 'macos', 'desktop', 'web']);
 
 const FEATURE_RE = /^[a-z0-9_-]{1,32}$/;
 const APP_VERSION_RE = /^[0-9A-Za-z.+-]{1,20}$/;
+/** RFC 4122 UUID v4 — matches `crypto.randomUUID()` on the client. */
+const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface ValidatedEvent {
   name: string;
@@ -98,7 +101,7 @@ function validateBody(body: unknown): ValidatedBatch | null {
 
   let sessionId = '';
   if (obj.sessionId !== undefined && obj.sessionId !== null) {
-    if (typeof obj.sessionId !== 'string' || obj.sessionId.length > 40) return null;
+    if (typeof obj.sessionId !== 'string' || !SESSION_ID_RE.test(obj.sessionId)) return null;
     sessionId = obj.sessionId;
   }
 
@@ -107,8 +110,9 @@ function validateBody(body: unknown): ValidatedBatch | null {
 
 /**
  * `POST /events` — ingest an opted-in telemetry batch. Public, unauthenticated
- * (the client never sends a session token here), rate-limited per IP, and
- * capped at 8 KB / 50 events per request.
+ * (the client never sends a session token here), requires an explicit
+ * `Content-Type: application/json`, rate-limited per IP, and capped at
+ * 8 KB / 30 events per request.
  */
 export async function handleEvents(request: Request, env: Env): Promise<Response> {
   if (request.method === 'OPTIONS') {
@@ -120,6 +124,15 @@ export async function handleEvents(request: Request, env: Env): Promise<Response
 
   if (!(await env.EVENTS_LIMITER.limit({ key: clientIp(request) })).success) {
     return withCors(tooManyRequests());
+  }
+
+  // Require an explicit JSON content type so a cross-site "simple request"
+  // (a plain <form>/fetch POST, which browsers allow without a CORS
+  // preflight as long as it skips this header) can't land here and poison
+  // the dataset.
+  const contentType = request.headers.get('Content-Type') ?? '';
+  if (!contentType.toLowerCase().includes('application/json')) {
+    return withCors(jsonError(415, 'Unsupported Media Type'));
   }
 
   // Fast-path reject on the declared length before reading the body; the
@@ -147,13 +160,12 @@ export async function handleEvents(request: Request, env: Env): Promise<Response
   }
 
   const { events, appVersion, platform, sessionId } = validated;
-  const country = String(request.cf?.country ?? '');
   for (const event of events) {
     // Optional-chained: the binding is absent under `wrangler dev`, and a
     // missing dataset must never turn an opted-in user's request into a 500.
     env.EVENTS?.writeDataPoint({
       indexes: [event.name],
-      blobs: [event.name, event.feature, appVersion, platform, country, sessionId],
+      blobs: [event.name, event.feature, appVersion, platform, sessionId],
       doubles: [1],
     });
   }

@@ -43,7 +43,7 @@ const TOUR_STEPS: TourStep[] = [
     id: 'toolbar',
     toolkitOnly: true,
     title: 'Marking Toolbar',
-    description: 'The toolbar opens Key Words, Observe, Analyze, and Study Tools. All text marking flows through keywords for consistency across translations. Press 1–3 for quick access to Key Words, Observe, and Analyze.',
+    description: 'The toolbar opens Key Words, Observe, Analyze, and Study Tools. All text marking flows through keywords for consistency across translations. Press 1–4 for quick access to Key Words, Observe, Analyze, and Study Tools.',
     target: '[data-marking-toolbar]',
   },
   {
@@ -125,13 +125,18 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   const [newStudyName, setNewStudyName] = useState('');
   const [studyCreated, setStudyCreated] = useState(false);
   const { createStudy, setActiveStudy } = useStudyStore();
+  const isHydrated = usePreferencesStore(s => s.isHydrated);
   const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
   // Toolkit steps (Key Words/Observe/Analyze/Study Tools tabs) target elements
   // that don't render when the toolkit is off — filter them out rather than
-  // let every one auto-skip after a 500ms timeout.
+  // let every one auto-skip after a 500ms timeout. The tour is only launched
+  // after prefs are hydrated (see App.tsx's onboarding chain), but guard
+  // against computing steps off the pre-hydration default (false) anyway —
+  // an empty step list just holds the tour off until hydration lands rather
+  // than baking in the wrong filter.
   const steps = useMemo(
-    () => TOUR_STEPS.filter(step => inductiveToolsEnabled || !step.toolkitOnly),
-    [inductiveToolsEnabled]
+    () => (isHydrated ? TOUR_STEPS.filter(step => inductiveToolsEnabled || !step.toolkitOnly) : []),
+    [isHydrated, inductiveToolsEnabled]
   );
 
   async function handleComplete() {

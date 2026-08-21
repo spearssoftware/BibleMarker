@@ -50,11 +50,10 @@ const GENEALOGY: AnalysisVerse[] = [
 
 describe('findRepetition', () => {
   it('surfaces "word" in the John 1 fixture, deprioritizing the higher-count "God"', () => {
-    // Lower the length floor so the 3-letter "god" actually becomes a
-    // candidate - otherwise it's filtered by length before deprioritization
-    // logic ever runs, and the DEPRIORITIZED path wouldn't be exercised.
-    const thresholds = { ...DEFAULT_DISCOVERY_THRESHOLDS, repetitionMinWordLength: 3 }
-    const result = findRepetition(JOHN_1, thresholds)
+    // The default word-length floor is 3, so the 3-letter "god" is already a
+    // candidate here - this exercises the DEPRIORITIZED path with no
+    // threshold override needed.
+    const result = findRepetition(JOHN_1, DEFAULT_DISCOVERY_THRESHOLDS)
 
     expect(result).not.toBeNull()
     expect(result!.token).toBe('word')
@@ -110,6 +109,17 @@ describe('findRepetition', () => {
     expect(resultB).toBeNull()
   })
 
+  it('collects distinct raw surface forms in order of first appearance', () => {
+    const verses: AnalysisVerse[] = [
+      verse('Test', 1, 1, 'word words word'),
+      verse('Test', 1, 2, 'Words word word'),
+    ]
+    const result = findRepetition(verses, DEFAULT_DISCOVERY_THRESHOLDS)
+    expect(result).not.toBeNull()
+    expect(result!.token).toBe('word')
+    expect(result!.forms).toEqual(['word', 'words'])
+  })
+
   it('records occurrence offsets that line up with splitIntoWords on raw text with a curly apostrophe and an em dash', () => {
     const text = 'light—light—light—light—light and the LORD’s glory shone.'
     const verses: AnalysisVerse[] = [verse('Test', 1, 1, text)]
@@ -130,16 +140,16 @@ describe('findRepetition', () => {
 
 describe('verseRangeLabel', () => {
   it('formats a single-verse range', () => {
-    expect(verseRangeLabel({ token: 'word', count: 5, firstVerse: 7, lastVerse: 7, occurrences: [] })).toBe('in v.7')
+    expect(verseRangeLabel({ token: 'word', count: 5, firstVerse: 7, lastVerse: 7, occurrences: [], forms: ['word'] })).toBe('in v.7')
   })
 
   it('formats a multi-verse range', () => {
-    expect(verseRangeLabel({ token: 'word', count: 5, firstVerse: 1, lastVerse: 18, occurrences: [] })).toBe('between v.1 and v.18')
+    expect(verseRangeLabel({ token: 'word', count: 5, firstVerse: 1, lastVerse: 18, occurrences: [], forms: ['word', 'words'] })).toBe('between v.1 and v.18')
   })
 })
 
 describe('deriveCategoryHint', () => {
-  const base = { token: 'moses', count: 5, firstVerse: 1, lastVerse: 5, occurrences: [] }
+  const base = { token: 'moses', count: 5, firstVerse: 1, lastVerse: 5, occurrences: [], forms: ['moses'] }
 
   it('returns undefined when there are no entities', () => {
     expect(deriveCategoryHint(base, null)).toBeUndefined()

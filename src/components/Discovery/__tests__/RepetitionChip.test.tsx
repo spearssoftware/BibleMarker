@@ -32,22 +32,19 @@ vi.mock('@/lib/database', () => ({
   deleteConclusion: vi.fn(async () => {}),
 }));
 
-let mockEntities: ChapterEntities | null = null;
-vi.mock('@/hooks/useGnosis', () => ({
-  useChapterEntities: () => ({ entities: mockEntities, isLoading: false, error: null }),
-}));
-
 const repetition: RepetitionResult = {
   token: 'zephyr',
   count: 7,
   firstVerse: 2,
   lastVerse: 9,
   occurrences: [],
+  forms: ['zephyr', 'zephyrs'],
 };
+
+const noEntities: ChapterEntities | null = null;
 
 describe('RepetitionChip', () => {
   beforeEach(() => {
-    mockEntities = null;
     useAnnotationStore.setState({ selection: null });
     useDiscoveryStore.setState({ lensActive: false, found: null, activePrompt: null });
   });
@@ -56,43 +53,56 @@ describe('RepetitionChip', () => {
     cleanup();
   });
 
-  it('advances the hint ladder and skips the category rung when there is no hint', () => {
-    render(
+  it('advances the hint ladder and skips the category rung when there is no hint, never rendering the token', () => {
+    const { container } = render(
       <RepetitionChip
         repetition={repetition}
         translationCount={1}
         book="John"
         chapter={1}
         translationId="sword-NASB"
+        entities={noEntities}
       />
     );
 
     const chip = screen.getByText('One word appears 7× in this chapter');
+    expect(container.innerHTML.toLowerCase()).not.toContain('zephyr');
+
     fireEvent.click(chip);
     expect(screen.getByText('It appears 7 times.')).toBeTruthy();
+    expect(container.innerHTML.toLowerCase()).not.toContain('zephyr');
 
     fireEvent.click(chip);
     expect(screen.getByText('Look between v.2 and v.9.')).toBeTruthy();
     expect(screen.queryByText(/name for/)).toBeNull();
+    expect(container.innerHTML.toLowerCase()).not.toContain('zephyr');
   });
 
-  it('shows the category hint rung when Gnosis has a matching entity', () => {
-    mockEntities = { book: 'John', chapter: 1, people: ['zephyr'], places: [], events: [], topics: [] };
+  it('shows the category hint rung when Gnosis has a matching entity, never rendering the token', () => {
+    const entities: ChapterEntities = { book: 'John', chapter: 1, people: ['zephyr'], places: [], events: [], topics: [] };
 
-    render(
+    const { container } = render(
       <RepetitionChip
         repetition={repetition}
         translationCount={1}
         book="John"
         chapter={1}
         translationId="sword-NASB"
+        entities={entities}
       />
     );
 
     const chip = screen.getByText('One word appears 7× in this chapter');
     fireEvent.click(chip);
+    expect(container.innerHTML.toLowerCase()).not.toContain('zephyr');
+
     fireEvent.click(chip);
     expect(screen.getByText("It's a name for someone.")).toBeTruthy();
+    expect(container.innerHTML.toLowerCase()).not.toContain('zephyr');
+
+    fireEvent.click(chip);
+    expect(screen.getByText('Look between v.2 and v.9.')).toBeTruthy();
+    expect(container.innerHTML.toLowerCase()).not.toContain('zephyr');
   });
 
   it('confirms once the reader selects the exact word in the primary translation, and never renders the token', () => {
@@ -114,6 +124,7 @@ describe('RepetitionChip', () => {
         book="John"
         chapter={1}
         translationId="sword-NASB"
+        entities={noEntities}
       />
     );
 
@@ -140,6 +151,59 @@ describe('RepetitionChip', () => {
         book="John"
         chapter={1}
         translationId="sword-NASB"
+        entities={noEntities}
+      />
+    );
+
+    expect(screen.queryByText('You found it')).toBeNull();
+  });
+
+  it('does not confirm a stale selection left over from a different chapter', () => {
+    useAnnotationStore.setState({
+      selection: {
+        moduleId: 'sword-NASB',
+        book: 'John',
+        chapter: 2,
+        startVerse: 3,
+        endVerse: 3,
+        text: 'Zephyrs',
+      },
+    });
+
+    render(
+      <RepetitionChip
+        repetition={repetition}
+        translationCount={1}
+        book="John"
+        chapter={1}
+        translationId="sword-NASB"
+        entities={noEntities}
+      />
+    );
+
+    expect(screen.queryByText('You found it')).toBeNull();
+  });
+
+  it('does not confirm a stale selection left over from a different book', () => {
+    useAnnotationStore.setState({
+      selection: {
+        moduleId: 'sword-NASB',
+        book: 'Luke',
+        chapter: 1,
+        startVerse: 3,
+        endVerse: 3,
+        text: 'Zephyrs',
+      },
+    });
+
+    render(
+      <RepetitionChip
+        repetition={repetition}
+        translationCount={1}
+        book="John"
+        chapter={1}
+        translationId="sword-NASB"
+        entities={noEntities}
       />
     );
 

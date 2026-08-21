@@ -130,9 +130,9 @@ describe('Toolbar', () => {
       isPinned: false,
       isCollapsed: false,
     });
-    // Default to tools enabled so existing keyword-flow tests keep working;
-    // gating itself is covered by the "tool tabs" suite below.
-    usePreferencesStore.setState({ inductiveToolsEnabled: true });
+    // Default to tools enabled (and hydrated) so existing keyword-flow tests
+    // keep working; gating itself is covered by the "tool tabs" suite below.
+    usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
   });
 
   describe('keyword creation from selection', () => {
@@ -191,7 +191,7 @@ describe('Toolbar', () => {
 
     it('renders tool tabs when inductive tools are enabled', () => {
       act(() => {
-        usePreferencesStore.setState({ inductiveToolsEnabled: true });
+        usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
       });
 
       render(<Toolbar />);
@@ -200,6 +200,20 @@ describe('Toolbar', () => {
       expect(screen.getByLabelText('Observe')).toBeTruthy();
       expect(screen.getByLabelText('Analyze')).toBeTruthy();
       expect(screen.getByLabelText('Study Tools')).toBeTruthy();
+    });
+
+    it('renders no tool tabs before preferences finish hydrating, even for an existing user who will end up with tools on', () => {
+      act(() => {
+        usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: false });
+      });
+
+      render(<Toolbar />);
+
+      expect(screen.queryByLabelText('Key Words')).toBeNull();
+      expect(screen.queryByLabelText('Observe')).toBeNull();
+      expect(screen.queryByLabelText('Analyze')).toBeNull();
+      expect(screen.queryByLabelText('Study Tools')).toBeNull();
+      expect(screen.getByLabelText('Settings')).toBeTruthy();
     });
   });
 });

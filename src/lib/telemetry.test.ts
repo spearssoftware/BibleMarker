@@ -62,7 +62,7 @@ describe('telemetry', () => {
     expect(body.platform).toBe('ios');
   });
 
-  it('caps a single request at 50 events even when a burst queues more', async () => {
+  it('caps a single request at 30 events even when a burst queues more', async () => {
     usePreferencesStore.setState({ telemetryEnabled: true });
     initTelemetry();
 
@@ -70,7 +70,58 @@ describe('telemetry', () => {
     await flushMicrotasks();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(lastRequestBody(fetchMock).events).toHaveLength(50);
+    expect(lastRequestBody(fetchMock).events).toHaveLength(30);
+  });
+
+  it('does not send events queued before opt-out, and clears the queue', async () => {
+    usePreferencesStore.setState({ telemetryEnabled: true });
+    initTelemetry();
+
+    // Queue a few events — below the 20-event auto-flush threshold, so they
+    // sit in the queue rather than being sent immediately.
+    for (let i = 0; i < 5; i++) track('lens_toggled');
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    // Opt out before anything flushes.
+    usePreferencesStore.setState({ telemetryEnabled: false });
+
+    // The periodic-flush path (also exercised by shutdownTelemetry) must bail
+    // without sending, and must clear the stale queue.
+    await shutdownTelemetry();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    // Opt back in (without re-initializing, so this isolates flush()'s own
+    // clearing behavior from initTelemetry()'s reset) and queue a fresh
+    // batch: if the old queue had lingered, this request would contain more
+    // than 20 events.
+    usePreferencesStore.setState({ telemetryEnabled: true });
+    for (let i = 0; i < 20; i++) track('lens_toggled');
+    await flushMicrotasks();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(lastRequestBody(fetchMock).events).toHaveLength(20);
+  });
+
+  it('clears the discovery_chip_shown dedupe set on opt-out', async () => {
+    usePreferencesStore.setState({ telemetryEnabled: true });
+    initTelemetry();
+
+    track('discovery_chip_shown', { feature: 'repetition', dedupeKey: 'JHN:1:sword-NASB' });
+
+    // Opt out, then force a flush (without re-initializing, so this isolates
+    // flush()'s own clearing behavior from initTelemetry()'s reset).
+    usePreferencesStore.setState({ telemetryEnabled: false });
+    await shutdownTelemetry();
+
+    // Opt back in: the same dedupeKey must count again since the dedupe set
+    // was cleared on opt-out, not just the queue.
+    usePreferencesStore.setState({ telemetryEnabled: true });
+    for (let i = 0; i < 19; i++) track('lens_toggled');
+    track('discovery_chip_shown', { feature: 'repetition', dedupeKey: 'JHN:1:sword-NASB' });
+    await flushMicrotasks();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(lastRequestBody(fetchMock).events).toHaveLength(20);
   });
 
   it('flushes on visibilitychange -> hidden, even below the batch threshold', async () => {

@@ -24,11 +24,13 @@ function req(body: unknown, init: RequestInit = {}): Request {
   });
 }
 
+const VALID_SESSION_ID = '123e4567-e89b-42d3-a456-426614174000';
+
 const VALID_BODY = {
   events: [{ name: 'discovery_chip_shown', feature: 'repetition' }],
   appVersion: '3.1.3',
   platform: 'ios',
-  sessionId: 'session-abc-123',
+  sessionId: VALID_SESSION_ID,
 };
 
 describe('handleEvents — CORS + method handling', () => {
@@ -60,6 +62,34 @@ describe('handleEvents — rate limiting', () => {
     const res = await handleEvents(req(VALID_BODY), env);
     expect(res.status).toBe(429);
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
+});
+
+describe('handleEvents — Content-Type', () => {
+  it('rejects a POST with no Content-Type header with 415', async () => {
+    const { env } = envWith();
+    const res = await handleEvents(
+      new Request('https://biblemarker.app/events', {
+        method: 'POST',
+        body: JSON.stringify(VALID_BODY),
+      }),
+      env
+    );
+    expect(res.status).toBe(415);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
+
+  it('rejects a non-JSON Content-Type with 415, even for a simple cross-site POST', async () => {
+    const { env } = envWith();
+    const res = await handleEvents(
+      new Request('https://biblemarker.app/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(VALID_BODY),
+      }),
+      env
+    );
+    expect(res.status).toBe(415);
   });
 });
 
@@ -132,11 +162,18 @@ describe('handleEvents — validation', () => {
     expect(res.status).toBe(400);
   });
 
-  it('rejects a batch over 50 events', async () => {
+  it('rejects a batch over 30 events', async () => {
     const { env } = envWith();
-    const events = Array.from({ length: 51 }, () => ({ name: 'lens_toggled' }));
+    const events = Array.from({ length: 31 }, () => ({ name: 'lens_toggled' }));
     const res = await handleEvents(req({ ...VALID_BODY, events }), env);
     expect(res.status).toBe(400);
+  });
+
+  it('accepts a batch at exactly the 30-event cap', async () => {
+    const { env } = envWith();
+    const events = Array.from({ length: 30 }, () => ({ name: 'lens_toggled' }));
+    const res = await handleEvents(req({ ...VALID_BODY, events }), env);
+    expect(res.status).toBe(202);
   });
 
   it('rejects a malformed appVersion', async () => {
@@ -151,9 +188,25 @@ describe('handleEvents — validation', () => {
     expect(res.status).toBe(400);
   });
 
-  it('rejects an oversized sessionId', async () => {
+  it('rejects a sessionId that is not a UUID v4', async () => {
+    const { env } = envWith();
+    const res = await handleEvents(req({ ...VALID_BODY, sessionId: 'not-a-uuid' }), env);
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects an oversized/malformed sessionId', async () => {
     const { env } = envWith();
     const res = await handleEvents(req({ ...VALID_BODY, sessionId: 'x'.repeat(41) }), env);
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a UUID v1-shaped sessionId (wrong version nibble)', async () => {
+    const { env } = envWith();
+    // Same shape as VALID_SESSION_ID but with a '1' version nibble instead of '4'.
+    const res = await handleEvents(
+      req({ ...VALID_BODY, sessionId: '123e4567-e89b-12d3-a456-426614174000' }),
+      env
+    );
     expect(res.status).toBe(400);
   });
 
@@ -174,8 +227,19 @@ describe('handleEvents — Analytics Engine point shape', () => {
     expect(analytics!.points).toHaveLength(1);
     const point = analytics!.points[0];
     expect(point.indexes).toEqual(['discovery_chip_shown']);
-    expect(point.blobs).toEqual(['discovery_chip_shown', 'repetition', '3.1.3', 'ios', '', 'session-abc-123']);
+    expect(point.blobs).toEqual(['discovery_chip_shown', 'repetition', '3.1.3', 'ios', VALID_SESSION_ID]);
     expect(point.doubles).toEqual([1]);
+  });
+
+  it('never writes a country/location blob, even though `request.cf` is available', async () => {
+    const { env, analytics } = envWith();
+    const request = req(VALID_BODY);
+    // Simulate what a real deployed Worker attaches to the request.
+    Object.defineProperty(request, 'cf', { value: { country: 'US' }, configurable: true });
+    await handleEvents(request, env);
+    const point = analytics!.points[0];
+    expect(point.blobs).toHaveLength(5);
+    expect(point.blobs).not.toContain('US');
   });
 
   it('writes a point per event for a multi-event batch', async () => {

@@ -16,12 +16,12 @@ const STOPWORD_LIST: readonly string[] = [
   'without', 'within', 'into', 'upon', 'over', 'under', 'above', 'below',
   'between', 'among', 'through', 'throughout', 'during', 'before', 'after',
   'about', 'against', 'toward', 'towards', 'up', 'down', 'out', 'off', 'again',
-  'further', 'once', 'per',
+  'further', 'once', 'per', 'via', 'how', 'why',
 
   // Determiners, quantifiers
   'this', 'these', 'those', 'there', 'here', 'all', 'any', 'both', 'each',
   'few', 'more', 'most', 'other', 'others', 'some', 'such', 'no', 'not',
-  'only', 'own', 'same', 'too', 'very', 'one', 'ones',
+  'only', 'own', 'same', 'too', 'very', 'one', 'ones', 'two', 'now',
 
   // Pronouns
   'it', 'its', 'itself', 'i', 'me', 'my', 'mine', 'myself', 'we', 'us', 'our',
@@ -37,7 +37,8 @@ const STOPWORD_LIST: readonly string[] = [
 
   // Narrative filler verbs the plan calls out by name
   'said', 'says', 'saying', 'came', 'went', 'goes', 'going', 'gone', 'also',
-  'even', 'made', 'make', 'took', 'take', 'come',
+  'even', 'made', 'make', 'took', 'take', 'come', 'get', 'got', 'say', 'see',
+  'saw', 'put',
 
   // KJV-isms
   'thee', 'thou', 'thy', 'thine', 'ye', 'unto', 'hath', 'hast', 'doth', 'dost',

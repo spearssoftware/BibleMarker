@@ -18,11 +18,11 @@ export interface ConnectorDef {
   prompt: string;
 }
 
-const CONTRAST_PROMPT = "A '{phrase}' — what is being set against what?";
-const CONCLUSION_PROMPT = "A '{phrase}' — what is it there for?";
-const CONDITION_PROMPT = "An '{phrase}' — what hangs on it?";
-const PURPOSE_PROMPT = "A '{phrase}' — toward what end?";
-const CAUSE_PROMPT = "A '{phrase}' — what reason is being given?";
+const CONTRAST_PROMPT = "'{phrase}' — what is being set against what?";
+const CONCLUSION_PROMPT = "'{phrase}' — what is it there for?";
+const CONDITION_PROMPT = "'{phrase}' — what hangs on it?";
+const PURPOSE_PROMPT = "'{phrase}' — toward what end?";
+const CAUSE_PROMPT = "'{phrase}' — what reason is being given?";
 
 export const CONNECTORS: readonly ConnectorDef[] = [
   // contrast
@@ -65,14 +65,12 @@ export const CONNECTORS: readonly ConnectorDef[] = [
   { phrase: 'so that', category: 'purpose', prompt: PURPOSE_PROMPT },
   { phrase: 'lest', category: 'purpose', prompt: PURPOSE_PROMPT },
 
-  // cause ("for"/"so"/"since" are clause-start only to cut down false positives)
+  // cause (bare "for"/"so"/"since" were dropped entirely - even clause-start-only,
+  // they're too ambiguous in narrative prose to be worth the false positives)
   { phrase: 'for the sake of', category: 'cause', prompt: CAUSE_PROMPT },
   { phrase: 'inasmuch as', category: 'cause', prompt: CAUSE_PROMPT },
   { phrase: 'on account of', category: 'cause', prompt: CAUSE_PROMPT },
   { phrase: 'because', category: 'cause', prompt: CAUSE_PROMPT },
-  { phrase: 'since', category: 'cause', clauseStartOnly: true, prompt: CAUSE_PROMPT },
-  { phrase: 'for', category: 'cause', clauseStartOnly: true, prompt: CAUSE_PROMPT },
-  { phrase: 'so', category: 'cause', clauseStartOnly: true, prompt: CAUSE_PROMPT },
 ];
 
 const SORTED_CONNECTORS: readonly ConnectorDef[] = [...CONNECTORS].sort((a, b) => {

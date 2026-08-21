@@ -11,6 +11,8 @@ import type { AnalysisVerse, RepetitionResult, DiscoveryThresholds, TokenOccurre
 interface Tally {
   count: number;
   occurrences: TokenOccurrence[];
+  forms: string[];
+  formsSeen: Set<string>;
 }
 
 export function findRepetition(verses: AnalysisVerse[], thresholds: DiscoveryThresholds): RepetitionResult | null {
@@ -24,19 +26,23 @@ export function findRepetition(verses: AnalysisVerse[], thresholds: DiscoveryThr
       const key = singularize(token.normalized);
       let entry = tally.get(key);
       if (!entry) {
-        entry = { count: 0, occurrences: [] };
+        entry = { count: 0, occurrences: [], forms: [], formsSeen: new Set() };
         tally.set(key, entry);
       }
       entry.count += 1;
       entry.occurrences.push({ verse: verse.ref.verse, start: token.startIndex, end: token.endIndex });
+      if (!entry.formsSeen.has(token.normalized)) {
+        entry.formsSeen.add(token.normalized);
+        entry.forms.push(token.normalized);
+      }
     }
   }
 
-  const candidates: Array<{ token: string; count: number; occurrences: TokenOccurrence[] }> = [];
+  const candidates: Array<{ token: string; count: number; occurrences: TokenOccurrence[]; forms: string[] }> = [];
   for (const [token, entry] of tally) {
     if (entry.count < thresholds.repetitionMinCount) continue;
     entry.occurrences.sort((a, b) => a.verse - b.verse || a.start - b.start);
-    candidates.push({ token, count: entry.count, occurrences: entry.occurrences });
+    candidates.push({ token, count: entry.count, occurrences: entry.occurrences, forms: entry.forms });
   }
 
   if (candidates.length === 0) return null;
@@ -62,6 +68,7 @@ export function findRepetition(verses: AnalysisVerse[], thresholds: DiscoveryThr
     firstVerse: Math.min(...verseNumbers),
     lastVerse: Math.max(...verseNumbers),
     occurrences: winner.occurrences,
+    forms: winner.forms,
   };
 }
 

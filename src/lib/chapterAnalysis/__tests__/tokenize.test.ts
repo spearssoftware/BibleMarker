@@ -46,6 +46,48 @@ describe('singularize', () => {
   it('reduces "es" after ch (churches -> church)', () => {
     expect(singularize('churches')).toBe('church')
   })
+
+  it('strips only the trailing s for a bare ses ending (houses -> house)', () => {
+    expect(singularize('houses')).toBe('house')
+  })
+
+  it('strips only the trailing s for a bare ses ending (verses -> verse)', () => {
+    expect(singularize('verses')).toBe('verse')
+  })
+
+  it('strips "es" after x (boxes -> box)', () => {
+    expect(singularize('boxes')).toBe('box')
+  })
+
+  it('strips only the trailing s for a bare ses ending (promises -> promise)', () => {
+    expect(singularize('promises')).toBe('promise')
+  })
+
+  it('singularizes a 4-letter plural (sons -> son)', () => {
+    expect(singularize('sons')).toBe('son')
+  })
+
+  it('singularizes a 4-letter plural (gods -> god)', () => {
+    expect(singularize('gods')).toBe('god')
+  })
+
+  it('singularizes a 4-letter plural (days -> day)', () => {
+    expect(singularize('days')).toBe('day')
+  })
+
+  it('leaves "thus" unchanged (guarded by the -us exception)', () => {
+    expect(singularize('thus')).toBe('thus')
+  })
+
+  it('leaves "his" unchanged (too short for the bare-s rule)', () => {
+    expect(singularize('his')).toBe('his')
+  })
+
+  it('leaves words ending in "ves" unchanged (wives, knives, lives)', () => {
+    expect(singularize('wives')).toBe('wives')
+    expect(singularize('knives')).toBe('knives')
+    expect(singularize('lives')).toBe('lives')
+  })
 })
 
 describe('tokenizeVerse', () => {

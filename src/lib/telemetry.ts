@@ -44,7 +44,7 @@ const FLUSH_INTERVAL_MS = 30_000;
 /** Flush as soon as the queue reaches this size, instead of waiting for the timer. */
 const FLUSH_AT_QUEUE_SIZE = 20;
 /** Cap on events sent in a single POST — the worker rejects a larger batch. */
-const MAX_EVENTS_PER_REQUEST = 50;
+const MAX_EVENTS_PER_REQUEST = 30;
 /** Hard cap on the in-memory queue — oldest events are dropped beyond this. */
 const MAX_QUEUE_SIZE = 200;
 
@@ -113,8 +113,18 @@ export function track(name: TelemetryEvent, props?: TelemetryProps): void {
   }
 }
 
-/** Send up to `MAX_EVENTS_PER_REQUEST` queued events. Never throws. */
+/**
+ * Send up to `MAX_EVENTS_PER_REQUEST` queued events. Never throws. Bails —
+ * and drops anything already queued — if the user has since opted out, so a
+ * toggle flip mid-session can't flush a batch queued while opted in, and
+ * nothing lingers in memory after opting out.
+ */
 async function flush(): Promise<void> {
+  if (!usePreferencesStore.getState().telemetryEnabled) {
+    queue = [];
+    shownChipKeys.clear();
+    return;
+  }
   if (queue.length === 0) return;
   const batch = queue.splice(0, MAX_EVENTS_PER_REQUEST);
 

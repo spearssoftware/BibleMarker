@@ -18,10 +18,10 @@ import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { usePanelStore } from '@/stores/panelStore';
-import { useChapterEntities } from '@/hooks/useGnosis';
 import { markRepetitionAsKeyword } from '@/lib/discoveryActions';
 import { normalizeForMatching } from '@/lib/keywordMatching';
 import { singularize, verseRangeLabel, deriveCategoryHint, type RepetitionResult } from '@/lib/chapterAnalysis';
+import type { ChapterEntities } from '@/types';
 
 interface RepetitionChipProps {
   repetition: RepetitionResult | null;
@@ -30,6 +30,7 @@ interface RepetitionChipProps {
   book: string;
   chapter: number;
   translationId: string;
+  entities: ChapterEntities | null;
 }
 
 type Rung = 'count' | 'hint' | 'range';
@@ -41,6 +42,7 @@ export function RepetitionChip({
   book,
   chapter,
   translationId,
+  entities,
 }: RepetitionChipProps) {
   const triggerRef = useRef<HTMLDivElement>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -53,7 +55,6 @@ export function RepetitionChip({
   const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
   const activeStudyId = useStudyStore(s => s.activeStudyId) ?? undefined;
   const openPanel = usePanelStore(s => s.openPanel);
-  const { entities } = useChapterEntities(book, chapter);
 
   const isFound = found?.book === book && found?.chapter === chapter && found?.translationId === translationId;
 
@@ -67,6 +68,7 @@ export function RepetitionChip({
   useEffect(() => {
     if (!repetition || isFound || !selection) return;
     if (selection.moduleId !== translationId) return;
+    if (selection.book !== book || selection.chapter !== chapter) return;
     if (selection.startVerse !== selection.endVerse) return;
     const normalized = singularize(normalizeForMatching(selection.text));
     if (normalized === repetition.token) {
@@ -88,7 +90,7 @@ export function RepetitionChip({
     const buttonLabel = inductiveToolsEnabled ? 'Mark it as a key word' : 'Highlight it everywhere';
     const handleMark = async () => {
       if (!confirmedSelection) return;
-      await markRepetitionAsKeyword(confirmedSelection, activeStudyId);
+      await markRepetitionAsKeyword(confirmedSelection, activeStudyId, repetition);
       if (inductiveToolsEnabled) openPanel('keywords');
     };
     return (

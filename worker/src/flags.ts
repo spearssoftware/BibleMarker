@@ -71,7 +71,7 @@ export interface DiscoveryThresholds {
 
 export const DEFAULT_DISCOVERY_THRESHOLDS: DiscoveryThresholds = {
   repetitionMinCount: 5,
-  repetitionMinWordLength: 4,
+  repetitionMinWordLength: 3,
   connectorChipMinCount: 1,
 };
 

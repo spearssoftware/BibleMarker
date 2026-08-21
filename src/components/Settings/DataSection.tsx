@@ -1118,8 +1118,8 @@ export function DataSection() {
               <p className="text-xs text-scripture-muted">
                 Off by default. When on, BibleMarker sends a small count of which discovery
                 features you use (for example "chip tapped" or "lens turned on"), plus the app
-                version and platform. It never includes what you are reading, your markings,
-                notes, or account. You can turn this off at any time.
+                version, platform, and a random per-launch session id. It never includes what
+                you are reading, your markings, notes, or account. You can turn this off at any time.
               </p>
             </div>
             <ToggleSwitch

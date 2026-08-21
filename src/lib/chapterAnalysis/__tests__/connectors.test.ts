@@ -30,14 +30,12 @@ describe('findConnectors - Romans 5 fixture', () => {
     expect(hit!.phrase.toLowerCase()).toBe('therefore')
   })
 
-  it('excludes "for us"/"for a righteous person" as mid-clause, non-clause-start cause hits', () => {
+  it('never matches bare "for", verse-initial or otherwise - it was dropped as too ambiguous', () => {
     const causeHitsInV7And8 = hits.filter(h => h.category === 'cause' && (h.verse === 7 || h.verse === 8))
-    // v.7 opens with clause-start "For" (one cause hit); its mid-clause "for a
-    // righteous person"/"for a good person" are excluded. v.8 opens with "But"
-    // (contrast, not cause), so its "for us" occurrences are mid-clause and
-    // excluded entirely - no cause hit for v.8 at all.
-    expect(causeHitsInV7And8).toHaveLength(1)
-    expect(causeHitsInV7And8[0].verse).toBe(7)
+    // v.7 opens with "For" and also contains mid-clause "for a righteous
+    // person"/"for a good person"; v.8 has mid-clause "for us" twice. None of
+    // these count now that bare "for" isn't in the connector vocabulary at all.
+    expect(causeHitsInV7And8).toHaveLength(0)
   })
 
   it('claims "so then" as a single two-word conclusion hit, not separate so/then hits', () => {
@@ -54,13 +52,13 @@ describe('findConnectors - Romans 5 fixture', () => {
   })
 })
 
-describe('findConnectors - clause-start rule for for/so/since', () => {
-  it('"For God so loved the world" yields one cause hit (verse-initial "For"), not the mid-clause "so"', () => {
+describe('findConnectors - "for"/"so"/"since" are dropped entirely (too ambiguous even clause-start-only)', () => {
+  it('"For God so loved the world" yields no cause hit for verse-initial "For" or mid-clause "so"', () => {
     const verses = [verse('John', 3, 16, 'For God so loved the world that he gave his only Son.')]
     const hits = findConnectors(verses)
-    const causeHits = hits.filter(h => h.category === 'cause')
-    expect(causeHits).toHaveLength(1)
-    expect(causeHits[0].phrase.toLowerCase()).toBe('for')
+    expect(hits.filter(h => h.category === 'cause')).toHaveLength(0)
+    expect(hits.some(h => h.phrase.toLowerCase() === 'for')).toBe(false)
+    expect(hits.some(h => h.phrase.toLowerCase() === 'so')).toBe(false)
   })
 
   it('"for you" mid-clause produces no cause hit', () => {
@@ -69,20 +67,16 @@ describe('findConnectors - clause-start rule for for/so/since', () => {
     expect(hits.filter(h => h.category === 'cause')).toHaveLength(0)
   })
 
-  it('counts "since" at verse start but not mid-clause', () => {
+  it('never matches "since", verse-initial or mid-clause', () => {
     const verses = [verse('Test', 1, 1, 'Since the beginning, we have known him; nothing changed since the beginning.')]
     const hits = findConnectors(verses)
-    const causeHits = hits.filter(h => h.category === 'cause' && h.phrase.toLowerCase() === 'since')
-    expect(causeHits).toHaveLength(1)
-    expect(causeHits[0].start).toBe(0)
+    expect(hits.some(h => h.phrase.toLowerCase() === 'since')).toBe(false)
   })
 
-  it('counts a clause-start connector after a comma', () => {
+  it('never matches "for" after a comma (clause-start position no longer matters - it is simply absent from the vocabulary)', () => {
     const verses = [verse('Test', 1, 1, 'He was tired, for the journey had been long.')]
     const hits = findConnectors(verses)
-    const causeHits = hits.filter(h => h.category === 'cause')
-    expect(causeHits).toHaveLength(1)
-    expect(causeHits[0].phrase.toLowerCase()).toBe('for')
+    expect(hits.filter(h => h.category === 'cause')).toHaveLength(0)
   })
 })
 
@@ -113,8 +107,20 @@ describe('findConnectors - if/then post-filter', () => {
 })
 
 describe('promptFor', () => {
-  it('substitutes the phrase into the category prompt template', () => {
+  it('substitutes the phrase into the category prompt template with no article preceding it', () => {
     const hit = { phrase: 'Therefore', category: 'conclusion' as const, verse: 1, start: 0, end: 9 }
-    expect(promptFor(hit)).toBe("A 'Therefore' — what is it there for?")
+    expect(promptFor(hit)).toBe("'Therefore' — what is it there for?")
+  })
+
+  it('uses the article-free pattern for every category', () => {
+    const categories = [
+      { category: 'contrast' as const, phrase: 'But', expected: "'But' — what is being set against what?" },
+      { category: 'condition' as const, phrase: 'If', expected: "'If' — what hangs on it?" },
+      { category: 'purpose' as const, phrase: 'so that', expected: "'so that' — toward what end?" },
+      { category: 'cause' as const, phrase: 'because', expected: "'because' — what reason is being given?" },
+    ]
+    for (const { category, phrase, expected } of categories) {
+      expect(promptFor({ phrase, category, verse: 1, start: 0, end: phrase.length })).toBe(expected)
+    }
   })
 })

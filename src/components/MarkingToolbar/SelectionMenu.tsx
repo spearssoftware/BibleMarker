@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import type { TextSelection } from '@/stores/annotationStore';
+import { useAnnotationStore, type TextSelection } from '@/stores/annotationStore';
 import type { MarkingPreset, HighlightColor } from '@/types';
 import { getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED } from '@/types';
 import { SymbolIcon } from '@/lib/symbolDisplay';
@@ -14,6 +14,9 @@ import { isCommonPronoun } from '@/types';
 import { scopeLabel } from '@/types';
 
 export type ApplyScope = 'here' | 'all';
+
+/** Total swatches shown in the quick-highlight row (recent colors + fill). */
+const QUICK_HIGHLIGHT_COUNT = 8;
 
 interface SelectionMenuProps {
   selection: TextSelection;
@@ -86,6 +89,19 @@ export function SelectionMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+
+  // Quick-highlight row: the reader's own recently-used colors first (most
+  // recent first), filled out to 8 total from the full sorted palette so the
+  // row stays a compact, glanceable strip instead of all 39 swatches.
+  const recentColors = useAnnotationStore(s => s.preferences.recentColors);
+  const quickColors = useMemo(() => {
+    const colors: HighlightColor[] = [...recentColors];
+    for (const color of HIGHLIGHT_COLORS_SORTED) {
+      if (colors.length >= QUICK_HIGHLIGHT_COUNT) break;
+      if (!colors.includes(color)) colors.push(color);
+    }
+    return colors.slice(0, QUICK_HIGHLIGHT_COUNT);
+  }, [recentColors]);
 
   const keywordPresets = presets.filter((p) => p.word);
   const sortedPresets = useMemo(
@@ -245,7 +261,7 @@ export function SelectionMenu({
           {/* Quick highlight — the default-mode marking surface and the
               stealth on-ramp into the toolkit. Shown in both modes. */}
           <div className="flex flex-wrap gap-2 py-1" role="group" aria-label="Highlight color">
-            {HIGHLIGHT_COLORS_SORTED.map((color) => (
+            {quickColors.map((color) => (
               <button
                 key={color}
                 onClick={(e) => {

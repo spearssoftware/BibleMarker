@@ -27,7 +27,8 @@ import {
 } from '@/lib/bible-api';
 
 export function BibleSection() {
-  const { inductiveToolsEnabled, setInductiveToolsEnabled } = usePreferencesStore();
+  const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
+  const setInductiveToolsEnabled = usePreferencesStore(s => s.setInductiveToolsEnabled);
 
   // API Configuration state
   const [esvApiKey, setEsvApiKey] = useState('');

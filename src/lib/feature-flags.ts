@@ -13,7 +13,10 @@
 
 import { getSyncConfig, setSyncConfig, getDeviceId, getSqliteDb } from './sqlite-db';
 import { isIOS, isAndroid, isMacOS, isTauri } from './platform';
-import { DEFAULT_DISCOVERY_THRESHOLDS, type DiscoveryThresholds } from '@/lib/chapterAnalysis';
+// Import directly from `types.ts` rather than the `chapterAnalysis` barrel —
+// the barrel also re-exports the tokenizer, stopwords, repetition, and
+// connector engines, which this flag/config path has no need to pull in.
+import { DEFAULT_DISCOVERY_THRESHOLDS, type DiscoveryThresholds } from '@/lib/chapterAnalysis/types';
 
 export type { DiscoveryThresholds };
 

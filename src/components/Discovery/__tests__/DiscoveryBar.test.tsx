@@ -30,12 +30,16 @@ vi.mock('@/lib/database', () => ({
   deleteConclusion: vi.fn(async () => {}),
 }));
 
+let mockEntities: { book: string; chapter: number; people: string[]; places: string[]; events: string[]; topics: string[] } | null = {
+  book: 'John',
+  chapter: 1,
+  people: ['jesus'],
+  places: [],
+  events: [],
+  topics: [],
+};
 vi.mock('@/hooks/useGnosis', () => ({
-  useChapterEntities: () => ({
-    entities: { book: 'John', chapter: 1, people: ['jesus'], places: [], events: [], topics: [] },
-    isLoading: false,
-    error: null,
-  }),
+  useChapterEntities: () => ({ entities: mockEntities, isLoading: false, error: null }),
 }));
 
 let discoveryEnabled = true;
@@ -48,7 +52,7 @@ vi.mock('@/lib/discovery-config', () => ({
 function makeAnalysis(): ChapterAnalysis {
   const hit: ConnectorHit = { phrase: 'therefore', category: 'conclusion', verse: 1, start: 0, end: 9 };
   return {
-    repetition: { token: 'word', count: 11, firstVerse: 1, lastVerse: 14, occurrences: [] },
+    repetition: { token: 'word', count: 11, firstVerse: 1, lastVerse: 14, occurrences: [], forms: ['word', 'words'] },
     connectors: [hit],
     connectorRangesByVerse: new Map([[1, [hit]]]),
   };
@@ -57,6 +61,7 @@ function makeAnalysis(): ChapterAnalysis {
 describe('DiscoveryBar', () => {
   beforeEach(() => {
     discoveryEnabled = true;
+    mockEntities = { book: 'John', chapter: 1, people: ['jesus'], places: [], events: [], topics: [] };
     useActiveChapterStore.setState({ book: 'John', chapter: 1, translationId: 'sword-NASB', verses: [] });
     useDiscoveryStore.setState({ lensActive: false, found: null, activePrompt: null });
   });
@@ -87,11 +92,20 @@ describe('DiscoveryBar', () => {
     expect(container.querySelector('[data-discovery-bar]')).toBeTruthy();
     expect(screen.getByText('One word appears 11× in this chapter (NASB)')).toBeTruthy();
     expect(screen.getByText('1 hinge in this chapter')).toBeTruthy();
-    expect(screen.getByText('1 people')).toBeTruthy();
+    expect(screen.getByText('1 person')).toBeTruthy();
   });
 
   it('omits the translation suffix with a single translation column', () => {
     render(<DiscoveryBar analysis={makeAnalysis()} translationCount={1} primaryTranslationName="NASB" />);
     expect(screen.getByText('One word appears 11× in this chapter')).toBeTruthy();
+  });
+
+  it('renders nothing when no chip would qualify (no repetition, no connectors, no entities)', () => {
+    mockEntities = { book: 'John', chapter: 1, people: [], places: [], events: [], topics: [] };
+    const emptyAnalysis: ChapterAnalysis = { repetition: null, connectors: [], connectorRangesByVerse: new Map() };
+    const { container } = render(
+      <DiscoveryBar analysis={emptyAnalysis} translationCount={1} primaryTranslationName="NASB" />
+    );
+    expect(container.querySelector('[data-discovery-bar]')).toBeNull();
   });
 });
