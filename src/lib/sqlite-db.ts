@@ -1435,6 +1435,15 @@ function safeJsonParse<T>(json: string, fallback: T): T {
   }
 }
 
+export async function sqliteCountRows(tableName: string): Promise<number> {
+  validateTableName(tableName);
+  const db = await getSqliteDb();
+  const rows = await db.select<{ count: number }[]>(
+    `SELECT COUNT(*) as count FROM ${tableName}`
+  );
+  return rows[0]?.count ?? 0;
+}
+
 export async function sqliteGetAllFromTable<T>(tableName: string): Promise<T[]> {
   validateTableName(tableName);
   const db = await getSqliteDb();

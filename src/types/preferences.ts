@@ -70,6 +70,15 @@ export interface UserPreferences {
     /** Force-enable sync on dev builds (normally gated off for safety) */
     forceSyncEnabled?: boolean;
   };
+  /**
+   * Shows the full Precept toolkit (Key Words, Observe, Analyze, Study Tools)
+   * in the bottom bar and selection menu. Absent == false. Deliberately not
+   * added to DEFAULT_PREFERENCES so `undefined` stays meaningful for the
+   * one-shot "upgrade nicety" check in `toolkitMigration.ts`.
+   */
+  inductiveToolsEnabled?: boolean;
+  /** Opt-in anonymous usage telemetry (Analytics Engine). Absent == false. */
+  telemetryEnabled?: boolean;
 }
 
 /** Cached chapter text for fast access */

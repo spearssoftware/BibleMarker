@@ -1030,6 +1030,11 @@ export async function addReadingHistory(
 // Raw SQL Access (for advanced queries in search, export, etc.)
 // ============================================================================
 
+export async function countRows(tableName: string): Promise<number> {
+  const mod = await sqlite();
+  return mod.sqliteCountRows(tableName);
+}
+
 export async function sqlSelect<T>(sql: string, params?: unknown[]): Promise<T[]> {
   const mod = await sqlite();
   const db = await mod.getSqliteDb();

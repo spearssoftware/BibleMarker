@@ -41,7 +41,9 @@ import { initializeSync, shutdownSync } from '@/lib/sync';
 import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
 import { checkForUpdateIfDue, fetchWhatsNew, fetchWhatsNewForced } from '@/lib/updateCheck';
 import { isCapacitor } from '@/lib/platform';
-import { UpdateBanner, WhatsNewModal } from '@/components/shared';
+import { UpdateBanner, WhatsNewModal, ToolkitRestoredBanner } from '@/components/shared';
+import { usePreferencesStore } from '@/stores/preferencesStore';
+import { maybeEnableInductiveTools } from '@/lib/toolkitMigration';
 
 function GlobalUndoToast() {
   const { message, onUndo, dismiss } = useUndoToastStore();
@@ -79,6 +81,10 @@ export default function App() {
   // What's New popup: shown once after updating to a new version
   const [whatsNew, setWhatsNew] = useState<{ version: string; notes: string[] } | null>(null);
 
+  // Toolkit-restored banner: shown once after the "upgrade nicety" auto-enables
+  // inductive tools for an existing user with prior data.
+  const [toolkitRestored, setToolkitRestored] = useState(false);
+
   // Initialize theme on mount (before other initialization)
   useEffect(() => {
     initTheme();
@@ -102,6 +108,10 @@ export default function App() {
         // Ensure database is initialized (schema migrations) before any queries
         await initDatabase();
         const prefs = await getPreferences();
+        usePreferencesStore.getState().hydrate(prefs);
+        if (await maybeEnableInductiveTools(prefs)) {
+          setToolkitRestored(true);
+        }
         if (prefs.fontSize) {
           setFontSize(prefs.fontSize);
         }
@@ -225,6 +235,15 @@ export default function App() {
         useApplicationStore.getState().loadApplications(),
         useEntityNoteStore.getState().loadNotes(),
       ]);
+      // A fresh install signing into an existing account picks up synced prefs
+      // (and, via the upgrade nicety, the toolkit) here rather than waiting for
+      // the next launch — re-read and re-hydrate since the pull may have
+      // changed the preferences row.
+      const prefs = await getPreferences();
+      usePreferencesStore.getState().hydrate(prefs);
+      if (await maybeEnableInductiveTools(prefs)) {
+        setToolkitRestored(true);
+      }
     };
     window.addEventListener('syncDataChanged', handleSyncDataChanged);
     return () => window.removeEventListener('syncDataChanged', handleSyncDataChanged);
@@ -330,6 +349,11 @@ export default function App() {
           url={updateAvailable.url}
           onDismiss={() => setUpdateBannerDismissed(true)}
         />
+      )}
+
+      {/* Toolkit-restored banner: one-shot, shown once onboarding overlays resolve */}
+      {toolkitRestored && !showWelcome && !showTranslationLibrary && !showTour && (
+        <ToolkitRestoredBanner onDismiss={() => setToolkitRestored(false)} />
       )}
 
       {/* Main reading area with split panel */}

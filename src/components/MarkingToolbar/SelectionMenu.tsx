@@ -7,8 +7,8 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import type { TextSelection } from '@/stores/annotationStore';
-import type { MarkingPreset } from '@/types';
-import { getHighlightColorHex } from '@/types';
+import type { MarkingPreset, HighlightColor } from '@/types';
+import { getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED } from '@/types';
 import { SymbolIcon } from '@/lib/symbolDisplay';
 import { isCommonPronoun } from '@/types';
 import { scopeLabel } from '@/types';
@@ -22,12 +22,16 @@ interface SelectionMenuProps {
    * one other installed translation exists). When false, the scope
    * toggle is hidden since there's nothing to propagate to. */
   canPropagate?: boolean;
+  /** When false (tools off), only the quick-highlight swatches + Cancel
+   * render — the Precept toolkit items (Key Word, Observe, etc.) are hidden. */
+  advanced?: boolean;
   onApplyPreset: (preset: MarkingPreset, scope: ApplyScope) => void;
   onAddAsVariant: (preset: MarkingPreset) => void;
   onOpenKeyWordManager: () => void;
   onQuickAddKeyword: (type: 'person' | 'place') => void;
   onAddToList: () => void;
   onReferenceLookup: () => void;
+  onQuickHighlight: (color: HighlightColor) => void;
   onCancel: () => void;
   onClose: () => void;
 }
@@ -36,12 +40,14 @@ export function SelectionMenu({
   selection,
   presets,
   canPropagate = false,
+  advanced = true,
   onApplyPreset,
   onAddAsVariant,
   onOpenKeyWordManager,
   onQuickAddKeyword,
   onAddToList,
   onReferenceLookup,
+  onQuickHighlight,
   onCancel,
   onClose,
 }: SelectionMenuProps) {
@@ -236,6 +242,31 @@ export function SelectionMenu({
         <div className="flex flex-col min-w-0">
           {/* Main menu buttons */}
           <div className="p-2 space-y-1 overflow-y-auto custom-scrollbar flex-shrink-0 max-h-[70vh] px-4 pb-4">
+          {/* Quick highlight — the default-mode marking surface and the
+              stealth on-ramp into the toolkit. Shown in both modes. */}
+          <div className="flex flex-wrap gap-2 py-1" role="group" aria-label="Highlight color">
+            {HIGHLIGHT_COLORS_SORTED.map((color) => (
+              <button
+                key={color}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onQuickHighlight(color);
+                  onClose();
+                }}
+                className="w-9 h-9 rounded-full border border-scripture-border/30 shadow-sm
+                         hover:scale-110 transition-transform duration-150 touch-target"
+                style={{ backgroundColor: HIGHLIGHT_COLORS[color] }}
+                aria-label={`Highlight ${color}`}
+                title={color}
+              />
+            ))}
+          </div>
+
+          {advanced && (
+            <>
+          <div className="border-t border-scripture-border/30 my-1" />
+
           {/* Key Word */}
           <button
             onClick={(e) => {
@@ -391,6 +422,8 @@ export function SelectionMenu({
             <span className="text-lg" aria-hidden="true">📖</span>
             <span>Study Tools</span>
           </button>
+            </>
+          )}
 
           {/* Divider */}
           <div className="border-t border-scripture-border/30 my-1" />

@@ -10,6 +10,7 @@ import { render, screen, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useAnnotationStore, type TextSelection } from '@/stores/annotationStore';
 import { usePanelStore } from '@/stores/panelStore';
+import { usePreferencesStore } from '@/stores/preferencesStore';
 import { DEFAULT_MARKING_PREFERENCES } from '@/types';
 
 // --- Mock all heavy dependencies ---
@@ -26,6 +27,7 @@ vi.mock('@/hooks/useAnnotations', () => ({
   useAnnotations: () => ({
     createTextAnnotation: vi.fn(),
     createSymbolAnnotation: vi.fn(),
+    quickHighlight: vi.fn(),
   }),
 }));
 vi.mock('@/hooks/useKeyboardShortcuts', () => ({
@@ -128,6 +130,9 @@ describe('Toolbar', () => {
       isPinned: false,
       isCollapsed: false,
     });
+    // Default to tools enabled so existing keyword-flow tests keep working;
+    // gating itself is covered by the "tool tabs" suite below.
+    usePreferencesStore.setState({ inductiveToolsEnabled: true });
   });
 
   describe('keyword creation from selection', () => {
@@ -165,6 +170,36 @@ describe('Toolbar', () => {
 
       const panelState = usePanelStore.getState();
       expect(panelState.keywordInitialWord).toBe('love');
+    });
+  });
+
+  describe('tool tabs', () => {
+    it('renders no tool tabs when inductive tools are disabled', () => {
+      act(() => {
+        usePreferencesStore.setState({ inductiveToolsEnabled: false });
+      });
+
+      render(<Toolbar />);
+
+      expect(screen.queryByLabelText('Key Words')).toBeNull();
+      expect(screen.queryByLabelText('Observe')).toBeNull();
+      expect(screen.queryByLabelText('Analyze')).toBeNull();
+      expect(screen.queryByLabelText('Study Tools')).toBeNull();
+      // Settings stays reachable either way.
+      expect(screen.getByLabelText('Settings')).toBeTruthy();
+    });
+
+    it('renders tool tabs when inductive tools are enabled', () => {
+      act(() => {
+        usePreferencesStore.setState({ inductiveToolsEnabled: true });
+      });
+
+      render(<Toolbar />);
+
+      expect(screen.getByLabelText('Key Words')).toBeTruthy();
+      expect(screen.getByLabelText('Observe')).toBeTruthy();
+      expect(screen.getByLabelText('Analyze')).toBeTruthy();
+      expect(screen.getByLabelText('Study Tools')).toBeTruthy();
     });
   });
 });

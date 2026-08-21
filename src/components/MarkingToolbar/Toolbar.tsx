@@ -17,6 +17,7 @@ import { useStudyStore } from '@/stores/studyStore';
 import { usePanelStore } from '@/stores/panelStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
+import { usePreferencesStore } from '@/stores/preferencesStore';
 import { deleteAnnotation } from '@/lib/database';
 import { getAllTranslations } from '@/lib/bible-api';
 import type { MarkingPreset, Verse } from '@/types';
@@ -45,13 +46,19 @@ export function Toolbar() {
   } = useAnnotationStore();
 
   const { previousChapter, nextChapter, canGoNext, canGoPrevious } = useBibleStore();
-  const { createTextAnnotation, createSymbolAnnotation, createAnnotationsAcrossTranslations, loadAnnotations } = useAnnotations();
+  const { createTextAnnotation, createSymbolAnnotation, createAnnotationsAcrossTranslations, loadAnnotations, quickHighlight } = useAnnotations();
   const { presets, loadPresets, addPreset, markPresetUsed, updatePreset } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
   const { getOrCreateListForKeyword } = useListStore();
   const { activePanel, togglePanel, openPanel, isCollapsed } = usePanelStore();
   const chaptersByTranslation = useMultiTranslationStore(s => s.chaptersByTranslation);
+  const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
+
+  // "Enable inductive tools" gates the tool tabs (Key Words/Observe/Analyze/
+  // Study Tools) and the advanced selection-menu items. Settings stays visible
+  // either way so the toggle itself is always reachable.
+  const visibleTools = inductiveToolsEnabled ? TOOLS : [];
 
   // Load marking presets on mount
   useEffect(() => {
@@ -80,7 +87,10 @@ export function Toolbar() {
     };
   }, []);
 
-  // Listen for custom events to open panels
+  // Listen for custom events to open panels. openObservationTools/openAnalyzeTools
+  // stay unguarded by inductiveToolsEnabled — they're programmatic intents (e.g.
+  // "Add to Flow"), not the tab-bar buttons, so they should still work even with
+  // the toolkit hidden.
   useEffect(() => {
     const handleOpenObservationTools = (e: CustomEvent<{ tab?: ObservationTab; listId?: string; verseRef?: { book: string; chapter: number; verse: number }; autoCreate?: boolean }>) => {
       const { tab = 'lists', listId, verseRef: eventVerseRef, autoCreate } = e.detail || {};
@@ -276,11 +286,12 @@ export function Toolbar() {
     setActiveTool(null);
   };
 
-  // Keyboard shortcuts for toolbar tools (number keys 1-3)
+  // Keyboard shortcuts for toolbar tools (number keys 1-4). Indexed against
+  // visibleTools so shortcuts for hidden tools are inert while tools are off.
   useKeyboardShortcuts({
     onToolbarTool: (toolIndex: number) => {
-      if (toolIndex >= 0 && toolIndex < TOOLS.length) {
-        handleToolClick(TOOLS[toolIndex].type);
+      if (toolIndex >= 0 && toolIndex < visibleTools.length) {
+        handleToolClick(visibleTools[toolIndex].type);
       }
     },
     enabled: toolbarVisible,
@@ -342,8 +353,10 @@ export function Toolbar() {
             selection={selection}
             presets={filterPresetsByStudy(presets, activeStudyId)}
             canPropagate={installedTranslationCount > 1}
+            advanced={inductiveToolsEnabled}
             onApplyPreset={applyPresetToSelection}
             onAddAsVariant={addToVariantsAndApply}
+            onQuickHighlight={quickHighlight}
             onOpenKeyWordManager={() => {
               openPanel('keywords', {
                 keywordInitialWord: selection?.text?.trim() || undefined,
@@ -414,7 +427,7 @@ export function Toolbar() {
         <div className="bg-scripture-surface/80 backdrop-blur-md border-t border-scripture-border/30"
              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
-            {TOOLS.map((tool) => {
+            {visibleTools.map((tool) => {
               const isActive = activePanel === tool.type && !isCollapsed;
               const dataAttr = tool.type === 'keywords' ? 'data-toolbar-keywords'
                 : tool.type === 'observe' ? 'data-toolbar-observe'
