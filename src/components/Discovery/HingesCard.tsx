@@ -10,7 +10,7 @@
  * after the panel opens.
  */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, ToggleSwitch } from '@/components/shared';
 import { DiscoveryCard } from './DiscoveryCard';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
@@ -34,6 +34,10 @@ function rowKey(hit: ConnectorHit): string {
   return `${hit.verse}-${hit.start}`;
 }
 
+function capitalize(s: string): string {
+  return s.length === 0 ? s : s[0].toUpperCase() + s.slice(1);
+}
+
 export function HingesCard({ connectors, minCount, book, chapter }: HingesCardProps) {
   const lensActive = useDiscoveryStore(s => s.lensActive);
   const toggleLens = useDiscoveryStore(s => s.toggleLens);
@@ -42,6 +46,7 @@ export function HingesCard({ connectors, minCount, book, chapter }: HingesCardPr
   const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
   const navigateToVerse = useBibleStore(s => s.navigateToVerse);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [addingToFlow, setAddingToFlow] = useState(false);
 
   const grouped = useMemo(() => groupConnectorsByVerse(connectors), [connectors]);
   const verses = useMemo(() => Array.from(grouped.keys()).sort((a, b) => a - b), [grouped]);
@@ -76,33 +81,45 @@ export function HingesCard({ connectors, minCount, book, chapter }: HingesCardPr
   };
 
   const handleAddToFlow = async (hit: ConnectorHit) => {
-    await addConnectorToFlow(hit, book, chapter);
+    setAddingToFlow(true);
+    try {
+      await addConnectorToFlow(hit, book, chapter);
+    } catch (err) {
+      console.error('[HingesCard] Failed to add connector to Flow:', err);
+    } finally {
+      setAddingToFlow(false);
+    }
   };
 
   return (
     <DiscoveryCard title={`${pluralize(connectors.length, 'hinge')} in this chapter`}>
-      <ToggleSwitch checked={lensActive} onChange={handleToggleLens} label="Show hinges in the text" />
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm text-scripture-text">Show hinges in the text</span>
+        <ToggleSwitch checked={lensActive} onChange={handleToggleLens} label="Show hinges in the text" />
+      </div>
       <div ref={containerRef} className="space-y-1">
         {verses.map(verseNum =>
           (grouped.get(verseNum) ?? []).map(hit => {
             const active = isRowActive(hit);
+            const promptId = `hinge-prompt-${rowKey(hit)}`;
             return (
               <div key={rowKey(hit)} data-hinge-row={rowKey(hit)}>
                 <button
                   type="button"
                   onClick={() => handleRowTap(hit)}
                   aria-expanded={active}
+                  aria-controls={promptId}
                   className="w-full flex items-center gap-2 text-left px-2 py-1.5 rounded hover:bg-scripture-elevated text-sm"
                 >
                   <span className="text-scripture-muted">v.{hit.verse}</span>
                   <span className="text-scripture-text font-medium">&ldquo;{hit.phrase}&rdquo;</span>
-                  <span className="text-xs text-scripture-muted">{hit.category}</span>
+                  <span className="text-xs text-scripture-muted">{capitalize(hit.category)}</span>
                 </button>
                 {active && (
-                  <div className="px-2 pb-2 space-y-2">
+                  <div id={promptId} className="px-2 pb-2 space-y-2">
                     <p className="text-sm text-scripture-text">{promptFor(hit)}</p>
                     {inductiveToolsEnabled && (
-                      <Button variant="primary" size="sm" onClick={() => handleAddToFlow(hit)}>
+                      <Button variant="primary" size="sm" onClick={() => handleAddToFlow(hit)} disabled={addingToFlow}>
                         Add to Flow
                       </Button>
                     )}

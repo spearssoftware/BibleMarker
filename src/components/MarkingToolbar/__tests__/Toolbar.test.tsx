@@ -72,6 +72,11 @@ vi.mock('@/hooks/useDiscoverySummary', () => ({
   useDiscoverySummary: () => ({ hasOpenChallenge }),
 }));
 
+const trackMock = vi.fn();
+vi.mock('@/lib/telemetry', () => ({
+  track: (...args: unknown[]) => trackMock(...args),
+}));
+
 // Mock child components as simple stubs
 vi.mock('../SelectionMenu', () => ({
   SelectionMenu: (props: {
@@ -145,6 +150,7 @@ describe('Toolbar', () => {
     usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
     discoveryEnabled = true;
     hasOpenChallenge = false;
+    trackMock.mockClear();
   });
 
   describe('keyword creation from selection', () => {
@@ -249,25 +255,30 @@ describe('Toolbar', () => {
       expect(screen.queryByLabelText('Discover')).toBeNull();
     });
 
-    it('shows the badge dot only when there is an open challenge', () => {
+    it('shows the badge dot only when there is an open challenge, reflected in the accessible name', () => {
       hasOpenChallenge = false;
       const { rerender } = render(<Toolbar />);
-      expect(screen.queryByText('Something to find')).toBeNull();
+      expect(screen.getByLabelText('Discover')).toBeTruthy();
+      expect(screen.queryByLabelText(/something to find/i)).toBeNull();
 
       hasOpenChallenge = true;
       rerender(<Toolbar />);
-      expect(screen.getByText('Something to find')).toBeTruthy();
+      expect(screen.getByLabelText(/discover.*something to find/i)).toBeTruthy();
     });
 
-    it('toggles the discovery panel and tracks a tap on click', async () => {
+    it('toggles the discovery panel and tracks a tap only when the click opens it', async () => {
       const user = userEvent.setup();
       render(<Toolbar />);
 
-      await user.click(screen.getByLabelText('Discover'));
+      await user.click(screen.getByLabelText(/discover/i));
       expect(usePanelStore.getState().activePanel).toBe('discovery');
+      expect(trackMock).toHaveBeenCalledWith('discovery_chip_tapped');
+      expect(trackMock).toHaveBeenCalledTimes(1);
 
-      await user.click(screen.getByLabelText('Discover'));
+      await user.click(screen.getByLabelText(/discover/i));
       expect(usePanelStore.getState().activePanel).toBeNull();
+      // Closing the panel must not fire another tap event.
+      expect(trackMock).toHaveBeenCalledTimes(1);
     });
   });
 });

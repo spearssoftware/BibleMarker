@@ -156,7 +156,7 @@ Flags are evaluated **server-side** via the `FLAGS` Flagship binding and used tw
 | `auth-otp-enabled` | bool | `true` | Gate OTP sign-in (route + UI) |
 | `sync-http-backend` | bool | `false` | HTTP backend vs iCloud during the Phase 3 migration |
 | `sync-icloud-migration` | bool | `false` | One-shot iCloud drain (Phase 4) |
-| `discovery-enabled` | bool | `true` | Remote kill-switch for the Discover layer (chips + connector lens) |
+| `discovery-enabled` | bool | `true` | Remote kill-switch for the Discover layer (Discover panel, challenges, connector lens) |
 | `discovery-thresholds` | JSON | see `DEFAULT_DISCOVERY_THRESHOLDS` in `flags.ts` | Tunable Discover-layer thresholds (repetition count/word length, connector chip floor) |
 
 **Setup:** create a Flagship app in the Cloudflare dashboard, then paste its

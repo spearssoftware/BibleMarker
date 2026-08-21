@@ -1117,7 +1117,7 @@ export function DataSection() {
               <div className="font-ui font-medium text-scripture-text mb-1">Share anonymous usage data</div>
               <p className="text-xs text-scripture-muted">
                 Off by default. When on, BibleMarker sends a small count of which discovery
-                features you use (for example "chip tapped" or "lens turned on"), plus the app
+                features you use (for example "opened Discover" or "turned on hinges"), plus the app
                 version, platform, and a random per-launch session id. It never includes what
                 you are reading, your markings, notes, or account. You can turn this off at any time.
               </p>

@@ -10,7 +10,7 @@
  */
 
 import { create } from 'zustand';
-import type { ChapterAnalysis, ConnectorHit } from '@/lib/chapterAnalysis';
+import type { ChapterAnalysis, ConnectorHit, RepetitionRung } from '@/lib/chapterAnalysis';
 import type { TextSelection } from '@/stores/annotationStore';
 
 export interface DiscoveryFound {
@@ -37,8 +37,13 @@ interface DiscoveryState {
   found: DiscoveryFound | null;
   /** Preset id after "Highlight it…" / "Mark it as a key word" succeeds. */
   markedPresetId: string | null;
-  /** How many hint-ladder rungs have been revealed; survives panel close/reopen. */
-  revealedHints: number;
+  /**
+   * Which hint-ladder rungs have been revealed so far, in reveal order.
+   * Stored as the rung identifiers themselves (not a count) so a
+   * late-arriving category hint — which changes rung order — can't
+   * rewind or relabel a rung the reader already earned.
+   */
+  revealedRungs: RepetitionRung[];
 
   setAnalysis: (analysis: ChapterAnalysis | null) => void;
   setTranslationMeta: (translationCount: number, primaryTranslationAbbrev: string | null) => void;
@@ -47,7 +52,7 @@ interface DiscoveryState {
   setActivePrompt: (hit: ConnectorHit | null) => void;
   setFound: (found: DiscoveryFound | null) => void;
   setMarkedPresetId: (id: string | null) => void;
-  revealNextHint: () => void;
+  revealRung: (rung: RepetitionRung) => void;
   /** Clears all Discover-layer UI state except analysis/translation meta — called when the chapter changes. */
   resetForChapter: () => void;
 }
@@ -60,7 +65,7 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
   activePrompt: null,
   found: null,
   markedPresetId: null,
-  revealedHints: 0,
+  revealedRungs: [],
 
   setAnalysis: (analysis) => set({ analysis }),
   setTranslationMeta: (translationCount, primaryTranslationAbbrev) =>
@@ -70,13 +75,17 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
   setActivePrompt: (hit) => set({ activePrompt: hit }),
   setFound: (found) => set({ found }),
   setMarkedPresetId: (id) => set({ markedPresetId: id }),
-  revealNextHint: () => set({ revealedHints: get().revealedHints + 1 }),
+  revealRung: (rung) => {
+    const { revealedRungs } = get();
+    if (revealedRungs.includes(rung)) return;
+    set({ revealedRungs: [...revealedRungs, rung] });
+  },
   resetForChapter: () =>
     set({
       lensActive: false,
       activePrompt: null,
       found: null,
       markedPresetId: null,
-      revealedHints: 0,
+      revealedRungs: [],
     }),
 }));

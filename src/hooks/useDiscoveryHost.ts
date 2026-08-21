@@ -3,16 +3,24 @@
  *
  * Owns the Discover-layer state that must keep working while the reader
  * reads even though the Discover panel itself is usually unmounted: the
- * chapter-change reset, publishing analysis/translation meta to the store,
- * the lens auto-off, the repetition "find" confirmation (ported from the
- * old `RepetitionChip`'s confirm effect), and `discovery_chip_shown`
- * telemetry. Call once from `MultiTranslationView`.
+ * chapter-change reset (including clearing a stale text selection so it
+ * can't re-confirm the repetition word after navigating away and back),
+ * publishing analysis/translation meta to the store, the lens auto-off, and
+ * the repetition "find" confirmation (ported from the old `RepetitionChip`'s
+ * confirm effect). On confirm, if the Discover panel isn't open to show the
+ * result, a toast nudges the reader to open it. Call once from
+ * `MultiTranslationView`.
+ *
+ * `discovery_chip_shown` telemetry does NOT live here — it moved to
+ * `DiscoveryPanel` so it fires only when a card is actually rendered rather
+ * than whenever this always-mounted hook sees analysis.
  */
 
 import { useEffect } from 'react';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
-import { useDiscoveryConfig } from '@/lib/discovery-config';
+import { usePanelStore } from '@/stores/panelStore';
+import { useToastStore } from '@/stores/toastStore';
 import { track } from '@/lib/telemetry';
 import { normalizeForMatching } from '@/lib/keywordMatching';
 import { singularize, type ChapterAnalysis } from '@/lib/chapterAnalysis';
@@ -36,7 +44,6 @@ export function useDiscoveryHost({
   primaryTranslationAbbrev,
   enabled,
 }: UseDiscoveryHostOptions): void {
-  const thresholds = useDiscoveryConfig();
   const resetForChapter = useDiscoveryStore(s => s.resetForChapter);
   const setAnalysis = useDiscoveryStore(s => s.setAnalysis);
   const setTranslationMeta = useDiscoveryStore(s => s.setTranslationMeta);
@@ -45,14 +52,18 @@ export function useDiscoveryHost({
   const setFound = useDiscoveryStore(s => s.setFound);
   const selection = useAnnotationStore(s => s.selection);
 
-  // 1. Reset all Discover UI state when the chapter changes. Keyed on the
+  // 1. Reset all Discover UI state when the chapter changes, and clear any
+  // leftover text selection with it — otherwise a selection made just before
+  // navigating away could re-confirm the repetition word for the new
+  // chapter the moment its analysis (coincidentally) matches. Keyed on the
   // bibleStore-sourced values, which change *before* the new chapter's text
   // arrives — useChapterAnalysis's identity guard already returns null for
   // the old chapter by the time this fires, so there's no race with a stale
   // `analysis`. Declared before the publish effect below.
   useEffect(() => {
     resetForChapter();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- resetForChapter is a stable store action
+    useAnnotationStore.getState().clearSelection();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resetForChapter/clearSelection are stable store actions
   }, [currentBook, currentChapter, primaryTranslationId]);
 
   // 2. Publish analysis + translation meta so the panel (usually unmounted)
@@ -73,7 +84,8 @@ export function useDiscoveryHost({
   }, [enabled, setLensActive]);
 
   // 4. Repetition confirm: once the reader selects the exact word themselves
-  // in the primary translation column, mark it found.
+  // in the primary translation column, mark it found. If the Discover panel
+  // isn't open to show the result, nudge the reader toward it with a toast.
   const repetition = analysis?.repetition ?? null;
   const isFound =
     found?.book === currentBook &&
@@ -81,7 +93,7 @@ export function useDiscoveryHost({
     found?.translationId === primaryTranslationId;
 
   useEffect(() => {
-    if (!repetition || isFound || !selection || !primaryTranslationId) return;
+    if (!enabled || !repetition || isFound || !selection || !primaryTranslationId) return;
     if (selection.moduleId !== primaryTranslationId) return;
     if (selection.book !== currentBook || selection.chapter !== currentChapter) return;
     if (selection.startVerse !== selection.endVerse) return;
@@ -94,18 +106,9 @@ export function useDiscoveryHost({
         selection,
       });
       track('discovery_find_confirmed', { feature: 'repetition' });
+      if (usePanelStore.getState().activePanel !== 'discovery') {
+        useToastStore.getState().show('You found it — open Discover to highlight it.', 'info');
+      }
     }
-  }, [selection, repetition, isFound, primaryTranslationId, currentBook, currentChapter, setFound]);
-
-  // 5. `discovery_chip_shown` telemetry, deduped per {book, chapter, translation}
-  // per session — same dedupe keys the old DiscoveryBar used.
-  const hasRepetition = Boolean(analysis?.repetition);
-  const hasConnectorChip = (analysis?.connectors.length ?? 0) >= thresholds.connectorChipMinCount;
-
-  useEffect(() => {
-    if (!enabled || !currentBook || currentChapter == null || !primaryTranslationId) return;
-    const key = `${currentBook}:${currentChapter}:${primaryTranslationId}`;
-    if (hasRepetition) track('discovery_chip_shown', { feature: 'repetition', dedupeKey: `repetition:${key}` });
-    if (hasConnectorChip) track('discovery_chip_shown', { feature: 'connector', dedupeKey: `connector:${key}` });
-  }, [enabled, currentBook, currentChapter, primaryTranslationId, hasRepetition, hasConnectorChip]);
+  }, [enabled, selection, repetition, isFound, primaryTranslationId, currentBook, currentChapter, setFound]);
 }

@@ -308,6 +308,7 @@ export function Toolbar() {
   if (!toolbarVisible) return null;
 
   const settingsPanelActive = activePanel === 'settings';
+  const discoveryActive = activePanel === 'discovery' && !isCollapsed;
 
   return (
     <>
@@ -439,25 +440,25 @@ export function Toolbar() {
               <button
                 data-toolbar-discover
                 onClick={() => {
+                  const willOpen = !discoveryActive;
                   togglePanel('discovery');
-                  track('discovery_chip_tapped');
+                  if (willOpen) track('discovery_chip_tapped');
                 }}
                 className={`relative flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg
                            transition-all duration-200 touch-target
                            border border-scripture-border/30 hover:border-scripture-border/50
-                           ${activePanel === 'discovery' && !isCollapsed
+                           ${discoveryActive
                              ? 'bg-scripture-accent text-scripture-bg shadow-md'
                              : 'hover:bg-scripture-elevated'}`}
-                aria-label="Discover"
+                aria-label={hasOpenChallenge ? 'Discover, something to find' : 'Discover'}
               >
                 {hasOpenChallenge && (
-                  <>
-                    <span
-                      className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-scripture-accent"
-                      aria-hidden="true"
-                    />
-                    <span className="sr-only">Something to find</span>
-                  </>
+                  <span
+                    className={`absolute top-0.5 right-0.5 w-2 h-2 rounded-full ${
+                      discoveryActive ? 'bg-scripture-onAccent' : 'bg-scripture-accent'
+                    }`}
+                    aria-hidden="true"
+                  />
                 )}
                 <span className="text-lg">🧭</span>
                 <span className="text-[10px] font-ui font-medium leading-tight">Discover</span>

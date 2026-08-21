@@ -36,6 +36,9 @@ export interface RepetitionResult {
 
 export type ConnectorCategory = 'contrast' | 'conclusion' | 'condition' | 'purpose' | 'cause';
 
+/** A rung on the Repetition Radar hint ladder, in reveal order. */
+export type RepetitionRung = 'hint' | 'range' | 'first';
+
 export interface ConnectorHit {
   phrase: string;
   category: ConnectorCategory;

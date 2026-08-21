@@ -4,7 +4,7 @@
  * Repetition Radar must never leak `RepetitionResult.token` into the DOM —
  * the hint ladder (count → category hint, skipped when Gnosis has no
  * matching entity → verse range → first-occurrence verse) is deliberately
- * Socratic. Hints are store-backed (`discoveryStore.revealedHints`) so they
+ * Socratic. Hints are store-backed (`discoveryStore.revealedRungs`) so they
  * persist across the card unmounting/remounting (panel close/reopen).
  */
 
@@ -63,7 +63,7 @@ describe('RepetitionCard', () => {
   beforeEach(() => {
     useDiscoveryStore.setState({
       found: null,
-      revealedHints: 0,
+      revealedRungs: [],
       markedPresetId: null,
     });
     usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
@@ -120,19 +120,31 @@ describe('RepetitionCard', () => {
     expect(screen.getByText('Look between v.2 and v.9.')).toBeTruthy();
   });
 
-  it('renders the found state from a seeded found.selection, never rendering the token', () => {
+  it('renders the found state from a seeded found.selection, keeping the card title and never leaking the analysis token', () => {
+    // The selected text deliberately shares no substring with the token
+    // ("zephyr") so the "not leaking the token" assertion below is actually
+    // meaningful — a selection like "Zephyrs" would trivially contain the
+    // token itself and couldn't tell a leak apart from the expected text.
     useDiscoveryStore.setState({
       found: {
         book: 'John',
         chapter: 1,
         translationId: 'sword-NASB',
-        selection: { moduleId: 'sword-NASB', book: 'John', chapter: 1, startVerse: 3, endVerse: 3, text: 'Zephyrs' },
+        selection: { moduleId: 'sword-NASB', book: 'John', chapter: 1, startVerse: 3, endVerse: 3, text: 'Gale' },
       },
     });
 
-    renderCard();
-    expect(screen.getByText('Zephyrs')).toBeTruthy();
+    const { container } = renderCard();
+    expect(screen.getByText('One word appears 7× in this chapter')).toBeTruthy();
+    expect(screen.getByText('Gale')).toBeTruthy();
     expect(screen.getByText('Highlight it in this chapter')).toBeTruthy();
+    expect(screen.queryByText('You found it', { exact: false })).toBeTruthy();
+    expect(container.innerHTML.toLowerCase()).not.toContain('zephyr');
+  });
+
+  it('shows the translation suffix when there is more than one translation column', () => {
+    renderCard({ translationCount: 2, primaryTranslationAbbrev: 'NASB' });
+    expect(screen.getByText('One word appears 7× in this chapter (NASB)')).toBeTruthy();
   });
 
   it('shows "Mark it as a key word" with the toolkit on and marks then disables the button', async () => {
