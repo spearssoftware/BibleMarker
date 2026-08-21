@@ -156,11 +156,13 @@ Flags are evaluated **server-side** via the `FLAGS` Flagship binding and used tw
 | `auth-otp-enabled` | bool | `true` | Gate OTP sign-in (route + UI) |
 | `sync-http-backend` | bool | `false` | HTTP backend vs iCloud during the Phase 3 migration |
 | `sync-icloud-migration` | bool | `false` | One-shot iCloud drain (Phase 4) |
+| `discovery-enabled` | bool | `true` | Remote kill-switch for the Discover layer (chips + connector lens) |
+| `discovery-thresholds` | JSON | see `DEFAULT_DISCOVERY_THRESHOLDS` in `flags.ts` | Tunable Discover-layer thresholds (repetition count/word length, connector chip floor) |
 
 **Setup:** create a Flagship app in the Cloudflare dashboard, then paste its
 `app_id` into `wrangler.toml` (both the top-level `[[flagship]]` block and
 `[[env.production.flagship]]`), replacing `REPLACE_WITH_FLAGSHIP_APP_ID`. Define
-the four flags above in the dashboard. `wrangler dev` may require a real
+the six flags above in the dashboard. `wrangler dev` may require a real
 `app_id`; the vitest suite mocks the binding, so tests don't need one. Re-run
 `npx wrangler types` after editing the binding.
 

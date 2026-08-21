@@ -12,14 +12,18 @@
 import { create } from 'zustand';
 import {
   DEFAULT_FLAGS,
+  DEFAULT_CONFIG,
   readCachedFlags,
+  readCachedConfig,
   fetchRemoteFlags,
   type FlagKey,
   type RemoteFlags,
+  type RemoteConfig,
 } from '@/lib/feature-flags';
 
 interface FeatureFlagsState {
   flags: RemoteFlags;
+  config: RemoteConfig;
   isLoaded: boolean;
   loadFlags: () => Promise<void>;
   isEnabled: (key: FlagKey) => boolean;
@@ -27,15 +31,17 @@ interface FeatureFlagsState {
 
 export const useFeatureFlagsStore = create<FeatureFlagsState>()((set, get) => ({
   flags: { ...DEFAULT_FLAGS },
+  config: DEFAULT_CONFIG,
   isLoaded: false,
 
   loadFlags: async () => {
     try {
       const cached = await readCachedFlags();
       if (cached) set({ flags: cached });
+      set({ config: await readCachedConfig() });
 
       const remote = await fetchRemoteFlags();
-      if (remote) set({ flags: remote });
+      if (remote) set({ flags: remote.flags, config: remote.config });
     } finally {
       set({ isLoaded: true });
     }

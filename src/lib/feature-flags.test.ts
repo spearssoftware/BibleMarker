@@ -17,9 +17,13 @@ vi.mock('./platform', () => ({
 import {
   FLAG_KEYS,
   DEFAULT_FLAGS,
+  CONFIG_KEYS,
+  DEFAULT_CONFIG,
   readCachedFlags,
+  readCachedConfig,
   isFlagEnabled,
   fetchRemoteFlags,
+  normalizeConfig,
 } from './feature-flags';
 import { getSyncConfig, setSyncConfig, getDeviceId } from './sqlite-db';
 
@@ -33,8 +37,8 @@ beforeEach(() => {
   mockGetDeviceId.mockReturnValue('device-xyz');
 });
 
-function cached(flags: Record<string, unknown>): string {
-  return JSON.stringify({ flags, evaluatedAt: 'x', cachedAt: 'y' });
+function cached(flags: Record<string, unknown>, config?: Record<string, unknown>): string {
+  return JSON.stringify({ flags, config, evaluatedAt: 'x', cachedAt: 'y' });
 }
 
 describe('readCachedFlags', () => {
@@ -64,6 +68,50 @@ describe('readCachedFlags', () => {
   });
 });
 
+describe('readCachedConfig', () => {
+  it('returns normalized config from the cache', async () => {
+    const valid = { repetitionMinCount: 7, repetitionMinWordLength: 3, connectorChipMinCount: 2 };
+    mockGetSyncConfig.mockResolvedValue(cached({}, { [CONFIG_KEYS.discoveryThresholds]: valid }));
+    expect(await readCachedConfig()).toEqual({ discoveryThresholds: valid });
+  });
+
+  it('returns defaults when no cache exists', async () => {
+    mockGetSyncConfig.mockResolvedValue(null);
+    expect(await readCachedConfig()).toEqual(DEFAULT_CONFIG);
+  });
+
+  it('returns defaults for an old snapshot with no config field', async () => {
+    mockGetSyncConfig.mockResolvedValue(cached({ [FLAG_KEYS.syncEnabled]: false }));
+    expect(await readCachedConfig()).toEqual(DEFAULT_CONFIG);
+  });
+
+  it('returns defaults on corrupt JSON', async () => {
+    mockGetSyncConfig.mockResolvedValue('{not json');
+    expect(await readCachedConfig()).toEqual(DEFAULT_CONFIG);
+  });
+});
+
+describe('normalizeConfig', () => {
+  it('clamps non-integer and out-of-range fields to defaults', () => {
+    expect(
+      normalizeConfig({
+        [CONFIG_KEYS.discoveryThresholds]: { repetitionMinCount: 'x', repetitionMinWordLength: 99 },
+      })
+    ).toEqual(DEFAULT_CONFIG);
+  });
+
+  it('keeps valid in-range integers as-is', () => {
+    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 6, connectorChipMinCount: 2 };
+    expect(normalizeConfig({ [CONFIG_KEYS.discoveryThresholds]: valid })).toEqual({ discoveryThresholds: valid });
+  });
+
+  it('defaults entirely for missing/malformed input', () => {
+    expect(normalizeConfig(undefined)).toEqual(DEFAULT_CONFIG);
+    expect(normalizeConfig(null)).toEqual(DEFAULT_CONFIG);
+    expect(normalizeConfig([])).toEqual(DEFAULT_CONFIG);
+  });
+});
+
 describe('isFlagEnabled', () => {
   it('reflects the cached value', async () => {
     mockGetSyncConfig.mockResolvedValue(cached({ [FLAG_KEYS.syncEnabled]: false }));
@@ -90,8 +138,9 @@ describe('fetchRemoteFlags', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const flags = await fetchRemoteFlags();
-    expect(flags![FLAG_KEYS.syncEnabled]).toBe(false);
+    const result = await fetchRemoteFlags();
+    expect(result!.flags[FLAG_KEYS.syncEnabled]).toBe(false);
+    expect(result!.config).toEqual(DEFAULT_CONFIG); // response omitted config
     expect(mockSetSyncConfig).toHaveBeenCalledOnce();
 
     // Sends the context headers the worker targets on.
@@ -99,6 +148,19 @@ describe('fetchRemoteFlags', () => {
     expect(headers['X-Client-Version']).toBe('9.9.9');
     expect(headers['X-Client-Platform']).toBe('macos');
     expect(headers['X-Device-Id']).toBe('device-xyz');
+  });
+
+  it('returns the worker-supplied config when present', async () => {
+    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 6, connectorChipMinCount: 2 };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ flags: {}, config: { [CONFIG_KEYS.discoveryThresholds]: valid } }),
+      })
+    );
+    const result = await fetchRemoteFlags();
+    expect(result!.config).toEqual({ discoveryThresholds: valid });
   });
 
   it('returns null and does not cache on a non-2xx response', async () => {

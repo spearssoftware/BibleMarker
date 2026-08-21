@@ -28,6 +28,8 @@ export const FLAG_KEYS = {
   httpBackend: 'sync-http-backend',
   /** Enable the one-shot iCloud drain (Phase 4). */
   icloudMigration: 'sync-icloud-migration',
+  /** Remote kill-switch for the Discover layer (chips + connector lens). */
+  discoveryEnabled: 'discovery-enabled',
 } as const;
 
 /** Safe defaults used when a flag is undefined or the binding is unreachable. */
@@ -36,10 +38,42 @@ export const FLAG_DEFAULTS: Record<string, boolean> = {
   [FLAG_KEYS.otpEnabled]: true,
   [FLAG_KEYS.httpBackend]: false,
   [FLAG_KEYS.icloudMigration]: false,
+  [FLAG_KEYS.discoveryEnabled]: true,
 };
 
 /** The flag subset shipped to clients via `GET /config` — currently all of them. */
 const CLIENT_FLAG_KEYS = Object.values(FLAG_KEYS);
+
+/**
+ * Logical JSON config keys, mirrored exactly in the Flagship dashboard.
+ * Unlike `FLAG_KEYS` these are Flagship "object" flags — a whole tunable
+ * struct evaluated with one binding call so edits stay atomic.
+ */
+export const CONFIG_KEYS = {
+  /** Tunable Discover-layer thresholds (repetition count, connector chip floor). */
+  discoveryThresholds: 'discovery-thresholds',
+} as const;
+
+/**
+ * Thresholds that tune the Discover layer's chip logic. Mirrored by hand on
+ * the client (`src/lib/chapterAnalysis/types.ts`) — this worker has no
+ * dependency on client source, so the shape/defaults are duplicated
+ * deliberately, the same way `FLAG_KEYS` is mirrored.
+ */
+export interface DiscoveryThresholds {
+  /** Minimum occurrence count for a word to surface the Repetition Radar chip. */
+  repetitionMinCount: number;
+  /** Minimum normalized word length considered for repetition. */
+  repetitionMinWordLength: number;
+  /** Minimum connector-hit count for the Connector Lens chip to show. */
+  connectorChipMinCount: number;
+}
+
+export const DEFAULT_DISCOVERY_THRESHOLDS: DiscoveryThresholds = {
+  repetitionMinCount: 5,
+  repetitionMinWordLength: 4,
+  connectorChipMinCount: 1,
+};
 
 /**
  * Evaluation context passed to Flagship. `targetingKey` drives consistent-hash
@@ -59,6 +93,7 @@ export interface FlagContext {
 
 export interface ClientConfig {
   flags: Record<string, boolean>;
+  config: { [CONFIG_KEYS.discoveryThresholds]: DiscoveryThresholds };
   evaluatedAt: string;
 }
 
@@ -117,6 +152,38 @@ async function getBool(env: Env, key: string, def: boolean, ctx: FlagContext): P
 }
 
 /**
+ * Same fail-open contract as `getBool`, for JSON "object" flags. A rejected
+ * binding call (or a provider outage) falls back to `def` rather than a
+ * hard 500 on `/config`.
+ */
+async function getObject<T extends object>(env: Env, key: string, def: T, ctx: FlagContext): Promise<T> {
+  try {
+    return await env.FLAGS.getObjectValue(key, def, ctx);
+  } catch (err) {
+    console.error(`[flags] evaluation failed for "${key}", using default`, err);
+    return def;
+  }
+}
+
+/**
+ * Coerces raw Flagship JSON into safe `DiscoveryThresholds`, field by field.
+ * Any field that isn't a finite integer in `[1, 50]` falls back to `defaults`
+ * — a malformed dashboard edit degrades to safe values, never a broken chip.
+ */
+export function sanitizeThresholds(raw: unknown, defaults: DiscoveryThresholds): DiscoveryThresholds {
+  const source = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const field = (value: unknown, fallback: number): number =>
+    typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 1 && value <= 50
+      ? value
+      : fallback;
+  return {
+    repetitionMinCount: field(source.repetitionMinCount, defaults.repetitionMinCount),
+    repetitionMinWordLength: field(source.repetitionMinWordLength, defaults.repetitionMinWordLength),
+    connectorChipMinCount: field(source.connectorChipMinCount, defaults.connectorChipMinCount),
+  };
+}
+
+/**
  * Sync kill-switch, keyed on the verified account (the authoritative check
  * enforced on `/sync/*`). Defaults on if the binding is unreachable.
  */
@@ -129,15 +196,22 @@ export function isOtpEnabled(env: Env): Promise<boolean> {
   return getBool(env, FLAG_KEYS.otpEnabled, true, globalContext());
 }
 
-/** Evaluate the client-facing flag subset into a snapshot for `GET /config`. */
+/** Evaluate the client-facing flag subset + tunable config into a `GET /config` snapshot. */
 export async function buildClientConfig(env: Env, ctx: FlagContext): Promise<ClientConfig> {
   // Fire all evaluations concurrently — each is an independent binding read.
-  const entries = await Promise.all(
-    CLIENT_FLAG_KEYS.map((key) =>
-      getBool(env, key, FLAG_DEFAULTS[key], ctx).then((value) => [key, value] as const)
-    )
-  );
-  return { flags: Object.fromEntries(entries), evaluatedAt: new Date().toISOString() };
+  const [entries, rawThresholds] = await Promise.all([
+    Promise.all(
+      CLIENT_FLAG_KEYS.map((key) =>
+        getBool(env, key, FLAG_DEFAULTS[key], ctx).then((value) => [key, value] as const)
+      )
+    ),
+    getObject(env, CONFIG_KEYS.discoveryThresholds, DEFAULT_DISCOVERY_THRESHOLDS, ctx),
+  ]);
+  return {
+    flags: Object.fromEntries(entries),
+    config: { [CONFIG_KEYS.discoveryThresholds]: sanitizeThresholds(rawThresholds, DEFAULT_DISCOVERY_THRESHOLDS) },
+    evaluatedAt: new Date().toISOString(),
+  };
 }
 
 /**

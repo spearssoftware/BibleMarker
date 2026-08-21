@@ -273,7 +273,7 @@ export function asDb(mock: MemoryD1): D1Database {
 export class MemoryFlags {
   private readonly contexts: unknown[] = [];
 
-  constructor(private readonly values: Record<string, boolean> = {}) {}
+  constructor(private readonly values: Record<string, unknown> = {}) {}
 
   /** Context of the most recent evaluation (for assertions). */
   get lastContext(): unknown {
@@ -282,7 +282,17 @@ export class MemoryFlags {
 
   async getBooleanValue(key: string, def: boolean, ctx: object): Promise<boolean> {
     this.contexts.push(ctx);
-    return key in this.values ? this.values[key] : def;
+    return key in this.values ? (this.values[key] as boolean) : def;
+  }
+
+  async getNumberValue(key: string, def: number, ctx: object): Promise<number> {
+    this.contexts.push(ctx);
+    return key in this.values ? (this.values[key] as number) : def;
+  }
+
+  async getObjectValue<T extends object>(key: string, def: T, ctx: object): Promise<T> {
+    this.contexts.push(ctx);
+    return key in this.values ? (this.values[key] as T) : def;
   }
 }
 
