@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { track } from '@/lib/telemetry';
 import { Button, ToolbarPopover } from '@/components/shared';
 import { useAnnotationStore, type TextSelection } from '@/stores/annotationStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
@@ -74,6 +75,7 @@ export function RepetitionChip({
       // three updates below all fire together as one atomic "confirmed" state,
       // not a chain of derived renders.
       setFound({ book, chapter, translationId });
+      track('discovery_find_confirmed', { feature: 'repetition' });
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setConfirmedSelection(selection);
       setPopoverOpen(false);
@@ -108,6 +110,7 @@ export function RepetitionChip({
 
   const handleChipClick = () => {
     if (!popoverOpen) {
+      track('discovery_chip_tapped', { feature: 'repetition' });
       setPopoverOpen(true);
       setRung(0);
     } else {

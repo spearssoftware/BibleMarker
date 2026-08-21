@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { track } from '@/lib/telemetry';
 import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { useDiscoveryEnabled, useDiscoveryConfig } from '@/lib/discovery-config';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
@@ -44,6 +45,20 @@ export function DiscoveryBar({ analysis, translationCount, primaryTranslationNam
     // eslint-disable-next-line react-hooks/exhaustive-deps -- resetForChapter is a stable store action
   }, [book, chapter, translationId]);
 
+  const hasRepetition = Boolean(analysis?.repetition);
+  const hasConnectorChip = (analysis?.connectors.length ?? 0) >= thresholds.connectorChipMinCount;
+  useEffect(() => {
+    if (!enabled || !book || chapter === null || !translationId) return;
+    const key = `${book}:${chapter}:${translationId}`;
+    if (hasRepetition) track('discovery_chip_shown', { feature: 'repetition', dedupeKey: `repetition:${key}` });
+    if (hasConnectorChip) track('discovery_chip_shown', { feature: 'connector', dedupeKey: `connector:${key}` });
+  }, [enabled, book, chapter, translationId, hasRepetition, hasConnectorChip]);
+
+  const handleToggleLens = () => {
+    track('lens_toggled', { feature: 'connector' });
+    toggleLens();
+  };
+
   if (!enabled || !analysis || !book || chapter === null || !translationId) return null;
 
   return (
@@ -61,7 +76,7 @@ export function DiscoveryBar({ analysis, translationCount, primaryTranslationNam
         count={analysis.connectors.length}
         minCount={thresholds.connectorChipMinCount}
         active={lensActive}
-        onToggle={toggleLens}
+        onToggle={handleToggleLens}
       />
       <EntityChips book={book} chapter={chapter} />
       {activePrompt && (

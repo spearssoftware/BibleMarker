@@ -181,6 +181,53 @@ Settings → About (Device ID → Copy).
 > HTTP backend; current iCloud-file sync users are gated by the client-reflected
 > `sync-enabled` flag instead.
 
+### Telemetry (`POST /events`)
+
+Opt-in, anonymous usage counters for the Discover layer (Repetition Radar,
+Connector Lens, entity chips). Off by default — the client (`src/lib/telemetry.ts`)
+only sends anything once the user flips "Share anonymous usage data" on in
+Settings → Data. Written to the `EVENTS` Cloudflare Analytics Engine dataset
+(3-month retention, SQL-queryable), bound in `wrangler.toml` as
+`biblemarker_events`.
+
+**Privacy:** the payload is an allowlisted event `name`, an optional `feature`
+tag (`repetition` / `connector` / `entity`), and batch-level `appVersion`,
+`platform`, and an in-memory-only `sessionId` (never persisted, regenerated
+every launch). It never includes book/chapter/verse/word, account id, or
+device id — `handleEvents` (`src/events.ts`) rejects anything outside this
+shape with a `400` for the whole batch.
+
+**Request shape:**
+
+```json
+{
+  "events": [{ "name": "discovery_chip_shown", "feature": "repetition" }],
+  "appVersion": "3.1.3",
+  "platform": "ios",
+  "sessionId": "b3f1..."
+}
+```
+
+`name` is one of `discovery_chip_shown`, `discovery_chip_tapped`,
+`discovery_find_confirmed`, `lens_toggled`. 1–50 events per request; requests
+over 8 KB get a `413`. Rate-limited per IP at 20/60s (`EVENTS_LIMITER`) — the
+same posture as `/config`. `OPTIONS` answers the CORS preflight with `204`;
+any non-`POST` method is `405`; a valid batch is accepted with `202 { accepted: n }`
+and `Cache-Control: no-store`. The `EVENTS` binding is optional-chained, so a
+missing dataset (e.g. under `wrangler dev` before it's configured) degrades to
+"accepted, nothing written" rather than a `500`.
+
+**Deploy note:** the Analytics Engine dataset shows up on the Cloudflare
+dashboard only after its first write — don't expect to see `biblemarker_events`
+listed until a real opted-in event lands.
+
+**Querying (Account Analytics Read token, SQL API `POST /accounts/<id>/analytics_engine/sql`):**
+
+```sql
+SELECT blob1 AS event, blob2 AS feature, blob3 AS version, SUM(_sample_interval) AS count, COUNT(DISTINCT blob6) AS sessions
+FROM biblemarker_events WHERE timestamp > NOW() - INTERVAL '7' DAY GROUP BY event, feature, version ORDER BY count DESC
+```
+
 ### One-time setup for sync
 
 ```bash

@@ -8,6 +8,7 @@
  */
 
 import { Button } from '@/components/shared';
+import { track } from '@/lib/telemetry';
 import { usePanelStore } from '@/stores/panelStore';
 import { useChapterEntities } from '@/hooks/useGnosis';
 
@@ -35,7 +36,10 @@ export function EntityChips({ book, chapter }: EntityChipsProps) {
       variant="secondary"
       size="sm"
       className="rounded-full"
-      onClick={() => openPanel('reference', { referenceInitialTab: 'chapter' })}
+      onClick={() => {
+        track('discovery_chip_tapped', { feature: 'entity' });
+        openPanel('reference', { referenceInitialTab: 'chapter' });
+      }}
     >
       {parts.join(' · ')}
     </Button>

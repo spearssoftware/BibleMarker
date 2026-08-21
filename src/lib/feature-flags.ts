@@ -70,8 +70,8 @@ interface CachedConfig {
   cachedAt: string;
 }
 
-/** Coarse OS tag for dashboard targeting rules (advisory only). */
-function platformTag(): string {
+/** Coarse OS tag for dashboard targeting rules (advisory only). Reused by telemetry.ts. */
+export function platformTag(): string {
   if (isIOS()) return 'ios';
   if (isAndroid()) return 'android';
   if (isMacOS()) return 'macos';

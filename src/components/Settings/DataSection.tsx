@@ -24,7 +24,7 @@ import {
   getBackupLocation,
   type StoredBackup,
 } from '@/lib/autoBackup';
-import { Button, ConfirmationDialog, Input } from '@/components/shared';
+import { Button, ConfirmationDialog, Input, ToggleSwitch } from '@/components/shared';
 import { BASE_INPUT_CLASSES } from '@/components/shared/Form';
 import { resetAllStores } from '@/lib/storeReset';
 import {
@@ -41,6 +41,7 @@ import { getSignedInAccount, isSyncError } from '@/lib/sync-account';
 import { isNetworkError, getNetworkErrorMessage } from '@/lib/offline';
 import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
 import { FLAG_KEYS } from '@/lib/feature-flags';
+import { usePreferencesStore } from '@/stores/preferencesStore';
 
 const PRIVACY_URL = 'https://biblemarker.app/privacy/';
 
@@ -95,6 +96,8 @@ export function DataSection() {
   // OTP sign-in can be independently killed server-side; already-signed-in
   // users are unaffected (the gate only hides the new sign-in form).
   const isOtpEnabled = useFeatureFlagsStore(s => s.isEnabled(FLAG_KEYS.otpEnabled));
+  const telemetryEnabled = usePreferencesStore(s => s.telemetryEnabled);
+  const setTelemetryEnabled = usePreferencesStore(s => s.setTelemetryEnabled);
   const [signedInAccount, setSignedInAccount] = useState<string | null>(null);
   const [signInStep, setSignInStep] = useState<'email' | 'code'>('email');
   const [signInEmail, setSignInEmail] = useState('');
@@ -1101,6 +1104,29 @@ export function DataSection() {
                 Remove all annotations, notes, and cached Bible text from this device
               </p>
             </div>
+          </div>
+        </div>
+
+        <div className="border-t border-scripture-border/30 my-4"></div>
+
+        {/* Privacy Section */}
+        <div className="p-4">
+          <h3 className="text-base font-ui font-semibold text-scripture-text mb-1">Privacy</h3>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <div className="font-ui font-medium text-scripture-text mb-1">Share anonymous usage data</div>
+              <p className="text-xs text-scripture-muted">
+                Off by default. When on, BibleMarker sends a small count of which discovery
+                features you use (for example "chip tapped" or "lens turned on"), plus the app
+                version and platform. It never includes what you are reading, your markings,
+                notes, or account. You can turn this off at any time.
+              </p>
+            </div>
+            <ToggleSwitch
+              checked={telemetryEnabled}
+              onChange={setTelemetryEnabled}
+              label="Toggle sharing anonymous usage data"
+            />
           </div>
         </div>
       </div>

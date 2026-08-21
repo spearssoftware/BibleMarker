@@ -15,10 +15,12 @@ import { sha256Hex } from './auth';
 import type { Session } from './auth';
 import type { Env } from './env';
 import {
+  MemoryAnalytics,
   MemoryD1,
   MemoryFlags,
   MemoryR2,
   MemoryRateLimiter,
+  asAnalytics,
   asBucket,
   asDb,
   asFlags,
@@ -32,6 +34,8 @@ function envWith(flags: MemoryFlags, d1: MemoryD1 = new MemoryD1()): Env {
     CONFIG_LIMITER: new MemoryRateLimiter(),
     MODULES_LIMITER: new MemoryRateLimiter(),
     SYNC_LIMITER: new MemoryRateLimiter(),
+    EVENTS_LIMITER: new MemoryRateLimiter(),
+    EVENTS: asAnalytics(new MemoryAnalytics()),
   } as unknown as Env;
 }
 
@@ -216,6 +220,26 @@ describe('GET /config dispatch', () => {
     const res = await worker.fetch(req('/config', { 'X-Device-Id': 'device-1' }), env);
     expect(res.status).toBe(429);
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
+});
+
+describe('POST /events dispatch', () => {
+  it('routes to handleEvents and accepts a valid opt-in telemetry batch', async () => {
+    const env = envWith(new MemoryFlags());
+    const res = await worker.fetch(
+      new Request('https://biblemarker.app/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          events: [{ name: 'lens_toggled' }],
+          appVersion: '3.1.3',
+          platform: 'ios',
+        }),
+      }),
+      env
+    );
+    expect(res.status).toBe(202);
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
   });
 });
 

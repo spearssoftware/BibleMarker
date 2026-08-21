@@ -44,6 +44,7 @@ import { isCapacitor } from '@/lib/platform';
 import { UpdateBanner, WhatsNewModal, ToolkitRestoredBanner } from '@/components/shared';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { maybeEnableInductiveTools } from '@/lib/toolkitMigration';
+import { initTelemetry, shutdownTelemetry } from '@/lib/telemetry';
 
 function GlobalUndoToast() {
   const { message, onUndo, dismiss } = useUndoToastStore();
@@ -157,6 +158,7 @@ export default function App() {
       loadLists();
       getDebugFlags();
       autoBackupService.start();
+      initTelemetry();
 
       // Fetch remote feature flags first, then start sync. initSyncEngine()
       // reads flag values from the SQLite cache, so the remote fetch must
@@ -187,6 +189,7 @@ export default function App() {
       clearTimeout(id);
       autoBackupService.stop();
       shutdownSync().catch(() => {});
+      shutdownTelemetry().catch(() => {});
     };
   }, [loadStudies, loadLists]);
 

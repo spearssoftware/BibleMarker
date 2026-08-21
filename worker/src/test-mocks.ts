@@ -324,3 +324,21 @@ export class MemoryRateLimiter {
     return { success: true };
   }
 }
+
+/**
+ * In-memory stand-in for the Analytics Engine binding (`EVENTS`). Records
+ * every point written so tests can assert index/blob/double shape without a
+ * real dataset.
+ */
+export class MemoryAnalytics {
+  readonly points: { indexes?: string[]; blobs?: string[]; doubles?: number[] }[] = [];
+
+  writeDataPoint(point: { indexes?: string[]; blobs?: string[]; doubles?: number[] }): void {
+    this.points.push(point);
+  }
+}
+
+/** Cast a MemoryAnalytics to the AnalyticsEngineDataset type the handlers expect. */
+export function asAnalytics(mock: MemoryAnalytics): AnalyticsEngineDataset {
+  return mock as unknown as AnalyticsEngineDataset;
+}
