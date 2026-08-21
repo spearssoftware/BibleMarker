@@ -29,7 +29,7 @@ vi.mock('@/stores/studyStore', () => ({
 const TOUR_TARGET_ATTRS = [
   'data-nav-bar',
   'data-bible-reader',
-  'data-discovery-bar',
+  'data-toolbar-discover',
   'data-marking-toolbar',
   'data-toolbar-keywords',
   'data-toolbar-observe',

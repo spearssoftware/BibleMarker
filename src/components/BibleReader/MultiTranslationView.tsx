@@ -34,7 +34,8 @@ import { usePanelStore } from '@/stores/panelStore';
 import { useTextSelection, type TranslationChapter } from '@/hooks/useTextSelection';
 import { useChapterAnalysis } from '@/hooks/useChapterAnalysis';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
-import { DiscoveryBar } from '@/components/Discovery';
+import { useDiscoveryHost } from '@/hooks/useDiscoveryHost';
+import { useDiscoveryEnabled } from '@/lib/discovery-config';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import type { Annotation, Chapter, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
 
@@ -79,13 +80,33 @@ export function MultiTranslationView() {
   const { activeStudyId } = useStudyStore();
 
   // Discover layer: chapter analysis for the primary translation, the
-  // Connector Lens toggle, and the tap handler that opens its micro-prompt.
+  // Connector Lens toggle, and the tap handler that opens the Discover panel
+  // focused on the tapped connector. `useDiscoveryHost` owns the rest of the
+  // Discover-layer state (chapter reset, publish, confirm, telemetry) so it
+  // keeps working while the reader reads even though the panel is usually
+  // unmounted.
   const analysis = useChapterAnalysis(currentBook, currentChapter, primaryTranslationId);
+  const discoveryEnabled = useDiscoveryEnabled();
   const lensActive = useDiscoveryStore(s => s.lensActive);
   const setActivePrompt = useDiscoveryStore(s => s.setActivePrompt);
   const handleConnectorTap = useCallback((hit: ConnectorHit) => {
     setActivePrompt(hit);
+    usePanelStore.getState().openPanel('discovery');
   }, [setActivePrompt]);
+  const translationCount = translationChapters.size;
+  const primaryTranslationAbbrev = primaryTranslationId
+    ? translationChapters.get(primaryTranslationId)?.translation.abbreviation ?? null
+    : null;
+
+  useDiscoveryHost({
+    currentBook,
+    currentChapter,
+    primaryTranslationId,
+    analysis,
+    translationCount,
+    primaryTranslationAbbrev,
+    enabled: discoveryEnabled,
+  });
 
   // Build preset map for annotation filtering
   const presetMap = useMemo(
@@ -509,9 +530,6 @@ export function MultiTranslationView() {
 
   const translationList = Array.from(translationChapters.values());
   const bookInfo = getBookById(currentBook);
-  const primaryTranslationName = translationList.find(
-    ({ translation }) => translation.id === primaryTranslationId
-  )?.translation.name;
 
   // Close pickers when clicking on verse text (but allow text selection)
   const handleClick = (e: React.MouseEvent) => {
@@ -593,13 +611,6 @@ export function MultiTranslationView() {
           </button>
         </div>
       )}
-
-      {/* Discovery chip slot — stable insertion point for discovery-layer features */}
-      <DiscoveryBar
-        analysis={analysis}
-        translationCount={translationList.length}
-        primaryTranslationName={primaryTranslationName}
-      />
 
       {/* Translation headers - sticky */}
       <div

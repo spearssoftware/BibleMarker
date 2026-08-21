@@ -5,7 +5,7 @@ import type { ObservationTab } from '@/components/Observation';
 import type { AnalyzeTab } from '@/components/Analyze';
 import type { SettingsTab } from '@/components/Settings';
 
-export type PanelType = 'keywords' | 'observe' | 'analyze' | 'reference' | 'settings';
+export type PanelType = 'keywords' | 'observe' | 'analyze' | 'reference' | 'settings' | 'discovery';
 
 export type ReferenceTab = 'chapter' | 'search' | 'cross-refs' | 'original-lang' | 'strongs';
 

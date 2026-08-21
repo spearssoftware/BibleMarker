@@ -18,6 +18,9 @@ import { usePanelStore } from '@/stores/panelStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
 import { usePreferencesStore, useInductiveToolsVisible } from '@/stores/preferencesStore';
+import { useDiscoveryEnabled } from '@/lib/discovery-config';
+import { useDiscoverySummary } from '@/hooks/useDiscoverySummary';
+import { track } from '@/lib/telemetry';
 import { deleteAnnotation } from '@/lib/database';
 import { getAllTranslations } from '@/lib/bible-api';
 import type { MarkingPreset, Verse } from '@/types';
@@ -55,6 +58,8 @@ export function Toolbar() {
   const chaptersByTranslation = useMultiTranslationStore(s => s.chaptersByTranslation);
   const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
   const inductiveToolsVisible = useInductiveToolsVisible();
+  const discoveryEnabled = useDiscoveryEnabled();
+  const { hasOpenChallenge } = useDiscoverySummary();
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
 
   // "Enable inductive tools" gates the tool tabs (Key Words/Observe/Analyze/
@@ -430,6 +435,34 @@ export function Toolbar() {
         <div className="bg-scripture-surface/80 backdrop-blur-md border-t border-scripture-border/30"
              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
+            {discoveryEnabled && (
+              <button
+                data-toolbar-discover
+                onClick={() => {
+                  togglePanel('discovery');
+                  track('discovery_chip_tapped');
+                }}
+                className={`relative flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg
+                           transition-all duration-200 touch-target
+                           border border-scripture-border/30 hover:border-scripture-border/50
+                           ${activePanel === 'discovery' && !isCollapsed
+                             ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                             : 'hover:bg-scripture-elevated'}`}
+                aria-label="Discover"
+              >
+                {hasOpenChallenge && (
+                  <>
+                    <span
+                      className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-scripture-accent"
+                      aria-hidden="true"
+                    />
+                    <span className="sr-only">Something to find</span>
+                  </>
+                )}
+                <span className="text-lg">🧭</span>
+                <span className="text-[10px] font-ui font-medium leading-tight">Discover</span>
+              </button>
+            )}
             {visibleTools.map((tool) => {
               const isActive = activePanel === tool.type && !isCollapsed;
               const dataAttr = tool.type === 'keywords' ? 'data-toolbar-keywords'

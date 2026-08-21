@@ -62,6 +62,16 @@ vi.mock('@/stores/placeStore', () => ({
   usePlaceStore: () => ({ places: [], loadPlaces: vi.fn() }),
 }));
 
+let discoveryEnabled = true;
+vi.mock('@/lib/discovery-config', () => ({
+  useDiscoveryEnabled: () => discoveryEnabled,
+}));
+
+let hasOpenChallenge = false;
+vi.mock('@/hooks/useDiscoverySummary', () => ({
+  useDiscoverySummary: () => ({ hasOpenChallenge }),
+}));
+
 // Mock child components as simple stubs
 vi.mock('../SelectionMenu', () => ({
   SelectionMenu: (props: {
@@ -133,6 +143,8 @@ describe('Toolbar', () => {
     // Default to tools enabled (and hydrated) so existing keyword-flow tests
     // keep working; gating itself is covered by the "tool tabs" suite below.
     usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
+    discoveryEnabled = true;
+    hasOpenChallenge = false;
   });
 
   describe('keyword creation from selection', () => {
@@ -214,6 +226,48 @@ describe('Toolbar', () => {
       expect(screen.queryByLabelText('Analyze')).toBeNull();
       expect(screen.queryByLabelText('Study Tools')).toBeNull();
       expect(screen.getByLabelText('Settings')).toBeTruthy();
+    });
+  });
+
+  describe('Discover button', () => {
+    it('is present with tools off', () => {
+      act(() => {
+        usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+      });
+      render(<Toolbar />);
+      expect(screen.getByLabelText('Discover')).toBeTruthy();
+    });
+
+    it('is present with tools on', () => {
+      render(<Toolbar />);
+      expect(screen.getByLabelText('Discover')).toBeTruthy();
+    });
+
+    it('is hidden when the Discover kill-switch is off', () => {
+      discoveryEnabled = false;
+      render(<Toolbar />);
+      expect(screen.queryByLabelText('Discover')).toBeNull();
+    });
+
+    it('shows the badge dot only when there is an open challenge', () => {
+      hasOpenChallenge = false;
+      const { rerender } = render(<Toolbar />);
+      expect(screen.queryByText('Something to find')).toBeNull();
+
+      hasOpenChallenge = true;
+      rerender(<Toolbar />);
+      expect(screen.getByText('Something to find')).toBeTruthy();
+    });
+
+    it('toggles the discovery panel and tracks a tap on click', async () => {
+      const user = userEvent.setup();
+      render(<Toolbar />);
+
+      await user.click(screen.getByLabelText('Discover'));
+      expect(usePanelStore.getState().activePanel).toBe('discovery');
+
+      await user.click(screen.getByLabelText('Discover'));
+      expect(usePanelStore.getState().activePanel).toBeNull();
     });
   });
 });

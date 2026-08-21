@@ -1,44 +1,82 @@
 /**
  * Discovery Store
  *
- * Transient UI state for the Discover layer's chips + Connector Lens. Plain
- * Zustand, not persisted — a fresh reader should never boot up with the lens
- * left on or a stale "found" confirmation from a previous chapter.
+ * Chapter-level state for the Discover panel — repetition challenge,
+ * Connector Lens, and the entity teaser. Owned by the always-mounted
+ * `useDiscoveryHost` (called once from `MultiTranslationView`) so it keeps
+ * working while the reader reads even when the panel itself is unmounted.
+ * Plain Zustand, not persisted — a fresh reader should never boot up with
+ * the lens left on or a stale "found" confirmation from a previous chapter.
  */
 
 import { create } from 'zustand';
-import type { ConnectorHit } from '@/lib/chapterAnalysis';
+import type { ChapterAnalysis, ConnectorHit } from '@/lib/chapterAnalysis';
+import type { TextSelection } from '@/stores/annotationStore';
 
 export interface DiscoveryFound {
   book: string;
   chapter: number;
   translationId: string;
+  /** The reader's own selection that confirmed the repetition word. */
+  selection: TextSelection;
 }
 
 interface DiscoveryState {
+  /** Chapter analysis published by the host hook; read by the panel on demand. */
+  analysis: ChapterAnalysis | null;
+  /** Number of translation columns currently displayed. */
+  translationCount: number;
+  /** Abbreviation (not full name) of the primary translation, e.g. "NASB". */
+  primaryTranslationAbbrev: string | null;
+
   /** Whether the Connector Lens dimming pass is active. */
   lensActive: boolean;
+  /** The connector hit whose row/prompt is currently expanded, if any. */
+  activePrompt: ConnectorHit | null;
   /** Set once the reader's own selection confirms the Repetition Radar word. */
   found: DiscoveryFound | null;
-  /** The connector hit whose micro-prompt popover is currently open, if any. */
-  activePrompt: ConnectorHit | null;
+  /** Preset id after "Highlight it…" / "Mark it as a key word" succeeds. */
+  markedPresetId: string | null;
+  /** How many hint-ladder rungs have been revealed; survives panel close/reopen. */
+  revealedHints: number;
 
+  setAnalysis: (analysis: ChapterAnalysis | null) => void;
+  setTranslationMeta: (translationCount: number, primaryTranslationAbbrev: string | null) => void;
   setLensActive: (active: boolean) => void;
   toggleLens: () => void;
-  setFound: (found: DiscoveryFound | null) => void;
   setActivePrompt: (hit: ConnectorHit | null) => void;
-  /** Clears all Discover-layer UI state — called when the chapter changes. */
+  setFound: (found: DiscoveryFound | null) => void;
+  setMarkedPresetId: (id: string | null) => void;
+  revealNextHint: () => void;
+  /** Clears all Discover-layer UI state except analysis/translation meta — called when the chapter changes. */
   resetForChapter: () => void;
 }
 
 export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
+  analysis: null,
+  translationCount: 1,
+  primaryTranslationAbbrev: null,
   lensActive: false,
-  found: null,
   activePrompt: null,
+  found: null,
+  markedPresetId: null,
+  revealedHints: 0,
 
+  setAnalysis: (analysis) => set({ analysis }),
+  setTranslationMeta: (translationCount, primaryTranslationAbbrev) =>
+    set({ translationCount, primaryTranslationAbbrev }),
   setLensActive: (active) => set({ lensActive: active }),
   toggleLens: () => set({ lensActive: !get().lensActive }),
-  setFound: (found) => set({ found }),
   setActivePrompt: (hit) => set({ activePrompt: hit }),
-  resetForChapter: () => set({ lensActive: false, found: null, activePrompt: null }),
+  setFound: (found) => set({ found }),
+  setMarkedPresetId: (id) => set({ markedPresetId: id }),
+  revealNextHint: () => set({ revealedHints: get().revealedHints + 1 }),
+  resetForChapter: () =>
+    set({
+      lensActive: false,
+      activePrompt: null,
+      found: null,
+      markedPresetId: null,
+      revealedHints: 0,
+    }),
 }));

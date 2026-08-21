@@ -36,8 +36,8 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'discovery',
     title: 'Notice Something',
-    description: 'Chips above the chapter quietly point out what’s worth noticing — a word that keeps repeating, a logical hinge like “therefore,” or the people and places named — without telling you what it means. Tap one and see if you can find it yourself.',
-    target: '[data-discovery-bar]',
+    description: 'Every chapter has something to find. Tap Discover for a challenge.',
+    target: '[data-toolbar-discover]',
   },
   {
     id: 'toolbar',
