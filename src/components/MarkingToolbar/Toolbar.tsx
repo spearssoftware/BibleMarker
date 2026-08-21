@@ -21,7 +21,8 @@ import { usePreferencesStore } from '@/stores/preferencesStore';
 import { deleteAnnotation } from '@/lib/database';
 import { getAllTranslations } from '@/lib/bible-api';
 import type { MarkingPreset, Verse } from '@/types';
-import { createMarkingPreset, getRandomHighlightColor, presetHasDecoration } from '@/types';
+import { getRandomHighlightColor, presetHasDecoration } from '@/types';
+import { createBookScopedKeywordPreset } from '@/lib/discoveryActions';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { stripSymbols } from '@/lib/textUtils';
 import { usePeopleStore } from '@/stores/peopleStore';
@@ -47,7 +48,7 @@ export function Toolbar() {
 
   const { previousChapter, nextChapter, canGoNext, canGoPrevious } = useBibleStore();
   const { createTextAnnotation, createSymbolAnnotation, createAnnotationsAcrossTranslations, loadAnnotations, quickHighlight } = useAnnotations();
-  const { presets, loadPresets, addPreset, markPresetUsed, updatePreset } = useMarkingPresetStore();
+  const { presets, loadPresets, markPresetUsed, updatePreset } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
   const { getOrCreateListForKeyword } = useListStore();
   const { activePanel, togglePanel, openPanel, isCollapsed } = usePanelStore();
@@ -259,18 +260,15 @@ export function Toolbar() {
       ? { symbol: 'person' as const, category: 'people' as const }
       : { symbol: 'mapPin' as const, category: 'places' as const };
 
-    const color = getRandomHighlightColor();
-    const preset = createMarkingPreset({
+    const preset = await createBookScopedKeywordPreset({
       word,
+      book: selection.book,
+      studyId: activeStudyId || undefined,
+      category: config.category,
       symbol: config.symbol,
       // 'none' = color tints the symbol, no highlight band drawn (symbol-only look).
-      highlight: { style: 'none', color },
-      category: config.category,
-      studyId: activeStudyId || undefined,
-      scopes: [{ book: selection.book }],
+      highlight: { style: 'none', color: getRandomHighlightColor() },
     });
-
-    await addPreset(preset);
     await applyPresetToSelection(preset);
 
     const verseRef = { book: selection.book, chapter: selection.chapter, verse: selection.startVerse };

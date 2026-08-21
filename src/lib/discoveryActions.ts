@@ -16,7 +16,7 @@
  * `createBookScopedKeywordPreset` and then its own `applyPresetToSelection`.
  */
 
-import type { VerseRef, MarkingPreset, KeyWordCategory, HighlightColor } from '@/types';
+import type { VerseRef, MarkingPreset, KeyWordCategory, HighlightColor, SymbolKey } from '@/types';
 import { createMarkingPreset, getRandomHighlightColor } from '@/types';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useConclusionStore } from '@/stores/conclusionStore';
@@ -33,11 +33,13 @@ export async function createBookScopedKeywordPreset(options: {
   book: string;
   studyId?: string;
   category?: KeyWordCategory;
+  symbol?: SymbolKey;
   highlight: { style: 'none' | 'highlight' | 'textColor' | 'underline'; color: HighlightColor };
 }): Promise<MarkingPreset> {
-  const { word, book, studyId, category, highlight } = options;
+  const { word, book, studyId, category, symbol, highlight } = options;
   const preset = createMarkingPreset({
     word,
+    symbol,
     highlight,
     category,
     studyId,
