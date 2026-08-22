@@ -12,7 +12,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { RepetitionCard } from '../RepetitionCard';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
+import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
+import { useToastStore } from '@/stores/toastStore';
+import { makeMarkingPreset } from '@/lib/__test__/factories';
 import type { RepetitionResult } from '@/lib/chapterAnalysis';
 import type { ChapterEntities } from '@/types';
 
@@ -67,7 +70,17 @@ describe('RepetitionCard', () => {
       markedPresetId: null,
     });
     usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
-    markRepetitionAsKeywordMock.mockClear();
+    useMarkingPresetStore.setState({ presets: [] });
+    useToastStore.setState({ toasts: [] });
+    markRepetitionAsKeywordMock.mockReset();
+    // Mirrors the real `markRepetitionAsKeyword`'s side effect (adding the
+    // preset to the marking-preset store) so `useMarkedPresetExists()` sees
+    // it as "already highlighted" the same way it would in production.
+    markRepetitionAsKeywordMock.mockImplementation(async () => {
+      const preset = makeMarkingPreset({ id: 'preset-1' });
+      useMarkingPresetStore.setState(s => ({ presets: [...s.presets, preset] }));
+      return preset;
+    });
   });
 
   afterEach(() => {
@@ -165,5 +178,31 @@ describe('RepetitionCard', () => {
     await vi.waitFor(() => expect(markRepetitionAsKeywordMock).toHaveBeenCalled());
     await vi.waitFor(() => expect(screen.getByText('Highlighted ✓')).toBeTruthy());
     expect((screen.getByText('Highlighted ✓') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('re-enables the button and shows a toast when marking the repetition word fails', async () => {
+    markRepetitionAsKeywordMock.mockRejectedValueOnce(new Error('db write failed'));
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    useDiscoveryStore.setState({
+      found: {
+        book: 'John',
+        chapter: 1,
+        translationId: 'sword-NASB',
+        selection: { moduleId: 'sword-NASB', book: 'John', chapter: 1, startVerse: 3, endVerse: 3, text: 'Zephyrs' },
+      },
+    });
+
+    renderCard();
+    fireEvent.click(screen.getByText('Highlight it in this chapter'));
+
+    await vi.waitFor(() => expect(markRepetitionAsKeywordMock).toHaveBeenCalled());
+    await vi.waitFor(() =>
+      expect((screen.getByText('Highlight it in this chapter') as HTMLButtonElement).disabled).toBe(false)
+    );
+    expect(useToastStore.getState().toasts).toContainEqual(
+      expect.objectContaining({ message: "Couldn't highlight it — try again.", variant: 'error' })
+    );
+
+    consoleErrorSpy.mockRestore();
   });
 });

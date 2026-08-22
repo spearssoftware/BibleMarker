@@ -22,16 +22,20 @@ export interface Toast {
 
 interface ToastState {
   toasts: Toast[];
-  show: (message: string, variant: ToastVariant) => void;
+  /** Returns the new toast's id, so callers can dismiss it explicitly later (e.g. on navigation). */
+  show: (message: string, variant: ToastVariant) => string;
   dismiss: (id: string) => void;
 }
 
 export const useToastStore = create<ToastState>((set) => ({
   toasts: [],
-  show: (message, variant) =>
+  show: (message, variant) => {
+    const id = crypto.randomUUID();
     set((state) => ({
-      toasts: [...state.toasts, { id: crypto.randomUUID(), message, variant }],
-    })),
+      toasts: [...state.toasts, { id, message, variant }],
+    }));
+    return id;
+  },
   dismiss: (id) =>
     set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
 }));

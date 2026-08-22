@@ -38,11 +38,9 @@ import { useDiscoveryHost } from '@/hooks/useDiscoveryHost';
 import { useDiscoveryEnabled } from '@/lib/discovery-config';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import type { Annotation, Chapter, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
+import { LAYOUT_REKEY_MS } from './layoutConstants';
 
 const KJV_FALLBACK_ERROR_PREFIX = 'Showing KJV';
-
-/** Delay before re-keying verse content after a panel opens/closes/collapses, to wait out the CSS transition. */
-export const LAYOUT_REKEY_MS = 350;
 
 export function MultiTranslationView() {
   const { activeView, loadActiveView, addTranslation, setChaptersByTranslation } = useMultiTranslationStore();

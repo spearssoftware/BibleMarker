@@ -19,9 +19,10 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/shared';
 import { DiscoveryCard } from './DiscoveryCard';
-import { useDiscoveryStore } from '@/stores/discoveryStore';
+import { useDiscoveryStore, useMarkedPresetExists } from '@/stores/discoveryStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { useStudyStore } from '@/stores/studyStore';
+import { toast } from '@/stores/toastStore';
 import { track } from '@/lib/telemetry';
 import { markRepetitionAsKeyword } from '@/lib/discoveryActions';
 import { verseRangeLabel, deriveCategoryHint, type RepetitionResult, type RepetitionRung } from '@/lib/chapterAnalysis';
@@ -49,8 +50,8 @@ export function RepetitionCard({
   const found = useDiscoveryStore(s => s.found);
   const revealedRungs = useDiscoveryStore(s => s.revealedRungs);
   const revealRung = useDiscoveryStore(s => s.revealRung);
-  const markedPresetId = useDiscoveryStore(s => s.markedPresetId);
   const setMarkedPresetId = useDiscoveryStore(s => s.setMarkedPresetId);
+  const alreadyMarked = useMarkedPresetExists();
   const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
   const activeStudyId = useStudyStore(s => s.activeStudyId) ?? undefined;
   const [marking, setMarking] = useState(false);
@@ -88,7 +89,6 @@ export function RepetitionCard({
   const title = `One word appears ${repetition.count}× in this chapter${suffix}`;
 
   if (isFound) {
-    const alreadyMarked = !!markedPresetId;
     const buttonLabel = inductiveToolsEnabled ? 'Mark it as a key word' : 'Highlight it in this chapter';
 
     const handleMark = async () => {
@@ -99,6 +99,7 @@ export function RepetitionCard({
         setMarkedPresetId(preset.id);
       } catch (err) {
         console.error('[RepetitionCard] Failed to mark the repetition word:', err);
+        toast.error("Couldn't highlight it — try again.");
       } finally {
         setMarking(false);
       }

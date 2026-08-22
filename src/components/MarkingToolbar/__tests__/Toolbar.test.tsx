@@ -36,14 +36,20 @@ vi.mock('@/hooks/useKeyboardShortcuts', () => ({
 }));
 
 // Stores (return minimal state)
+const { markingPresetState } = vi.hoisted(() => ({
+  markingPresetState: { presets: [] as { id: string }[] },
+}));
 vi.mock('@/stores/markingPresetStore', () => ({
-  useMarkingPresetStore: () => ({
-    presets: [],
-    loadPresets: vi.fn(),
-    addPreset: vi.fn(),
-    markPresetUsed: vi.fn(),
-    updatePreset: vi.fn(),
-  }),
+  useMarkingPresetStore: (selector?: (s: { presets: { id: string }[] }) => unknown) => {
+    const state = {
+      presets: markingPresetState.presets,
+      loadPresets: vi.fn(),
+      addPreset: vi.fn(),
+      markPresetUsed: vi.fn(),
+      updatePreset: vi.fn(),
+    };
+    return selector ? selector(state) : state;
+  },
 }));
 vi.mock('@/stores/bibleStore', () => ({
   useBibleStore: () => ({
@@ -160,7 +166,8 @@ describe('Toolbar', () => {
     // keep working; gating itself is covered by the "tool tabs" suite below.
     usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
     discoveryEnabled = true;
-    useDiscoveryStore.setState({ context: null, markedPresetId: null });
+    useDiscoveryStore.setState({ context: null, found: null, markedPresetId: null });
+    markingPresetState.presets = [];
     trackMock.mockClear();
   });
 
@@ -276,6 +283,49 @@ describe('Toolbar', () => {
       });
       rerender(<Toolbar />);
       expect(screen.getByLabelText(/discover.*something to find/i)).toBeTruthy();
+    });
+
+    it('shows the "highlight it" badge once the word is found but not yet marked', () => {
+      const context = makeDiscoveryContext();
+      act(() => {
+        useDiscoveryStore.setState({
+          context,
+          found: { book: context.book, chapter: context.chapter, translationId: context.translationId, selection: makeSelection('love') },
+          markedPresetId: null,
+        });
+      });
+      render(<Toolbar />);
+      expect(screen.getByLabelText(/discover.*you found it — highlight it/i)).toBeTruthy();
+    });
+
+    it('hides the badge once the marked preset still exists (already highlighted)', () => {
+      const context = makeDiscoveryContext();
+      markingPresetState.presets = [{ id: 'preset-1' }];
+      act(() => {
+        useDiscoveryStore.setState({
+          context,
+          found: { book: context.book, chapter: context.chapter, translationId: context.translationId, selection: makeSelection('love') },
+          markedPresetId: 'preset-1',
+        });
+      });
+      render(<Toolbar />);
+      expect(screen.getByLabelText('Discover')).toBeTruthy();
+      expect(screen.queryByLabelText(/something to find/i)).toBeNull();
+      expect(screen.queryByLabelText(/highlight it/i)).toBeNull();
+    });
+
+    it('shows the "highlight it" badge again once a previously-marked preset is deleted', () => {
+      const context = makeDiscoveryContext();
+      markingPresetState.presets = [];
+      act(() => {
+        useDiscoveryStore.setState({
+          context,
+          found: { book: context.book, chapter: context.chapter, translationId: context.translationId, selection: makeSelection('love') },
+          markedPresetId: 'preset-1',
+        });
+      });
+      render(<Toolbar />);
+      expect(screen.getByLabelText(/discover.*you found it — highlight it/i)).toBeTruthy();
     });
 
     it('toggles the discovery panel and tracks a tap only when the click opens it', async () => {

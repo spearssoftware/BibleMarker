@@ -10,13 +10,14 @@
  * the panel opens.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, ToggleSwitch } from '@/components/shared';
 import { DiscoveryCard } from './DiscoveryCard';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import { LAYOUT_REKEY_MS } from '@/components/BibleReader/MultiTranslationView';
+import { LAYOUT_REKEY_MS } from '@/components/BibleReader/layoutConstants';
+import { toast } from '@/stores/toastStore';
 import { track } from '@/lib/telemetry';
 import { pluralize } from '@/lib/textUtils';
 import { addConnectorToFlow } from '@/lib/discoveryActions';
@@ -33,6 +34,10 @@ function rowKey(hit: ConnectorHit): string {
   return `${hit.verse}-${hit.start}`;
 }
 
+function pendingKeyFor(hit: ConnectorHit): string {
+  return `${hit.verse}:${hit.start}`;
+}
+
 export function HingesCard({ connectorRangesByVerse, hingeCount, book, chapter }: HingesCardProps) {
   const lensActive = useDiscoveryStore(s => s.lensActive);
   const toggleLens = useDiscoveryStore(s => s.toggleLens);
@@ -41,9 +46,12 @@ export function HingesCard({ connectorRangesByVerse, hingeCount, book, chapter }
   const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
   const navigateToVerse = useBibleStore(s => s.navigateToVerse);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [addingToFlow, setAddingToFlow] = useState(false);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
 
-  const verses = Array.from(connectorRangesByVerse.keys()).sort((a, b) => a - b);
+  const verses = useMemo(
+    () => Array.from(connectorRangesByVerse.keys()).sort((a, b) => a - b),
+    [connectorRangesByVerse]
+  );
 
   useEffect(() => {
     if (!activePrompt) return;
@@ -74,13 +82,15 @@ export function HingesCard({ connectorRangesByVerse, hingeCount, book, chapter }
   };
 
   const handleAddToFlow = async (hit: ConnectorHit) => {
-    setAddingToFlow(true);
+    const key = pendingKeyFor(hit);
+    setPendingKey(key);
     try {
       await addConnectorToFlow(hit, book, chapter);
     } catch (err) {
       console.error('[HingesCard] Failed to add connector to Flow:', err);
+      toast.error("Couldn't add to Flow.");
     } finally {
-      setAddingToFlow(false);
+      setPendingKey(null);
     }
   };
 
@@ -112,7 +122,12 @@ export function HingesCard({ connectorRangesByVerse, hingeCount, book, chapter }
                   <div id={promptId} className="px-2 pb-2 space-y-2">
                     <p className="text-sm text-scripture-text">{promptFor(hit)}</p>
                     {inductiveToolsEnabled && (
-                      <Button variant="primary" size="sm" onClick={() => handleAddToFlow(hit)} disabled={addingToFlow}>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => handleAddToFlow(hit)}
+                        disabled={pendingKey === pendingKeyFor(hit)}
+                      >
                         Add to Flow
                       </Button>
                     )}

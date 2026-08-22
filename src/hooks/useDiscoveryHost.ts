@@ -16,11 +16,11 @@
  * than whenever this always-mounted hook sees analysis.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { usePanelStore } from '@/stores/panelStore';
-import { toast } from '@/stores/toastStore';
+import { toast, useToastStore } from '@/stores/toastStore';
 import { track } from '@/lib/telemetry';
 import { normalizeForMatching } from '@/lib/keywordMatching';
 import { singularize, type ChapterAnalysis } from '@/lib/chapterAnalysis';
@@ -50,6 +50,10 @@ export function useDiscoveryHost({
   const found = useDiscoveryStore(s => s.found);
   const setFound = useDiscoveryStore(s => s.setFound);
   const selection = useAnnotationStore(s => s.selection);
+  // Id of the "you found it" toast shown below, so the chapter-reset effect
+  // can dismiss it explicitly rather than leaving a stale nudge on screen
+  // for a chapter the reader has already left.
+  const foundToastIdRef = useRef<string | null>(null);
 
   // 1. Reset all Discover UI state when the chapter changes, and clear any
   // leftover text selection with it — otherwise a selection made just before
@@ -61,7 +65,13 @@ export function useDiscoveryHost({
   // `analysis`. Declared before the publish effect below.
   useEffect(() => {
     resetForChapter();
-    useAnnotationStore.getState().clearSelection();
+    if (useAnnotationStore.getState().selection !== null) {
+      useAnnotationStore.getState().clearSelection();
+    }
+    if (foundToastIdRef.current) {
+      useToastStore.getState().dismiss(foundToastIdRef.current);
+      foundToastIdRef.current = null;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- resetForChapter/clearSelection are stable store actions
   }, [currentBook, currentChapter, primaryTranslationId]);
 
@@ -114,7 +124,7 @@ export function useDiscoveryHost({
       });
       track('discovery_find_confirmed', { feature: 'repetition' });
       if (usePanelStore.getState().activePanel !== 'discovery') {
-        toast.info('You found it — open Discover to highlight it.');
+        foundToastIdRef.current = toast.info('You found it — open Discover to highlight it.');
       }
     }
   }, [enabled, selection, repetition, isFound, primaryTranslationId, currentBook, currentChapter, setFound]);

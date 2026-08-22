@@ -47,25 +47,21 @@ export function DiscoveryPanel() {
     discoveryEnabled
   );
 
-  const book = context?.book ?? null;
-  const chapter = context?.chapter ?? null;
-  const translationId = context?.translationId ?? null;
-  const analysis = context?.analysis ?? null;
-  const translationCount = context?.translationCount ?? 1;
-  const primaryTranslationAbbrev = context?.primaryTranslationAbbrev ?? null;
-
-  const hasRepetition = Boolean(analysis?.repetition);
-  const hingeCount = analysis?.connectors.length ?? 0;
+  const hasRepetition = Boolean(context?.analysis.repetition);
+  const hingeCount = context?.analysis.connectors.length ?? 0;
   const showHinges = hingeCount >= thresholds.connectorChipMinCount;
+  const hasEntities = !!entities && (entities.people.length > 0 || entities.places.length > 0);
 
   // Fire once per {book, chapter, translation} for each card actually shown —
   // mirrors the dedupe keys the old `useDiscoveryHost`-hosted version used.
   useEffect(() => {
-    if (!discoveryEnabled || !book || chapter === null || !translationId) return;
+    if (!discoveryEnabled || !context) return;
+    const { book, chapter, translationId } = context;
     const key = `${book}:${chapter}:${translationId}`;
     if (hasRepetition) track('discovery_chip_shown', { feature: 'repetition', dedupeKey: `repetition:${key}` });
     if (showHinges) track('discovery_chip_shown', { feature: 'connector', dedupeKey: `connector:${key}` });
-  }, [discoveryEnabled, book, chapter, translationId, hasRepetition, showHinges]);
+    if (hasEntities) track('discovery_chip_shown', { feature: 'entity', dedupeKey: `entity:${key}` });
+  }, [discoveryEnabled, context, hasRepetition, showHinges, hasEntities]);
 
   if (!discoveryEnabled) {
     return <DiscoveryDialog><p className="text-sm text-scripture-muted">Discover is turned off right now.</p></DiscoveryDialog>;
@@ -73,11 +69,11 @@ export function DiscoveryPanel() {
 
   const entitiesStillLoading = entitiesLoading || (entities === null && !entitiesError);
 
-  if (!analysis || (!hasRepetition && !showHinges && entitiesStillLoading)) {
+  if (!context || (!hasRepetition && !showHinges && entitiesStillLoading)) {
     return <DiscoveryDialog><p className="text-sm text-scripture-muted">Reading the chapter…</p></DiscoveryDialog>;
   }
 
-  const hasEntities = !!entities && (entities.people.length > 0 || entities.places.length > 0);
+  const { book, chapter, translationId, analysis, translationCount, primaryTranslationAbbrev } = context;
   const hasAnything = hasRepetition || showHinges || hasEntities;
 
   if (!hasAnything) {
@@ -92,7 +88,7 @@ export function DiscoveryPanel() {
 
   return (
     <DiscoveryDialog>
-      {hasRepetition && book && chapter !== null && translationId && (
+      {hasRepetition && (
         <RepetitionCard
           repetition={analysis.repetition}
           translationCount={translationCount}
@@ -103,7 +99,7 @@ export function DiscoveryPanel() {
           entities={entities}
         />
       )}
-      {showHinges && book && chapter !== null && (
+      {showHinges && (
         <HingesCard
           connectorRangesByVerse={analysis.connectorRangesByVerse}
           hingeCount={hingeCount}

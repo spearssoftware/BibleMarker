@@ -11,6 +11,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { HingesCard } from '../HingesCard';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
+import { useToastStore } from '@/stores/toastStore';
 import { groupConnectorsByVerse, type ConnectorHit } from '@/lib/chapterAnalysis';
 
 vi.mock('@/lib/database', () => ({
@@ -39,8 +40,10 @@ describe('HingesCard', () => {
   beforeEach(() => {
     useDiscoveryStore.setState({ lensActive: false, activePrompt: null });
     usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+    useToastStore.setState({ toasts: [] });
     navigateToVerse.mockClear();
-    addConnectorToFlowMock.mockClear();
+    addConnectorToFlowMock.mockReset();
+    addConnectorToFlowMock.mockImplementation(async () => {});
   });
 
   afterEach(() => {
@@ -76,6 +79,42 @@ describe('HingesCard', () => {
     const addButton = screen.getByText('Add to Flow');
     fireEvent.click(addButton);
     await vi.waitFor(() => expect(addConnectorToFlowMock).toHaveBeenCalledWith(hits[1], 'Rom', 5));
+  });
+
+  it('only disables the row whose "Add to Flow" request is in flight, not a row switched to afterward', async () => {
+    let resolveAdd: () => void = () => {};
+    addConnectorToFlowMock.mockImplementation(() => new Promise<void>(resolve => { resolveAdd = resolve; }));
+    usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
+    render(<HingesCard connectorRangesByVerse={connectorRangesByVerse} hingeCount={hits.length} book="Rom" chapter={5} />);
+
+    fireEvent.click(screen.getByText(/But/));
+    fireEvent.click(screen.getByText('Add to Flow'));
+    expect((screen.getByText('Add to Flow') as HTMLButtonElement).disabled).toBe(true);
+
+    // Switch to the other row while the first request is still in flight.
+    fireEvent.click(screen.getByText(/Therefore/));
+    expect((screen.getByText('Add to Flow') as HTMLButtonElement).disabled).toBe(false);
+
+    resolveAdd();
+    await vi.waitFor(() => expect(addConnectorToFlowMock).toHaveBeenCalledWith(hits[1], 'Rom', 5));
+  });
+
+  it('shows a toast and logs when "Add to Flow" fails', async () => {
+    addConnectorToFlowMock.mockRejectedValueOnce(new Error('db write failed'));
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
+    render(<HingesCard connectorRangesByVerse={connectorRangesByVerse} hingeCount={hits.length} book="Rom" chapter={5} />);
+
+    fireEvent.click(screen.getByText(/But/));
+    fireEvent.click(screen.getByText('Add to Flow'));
+
+    await vi.waitFor(() =>
+      expect((screen.getByText('Add to Flow') as HTMLButtonElement).disabled).toBe(false)
+    );
+    expect(useToastStore.getState().toasts).toContainEqual(
+      expect.objectContaining({ message: "Couldn't add to Flow.", variant: 'error' })
+    );
+    consoleErrorSpy.mockRestore();
   });
 
   it('toggles lensActive via the toggle switch', () => {

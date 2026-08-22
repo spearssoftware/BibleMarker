@@ -4,6 +4,9 @@ import type {
   InterpretationEntry, ApplicationEntry,
 } from '@/types';
 import type { SyncStatus } from '@/lib/sync';
+import type { TextSelection } from '@/stores/annotationStore';
+import type { DiscoveryContext } from '@/stores/discoveryStore';
+import type { ChapterAnalysis, ConnectorHit } from '@/lib/chapterAnalysis';
 
 export const ISO = '2025-01-01T00:00:00.000Z';
 
@@ -158,6 +161,40 @@ export function makeApplication(overrides?: Partial<ApplicationEntry>): Applicat
     verseRef: makeVerseRef(),
     createdAt: new Date(ISO),
     updatedAt: new Date(ISO),
+    ...overrides,
+  };
+}
+
+export function makeTextSelection(overrides?: Partial<TextSelection>): TextSelection {
+  return {
+    moduleId: 'sword-NASB',
+    book: 'John',
+    chapter: 1,
+    startVerse: 3,
+    endVerse: 3,
+    text: 'Word',
+    ...overrides,
+  };
+}
+
+export function makeChapterAnalysis(overrides?: Partial<ChapterAnalysis>): ChapterAnalysis {
+  const hit: ConnectorHit = { phrase: 'therefore', category: 'conclusion', verse: 1, start: 0, end: 9 };
+  return {
+    repetition: { token: 'word', count: 11, firstVerse: 1, lastVerse: 14, occurrences: [], forms: ['word', 'words'] },
+    connectors: [hit],
+    connectorRangesByVerse: new Map([[1, [hit]]]),
+    ...overrides,
+  };
+}
+
+export function makeDiscoveryContext(overrides?: Partial<DiscoveryContext>): DiscoveryContext {
+  return {
+    book: 'John',
+    chapter: 1,
+    translationId: 'sword-NASB',
+    analysis: makeChapterAnalysis(),
+    translationCount: 1,
+    primaryTranslationAbbrev: null,
     ...overrides,
   };
 }

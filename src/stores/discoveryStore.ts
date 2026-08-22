@@ -12,6 +12,7 @@
 import { create } from 'zustand';
 import type { ChapterAnalysis, ConnectorHit, RepetitionRung } from '@/lib/chapterAnalysis';
 import type { TextSelection } from '@/stores/annotationStore';
+import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 
 export interface DiscoveryFound {
   book: string;
@@ -95,3 +96,16 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
       revealedRungs: [],
     }),
 }));
+
+/**
+ * Whether the Repetition Radar "found" state's marked preset is still real —
+ * i.e. `markedPresetId` is set AND that preset hasn't since been deleted.
+ * Used to decide whether "Highlight it…" should stay disabled (already
+ * marked) or re-enable itself (the mark was undone from Key Words). Shared
+ * between `RepetitionCard` and the `Toolbar` badge so both reach the same
+ * conclusion about whether the mark is still live.
+ */
+export function useMarkedPresetExists(): boolean {
+  const markedPresetId = useDiscoveryStore(s => s.markedPresetId);
+  return useMarkingPresetStore(s => markedPresetId !== null && s.presets.some(p => p.id === markedPresetId));
+}

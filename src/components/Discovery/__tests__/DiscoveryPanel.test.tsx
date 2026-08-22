@@ -14,8 +14,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { DiscoveryPanel } from '../DiscoveryPanel';
-import { useDiscoveryStore, type DiscoveryContext } from '@/stores/discoveryStore';
-import { DEFAULT_DISCOVERY_THRESHOLDS, type ChapterAnalysis, type ConnectorHit } from '@/lib/chapterAnalysis';
+import { useDiscoveryStore } from '@/stores/discoveryStore';
+import { DEFAULT_DISCOVERY_THRESHOLDS } from '@/lib/chapterAnalysis';
+import { makeChapterAnalysis, makeDiscoveryContext } from '@/lib/__test__/factories';
 
 vi.mock('@/lib/database', () => ({
   updatePreferences: vi.fn(async () => {}),
@@ -53,28 +54,6 @@ vi.mock('../PeoplePlacesCard', () => ({
   PeoplePlacesCard: () => <div data-testid="people-places-card">people-places</div>,
 }));
 
-function makeAnalysis(overrides: Partial<ChapterAnalysis> = {}): ChapterAnalysis {
-  const hit: ConnectorHit = { phrase: 'therefore', category: 'conclusion', verse: 1, start: 0, end: 9 };
-  return {
-    repetition: { token: 'word', count: 11, firstVerse: 1, lastVerse: 14, occurrences: [], forms: ['word', 'words'] },
-    connectors: [hit],
-    connectorRangesByVerse: new Map([[1, [hit]]]),
-    ...overrides,
-  };
-}
-
-function makeContext(overrides: Partial<DiscoveryContext> = {}): DiscoveryContext {
-  return {
-    book: 'John',
-    chapter: 1,
-    translationId: 'sword-NASB',
-    analysis: makeAnalysis(),
-    translationCount: 1,
-    primaryTranslationAbbrev: null,
-    ...overrides,
-  };
-}
-
 describe('DiscoveryPanel', () => {
   beforeEach(() => {
     mockEntities = null;
@@ -110,7 +89,7 @@ describe('DiscoveryPanel', () => {
 
   it('keeps showing "Reading the chapter…" while entities are still unresolved, even with nothing else to report', () => {
     useDiscoveryStore.setState({
-      context: makeContext({ analysis: { repetition: null, connectors: [], connectorRangesByVerse: new Map() } }),
+      context: makeDiscoveryContext({ analysis: { repetition: null, connectors: [], connectorRangesByVerse: new Map() } }),
     });
     // entities: null + no error + not loading is the ambiguous "hasn't resolved yet" case.
     render(<DiscoveryPanel />);
@@ -121,7 +100,7 @@ describe('DiscoveryPanel', () => {
   it('shows "Nothing stands out" once analysis and entities have both resolved to nothing', () => {
     mockEntities = { book: 'John', chapter: 1, people: [], places: [], events: [], topics: [] };
     useDiscoveryStore.setState({
-      context: makeContext({ analysis: { repetition: null, connectors: [], connectorRangesByVerse: new Map() } }),
+      context: makeDiscoveryContext({ analysis: { repetition: null, connectors: [], connectorRangesByVerse: new Map() } }),
     });
     render(<DiscoveryPanel />);
     expect(screen.getByText('Nothing stands out here — just read.')).toBeTruthy();
@@ -130,7 +109,7 @@ describe('DiscoveryPanel', () => {
 
   it('renders the repetition and hinges cards, with the real RepetitionCard suffix, when everything qualifies', () => {
     mockEntities = { book: 'John', chapter: 1, people: ['jesus'], places: [], events: [], topics: [] };
-    useDiscoveryStore.setState({ context: makeContext({ translationCount: 2, primaryTranslationAbbrev: 'NASB' }) });
+    useDiscoveryStore.setState({ context: makeDiscoveryContext({ translationCount: 2, primaryTranslationAbbrev: 'NASB' }) });
     render(<DiscoveryPanel />);
     expect(screen.getByText('One word appears 11× in this chapter (NASB)')).toBeTruthy();
     expect(screen.getByTestId('hinges-card')).toBeTruthy();
@@ -139,7 +118,7 @@ describe('DiscoveryPanel', () => {
 
   it('hides the hinges card below the connector threshold', () => {
     useDiscoveryStore.setState({
-      context: makeContext({ analysis: makeAnalysis({ connectors: [], connectorRangesByVerse: new Map() }) }),
+      context: makeDiscoveryContext({ analysis: makeChapterAnalysis({ connectors: [], connectorRangesByVerse: new Map() }) }),
     });
     render(<DiscoveryPanel />);
     expect(screen.getByText('One word appears 11× in this chapter')).toBeTruthy();
@@ -147,7 +126,7 @@ describe('DiscoveryPanel', () => {
   });
 
   it('fires discovery_chip_shown, deduped per chapter, when the repetition and hinges cards render', () => {
-    useDiscoveryStore.setState({ context: makeContext() });
+    useDiscoveryStore.setState({ context: makeDiscoveryContext() });
     render(<DiscoveryPanel />);
     expect(trackMock).toHaveBeenCalledWith('discovery_chip_shown', {
       feature: 'repetition',
@@ -159,9 +138,26 @@ describe('DiscoveryPanel', () => {
     });
   });
 
+  it('fires discovery_chip_shown for the entity feature when the People & Places card renders with counts', () => {
+    mockEntities = { book: 'John', chapter: 1, people: ['jesus'], places: [], events: [], topics: [] };
+    useDiscoveryStore.setState({ context: makeDiscoveryContext() });
+    render(<DiscoveryPanel />);
+    expect(trackMock).toHaveBeenCalledWith('discovery_chip_shown', {
+      feature: 'entity',
+      dedupeKey: 'entity:John:1:sword-NASB',
+    });
+  });
+
+  it('does not fire discovery_chip_shown for the entity feature when there are no people or places', () => {
+    mockEntities = { book: 'John', chapter: 1, people: [], places: [], events: [], topics: [] };
+    useDiscoveryStore.setState({ context: makeDiscoveryContext() });
+    render(<DiscoveryPanel />);
+    expect(trackMock).not.toHaveBeenCalledWith('discovery_chip_shown', expect.objectContaining({ feature: 'entity' }));
+  });
+
   it('does not fire discovery_chip_shown when the Discover kill switch is off', () => {
     discoveryEnabled = false;
-    useDiscoveryStore.setState({ context: makeContext() });
+    useDiscoveryStore.setState({ context: makeDiscoveryContext() });
     render(<DiscoveryPanel />);
     expect(trackMock).not.toHaveBeenCalled();
   });

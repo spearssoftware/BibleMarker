@@ -18,7 +18,7 @@ import { usePanelStore } from '@/stores/panelStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
 import { usePreferencesStore, useInductiveToolsVisible } from '@/stores/preferencesStore';
-import { useDiscoveryStore } from '@/stores/discoveryStore';
+import { useDiscoveryStore, useMarkedPresetExists } from '@/stores/discoveryStore';
 import { useDiscoveryEnabled } from '@/lib/discovery-config';
 import { track } from '@/lib/telemetry';
 import { deleteAnnotation } from '@/lib/database';
@@ -59,10 +59,27 @@ export function Toolbar() {
   const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
   const inductiveToolsVisible = useInductiveToolsVisible();
   const discoveryEnabled = useDiscoveryEnabled();
-  const hasOpenChallenge = useDiscoveryStore(
-    s => s.context?.analysis.repetition != null && s.markedPresetId === null
-  );
+  const discoveryContext = useDiscoveryStore(s => s.context);
+  const discoveryFound = useDiscoveryStore(s => s.found);
+  const alreadyHighlighted = useMarkedPresetExists();
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
+
+  // Discover badge: 'find' while the repetition word hasn't been found yet
+  // for this exact chapter/translation, 'highlight' once it's found but not
+  // yet marked (or the mark was since undone from Key Words), else no badge.
+  const foundMatchesContext =
+    !!discoveryContext &&
+    !!discoveryFound &&
+    discoveryFound.book === discoveryContext.book &&
+    discoveryFound.chapter === discoveryContext.chapter &&
+    discoveryFound.translationId === discoveryContext.translationId;
+  const discoveryBadge: 'find' | 'highlight' | null = !discoveryContext?.analysis.repetition
+    ? null
+    : !foundMatchesContext
+      ? 'find'
+      : alreadyHighlighted
+        ? null
+        : 'highlight';
 
   // "Enable inductive tools" gates the tool tabs (Key Words/Observe/Analyze/
   // Study Tools) and the advanced selection-menu items. Settings stays visible
@@ -452,9 +469,15 @@ export function Toolbar() {
                            ${discoveryActive
                              ? 'bg-scripture-accent text-scripture-bg shadow-md'
                              : 'hover:bg-scripture-elevated'}`}
-                aria-label={hasOpenChallenge ? 'Discover, something to find' : 'Discover'}
+                aria-label={
+                  discoveryBadge === 'find'
+                    ? 'Discover, something to find'
+                    : discoveryBadge === 'highlight'
+                      ? 'Discover, you found it — highlight it'
+                      : 'Discover'
+                }
               >
-                {hasOpenChallenge && (
+                {discoveryBadge && (
                   <span
                     className={`absolute top-0.5 right-0.5 w-2 h-2 rounded-full ${
                       discoveryActive ? 'bg-scripture-onAccent' : 'bg-scripture-accent'

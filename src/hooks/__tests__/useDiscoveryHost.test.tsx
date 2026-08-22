@@ -19,22 +19,13 @@ import { useAnnotationStore } from '@/stores/annotationStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { usePanelStore } from '@/stores/panelStore';
 import { useToastStore } from '@/stores/toastStore';
-import type { DiscoveryContext } from '@/stores/discoveryStore';
-import type { ChapterAnalysis, ConnectorHit } from '@/lib/chapterAnalysis';
+import type { ChapterAnalysis } from '@/lib/chapterAnalysis';
+import { makeChapterAnalysis, makeDiscoveryContext, makeTextSelection } from '@/lib/__test__/factories';
 
 const trackMock = vi.fn();
 vi.mock('@/lib/telemetry', () => ({
   track: (...args: unknown[]) => trackMock(...args),
 }));
-
-function makeAnalysis(): ChapterAnalysis {
-  const hit: ConnectorHit = { phrase: 'therefore', category: 'conclusion', verse: 1, start: 0, end: 9 };
-  return {
-    repetition: { token: 'word', count: 11, firstVerse: 1, lastVerse: 14, occurrences: [], forms: ['word', 'words'] },
-    connectors: [hit],
-    connectorRangesByVerse: new Map([[1, [hit]]]),
-  };
-}
 
 interface HostProps {
   currentBook: string;
@@ -54,35 +45,11 @@ const baseProps: HostProps = {
   currentBook: 'John',
   currentChapter: 1,
   primaryTranslationId: 'sword-NASB',
-  analysis: makeAnalysis(),
+  analysis: makeChapterAnalysis(),
   translationCount: 1,
   primaryTranslationAbbrev: null,
   enabled: true,
 };
-
-function makeContext(overrides: Partial<DiscoveryContext> = {}): DiscoveryContext {
-  return {
-    book: 'John',
-    chapter: 1,
-    translationId: 'sword-NASB',
-    analysis: makeAnalysis(),
-    translationCount: 1,
-    primaryTranslationAbbrev: null,
-    ...overrides,
-  };
-}
-
-function makeSelection(overrides: Partial<{ moduleId: string; book: string; chapter: number; startVerse: number; endVerse: number; text: string }> = {}) {
-  return {
-    moduleId: 'sword-NASB',
-    book: 'John',
-    chapter: 1,
-    startVerse: 3,
-    endVerse: 3,
-    text: 'Words',
-    ...overrides,
-  };
-}
 
 describe('useDiscoveryHost', () => {
   beforeEach(() => {
@@ -110,19 +77,19 @@ describe('useDiscoveryHost', () => {
 
   it('publishes the atomic context to the store', () => {
     renderHost(baseProps);
-    expect(useDiscoveryStore.getState().context).toEqual(makeContext());
+    expect(useDiscoveryStore.getState().context).toEqual(makeDiscoveryContext());
   });
 
   it('confirms the repetition word once the reader selects it themselves, and tracks it', () => {
     renderHost(baseProps);
 
     act(() => {
-      useAnnotationStore.setState({ selection: makeSelection() });
+      useAnnotationStore.setState({ selection: makeTextSelection() });
     });
 
     const found = useDiscoveryStore.getState().found;
     expect(found).toMatchObject({ book: 'John', chapter: 1, translationId: 'sword-NASB' });
-    expect(found?.selection.text).toBe('Words');
+    expect(found?.selection.text).toBe('Word');
     expect(trackMock).toHaveBeenCalledWith('discovery_find_confirmed', { feature: 'repetition' });
   });
 
@@ -131,7 +98,7 @@ describe('useDiscoveryHost', () => {
     renderHost(baseProps);
 
     act(() => {
-      useAnnotationStore.setState({ selection: makeSelection() });
+      useAnnotationStore.setState({ selection: makeTextSelection() });
     });
 
     const { toasts } = useToastStore.getState();
@@ -144,32 +111,32 @@ describe('useDiscoveryHost', () => {
     renderHost(baseProps);
 
     act(() => {
-      useAnnotationStore.setState({ selection: makeSelection() });
+      useAnnotationStore.setState({ selection: makeTextSelection() });
     });
 
     expect(useToastStore.getState().toasts).toHaveLength(0);
   });
 
   it('does not confirm when the selection is in a different translation column', () => {
-    useAnnotationStore.setState({ selection: makeSelection({ moduleId: 'sword-KJV', text: 'Word' }) });
+    useAnnotationStore.setState({ selection: makeTextSelection({ moduleId: 'sword-KJV', text: 'Word' }) });
     renderHost(baseProps);
     expect(useDiscoveryStore.getState().found).toBeNull();
   });
 
   it('does not confirm a stale selection left over from a different chapter', () => {
-    useAnnotationStore.setState({ selection: makeSelection({ chapter: 2, text: 'Word' }) });
+    useAnnotationStore.setState({ selection: makeTextSelection({ chapter: 2, text: 'Word' }) });
     renderHost(baseProps);
     expect(useDiscoveryStore.getState().found).toBeNull();
   });
 
   it('does not confirm a stale selection left over from a different book', () => {
-    useAnnotationStore.setState({ selection: makeSelection({ book: 'Luke', text: 'Word' }) });
+    useAnnotationStore.setState({ selection: makeTextSelection({ book: 'Luke', text: 'Word' }) });
     renderHost(baseProps);
     expect(useDiscoveryStore.getState().found).toBeNull();
   });
 
   it('does not confirm a multi-verse selection', () => {
-    useAnnotationStore.setState({ selection: makeSelection({ endVerse: 4, text: 'Word' }) });
+    useAnnotationStore.setState({ selection: makeTextSelection({ endVerse: 4, text: 'Word' }) });
     renderHost(baseProps);
     expect(useDiscoveryStore.getState().found).toBeNull();
   });
@@ -178,7 +145,7 @@ describe('useDiscoveryHost', () => {
     renderHost({ ...baseProps, enabled: false });
 
     act(() => {
-      useAnnotationStore.setState({ selection: makeSelection() });
+      useAnnotationStore.setState({ selection: makeTextSelection() });
     });
 
     expect(useDiscoveryStore.getState().found).toBeNull();
@@ -191,7 +158,7 @@ describe('useDiscoveryHost', () => {
     act(() => {
       useDiscoveryStore.setState({
         lensActive: true,
-        activePrompt: makeAnalysis().connectors[0],
+        activePrompt: makeChapterAnalysis().connectors[0],
         revealedRungs: ['range', 'first'],
         markedPresetId: 'preset-1',
       });
@@ -206,20 +173,45 @@ describe('useDiscoveryHost', () => {
     expect(state.markedPresetId).toBeNull();
     // The publish effect re-runs with the new chapter, but the analysis
     // itself (still the same prop value) isn't wiped by the reset.
-    expect(state.context).toEqual(makeContext({ chapter: 2 }));
+    expect(state.context).toEqual(makeDiscoveryContext({ chapter: 2 }));
   });
 
   it('clears a stale text selection when the chapter changes', () => {
     const { rerender } = renderHost(baseProps);
 
     act(() => {
-      useAnnotationStore.setState({ selection: makeSelection({ chapter: 1, text: 'Something' }) });
+      useAnnotationStore.setState({ selection: makeTextSelection({ chapter: 1, text: 'Something' }) });
     });
     expect(useAnnotationStore.getState().selection).not.toBeNull();
 
     rerender({ ...baseProps, currentChapter: 2 });
 
     expect(useAnnotationStore.getState().selection).toBeNull();
+  });
+
+  it('does not call clearSelection on chapter change when there is no selection', () => {
+    useAnnotationStore.setState({ selection: null });
+    const clearSelectionSpy = vi.spyOn(useAnnotationStore.getState(), 'clearSelection');
+
+    const { rerender } = renderHost(baseProps);
+    rerender({ ...baseProps, currentChapter: 2 });
+
+    expect(clearSelectionSpy).not.toHaveBeenCalled();
+    clearSelectionSpy.mockRestore();
+  });
+
+  it('dismisses the "you found it" toast when the chapter changes', () => {
+    usePanelStore.setState({ activePanel: null });
+    const { rerender } = renderHost(baseProps);
+
+    act(() => {
+      useAnnotationStore.setState({ selection: makeTextSelection() });
+    });
+    expect(useToastStore.getState().toasts).toHaveLength(1);
+
+    rerender({ ...baseProps, currentChapter: 2 });
+
+    expect(useToastStore.getState().toasts).toHaveLength(0);
   });
 
   it('turns the lens off when `enabled` flips false', () => {
