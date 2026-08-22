@@ -11,7 +11,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { HingesCard } from '../HingesCard';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
-import type { ConnectorHit } from '@/lib/chapterAnalysis';
+import { groupConnectorsByVerse, type ConnectorHit } from '@/lib/chapterAnalysis';
 
 vi.mock('@/lib/database', () => ({
   updatePreferences: vi.fn(async () => {}),
@@ -33,6 +33,7 @@ const hits: ConnectorHit[] = [
   { phrase: 'Therefore', category: 'conclusion', verse: 8, start: 0, end: 9 },
   { phrase: 'But', category: 'contrast', verse: 3, start: 0, end: 3 },
 ];
+const connectorRangesByVerse = groupConnectorsByVerse(hits);
 
 describe('HingesCard', () => {
   beforeEach(() => {
@@ -46,13 +47,8 @@ describe('HingesCard', () => {
     cleanup();
   });
 
-  it('renders nothing below the minCount threshold', () => {
-    const { container } = render(<HingesCard connectors={hits} minCount={3} book="Rom" chapter={5} />);
-    expect(container.firstChild).toBeNull();
-  });
-
   it('lists rows grouped by verse in ascending order', () => {
-    render(<HingesCard connectors={hits} minCount={1} book="Rom" chapter={5} />);
+    render(<HingesCard connectorRangesByVerse={connectorRangesByVerse} hingeCount={hits.length} book="Rom" chapter={5} />);
     expect(screen.getByText('2 hinges in this chapter')).toBeTruthy();
     const rows = screen.getAllByRole('button', { name: /v\.\d/ });
     expect(rows).toHaveLength(2);
@@ -61,21 +57,21 @@ describe('HingesCard', () => {
   });
 
   it('tapping a row navigates to the verse and expands the prompt', () => {
-    render(<HingesCard connectors={hits} minCount={1} book="Rom" chapter={5} />);
+    render(<HingesCard connectorRangesByVerse={connectorRangesByVerse} hingeCount={hits.length} book="Rom" chapter={5} />);
     fireEvent.click(screen.getByText(/But/));
     expect(navigateToVerse).toHaveBeenCalledWith('Rom', 5, 3);
     expect(useDiscoveryStore.getState().activePrompt).toMatchObject({ verse: 3, phrase: 'But' });
   });
 
   it('shows "Add to Flow" only when the inductive toolkit is on', () => {
-    render(<HingesCard connectors={hits} minCount={1} book="Rom" chapter={5} />);
+    render(<HingesCard connectorRangesByVerse={connectorRangesByVerse} hingeCount={hits.length} book="Rom" chapter={5} />);
     fireEvent.click(screen.getByText(/But/));
     expect(screen.queryByText('Add to Flow')).toBeNull();
   });
 
   it('shows and calls "Add to Flow" when the inductive toolkit is on', async () => {
     usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
-    render(<HingesCard connectors={hits} minCount={1} book="Rom" chapter={5} />);
+    render(<HingesCard connectorRangesByVerse={connectorRangesByVerse} hingeCount={hits.length} book="Rom" chapter={5} />);
     fireEvent.click(screen.getByText(/But/));
     const addButton = screen.getByText('Add to Flow');
     fireEvent.click(addButton);
@@ -83,7 +79,7 @@ describe('HingesCard', () => {
   });
 
   it('toggles lensActive via the toggle switch', () => {
-    render(<HingesCard connectors={hits} minCount={1} book="Rom" chapter={5} />);
+    render(<HingesCard connectorRangesByVerse={connectorRangesByVerse} hingeCount={hits.length} book="Rom" chapter={5} />);
     const toggle = screen.getByRole('switch', { name: 'Show hinges in the text' });
     expect(toggle.getAttribute('aria-checked')).toBe('false');
     fireEvent.click(toggle);

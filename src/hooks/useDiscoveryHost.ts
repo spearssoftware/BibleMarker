@@ -5,7 +5,7 @@
  * reads even though the Discover panel itself is usually unmounted: the
  * chapter-change reset (including clearing a stale text selection so it
  * can't re-confirm the repetition word after navigating away and back),
- * publishing analysis/translation meta to the store, the lens auto-off, and
+ * publishing the atomic chapter context to the store, the lens auto-off, and
  * the repetition "find" confirmation (ported from the old `RepetitionChip`'s
  * confirm effect). On confirm, if the Discover panel isn't open to show the
  * result, a toast nudges the reader to open it. Call once from
@@ -20,7 +20,7 @@ import { useEffect } from 'react';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { usePanelStore } from '@/stores/panelStore';
-import { useToastStore } from '@/stores/toastStore';
+import { toast } from '@/stores/toastStore';
 import { track } from '@/lib/telemetry';
 import { normalizeForMatching } from '@/lib/keywordMatching';
 import { singularize, type ChapterAnalysis } from '@/lib/chapterAnalysis';
@@ -45,8 +45,7 @@ export function useDiscoveryHost({
   enabled,
 }: UseDiscoveryHostOptions): void {
   const resetForChapter = useDiscoveryStore(s => s.resetForChapter);
-  const setAnalysis = useDiscoveryStore(s => s.setAnalysis);
-  const setTranslationMeta = useDiscoveryStore(s => s.setTranslationMeta);
+  const setContext = useDiscoveryStore(s => s.setContext);
   const setLensActive = useDiscoveryStore(s => s.setLensActive);
   const found = useDiscoveryStore(s => s.found);
   const setFound = useDiscoveryStore(s => s.setFound);
@@ -66,15 +65,23 @@ export function useDiscoveryHost({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- resetForChapter/clearSelection are stable store actions
   }, [currentBook, currentChapter, primaryTranslationId]);
 
-  // 2. Publish analysis + translation meta so the panel (usually unmounted)
-  // can read them on demand.
+  // 2. Publish chapter identity + analysis + translation meta as one atomic
+  // context so the panel (usually unmounted) never reads a chapter's
+  // analysis paired with a different chapter's translation meta.
   useEffect(() => {
-    setAnalysis(analysis);
-  }, [analysis, setAnalysis]);
-
-  useEffect(() => {
-    setTranslationMeta(translationCount, primaryTranslationAbbrev);
-  }, [translationCount, primaryTranslationAbbrev, setTranslationMeta]);
+    if (!analysis || !primaryTranslationId) {
+      setContext(null);
+      return;
+    }
+    setContext({
+      book: currentBook,
+      chapter: currentChapter,
+      translationId: primaryTranslationId,
+      analysis,
+      translationCount,
+      primaryTranslationAbbrev,
+    });
+  }, [analysis, currentBook, currentChapter, primaryTranslationId, translationCount, primaryTranslationAbbrev, setContext]);
 
   // 3. The kill-switch (or a losing race with a chapter that turns out to
   // have no analysis) can turn `enabled` off while the lens is mid-toggle —
@@ -107,7 +114,7 @@ export function useDiscoveryHost({
       });
       track('discovery_find_confirmed', { feature: 'repetition' });
       if (usePanelStore.getState().activePanel !== 'discovery') {
-        useToastStore.getState().show('You found it — open Discover to highlight it.', 'info');
+        toast.info('You found it — open Discover to highlight it.');
       }
     }
   }, [enabled, selection, repetition, isFound, primaryTranslationId, currentBook, currentChapter, setFound]);

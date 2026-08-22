@@ -41,6 +41,9 @@ import type { Annotation, Chapter, SectionHeading, Note, ChapterTitle, VerseRef 
 
 const KJV_FALLBACK_ERROR_PREFIX = 'Showing KJV';
 
+/** Delay before re-keying verse content after a panel opens/closes/collapses, to wait out the CSS transition. */
+export const LAYOUT_REKEY_MS = 350;
+
 export function MultiTranslationView() {
   const { activeView, loadActiveView, addTranslation, setChaptersByTranslation } = useMultiTranslationStore();
   const setActiveChapterVerses = useActiveChapterStore(state => state.setActiveChapterVerses);
@@ -179,7 +182,7 @@ export function MultiTranslationView() {
 
   // Re-key after panel open/close/collapse (wait for 300ms CSS transition)
   useEffect(() => {
-    const timer = setTimeout(() => setLayoutKey(k => k + 1), 350);
+    const timer = setTimeout(() => setLayoutKey(k => k + 1), LAYOUT_REKEY_MS);
     return () => clearTimeout(timer);
   }, [panelActive, panelCollapsed]);
 

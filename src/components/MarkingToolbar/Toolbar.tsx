@@ -18,8 +18,8 @@ import { usePanelStore } from '@/stores/panelStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
 import { usePreferencesStore, useInductiveToolsVisible } from '@/stores/preferencesStore';
+import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryEnabled } from '@/lib/discovery-config';
-import { useDiscoverySummary } from '@/hooks/useDiscoverySummary';
 import { track } from '@/lib/telemetry';
 import { deleteAnnotation } from '@/lib/database';
 import { getAllTranslations } from '@/lib/bible-api';
@@ -59,7 +59,9 @@ export function Toolbar() {
   const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
   const inductiveToolsVisible = useInductiveToolsVisible();
   const discoveryEnabled = useDiscoveryEnabled();
-  const { hasOpenChallenge } = useDiscoverySummary();
+  const hasOpenChallenge = useDiscoveryStore(
+    s => s.context?.analysis.repetition != null && s.markedPresetId === null
+  );
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
 
   // "Enable inductive tools" gates the tool tabs (Key Words/Observe/Analyze/

@@ -21,13 +21,24 @@ export interface DiscoveryFound {
   selection: TextSelection;
 }
 
-interface DiscoveryState {
-  /** Chapter analysis published by the host hook; read by the panel on demand. */
-  analysis: ChapterAnalysis | null;
+export interface DiscoveryContext {
+  book: string;
+  chapter: number;
+  translationId: string;
+  analysis: ChapterAnalysis;
   /** Number of translation columns currently displayed. */
   translationCount: number;
   /** Abbreviation (not full name) of the primary translation, e.g. "NASB". */
   primaryTranslationAbbrev: string | null;
+}
+
+interface DiscoveryState {
+  /**
+   * Chapter identity + analysis + translation meta published by the host
+   * hook as one atomic unit, so the panel (read on demand) never sees a
+   * chapter's analysis paired with a different chapter's translation meta.
+   */
+  context: DiscoveryContext | null;
 
   /** Whether the Connector Lens dimming pass is active. */
   lensActive: boolean;
@@ -45,31 +56,26 @@ interface DiscoveryState {
    */
   revealedRungs: RepetitionRung[];
 
-  setAnalysis: (analysis: ChapterAnalysis | null) => void;
-  setTranslationMeta: (translationCount: number, primaryTranslationAbbrev: string | null) => void;
+  setContext: (context: DiscoveryContext | null) => void;
   setLensActive: (active: boolean) => void;
   toggleLens: () => void;
   setActivePrompt: (hit: ConnectorHit | null) => void;
   setFound: (found: DiscoveryFound | null) => void;
   setMarkedPresetId: (id: string | null) => void;
   revealRung: (rung: RepetitionRung) => void;
-  /** Clears all Discover-layer UI state except analysis/translation meta — called when the chapter changes. */
+  /** Clears all Discover-layer UI state except context — called when the chapter changes. */
   resetForChapter: () => void;
 }
 
 export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
-  analysis: null,
-  translationCount: 1,
-  primaryTranslationAbbrev: null,
+  context: null,
   lensActive: false,
   activePrompt: null,
   found: null,
   markedPresetId: null,
   revealedRungs: [],
 
-  setAnalysis: (analysis) => set({ analysis }),
-  setTranslationMeta: (translationCount, primaryTranslationAbbrev) =>
-    set({ translationCount, primaryTranslationAbbrev }),
+  setContext: (context) => set({ context }),
   setLensActive: (active) => set({ lensActive: active }),
   toggleLens: () => set({ lensActive: !get().lensActive }),
   setActivePrompt: (hit) => set({ activePrompt: hit }),

@@ -19,6 +19,7 @@ import { useAnnotationStore } from '@/stores/annotationStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { usePanelStore } from '@/stores/panelStore';
 import { useToastStore } from '@/stores/toastStore';
+import type { DiscoveryContext } from '@/stores/discoveryStore';
 import type { ChapterAnalysis, ConnectorHit } from '@/lib/chapterAnalysis';
 
 const trackMock = vi.fn();
@@ -59,6 +60,18 @@ const baseProps: HostProps = {
   enabled: true,
 };
 
+function makeContext(overrides: Partial<DiscoveryContext> = {}): DiscoveryContext {
+  return {
+    book: 'John',
+    chapter: 1,
+    translationId: 'sword-NASB',
+    analysis: makeAnalysis(),
+    translationCount: 1,
+    primaryTranslationAbbrev: null,
+    ...overrides,
+  };
+}
+
 function makeSelection(overrides: Partial<{ moduleId: string; book: string; chapter: number; startVerse: number; endVerse: number; text: string }> = {}) {
   return {
     moduleId: 'sword-NASB',
@@ -76,9 +89,7 @@ describe('useDiscoveryHost', () => {
     trackMock.mockClear();
     useAnnotationStore.setState({ selection: null });
     useDiscoveryStore.setState({
-      analysis: null,
-      translationCount: 1,
-      primaryTranslationAbbrev: null,
+      context: null,
       lensActive: false,
       activePrompt: null,
       found: null,
@@ -97,9 +108,9 @@ describe('useDiscoveryHost', () => {
     cleanup();
   });
 
-  it('publishes the analysis to the store', () => {
+  it('publishes the atomic context to the store', () => {
     renderHost(baseProps);
-    expect(useDiscoveryStore.getState().analysis).toEqual(makeAnalysis());
+    expect(useDiscoveryStore.getState().context).toEqual(makeContext());
   });
 
   it('confirms the repetition word once the reader selects it themselves, and tracks it', () => {
@@ -174,7 +185,7 @@ describe('useDiscoveryHost', () => {
     expect(trackMock).not.toHaveBeenCalled();
   });
 
-  it('resets lens/prompt/rungs/marked (but not analysis) when the bibleStore chapter changes', () => {
+  it('resets lens/prompt/rungs/marked (but not context) when the bibleStore chapter changes', () => {
     const { rerender } = renderHost(baseProps);
 
     act(() => {
@@ -193,7 +204,9 @@ describe('useDiscoveryHost', () => {
     expect(state.activePrompt).toBeNull();
     expect(state.revealedRungs).toEqual([]);
     expect(state.markedPresetId).toBeNull();
-    expect(state.analysis).toEqual(makeAnalysis());
+    // The publish effect re-runs with the new chapter, but the analysis
+    // itself (still the same prop value) isn't wiped by the reset.
+    expect(state.context).toEqual(makeContext({ chapter: 2 }));
   });
 
   it('clears a stale text selection when the chapter changes', () => {

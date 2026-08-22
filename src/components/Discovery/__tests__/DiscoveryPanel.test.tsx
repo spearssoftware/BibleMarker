@@ -14,8 +14,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { DiscoveryPanel } from '../DiscoveryPanel';
-import { useActiveChapterStore } from '@/stores/activeChapterStore';
-import { useDiscoveryStore } from '@/stores/discoveryStore';
+import { useDiscoveryStore, type DiscoveryContext } from '@/stores/discoveryStore';
 import { DEFAULT_DISCOVERY_THRESHOLDS, type ChapterAnalysis, type ConnectorHit } from '@/lib/chapterAnalysis';
 
 vi.mock('@/lib/database', () => ({
@@ -64,6 +63,18 @@ function makeAnalysis(overrides: Partial<ChapterAnalysis> = {}): ChapterAnalysis
   };
 }
 
+function makeContext(overrides: Partial<DiscoveryContext> = {}): DiscoveryContext {
+  return {
+    book: 'John',
+    chapter: 1,
+    translationId: 'sword-NASB',
+    analysis: makeAnalysis(),
+    translationCount: 1,
+    primaryTranslationAbbrev: null,
+    ...overrides,
+  };
+}
+
 describe('DiscoveryPanel', () => {
   beforeEach(() => {
     mockEntities = null;
@@ -71,11 +82,8 @@ describe('DiscoveryPanel', () => {
     mockEntitiesError = null;
     discoveryEnabled = true;
     trackMock.mockClear();
-    useActiveChapterStore.setState({ book: 'John', chapter: 1, translationId: 'sword-NASB', verses: [] });
     useDiscoveryStore.setState({
-      analysis: null,
-      translationCount: 1,
-      primaryTranslationAbbrev: null,
+      context: null,
       lensActive: false,
       activePrompt: null,
       found: null,
@@ -102,7 +110,7 @@ describe('DiscoveryPanel', () => {
 
   it('keeps showing "Reading the chapter…" while entities are still unresolved, even with nothing else to report', () => {
     useDiscoveryStore.setState({
-      analysis: { repetition: null, connectors: [], connectorRangesByVerse: new Map() },
+      context: makeContext({ analysis: { repetition: null, connectors: [], connectorRangesByVerse: new Map() } }),
     });
     // entities: null + no error + not loading is the ambiguous "hasn't resolved yet" case.
     render(<DiscoveryPanel />);
@@ -113,7 +121,7 @@ describe('DiscoveryPanel', () => {
   it('shows "Nothing stands out" once analysis and entities have both resolved to nothing', () => {
     mockEntities = { book: 'John', chapter: 1, people: [], places: [], events: [], topics: [] };
     useDiscoveryStore.setState({
-      analysis: { repetition: null, connectors: [], connectorRangesByVerse: new Map() },
+      context: makeContext({ analysis: { repetition: null, connectors: [], connectorRangesByVerse: new Map() } }),
     });
     render(<DiscoveryPanel />);
     expect(screen.getByText('Nothing stands out here — just read.')).toBeTruthy();
@@ -122,7 +130,7 @@ describe('DiscoveryPanel', () => {
 
   it('renders the repetition and hinges cards, with the real RepetitionCard suffix, when everything qualifies', () => {
     mockEntities = { book: 'John', chapter: 1, people: ['jesus'], places: [], events: [], topics: [] };
-    useDiscoveryStore.setState({ analysis: makeAnalysis(), translationCount: 2, primaryTranslationAbbrev: 'NASB' });
+    useDiscoveryStore.setState({ context: makeContext({ translationCount: 2, primaryTranslationAbbrev: 'NASB' }) });
     render(<DiscoveryPanel />);
     expect(screen.getByText('One word appears 11× in this chapter (NASB)')).toBeTruthy();
     expect(screen.getByTestId('hinges-card')).toBeTruthy();
@@ -131,7 +139,7 @@ describe('DiscoveryPanel', () => {
 
   it('hides the hinges card below the connector threshold', () => {
     useDiscoveryStore.setState({
-      analysis: makeAnalysis({ connectors: [], connectorRangesByVerse: new Map() }),
+      context: makeContext({ analysis: makeAnalysis({ connectors: [], connectorRangesByVerse: new Map() }) }),
     });
     render(<DiscoveryPanel />);
     expect(screen.getByText('One word appears 11× in this chapter')).toBeTruthy();
@@ -139,7 +147,7 @@ describe('DiscoveryPanel', () => {
   });
 
   it('fires discovery_chip_shown, deduped per chapter, when the repetition and hinges cards render', () => {
-    useDiscoveryStore.setState({ analysis: makeAnalysis() });
+    useDiscoveryStore.setState({ context: makeContext() });
     render(<DiscoveryPanel />);
     expect(trackMock).toHaveBeenCalledWith('discovery_chip_shown', {
       feature: 'repetition',
@@ -153,7 +161,7 @@ describe('DiscoveryPanel', () => {
 
   it('does not fire discovery_chip_shown when the Discover kill switch is off', () => {
     discoveryEnabled = false;
-    useDiscoveryStore.setState({ analysis: makeAnalysis() });
+    useDiscoveryStore.setState({ context: makeContext() });
     render(<DiscoveryPanel />);
     expect(trackMock).not.toHaveBeenCalled();
   });

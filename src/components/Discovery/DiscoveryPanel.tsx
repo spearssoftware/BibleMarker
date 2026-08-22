@@ -1,10 +1,10 @@
 /**
  * DiscoveryPanel — one scrolling page of Discover-layer cards
  *
- * Replaces the old chip strip (`DiscoveryBar`). Reads chapter identity from
- * `activeChapterStore`, the published analysis/translation meta/hint/found
- * state from `discoveryStore`, and entity counts from Gnosis. No props —
- * everything it needs is either already-mounted host state or store reads.
+ * Replaces the old chip strip (`DiscoveryBar`). Reads the atomic chapter
+ * context (identity + analysis + translation meta) published by
+ * `useDiscoveryHost`, plus entity counts from Gnosis. No props — everything
+ * it needs is either already-mounted host state or store reads.
  *
  * `discovery_chip_shown` telemetry lives here (not in `useDiscoveryHost`,
  * which is always-mounted) so it fires only when the panel actually renders
@@ -19,10 +19,8 @@
 
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
-import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryConfig, useDiscoveryEnabled } from '@/lib/discovery-config';
-import { useDiscoverySummary } from '@/hooks/useDiscoverySummary';
 import { useChapterEntities } from '@/hooks/useGnosis';
 import { track } from '@/lib/telemetry';
 import { RepetitionCard } from './RepetitionCard';
@@ -31,27 +29,34 @@ import { PeoplePlacesCard } from './PeoplePlacesCard';
 
 function DiscoveryDialog({ children }: { children: ReactNode }) {
   return (
-    <div role="dialog" aria-label="Discover" aria-modal="true" className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
-      {children}
+    <div role="dialog" aria-label="Discover" aria-modal="true" className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar space-y-3">
+        {children}
+      </div>
     </div>
   );
 }
 
 export function DiscoveryPanel() {
-  const book = useActiveChapterStore(s => s.book);
-  const chapter = useActiveChapterStore(s => s.chapter);
-  const translationId = useActiveChapterStore(s => s.translationId);
-  const analysis = useDiscoveryStore(s => s.analysis);
-  const translationCount = useDiscoveryStore(s => s.translationCount);
-  const primaryTranslationAbbrev = useDiscoveryStore(s => s.primaryTranslationAbbrev);
+  const context = useDiscoveryStore(s => s.context);
   const thresholds = useDiscoveryConfig();
   const discoveryEnabled = useDiscoveryEnabled();
-  const { hasRepetition, showHinges } = useDiscoverySummary();
   const { entities, isLoading: entitiesLoading, error: entitiesError } = useChapterEntities(
-    book ?? undefined,
-    chapter ?? undefined,
+    context?.book,
+    context?.chapter,
     discoveryEnabled
   );
+
+  const book = context?.book ?? null;
+  const chapter = context?.chapter ?? null;
+  const translationId = context?.translationId ?? null;
+  const analysis = context?.analysis ?? null;
+  const translationCount = context?.translationCount ?? 1;
+  const primaryTranslationAbbrev = context?.primaryTranslationAbbrev ?? null;
+
+  const hasRepetition = Boolean(analysis?.repetition);
+  const hingeCount = analysis?.connectors.length ?? 0;
+  const showHinges = hingeCount >= thresholds.connectorChipMinCount;
 
   // Fire once per {book, chapter, translation} for each card actually shown —
   // mirrors the dedupe keys the old `useDiscoveryHost`-hosted version used.
@@ -100,8 +105,8 @@ export function DiscoveryPanel() {
       )}
       {showHinges && book && chapter !== null && (
         <HingesCard
-          connectors={analysis.connectors}
-          minCount={thresholds.connectorChipMinCount}
+          connectorRangesByVerse={analysis.connectorRangesByVerse}
+          hingeCount={hingeCount}
           book={book}
           chapter={chapter}
         />
