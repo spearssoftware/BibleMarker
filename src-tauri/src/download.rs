@@ -70,6 +70,24 @@ fn hash_bytes(bytes: &[u8]) -> String {
     to_hex(&hasher.finalize())
 }
 
+/// True if the file at `path` starts with the zip magic bytes (`PK`).
+///
+/// AGP can wrap assets in a `.jar` container, producing a valid zip that doesn't
+/// contain the expected SWORD contents, so an installed module is re-checked
+/// against the header. Only the SWORD modules are zips — `gnosis-lite.db`
+/// carries the SQLite header and is verified by size + hash alone. An unreadable
+/// file is reported as not-a-zip so the caller reinstalls it.
+#[cfg(target_os = "android")]
+fn has_zip_magic(path: &Path) -> bool {
+    (|| -> Result<bool, std::io::Error> {
+        let mut f = std::fs::File::open(path)?;
+        let mut magic = [0u8; 4];
+        f.read_exact(&mut magic)?;
+        Ok(magic[0] == 0x50 && magic[1] == 0x4B)
+    })()
+    .unwrap_or(false)
+}
+
 /// Remove the `-wal`/`-shm` sidecars belonging to `dest`.
 ///
 /// Replacing a SQLite file leaves its sidecars describing pages that no longer
@@ -194,20 +212,11 @@ pub async fn install_bundled_module(
         );
 
         if let Ok(meta) = std::fs::metadata(&dest) {
-            // Also check that the on-disk file starts with a zip magic header.
-            // AGP can wrap assets in a .jar container, producing a valid zip that
-            // doesn't contain the expected SWORD contents. In that case, overwrite.
-            // Only the SWORD modules are zips — gnosis-lite.db carries the SQLite
-            // header, so requiring `PK` there would make the skip path below
-            // unreachable and rewrite the whole DB on every launch.
-            let on_disk_ok = !resource_name.ends_with(".zip")
-                || (|| -> Result<bool, std::io::Error> {
-                    let mut f = std::fs::File::open(&dest)?;
-                    let mut magic = [0u8; 4];
-                    f.read_exact(&mut magic)?;
-                    Ok(magic[0] == 0x50 && magic[1] == 0x4B)
-                })()
-                .unwrap_or(false);
+            // Zip resources are also checked against their header — see
+            // `has_zip_magic`. Requiring `PK` of every resource would make the
+            // skip path below unreachable for gnosis-lite.db and rewrite the
+            // whole DB on every launch.
+            let on_disk_ok = !resource_name.ends_with(".zip") || has_zip_magic(&dest);
 
             if meta.len() == bytes.len() as u64 && on_disk_ok {
                 let dest_for_hash = dest.clone();
