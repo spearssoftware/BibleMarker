@@ -70,6 +70,37 @@ fn hash_bytes(bytes: &[u8]) -> String {
     to_hex(&hasher.finalize())
 }
 
+/// True if the file at `path` starts with the zip magic bytes (`PK`).
+///
+/// AGP can wrap assets in a `.jar` container, producing a valid zip that doesn't
+/// contain the expected SWORD contents, so an installed module is re-checked
+/// against the header. Only the SWORD modules are zips — `gnosis-lite.db`
+/// carries the SQLite header and is verified by size + hash alone. An unreadable
+/// file is reported as not-a-zip so the caller reinstalls it.
+#[cfg(target_os = "android")]
+fn has_zip_magic(path: &Path) -> bool {
+    (|| -> Result<bool, std::io::Error> {
+        let mut f = std::fs::File::open(path)?;
+        let mut magic = [0u8; 4];
+        f.read_exact(&mut magic)?;
+        Ok(magic[0] == 0x50 && magic[1] == 0x4B)
+    })()
+    .unwrap_or(false)
+}
+
+/// Remove the `-wal`/`-shm` sidecars belonging to `dest`.
+///
+/// Replacing a SQLite file leaves its sidecars describing pages that no longer
+/// exist. SQLite then reads the pair back as "file is not a database" (code 26).
+/// Missing sidecars are the normal case, so failures are ignored.
+fn remove_sqlite_sidecars(dest: &Path) {
+    if let Some(name) = dest.file_name().and_then(|n| n.to_str()) {
+        for suffix in ["-wal", "-shm"] {
+            let _ = std::fs::remove_file(dest.with_file_name(format!("{name}{suffix}")));
+        }
+    }
+}
+
 /// Download a file from `url` and save it to `dest_path`.
 /// Creates parent directories if needed.
 #[tauri::command]
@@ -181,16 +212,11 @@ pub async fn install_bundled_module(
         );
 
         if let Ok(meta) = std::fs::metadata(&dest) {
-            // Also check that the on-disk file starts with a zip magic header.
-            // AGP can wrap assets in a .jar container, producing a valid zip that
-            // doesn't contain the expected SWORD contents. In that case, overwrite.
-            let on_disk_ok = (|| -> Result<bool, std::io::Error> {
-                let mut f = std::fs::File::open(&dest)?;
-                let mut magic = [0u8; 4];
-                f.read_exact(&mut magic)?;
-                Ok(magic[0] == 0x50 && magic[1] == 0x4B)
-            })()
-            .unwrap_or(false);
+            // Zip resources are also checked against their header — see
+            // `has_zip_magic`. Requiring `PK` of every resource would make the
+            // skip path below unreachable for gnosis-lite.db and rewrite the
+            // whole DB on every launch.
+            let on_disk_ok = !resource_name.ends_with(".zip") || has_zip_magic(&dest);
 
             if meta.len() == bytes.len() as u64 && on_disk_ok {
                 let dest_for_hash = dest.clone();
@@ -226,6 +252,7 @@ pub async fn install_bundled_module(
             }
         }
 
+        remove_sqlite_sidecars(&dest);
         std::fs::write(&dest, &bytes)
             .map_err(|e| format!("Failed to write {resource_name} to {dest_path}: {e}"))?;
         let written = std::fs::metadata(&dest).map(|m| m.len()).unwrap_or(0);
@@ -294,6 +321,7 @@ pub async fn install_bundled_module(
             }
         }
 
+        remove_sqlite_sidecars(&dest);
         std::fs::copy(&source, &dest).map_err(|e| {
             format!("Failed to copy {resource_name} from {source:?} to {dest_path}: {e}")
         })?;
@@ -336,6 +364,28 @@ mod tests {
     fn allows_dest_inside_sword_dir() {
         let sword = Path::new("/home/u/.local/share/app.biblemarker/sword");
         assert!(is_allowed_dest(&sword.join("KJV.zip"), sword));
+    }
+
+    #[test]
+    fn removes_sidecars_but_keeps_the_database() {
+        let dir =
+            std::env::temp_dir().join(format!("biblemarker-sidecar-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = dir.join("gnosis-lite.db");
+        std::fs::write(&db, b"db").unwrap();
+        std::fs::write(dir.join("gnosis-lite.db-wal"), b"wal").unwrap();
+        std::fs::write(dir.join("gnosis-lite.db-shm"), b"shm").unwrap();
+
+        remove_sqlite_sidecars(&db);
+
+        assert!(db.exists(), "the database itself must survive");
+        assert!(!dir.join("gnosis-lite.db-wal").exists());
+        assert!(!dir.join("gnosis-lite.db-shm").exists());
+
+        // Absent sidecars are the normal case and must not panic.
+        remove_sqlite_sidecars(&db);
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
