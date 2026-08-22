@@ -61,6 +61,40 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # `scripts/release.sh --notes` commits the user-facing notes here, since the
+      # release doesn't exist until this workflow runs. Prepend them above the
+      # auto-generated commit list; the app fetches this section for the in-app
+      # What's New popup. No file (a purely internal patch) leaves the notes as-is.
+      - name: Prepend What's New to release notes
+        # Decorating the body must never cost a release: prepare gates every
+        # build job, so a transient gh failure here would abort the whole run.
+        # Worst case the release ships with only the generated commit list and
+        # the section can be added by hand.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          NOTES_FILE=".github/release-notes/v${VERSION}.md"
+          if [ ! -f "$NOTES_FILE" ]; then
+            echo "No $NOTES_FILE — keeping the auto-generated notes."
+            exit 0
+          fi
+          BODY=$(gh release view "app-v${VERSION}" --json body -q .body)
+          # Re-runs of this workflow must not stack duplicate sections.
+          if grep -q "^## What's New" <<< "$BODY"; then
+            echo "What's New already present — nothing to do."
+            exit 0
+          fi
+          {
+            echo "## What's New"
+            cat "$NOTES_FILE"
+            echo ""
+            printf '%s\n' "$BODY"
+          } > "$RUNNER_TEMP/release-body.md"
+          gh release edit "app-v${VERSION}" --notes-file "$RUNNER_TEMP/release-body.md"
+          echo "Prepended What's New from $NOTES_FILE"
+
   publish-tauri:
     needs: prepare
     permissions:

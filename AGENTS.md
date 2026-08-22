@@ -206,7 +206,9 @@ macOS release builds require Apple signing certs (CI secrets only). `public/icon
 
 ### User-Facing Release Notes
 
-After the CI draft release is created, edit it on GitHub to prepend a `## What's New` section **before** the auto-generated commit list. This section is fetched by the app and shown to users as an in-app popup on first launch after an update.
+Every release carries a `## What's New` section **before** the auto-generated commit list. This section is fetched by the app and shown to users as an in-app popup on first launch after an update.
+
+Pass `--notes` to `pnpm run release` and it is handled for you: the script commits the text to `.github/release-notes/vX.Y.Z.md` on the release branch, and the publish workflow's "Prepend What's New" step puts it at the top of the release body once the merge creates the tag. To reword it after cutting the release PR but before merging, edit that file on the release branch. To add a section to a release that was cut without `--notes`, edit the release body on GitHub by hand.
 
 Rules for `## What's New`:
 - Write for non-technical Bible study users — no jargon, no internal terms
@@ -229,8 +231,9 @@ pnpm run release -- major                                   # → next major
 pnpm run release -- patch --notes "- Bullet one\n- Bullet two"   # prepend What's New automatically
 ```
 
-Prefer `--notes` over editing the draft on GitHub after the fact — the script waits for CI and prepends the `## What's New` section for you. Pitfalls:
+Prefer `--notes` over editing the draft on GitHub after the fact. Pitfalls:
 - `--notes` requires a string argument immediately after it. An empty value silently fails under `set -euo pipefail`.
+- `\n` in the `--notes` string becomes a real newline, so one bullet per `\n`.
 - The script aborts on uncommitted changes — commit `Cargo.lock` and `project.yml` from dev builds first.
 - From a prerelease (e.g. `1.7.0-beta.4`): `patch` finalizes at the same base (`1.7.0`) — npm semantics — while `minor`/`major` still increment from the base (`1.8.0` / `2.0.0`).
 - Every release publishes a single `latest.json` manifest consumed by the Tauri updater.
