@@ -41,7 +41,9 @@ let dbInitPromise: Promise<Database> | null = null;
 async function getGnosisDb(): Promise<Database> {
   if (!dbInitPromise) {
     // Clear the cached promise on failure so a later call can retry, rather
-    // than every future caller re-awaiting the same rejection.
+    // than every future caller re-awaiting the same rejection. sqlite-db.ts
+    // deliberately does not do this: retrying a read-only reference DB is free,
+    // while re-running init on the user's live database is not.
     dbInitPromise = initGnosisDb().catch(e => {
       dbInitPromise = null;
       throw e;

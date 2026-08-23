@@ -4,13 +4,18 @@
 use std::path::Path;
 use tauri::command;
 
-/// Delete `name` and its `-wal`/`-shm` sidecars from `app_data`.
+/// Suffixes of the sidecar files SQLite keeps beside a database in WAL mode.
+/// Shared with `download.rs`, which clears the same set before replacing a
+/// bundled DB, so the two can't drift apart.
+pub(crate) const SQLITE_SIDECAR_SUFFIXES: [&str; 2] = ["-wal", "-shm"];
+
+/// Delete `name` and its sidecars from `app_data`.
 ///
 /// The sidecars have to go with the database: a WAL left beside a replacement
 /// file describes pages that file doesn't have, which SQLite reports as
 /// "file is not a database". Absent files are not an error.
 fn delete_database_files(app_data: &Path, name: &str) -> Result<(), String> {
-    for suffix in ["", "-wal", "-shm"] {
+    for suffix in std::iter::once("").chain(SQLITE_SIDECAR_SUFFIXES) {
         let f = app_data.join(format!("{name}{suffix}"));
         if f.exists() {
             std::fs::remove_file(&f)

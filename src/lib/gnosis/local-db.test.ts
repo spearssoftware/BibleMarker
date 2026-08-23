@@ -45,7 +45,7 @@ vi.mock('@tauri-apps/plugin-sql', () => {
     select: vi.fn(async (sql: string) => {
       if (state.corrupt) throw new Error(NOT_A_DB);
       if (sql.includes('sqlite_master')) return [{ tables: state.tableCount }];
-      if (sql.includes('gnosis_meta')) return [{ key: 'version', value: '0.9.3' }];
+      if (sql.includes('gnosis_meta')) return [];
       if (sql.includes('chapter_timeline')) return [{ year: -4, year_display: '4 BC' }];
       return [];
     }),

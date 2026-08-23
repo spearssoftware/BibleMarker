@@ -95,7 +95,7 @@ fn has_zip_magic(path: &Path) -> bool {
 /// Missing sidecars are the normal case, so failures are ignored.
 fn remove_sqlite_sidecars(dest: &Path) {
     if let Some(name) = dest.file_name().and_then(|n| n.to_str()) {
-        for suffix in ["-wal", "-shm"] {
+        for suffix in crate::db_maintenance::SQLITE_SIDECAR_SUFFIXES {
             let _ = std::fs::remove_file(dest.with_file_name(format!("{name}{suffix}")));
         }
     }
