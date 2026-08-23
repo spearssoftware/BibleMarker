@@ -19,6 +19,9 @@ const state = vi.hoisted(() => ({
   /** Recorded `invoke` calls, in order. */
   invocations: [] as { cmd: string; args?: Record<string, unknown> }[],
   closed: 0,
+  closeSucceeds: true,
+  /** Whether deleting the files actually yields a good copy. */
+  deleteRepairs: true,
 }));
 
 const NOT_A_DB = 'error returned from database: (code: 26) file is not a database';
@@ -27,7 +30,7 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(async (cmd: string, args?: Record<string, unknown>) => {
     state.invocations.push({ cmd, args });
     // Deleting the files lets the following reinstall lay down a good copy.
-    if (cmd === 'delete_gnosis_database') {
+    if (cmd === 'delete_gnosis_database' && state.deleteRepairs) {
       state.corrupt = false;
       state.tableCount = 12;
     }
@@ -51,7 +54,7 @@ vi.mock('@tauri-apps/plugin-sql', () => {
     }),
     close: vi.fn(async () => {
       state.closed += 1;
-      return true;
+      return state.closeSucceeds;
     }),
   };
   return {
@@ -79,6 +82,8 @@ beforeEach(() => {
   state.loadThrows = false;
   state.invocations = [];
   state.closed = 0;
+  state.closeSucceeds = true;
+  state.deleteRepairs = true;
 });
 
 describe('gnosis local DB self-heal', () => {
@@ -130,5 +135,31 @@ describe('gnosis local DB self-heal', () => {
     // Whatever was wrong with the device is now resolved.
     state.loadThrows = false;
     await expect(db.getChapterYear('Gen', 1)).resolves.not.toBeNull();
+  });
+
+  it('rebuilds at most once per session', async () => {
+    // A device that cannot be repaired: the rebuild runs but doesn't help.
+    state.corrupt = true;
+    state.deleteRepairs = false;
+    const db = await freshDb();
+
+    await expect(db.getChapterYear('Gen', 1)).rejects.toThrow(/after reinstalling/);
+    // Init is retried, but the expensive rebuild is not repeated.
+    await expect(db.getChapterYear('Gen', 1)).rejects.toThrow(/already rebuilt this session/);
+    await expect(db.getChapterYear('Gen', 1)).rejects.toThrow(/already rebuilt this session/);
+
+    expect(commands().filter(c => c === 'delete_gnosis_database')).toHaveLength(1);
+  });
+
+  it('reports a close that fails, since the handle stays pooled', async () => {
+    state.corrupt = true;
+    state.closeSucceeds = false;
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const db = await freshDb();
+
+    await db.getChapterYear('Gen', 1).catch(() => null);
+
+    expect(errors).toHaveBeenCalledWith(expect.stringContaining('Failed to close'));
+    errors.mockRestore();
   });
 });

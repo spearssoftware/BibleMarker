@@ -37,6 +37,8 @@ const DB_FILE = 'gnosis-lite.db';
 const DB_URL = `sqlite:${DB_FILE}`;
 
 let dbInitPromise: Promise<Database> | null = null;
+/** A rebuild is expensive and never helps twice; one attempt per session. */
+let rebuildAttempted = false;
 
 async function getGnosisDb(): Promise<Database> {
   if (!dbInitPromise) {
@@ -85,7 +87,17 @@ async function openIfReadable(): Promise<Database | null> {
     console.warn('[Gnosis] DB is not readable:', e);
   }
 
-  await db.close().catch(() => {});
+  // The close matters: plugin-sql keys its pool by path and load() returns the
+  // pooled connection for a path it already holds, so a handle left open would
+  // survive the reinstall and be handed straight back. Report rather than
+  // swallow — it explains an otherwise baffling second failure.
+  try {
+    if (!(await db.close())) {
+      console.error('[Gnosis] Failed to close the unusable DB; it may stay cached');
+    }
+  } catch (e) {
+    console.error('[Gnosis] Error closing the unusable DB:', e);
+  }
   return null;
 }
 
@@ -104,6 +116,14 @@ async function initGnosisDb(): Promise<Database> {
   let db = await openIfReadable();
 
   if (!db) {
+    if (rebuildAttempted) {
+      // Retrying init is cheap and worth doing, but repeating the rebuild is
+      // not: on a device that simply cannot install the resource it would copy
+      // tens of megabytes again on every call.
+      throw new Error('gnosis-lite.db is unreadable and was already rebuilt this session');
+    }
+    rebuildAttempted = true;
+
     // The install above skips a file whose hash already matches the bundled
     // copy, so a damaged install survives it. Delete the DB and its sidecars
     // outright, then reinstall, so the panel repairs itself instead of showing
