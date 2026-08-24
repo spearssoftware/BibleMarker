@@ -137,15 +137,21 @@ describe('gnosis local DB self-heal', () => {
     await expect(db.getChapterYear('Gen', 1)).resolves.not.toBeNull();
   });
 
-  it('rebuilds at most once per session', async () => {
+  it('rebuilds once per session, carrying the real cause into every failure', async () => {
     // A device that cannot be repaired: the rebuild runs but doesn't help.
     state.corrupt = true;
     state.deleteRepairs = false;
     const db = await freshDb();
 
-    await expect(db.getChapterYear('Gen', 1)).rejects.toThrow(/after reinstalling/);
-    // Init is retried, but the expensive rebuild is not repeated.
-    await expect(db.getChapterYear('Gen', 1)).rejects.toThrow(/already rebuilt this session/);
+    // The first failure names the underlying SQLite error…
+    await expect(db.getChapterYear('Gen', 1)).rejects.toThrow(
+      /after reinstalling.*file is not a database/
+    );
+    // …and the once-per-session guard repeats it instead of masking it, while
+    // the expensive rebuild itself is not run again.
+    await expect(db.getChapterYear('Gen', 1)).rejects.toThrow(
+      /already rebuilt this session.*file is not a database/
+    );
     await expect(db.getChapterYear('Gen', 1)).rejects.toThrow(/already rebuilt this session/);
 
     expect(commands().filter(c => c === 'delete_gnosis_database')).toHaveLength(1);
