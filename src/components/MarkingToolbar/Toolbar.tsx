@@ -17,10 +17,15 @@ import { useStudyStore } from '@/stores/studyStore';
 import { usePanelStore } from '@/stores/panelStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
+import { usePreferencesStore, useInductiveToolsVisible } from '@/stores/preferencesStore';
+import { useDiscoveryStore, useMarkedPresetExists } from '@/stores/discoveryStore';
+import { useDiscoveryEnabled } from '@/lib/discovery-config';
+import { track } from '@/lib/telemetry';
 import { deleteAnnotation } from '@/lib/database';
 import { getAllTranslations } from '@/lib/bible-api';
 import type { MarkingPreset, Verse } from '@/types';
-import { createMarkingPreset, getRandomHighlightColor, presetHasDecoration } from '@/types';
+import { getRandomHighlightColor, presetHasDecoration } from '@/types';
+import { createBookScopedKeywordPreset } from '@/lib/discoveryActions';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { stripSymbols } from '@/lib/textUtils';
 import { usePeopleStore } from '@/stores/peopleStore';
@@ -45,13 +50,47 @@ export function Toolbar() {
   } = useAnnotationStore();
 
   const { previousChapter, nextChapter, canGoNext, canGoPrevious } = useBibleStore();
-  const { createTextAnnotation, createSymbolAnnotation, createAnnotationsAcrossTranslations, loadAnnotations } = useAnnotations();
-  const { presets, loadPresets, addPreset, markPresetUsed, updatePreset } = useMarkingPresetStore();
+  const { createTextAnnotation, createSymbolAnnotation, createAnnotationsAcrossTranslations, loadAnnotations, quickHighlight } = useAnnotations();
+  const { presets, loadPresets, markPresetUsed, updatePreset } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
   const { getOrCreateListForKeyword } = useListStore();
   const { activePanel, togglePanel, openPanel, isCollapsed } = usePanelStore();
   const chaptersByTranslation = useMultiTranslationStore(s => s.chaptersByTranslation);
+  const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
+  const inductiveToolsVisible = useInductiveToolsVisible();
+  const discoveryEnabled = useDiscoveryEnabled();
+  const discoveryContext = useDiscoveryStore(s => s.context);
+  const discoveryFound = useDiscoveryStore(s => s.found);
+  const alreadyHighlighted = useMarkedPresetExists();
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
+
+  // Discover badge: 'find' while the repetition word hasn't been found yet
+  // for this exact chapter/translation, 'highlight' once it's found but not
+  // yet marked (or the mark was since undone from Key Words), else no badge.
+  const foundMatchesContext =
+    !!discoveryContext &&
+    !!discoveryFound &&
+    discoveryFound.book === discoveryContext.book &&
+    discoveryFound.chapter === discoveryContext.chapter &&
+    discoveryFound.translationId === discoveryContext.translationId;
+  const discoveryBadge: 'find' | 'highlight' | null = !discoveryContext?.analysis.repetition
+    ? null
+    : !foundMatchesContext
+      ? 'find'
+      : alreadyHighlighted
+        ? null
+        : 'highlight';
+
+  // "Enable inductive tools" gates Key Words/Observe/Analyze and the advanced
+  // selection-menu items. Study Tools and Settings stay visible either way:
+  // Study Tools is pull-based (the reader goes and asks) and the Discover
+  // panel links into it — the panel itself just trims its deeper tabs
+  // (Strong's, Hebrew/Greek, Cross-Refs) when the toolkit is off. Before
+  // prefs finish hydrating, treat the toolkit as off rather than trusting the
+  // in-memory default — a gutted-then-restored flash for an existing user
+  // with the toolkit on would be worse than just starting with Study
+  // Tools/Settings-only and filling in the rest once hydration lands.
+  const visibleTools = inductiveToolsVisible ? TOOLS : TOOLS.filter(t => t.type === 'reference');
 
   // Load marking presets on mount
   useEffect(() => {
@@ -80,7 +119,10 @@ export function Toolbar() {
     };
   }, []);
 
-  // Listen for custom events to open panels
+  // Listen for custom events to open panels. openObservationTools/openAnalyzeTools
+  // stay unguarded by inductiveToolsEnabled — they're programmatic intents (e.g.
+  // "Add to Flow"), not the tab-bar buttons, so they should still work even with
+  // the toolkit hidden.
   useEffect(() => {
     const handleOpenObservationTools = (e: CustomEvent<{ tab?: ObservationTab; listId?: string; verseRef?: { book: string; chapter: number; verse: number }; autoCreate?: boolean }>) => {
       const { tab = 'lists', listId, verseRef: eventVerseRef, autoCreate } = e.detail || {};
@@ -249,18 +291,15 @@ export function Toolbar() {
       ? { symbol: 'person' as const, category: 'people' as const }
       : { symbol: 'mapPin' as const, category: 'places' as const };
 
-    const color = getRandomHighlightColor();
-    const preset = createMarkingPreset({
+    const preset = await createBookScopedKeywordPreset({
       word,
+      book: selection.book,
+      studyId: activeStudyId || undefined,
+      category: config.category,
       symbol: config.symbol,
       // 'none' = color tints the symbol, no highlight band drawn (symbol-only look).
-      highlight: { style: 'none', color },
-      category: config.category,
-      studyId: activeStudyId || undefined,
-      scopes: [{ book: selection.book }],
+      highlight: { style: 'none', color: getRandomHighlightColor() },
     });
-
-    await addPreset(preset);
     await applyPresetToSelection(preset);
 
     const verseRef = { book: selection.book, chapter: selection.chapter, verse: selection.startVerse };
@@ -276,11 +315,18 @@ export function Toolbar() {
     setActiveTool(null);
   };
 
-  // Keyboard shortcuts for toolbar tools (number keys 1-3)
+  // Keyboard shortcuts for toolbar tools (number keys 1-4). Indexed against
+  // the fixed TOOLS order (1=Key Words, 2=Observe, 3=Analyze, 4=Study Tools),
+  // not visibleTools position — otherwise "1" would trigger whatever tool
+  // happens to be first among the currently-visible ones (Study Tools, with
+  // the toolkit off), contradicting the on-screen numbering and the
+  // shortcuts help text. Only act if that fixed-position tool is currently
+  // visible, so 1-3 stay inert while the toolkit is off.
   useKeyboardShortcuts({
     onToolbarTool: (toolIndex: number) => {
-      if (toolIndex >= 0 && toolIndex < TOOLS.length) {
-        handleToolClick(TOOLS[toolIndex].type);
+      const tool = TOOLS[toolIndex];
+      if (tool && visibleTools.includes(tool)) {
+        handleToolClick(tool.type);
       }
     },
     enabled: toolbarVisible,
@@ -289,6 +335,7 @@ export function Toolbar() {
   if (!toolbarVisible) return null;
 
   const settingsPanelActive = activePanel === 'settings';
+  const discoveryActive = activePanel === 'discovery' && !isCollapsed;
 
   return (
     <>
@@ -342,8 +389,10 @@ export function Toolbar() {
             selection={selection}
             presets={filterPresetsByStudy(presets, activeStudyId)}
             canPropagate={installedTranslationCount > 1}
+            advanced={inductiveToolsEnabled}
             onApplyPreset={applyPresetToSelection}
             onAddAsVariant={addToVariantsAndApply}
+            onQuickHighlight={quickHighlight}
             onOpenKeyWordManager={() => {
               openPanel('keywords', {
                 keywordInitialWord: selection?.text?.trim() || undefined,
@@ -414,7 +463,41 @@ export function Toolbar() {
         <div className="bg-scripture-surface/80 backdrop-blur-md border-t border-scripture-border/30"
              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
-            {TOOLS.map((tool) => {
+            {discoveryEnabled && (
+              <button
+                data-toolbar-discover
+                onClick={() => {
+                  const willOpen = !discoveryActive;
+                  togglePanel('discovery');
+                  if (willOpen) track('discovery_chip_tapped');
+                }}
+                className={`relative flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg
+                           transition-all duration-200 touch-target
+                           border border-scripture-border/30 hover:border-scripture-border/50
+                           ${discoveryActive
+                             ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                             : 'hover:bg-scripture-elevated'}`}
+                aria-label={
+                  discoveryBadge === 'find'
+                    ? 'Discover, something to find'
+                    : discoveryBadge === 'highlight'
+                      ? 'Discover, you found it — highlight it'
+                      : 'Discover'
+                }
+              >
+                {discoveryBadge && (
+                  <span
+                    className={`absolute top-0.5 right-0.5 w-2 h-2 rounded-full ${
+                      discoveryActive ? 'bg-scripture-onAccent' : 'bg-scripture-accent'
+                    }`}
+                    aria-hidden="true"
+                  />
+                )}
+                <span className="text-lg">🧭</span>
+                <span className="text-[10px] font-ui font-medium leading-tight">Discover</span>
+              </button>
+            )}
+            {visibleTools.map((tool) => {
               const isActive = activePanel === tool.type && !isCollapsed;
               const dataAttr = tool.type === 'keywords' ? 'data-toolbar-keywords'
                 : tool.type === 'observe' ? 'data-toolbar-observe'

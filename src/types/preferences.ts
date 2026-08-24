@@ -70,6 +70,17 @@ export interface UserPreferences {
     /** Force-enable sync on dev builds (normally gated off for safety) */
     forceSyncEnabled?: boolean;
   };
+  /**
+   * Shows Key Words, Observe, and Analyze in the bottom bar and selection
+   * menu, and gives Study Tools its deeper tabs (Strong's, Hebrew/Greek,
+   * cross-references) — Study Tools itself is always in the bottom bar.
+   * Absent == false. Deliberately not added to DEFAULT_PREFERENCES so
+   * `undefined` stays meaningful for the one-shot "upgrade nicety" check in
+   * `toolkitMigration.ts`.
+   */
+  inductiveToolsEnabled?: boolean;
+  /** Opt-in anonymous usage telemetry (Analytics Engine). Absent == false. */
+  telemetryEnabled?: boolean;
 }
 
 /** Cached chapter text for fast access */

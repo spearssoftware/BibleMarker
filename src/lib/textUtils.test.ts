@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stripSymbols } from './textUtils';
+import { stripSymbols, pluralize } from './textUtils';
 
 describe('stripSymbols', () => {
   it('returns empty string for empty input', () => {
@@ -30,5 +30,17 @@ describe('stripSymbols', () => {
   it('handles text with multiple different symbols', () => {
     const result = stripSymbols('▲ God ✝ Jesus 🕊 Spirit');
     expect(result).toBe('God Jesus Spirit');
+  });
+});
+
+describe('pluralize', () => {
+  it('uses the singular form for a count of 1, and the plural form otherwise', () => {
+    expect(pluralize(1, 'person', 'people')).toBe('1 person');
+    expect(pluralize(2, 'person', 'people')).toBe('2 people');
+    expect(pluralize(0, 'person', 'people')).toBe('0 people');
+  });
+
+  it('defaults the plural form to singular + "s" when omitted', () => {
+    expect(pluralize(3, 'hinge')).toBe('3 hinges');
   });
 });

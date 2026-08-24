@@ -112,11 +112,11 @@ export function useAnnotations() {
       color,
       createdAt: new Date(),
       updatedAt: new Date(),
-      ...(presetId != null && { presetId }),
+      ...(presetId != null ? { presetId } : { studyId: activeStudyId ?? undefined }),
     };
 
     await saveAnnotation(annotation);
-    
+
     await addRecentColor(color);
     
     // Reload annotations
@@ -142,7 +142,7 @@ export function useAnnotations() {
     clearSelection();
     
     return annotation;
-  }, [selection, currentModuleId, addRecentColor, loadAnnotations, clearSelection]);
+  }, [selection, currentModuleId, activeStudyId, addRecentColor, loadAnnotations, clearSelection]);
 
   /**
    * Create a symbol annotation (inline before the word by default so the word can also have highlight/underline/color)
@@ -188,7 +188,7 @@ export function useAnnotations() {
       color,
       createdAt: new Date(),
       updatedAt: new Date(),
-      ...(presetId != null && { presetId }),
+      ...(presetId != null ? { presetId } : { studyId: activeStudyId ?? undefined }),
     };
 
     await saveAnnotation(annotation);
@@ -216,7 +216,7 @@ export function useAnnotations() {
     if (opts?.clearSelection !== false) clearSelection();
 
     return annotation;
-  }, [selection, currentModuleId, addRecentSymbol, loadAnnotations, clearSelection]);
+  }, [selection, currentModuleId, activeStudyId, addRecentSymbol, loadAnnotations, clearSelection]);
 
   /**
    * Propagate an annotation created in one translation to every other

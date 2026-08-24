@@ -70,6 +70,20 @@ name = "SYNC_LIMITER"
 namespace_id = "1005"
 simple = { limit = 600, period = 60 }
 
+# Per-IP limiter for the opt-in telemetry ingestion (POST /events). Charged
+# once per batch (request), not per event — tight because a batch already
+# caps at 30 events, so a legitimate client needs very few requests per minute.
+[[ratelimits]]
+name = "EVENTS_LIMITER"
+namespace_id = "1006"
+simple = { limit = 6, period = 60 }
+
+# Analytics Engine dataset backing opt-in Discover-layer telemetry (events.ts).
+# The dashboard shows the dataset only after its first write.
+[[analytics_engine_datasets]]
+binding = "EVENTS"
+dataset = "biblemarker_events"
+
 # Daily cleanup of expired OTP codes + dead sessions (src/cleanup.ts).
 [triggers]
 crons = ["0 3 * * *"]
@@ -91,7 +105,8 @@ routes = [
   { pattern = "biblemarker.app/sync/*", zone_name = "biblemarker.app" },
   { pattern = "biblemarker.app/account", zone_name = "biblemarker.app" },
   { pattern = "biblemarker.app/auth/*", zone_name = "biblemarker.app" },
-  { pattern = "biblemarker.app/config", zone_name = "biblemarker.app" }
+  { pattern = "biblemarker.app/config", zone_name = "biblemarker.app" },
+  { pattern = "biblemarker.app/events", zone_name = "biblemarker.app" }
 ]
 
 [[env.production.r2_buckets]]
@@ -139,6 +154,15 @@ simple = { limit = 60, period = 60 }
 name = "SYNC_LIMITER"
 namespace_id = "1005"
 simple = { limit = 600, period = 60 }
+
+[[env.production.ratelimits]]
+name = "EVENTS_LIMITER"
+namespace_id = "1006"
+simple = { limit = 6, period = 60 }
+
+[[env.production.analytics_engine_datasets]]
+binding = "EVENTS"
+dataset = "biblemarker_events"
 
 [env.production.triggers]
 crons = ["0 3 * * *"]

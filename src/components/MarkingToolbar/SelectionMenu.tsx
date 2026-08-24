@@ -6,14 +6,17 @@
  */
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import type { TextSelection } from '@/stores/annotationStore';
-import type { MarkingPreset } from '@/types';
-import { getHighlightColorHex } from '@/types';
+import { useAnnotationStore, type TextSelection } from '@/stores/annotationStore';
+import type { MarkingPreset, HighlightColor } from '@/types';
+import { getHighlightColorHex, HIGHLIGHT_COLORS, QUICK_HIGHLIGHT_DEFAULTS } from '@/types';
 import { SymbolIcon } from '@/lib/symbolDisplay';
 import { isCommonPronoun } from '@/types';
 import { scopeLabel } from '@/types';
 
 export type ApplyScope = 'here' | 'all';
+
+/** Total swatches shown in the quick-highlight row (recent colors + fill). */
+const QUICK_HIGHLIGHT_COUNT = 8;
 
 interface SelectionMenuProps {
   selection: TextSelection;
@@ -22,12 +25,16 @@ interface SelectionMenuProps {
    * one other installed translation exists). When false, the scope
    * toggle is hidden since there's nothing to propagate to. */
   canPropagate?: boolean;
+  /** When false (tools off), only the quick-highlight swatches + Cancel
+   * render — the inductive toolkit items (Key Word, Observe, etc.) are hidden. */
+  advanced?: boolean;
   onApplyPreset: (preset: MarkingPreset, scope: ApplyScope) => void;
   onAddAsVariant: (preset: MarkingPreset) => void;
   onOpenKeyWordManager: () => void;
   onQuickAddKeyword: (type: 'person' | 'place') => void;
   onAddToList: () => void;
   onReferenceLookup: () => void;
+  onQuickHighlight: (color: HighlightColor) => void;
   onCancel: () => void;
   onClose: () => void;
 }
@@ -36,12 +43,14 @@ export function SelectionMenu({
   selection,
   presets,
   canPropagate = false,
+  advanced = true,
   onApplyPreset,
   onAddAsVariant,
   onOpenKeyWordManager,
   onQuickAddKeyword,
   onAddToList,
   onReferenceLookup,
+  onQuickHighlight,
   onCancel,
   onClose,
 }: SelectionMenuProps) {
@@ -80,6 +89,20 @@ export function SelectionMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+
+  // Quick-highlight row: the reader's own recently-used colors first (most
+  // recent first), filled out to 8 total from a hue-spread default set (not
+  // the hue-sorted palette, which clusters reds/pinks together) so the row
+  // stays a compact, visually distinct strip instead of all 39 swatches.
+  const recentColors = useAnnotationStore(s => s.preferences.recentColors);
+  const quickColors = useMemo(() => {
+    const colors: HighlightColor[] = [...recentColors];
+    for (const color of QUICK_HIGHLIGHT_DEFAULTS) {
+      if (colors.length >= QUICK_HIGHLIGHT_COUNT) break;
+      if (!colors.includes(color)) colors.push(color);
+    }
+    return colors.slice(0, QUICK_HIGHLIGHT_COUNT);
+  }, [recentColors]);
 
   const keywordPresets = presets.filter((p) => p.word);
   const sortedPresets = useMemo(
@@ -236,23 +259,48 @@ export function SelectionMenu({
         <div className="flex flex-col min-w-0">
           {/* Main menu buttons */}
           <div className="p-2 space-y-1 overflow-y-auto custom-scrollbar flex-shrink-0 max-h-[70vh] px-4 pb-4">
-          {/* Key Word */}
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onOpenKeyWordManager();
-              onClose();
-            }}
-            className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                     transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                     hover:shadow-sm text-scripture-text"
-            role="menuitem"
-            aria-label="Create key word"
-          >
-            <span className="text-lg" aria-hidden="true">➕</span>
-            <span>Key Word</span>
-          </button>
+          {/* Quick highlight — the default-mode marking surface and the
+              stealth on-ramp into the toolkit. Shown in both modes. */}
+          <div className="flex flex-wrap gap-2 py-1" role="group" aria-label="Highlight color">
+            {quickColors.map((color) => (
+              <button
+                key={color}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onQuickHighlight(color);
+                  onClose();
+                }}
+                className="w-9 h-9 rounded-full border border-scripture-border/30 shadow-sm
+                         hover:scale-110 transition-transform duration-150 touch-target"
+                style={{ backgroundColor: HIGHLIGHT_COLORS[color] }}
+                aria-label={`Highlight ${color}`}
+                title={color}
+              />
+            ))}
+          </div>
+
+          {advanced && (
+            <>
+            <div className="border-t border-scripture-border/30 my-1" />
+
+            {/* Key Word */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onOpenKeyWordManager();
+                onClose();
+              }}
+              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                       hover:shadow-sm text-scripture-text"
+              role="menuitem"
+              aria-label="Create key word"
+            >
+              <span className="text-lg" aria-hidden="true">➕</span>
+              <span>Key Word</span>
+            </button>
 
             {/* Add as a Match */}
             {!isCommonPronoun(selection.text) && keywordPresets.length > 0 && (
@@ -320,77 +368,79 @@ export function SelectionMenu({
               </div>
             )}
 
-          {/* Add Person */}
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onQuickAddKeyword('person');
-              onClose();
-            }}
-            className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                     transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                     hover:shadow-sm text-scripture-text"
-            role="menuitem"
-            aria-label="Add person"
-          >
-            <span className="text-lg" aria-hidden="true">👤</span>
-            <span>Add Person</span>
-          </button>
+            {/* Add Person */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onQuickAddKeyword('person');
+                onClose();
+              }}
+              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                       hover:shadow-sm text-scripture-text"
+              role="menuitem"
+              aria-label="Add person"
+            >
+              <span className="text-lg" aria-hidden="true">👤</span>
+              <span>Add Person</span>
+            </button>
 
-          {/* Add Place */}
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onQuickAddKeyword('place');
-              onClose();
-            }}
-            className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                     transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                     hover:shadow-sm text-scripture-text"
-            role="menuitem"
-            aria-label="Add place"
-          >
-            <span className="text-lg" aria-hidden="true">📍</span>
-            <span>Add Place</span>
-          </button>
+            {/* Add Place */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onQuickAddKeyword('place');
+                onClose();
+              }}
+              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                       hover:shadow-sm text-scripture-text"
+              role="menuitem"
+              aria-label="Add place"
+            >
+              <span className="text-lg" aria-hidden="true">📍</span>
+              <span>Add Place</span>
+            </button>
 
-          {/* Observe */}
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onAddToList();
-              onClose();
-            }}
-            className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                     transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                     hover:shadow-sm text-scripture-text"
-            role="menuitem"
-            aria-label="Add observation"
-          >
-            <span className="text-lg" aria-hidden="true">🔍</span>
-            <span>Observe</span>
-          </button>
+            {/* Observe */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onAddToList();
+                onClose();
+              }}
+              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                       hover:shadow-sm text-scripture-text"
+              role="menuitem"
+              aria-label="Add observation"
+            >
+              <span className="text-lg" aria-hidden="true">🔍</span>
+              <span>Observe</span>
+            </button>
 
-          {/* Reference Lookup */}
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onReferenceLookup();
-              onClose();
-            }}
-            className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                     transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                     hover:shadow-sm text-scripture-text"
-            role="menuitem"
-            aria-label="Look up in study tools"
-          >
-            <span className="text-lg" aria-hidden="true">📖</span>
-            <span>Study Tools</span>
-          </button>
+            {/* Reference Lookup */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onReferenceLookup();
+                onClose();
+              }}
+              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                       hover:shadow-sm text-scripture-text"
+              role="menuitem"
+              aria-label="Look up in study tools"
+            >
+              <span className="text-lg" aria-hidden="true">📖</span>
+              <span>Study Tools</span>
+            </button>
+            </>
+          )}
 
           {/* Divider */}
           <div className="border-t border-scripture-border/30 my-1" />

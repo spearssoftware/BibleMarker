@@ -32,7 +32,13 @@ import { getBookById } from '@/types';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { usePanelStore } from '@/stores/panelStore';
 import { useTextSelection, type TranslationChapter } from '@/hooks/useTextSelection';
+import { useChapterAnalysis } from '@/hooks/useChapterAnalysis';
+import { useDiscoveryStore } from '@/stores/discoveryStore';
+import { useDiscoveryHost } from '@/hooks/useDiscoveryHost';
+import { useDiscoveryEnabled } from '@/lib/discovery-config';
+import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import type { Annotation, Chapter, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
+import { LAYOUT_REKEY_MS } from './layoutConstants';
 
 const KJV_FALLBACK_ERROR_PREFIX = 'Showing KJV';
 
@@ -73,6 +79,35 @@ export function MultiTranslationView() {
   } = useAnnotations();
   const { presets } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
+
+  // Discover layer: chapter analysis for the primary translation, the
+  // Connector Lens toggle, and the tap handler that opens the Discover panel
+  // focused on the tapped connector. `useDiscoveryHost` owns the rest of the
+  // Discover-layer state (chapter reset, publish, confirm, telemetry) so it
+  // keeps working while the reader reads even though the panel is usually
+  // unmounted.
+  const analysis = useChapterAnalysis(currentBook, currentChapter, primaryTranslationId);
+  const discoveryEnabled = useDiscoveryEnabled();
+  const lensActive = useDiscoveryStore(s => s.lensActive);
+  const setActivePrompt = useDiscoveryStore(s => s.setActivePrompt);
+  const handleConnectorTap = useCallback((hit: ConnectorHit) => {
+    setActivePrompt(hit);
+    usePanelStore.getState().openPanel('discovery');
+  }, [setActivePrompt]);
+  const translationCount = translationChapters.size;
+  const primaryTranslationAbbrev = primaryTranslationId
+    ? translationChapters.get(primaryTranslationId)?.translation.abbreviation ?? null
+    : null;
+
+  useDiscoveryHost({
+    currentBook,
+    currentChapter,
+    primaryTranslationId,
+    analysis,
+    translationCount,
+    primaryTranslationAbbrev,
+    enabled: discoveryEnabled,
+  });
 
   // Build preset map for annotation filtering
   const presetMap = useMemo(
@@ -145,7 +180,7 @@ export function MultiTranslationView() {
 
   // Re-key after panel open/close/collapse (wait for 300ms CSS transition)
   useEffect(() => {
-    const timer = setTimeout(() => setLayoutKey(k => k + 1), 350);
+    const timer = setTimeout(() => setLayoutKey(k => k + 1), LAYOUT_REKEY_MS);
     return () => clearTimeout(timer);
   }, [panelActive, panelCollapsed]);
 
@@ -267,6 +302,19 @@ export function MultiTranslationView() {
   const loadChapters = async () => {
     if (!activeView || translations.length === 0) return;
 
+    // Publish verse text for the primary translation so ChapterAtAGlance can
+    // do keyword matching without an extra API call. No-ops for any other
+    // translation column.
+    const publishPrimaryVerses = (translationId: string, chapter: Chapter) => {
+      if (translationId !== primaryTranslationId) return;
+      setActiveChapterVerses(
+        translationId,
+        currentBook,
+        currentChapter,
+        chapter.verses.map(v => ({ ref: v.ref, text: v.text }))
+      );
+    };
+
     const newChapters = new Map<string, TranslationChapter>();
 
     // Initialize all translations with loading state
@@ -281,6 +329,11 @@ export function MultiTranslationView() {
           existing.chapter.book === currentBook &&
           existing.chapter.chapter === currentChapter) {
         newChapters.set(translationId, existing);
+        // Republish for the primary translation even on this fast path — the primary can change
+        // to an already-loaded column (e.g. reordering translations), and without this
+        // activeChapterStore would keep showing the *previous* primary's verses. setActiveChapterVerses
+        // itself no-ops when nothing actually changed, so no need to check here.
+        publishPrimaryVerses(translationId, existing.chapter);
         continue;
       }
 
@@ -314,16 +367,7 @@ export function MultiTranslationView() {
         });
         setTranslationChapters(new Map(newChapters));
 
-        // Publish verse text for the primary translation so ChapterAtAGlance
-        // can do keyword matching without an extra API call.
-        if (translationId === primaryTranslationId) {
-          setActiveChapterVerses(
-            translationId,
-            currentBook,
-            currentChapter,
-            chapter.verses.map(v => ({ ref: v.ref, text: v.text }))
-          );
-        }
+        publishPrimaryVerses(translationId, chapter);
 
         // Auto-populate places and time expressions for keywords found in this chapter
         // Only do this once per chapter (use primary translation)
@@ -725,6 +769,17 @@ export function MultiTranslationView() {
                               selectionRange={
                                 selection?.moduleId === translation.id && selection?.startVerse === verseNum && selection?.startOffset != null && selection?.endOffset != null
                                   ? { startOffset: selection.startOffset, endOffset: selection.endOffset }
+                                  : undefined
+                              }
+                              lens={
+                                analysis && lensActive
+                                  ? {
+                                      ranges:
+                                        translation.id === primaryTranslationId
+                                          ? analysis.connectorRangesByVerse.get(verseNum) ?? []
+                                          : [],
+                                      onConnectorTap: handleConnectorTap,
+                                    }
                                   : undefined
                               }
                             />

@@ -6,6 +6,7 @@ import { ObservationToolsPanel } from '@/components/Observation';
 import { AnalyzeToolsPanel } from '@/components/Analyze';
 import { ReferenceToolsPanel } from '@/components/Reference';
 import { SettingsPanel } from '@/components/Settings';
+import { DiscoveryPanel } from '@/components/Discovery';
 import type { VerseRef } from '@/types';
 
 const PANEL_TITLES: Record<PanelType, string> = {
@@ -14,6 +15,7 @@ const PANEL_TITLES: Record<PanelType, string> = {
   analyze: 'Analyze',
   reference: 'Study Tools',
   settings: 'Settings',
+  discovery: 'Discover',
 };
 
 export function PanelContainer() {
@@ -175,6 +177,7 @@ export function PanelContainer() {
         {activePanel === 'settings' && (
           <SettingsPanel onClose={handleClose} initialTab={settingsInitialTab} />
         )}
+        {activePanel === 'discovery' && <DiscoveryPanel />}
       </div>
     </div>
   );

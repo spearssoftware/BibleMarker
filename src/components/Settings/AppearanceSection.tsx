@@ -20,7 +20,7 @@ import {
   type ScriptureFont,
   type SymbolPosition,
 } from '@/lib/theme';
-import { SegmentedControl } from '@/components/shared';
+import { SegmentedControl, ToggleSwitch } from '@/components/shared';
 import { MARKING_STYLE_OPTIONS, type MarkingStyle } from '@/types';
 
 type FontSizeValue = 'sm' | 'base' | 'lg' | 'xl';
@@ -292,21 +292,11 @@ export function AppearanceSection({ theme, highContrast, onThemeChange, onHighCo
                 Increases color contrast for better readability. Meets WCAG AAA contrast requirements.
               </p>
             </div>
-            <button
-              onClick={() => onHighContrastChange(!highContrast)}
-              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-scripture-accent focus:ring-offset-2 ${
-                highContrast ? 'bg-scripture-accent' : 'bg-scripture-border'
-              }`}
-              role="switch"
-              aria-checked={highContrast}
-              aria-label="Toggle high contrast mode"
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-scripture-onAccent shadow ring-0 transition duration-200 ease-in-out ${
-                  highContrast ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
+            <ToggleSwitch
+              checked={highContrast}
+              onChange={onHighContrastChange}
+              label="Toggle high contrast mode"
+            />
           </div>
         </div>
       </div>

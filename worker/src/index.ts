@@ -16,6 +16,7 @@ import { handleAccountDelete } from './account';
 import { CloudflareEmailSender } from './email';
 import { handleAuthRequest, handleAuthVerify, handleAuthRevoke } from './auth-routes';
 import { handleConfig, isSyncEnabled, isOtpEnabled } from './flags';
+import { handleEvents } from './events';
 import { cleanupExpired } from './cleanup';
 
 export type { Env };
@@ -48,6 +49,9 @@ export default {
 
     // Feature-flag snapshot for the offline client.
     if (path === '/config') return handleConfig(request, env);
+
+    // Opt-in telemetry ingestion for the Discover layer.
+    if (path === '/events') return handleEvents(request, env);
 
     if (path.startsWith('/sync/') || path === '/account') {
       const session = await authenticate(env, request);

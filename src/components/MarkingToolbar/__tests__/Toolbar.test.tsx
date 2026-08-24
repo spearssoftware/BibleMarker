@@ -10,6 +10,8 @@ import { render, screen, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useAnnotationStore, type TextSelection } from '@/stores/annotationStore';
 import { usePanelStore } from '@/stores/panelStore';
+import { usePreferencesStore } from '@/stores/preferencesStore';
+import { useDiscoveryStore, type DiscoveryContext } from '@/stores/discoveryStore';
 import { DEFAULT_MARKING_PREFERENCES } from '@/types';
 
 // --- Mock all heavy dependencies ---
@@ -26,21 +28,33 @@ vi.mock('@/hooks/useAnnotations', () => ({
   useAnnotations: () => ({
     createTextAnnotation: vi.fn(),
     createSymbolAnnotation: vi.fn(),
+    quickHighlight: vi.fn(),
   }),
 }));
+const { keyboardShortcutsOptions } = vi.hoisted(() => ({
+  keyboardShortcutsOptions: { current: null as { onToolbarTool?: (i: number) => void } | null },
+}));
 vi.mock('@/hooks/useKeyboardShortcuts', () => ({
-  useKeyboardShortcuts: vi.fn(),
+  useKeyboardShortcuts: (options: { onToolbarTool?: (i: number) => void }) => {
+    keyboardShortcutsOptions.current = options;
+  },
 }));
 
 // Stores (return minimal state)
+const { markingPresetState } = vi.hoisted(() => ({
+  markingPresetState: { presets: [] as { id: string }[] },
+}));
 vi.mock('@/stores/markingPresetStore', () => ({
-  useMarkingPresetStore: () => ({
-    presets: [],
-    loadPresets: vi.fn(),
-    addPreset: vi.fn(),
-    markPresetUsed: vi.fn(),
-    updatePreset: vi.fn(),
-  }),
+  useMarkingPresetStore: (selector?: (s: { presets: { id: string }[] }) => unknown) => {
+    const state = {
+      presets: markingPresetState.presets,
+      loadPresets: vi.fn(),
+      addPreset: vi.fn(),
+      markPresetUsed: vi.fn(),
+      updatePreset: vi.fn(),
+    };
+    return selector ? selector(state) : state;
+  },
 }));
 vi.mock('@/stores/bibleStore', () => ({
   useBibleStore: () => ({
@@ -58,6 +72,31 @@ vi.mock('@/stores/peopleStore', () => ({
 }));
 vi.mock('@/stores/placeStore', () => ({
   usePlaceStore: () => ({ places: [], loadPlaces: vi.fn() }),
+}));
+
+let discoveryEnabled = true;
+vi.mock('@/lib/discovery-config', () => ({
+  useDiscoveryEnabled: () => discoveryEnabled,
+}));
+
+function makeDiscoveryContext(): DiscoveryContext {
+  return {
+    book: 'John',
+    chapter: 3,
+    translationId: 'sword-nasb2020',
+    analysis: {
+      repetition: { token: 'love', count: 5, firstVerse: 1, lastVerse: 10, occurrences: [], forms: ['love'] },
+      connectors: [],
+      connectorRangesByVerse: new Map(),
+    },
+    translationCount: 1,
+    primaryTranslationAbbrev: null,
+  };
+}
+
+const trackMock = vi.fn();
+vi.mock('@/lib/telemetry', () => ({
+  track: (...args: unknown[]) => trackMock(...args),
 }));
 
 // Mock child components as simple stubs
@@ -128,6 +167,13 @@ describe('Toolbar', () => {
       isPinned: false,
       isCollapsed: false,
     });
+    // Default to tools enabled (and hydrated) so existing keyword-flow tests
+    // keep working; gating itself is covered by the "tool tabs" suite below.
+    usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
+    discoveryEnabled = true;
+    useDiscoveryStore.setState({ context: null, found: null, markedPresetId: null });
+    markingPresetState.presets = [];
+    trackMock.mockClear();
   });
 
   describe('keyword creation from selection', () => {
@@ -165,6 +211,167 @@ describe('Toolbar', () => {
 
       const panelState = usePanelStore.getState();
       expect(panelState.keywordInitialWord).toBe('love');
+    });
+  });
+
+  describe('tool tabs', () => {
+    it('leaves only Study Tools when inductive tools are disabled', () => {
+      act(() => {
+        usePreferencesStore.setState({ inductiveToolsEnabled: false });
+      });
+
+      render(<Toolbar />);
+
+      expect(screen.queryByLabelText('Key Words')).toBeNull();
+      expect(screen.queryByLabelText('Observe')).toBeNull();
+      expect(screen.queryByLabelText('Analyze')).toBeNull();
+      // Study Tools is pull-based lookup and the Discover panel links into it,
+      // so it stays in both modes (the panel trims its own deeper tabs).
+      expect(screen.getByLabelText('Study Tools')).toBeTruthy();
+      // Settings stays reachable either way.
+      expect(screen.getByLabelText('Settings')).toBeTruthy();
+    });
+
+    it('renders tool tabs when inductive tools are enabled', () => {
+      act(() => {
+        usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
+      });
+
+      render(<Toolbar />);
+
+      expect(screen.getByLabelText('Key Words')).toBeTruthy();
+      expect(screen.getByLabelText('Observe')).toBeTruthy();
+      expect(screen.getByLabelText('Analyze')).toBeTruthy();
+      expect(screen.getByLabelText('Study Tools')).toBeTruthy();
+    });
+
+    it('renders no toolkit tabs before preferences finish hydrating, even for an existing user who will end up with tools on', () => {
+      act(() => {
+        usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: false });
+      });
+
+      render(<Toolbar />);
+
+      expect(screen.queryByLabelText('Key Words')).toBeNull();
+      expect(screen.queryByLabelText('Observe')).toBeNull();
+      expect(screen.queryByLabelText('Analyze')).toBeNull();
+      // Study Tools shows in both modes, so it never flashes in or out.
+      expect(screen.getByLabelText('Study Tools')).toBeTruthy();
+      expect(screen.getByLabelText('Settings')).toBeTruthy();
+    });
+
+    it('keys shortcuts to the fixed tool order, not on-screen position, so hidden tools stay inert', () => {
+      act(() => {
+        usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+      });
+
+      render(<Toolbar />);
+
+      // Index 0 ("1") would be Key Words on-screen only if it were keyed by
+      // visible position — with tools off, Study Tools is the sole visible
+      // tab, so index 0 must stay inert rather than opening it.
+      act(() => {
+        keyboardShortcutsOptions.current?.onToolbarTool?.(0);
+      });
+      expect(usePanelStore.getState().activePanel).toBeNull();
+
+      // Index 3 ("4") is Study Tools in the fixed TOOLS order and is visible
+      // in both modes, so it should open.
+      act(() => {
+        keyboardShortcutsOptions.current?.onToolbarTool?.(3);
+      });
+      expect(usePanelStore.getState().activePanel).toBe('reference');
+    });
+  });
+
+  describe('Discover button', () => {
+    it('is present with tools off', () => {
+      act(() => {
+        usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+      });
+      render(<Toolbar />);
+      expect(screen.getByLabelText('Discover')).toBeTruthy();
+    });
+
+    it('is present with tools on', () => {
+      render(<Toolbar />);
+      expect(screen.getByLabelText('Discover')).toBeTruthy();
+    });
+
+    it('is hidden when the Discover kill-switch is off', () => {
+      discoveryEnabled = false;
+      render(<Toolbar />);
+      expect(screen.queryByLabelText('Discover')).toBeNull();
+    });
+
+    it('shows the badge dot only when there is an open challenge, reflected in the accessible name', () => {
+      const { rerender } = render(<Toolbar />);
+      expect(screen.getByLabelText('Discover')).toBeTruthy();
+      expect(screen.queryByLabelText(/something to find/i)).toBeNull();
+
+      act(() => {
+        useDiscoveryStore.setState({ context: makeDiscoveryContext(), markedPresetId: null });
+      });
+      rerender(<Toolbar />);
+      expect(screen.getByLabelText(/discover.*something to find/i)).toBeTruthy();
+    });
+
+    it('shows the "highlight it" badge once the word is found but not yet marked', () => {
+      const context = makeDiscoveryContext();
+      act(() => {
+        useDiscoveryStore.setState({
+          context,
+          found: { book: context.book, chapter: context.chapter, translationId: context.translationId, selection: makeSelection('love') },
+          markedPresetId: null,
+        });
+      });
+      render(<Toolbar />);
+      expect(screen.getByLabelText(/discover.*you found it — highlight it/i)).toBeTruthy();
+    });
+
+    it('hides the badge once the marked preset still exists (already highlighted)', () => {
+      const context = makeDiscoveryContext();
+      markingPresetState.presets = [{ id: 'preset-1' }];
+      act(() => {
+        useDiscoveryStore.setState({
+          context,
+          found: { book: context.book, chapter: context.chapter, translationId: context.translationId, selection: makeSelection('love') },
+          markedPresetId: 'preset-1',
+        });
+      });
+      render(<Toolbar />);
+      expect(screen.getByLabelText('Discover')).toBeTruthy();
+      expect(screen.queryByLabelText(/something to find/i)).toBeNull();
+      expect(screen.queryByLabelText(/highlight it/i)).toBeNull();
+    });
+
+    it('shows the "highlight it" badge again once a previously-marked preset is deleted', () => {
+      const context = makeDiscoveryContext();
+      markingPresetState.presets = [];
+      act(() => {
+        useDiscoveryStore.setState({
+          context,
+          found: { book: context.book, chapter: context.chapter, translationId: context.translationId, selection: makeSelection('love') },
+          markedPresetId: 'preset-1',
+        });
+      });
+      render(<Toolbar />);
+      expect(screen.getByLabelText(/discover.*you found it — highlight it/i)).toBeTruthy();
+    });
+
+    it('toggles the discovery panel and tracks a tap only when the click opens it', async () => {
+      const user = userEvent.setup();
+      render(<Toolbar />);
+
+      await user.click(screen.getByLabelText(/discover/i));
+      expect(usePanelStore.getState().activePanel).toBe('discovery');
+      expect(trackMock).toHaveBeenCalledWith('discovery_chip_tapped');
+      expect(trackMock).toHaveBeenCalledTimes(1);
+
+      await user.click(screen.getByLabelText(/discover/i));
+      expect(usePanelStore.getState().activePanel).toBeNull();
+      // Closing the panel must not fire another tap event.
+      expect(trackMock).toHaveBeenCalledTimes(1);
     });
   });
 });

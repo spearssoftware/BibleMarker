@@ -13,6 +13,12 @@
 
 import { getSyncConfig, setSyncConfig, getDeviceId, getSqliteDb } from './sqlite-db';
 import { isIOS, isAndroid, isMacOS, isTauri } from './platform';
+// Import directly from `types.ts` rather than the `chapterAnalysis` barrel —
+// the barrel also re-exports the tokenizer, stopwords, repetition, and
+// connector engines, which this flag/config path has no need to pull in.
+import { DEFAULT_DISCOVERY_THRESHOLDS, type DiscoveryThresholds } from '@/lib/chapterAnalysis/types';
+
+export type { DiscoveryThresholds };
 
 /**
  * Logical flag keys, mirrored exactly in the Flagship dashboard and the worker.
@@ -23,6 +29,8 @@ export const FLAG_KEYS = {
   syncEnabled: 'sync-enabled',
   /** Gate the OTP sign-in UI. */
   otpEnabled: 'auth-otp-enabled',
+  /** Remote kill-switch for the Discover layer (chips + connector lens). */
+  discoveryEnabled: 'discovery-enabled',
 } as const;
 
 export type FlagKey = (typeof FLAG_KEYS)[keyof typeof FLAG_KEYS];
@@ -33,6 +41,21 @@ export type RemoteFlags = Record<string, boolean>;
 export const DEFAULT_FLAGS: RemoteFlags = {
   [FLAG_KEYS.syncEnabled]: true,
   [FLAG_KEYS.otpEnabled]: true,
+  [FLAG_KEYS.discoveryEnabled]: true,
+};
+
+/** Logical JSON config keys, mirrored exactly in the Flagship dashboard and the worker. */
+export const CONFIG_KEYS = {
+  discoveryThresholds: 'discovery-thresholds',
+} as const;
+
+export interface RemoteConfig {
+  discoveryThresholds: DiscoveryThresholds;
+}
+
+/** Safe defaults — used until/unless the worker says otherwise. */
+export const DEFAULT_CONFIG: RemoteConfig = {
+  discoveryThresholds: DEFAULT_DISCOVERY_THRESHOLDS,
 };
 
 const CONFIG_URL = 'https://biblemarker.app/config';
@@ -42,14 +65,16 @@ const FETCH_TIMEOUT_MS = 5000;
 
 interface CachedConfig {
   flags: RemoteFlags;
+  /** Absent in an older cached snapshot written before Discover config shipped. */
+  config?: unknown;
   /** Server-side evaluation timestamp from the worker. */
   evaluatedAt: string;
   /** When this device last stored the snapshot. */
   cachedAt: string;
 }
 
-/** Coarse OS tag for dashboard targeting rules (advisory only). */
-function platformTag(): string {
+/** Coarse OS tag for dashboard targeting rules (advisory only). Reused by telemetry.ts. */
+export function platformTag(): string {
   if (isIOS()) return 'ios';
   if (isAndroid()) return 'android';
   if (isMacOS()) return 'macos';
@@ -69,6 +94,34 @@ function normalizeFlags(raw: unknown): RemoteFlags {
   return flags;
 }
 
+function isValidThresholdField(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 1 && value <= 50;
+}
+
+/**
+ * Coerce raw `/config` JSON into safe `RemoteConfig`, field by field. Missing
+ * or malformed fields (including an entirely absent `config`, from an older
+ * cached snapshot or worker) fall back to `DEFAULT_DISCOVERY_THRESHOLDS`.
+ */
+export function normalizeConfig(raw: unknown): RemoteConfig {
+  const obj = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const thresholdsRaw = obj[CONFIG_KEYS.discoveryThresholds];
+  const source = thresholdsRaw && typeof thresholdsRaw === 'object' ? (thresholdsRaw as Record<string, unknown>) : {};
+  return {
+    discoveryThresholds: {
+      repetitionMinCount: isValidThresholdField(source.repetitionMinCount)
+        ? source.repetitionMinCount
+        : DEFAULT_DISCOVERY_THRESHOLDS.repetitionMinCount,
+      repetitionMinWordLength: isValidThresholdField(source.repetitionMinWordLength)
+        ? source.repetitionMinWordLength
+        : DEFAULT_DISCOVERY_THRESHOLDS.repetitionMinWordLength,
+      connectorChipMinCount: isValidThresholdField(source.connectorChipMinCount)
+        ? source.connectorChipMinCount
+        : DEFAULT_DISCOVERY_THRESHOLDS.connectorChipMinCount,
+    },
+  };
+}
+
 /** Read the last cached snapshot, or `null` if absent/corrupt. */
 export async function readCachedFlags(): Promise<RemoteFlags | null> {
   try {
@@ -78,6 +131,21 @@ export async function readCachedFlags(): Promise<RemoteFlags | null> {
     return normalizeFlags(parsed.flags);
   } catch {
     return null;
+  }
+}
+
+/**
+ * Read the last cached tunable config, or `DEFAULT_CONFIG` if absent/corrupt —
+ * including a pre-Discover snapshot that never stored a `config` field.
+ */
+export async function readCachedConfig(): Promise<RemoteConfig> {
+  try {
+    const raw = await getSyncConfig(CACHE_KEY);
+    if (!raw) return DEFAULT_CONFIG;
+    const parsed = JSON.parse(raw) as CachedConfig;
+    return normalizeConfig(parsed.config);
+  } catch {
+    return DEFAULT_CONFIG;
   }
 }
 
@@ -94,10 +162,12 @@ export async function isFlagEnabled(key: FlagKey): Promise<boolean> {
 
 /**
  * Fetch the latest snapshot from the worker and persist it to the cache.
- * Returns the flags on success, or `null` on any failure (network, timeout,
- * bad shape) — callers keep using the cache/defaults. Never throws.
+ * Returns the flags + tunable config on success, or `null` on any failure
+ * (network, timeout, bad shape) — callers keep using the cache/defaults. A
+ * response missing `config` (older worker) normalizes to defaults rather than
+ * failing the whole fetch. Never throws.
  */
-export async function fetchRemoteFlags(): Promise<RemoteFlags | null> {
+export async function fetchRemoteFlags(): Promise<{ flags: RemoteFlags; config: RemoteConfig } | null> {
   const headers: Record<string, string> = {
     'X-Client-Version': __APP_VERSION__,
     'X-Client-Platform': platformTag(),
@@ -114,7 +184,7 @@ export async function fetchRemoteFlags(): Promise<RemoteFlags | null> {
   try {
     const res = await fetch(CONFIG_URL, { headers, signal: controller.signal });
     if (!res.ok) return null;
-    const body = (await res.json()) as { flags?: unknown; evaluatedAt?: unknown };
+    const body = (await res.json()) as { flags?: unknown; config?: unknown; evaluatedAt?: unknown };
     // Require a real flags object before caching — a 200 with a missing/array
     // body (captive portal, misconfigured proxy) must not overwrite a good
     // cached snapshot with all-defaults.
@@ -122,13 +192,15 @@ export async function fetchRemoteFlags(): Promise<RemoteFlags | null> {
       return null;
     }
     const flags = normalizeFlags(body.flags);
+    const config = normalizeConfig(body.config); // tolerates a missing `config` (older worker)
     const snapshot: CachedConfig = {
       flags,
+      config: body.config,
       evaluatedAt: typeof body.evaluatedAt === 'string' ? body.evaluatedAt : new Date().toISOString(),
       cachedAt: new Date().toISOString(),
     };
     await setSyncConfig(CACHE_KEY, JSON.stringify(snapshot));
-    return flags;
+    return { flags, config };
   } catch {
     return null;
   } finally {

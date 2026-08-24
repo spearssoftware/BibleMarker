@@ -5,9 +5,10 @@
  * that's always visible regardless of screen size.
  */
 
-import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import { updatePreferences, getPreferences } from '@/lib/database';
 import { useStudyStore } from '@/stores/studyStore';
+import { usePreferencesStore, useInductiveToolsVisible } from '@/stores/preferencesStore';
 
 interface TourStep {
   id: string;
@@ -15,6 +16,8 @@ interface TourStep {
   description: ReactNode;
   target?: string; // CSS selector for element to highlight
   action?: () => void; // Optional action to perform before showing step
+  /** Only shown when the "Enable inductive tools" preference is on. */
+  toolkitOnly?: boolean;
 }
 
 const TOUR_STEPS: TourStep[] = [
@@ -27,17 +30,25 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'reading',
     title: 'Bible Reading',
-    description: 'Read Scripture here. Select text to open the selection menu, where you can apply key words, add a match to a key word, add to observation lists, or jump straight to Study Tools for the Strong’s entry or cross-references. Click verse numbers to add notes.',
+    description: 'Read Scripture here. Select text to open the selection menu, where you can highlight it — with inductive tools on, the same menu also lets you apply key words, add to observation lists, or jump straight to Study Tools for the Strong’s entry or cross-references. Click verse numbers to add notes.',
     target: '[data-bible-reader]',
   },
   {
+    id: 'discovery',
+    title: 'Notice Something',
+    description: 'Every chapter has something to find. Tap Discover for a challenge.',
+    target: '[data-toolbar-discover]',
+  },
+  {
     id: 'toolbar',
+    toolkitOnly: true,
     title: 'Marking Toolbar',
-    description: 'The toolbar opens Key Words, Observe, Analyze, and Study Tools. All text marking flows through keywords for consistency across translations. Press 1–3 for quick access to Key Words, Observe, and Analyze.',
+    description: 'The toolbar opens Key Words, Observe, Analyze, and Study Tools. All text marking flows through keywords for consistency across translations. Press 1–4 for quick access to Key Words, Observe, Analyze, and Study Tools.',
     target: '[data-marking-toolbar]',
   },
   {
     id: 'keywords',
+    toolkitOnly: true,
     title: 'Key Words: Keyword, Match, Apply',
     description: (
       <div className="space-y-2.5">
@@ -64,12 +75,14 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'observe',
+    toolkitOnly: true,
     title: 'Observe',
     description: 'Capture observations from the text. Free-form lists per chapter, plus people, places, and conclusions. Add entries from the selection menu or manage them here. Access from the toolbar (magnifying glass icon or press 2).',
     target: '[data-toolbar-observe]',
   },
   {
     id: 'analyze',
+    toolkitOnly: true,
     title: 'Analyze',
     description: 'Step back and look at the bigger picture: chapter summaries, book overview, themes, timeline, places map, and your interpretation and application notes. Access from the toolbar (chart icon or press 3).',
     target: '[data-toolbar-analyze]',
@@ -77,7 +90,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'reference',
     title: 'Study Tools',
-    description: 'Look up the people, places, Strong’s entries, Hebrew/Greek words, and cross-references for what you’re reading. The Chapter tab shows everything tied to the current chapter; you can also lookup any word, verse, or Strong’s number directly from the selection menu. Access from the toolbar (book icon).',
+    description: 'Look up the people, places, and events tied to the current chapter, or search for a word or verse. With inductive tools on, you also get Strong’s entries, Hebrew/Greek words, and cross-references. Access from the toolbar (book icon).',
     target: '[data-toolbar-reference]',
   },
   {
@@ -111,6 +124,21 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   const [newStudyName, setNewStudyName] = useState('');
   const [studyCreated, setStudyCreated] = useState(false);
   const { createStudy, setActiveStudy } = useStudyStore();
+  const isHydrated = usePreferencesStore(s => s.isHydrated);
+  // Once isHydrated is true (the branch below where this is read), this is
+  // equivalent to the raw inductiveToolsEnabled flag.
+  const inductiveToolsVisible = useInductiveToolsVisible();
+  // Toolkit steps (Marking Toolbar/Key Words/Observe/Analyze) target elements
+  // that don't render when the toolkit is off — filter them out rather than
+  // let every one auto-skip after a 500ms timeout. The tour is only launched
+  // after prefs are hydrated (see App.tsx's onboarding chain), but guard
+  // against computing steps off the pre-hydration default (false) anyway —
+  // an empty step list just holds the tour off until hydration lands rather
+  // than baking in the wrong filter.
+  const steps = useMemo(
+    () => (isHydrated ? TOUR_STEPS.filter(step => inductiveToolsVisible || !step.toolkitOnly) : []),
+    [isHydrated, inductiveToolsVisible]
+  );
 
   async function handleComplete() {
     setShowTour(false);
@@ -125,7 +153,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   }
 
   function findAndHighlight() {
-    const step = TOUR_STEPS[stepRef.current];
+    const step = steps[stepRef.current];
     if (!step?.target) {
       setHighlightRect(null);
       return;
@@ -134,7 +162,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     const element = document.querySelector(step.target);
     if (!element) {
       setTimeout(() => {
-        if (stepRef.current < TOUR_STEPS.length - 1) {
+        if (stepRef.current < steps.length - 1) {
           setCurrentStep(stepRef.current + 1);
         } else {
           void handleComplete();
@@ -146,7 +174,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     const rect = element.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) {
       setTimeout(() => {
-        if (stepRef.current < TOUR_STEPS.length - 1) {
+        if (stepRef.current < steps.length - 1) {
           setCurrentStep(stepRef.current + 1);
         } else {
           void handleComplete();
@@ -159,7 +187,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   }
 
   function updateHighlight() {
-    const step = TOUR_STEPS[currentStep];
+    const step = steps[currentStep];
     if (!step?.target) {
       setHighlightRect(null);
       return;
@@ -194,7 +222,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   }, [showTour]);
 
   function handleNext() {
-    if (currentStep < TOUR_STEPS.length - 1) {
+    if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
       void handleComplete();
@@ -219,8 +247,8 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     setNewStudyName('');
   }
 
-  const step = TOUR_STEPS[currentStep];
-  const progress = ((currentStep + 1) / TOUR_STEPS.length) * 100;
+  const step = steps[currentStep];
+  const progress = ((currentStep + 1) / steps.length) * 100;
 
   // Anchor sheet to top when the highlighted element is in the bottom half, bottom otherwise
   const anchorTop = highlightRect
@@ -238,7 +266,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
       {/* Progress bar */}
       <div className="px-4 pt-4 pb-2">
         <div className="flex items-center justify-between text-xs text-scripture-muted mb-1">
-          <span>Step {currentStep + 1} of {TOUR_STEPS.length}</span>
+          <span>Step {currentStep + 1} of {steps.length}</span>
           <span>{Math.round(progress)}%</span>
         </div>
         <div className="h-1.5 bg-scripture-overlay rounded-full overflow-hidden">
@@ -288,7 +316,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
 
       {/* Actions */}
       <div className="flex gap-2 px-4 pb-4 pt-2">
-        {currentStep < TOUR_STEPS.length - 1 && (
+        {currentStep < steps.length - 1 && (
           <button
             onClick={handleSkip}
             className="px-3 py-2 text-xs font-ui bg-scripture-surface border border-scripture-overlayBorder
@@ -311,7 +339,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
           className="flex-1 px-3 py-2 text-xs font-ui bg-scripture-accent text-scripture-bg rounded-lg
                    hover:bg-scripture-accent/90 transition-colors"
         >
-          {currentStep === TOUR_STEPS.length - 1 ? 'Finish' : 'Next'}
+          {currentStep === steps.length - 1 ? 'Finish' : 'Next'}
         </button>
       </div>
     </div>

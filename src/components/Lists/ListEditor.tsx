@@ -10,6 +10,7 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
+import { pluralize } from '@/lib/textUtils';
 import type { ObservationList } from '@/types';
 import { BIBLE_BOOKS, getBookById, presetMatchesBook } from '@/types';
 import { Button, Modal, Input, DropdownSelect, Label } from '@/components/shared';
@@ -94,7 +95,7 @@ export function ListEditor({ list, onClose, onSave, inline = false }: ListEditor
     if (autoPopulate) {
       const count = await autoPopulateFromKeyword(finalList.id, selectedKeywordId);
       if (count > 0) {
-        toast.success(`Added ${count} observation${count === 1 ? '' : 's'} from marked instances.`);
+        toast.success(`Added ${pluralize(count, 'observation')} from marked instances.`);
       }
     }
 

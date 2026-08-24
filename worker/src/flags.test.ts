@@ -7,15 +7,20 @@ import {
   globalContext,
   FLAG_KEYS,
   FLAG_DEFAULTS,
+  CONFIG_KEYS,
+  DEFAULT_DISCOVERY_THRESHOLDS,
+  sanitizeThresholds,
 } from './flags';
 import { sha256Hex } from './auth';
 import type { Session } from './auth';
 import type { Env } from './env';
 import {
+  MemoryAnalytics,
   MemoryD1,
   MemoryFlags,
   MemoryR2,
   MemoryRateLimiter,
+  asAnalytics,
   asBucket,
   asDb,
   asFlags,
@@ -29,6 +34,8 @@ function envWith(flags: MemoryFlags, d1: MemoryD1 = new MemoryD1()): Env {
     CONFIG_LIMITER: new MemoryRateLimiter(),
     MODULES_LIMITER: new MemoryRateLimiter(),
     SYNC_LIMITER: new MemoryRateLimiter(),
+    EVENTS_LIMITER: new MemoryRateLimiter(),
+    EVENTS: asAnalytics(new MemoryAnalytics()),
   } as unknown as Env;
 }
 
@@ -94,8 +101,15 @@ describe('buildClientConfig', () => {
       [FLAG_KEYS.otpEnabled]: FLAG_DEFAULTS[FLAG_KEYS.otpEnabled],
       [FLAG_KEYS.httpBackend]: FLAG_DEFAULTS[FLAG_KEYS.httpBackend],
       [FLAG_KEYS.icloudMigration]: FLAG_DEFAULTS[FLAG_KEYS.icloudMigration],
+      [FLAG_KEYS.discoveryEnabled]: FLAG_DEFAULTS[FLAG_KEYS.discoveryEnabled],
     });
     expect(typeof cfg.evaluatedAt).toBe('string');
+  });
+
+  it('includes the discovery-thresholds config with defaults when unset', async () => {
+    const env = envWith(new MemoryFlags());
+    const cfg = await buildClientConfig(env, globalContext());
+    expect(cfg.config).toEqual({ [CONFIG_KEYS.discoveryThresholds]: DEFAULT_DISCOVERY_THRESHOLDS });
   });
 
   it('reflects preset flag values', async () => {
@@ -105,12 +119,51 @@ describe('buildClientConfig', () => {
     expect(cfg.flags[FLAG_KEYS.httpBackend]).toBe(true);
   });
 
+  it('sanitizes an object config value, defaulting invalid or out-of-range fields', async () => {
+    const env = envWith(
+      new MemoryFlags({
+        [CONFIG_KEYS.discoveryThresholds]: { repetitionMinCount: 'x', repetitionMinWordLength: 99 },
+      })
+    );
+    const cfg = await buildClientConfig(env, globalContext());
+    expect(cfg.config[CONFIG_KEYS.discoveryThresholds]).toEqual(DEFAULT_DISCOVERY_THRESHOLDS);
+  });
+
+  it('keeps a valid object config value as-is', async () => {
+    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 5, connectorChipMinCount: 2 };
+    const env = envWith(new MemoryFlags({ [CONFIG_KEYS.discoveryThresholds]: valid }));
+    const cfg = await buildClientConfig(env, globalContext());
+    expect(cfg.config[CONFIG_KEYS.discoveryThresholds]).toEqual(valid);
+  });
+
   it('fails open to defaults when the binding rejects', async () => {
-    const throwing = { getBooleanValue: () => Promise.reject(new Error('binding down')) };
+    const throwing = {
+      getBooleanValue: () => Promise.reject(new Error('binding down')),
+      getObjectValue: () => Promise.reject(new Error('binding down')),
+    };
     const env = { FLAGS: throwing as unknown as Env['FLAGS'] } as unknown as Env;
     const cfg = await buildClientConfig(env, globalContext());
     expect(cfg.flags[FLAG_KEYS.syncEnabled]).toBe(true); // default, not a thrown 500
     expect(cfg.flags[FLAG_KEYS.httpBackend]).toBe(false);
+    expect(cfg.config[CONFIG_KEYS.discoveryThresholds]).toEqual(DEFAULT_DISCOVERY_THRESHOLDS);
+  });
+});
+
+describe('sanitizeThresholds', () => {
+  it('defaults non-integer, out-of-range, and missing fields', () => {
+    expect(
+      sanitizeThresholds({ repetitionMinCount: 'x', repetitionMinWordLength: 99 }, DEFAULT_DISCOVERY_THRESHOLDS)
+    ).toEqual(DEFAULT_DISCOVERY_THRESHOLDS);
+  });
+
+  it('keeps valid in-range integers as-is', () => {
+    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 5, connectorChipMinCount: 2 };
+    expect(sanitizeThresholds(valid, DEFAULT_DISCOVERY_THRESHOLDS)).toEqual(valid);
+  });
+
+  it('defaults entirely for a non-object input', () => {
+    expect(sanitizeThresholds(null, DEFAULT_DISCOVERY_THRESHOLDS)).toEqual(DEFAULT_DISCOVERY_THRESHOLDS);
+    expect(sanitizeThresholds(undefined, DEFAULT_DISCOVERY_THRESHOLDS)).toEqual(DEFAULT_DISCOVERY_THRESHOLDS);
   });
 });
 
@@ -167,6 +220,26 @@ describe('GET /config dispatch', () => {
     const res = await worker.fetch(req('/config', { 'X-Device-Id': 'device-1' }), env);
     expect(res.status).toBe(429);
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
+});
+
+describe('POST /events dispatch', () => {
+  it('routes to handleEvents and accepts a valid opt-in telemetry batch', async () => {
+    const env = envWith(new MemoryFlags());
+    const res = await worker.fetch(
+      new Request('https://biblemarker.app/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          events: [{ name: 'lens_toggled' }],
+          appVersion: '3.1.3',
+          platform: 'ios',
+        }),
+      }),
+      env
+    );
+    expect(res.status).toBe(202);
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
   });
 });
 

@@ -99,7 +99,7 @@ function getMatchablePhrases(preset: MarkingPreset, verseRef: VerseRef): Array<{
 /**
  * Normalize text for matching (remove punctuation from boundaries, optionally lowercase)
  */
-function normalizeForMatching(text: string, caseSensitive = false): string {
+export function normalizeForMatching(text: string, caseSensitive = false): string {
   const stripped = text.replace(/^[^\w]*|[^\w]*$/g, '').trim();
   return caseSensitive ? stripped : stripped.toLowerCase();
 }
@@ -109,7 +109,7 @@ function normalizeForMatching(text: string, caseSensitive = false): string {
  * Handles multi-word phrases by matching normalized versions
  * Trims punctuation (except apostrophes) from the match boundaries
  */
-function findPhraseMatches(text: string, phrase: string, caseSensitive = false): Array<{ startIndex: number; endIndex: number; matchedText: string }> {
+export function findPhraseMatches(text: string, phrase: string, caseSensitive = false): Array<{ startIndex: number; endIndex: number; matchedText: string }> {
   const matches: Array<{ startIndex: number; endIndex: number; matchedText: string }> = [];
   const normalizedPhrase = normalizeForMatching(phrase, caseSensitive);
   const phraseWords = normalizedPhrase.split(/\s+/).filter(w => w.length > 0);

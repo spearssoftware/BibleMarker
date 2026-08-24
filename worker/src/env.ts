@@ -32,6 +32,10 @@ export interface Env {
   MODULES_LIMITER: RateLimiter;
   /** Per-account rate limiter for `/sync/*` (600 / 60s), keyed on accountId. */
   SYNC_LIMITER: RateLimiter;
+  /** Analytics Engine dataset for opt-in Discover-layer telemetry (see `events.ts`). Absent under `wrangler dev`. */
+  EVENTS?: AnalyticsEngineDataset;
+  /** Per-IP rate limiter for `POST /events` (6 / 60s). */
+  EVENTS_LIMITER: RateLimiter;
 }
 
 /**
@@ -39,8 +43,11 @@ export interface Env {
  * Hand-written so the project type-checks before the Flagship app exists;
  * replace with the generated type from `npx wrangler types` once `app_id` is
  * set in `wrangler.toml`. Only `flags.ts` should reference this directly.
- * Only boolean flags are used today — add string/number methods when needed.
+ * Boolean flags (kill-switches) and JSON object flags (tunable config) are
+ * used today — add `getStringValue` if a string flag is ever needed.
  */
 export interface FlagshipBinding {
   getBooleanValue(key: string, defaultValue: boolean, context: object): Promise<boolean>;
+  getNumberValue(key: string, defaultValue: number, context: object): Promise<number>;
+  getObjectValue<T extends object>(key: string, defaultValue: T, context: object): Promise<T>;
 }

@@ -94,4 +94,32 @@ describe('filterAnnotationsByStudy', () => {
     expect(resultNull.map((a) => a.id)).toEqual(['1']);
     expect(resultStudy.map((a) => a.id)).toEqual([]);
   });
+
+  it('shows a preset-less annotation with a matching studyId when that study is active', () => {
+    const annotations: Annotation[] = [
+      createAnnotation({ id: '1', studyId: 'study-a' }), // quick highlight made in study-a
+    ];
+    const result = filterAnnotationsByStudy(annotations, presetMap, 'study-a');
+    expect(result.map((a) => a.id)).toEqual(['1']);
+  });
+
+  it('hides a preset-less annotation whose studyId does not match the active study', () => {
+    const annotations: Annotation[] = [
+      createAnnotation({ id: '1', studyId: 'study-a' }), // quick highlight made in study-a
+    ];
+    const resultOtherStudy = filterAnnotationsByStudy(annotations, presetMap, 'study-b');
+    const resultNoStudy = filterAnnotationsByStudy(annotations, presetMap, null);
+    expect(resultOtherStudy.map((a) => a.id)).toEqual([]);
+    expect(resultNoStudy.map((a) => a.id)).toEqual([]);
+  });
+
+  it('falls back to the legacy default-bucket rule for preset-less annotations with no studyId', () => {
+    const annotations: Annotation[] = [
+      createAnnotation({ id: '1' }), // legacy quick highlight, predates studyId
+    ];
+    const resultNull = filterAnnotationsByStudy(annotations, presetMap, null);
+    const resultStudy = filterAnnotationsByStudy(annotations, presetMap, 'study-a');
+    expect(resultNull.map((a) => a.id)).toEqual(['1']);
+    expect(resultStudy.map((a) => a.id)).toEqual([]);
+  });
 });

@@ -24,6 +24,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: echo "Skipped — docs-only change"
+  worker:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Skipped — docs-only change"
   rust-format:
     runs-on: ubuntu-latest
     steps:

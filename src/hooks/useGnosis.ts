@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getGnosisProvider, isGnosisAvailable, getGnosisMode, initGnosis } from '@/lib/gnosis';
 import type { GnosisDataProvider } from '@/lib/gnosis';
+import { LRUCache, CACHE_TTL } from '@/lib/gnosis/cache';
 import type { ChapterEntities, PaginatedResponse, PaginationOpts } from '@/types';
 
 /** Get or lazily initialize the gnosis provider */
@@ -26,17 +27,44 @@ export function useGnosis(): {
   return { provider, isAvailable: available, mode: getGnosisMode() };
 }
 
-export function useChapterEntities(book: string | undefined, chapter: number | undefined): {
+/** Repeat mounts for the same chapter shouldn't re-query SQLite. */
+const chapterEntitiesCache = new LRUCache();
+
+export function useChapterEntities(
+  book: string | undefined,
+  chapter: number | undefined,
+  enabled = true
+): {
   entities: ChapterEntities | null;
   isLoading: boolean;
   error: string | null;
 } {
-  const [entities, setEntities] = useState<ChapterEntities | null>(null);
+  const cacheKey = enabled && book && chapter !== undefined ? `${book}.${chapter}` : undefined;
+  const [entities, setEntities] = useState<ChapterEntities | null>(
+    () => (cacheKey ? chapterEntitiesCache.get<ChapterEntities>(cacheKey) ?? null : null)
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Serve a cache hit for the new key synchronously during render (same pattern as
+  // useGnosisSearch's prevQuery check below) rather than setState-in-effect, which
+  // would trip set-state-in-effect and cost an extra render besides. Resetting
+  // isLoading here too (not just entities/error) matters when the previous key's
+  // fetch is still in flight: the effect below early-returns on a cache hit and
+  // never reaches its own `finally`, so without this reset isLoading would stay
+  // stuck `true` forever after navigating from an in-flight chapter to a cached one.
+  const [prevCacheKey, setPrevCacheKey] = useState(cacheKey);
+  if (cacheKey !== prevCacheKey) {
+    setPrevCacheKey(cacheKey);
+    setEntities(cacheKey ? chapterEntitiesCache.get<ChapterEntities>(cacheKey) ?? null : null);
+    setError(null);
+    setIsLoading(false);
+  }
+
   useEffect(() => {
-    if (!book || chapter === undefined) return;
+    if (!enabled || !book || chapter === undefined) return;
+    const key = `${book}.${chapter}`;
+    if (chapterEntitiesCache.get<ChapterEntities>(key) !== undefined) return; // already served synchronously above
 
     let cancelled = false;
 
@@ -46,7 +74,10 @@ export function useChapterEntities(book: string | undefined, chapter: number | u
       try {
         const provider = await ensureProvider();
         const result = await provider.getChapterEntities(book, chapter);
-        if (!cancelled) setEntities(result);
+        if (!cancelled) {
+          setEntities(result);
+          chapterEntitiesCache.set(key, result, CACHE_TTL.chapter);
+        }
       } catch (e) {
         console.error('[Gnosis] Chapter entities error:', e);
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
@@ -56,8 +87,9 @@ export function useChapterEntities(book: string | undefined, chapter: number | u
     })();
 
     return () => { cancelled = true; };
-  }, [book, chapter]);
+  }, [book, chapter, enabled]);
 
+  if (!enabled) return { entities: null, isLoading: false, error: null };
   return { entities, isLoading, error };
 }
 

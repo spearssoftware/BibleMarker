@@ -18,6 +18,13 @@ import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { getDebugFlagsSync } from '@/lib/debug';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
+import type { ConnectorHit } from '@/lib/chapterAnalysis';
+
+interface VerseLens {
+  /** Connector hits to keep bright in this verse; empty dims the whole verse uniformly. */
+  ranges: ConnectorHit[];
+  onConnectorTap?: (hit: ConnectorHit) => void;
+}
 
 interface VerseTextProps {
   verse: Verse;
@@ -32,9 +39,11 @@ interface VerseTextProps {
   onShowVerse?: (ref: VerseRef) => void; // Show verse in overlay
   onKeywordTap?: (presetId: string, verseRef: VerseRef) => void;
   selectionRange?: { startOffset: number; endOffset: number };
+  /** Connector Lens dimming pass — present only while the lens is toggled on. */
+  lens?: VerseLens;
 }
 
-export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAnnotation, onRemoveAnnotations, onVerseNumberClick, verseMenu, onNavigate, onShowVerse, onKeywordTap, selectionRange }: VerseTextProps) {
+export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAnnotation, onRemoveAnnotations, onVerseNumberClick, verseMenu, onNavigate, onShowVerse, onKeywordTap, selectionRange, lens }: VerseTextProps) {
   const [crossRefState, setCrossRefState] = useState<{ refs: string[]; position: { x: number; y: number } } | null>(null);
   const [overlayVerse, setOverlayVerse] = useState<VerseRef | null>(null);
   const verseContentRef = useRef<HTMLSpanElement>(null);
@@ -382,9 +391,20 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
              (sym.endRef === undefined || sym.endRef.verse === verseNum);
     });
 
-    // If no annotations and no selection, return as-is
-    if (verseAnnotations.length === 0 && verseCenterSymbols.length === 0 && !selectionRange) {
+    const noMarkup = verseAnnotations.length === 0 && verseCenterSymbols.length === 0 && !selectionRange;
+
+    // If no annotations, no selection, and no lens pass, return as-is. The lens
+    // pass must still run a verse with zero connectors (empty `lens.ranges`) so
+    // it gets dimmed uniformly like every other non-primary column.
+    if (noMarkup && !lens) {
       return sourceText;
+    }
+
+    // Fast path: lens on, but this verse has no connector hits, no annotations,
+    // no symbols, and no active selection — the whole verse is just uniformly
+    // dimmed, so skip the segment/boundary machinery below entirely.
+    if (lens && lens.ranges.length === 0 && noMarkup) {
+      return `<span class="lens-dim">${escapeHtml(sourceText)}</span>`;
     }
 
     // sourceText is already plain text (SWORD strips OSIS tags, ESV strips HTML)
@@ -614,6 +634,16 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
       boundaries.add(selEnd);
     }
 
+    // Connector Lens boundaries: each hit's start/end so segments align exactly
+    // with connector ranges (a segment is then always fully inside or fully
+    // outside a hit — never a partial overlap).
+    if (lens) {
+      for (const hit of lens.ranges) {
+        boundaries.add(Math.max(0, Math.min(hit.start, plainText.length)));
+        boundaries.add(Math.max(0, Math.min(hit.end, plainText.length)));
+      }
+    }
+
     const sortedBoundaries = Array.from(boundaries).sort((a, b) => a - b);
 
     // Create segments between boundaries
@@ -657,9 +687,30 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
       const selOpen = inSelection ? '<mark class="selection-active-highlight">' : '';
       const selClose = inSelection ? '</mark>' : '';
 
+      // Connector Lens wrap: a segment covered by a connector hit stays bright
+      // (`.lens-connector`, carrying the data attrs `handleVerseContentClick`
+      // reads back out); every other segment dims (`.lens-dim`). Segment
+      // boundaries were split on hit start/end above, so a segment is always
+      // either fully inside or fully outside a hit.
+      let lensOpen = '';
+      let lensClose = '';
+      if (lens) {
+        const hit = lens.ranges.find(r => segment.start >= r.start && segment.end <= r.end);
+        if (hit) {
+          lensOpen =
+            `<span class="lens-connector" data-connector-verse="${hit.verse}" ` +
+            `data-connector-start="${hit.start}" data-connector-end="${hit.end}" ` +
+            `data-connector-phrase="${escapeAttr(hit.phrase)}" data-connector-category="${hit.category}">`;
+          lensClose = '</span>';
+        } else {
+          lensOpen = '<span class="lens-dim">';
+          lensClose = '</span>';
+        }
+      }
+
       if (segment.annotations.length === 0 && segment.symbols.length === 0) {
         // No annotations - output plain text (maybe with selection highlight)
-        htmlSegments.push(`${selOpen}${escapeHtml(segment.text)}${selClose}`);
+        htmlSegments.push(`${selOpen}${lensOpen}${escapeHtml(segment.text)}${lensClose}${selClose}`);
       } else {
         // Combine styles from all annotations
         const combinedStyles: string[] = [];
@@ -723,18 +774,18 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
             : '';
           const textStyleAttr = textStyles.length ? ` style="${textStyles.join('; ')}"` : '';
           htmlSegments.push(
-            `${selOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">` +
+            `${selOpen}${lensOpen}<span class="${classNames}" data-annotation-ids="${annotationIds.join(',')}">` +
             `<span class="symbol-wrapper"${wrapperStyleAttr}>` +
             `<span class="symbol-overlay"${symbolColorStyle ? ` style="${symbolColorStyle}"` : ''}>${symbolMarkup}</span>` +
             `<span class="annotation-text"${textStyleAttr}>${escapeHtml(wordContent)}</span>` +
-            `</span>${escapeHtml(trailingPunct)}${removeButton}</span>${selClose}`
+            `</span>${escapeHtml(trailingPunct)}${removeButton}</span>${lensClose}${selClose}`
           );
         } else {
           // Only text annotations
           const styleAttr = combinedStyles.length ? ` style="${combinedStyles.join('; ')}"` : '';
           const classNames = `annotation-group ${annotationIds.map(id => `annotation-${id}`).join(' ')}`;
           const removeButton = `<button class="annotation-remove" data-annotation-ids="${annotationIds.join(',')}" title="Remove annotation" aria-label="Remove annotation"></button>`;
-          htmlSegments.push(`${selOpen}<span${styleAttr} class="${classNames}" data-annotation-ids="${annotationIds.join(',')}"><span class="annotation-text">${escapeHtml(segment.text)}</span>${removeButton}</span>${selClose}`);
+          htmlSegments.push(`${selOpen}${lensOpen}<span${styleAttr} class="${classNames}" data-annotation-ids="${annotationIds.join(',')}"><span class="annotation-text">${escapeHtml(segment.text)}</span>${removeButton}</span>${lensClose}${selClose}`);
         }
       }
     }
@@ -747,6 +798,14 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  // Helper to escape a value for use inside a double-quoted HTML attribute.
+  // escapeHtml() alone doesn't escape quote characters (textContent -> innerHTML
+  // leaves them literal), which matters here since connector phrases are placed
+  // inside data-connector-phrase="...".
+  function escapeAttr(text: string): string {
+    return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   // verse.text is already plain text (SWORD strips OSIS tags, ESV strips HTML)
@@ -806,7 +865,39 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
       }
       return;
     }
-    
+
+    // Check for Connector Lens taps. Deliberately checked before the
+    // annotation-group branch below: while the lens is on, tapping a
+    // connector that's also a marked keyword opens the lens prompt, not the
+    // keyword list — the lens span wraps the annotation-group span, so
+    // `.closest('.lens-connector')` finds it first regardless of nesting.
+    if (lens?.onConnectorTap) {
+      const connectorEl = target.closest('.lens-connector') as HTMLElement;
+      if (connectorEl) {
+        // Only trigger on a simple tap (collapsed selection — not a text drag/selection)
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) {
+          const verseAttr = connectorEl.getAttribute('data-connector-verse');
+          const startAttr = connectorEl.getAttribute('data-connector-start');
+          const endAttr = connectorEl.getAttribute('data-connector-end');
+          const phraseAttr = connectorEl.getAttribute('data-connector-phrase');
+          const categoryAttr = connectorEl.getAttribute('data-connector-category');
+          if (verseAttr && startAttr && endAttr && phraseAttr && categoryAttr) {
+            e.preventDefault();
+            e.stopPropagation();
+            lens.onConnectorTap({
+              verse: parseInt(verseAttr, 10),
+              start: parseInt(startAttr, 10),
+              end: parseInt(endAttr, 10),
+              phrase: phraseAttr,
+              category: categoryAttr as ConnectorHit['category'],
+            });
+            return;
+          }
+        }
+      }
+    }
+
     // Check for cross-reference clicks
     const crossRef = target.closest('.cross-ref') as HTMLElement;
     if (crossRef) {

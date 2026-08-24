@@ -156,11 +156,13 @@ Flags are evaluated **server-side** via the `FLAGS` Flagship binding and used tw
 | `auth-otp-enabled` | bool | `true` | Gate OTP sign-in (route + UI) |
 | `sync-http-backend` | bool | `false` | HTTP backend vs iCloud during the Phase 3 migration |
 | `sync-icloud-migration` | bool | `false` | One-shot iCloud drain (Phase 4) |
+| `discovery-enabled` | bool | `true` | Remote kill-switch for the Discover layer (Discover panel, challenges, connector lens) |
+| `discovery-thresholds` | JSON | see `DEFAULT_DISCOVERY_THRESHOLDS` in `flags.ts` | Tunable Discover-layer thresholds (repetition count/word length, connector chip floor) |
 
 **Setup:** create a Flagship app in the Cloudflare dashboard, then paste its
 `app_id` into `wrangler.toml` (both the top-level `[[flagship]]` block and
 `[[env.production.flagship]]`), replacing `REPLACE_WITH_FLAGSHIP_APP_ID`. Define
-the four flags above in the dashboard. `wrangler dev` may require a real
+the six flags above in the dashboard. `wrangler dev` may require a real
 `app_id`; the vitest suite mocks the binding, so tests don't need one. Re-run
 `npx wrangler types` after editing the binding.
 
@@ -178,6 +180,59 @@ Settings → About (Device ID → Copy).
 > seconds-to-a-minute, not instantly). The `/sync/*` kill-switch only affects the
 > HTTP backend; current iCloud-file sync users are gated by the client-reflected
 > `sync-enabled` flag instead.
+
+### Telemetry (`POST /events`)
+
+Opt-in, anonymous usage counters for the Discover layer (Repetition Radar,
+Connector Lens, entity chips). Off by default — the client (`src/lib/telemetry.ts`)
+only sends anything once the user flips "Share anonymous usage data" on in
+Settings → Data. Written to the `EVENTS` Cloudflare Analytics Engine dataset
+(3-month retention, SQL-queryable), bound in `wrangler.toml` as
+`biblemarker_events`.
+
+**Privacy:** the payload is an allowlisted event `name`, an optional `feature`
+tag (`repetition` / `connector` / `entity`), and batch-level `appVersion`,
+`platform`, and an in-memory-only `sessionId` (never persisted, regenerated
+every launch). It never includes book/chapter/verse/word, account id, device
+id, or IP-derived location (`cf.country` is never read or written) —
+`handleEvents` (`src/events.ts`) rejects anything outside this shape with a
+`400` for the whole batch.
+
+**Request shape:**
+
+```json
+{
+  "events": [{ "name": "discovery_chip_shown", "feature": "repetition" }],
+  "appVersion": "3.1.3",
+  "platform": "ios",
+  "sessionId": "b3f1c2a4-1234-4abc-89ef-0123456789ab"
+}
+```
+
+`name` is one of `discovery_chip_shown`, `discovery_chip_tapped`,
+`discovery_find_confirmed`, `lens_toggled`. `sessionId`, when present, must be
+a UUID v4 (matches `crypto.randomUUID()`). 1–30 events per request; requests
+over 8 KB get a `413`. The request must carry `Content-Type: application/json`
+or it's rejected with `415` — this keeps a cross-site "simple request" (a
+plain form/fetch POST that skips CORS preflight by omitting this header) from
+being able to write to the dataset. Rate-limited per IP at 6/60s
+(`EVENTS_LIMITER`), charged once per batch regardless of event count. `OPTIONS`
+answers the CORS preflight with `204`; any non-`POST` method is `405`; a valid
+batch is accepted with `202 { accepted: n }` and `Cache-Control: no-store`. The
+`EVENTS` binding is optional-chained, so a missing dataset (e.g. under
+`wrangler dev` before it's configured) degrades to "accepted, nothing written"
+rather than a `500`.
+
+**Deploy note:** the Analytics Engine dataset shows up on the Cloudflare
+dashboard only after its first write — don't expect to see `biblemarker_events`
+listed until a real opted-in event lands.
+
+**Querying (Account Analytics Read token, SQL API `POST /accounts/<id>/analytics_engine/sql`):**
+
+```sql
+SELECT blob1 AS event, blob2 AS feature, blob3 AS version, SUM(_sample_interval) AS count, COUNT(DISTINCT blob5) AS sessions
+FROM biblemarker_events WHERE timestamp > NOW() - INTERVAL '7' DAY GROUP BY event, feature, version ORDER BY count DESC
+```
 
 ### One-time setup for sync
 

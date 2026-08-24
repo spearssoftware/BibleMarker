@@ -48,6 +48,22 @@ jobs:
       - name: Build
         run: pnpm build
 
+  worker:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/spearssoftware/biblemarker/ci-node:latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: worker
+      - name: Test
+        run: pnpm test
+        working-directory: worker
+      - name: Type check
+        run: pnpm run typecheck
+        working-directory: worker
+
   rust-format:
     runs-on: ubuntu-latest
     container:

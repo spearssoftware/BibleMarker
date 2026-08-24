@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useInductiveToolsVisible } from '@/stores/preferencesStore';
 import type { ReferenceTab } from '@/stores/panelStore';
 import { ChapterEntitiesTab } from './ChapterEntitiesTab';
 import { PersonDetail } from './PersonDetail';
@@ -19,6 +20,17 @@ interface ReferenceToolsPanelProps {
   verse?: number;
 }
 
+/**
+ * Tabs available in discovery-first (default) mode. Chapter and Search are
+ * the everyday "who/where/where-else" lookups a reader reaches for without
+ * any inductive-study intent. Strong's, Hebrew/Greek and Cross-Refs are the
+ * language-study tools that come with the inductive toolkit (Cross-Refs is
+ * also the raw form of the future Echo Hints discovery feature, so it stays
+ * behind the toggle for now) — they're just not advertised by default; see
+ * the deep-link handling below for when the reader explicitly asks for one.
+ */
+const DEFAULT_MODE_TABS: ReferenceTab[] = ['chapter', 'search'];
+
 const TABS: { id: ReferenceTab; label: string; icon: string }[] = [
   { id: 'chapter', label: 'Chapter', icon: '📖' },
   { id: 'search', label: 'Search', icon: '🔎' },
@@ -33,12 +45,37 @@ interface DetailView {
 }
 
 export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter', entitySlug, searchQuery, strongsNumber, verse }: ReferenceToolsPanelProps) {
+  const inductiveToolsVisible = useInductiveToolsVisible();
+
   const [activeTab, setActiveTab] = useState<ReferenceTab>(initialTab);
   const [prevInitialTab, setPrevInitialTab] = useState(initialTab);
+  // A deep link (e.g. the verse-number menu's Cross-Refs/Hebrew-Greek items)
+  // explicitly asks for a specific tool. The default-mode filtering above is
+  // about not *advertising* the deeper tools, not forbidding them when the
+  // reader asks for one directly — so an explicit initialTab un-hides its own
+  // tab, and it stays un-hidden for the life of this panel session (even if
+  // the toggle later flips off) so the reader can navigate back to it.
+  const [extraVisibleTabs, setExtraVisibleTabs] = useState<ReferenceTab[]>(
+    DEFAULT_MODE_TABS.includes(initialTab) ? [] : [initialTab]
+  );
   if (initialTab !== prevInitialTab) {
     setPrevInitialTab(initialTab);
     setActiveTab(initialTab);
+    if (!DEFAULT_MODE_TABS.includes(initialTab) && !extraVisibleTabs.includes(initialTab)) {
+      setExtraVisibleTabs([...extraVisibleTabs, initialTab]);
+    }
   }
+
+  const visibleTabIds = inductiveToolsVisible
+    ? TABS.map(t => t.id)
+    : [...DEFAULT_MODE_TABS, ...extraVisibleTabs];
+  const visibleTabs = TABS.filter(t => visibleTabIds.includes(t.id));
+
+  // A tab can still end up hidden — e.g. the toggle flips off while the panel
+  // is open and the reader had manually navigated to a tool tab that was
+  // never deep-linked — fall back to the first visible one. tsconfig has no
+  // noUncheckedIndexedAccess, so guard the empty-array case explicitly.
+  const effectiveTab = visibleTabs.some(t => t.id === activeTab) ? activeTab : (visibleTabs[0]?.id ?? 'chapter');
 
   // Seed the detail view from entitySlug so mounting with a slug works on mount;
   // the prevEntitySlug tracker below handles subsequent changes.
@@ -89,7 +126,7 @@ export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter',
   };
 
   const renderTabContent = () => {
-    switch (activeTab) {
+    switch (effectiveTab) {
       case 'chapter':
         return <ChapterEntitiesTab navigateToDetail={navigateToDetail} />;
       case 'search':
@@ -104,11 +141,11 @@ export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter',
   };
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative" role="dialog" aria-label="Reference Tools" aria-modal="true">
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative" role="dialog" aria-label="Study Tools" aria-modal="true">
       <div className="flex items-center justify-between px-4 py-2 flex-shrink-0 border-b border-scripture-border/30">
         <div role="tablist" aria-label="Reference tools sections" className="min-w-0">
           <div className="flex gap-1 sm:gap-2 overflow-x-auto">
-            {TABS.map((tab) => (
+            {visibleTabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => {
@@ -117,20 +154,20 @@ export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter',
                 }}
                 role="tab"
                 id={`reference-tab-${tab.id}`}
-                aria-selected={activeTab === tab.id && !detailView}
+                aria-selected={effectiveTab === tab.id && !detailView}
                 aria-controls={`reference-tabpanel-${tab.id}`}
                 title={tab.label}
                 className={`
                   px-2 sm:px-3 py-1.5 rounded-lg text-sm font-ui font-medium transition-all whitespace-nowrap
                   flex items-center justify-center gap-1
-                  ${activeTab === tab.id && !detailView
+                  ${effectiveTab === tab.id && !detailView
                     ? 'bg-scripture-accent text-scripture-bg shadow-md'
                     : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'
                   }
                 `}
               >
                 <span className="text-base" aria-hidden="true">{tab.icon}</span>
-                <span className={`text-xs ${activeTab === tab.id && !detailView ? 'inline' : 'hidden'}`}>
+                <span className={`text-xs ${effectiveTab === tab.id && !detailView ? 'inline' : 'hidden'}`}>
                   {tab.label}
                 </span>
               </button>
@@ -145,8 +182,8 @@ export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter',
         ) : (
           <div
             role="tabpanel"
-            id={`reference-tabpanel-${activeTab}`}
-            aria-labelledby={`reference-tab-${activeTab}`}
+            id={`reference-tabpanel-${effectiveTab}`}
+            aria-labelledby={`reference-tab-${effectiveTab}`}
           >
             {renderTabContent()}
           </div>
