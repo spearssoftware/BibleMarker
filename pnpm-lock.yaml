@@ -112,8 +112,8 @@ importers:
         specifier: ^30.0.1
         version: 30.0.1
       postcss:
-        specifier: ^8.5.23
-        version: 8.5.23
+        specifier: ^8.5.26
+        version: 8.5.26
       sharp:
         specifier: ^0.35.3
         version: 0.35.3
@@ -1913,11 +1913,6 @@ packages:
   murmurhash-js@1.0.0:
     resolution: {integrity: sha512-TvmkNhkv8yct0SVBSy+o8wYzXjE4Zz3PCesbfs8HiCXXdcTuocApFv11UWlNFWKYsP2okqrhb7JNlSm9InBhIw==}
 
-  nanoid@3.3.17:
-    resolution: {integrity: sha512-xQLf0A3HOMlgHq0n247/LRuAOYmB7dXJ/DvAxGvsSBij45XtBSmQycu+F8ODbHwns/XyFZagyL1+J0Offw1E0g==}
-    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
-    hasBin: true
-
   nanoid@3.3.18:
     resolution: {integrity: sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
@@ -1993,10 +1988,6 @@ packages:
 
   pmtiles@4.4.1:
     resolution: {integrity: sha512-5oTeQc/yX/ft1evbpIlnoCZugQuug/iYIAj/ZTqIqzdGek4uZEho99En890EE6NOSI3JTI3IG8R7r8+SltphxA==}
-
-  postcss@8.5.23:
-    resolution: {integrity: sha512-g50586zr4bZmwFiTlflMu8E0bDTb5I5gertgwAKmsdUlTQIhZtunzUlD1WSzwcVWPoAVpsrA6vlfCD7oXvRwgg==}
-    engines: {node: ^10 || ^12 || >=14}
 
   postcss@8.5.26:
     resolution: {integrity: sha512-u82N74LFzG8ca+dD8puPnplTXoGH4fTPpVGuIbt36G3qvNlkvfD0lEAZSxaly3KX8TS/L1A1gsCEmvKmBcVbkQ==}
@@ -4020,8 +4011,6 @@ snapshots:
 
   murmurhash-js@1.0.0: {}
 
-  nanoid@3.3.17: {}
-
   nanoid@3.3.18: {}
 
   natural-compare@1.4.0: {}
@@ -4083,12 +4072,6 @@ snapshots:
   pmtiles@4.4.1:
     dependencies:
       fflate: 0.8.3
-
-  postcss@8.5.23:
-    dependencies:
-      nanoid: 3.3.17
-      picocolors: 1.1.1
-      source-map-js: 1.2.1
 
   postcss@8.5.26:
     dependencies:
