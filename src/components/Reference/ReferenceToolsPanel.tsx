@@ -22,9 +22,12 @@ interface ReferenceToolsPanelProps {
 
 /**
  * Tabs available in discovery-first (default) mode. Chapter and Search are
- * pull-based lookups with no interpretive payload; Strong's, Hebrew/Greek and
- * Cross-Refs need the inductive toolkit (Cross-Refs is also the raw form of
- * the Echo Hints discovery feature, so it stays behind the toggle for now).
+ * the everyday "who/where/where-else" lookups a reader reaches for without
+ * any inductive-study intent. Strong's, Hebrew/Greek and Cross-Refs are the
+ * language-study tools that come with the inductive toolkit (Cross-Refs is
+ * also the raw form of the future Echo Hints discovery feature, so it stays
+ * behind the toggle for now) — they're just not advertised by default; see
+ * the deep-link handling below for when the reader explicitly asks for one.
  */
 const DEFAULT_MODE_TABS: ReferenceTab[] = ['chapter', 'search'];
 
@@ -43,18 +46,36 @@ interface DetailView {
 
 export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter', entitySlug, searchQuery, strongsNumber, verse }: ReferenceToolsPanelProps) {
   const inductiveToolsVisible = useInductiveToolsVisible();
-  const visibleTabs = inductiveToolsVisible ? TABS : TABS.filter(t => DEFAULT_MODE_TABS.includes(t.id));
 
   const [activeTab, setActiveTab] = useState<ReferenceTab>(initialTab);
   const [prevInitialTab, setPrevInitialTab] = useState(initialTab);
+  // A deep link (e.g. the verse-number menu's Cross-Refs/Hebrew-Greek items)
+  // explicitly asks for a specific tool. The default-mode filtering above is
+  // about not *advertising* the deeper tools, not forbidding them when the
+  // reader asks for one directly — so an explicit initialTab un-hides its own
+  // tab, and it stays un-hidden for the life of this panel session (even if
+  // the toggle later flips off) so the reader can navigate back to it.
+  const [extraVisibleTabs, setExtraVisibleTabs] = useState<ReferenceTab[]>(
+    DEFAULT_MODE_TABS.includes(initialTab) ? [] : [initialTab]
+  );
   if (initialTab !== prevInitialTab) {
     setPrevInitialTab(initialTab);
     setActiveTab(initialTab);
+    if (!DEFAULT_MODE_TABS.includes(initialTab) && !extraVisibleTabs.includes(initialTab)) {
+      setExtraVisibleTabs([...extraVisibleTabs, initialTab]);
+    }
   }
 
-  // A hidden tab can still be requested (a deep link, or the toggle flipped
-  // off while the panel was open) — fall back to the first visible one.
-  const effectiveTab = visibleTabs.some(t => t.id === activeTab) ? activeTab : visibleTabs[0].id;
+  const visibleTabIds = inductiveToolsVisible
+    ? TABS.map(t => t.id)
+    : [...DEFAULT_MODE_TABS, ...extraVisibleTabs];
+  const visibleTabs = TABS.filter(t => visibleTabIds.includes(t.id));
+
+  // A tab can still end up hidden — e.g. the toggle flips off while the panel
+  // is open and the reader had manually navigated to a tool tab that was
+  // never deep-linked — fall back to the first visible one. tsconfig has no
+  // noUncheckedIndexedAccess, so guard the empty-array case explicitly.
+  const effectiveTab = visibleTabs.some(t => t.id === activeTab) ? activeTab : (visibleTabs[0]?.id ?? 'chapter');
 
   // Seed the detail view from entitySlug so mounting with a slug works on mount;
   // the prevEntitySlug tracker below handles subsequent changes.
@@ -120,7 +141,7 @@ export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter',
   };
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative" role="dialog" aria-label="Reference Tools" aria-modal="true">
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative" role="dialog" aria-label="Study Tools" aria-modal="true">
       <div className="flex items-center justify-between px-4 py-2 flex-shrink-0 border-b border-scripture-border/30">
         <div role="tablist" aria-label="Reference tools sections" className="min-w-0">
           <div className="flex gap-1 sm:gap-2 overflow-x-auto">

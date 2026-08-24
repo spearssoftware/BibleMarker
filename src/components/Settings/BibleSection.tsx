@@ -180,8 +180,9 @@ export function BibleSection() {
           <div className="flex-1 pr-4">
             <div className="font-ui font-medium text-scripture-text mb-1">Inductive study tools</div>
             <p className="text-xs text-scripture-muted">
-              Show the full inductive toolkit — Key Words, Observe, Analyze, and Study Tools — in the
-              bottom bar and the text selection menu. Turn this off for a simpler reading view.
+              Show Key Words, Observe, and Analyze in the bottom bar and the text selection menu, and
+              give Study Tools its deeper tabs — Strong&rsquo;s, Hebrew/Greek, and cross-references.
+              Turn this off for a simpler reading view.
             </p>
           </div>
           <ToggleSwitch

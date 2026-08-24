@@ -81,16 +81,15 @@ export function Toolbar() {
         ? null
         : 'highlight';
 
-  // "Enable inductive tools" gates the tool tabs (Key Words/Observe/Analyze/
-  // Study Tools) and the advanced selection-menu items. Settings stays visible
-  // either way so the toggle itself is always reachable. Before prefs finish
-  // hydrating, treat the toolkit as off rather than trusting the in-memory
-  // default — a gutted-then-restored flash for an existing user with the
-  // toolkit on would be worse than just starting with Settings-only and
-  // filling in the tabs once hydration lands.
-  // Study Tools stays available in both modes: reference lookup is pull-based
-  // (the reader goes and asks), and the Discover panel links into it. The panel
-  // itself trims its deeper tabs when the toolkit is off.
+  // "Enable inductive tools" gates Key Words/Observe/Analyze and the advanced
+  // selection-menu items. Study Tools and Settings stay visible either way:
+  // Study Tools is pull-based (the reader goes and asks) and the Discover
+  // panel links into it — the panel itself just trims its deeper tabs
+  // (Strong's, Hebrew/Greek, Cross-Refs) when the toolkit is off. Before
+  // prefs finish hydrating, treat the toolkit as off rather than trusting the
+  // in-memory default — a gutted-then-restored flash for an existing user
+  // with the toolkit on would be worse than just starting with Study
+  // Tools/Settings-only and filling in the rest once hydration lands.
   const visibleTools = inductiveToolsVisible ? TOOLS : TOOLS.filter(t => t.type === 'reference');
 
   // Load marking presets on mount
@@ -317,11 +316,17 @@ export function Toolbar() {
   };
 
   // Keyboard shortcuts for toolbar tools (number keys 1-4). Indexed against
-  // visibleTools so shortcuts for hidden tools are inert while tools are off.
+  // the fixed TOOLS order (1=Key Words, 2=Observe, 3=Analyze, 4=Study Tools),
+  // not visibleTools position — otherwise "1" would trigger whatever tool
+  // happens to be first among the currently-visible ones (Study Tools, with
+  // the toolkit off), contradicting the on-screen numbering and the
+  // shortcuts help text. Only act if that fixed-position tool is currently
+  // visible, so 1-3 stay inert while the toolkit is off.
   useKeyboardShortcuts({
     onToolbarTool: (toolIndex: number) => {
-      if (toolIndex >= 0 && toolIndex < visibleTools.length) {
-        handleToolClick(visibleTools[toolIndex].type);
+      const tool = TOOLS[toolIndex];
+      if (tool && visibleTools.includes(tool)) {
+        handleToolClick(tool.type);
       }
     },
     enabled: toolbarVisible,

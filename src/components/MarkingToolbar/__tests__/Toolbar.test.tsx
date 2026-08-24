@@ -31,8 +31,13 @@ vi.mock('@/hooks/useAnnotations', () => ({
     quickHighlight: vi.fn(),
   }),
 }));
+const { keyboardShortcutsOptions } = vi.hoisted(() => ({
+  keyboardShortcutsOptions: { current: null as { onToolbarTool?: (i: number) => void } | null },
+}));
 vi.mock('@/hooks/useKeyboardShortcuts', () => ({
-  useKeyboardShortcuts: vi.fn(),
+  useKeyboardShortcuts: (options: { onToolbarTool?: (i: number) => void }) => {
+    keyboardShortcutsOptions.current = options;
+  },
 }));
 
 // Stores (return minimal state)
@@ -253,6 +258,29 @@ describe('Toolbar', () => {
       // Study Tools shows in both modes, so it never flashes in or out.
       expect(screen.getByLabelText('Study Tools')).toBeTruthy();
       expect(screen.getByLabelText('Settings')).toBeTruthy();
+    });
+
+    it('keys shortcuts to the fixed tool order, not on-screen position, so hidden tools stay inert', () => {
+      act(() => {
+        usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+      });
+
+      render(<Toolbar />);
+
+      // Index 0 ("1") would be Key Words on-screen only if it were keyed by
+      // visible position — with tools off, Study Tools is the sole visible
+      // tab, so index 0 must stay inert rather than opening it.
+      act(() => {
+        keyboardShortcutsOptions.current?.onToolbarTool?.(0);
+      });
+      expect(usePanelStore.getState().activePanel).toBeNull();
+
+      // Index 3 ("4") is Study Tools in the fixed TOOLS order and is visible
+      // in both modes, so it should open.
+      act(() => {
+        keyboardShortcutsOptions.current?.onToolbarTool?.(3);
+      });
+      expect(usePanelStore.getState().activePanel).toBe('reference');
     });
   });
 

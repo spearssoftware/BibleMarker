@@ -30,7 +30,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'reading',
     title: 'Bible Reading',
-    description: 'Read Scripture here. Select text to open the selection menu, where you can apply key words, add a match to a key word, add to observation lists, or jump straight to Study Tools for the Strong’s entry or cross-references. Click verse numbers to add notes.',
+    description: 'Read Scripture here. Select text to open the selection menu, where you can highlight it — with inductive tools on, the same menu also lets you apply key words, add to observation lists, or jump straight to Study Tools for the Strong’s entry or cross-references. Click verse numbers to add notes.',
     target: '[data-bible-reader]',
   },
   {
@@ -89,9 +89,8 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'reference',
-    toolkitOnly: true,
     title: 'Study Tools',
-    description: 'Look up the people, places, Strong’s entries, Hebrew/Greek words, and cross-references for what you’re reading. The Chapter tab shows everything tied to the current chapter; you can also lookup any word, verse, or Strong’s number directly from the selection menu. Access from the toolbar (book icon).',
+    description: 'Look up the people, places, and events tied to the current chapter, or search for a word or verse. With inductive tools on, you also get Strong’s entries, Hebrew/Greek words, and cross-references. Access from the toolbar (book icon).',
     target: '[data-toolbar-reference]',
   },
   {
@@ -129,7 +128,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   // Once isHydrated is true (the branch below where this is read), this is
   // equivalent to the raw inductiveToolsEnabled flag.
   const inductiveToolsVisible = useInductiveToolsVisible();
-  // Toolkit steps (Key Words/Observe/Analyze/Study Tools tabs) target elements
+  // Toolkit steps (Marking Toolbar/Key Words/Observe/Analyze) target elements
   // that don't render when the toolkit is off — filter them out rather than
   // let every one auto-skip after a 500ms timeout. The tour is only launched
   // after prefs are hydrated (see App.tsx's onboarding chain), but guard

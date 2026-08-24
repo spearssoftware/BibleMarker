@@ -1,13 +1,14 @@
 /**
  * @vitest-environment jsdom
  *
- * Study Tools is reachable in both modes, but discovery-first (default) mode
- * only exposes the pull-based lookups — Chapter and Search. Strong's,
- * Hebrew/Greek and Cross-Refs need the inductive toolkit.
+ * Study Tools is reachable in both modes. Discovery-first (default) mode only
+ * advertises the everyday lookups — Chapter and Search — while Strong's,
+ * Hebrew/Greek and Cross-Refs come with the inductive toolkit. An explicit
+ * deep link (e.g. the verse menu's "Cross-References") un-hides its own tab.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { ReferenceToolsPanel } from '../ReferenceToolsPanel';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 
@@ -52,12 +53,43 @@ describe('ReferenceToolsPanel tab gating', () => {
     }
   });
 
-  it('falls back to a visible tab when a hidden one is requested', () => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+  it('falls back to a visible tab when the toolkit turns off after manually navigating there', () => {
+    usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
 
-    render(<ReferenceToolsPanel onClose={() => {}} initialTab="strongs" />);
+    render(<ReferenceToolsPanel onClose={() => {}} />);
+
+    // Manually navigate to a toolkit-only tab (not via a deep-link initialTab).
+    fireEvent.click(screen.getByRole('tab', { name: "Strong's" }));
+    expect(screen.getByText('strongs-tab')).toBeTruthy();
+
+    act(() => {
+      usePreferencesStore.setState({ inductiveToolsEnabled: false });
+    });
 
     expect(screen.queryByText('strongs-tab')).toBeNull();
     expect(screen.getByText('chapter-tab')).toBeTruthy();
+  });
+
+  it('deep link: un-hides the requested tab and shows its content even with tools off', () => {
+    usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+
+    render(<ReferenceToolsPanel onClose={() => {}} initialTab="cross-refs" verse={5} />);
+
+    expect(screen.getByRole('tab', { name: 'Cross-Refs' })).toBeTruthy();
+    expect(screen.getByText('cross-refs-tab')).toBeTruthy();
+  });
+
+  it('deep link: wires aria-selected and the tabpanel id/aria-labelledby to the effective tab', () => {
+    usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+
+    render(<ReferenceToolsPanel onClose={() => {}} initialTab="cross-refs" verse={5} />);
+
+    const tab = screen.getByRole('tab', { name: 'Cross-Refs' });
+    expect(tab.getAttribute('aria-selected')).toBe('true');
+    expect(tab.id).toBe('reference-tab-cross-refs');
+
+    const panel = screen.getByRole('tabpanel');
+    expect(panel.id).toBe('reference-tabpanel-cross-refs');
+    expect(panel.getAttribute('aria-labelledby')).toBe('reference-tab-cross-refs');
   });
 });

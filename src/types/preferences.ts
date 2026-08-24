@@ -71,10 +71,12 @@ export interface UserPreferences {
     forceSyncEnabled?: boolean;
   };
   /**
-   * Shows the full inductive toolkit (Key Words, Observe, Analyze, Study Tools)
-   * in the bottom bar and selection menu. Absent == false. Deliberately not
-   * added to DEFAULT_PREFERENCES so `undefined` stays meaningful for the
-   * one-shot "upgrade nicety" check in `toolkitMigration.ts`.
+   * Shows Key Words, Observe, and Analyze in the bottom bar and selection
+   * menu, and gives Study Tools its deeper tabs (Strong's, Hebrew/Greek,
+   * cross-references) — Study Tools itself is always in the bottom bar.
+   * Absent == false. Deliberately not added to DEFAULT_PREFERENCES so
+   * `undefined` stays meaningful for the one-shot "upgrade nicety" check in
+   * `toolkitMigration.ts`.
    */
   inductiveToolsEnabled?: boolean;
   /** Opt-in anonymous usage telemetry (Analytics Engine). Absent == false. */

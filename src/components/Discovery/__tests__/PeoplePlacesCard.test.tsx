@@ -50,8 +50,9 @@ describe('PeoplePlacesCard', () => {
     expect(empty.textContent).toBe('');
   });
 
-  it.each([false, true])('opens Study Tools on the Chapter tab with inductiveToolsEnabled=%s', (enabled) => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: enabled, isHydrated: true });
+  // The component doesn't read the inductive-tools preference at all — the
+  // jump into Study Tools works the same regardless of the toggle.
+  it('opens Study Tools on the Chapter tab regardless of the inductive-tools toggle', () => {
     render(<PeoplePlacesCard entities={entities()} isLoading={false} error={null} />);
 
     fireEvent.click(screen.getByText('See who and where'));

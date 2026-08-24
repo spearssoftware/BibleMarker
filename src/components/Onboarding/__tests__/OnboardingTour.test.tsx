@@ -66,7 +66,7 @@ describe('OnboardingTour', () => {
     document.body.innerHTML = '';
   });
 
-  it('has no toolkit steps and includes the discovery step when tools are off', async () => {
+  it('has no toolkit steps but still includes Study Tools when tools are off', async () => {
     usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
     render(<OnboardingTour onComplete={vi.fn()} />);
 
@@ -79,11 +79,14 @@ describe('OnboardingTour', () => {
     await waitFor(() => expect(screen.getByText('Notice Something')).toBeTruthy());
     await clickNext();
 
-    // Toolkit steps are filtered out, so the very next step is Search — not
-    // Marking Toolbar / Key Words / Observe / Analyze / Study Tools.
-    await waitFor(() => expect(screen.getByText('Search')).toBeTruthy());
+    // Toolkit steps (Marking Toolbar/Key Words/Observe/Analyze) are filtered
+    // out, so the very next step is Study Tools — it stays in both modes.
+    await waitFor(() => expect(screen.getByText('Study Tools')).toBeTruthy());
     expect(screen.queryByText('Marking Toolbar')).toBeNull();
     expect(screen.queryByText('Key Words: Keyword, Match, Apply')).toBeNull();
+    await clickNext();
+
+    await waitFor(() => expect(screen.getByText('Search')).toBeTruthy());
   });
 
   it('includes the toolkit steps when tools are on', async () => {
