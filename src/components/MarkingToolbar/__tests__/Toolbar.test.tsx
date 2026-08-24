@@ -210,7 +210,7 @@ describe('Toolbar', () => {
   });
 
   describe('tool tabs', () => {
-    it('renders no tool tabs when inductive tools are disabled', () => {
+    it('leaves only Study Tools when inductive tools are disabled', () => {
       act(() => {
         usePreferencesStore.setState({ inductiveToolsEnabled: false });
       });
@@ -220,7 +220,9 @@ describe('Toolbar', () => {
       expect(screen.queryByLabelText('Key Words')).toBeNull();
       expect(screen.queryByLabelText('Observe')).toBeNull();
       expect(screen.queryByLabelText('Analyze')).toBeNull();
-      expect(screen.queryByLabelText('Study Tools')).toBeNull();
+      // Study Tools is pull-based lookup and the Discover panel links into it,
+      // so it stays in both modes (the panel trims its own deeper tabs).
+      expect(screen.getByLabelText('Study Tools')).toBeTruthy();
       // Settings stays reachable either way.
       expect(screen.getByLabelText('Settings')).toBeTruthy();
     });
@@ -238,7 +240,7 @@ describe('Toolbar', () => {
       expect(screen.getByLabelText('Study Tools')).toBeTruthy();
     });
 
-    it('renders no tool tabs before preferences finish hydrating, even for an existing user who will end up with tools on', () => {
+    it('renders no toolkit tabs before preferences finish hydrating, even for an existing user who will end up with tools on', () => {
       act(() => {
         usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: false });
       });
@@ -248,7 +250,8 @@ describe('Toolbar', () => {
       expect(screen.queryByLabelText('Key Words')).toBeNull();
       expect(screen.queryByLabelText('Observe')).toBeNull();
       expect(screen.queryByLabelText('Analyze')).toBeNull();
-      expect(screen.queryByLabelText('Study Tools')).toBeNull();
+      // Study Tools shows in both modes, so it never flashes in or out.
+      expect(screen.getByLabelText('Study Tools')).toBeTruthy();
       expect(screen.getByLabelText('Settings')).toBeTruthy();
     });
   });

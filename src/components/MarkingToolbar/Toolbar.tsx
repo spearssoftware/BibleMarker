@@ -88,7 +88,10 @@ export function Toolbar() {
   // default — a gutted-then-restored flash for an existing user with the
   // toolkit on would be worse than just starting with Settings-only and
   // filling in the tabs once hydration lands.
-  const visibleTools = inductiveToolsVisible ? TOOLS : [];
+  // Study Tools stays available in both modes: reference lookup is pull-based
+  // (the reader goes and asks), and the Discover panel links into it. The panel
+  // itself trims its deeper tabs when the toolkit is off.
+  const visibleTools = inductiveToolsVisible ? TOOLS : TOOLS.filter(t => t.type === 'reference');
 
   // Load marking presets on mount
   useEffect(() => {
