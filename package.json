@@ -39,7 +39,7 @@
     "pmtiles": "^4.4.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-map-gl": "^8.1.1",
+    "react-map-gl": "^8.1.2",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
