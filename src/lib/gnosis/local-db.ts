@@ -41,6 +41,11 @@ let dbInitPromise: Promise<Database> | null = null;
 let rebuildAttempted = false;
 /** Why the rebuild failed, so later errors can repeat the real cause. */
 let rebuildFailure: string | null = null;
+/** Bound install attempts per session: a transient failure deserves another
+ *  try on a later call, but a broken device must not repeat a
+ *  tens-of-megabytes copy attempt on every gnosis call. */
+const MAX_INSTALL_ATTEMPTS = 3;
+let installAttempts = 0;
 
 async function getGnosisDb(): Promise<Database> {
   if (!dbInitPromise) {
@@ -117,11 +122,14 @@ async function initGnosisDb(): Promise<Database> {
   const destPath = await join(dataDir, DB_FILE);
 
   // Copy bundled resource if not present
-  try {
-    await installBundledDb(destPath);
-    console.log('[Gnosis] Bundled DB installed at:', destPath);
-  } catch (e) {
-    console.warn('[Gnosis] Failed to install bundled gnosis-lite.db:', e);
+  if (installAttempts < MAX_INSTALL_ATTEMPTS) {
+    installAttempts += 1;
+    try {
+      await installBundledDb(destPath);
+      console.log('[Gnosis] Bundled DB installed at:', destPath);
+    } catch (e) {
+      console.warn('[Gnosis] Failed to install bundled gnosis-lite.db:', e);
+    }
   }
 
   let probe = await openIfReadable();
