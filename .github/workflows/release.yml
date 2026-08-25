@@ -648,6 +648,12 @@ jobs:
           echo "Found AAB: $AAB"
           cp "$AAB" BibleMarker-android.aab
 
+      # Google Play rejects releases whose native libraries aren't 16 KB
+      # page-aligned, and it says so only at submission time. Fail the build
+      # here instead.
+      - name: Verify 16 KB page alignment of native libraries
+        run: python3 scripts/verify-android-alignment.py BibleMarker-android.aab
+
       - name: Upload AAB to release
         uses: softprops/action-gh-release@v3.0.2
         with:
