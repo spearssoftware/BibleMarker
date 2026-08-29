@@ -67,12 +67,15 @@ export interface DiscoveryThresholds {
   repetitionMinWordLength: number;
   /** Minimum connector-hit count for the Connector Lens chip to show. */
   connectorChipMinCount: number;
+  /** Minimum verse count for a chapter to earn the Look-Again heading challenge. */
+  headingMinVerses: number;
 }
 
 export const DEFAULT_DISCOVERY_THRESHOLDS: DiscoveryThresholds = {
   repetitionMinCount: 5,
   repetitionMinWordLength: 3,
   connectorChipMinCount: 1,
+  headingMinVerses: 10,
 };
 
 /**
@@ -180,6 +183,7 @@ export function sanitizeThresholds(raw: unknown, defaults: DiscoveryThresholds):
     repetitionMinCount: field(source.repetitionMinCount, defaults.repetitionMinCount),
     repetitionMinWordLength: field(source.repetitionMinWordLength, defaults.repetitionMinWordLength),
     connectorChipMinCount: field(source.connectorChipMinCount, defaults.connectorChipMinCount),
+    headingMinVerses: field(source.headingMinVerses, defaults.headingMinVerses),
   };
 }
 

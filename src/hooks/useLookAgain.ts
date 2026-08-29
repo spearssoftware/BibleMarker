@@ -24,23 +24,31 @@ import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
 import { useStudyStore } from '@/stores/studyStore';
+import { usePreferencesStore } from '@/stores/preferencesStore';
+import { usePeopleStore } from '@/stores/peopleStore';
+import { usePlaceStore } from '@/stores/placeStore';
 import { useChapterEntityVerseIndex } from '@/hooks/useGnosis';
 import { useMarkedPresetExists, type DiscoveryContext } from '@/stores/discoveryStore';
 import { useDiscoveryConfig } from '@/lib/discovery-config';
-import { filterPresetsByStudy } from '@/lib/studyFilter';
+import { filterPresetsByStudy, filterAnnotationsByStudy } from '@/lib/studyFilter';
 import { findKeywordMatches, normalizeForMatching, presetAppliesToChapter, variantAppliesToChapter } from '@/lib/keywordMatching';
 import { createBookScopedKeywordPreset } from '@/lib/discoveryActions';
 import { track } from '@/lib/telemetry';
 import { pluralize, agree } from '@/lib/textUtils';
-import { singularize, shouldShowHinges } from '@/lib/chapterAnalysis';
+import { singularize, shouldShowHinges, slugMatches } from '@/lib/chapterAnalysis';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import { getRandomHighlightColor } from '@/types';
-import type { Annotation, ChapterEntities, ChapterTitle, KeyWordCategory, MarkingPreset, SectionHeading, TextAnnotation } from '@/types';
+import type { Annotation, ChapterEntities, ChapterTitle, MarkingPreset, SectionHeading, TextAnnotation, VerseRef } from '@/types';
+
+/** The two entity categories this file's upsell ever builds a follow-up for. */
+type EntityCategory = 'people' | 'places';
 
 /** Person/place upsell exposed on a done item — see `buildFollowUp` below. */
 export interface LookAgainFollowUp {
   text: string;
   actionLabel: string;
+  /** The reader's own hand-marked word this follow-up promotes — used to give the action button a distinguishing accessible name. */
+  word: string;
   run: () => Promise<MarkingPreset>;
 }
 
@@ -175,51 +183,141 @@ function presetMarksToken(preset: MarkingPreset, token: string, book: string, ch
  * reader's own preset-less selection ("has selectedText, no presetId")
  * covering one of the entity index's verses — a plain highlight/underline/
  * symbol the reader placed by hand, not a keyword-preset match. When several
- * qualify, the one covering the earliest target verse wins ("first by verse
- * order").
+ * qualify, the earliest wins by verse, then start offset (an offset-less
+ * whole-verse span sorts first within its verse), then annotation id — a
+ * fully deterministic order so the same chapter never picks a different
+ * candidate from one evaluation to the next.
  */
-function findFollowUpWord(marks: Annotation[], targetVerses: number[], book: string, chapter: number): string | undefined {
+function findFollowUpWord(
+  marks: Annotation[],
+  targetVerses: number[],
+  book: string,
+  chapter: number
+): { verse: number; word: string } | undefined {
   if (targetVerses.length === 0) return undefined;
-  let best: { verse: number; word: string } | undefined;
+  const targetSet = new Set(targetVerses);
+  let best: { verse: number; charStart: number; id: string; word: string } | undefined;
   for (const ann of marks) {
     const word = ann.selectedText?.trim();
     if (!word || ann.presetId) continue;
     for (const cov of coverageForMark(ann, book, chapter)) {
-      if (!targetVerses.includes(cov.verse)) continue;
-      if (!best || cov.verse < best.verse) best = { verse: cov.verse, word };
+      if (!targetSet.has(cov.verse)) continue;
+      const candidate = { verse: cov.verse, charStart: cov.charStart ?? -1, id: ann.id, word };
+      if (
+        !best ||
+        candidate.verse < best.verse ||
+        (candidate.verse === best.verse && candidate.charStart < best.charStart) ||
+        (candidate.verse === best.verse && candidate.charStart === best.charStart && candidate.id < best.id)
+      ) {
+        best = candidate;
+      }
     }
   }
-  return best?.word;
+  return best ? { verse: best.verse, word: best.word } : undefined;
+}
+
+/**
+ * Refinement A safety gate: the promoted word must plausibly be a name, not
+ * an entire highlighted sentence (a whole-verse highlight's `selectedText`
+ * is the full verse text) — 1-2 words after trimming, a sane length, AND an
+ * actual match against this chapter's Gnosis person/place slugs via
+ * `slugMatches` (the same helper `deriveCategoryHint` uses). Slugs are
+ * lowercase-only in the Gnosis schema; the candidate word rarely is (it's
+ * the reader's own capitalized selection), so both sides are folded to the
+ * token's own casing before comparing. No match on any front means no
+ * follow-up at all — this function is the single source of truth for that.
+ */
+function isNameCandidate(word: string, category: EntityCategory, entities: ChapterEntities | null): boolean {
+  const trimmed = word.trim();
+  if (!trimmed || trimmed.length > 40) return false;
+  if (trimmed.split(/\s+/).length > 2) return false;
+  if (!entities) return false;
+  const token = singularize(normalizeForMatching(trimmed));
+  const slugs = category === 'people' ? entities.people : entities.places;
+  return slugs.some(slug => slugMatches(token, slug.toLowerCase()));
 }
 
 /**
  * Builds the "Marked '{word}'? Highlight every mention" upsell: creates a
  * book-scoped, chapter-pinned key-word preset for the word the reader
- * already marked by hand. Once it succeeds the preset exists, so the next
- * evaluation's "does a matching preset already exist" check (see the
- * `presetMarksToken` call at each call site) hides the follow-up on its
- * own — no local state needed here beyond the caller's pending/error UI.
+ * already marked by hand, then — mirroring `Toolbar.quickAddKeyword` — also
+ * writes the matching Person/Place tracker row so the two on-ramps stay
+ * consistent, but only when inductive tools are on (this upsell is
+ * discovery-first UI; the tracker is the toolkit's own concept, and skipping
+ * it when the toolkit is off avoids populating a list the reader can't see).
+ * Once the preset is created it exists, so the next evaluation's "does a
+ * matching preset already exist" check (see `presetMarksToken` at each call
+ * site) hides the follow-up on its own — no local state needed here beyond
+ * the caller's pending/error UI.
  */
 function buildFollowUp(
   word: string,
-  category: KeyWordCategory,
+  category: EntityCategory,
   book: string,
   chapter: number,
+  verse: number,
   studyId: string | null
 ): LookAgainFollowUp {
   return {
     text: `Marked ‘${word}’? Highlight every mention in this chapter.`,
     actionLabel: 'Highlight every mention',
-    run: () =>
-      createBookScopedKeywordPreset({
+    word,
+    run: async () => {
+      const preset = await createBookScopedKeywordPreset({
         word,
         book,
         chapter,
         studyId: studyId ?? undefined,
         category,
         highlight: { style: 'highlight', color: getRandomHighlightColor() },
-      }),
+      });
+      if (usePreferencesStore.getState().inductiveToolsEnabled) {
+        const verseRef: VerseRef = { book, chapter, verse };
+        if (category === 'people') {
+          await usePeopleStore.getState().createPerson(word, verseRef, undefined, preset.id, undefined, studyId ?? undefined);
+        } else {
+          await usePlaceStore.getState().createPlace(word, verseRef, undefined, preset.id, undefined, studyId ?? undefined);
+        }
+      }
+      return preset;
+    },
   };
+}
+
+/**
+ * One done person/place item's full follow-up derivation, shared by both
+ * call sites in `items` below (dedupes what used to be two byte-identical
+ * blocks): validate the candidate is name-shaped and actually one of this
+ * chapter's named entities (`isNameCandidate`), suppress it outright when it
+ * would echo the hidden repetition token (blocking fix — regardless of
+ * whether the repetition item itself is done yet), and suppress it again
+ * when a matching preset already exists.
+ */
+function buildEntityFollowUp(
+  candidate: { verse: number; word: string } | undefined,
+  category: EntityCategory,
+  context: DiscoveryContext,
+  entities: ChapterEntities | null,
+  filteredPresets: MarkingPreset[],
+  activeStudyId: string | null
+): LookAgainFollowUp | undefined {
+  if (!candidate) return undefined;
+  const { verse, word } = candidate;
+  if (!isNameCandidate(word, category, entities)) return undefined;
+
+  const token = singularize(normalizeForMatching(word));
+  // Blocking fix: the hidden repetition token must never reach the DOM (see
+  // `RepetitionResult.token`'s own doc comment) — a preset-less mark can
+  // itself be the repetition word, and this follow-up would otherwise quote
+  // it verbatim while the repetition row is still undone.
+  if (token === context.analysis.repetition?.token) return undefined;
+
+  const alreadyPreset = filteredPresets.some(p =>
+    presetMarksToken(p, token, context.book, context.chapter, context.translationId)
+  );
+  if (alreadyPreset) return undefined;
+
+  return buildFollowUp(word, category, context.book, context.chapter, verse, activeStudyId);
 }
 
 export function useLookAgain(
@@ -370,10 +468,20 @@ export function useLookAgain(
     // eslint-disable-next-line react-hooks/exhaustive-deps -- context's own identity fully covered by its book/chapter/translationId
   }, [context?.book, context?.chapter, context?.translationId, activeStudyId, discoveryEnabled]);
 
-  const realMarks = useMemo(
-    () => (context ? chapterAnnotations.filter(a => a.moduleId === context.translationId) : []),
-    [chapterAnnotations, context]
-  );
+  // Preset map for study filtering below — built from the unfiltered store
+  // (mirrors MultiTranslationView's own presetMap), since a preset-backed
+  // annotation's effective study comes from the preset itself, not the
+  // caller's already-study-filtered list.
+  const presetMap = useMemo(() => new Map(presets.map(p => [p.id, p])), [presets]);
+
+  // Study-filtered (item 4): without this, a highlight belonging to another
+  // study could still be quoted by the person/place follow-up or satisfy a
+  // checklist item, even though it's invisible in the reader's current study.
+  const realMarks = useMemo(() => {
+    if (!context) return [];
+    const byTranslation = chapterAnnotations.filter(a => a.moduleId === context.translationId);
+    return filterAnnotationsByStudy(byTranslation, presetMap, activeStudyId);
+  }, [chapterAnnotations, context, presetMap, activeStudyId]);
 
   const filteredPresets = useMemo(() => filterPresetsByStudy(presets, activeStudyId), [presets, activeStudyId]);
 
@@ -409,6 +517,23 @@ export function useLookAgain(
     }
     return activeChapterVerses.length;
   }, [context, activeChapterBook, activeChapterChapter, activeChapterTranslationId, activeChapterVerses]);
+
+  // Fix (premature all-done flash): whether the active-chapter store's
+  // identity has actually caught up to this context. The heading item's
+  // visibility depends on `activeChapterVerseCount` above, which reads 0 both
+  // when the chapter genuinely hasn't loaded any verses yet AND when the
+  // identity simply hasn't caught up — so until this matches, we don't yet
+  // know whether a heading item belongs in the set. Folded into `ready`
+  // below rather than left as a separate flag: same "render nothing rather
+  // than a possibly-incomplete state" policy `ready` already documents. A
+  // lasting mismatch (see the identity guards above) means this — and so
+  // `ready` — never resolves; that's an accepted trade of "renders nothing"
+  // over "might be missing an item."
+  const activeChapterVersesReady =
+    !!context &&
+    activeChapterBook === context.book &&
+    activeChapterChapter === context.chapter &&
+    activeChapterTranslationId === context.translationId;
 
   const coverage = useMemo(
     () =>
@@ -472,16 +597,8 @@ export function useLookAgain(
         done: personDone,
       };
       if (personDone) {
-        const word = findFollowUpWord(realMarks, peopleVerses, context.book, context.chapter);
-        if (word) {
-          const token = singularize(normalizeForMatching(word));
-          const alreadyPreset = filteredPresets.some(p =>
-            presetMarksToken(p, token, context.book, context.chapter, context.translationId)
-          );
-          if (!alreadyPreset) {
-            item.followUp = buildFollowUp(word, 'people', context.book, context.chapter, activeStudyId);
-          }
-        }
+        const candidate = findFollowUpWord(realMarks, peopleVerses, context.book, context.chapter);
+        item.followUp = buildEntityFollowUp(candidate, 'people', context, entities, filteredPresets, activeStudyId);
       }
       result.push(item);
     }
@@ -493,16 +610,8 @@ export function useLookAgain(
         done: placeDone,
       };
       if (placeDone) {
-        const word = findFollowUpWord(realMarks, placesVerses, context.book, context.chapter);
-        if (word) {
-          const token = singularize(normalizeForMatching(word));
-          const alreadyPreset = filteredPresets.some(p =>
-            presetMarksToken(p, token, context.book, context.chapter, context.translationId)
-          );
-          if (!alreadyPreset) {
-            item.followUp = buildFollowUp(word, 'places', context.book, context.chapter, activeStudyId);
-          }
-        }
+        const candidate = findFollowUpWord(realMarks, placesVerses, context.book, context.chapter);
+        item.followUp = buildEntityFollowUp(candidate, 'places', context, entities, filteredPresets, activeStudyId);
       }
       result.push(item);
     }
@@ -528,9 +637,10 @@ export function useLookAgain(
     });
 
     // C: shown only once the chapter has enough verses for section structure
-    // to matter — same >10 threshold used elsewhere for "this chapter is long
-    // enough to need dividing up." Placed after 'title' per item order.
-    if (activeChapterVerseCount > 10) {
+    // to matter — remote-tunable via `thresholds.headingMinVerses` rather
+    // than a hardcoded "long enough to need dividing up" guess. Placed after
+    // 'title' per item order.
+    if (activeChapterVerseCount > thresholds.headingMinVerses) {
       result.push({
         id: 'heading',
         label: 'Where does this chapter shift? Add a section heading where it turns',
@@ -543,6 +653,7 @@ export function useLookAgain(
     context,
     repetitionDone,
     entitySourcesResolved,
+    entities,
     peopleVerses,
     peopleCount,
     personDone,
@@ -566,7 +677,24 @@ export function useLookAgain(
   // `items.length > 0` is included so `ready` alone is a safe single gate for
   // both the telemetry effect below and `LookAgainCard`'s render check — see
   // `entitySourcesResolved` above for the narrower per-item gate this isn't.
-  const ready = loaded && !entitiesLoading && !indexLoading && items.length > 0;
+  // `activeChapterVersesReady` closes the heading-item race described above
+  // it.
+  const ready = loaded && !entitiesLoading && !indexLoading && activeChapterVersesReady && items.length > 0;
+
+  // Telemetry (item 8): fire once per {item, chapter, translation} the first
+  // time a follow-up actually shows — `track`'s own `dedupeKey` dedupe makes
+  // this safe to call on every items recompute rather than needing our own
+  // "first time" bookkeeping.
+  useEffect(() => {
+    if (!context) return;
+    for (const item of items) {
+      if (!item.followUp) continue;
+      track('discovery_chip_shown', {
+        feature: 'upsell',
+        dedupeKey: `upsell:${item.id}:${context.book}:${context.chapter}:${context.translationId}`,
+      });
+    }
+  }, [context, items]);
 
   // S4: fire completion telemetry only on an in-session *transition* — this
   // chapter visit's checklist had ≥1 undone item at some point and now has

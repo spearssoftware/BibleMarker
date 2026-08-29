@@ -19,6 +19,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { DiscoveryPanel } from '../DiscoveryPanel';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
+import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { DEFAULT_DISCOVERY_THRESHOLDS } from '@/lib/chapterAnalysis';
 import { makeChapterAnalysis, makeDiscoveryContext } from '@/lib/__test__/factories';
 
@@ -71,6 +72,12 @@ describe('DiscoveryPanel', () => {
     mockEntityVerseIndex = null;
     discoveryEnabled = true;
     trackMock.mockClear();
+    // useLookAgain (real, un-mocked here) requires this to match `context`'s
+    // identity before it reports ready — see `activeChapterVersesReady` in
+    // useLookAgain.ts. In production this always matches by the time
+    // `context` exists at all; this test file sets `context` directly rather
+    // than going through `useChapterAnalysis`, so it must be set explicitly.
+    useActiveChapterStore.setState({ book: 'John', chapter: 1, translationId: 'sword-NASB', verses: [] });
     useDiscoveryStore.setState({
       context: null,
       lensActive: false,

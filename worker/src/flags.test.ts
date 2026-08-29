@@ -130,7 +130,7 @@ describe('buildClientConfig', () => {
   });
 
   it('keeps a valid object config value as-is', async () => {
-    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 5, connectorChipMinCount: 2 };
+    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 5, connectorChipMinCount: 2, headingMinVerses: 8 };
     const env = envWith(new MemoryFlags({ [CONFIG_KEYS.discoveryThresholds]: valid }));
     const cfg = await buildClientConfig(env, globalContext());
     expect(cfg.config[CONFIG_KEYS.discoveryThresholds]).toEqual(valid);
@@ -157,7 +157,7 @@ describe('sanitizeThresholds', () => {
   });
 
   it('keeps valid in-range integers as-is', () => {
-    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 5, connectorChipMinCount: 2 };
+    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 5, connectorChipMinCount: 2, headingMinVerses: 8 };
     expect(sanitizeThresholds(valid, DEFAULT_DISCOVERY_THRESHOLDS)).toEqual(valid);
   });
 

@@ -18,6 +18,11 @@ import { useToastStore } from '@/stores/toastStore';
 import type { LookAgainFollowUp, LookAgainItem } from '@/hooks/useLookAgain';
 import type { MarkingPreset } from '@/types';
 
+const trackMock = vi.fn();
+vi.mock('@/lib/telemetry', () => ({
+  track: (...args: unknown[]) => trackMock(...args),
+}));
+
 const anchors = { repetition: 'anchor-repetition', hinge: 'anchor-hinge', peoplePlaces: 'anchor-people-places' };
 
 function makeItems(overrides?: Partial<Record<LookAgainItem['id'], boolean>>): LookAgainItem[] {
@@ -34,6 +39,7 @@ describe('LookAgainCard', () => {
     usePreferencesStore.setState({ inductiveToolsEnabled: false, telemetryEnabled: false });
     usePanelStore.setState({ activePanel: null });
     useToastStore.setState({ toasts: [] });
+    trackMock.mockReset();
   });
 
   afterEach(() => {
@@ -155,6 +161,7 @@ describe('LookAgainCard', () => {
               followUp: {
                 text: `Marked ‘Pharaoh’? Highlight every mention in this chapter.`,
                 actionLabel: 'Highlight every mention',
+                word: 'Pharaoh',
                 run,
               },
             }
@@ -169,7 +176,7 @@ describe('LookAgainCard', () => {
       render(<LookAgainCard items={makeItemsWithFollowUp(run)} ready anchors={anchors} />);
 
       expect(screen.getByText(`Marked ‘Pharaoh’? Highlight every mention in this chapter.`)).toBeTruthy();
-      expect(screen.getByRole('button', { name: 'Highlight every mention' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Highlight every mention of Pharaoh' })).toBeTruthy();
     });
 
     it('calls run and disables the button while pending', async () => {
@@ -177,7 +184,7 @@ describe('LookAgainCard', () => {
       const run = vi.fn(() => new Promise<MarkingPreset>(res => { resolveRun = res; }));
       render(<LookAgainCard items={makeItemsWithFollowUp(run)} ready anchors={anchors} />);
 
-      const button = screen.getByRole('button', { name: 'Highlight every mention' }) as HTMLButtonElement;
+      const button = screen.getByRole('button', { name: 'Highlight every mention of Pharaoh' }) as HTMLButtonElement;
       fireEvent.click(button);
 
       expect(run).toHaveBeenCalledTimes(1);
@@ -192,7 +199,7 @@ describe('LookAgainCard', () => {
       const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
       render(<LookAgainCard items={makeItemsWithFollowUp(run)} ready anchors={anchors} />);
 
-      fireEvent.click(screen.getByRole('button', { name: 'Highlight every mention' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Highlight every mention of Pharaoh' }));
       await waitFor(() => expect(useToastStore.getState().toasts).toHaveLength(1));
       expect(useToastStore.getState().toasts[0]).toMatchObject({ variant: 'error' });
 
@@ -203,6 +210,34 @@ describe('LookAgainCard', () => {
       render(<LookAgainCard items={makeItems({ person: true })} ready anchors={anchors} />);
       expect(screen.queryByRole('button', { name: 'Highlight every mention' })).toBeNull();
     });
+
+    it('gives the follow-up button a distinguishing accessible name (item 9)', () => {
+      const run = vi.fn().mockResolvedValue(fakePreset);
+      render(<LookAgainCard items={makeItemsWithFollowUp(run)} ready anchors={anchors} />);
+      expect(screen.getByRole('button', { name: 'Highlight every mention of Pharaoh' })).toBeTruthy();
+    });
+
+    it('tracks discovery_chip_tapped with the upsell feature on click (item 8)', () => {
+      const run = vi.fn().mockResolvedValue(fakePreset);
+      render(<LookAgainCard items={makeItemsWithFollowUp(run)} ready anchors={anchors} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Highlight every mention of Pharaoh' }));
+
+      expect(trackMock).toHaveBeenCalledWith('discovery_chip_tapped', { feature: 'upsell' });
+    });
+
+    it('shows a success toast once run() resolves (item 15)', async () => {
+      const run = vi.fn().mockResolvedValue(fakePreset);
+      render(<LookAgainCard items={makeItemsWithFollowUp(run)} ready anchors={anchors} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Highlight every mention of Pharaoh' }));
+
+      await waitFor(() => expect(useToastStore.getState().toasts).toHaveLength(1));
+      expect(useToastStore.getState().toasts[0]).toMatchObject({
+        variant: 'success',
+        message: 'Highlighted every mention in this chapter.',
+      });
+    });
   });
 
   describe('heading item static row (refinement C)', () => {
@@ -212,12 +247,19 @@ describe('LookAgainCard', () => {
       return [...makeItems(), { id: 'heading', label: headingLabel, done }];
     }
 
-    it('renders the undone heading item as a static row, not a button, with the how-to line', () => {
+    it('renders the undone heading item as a static row, not a button, with the how-to line matching the real control', () => {
       render(<LookAgainCard items={makeItemsWithHeading(false)} ready anchors={anchors} />);
 
       expect(screen.queryByRole('button', { name: headingLabel })).toBeNull();
       expect(screen.getByText(headingLabel)).toBeTruthy();
-      expect(screen.getByText('Tap a verse number, then Add heading.')).toBeTruthy();
+      // Matches VerseNumberMenu's actual button copy — "Add Section Heading".
+      expect(screen.getByText('Tap a verse number, then Add Section Heading.')).toBeTruthy();
+    });
+
+    it('gives the undone heading row a visually-hidden "not done" for screen-reader parity with done rows (item 13)', () => {
+      render(<LookAgainCard items={makeItemsWithHeading(false)} ready anchors={anchors} />);
+      const row = screen.getByText(headingLabel).closest('li');
+      expect(row?.textContent).toContain('(not done)');
     });
 
     it('does not scroll or dispatch anything when the static heading row is clicked', () => {

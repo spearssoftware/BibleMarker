@@ -26,6 +26,7 @@ import { useState } from 'react';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { usePanelStore } from '@/stores/panelStore';
 import { toast } from '@/stores/toastStore';
+import { track } from '@/lib/telemetry';
 import { Button } from '@/components/shared';
 import { DiscoveryCard } from './DiscoveryCard';
 import type { LookAgainFollowUp, LookAgainItem } from '@/hooks/useLookAgain';
@@ -70,6 +71,22 @@ const ANCHOR_KEY_FOR_ITEM: Record<LookAgainItem['id'], keyof LookAgainAnchors | 
   heading: null,
 };
 
+/**
+ * How-to copy for a 'none'-action undone row — an exhaustive `Record` (not a
+ * single hardcoded paragraph) so a future 'none' item can't silently inherit
+ * 'heading's text just by matching its action type. Must stay in sync with
+ * the actual control: `VerseNumberMenu`'s verse-number sheet button reads
+ * "Add Section Heading".
+ */
+const HOW_TO_FOR_ITEM: Record<LookAgainItem['id'], string | null> = {
+  repetition: null,
+  hinge: null,
+  person: null,
+  place: null,
+  title: null,
+  heading: 'Tap a verse number, then Add Section Heading.',
+};
+
 function anchorIdFor(item: LookAgainItem, anchors: LookAgainAnchors): string | undefined {
   const key = ANCHOR_KEY_FOR_ITEM[item.id];
   return key ? anchors[key] : undefined;
@@ -91,9 +108,11 @@ function FollowUpRow({ followUp }: { followUp: LookAgainFollowUp }) {
   const [pending, setPending] = useState(false);
 
   const handleClick = async () => {
+    track('discovery_chip_tapped', { feature: 'upsell' });
     setPending(true);
     try {
       await followUp.run();
+      toast.success('Highlighted every mention in this chapter.');
     } catch (err) {
       console.error('[LookAgainCard] Follow-up action failed:', err);
       toast.error("Couldn't highlight it — try again.");
@@ -105,7 +124,13 @@ function FollowUpRow({ followUp }: { followUp: LookAgainFollowUp }) {
   return (
     <div className="pl-6 pr-2 pb-1.5">
       <p className="text-xs text-scripture-muted">{followUp.text}</p>
-      <Button variant="ghost" size="sm" onClick={handleClick} disabled={pending}>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={handleClick}
+        disabled={pending}
+        aria-label={`Highlight every mention of ${followUp.word}`}
+      >
         {followUp.actionLabel}
       </Button>
     </div>
@@ -156,8 +181,13 @@ export function LookAgainCard({ items, ready, anchors }: LookAgainCardProps) {
               <div className={`${ROW_CLASSES} text-scripture-text`}>
                 <span aria-hidden="true" className={CHECK_CLASSES} />
                 <div>
-                  <div>{item.label}</div>
-                  <p className="text-xs text-scripture-muted">Tap a verse number, then Add heading.</p>
+                  <div>
+                    {item.label}
+                    <span className="sr-only"> (not done)</span>
+                  </div>
+                  {HOW_TO_FOR_ITEM[item.id] && (
+                    <p className="text-xs text-scripture-muted">{HOW_TO_FOR_ITEM[item.id]}</p>
+                  )}
                 </div>
               </div>
             ) : (

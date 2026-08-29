@@ -118,6 +118,9 @@ export function normalizeConfig(raw: unknown): RemoteConfig {
       connectorChipMinCount: isValidThresholdField(source.connectorChipMinCount)
         ? source.connectorChipMinCount
         : DEFAULT_DISCOVERY_THRESHOLDS.connectorChipMinCount,
+      headingMinVerses: isValidThresholdField(source.headingMinVerses)
+        ? source.headingMinVerses
+        : DEFAULT_DISCOVERY_THRESHOLDS.headingMinVerses,
     },
   };
 }

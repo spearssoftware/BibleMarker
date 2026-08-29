@@ -83,7 +83,7 @@ export function verseRangeLabel(result: RepetitionResult): string {
  * space-separated words (e.g. "sea of galilee" for "sea-of-galilee"). A
  * single-word slug satisfies both forms identically.
  */
-function slugMatches(token: string, slug: string): boolean {
+export function slugMatches(token: string, slug: string): boolean {
   const firstSegment = slug.split('-')[0];
   const spaced = slug.replace(/-/g, ' ');
   return token === firstSegment || token === spaced;
