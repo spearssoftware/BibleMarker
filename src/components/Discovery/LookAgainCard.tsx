@@ -1,14 +1,18 @@
 /**
  * LookAgainCard — the Look-Again checklist
  *
- * Renders `useLookAgain`'s 3-5 auto-generated items as a list: undone items
- * are real buttons that jump the reader to the card that can satisfy them
+ * Renders `useLookAgain`'s auto-generated items as a list: undone items are
+ * either a button that jumps the reader to the card that can satisfy them
  * (repetition/person/place/hinge rows scroll the matching card into view via
  * an id anchor passed down from `DiscoveryPanel`; the title row instead
  * dispatches `openChapterTitleCreator`, handled in `MultiTranslationView`,
- * same window-event pattern as `openObservationTools`). Done rows are static
- * content — muted text plus a checkmark and a visually-hidden "done" for
- * screen readers.
+ * same window-event pattern as `openObservationTools`) or, for 'heading'
+ * (refinement C), a static row — there's no single card to jump to, so it
+ * just names the how-to instead. Done rows are static content — muted text
+ * plus a checkmark and a visually-hidden "done" for screen readers — and a
+ * done person/place row may additionally carry a `followUp` upsell
+ * (refinement A) to promote the reader's own hand-marked word to a key word
+ * covering the whole chapter.
  *
  * Renders nothing until `useLookAgain` reports `ready` — the pre-load item
  * set would otherwise flash a premature all-done state.
@@ -18,11 +22,13 @@
  * that opens Settings → Bible directly.
  */
 
+import { useState } from 'react';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { usePanelStore } from '@/stores/panelStore';
+import { toast } from '@/stores/toastStore';
 import { Button } from '@/components/shared';
 import { DiscoveryCard } from './DiscoveryCard';
-import type { LookAgainItem } from '@/hooks/useLookAgain';
+import type { LookAgainFollowUp, LookAgainItem } from '@/hooks/useLookAgain';
 
 export interface LookAgainAnchors {
   repetition?: string;
@@ -37,18 +43,31 @@ interface LookAgainCardProps {
 }
 
 /**
- * Which `LookAgainAnchors` key (if any) an item's undone row should scroll
- * to. A `Record` keyed by the full `LookAgainItem['id']` union — rather than
- * a `switch` with a `default` — so adding a new item id fails to compile
- * here until this map says where it scrolls (`null` for 'title', which
- * dispatches `openChapterTitleCreator` instead of scrolling).
+ * What tapping an undone row does. A `Record` keyed by the full
+ * `LookAgainItem['id']` union — rather than a `switch` with a `default` — so
+ * adding a new item id fails to compile here until this map says how it
+ * behaves: 'scroll' rows jump to an anchor (see `ANCHOR_KEY_FOR_ITEM`),
+ * 'title-event' dispatches `openChapterTitleCreator`, and 'none' (currently
+ * only 'heading') renders a static row instead of a button — there's no
+ * single card a section heading could jump to.
  */
+const ACTION_FOR_ITEM: Record<LookAgainItem['id'], 'scroll' | 'title-event' | 'none'> = {
+  repetition: 'scroll',
+  hinge: 'scroll',
+  person: 'scroll',
+  place: 'scroll',
+  title: 'title-event',
+  heading: 'none',
+};
+
+/** Which `LookAgainAnchors` key a 'scroll'-action item's undone row targets. */
 const ANCHOR_KEY_FOR_ITEM: Record<LookAgainItem['id'], keyof LookAgainAnchors | null> = {
   repetition: 'repetition',
   hinge: 'hinge',
   person: 'peoplePlaces',
   place: 'peoplePlaces',
   title: null,
+  heading: null,
 };
 
 function anchorIdFor(item: LookAgainItem, anchors: LookAgainAnchors): string | undefined {
@@ -60,6 +79,39 @@ const ROW_CLASSES = 'flex items-start gap-2 px-2 py-1.5 rounded text-sm';
 const CHECK_CLASSES =
   'mt-0.5 flex-shrink-0 w-4 h-4 rounded border border-scripture-border flex items-center justify-center text-[10px] leading-none';
 
+/**
+ * The person/place key-word upsell (refinement A) rendered under a done row.
+ * Owns its own `pending` flag — same shape as `RepetitionCard`'s "Mark it"
+ * button — since it's the only piece of local state a follow-up needs: once
+ * `followUp.run()` succeeds, the new preset flows back through
+ * `useLookAgain`'s own store subscriptions and the derivation hides this row
+ * on its own (see `buildFollowUp`'s doc comment).
+ */
+function FollowUpRow({ followUp }: { followUp: LookAgainFollowUp }) {
+  const [pending, setPending] = useState(false);
+
+  const handleClick = async () => {
+    setPending(true);
+    try {
+      await followUp.run();
+    } catch (err) {
+      console.error('[LookAgainCard] Follow-up action failed:', err);
+      toast.error("Couldn't highlight it — try again.");
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <div className="pl-6 pr-2 pb-1.5">
+      <p className="text-xs text-scripture-muted">{followUp.text}</p>
+      <Button variant="ghost" size="sm" onClick={handleClick} disabled={pending}>
+        {followUp.actionLabel}
+      </Button>
+    </div>
+  );
+}
+
 export function LookAgainCard({ items, ready, anchors }: LookAgainCardProps) {
   const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
   const openPanel = usePanelStore(s => s.openPanel);
@@ -70,13 +122,16 @@ export function LookAgainCard({ items, ready, anchors }: LookAgainCardProps) {
   const allDone = items.every(i => i.done);
 
   const activate = (item: LookAgainItem) => {
-    if (item.id === 'title') {
+    const action = ACTION_FOR_ITEM[item.id];
+    if (action === 'title-event') {
       window.dispatchEvent(new CustomEvent('openChapterTitleCreator'));
       return;
     }
-    const id = anchorIdFor(item, anchors);
-    if (!id) return;
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (action === 'scroll') {
+      const id = anchorIdFor(item, anchors);
+      if (!id) return;
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   };
 
   return (
@@ -85,14 +140,25 @@ export function LookAgainCard({ items, ready, anchors }: LookAgainCardProps) {
         {items.map(item => (
           <li key={item.id}>
             {item.done ? (
-              <div className={`${ROW_CLASSES} text-scripture-muted`}>
-                <span aria-hidden="true" className={CHECK_CLASSES}>
-                  ✓
-                </span>
-                <span>
-                  {item.label}
-                  <span className="sr-only"> (done)</span>
-                </span>
+              <>
+                <div className={`${ROW_CLASSES} text-scripture-muted`}>
+                  <span aria-hidden="true" className={CHECK_CLASSES}>
+                    ✓
+                  </span>
+                  <span>
+                    {item.label}
+                    <span className="sr-only"> (done)</span>
+                  </span>
+                </div>
+                {item.followUp && <FollowUpRow followUp={item.followUp} />}
+              </>
+            ) : ACTION_FOR_ITEM[item.id] === 'none' ? (
+              <div className={`${ROW_CLASSES} text-scripture-text`}>
+                <span aria-hidden="true" className={CHECK_CLASSES} />
+                <div>
+                  <div>{item.label}</div>
+                  <p className="text-xs text-scripture-muted">Tap a verse number, then Add heading.</p>
+                </div>
               </div>
             ) : (
               <button

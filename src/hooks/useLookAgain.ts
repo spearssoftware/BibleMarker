@@ -19,7 +19,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getChapterAnnotations, getChapterTitle } from '@/lib/database';
+import { getChapterAnnotations, getChapterHeadings, getChapterTitle } from '@/lib/database';
 import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
@@ -29,16 +29,31 @@ import { useMarkedPresetExists, type DiscoveryContext } from '@/stores/discovery
 import { useDiscoveryConfig } from '@/lib/discovery-config';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { findKeywordMatches, normalizeForMatching, presetAppliesToChapter, variantAppliesToChapter } from '@/lib/keywordMatching';
+import { createBookScopedKeywordPreset } from '@/lib/discoveryActions';
 import { track } from '@/lib/telemetry';
 import { pluralize, agree } from '@/lib/textUtils';
 import { singularize, shouldShowHinges } from '@/lib/chapterAnalysis';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
-import type { Annotation, ChapterEntities, ChapterTitle, MarkingPreset, TextAnnotation } from '@/types';
+import { getRandomHighlightColor } from '@/types';
+import type { Annotation, ChapterEntities, ChapterTitle, KeyWordCategory, MarkingPreset, SectionHeading, TextAnnotation } from '@/types';
+
+/** Person/place upsell exposed on a done item — see `buildFollowUp` below. */
+export interface LookAgainFollowUp {
+  text: string;
+  actionLabel: string;
+  run: () => Promise<MarkingPreset>;
+}
 
 export interface LookAgainItem {
-  id: 'repetition' | 'person' | 'place' | 'hinge' | 'title';
+  id: 'repetition' | 'person' | 'place' | 'hinge' | 'title' | 'heading';
   label: string;
   done: boolean;
+  /**
+   * Person/place key-word upsell (see `buildFollowUp`): present only when
+   * this item is done via a real preset-less annotation and no matching
+   * preset already exists. Absent for every other item.
+   */
+  followUp?: LookAgainFollowUp;
 }
 
 export interface LookAgainResult {
@@ -155,6 +170,58 @@ function presetMarksToken(preset: MarkingPreset, token: string, book: string, ch
   return preset.variants.some(v => variantAppliesToChapter(v, book, chapter) && matchesToken(v.text));
 }
 
+/**
+ * Person/place upsell (refinement A): among a chapter's real marks, find the
+ * reader's own preset-less selection ("has selectedText, no presetId")
+ * covering one of the entity index's verses — a plain highlight/underline/
+ * symbol the reader placed by hand, not a keyword-preset match. When several
+ * qualify, the one covering the earliest target verse wins ("first by verse
+ * order").
+ */
+function findFollowUpWord(marks: Annotation[], targetVerses: number[], book: string, chapter: number): string | undefined {
+  if (targetVerses.length === 0) return undefined;
+  let best: { verse: number; word: string } | undefined;
+  for (const ann of marks) {
+    const word = ann.selectedText?.trim();
+    if (!word || ann.presetId) continue;
+    for (const cov of coverageForMark(ann, book, chapter)) {
+      if (!targetVerses.includes(cov.verse)) continue;
+      if (!best || cov.verse < best.verse) best = { verse: cov.verse, word };
+    }
+  }
+  return best?.word;
+}
+
+/**
+ * Builds the "Marked '{word}'? Highlight every mention" upsell: creates a
+ * book-scoped, chapter-pinned key-word preset for the word the reader
+ * already marked by hand. Once it succeeds the preset exists, so the next
+ * evaluation's "does a matching preset already exist" check (see the
+ * `presetMarksToken` call at each call site) hides the follow-up on its
+ * own — no local state needed here beyond the caller's pending/error UI.
+ */
+function buildFollowUp(
+  word: string,
+  category: KeyWordCategory,
+  book: string,
+  chapter: number,
+  studyId: string | null
+): LookAgainFollowUp {
+  return {
+    text: `Marked ‘${word}’? Highlight every mention in this chapter.`,
+    actionLabel: 'Highlight every mention',
+    run: () =>
+      createBookScopedKeywordPreset({
+        word,
+        book,
+        chapter,
+        studyId: studyId ?? undefined,
+        category,
+        highlight: { style: 'highlight', color: getRandomHighlightColor() },
+      }),
+  };
+}
+
 export function useLookAgain(
   context: DiscoveryContext | null,
   entities: ChapterEntities | null,
@@ -181,6 +248,7 @@ export function useLookAgain(
 
   const [chapterAnnotations, setChapterAnnotations] = useState<Annotation[]>([]);
   const [chapterTitle, setChapterTitle] = useState<ChapterTitle | undefined>(undefined);
+  const [chapterHeadings, setChapterHeadings] = useState<SectionHeading[]>([]);
   // Whether the DB query below has resolved at least once for the current
   // context key. Gates the completion-telemetry effect (S4) so the pre-load
   // placeholder state (annotations/title both empty/undefined) never counts
@@ -229,6 +297,7 @@ export function useLookAgain(
     setPrevContextKey(contextKey);
     setChapterAnnotations([]);
     setChapterTitle(undefined);
+    setChapterHeadings([]);
     setLoaded(false);
   }
 
@@ -253,22 +322,25 @@ export function useLookAgain(
     const load = async () => {
       const id = ++requestId;
       try {
-        const [anns, title] = await Promise.all([
+        const [anns, title, headings] = await Promise.all([
           getChapterAnnotations(translationId, book, chapter),
           getChapterTitle(null, book, chapter, activeStudyId),
+          getChapterHeadings(null, book, chapter, activeStudyId),
         ]);
         if (cancelled || id !== requestId) return;
         setChapterAnnotations(anns);
         setChapterTitle(title);
+        setChapterHeadings(headings);
         setLoaded(true);
       } catch (e) {
-        console.error('[useLookAgain] Failed to load chapter annotations/title:', e);
+        console.error('[useLookAgain] Failed to load chapter annotations/title/headings:', e);
         if (cancelled || id !== requestId) return;
         // Conservative fallback: render the checklist with everything undone
         // rather than leaving it stuck pre-load — `loaded` still flips true so
         // `ready` can become true even though the DB query itself failed.
         setChapterAnnotations([]);
         setChapterTitle(undefined);
+        setChapterHeadings([]);
         setLoaded(true);
       }
     };
@@ -323,6 +395,21 @@ export function useLookAgain(
     return result;
   }, [context, activeChapterBook, activeChapterChapter, activeChapterTranslationId, activeChapterVerses, filteredPresets, exclusions]);
 
+  // C: the heading item's visibility gate — same identity guard as
+  // `virtualMarks` above, so a stale active-chapter store from a different
+  // chapter can't leak its verse count into this one's item set.
+  const activeChapterVerseCount = useMemo(() => {
+    if (
+      !context ||
+      activeChapterBook !== context.book ||
+      activeChapterChapter !== context.chapter ||
+      activeChapterTranslationId !== context.translationId
+    ) {
+      return 0;
+    }
+    return activeChapterVerses.length;
+  }, [context, activeChapterBook, activeChapterChapter, activeChapterTranslationId, activeChapterVerses]);
+
   const coverage = useMemo(
     () =>
       context
@@ -341,8 +428,8 @@ export function useLookAgain(
   // Narrower than `ready` below: this only gates the person/place items
   // themselves, not the whole checklist's render/telemetry gate.
   const entitySourcesResolved = entityVerseIndex !== null && entities !== null;
-  const peopleVerses = entityVerseIndex?.peopleVerses ?? [];
-  const placesVerses = entityVerseIndex?.placesVerses ?? [];
+  const peopleVerses = useMemo(() => entityVerseIndex?.peopleVerses ?? [], [entityVerseIndex]);
+  const placesVerses = useMemo(() => entityVerseIndex?.placesVerses ?? [], [entityVerseIndex]);
   const peopleCount = entities?.people.length ?? 0;
   const placesCount = entities?.places.length ?? 0;
   const personDone = peopleVerses.some(v => markedVerseSet.has(v));
@@ -379,27 +466,57 @@ export function useLookAgain(
     }
 
     if (entitySourcesResolved && peopleVerses.length > 0 && peopleCount > 0) {
-      result.push({
+      const item: LookAgainItem = {
         id: 'person',
         label: `${pluralize(peopleCount, 'person', 'people')} ${agree(peopleCount, 'is', 'are')} named — mark one where a person appears`,
         done: personDone,
-      });
+      };
+      if (personDone) {
+        const word = findFollowUpWord(realMarks, peopleVerses, context.book, context.chapter);
+        if (word) {
+          const token = singularize(normalizeForMatching(word));
+          const alreadyPreset = filteredPresets.some(p =>
+            presetMarksToken(p, token, context.book, context.chapter, context.translationId)
+          );
+          if (!alreadyPreset) {
+            item.followUp = buildFollowUp(word, 'people', context.book, context.chapter, activeStudyId);
+          }
+        }
+      }
+      result.push(item);
     }
 
     if (entitySourcesResolved && placesVerses.length > 0 && placesCount > 0) {
-      result.push({
+      const item: LookAgainItem = {
         id: 'place',
         label: `${pluralize(placesCount, 'place')} ${agree(placesCount, 'is', 'are')} named — mark one where a place appears`,
         done: placeDone,
-      });
+      };
+      if (placeDone) {
+        const word = findFollowUpWord(realMarks, placesVerses, context.book, context.chapter);
+        if (word) {
+          const token = singularize(normalizeForMatching(word));
+          const alreadyPreset = filteredPresets.some(p =>
+            presetMarksToken(p, token, context.book, context.chapter, context.translationId)
+          );
+          if (!alreadyPreset) {
+            item.followUp = buildFollowUp(word, 'places', context.book, context.chapter, activeStudyId);
+          }
+        }
+      }
+      result.push(item);
     }
 
     // Same threshold gate as DiscoveryPanel's HingesCard, so this row can
     // never point at a card the panel decided not to render.
     if (shouldShowHinges(analysis.connectors.length, thresholds)) {
+      const hingeCount = analysis.connectors.length;
       result.push({
         id: 'hinge',
-        label: `${pluralize(analysis.connectors.length, 'hinge')} ${agree(analysis.connectors.length, 'holds', 'hold')} this chapter together — mark one`,
+        label:
+          hingeCount === 1
+            ? '1 hinge holds this chapter — mark it'
+            : `${hingeCount} hinges — which one carries the argument? Mark it`,
         done: hingeDone,
       });
     }
@@ -410,8 +527,37 @@ export function useLookAgain(
       done: !!chapterTitle,
     });
 
+    // C: shown only once the chapter has enough verses for section structure
+    // to matter — same >10 threshold used elsewhere for "this chapter is long
+    // enough to need dividing up." Placed after 'title' per item order.
+    if (activeChapterVerseCount > 10) {
+      result.push({
+        id: 'heading',
+        label: 'Where does this chapter shift? Add a section heading where it turns',
+        done: chapterHeadings.length > 0,
+      });
+    }
+
     return result;
-  }, [context, repetitionDone, entitySourcesResolved, peopleVerses.length, peopleCount, personDone, placesVerses.length, placesCount, placeDone, thresholds, hingeDone, chapterTitle]);
+  }, [
+    context,
+    repetitionDone,
+    entitySourcesResolved,
+    peopleVerses,
+    peopleCount,
+    personDone,
+    placesVerses,
+    placesCount,
+    placeDone,
+    realMarks,
+    filteredPresets,
+    activeStudyId,
+    thresholds,
+    hingeDone,
+    chapterTitle,
+    activeChapterVerseCount,
+    chapterHeadings,
+  ]);
 
   // See `LookAgainResult.ready`. By the time `loaded` flips true (an awaited
   // DB round-trip), the entity hooks' effects have already run, so their

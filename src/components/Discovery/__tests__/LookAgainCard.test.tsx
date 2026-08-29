@@ -10,11 +10,13 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { LookAgainCard } from '../LookAgainCard';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { usePanelStore } from '@/stores/panelStore';
-import type { LookAgainItem } from '@/hooks/useLookAgain';
+import { useToastStore } from '@/stores/toastStore';
+import type { LookAgainFollowUp, LookAgainItem } from '@/hooks/useLookAgain';
+import type { MarkingPreset } from '@/types';
 
 const anchors = { repetition: 'anchor-repetition', hinge: 'anchor-hinge', peoplePlaces: 'anchor-people-places' };
 
@@ -22,7 +24,7 @@ function makeItems(overrides?: Partial<Record<LookAgainItem['id'], boolean>>): L
   return [
     { id: 'repetition', label: 'One word repeats 11× — find and mark it', done: overrides?.repetition ?? false },
     { id: 'person', label: '1 person is named — mark one where a person appears', done: overrides?.person ?? false },
-    { id: 'hinge', label: '1 hinge holds this chapter together — mark one', done: overrides?.hinge ?? false },
+    { id: 'hinge', label: '1 hinge holds this chapter — mark it', done: overrides?.hinge ?? false },
     { id: 'title', label: 'Say this chapter in your own words — give it a title', done: overrides?.title ?? false },
   ];
 }
@@ -31,6 +33,7 @@ describe('LookAgainCard', () => {
   beforeEach(() => {
     usePreferencesStore.setState({ inductiveToolsEnabled: false, telemetryEnabled: false });
     usePanelStore.setState({ activePanel: null });
+    useToastStore.setState({ toasts: [] });
   });
 
   afterEach(() => {
@@ -67,7 +70,7 @@ describe('LookAgainCard', () => {
 
   it.each([
     ['anchor-repetition', 'One word repeats 11× — find and mark it'],
-    ['anchor-hinge', '1 hinge holds this chapter together — mark one'],
+    ['anchor-hinge', '1 hinge holds this chapter — mark it'],
     ['anchor-people-places', '1 person is named — mark one where a person appears'],
   ])('scrolls to the %s anchor when the matching undone row is tapped', (anchorId, label) => {
     document.body.innerHTML += `<div id="${anchorId}"></div>`;
@@ -141,5 +144,100 @@ describe('LookAgainCard', () => {
       />
     );
     expect(screen.queryByText(/full toolkit/)).toBeNull();
+  });
+
+  describe('person/place follow-up (refinement A)', () => {
+    function makeItemsWithFollowUp(run: LookAgainFollowUp['run']): LookAgainItem[] {
+      return makeItems({ person: true }).map(item =>
+        item.id === 'person'
+          ? {
+              ...item,
+              followUp: {
+                text: `Marked ‘Pharaoh’? Highlight every mention in this chapter.`,
+                actionLabel: 'Highlight every mention',
+                run,
+              },
+            }
+          : item
+      );
+    }
+
+    const fakePreset = {} as MarkingPreset;
+
+    it('renders the follow-up text and button under the done row', () => {
+      const run = vi.fn().mockResolvedValue(fakePreset);
+      render(<LookAgainCard items={makeItemsWithFollowUp(run)} ready anchors={anchors} />);
+
+      expect(screen.getByText(`Marked ‘Pharaoh’? Highlight every mention in this chapter.`)).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Highlight every mention' })).toBeTruthy();
+    });
+
+    it('calls run and disables the button while pending', async () => {
+      let resolveRun: (preset: MarkingPreset) => void = () => {};
+      const run = vi.fn(() => new Promise<MarkingPreset>(res => { resolveRun = res; }));
+      render(<LookAgainCard items={makeItemsWithFollowUp(run)} ready anchors={anchors} />);
+
+      const button = screen.getByRole('button', { name: 'Highlight every mention' }) as HTMLButtonElement;
+      fireEvent.click(button);
+
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(button.disabled).toBe(true);
+
+      resolveRun(fakePreset);
+      await Promise.resolve();
+    });
+
+    it('shows an error toast when run fails', async () => {
+      const run = vi.fn().mockRejectedValue(new Error('boom'));
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+      render(<LookAgainCard items={makeItemsWithFollowUp(run)} ready anchors={anchors} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Highlight every mention' }));
+      await waitFor(() => expect(useToastStore.getState().toasts).toHaveLength(1));
+      expect(useToastStore.getState().toasts[0]).toMatchObject({ variant: 'error' });
+
+      consoleError.mockRestore();
+    });
+
+    it('renders no follow-up row when the item has none', () => {
+      render(<LookAgainCard items={makeItems({ person: true })} ready anchors={anchors} />);
+      expect(screen.queryByRole('button', { name: 'Highlight every mention' })).toBeNull();
+    });
+  });
+
+  describe('heading item static row (refinement C)', () => {
+    const headingLabel = 'Where does this chapter shift? Add a section heading where it turns';
+
+    function makeItemsWithHeading(done: boolean): LookAgainItem[] {
+      return [...makeItems(), { id: 'heading', label: headingLabel, done }];
+    }
+
+    it('renders the undone heading item as a static row, not a button, with the how-to line', () => {
+      render(<LookAgainCard items={makeItemsWithHeading(false)} ready anchors={anchors} />);
+
+      expect(screen.queryByRole('button', { name: headingLabel })).toBeNull();
+      expect(screen.getByText(headingLabel)).toBeTruthy();
+      expect(screen.getByText('Tap a verse number, then Add heading.')).toBeTruthy();
+    });
+
+    it('does not scroll or dispatch anything when the static heading row is clicked', () => {
+      const listener = vi.fn();
+      window.addEventListener('openChapterTitleCreator', listener);
+
+      render(<LookAgainCard items={makeItemsWithHeading(false)} ready anchors={anchors} />);
+      fireEvent.click(screen.getByText(headingLabel));
+
+      expect(listener).not.toHaveBeenCalled();
+      window.removeEventListener('openChapterTitleCreator', listener);
+    });
+
+    it('renders the done heading item as static checked content', () => {
+      render(<LookAgainCard items={makeItemsWithHeading(true)} ready anchors={anchors} />);
+
+      expect(screen.queryByRole('button', { name: headingLabel })).toBeNull();
+      const row = screen.getByText(headingLabel).closest('li');
+      expect(row?.textContent).toContain('✓');
+      expect(row?.textContent).toContain('(done)');
+    });
   });
 });

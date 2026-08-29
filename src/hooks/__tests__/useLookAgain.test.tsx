@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act, cleanup } from '@testing-library/react';
 import { useLookAgain } from '../useLookAgain';
-import { getChapterAnnotations, getChapterTitle } from '@/lib/database';
+import { getChapterAnnotations, getChapterHeadings, getChapterTitle } from '@/lib/database';
 import { useStudyStore } from '@/stores/studyStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
@@ -29,7 +29,7 @@ import {
   makeMarkingPreset,
   makeSymbolAnnotation,
 } from '@/lib/__test__/factories';
-import type { ChapterEntities, ChapterEntityVerseIndex, ChapterTitle } from '@/types';
+import type { ChapterEntities, ChapterEntityVerseIndex, ChapterTitle, VerseRef } from '@/types';
 
 vi.mock('@/lib/database');
 
@@ -44,6 +44,19 @@ const trackMock = vi.fn();
 vi.mock('@/lib/telemetry', () => ({
   track: (...args: unknown[]) => trackMock(...args),
 }));
+
+const { createBookScopedKeywordPresetMock } = vi.hoisted(() => ({ createBookScopedKeywordPresetMock: vi.fn() }));
+vi.mock('@/lib/discoveryActions', () => ({
+  createBookScopedKeywordPreset: createBookScopedKeywordPresetMock,
+}));
+
+/** 11 bare verses for a chapter identity, for the C (heading item) >10-verse gate. */
+function makeVerses(book: string, chapter: number, count: number): { ref: VerseRef; text: string }[] {
+  return Array.from({ length: count }, (_, i) => ({
+    ref: { book, chapter, verse: i + 1 },
+    text: `Verse ${i + 1}.`,
+  }));
+}
 
 // entities/entitiesLoading are caller-supplied params (mirroring DiscoveryPanel's
 // own useChapterEntities call) rather than fetched internally by the hook, so
@@ -65,6 +78,9 @@ describe('useLookAgain', () => {
     useChapterEntityVerseIndexMock.mockImplementation(() => ({ index: mockIndex, isLoading: false, error: null }));
     vi.mocked(getChapterAnnotations).mockResolvedValue([]);
     vi.mocked(getChapterTitle).mockResolvedValue(undefined);
+    vi.mocked(getChapterHeadings).mockResolvedValue([]);
+    createBookScopedKeywordPresetMock.mockReset();
+    createBookScopedKeywordPresetMock.mockResolvedValue(makeMarkingPreset({ id: 'new-preset' }));
     useStudyStore.setState({ activeStudyId: null });
     useMarkingPresetStore.setState({ presets: [] });
     useKeywordExclusionStore.setState({ exclusions: [] });
@@ -195,6 +211,137 @@ describe('useLookAgain', () => {
     expect(result.current.items.some(i => i.id === 'person')).toBe(false);
   });
 
+  describe('person/place key-word follow-up (refinement A)', () => {
+    beforeEach(() => {
+      mockIndex = makeChapterEntityVerseIndex({ peopleVerses: [2] });
+      mockEntities = makeChapterEntities({ people: ['Pharaoh'] });
+    });
+
+    it('exposes a follow-up when done via a real preset-less annotation covering the entity verse', async () => {
+      vi.mocked(getChapterAnnotations).mockResolvedValue([
+        makeHighlightAnnotation({
+          moduleId: 'sword-NASB',
+          startRef: { book: 'John', chapter: 1, verse: 2 },
+          endRef: { book: 'John', chapter: 1, verse: 2 },
+          selectedText: 'Pharaoh',
+        }),
+      ]);
+
+      const { result } = renderLookAgain();
+      await waitFor(() => expect(result.current.items.find(i => i.id === 'person')?.done).toBe(true));
+
+      const person = result.current.items.find(i => i.id === 'person');
+      expect(person?.followUp).toMatchObject({
+        text: 'Marked ‘Pharaoh’? Highlight every mention in this chapter.',
+        actionLabel: 'Highlight every mention',
+      });
+    });
+
+    it('does not expose a follow-up when the item was satisfied by a virtual keyword-preset match (no real annotation)', async () => {
+      useMarkingPresetStore.setState({ presets: [makeMarkingPreset({ id: 'preset-pharaoh', word: 'Pharaoh' })] });
+      useActiveChapterStore.setState({
+        book: 'John',
+        chapter: 1,
+        translationId: 'sword-NASB',
+        verses: [{ ref: { book: 'John', chapter: 1, verse: 2 }, text: 'Pharaoh ruled the land.' }],
+      });
+
+      const { result } = renderLookAgain();
+      await waitFor(() => expect(result.current.items.find(i => i.id === 'person')?.done).toBe(true));
+      expect(result.current.items.find(i => i.id === 'person')?.followUp).toBeUndefined();
+    });
+
+    it('does not expose a follow-up when a matching preset already exists, even with a preset-less annotation present', async () => {
+      useMarkingPresetStore.setState({ presets: [makeMarkingPreset({ id: 'preset-pharaoh', word: 'Pharaoh' })] });
+      vi.mocked(getChapterAnnotations).mockResolvedValue([
+        makeHighlightAnnotation({
+          moduleId: 'sword-NASB',
+          startRef: { book: 'John', chapter: 1, verse: 2 },
+          endRef: { book: 'John', chapter: 1, verse: 2 },
+          selectedText: 'Pharaoh',
+        }),
+      ]);
+
+      const { result } = renderLookAgain();
+      await waitFor(() => expect(result.current.items.find(i => i.id === 'person')?.done).toBe(true));
+      expect(result.current.items.find(i => i.id === 'person')?.followUp).toBeUndefined();
+    });
+
+    it('does not expose a follow-up when the annotation carries a presetId (a preset-based mark, not preset-less)', async () => {
+      vi.mocked(getChapterAnnotations).mockResolvedValue([
+        makeHighlightAnnotation({
+          moduleId: 'sword-NASB',
+          startRef: { book: 'John', chapter: 1, verse: 2 },
+          endRef: { book: 'John', chapter: 1, verse: 2 },
+          selectedText: 'Pharaoh',
+          presetId: 'some-preset',
+        }),
+      ]);
+
+      const { result } = renderLookAgain();
+      await waitFor(() => expect(result.current.ready).toBe(true));
+      expect(result.current.items.find(i => i.id === 'person')?.followUp).toBeUndefined();
+    });
+
+    it("run() creates a book-scoped, chapter-pinned 'people' preset for the annotation's word, and the follow-up disappears once a matching preset exists", async () => {
+      vi.mocked(getChapterAnnotations).mockResolvedValue([
+        makeHighlightAnnotation({
+          moduleId: 'sword-NASB',
+          startRef: { book: 'John', chapter: 1, verse: 2 },
+          endRef: { book: 'John', chapter: 1, verse: 2 },
+          selectedText: 'Pharaoh',
+        }),
+      ]);
+
+      const { result } = renderLookAgain();
+      await waitFor(() => expect(result.current.items.find(i => i.id === 'person')?.followUp).toBeDefined());
+
+      await act(async () => {
+        await result.current.items.find(i => i.id === 'person')!.followUp!.run();
+      });
+
+      expect(createBookScopedKeywordPresetMock).toHaveBeenCalledWith(
+        expect.objectContaining({ word: 'Pharaoh', book: 'John', chapter: 1, category: 'people' })
+      );
+
+      // Simulate the store update createBookScopedKeywordPreset would have
+      // caused for real (it calls markingPresetStore.addPreset internally) —
+      // the follow-up must vanish now that a matching preset exists.
+      act(() => {
+        useMarkingPresetStore.setState({ presets: [makeMarkingPreset({ id: 'new-preset', word: 'Pharaoh' })] });
+      });
+      await waitFor(() => expect(result.current.items.find(i => i.id === 'person')?.followUp).toBeUndefined());
+    });
+
+    it('uses the first candidate by verse order and the "places" category for the place item', async () => {
+      mockIndex = makeChapterEntityVerseIndex({ placesVerses: [3, 5] });
+      mockEntities = makeChapterEntities({ places: ['Bethlehem'] });
+      vi.mocked(getChapterAnnotations).mockResolvedValue([
+        makeHighlightAnnotation({
+          id: 'ann-later',
+          moduleId: 'sword-NASB',
+          startRef: { book: 'John', chapter: 1, verse: 5 },
+          endRef: { book: 'John', chapter: 1, verse: 5 },
+          selectedText: 'Later Town',
+        }),
+        makeHighlightAnnotation({
+          id: 'ann-earlier',
+          moduleId: 'sword-NASB',
+          startRef: { book: 'John', chapter: 1, verse: 3 },
+          endRef: { book: 'John', chapter: 1, verse: 3 },
+          selectedText: 'Bethlehem',
+        }),
+      ]);
+
+      const { result } = renderLookAgain();
+      await waitFor(() => expect(result.current.items.find(i => i.id === 'place')?.followUp).toBeDefined());
+
+      const place = result.current.items.find(i => i.id === 'place');
+      expect(place?.followUp?.text).toContain('Bethlehem');
+      expect(createBookScopedKeywordPresetMock).not.toHaveBeenCalled();
+    });
+  });
+
   it('hides the hinge item below the connector threshold, matching the panel card gate', async () => {
     useFeatureFlagsStore.setState({
       config: {
@@ -206,6 +353,32 @@ describe('useLookAgain', () => {
     const { result } = renderLookAgain(); // factory analysis has 1 connector
     await waitFor(() => expect(result.current.ready).toBe(true));
     expect(result.current.items.some(i => i.id === 'hinge')).toBe(false);
+  });
+
+  it('uses the singular hinge wording for exactly one hinge (refinement B)', async () => {
+    const { result } = renderLookAgain(); // factory analysis has 1 connector
+    await waitFor(() =>
+      expect(result.current.items.find(i => i.id === 'hinge')).toMatchObject({
+        label: '1 hinge holds this chapter — mark it',
+      })
+    );
+  });
+
+  it('uses the plural "which one carries the argument" wording for 2+ hinges (refinement B)', async () => {
+    const hits = [
+      { phrase: 'therefore', category: 'conclusion' as const, verse: 1, start: 0, end: 9 },
+      { phrase: 'but', category: 'contrast' as const, verse: 2, start: 0, end: 3 },
+    ];
+    const context = makeDiscoveryContext({
+      analysis: makeChapterAnalysis({ connectors: hits, connectorRangesByVerse: new Map([[1, [hits[0]]], [2, [hits[1]]]]) }),
+    });
+
+    const { result } = renderLookAgain(context);
+    await waitFor(() =>
+      expect(result.current.items.find(i => i.id === 'hinge')).toMatchObject({
+        label: '2 hinges — which one carries the argument? Mark it',
+      })
+    );
   });
 
   it('an offset-less real annotation counts as a whole-verse mark, checking off the person item', async () => {
@@ -617,6 +790,101 @@ describe('useLookAgain', () => {
     expect(result.current).toEqual({ items: [], ready: false });
     expect(getChapterAnnotations).not.toHaveBeenCalled();
     expect(getChapterTitle).not.toHaveBeenCalled();
+    expect(getChapterHeadings).not.toHaveBeenCalled();
     expect(useChapterEntityVerseIndexMock).toHaveBeenCalledWith('John', 1, false);
+  });
+
+  describe('heading item (refinement C)', () => {
+    it('is hidden for a chapter with 10 or fewer verses', async () => {
+      useActiveChapterStore.setState({
+        book: 'John',
+        chapter: 1,
+        translationId: 'sword-NASB',
+        verses: makeVerses('John', 1, 10),
+      });
+
+      const { result } = renderLookAgain();
+      await waitFor(() => expect(result.current.ready).toBe(true));
+      expect(result.current.items.some(i => i.id === 'heading')).toBe(false);
+    });
+
+    it('is shown, undone, for a chapter with more than 10 verses', async () => {
+      useActiveChapterStore.setState({
+        book: 'John',
+        chapter: 1,
+        translationId: 'sword-NASB',
+        verses: makeVerses('John', 1, 11),
+      });
+
+      const { result } = renderLookAgain();
+      await waitFor(() =>
+        expect(result.current.items.find(i => i.id === 'heading')).toMatchObject({
+          label: 'Where does this chapter shift? Add a section heading where it turns',
+          done: false,
+        })
+      );
+    });
+
+    it('is hidden when the active-chapter store holds a different chapter\'s verses (identity guard)', async () => {
+      useActiveChapterStore.setState({
+        book: 'John',
+        chapter: 2,
+        translationId: 'sword-NASB',
+        verses: makeVerses('John', 2, 20),
+      });
+
+      const { result } = renderLookAgain();
+      await waitFor(() => expect(result.current.ready).toBe(true));
+      expect(result.current.items.some(i => i.id === 'heading')).toBe(false);
+    });
+
+    it('is done once the chapter has at least one section heading loaded from the DB', async () => {
+      useActiveChapterStore.setState({
+        book: 'John',
+        chapter: 1,
+        translationId: 'sword-NASB',
+        verses: makeVerses('John', 1, 11),
+      });
+      vi.mocked(getChapterHeadings).mockResolvedValue([
+        {
+          id: 'heading-1',
+          beforeRef: { book: 'John', chapter: 1, verse: 6 },
+          title: 'The Word Made Flesh',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+
+      const { result } = renderLookAgain();
+      await waitFor(() => expect(getChapterHeadings).toHaveBeenCalledWith(null, 'John', 1, null));
+      await waitFor(() => expect(result.current.items.find(i => i.id === 'heading')?.done).toBe(true));
+    });
+
+    it('toggles done after a heading is added via annotationsUpdated', async () => {
+      useActiveChapterStore.setState({
+        book: 'John',
+        chapter: 1,
+        translationId: 'sword-NASB',
+        verses: makeVerses('John', 1, 11),
+      });
+
+      const { result } = renderLookAgain();
+      await waitFor(() => expect(result.current.items.find(i => i.id === 'heading')?.done).toBe(false));
+
+      vi.mocked(getChapterHeadings).mockResolvedValue([
+        {
+          id: 'heading-1',
+          beforeRef: { book: 'John', chapter: 1, verse: 6 },
+          title: 'The Word Made Flesh',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+      act(() => {
+        window.dispatchEvent(new Event('annotationsUpdated'));
+      });
+
+      await waitFor(() => expect(result.current.items.find(i => i.id === 'heading')?.done).toBe(true));
+    });
   });
 });
