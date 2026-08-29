@@ -6,7 +6,7 @@ name: ci-docs-skip
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, discovery]
     paths:
       - '**.md'
       - 'LICENSE'
