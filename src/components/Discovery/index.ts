@@ -5,3 +5,6 @@
  */
 
 export { DiscoveryPanel } from './DiscoveryPanel';
+export { GenreCard } from './GenreCard';
+export { LookAgainCard } from './LookAgainCard';
+export type { LookAgainAnchors } from './LookAgainCard';

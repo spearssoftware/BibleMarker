@@ -6,15 +6,16 @@
  * `useDiscoveryHost`, plus entity counts from Gnosis. No props — everything
  * it needs is either already-mounted host state or store reads.
  *
+ * Card order: Genre Compass → Look-Again checklist → Repetition → Hinges →
+ * People & Places. Genre and the Look-Again title item need neither
+ * analysis extras nor Gnosis, so the loading gate is `!context` only (S5) —
+ * a Gnosis hiccup must not blank the whole panel. Each of the last three
+ * cards is wrapped in a stable-id `div` so `LookAgainCard`'s undone rows can
+ * scroll straight to the card that would satisfy them.
+ *
  * `discovery_chip_shown` telemetry lives here (not in `useDiscoveryHost`,
  * which is always-mounted) so it fires only when the panel actually renders
  * a repetition/hinges card, not merely when the chapter analysis exists.
- *
- * Entity resolution races the chapter-analysis publish: `entities === null`
- * is ambiguous between "still loading" and "Gnosis has nothing" until
- * `useChapterEntities` also reports `isLoading`/`error`, so the "nothing
- * stands out" empty state is held back until entities have definitely
- * resolved (or errored).
  */
 
 import type { ReactNode } from 'react';
@@ -22,10 +23,17 @@ import { useEffect } from 'react';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryConfig, useDiscoveryEnabled } from '@/lib/discovery-config';
 import { useChapterEntities } from '@/hooks/useGnosis';
+import { useLookAgain } from '@/hooks/useLookAgain';
 import { track } from '@/lib/telemetry';
+import { GenreCard } from './GenreCard';
+import { LookAgainCard } from './LookAgainCard';
 import { RepetitionCard } from './RepetitionCard';
 import { HingesCard } from './HingesCard';
 import { PeoplePlacesCard } from './PeoplePlacesCard';
+
+const REPETITION_ANCHOR_ID = 'discovery-card-repetition';
+const HINGE_ANCHOR_ID = 'discovery-card-hinges';
+const PEOPLE_PLACES_ANCHOR_ID = 'discovery-card-people-places';
 
 function DiscoveryDialog({ children }: { children: ReactNode }) {
   return (
@@ -46,6 +54,7 @@ export function DiscoveryPanel() {
     context?.chapter,
     discoveryEnabled
   );
+  const lookAgainItems = useLookAgain(context);
 
   const hasRepetition = Boolean(context?.analysis.repetition);
   const hingeCount = context?.analysis.connectors.length ?? 0;
@@ -67,47 +76,49 @@ export function DiscoveryPanel() {
     return <DiscoveryDialog><p className="text-sm text-scripture-muted">Discover is turned off right now.</p></DiscoveryDialog>;
   }
 
-  const entitiesStillLoading = entitiesLoading || (entities === null && !entitiesError);
-
-  if (!context || (!hasRepetition && !showHinges && entitiesStillLoading)) {
+  if (!context) {
     return <DiscoveryDialog><p className="text-sm text-scripture-muted">Reading the chapter…</p></DiscoveryDialog>;
   }
 
   const { book, chapter, translationId, analysis, translationCount, primaryTranslationAbbrev } = context;
-  const hasAnything = hasRepetition || showHinges || hasEntities;
-
-  if (!hasAnything) {
-    return (
-      <DiscoveryDialog>
-        <div className="bg-scripture-surface border border-scripture-border rounded-lg p-3">
-          <p className="text-sm text-scripture-muted">Nothing stands out here — just read.</p>
-        </div>
-      </DiscoveryDialog>
-    );
-  }
 
   return (
     <DiscoveryDialog>
+      <GenreCard book={book} chapter={chapter} />
+      <LookAgainCard
+        items={lookAgainItems}
+        anchors={{
+          repetition: REPETITION_ANCHOR_ID,
+          hinge: HINGE_ANCHOR_ID,
+          peoplePlaces: PEOPLE_PLACES_ANCHOR_ID,
+        }}
+      />
       {hasRepetition && (
-        <RepetitionCard
-          repetition={analysis.repetition}
-          translationCount={translationCount}
-          primaryTranslationAbbrev={primaryTranslationAbbrev}
-          book={book}
-          chapter={chapter}
-          translationId={translationId}
-          entities={entities}
-        />
+        <div id={REPETITION_ANCHOR_ID} style={{ scrollMarginTop: '1rem' }}>
+          <RepetitionCard
+            repetition={analysis.repetition}
+            translationCount={translationCount}
+            primaryTranslationAbbrev={primaryTranslationAbbrev}
+            book={book}
+            chapter={chapter}
+            translationId={translationId}
+            entities={entities}
+          />
+        </div>
       )}
       {showHinges && (
-        <HingesCard
-          connectorRangesByVerse={analysis.connectorRangesByVerse}
-          hingeCount={hingeCount}
-          book={book}
-          chapter={chapter}
-        />
+        <div id={HINGE_ANCHOR_ID} style={{ scrollMarginTop: '1rem' }}>
+          <HingesCard
+            connectorRangesByVerse={analysis.connectorRangesByVerse}
+            hingeCount={hingeCount}
+            book={book}
+            chapter={chapter}
+          />
+        </div>
       )}
-      <PeoplePlacesCard entities={entities} isLoading={entitiesLoading} error={entitiesError} />
+      <div id={PEOPLE_PLACES_ANCHOR_ID} style={{ scrollMarginTop: '1rem' }}>
+        <PeoplePlacesCard entities={entities} isLoading={entitiesLoading} error={entitiesError} />
+      </div>
     </DiscoveryDialog>
   );
 }

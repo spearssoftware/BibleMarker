@@ -7,6 +7,7 @@ import type { SyncStatus } from '@/lib/sync';
 import type { TextSelection } from '@/stores/annotationStore';
 import type { DiscoveryContext } from '@/stores/discoveryStore';
 import type { ChapterAnalysis, ConnectorHit } from '@/lib/chapterAnalysis';
+import type { ChapterEntities, ChapterEntityVerseIndex } from '@/types';
 
 export const ISO = '2025-01-01T00:00:00.000Z';
 
@@ -183,6 +184,28 @@ export function makeChapterAnalysis(overrides?: Partial<ChapterAnalysis>): Chapt
     repetition: { token: 'word', count: 11, firstVerse: 1, lastVerse: 14, occurrences: [], forms: ['word', 'words'] },
     connectors: [hit],
     connectorRangesByVerse: new Map([[1, [hit]]]),
+    ...overrides,
+  };
+}
+
+export function makeChapterEntities(overrides?: Partial<ChapterEntities>): ChapterEntities {
+  return {
+    book: 'John',
+    chapter: 1,
+    people: [],
+    places: [],
+    events: [],
+    topics: [],
+    ...overrides,
+  };
+}
+
+export function makeChapterEntityVerseIndex(overrides?: Partial<ChapterEntityVerseIndex>): ChapterEntityVerseIndex {
+  return {
+    book: 'John',
+    chapter: 1,
+    peopleVerses: [],
+    placesVerses: [],
     ...overrides,
   };
 }

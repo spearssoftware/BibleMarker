@@ -1,14 +1,18 @@
 /**
  * @vitest-environment jsdom
  *
- * DiscoveryPanel composes the "reading…" / "nothing to see" / card states,
- * plus the `discovery_chip_shown` telemetry that now lives here (moved out
- * of the always-mounted `useDiscoveryHost` so it only fires when a card is
- * actually rendered). HingesCard and PeoplePlacesCard are shallow-mocked so
+ * DiscoveryPanel composes the "reading…" / card states, plus the
+ * `discovery_chip_shown` telemetry that lives here (not in the
+ * always-mounted `useDiscoveryHost`) so it only fires when a card is
+ * actually rendered. HingesCard and PeoplePlacesCard are shallow-mocked so
  * this file mostly exercises DiscoveryPanel's own branching — their content
  * is covered by HingesCard.test.tsx / PeoplePlacesCard's own coverage.
  * RepetitionCard is deliberately left un-mocked so at least the translation
- * suffix is verified end-to-end through the real component.
+ * suffix is verified end-to-end through the real component. The Genre and
+ * Look-Again cards are also left un-mocked (they're the reason the empty
+ * state went away, so their presence is exactly what these tests need to
+ * confirm) — `useLookAgain`'s own DB queries are covered by its own test
+ * file, so `@/lib/database` is stubbed here only enough to keep it quiet.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -21,6 +25,8 @@ import { makeChapterAnalysis, makeDiscoveryContext } from '@/lib/__test__/factor
 vi.mock('@/lib/database', () => ({
   updatePreferences: vi.fn(async () => {}),
   getPreferences: vi.fn(async () => ({})),
+  getChapterAnnotations: vi.fn(async () => []),
+  getChapterTitle: vi.fn(async () => undefined),
 }));
 
 vi.mock('@/stores/studyStore', () => ({
@@ -29,11 +35,14 @@ vi.mock('@/stores/studyStore', () => ({
 }));
 
 type MockEntities = { book: string; chapter: number; people: string[]; places: string[]; events: string[]; topics: string[] } | null;
+type MockEntityVerseIndex = { book: string; chapter: number; peopleVerses: number[]; placesVerses: number[] } | null;
 let mockEntities: MockEntities = null;
 let mockEntitiesLoading = false;
 let mockEntitiesError: string | null = null;
+let mockEntityVerseIndex: MockEntityVerseIndex = null;
 vi.mock('@/hooks/useGnosis', () => ({
   useChapterEntities: () => ({ entities: mockEntities, isLoading: mockEntitiesLoading, error: mockEntitiesError }),
+  useChapterEntityVerseIndex: () => ({ index: mockEntityVerseIndex, isLoading: false, error: null }),
 }));
 
 let discoveryEnabled = true;
@@ -59,6 +68,7 @@ describe('DiscoveryPanel', () => {
     mockEntities = null;
     mockEntitiesLoading = false;
     mockEntitiesError = null;
+    mockEntityVerseIndex = null;
     discoveryEnabled = true;
     trackMock.mockClear();
     useDiscoveryStore.setState({
@@ -68,6 +78,7 @@ describe('DiscoveryPanel', () => {
       found: null,
       markedPresetId: null,
       revealedRungs: [],
+      checklistCompletedTracked: false,
     });
   });
 
@@ -87,24 +98,42 @@ describe('DiscoveryPanel', () => {
     expect(screen.queryByText('Reading the chapter…')).toBeNull();
   });
 
-  it('keeps showing "Reading the chapter…" while entities are still unresolved, even with nothing else to report', () => {
+  it('shows the Genre card and the Look-Again title item as soon as context exists, even before entities resolve', () => {
     useDiscoveryStore.setState({
       context: makeDiscoveryContext({ analysis: { repetition: null, connectors: [], connectorRangesByVerse: new Map() } }),
     });
-    // entities: null + no error + not loading is the ambiguous "hasn't resolved yet" case.
+    // entities: null + no error + not loading — a Gnosis hiccup must not blank the panel (S5).
     render(<DiscoveryPanel />);
-    expect(screen.getByText('Reading the chapter…')).toBeTruthy();
-    expect(screen.queryByText('Nothing stands out here — just read.')).toBeNull();
+    expect(screen.queryByText('Reading the chapter…')).toBeNull();
+    expect(screen.getByText('John — a gospel')).toBeTruthy();
+    expect(screen.getByText('Say this chapter in your own words — give it a title')).toBeTruthy();
   });
 
-  it('shows "Nothing stands out" once analysis and entities have both resolved to nothing', () => {
+  it('a bare chapter (no repetition, no hinges, no entities) still shows Genre + the Look-Again title item', () => {
     mockEntities = { book: 'John', chapter: 1, people: [], places: [], events: [], topics: [] };
     useDiscoveryStore.setState({
       context: makeDiscoveryContext({ analysis: { repetition: null, connectors: [], connectorRangesByVerse: new Map() } }),
     });
     render(<DiscoveryPanel />);
-    expect(screen.getByText('Nothing stands out here — just read.')).toBeTruthy();
+    expect(screen.getByText('John — a gospel')).toBeTruthy();
+    expect(screen.getByText('Say this chapter in your own words — give it a title')).toBeTruthy();
     expect(screen.queryByTestId('hinges-card')).toBeNull();
+  });
+
+  it('renders cards in Genre → Look-Again → Repetition → Hinges → People/Places order', () => {
+    mockEntities = { book: 'John', chapter: 1, people: ['jesus'], places: [], events: [], topics: [] };
+    useDiscoveryStore.setState({ context: makeDiscoveryContext({ translationCount: 2, primaryTranslationAbbrev: 'NASB' }) });
+    const { container } = render(<DiscoveryPanel />);
+    const dialog = container.querySelector('[role="dialog"] > div');
+    const testIds = Array.from(dialog?.children ?? []).map(el => {
+      if (el.querySelector('[role="checkbox"]')) return 'look-again';
+      if (el.textContent?.includes('John — a gospel')) return 'genre';
+      if (el.textContent?.includes('One word appears')) return 'repetition';
+      if (el.querySelector('[data-testid="hinges-card"]')) return 'hinges';
+      if (el.querySelector('[data-testid="people-places-card"]')) return 'people-places';
+      return 'unknown';
+    });
+    expect(testIds).toEqual(['genre', 'look-again', 'repetition', 'hinges', 'people-places']);
   });
 
   it('renders the repetition and hinges cards, with the real RepetitionCard suffix, when everything qualifies', () => {
