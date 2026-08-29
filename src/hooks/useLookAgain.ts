@@ -26,17 +26,33 @@ import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useChapterEntities, useChapterEntityVerseIndex } from '@/hooks/useGnosis';
 import { useDiscoveryStore, useMarkedPresetExists, type DiscoveryContext } from '@/stores/discoveryStore';
+import { useDiscoveryConfig } from '@/lib/discovery-config';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
-import { findKeywordMatches } from '@/lib/keywordMatching';
+import { findKeywordMatches, normalizeForMatching } from '@/lib/keywordMatching';
 import { track } from '@/lib/telemetry';
 import { pluralize } from '@/lib/textUtils';
+import { singularize } from '@/lib/chapterAnalysis';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
-import type { Annotation, ChapterTitle, TextAnnotation } from '@/types';
+import type { Annotation, ChapterTitle, MarkingPreset, TextAnnotation } from '@/types';
 
 export interface LookAgainItem {
   id: 'repetition' | 'person' | 'place' | 'hinge' | 'title';
   label: string;
   done: boolean;
+}
+
+export interface LookAgainResult {
+  items: LookAgainItem[];
+  /**
+   * True once the chapter's own DB data (annotations + title) has loaded AND
+   * both Gnosis entity queries have settled (resolved, errored, or skipped —
+   * a provider without the per-verse capability resolves quickly to null, so
+   * its in-flight window is covered by `isLoading` too). Consumers should
+   * render nothing (and never show the "all done" nudge) until this is true,
+   * otherwise the pre-load placeholder items flash as a premature
+   * "You've seen what's here".
+   */
+  ready: boolean;
 }
 
 /**
@@ -56,12 +72,30 @@ interface MarkCoverage {
  * multi-verse annotation covers its start/end verses per their own offsets
  * (unbounded on the side facing into the selection) and every verse between
  * them fully, regardless of offsets.
+ *
+ * Coverage is clamped to the current {book, chapter}: an annotation whose
+ * startRef lies in a different chapter contributes nothing here, and one
+ * that starts here but runs into a later chapter is clamped to its start
+ * verse's own span (we can't enumerate the chapter's remaining verse
+ * numbers, so we deliberately under-count — an item staying undone is the
+ * safe failure mode; verse numbers from another chapter must never leak
+ * into this chapter's marked-verse set).
  */
-function coverageForTextAnnotation(ann: TextAnnotation): MarkCoverage[] {
+function coverageForTextAnnotation(ann: TextAnnotation, book: string, chapter: number): MarkCoverage[] {
+  if (ann.startRef.book !== book || ann.startRef.chapter !== chapter) return [];
+
   const startVerse = ann.startRef.verse;
-  const endVerse = ann.endRef.verse;
+  const endsInThisChapter = ann.endRef.book === book && ann.endRef.chapter === chapter;
+  const endVerse = endsInThisChapter ? ann.endRef.verse : startVerse;
 
   if (startVerse === endVerse) {
+    if (!endsInThisChapter) {
+      // Cross-chapter span clamped to its start verse: covered from
+      // startOffset (when present) to the end of that verse.
+      return ann.startOffset !== undefined
+        ? [{ verse: startVerse, charStart: ann.startOffset, charEnd: Number.POSITIVE_INFINITY }]
+        : [{ verse: startVerse }];
+    }
     if (ann.startOffset !== undefined && ann.endOffset !== undefined) {
       return [{ verse: startVerse, charStart: ann.startOffset, charEnd: ann.endOffset }];
     }
@@ -83,9 +117,13 @@ function coverageForTextAnnotation(ann: TextAnnotation): MarkCoverage[] {
   return spans;
 }
 
-function coverageForMark(ann: Annotation): MarkCoverage[] {
-  if (ann.type === 'symbol') return [{ verse: ann.ref.verse }]; // whole verse, per S2
-  return coverageForTextAnnotation(ann);
+function coverageForMark(ann: Annotation, book: string, chapter: number): MarkCoverage[] {
+  if (ann.type === 'symbol') {
+    // Whole verse, per S2 — but only when the symbol sits in this chapter.
+    if (ann.ref.book !== book || ann.ref.chapter !== chapter) return [];
+    return [{ verse: ann.ref.verse }];
+  }
+  return coverageForTextAnnotation(ann, book, chapter);
 }
 
 /** Hinge overlap (S2): char-range intersection when the mark has one, else verse-level. */
@@ -95,7 +133,34 @@ function coverageIntersectsHit(cov: MarkCoverage, hit: ConnectorHit): boolean {
   return hit.start < cov.charEnd && hit.end > cov.charStart;
 }
 
-export function useLookAgain(context: DiscoveryContext | null): LookAgainItem[] {
+/**
+ * Durable repetition check: a (study-filtered) preset counts as "the
+ * repetition word is marked" when its scope covers this book+chapter, it
+ * applies to this translation, and its word — or any variant applicable
+ * here — singularizes to the analysis token. `useMarkedPresetExists` only
+ * survives within a chapter visit (`markedPresetId` is cleared by
+ * `resetForChapter`), so without this a revisited chapter would show the
+ * repetition item unchecked even though the reader already marked the word.
+ */
+function presetMarksToken(preset: MarkingPreset, token: string, book: string, chapter: number, translationId: string): boolean {
+  if (preset.moduleScope && preset.moduleScope !== translationId) return false;
+  if (preset.scopes && preset.scopes.length > 0) {
+    const covers = preset.scopes.some(
+      s => s.book === book && (s.chapter === undefined || s.chapter === chapter)
+    );
+    if (!covers) return false;
+  }
+  const matchesToken = (text: string | undefined): boolean =>
+    text !== undefined && singularize(normalizeForMatching(text)) === token;
+  if (matchesToken(preset.word)) return true;
+  return preset.variants.some(v => {
+    if (v.bookScope && v.bookScope !== book) return false;
+    if (v.bookScope && v.chapterScope !== undefined && v.chapterScope !== chapter) return false;
+    return matchesToken(v.text);
+  });
+}
+
+export function useLookAgain(context: DiscoveryContext | null): LookAgainResult {
   const activeStudyId = useStudyStore(s => s.activeStudyId);
   const { presets } = useMarkingPresetStore();
   const { exclusions } = useKeywordExclusionStore();
@@ -104,11 +169,15 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainItem[] 
   const activeChapterTranslationId = useActiveChapterStore(s => s.translationId);
   const activeChapterVerses = useActiveChapterStore(s => s.verses);
   const markedPresetExists = useMarkedPresetExists();
+  const thresholds = useDiscoveryConfig();
   const checklistCompletedTracked = useDiscoveryStore(s => s.checklistCompletedTracked);
   const setChecklistCompletedTracked = useDiscoveryStore(s => s.setChecklistCompletedTracked);
 
-  const { index: entityVerseIndex } = useChapterEntityVerseIndex(context?.book, context?.chapter, !!context);
-  const { entities } = useChapterEntities(context?.book, context?.chapter, !!context);
+  const {
+    index: entityVerseIndex,
+    isLoading: indexLoading,
+  } = useChapterEntityVerseIndex(context?.book, context?.chapter, !!context);
+  const { entities, isLoading: entitiesLoading } = useChapterEntities(context?.book, context?.chapter, !!context);
 
   const [chapterAnnotations, setChapterAnnotations] = useState<Annotation[]>([]);
   const [chapterTitle, setChapterTitle] = useState<ChapterTitle | undefined>(undefined);
@@ -123,7 +192,12 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainItem[] 
   // Reset synchronously during render (allowed setState, same pattern as
   // useChapterEntities's cache-key sync in useGnosis.ts) rather than in the
   // effect body below — avoids the cascading-render lint on setState-in-effect.
-  const contextKey = context ? `${context.book}:${context.chapter}:${context.translationId}` : null;
+  // Includes the active study: switching studies changes which chapter title
+  // and presets apply, so it must reset the loaded data and re-arm tracking
+  // like any other identity change.
+  const contextKey = context
+    ? `${context.book}:${context.chapter}:${context.translationId}:${activeStudyId ?? ''}`
+    : null;
   const [prevContextKey, setPrevContextKey] = useState(contextKey);
   if (contextKey !== prevContextKey) {
     setPrevContextKey(contextKey);
@@ -139,13 +213,18 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainItem[] 
     if (!context) return;
     const { book, chapter, translationId } = context;
     let cancelled = false;
+    // Monotonic request id: `annotationsUpdated` can fire while a previous
+    // load is still in flight, and the DB queries can resolve out of order —
+    // only the most recent request may commit its results.
+    let requestId = 0;
 
     const load = async () => {
+      const id = ++requestId;
       const [anns, title] = await Promise.all([
         getChapterAnnotations(translationId, book, chapter),
         getChapterTitle(null, book, chapter, activeStudyId),
       ]);
-      if (cancelled) return;
+      if (cancelled || id !== requestId) return;
       setChapterAnnotations(anns);
       setChapterTitle(title);
       setLoaded(true);
@@ -186,11 +265,21 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainItem[] 
   }, [context, activeChapterBook, activeChapterChapter, activeChapterTranslationId, activeChapterVerses, filteredPresets, exclusions]);
 
   const coverage = useMemo(
-    () => [...realMarks, ...virtualMarks].flatMap(coverageForMark),
-    [realMarks, virtualMarks]
+    () =>
+      context
+        ? [...realMarks, ...virtualMarks].flatMap(a => coverageForMark(a, context.book, context.chapter))
+        : [],
+    [realMarks, virtualMarks, context]
   );
   const markedVerseSet = useMemo(() => new Set(coverage.map(c => c.verse)), [coverage]);
 
+  // Person/place readiness rule: BOTH Gnosis sources must have resolved —
+  // the per-verse index (drives `done`) and the entity list (drives the
+  // label count). Requiring both is the simple consistent rule: it can never
+  // render "0 people are named" from one source while the other is pending
+  // or errored, and a provider without the per-verse capability (index stays
+  // null) hides the items entirely — their done-state would be uncomputable.
+  const entitySourcesResolved = entityVerseIndex !== null && entities !== null;
   const peopleVerses = entityVerseIndex?.peopleVerses ?? [];
   const placesVerses = entityVerseIndex?.placesVerses ?? [];
   const peopleCount = entities?.people.length ?? 0;
@@ -203,6 +292,18 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainItem[] 
     return connectors.some(hit => coverage.some(cov => coverageIntersectsHit(cov, hit)));
   }, [context, coverage]);
 
+  // Durable across revisits (unlike `markedPresetExists`, which only lives
+  // for the current chapter visit): any applicable preset whose word/variant
+  // singularizes to the repetition token keeps the item checked.
+  const repetitionDone = useMemo(() => {
+    if (markedPresetExists) return true;
+    const token = context?.analysis.repetition?.token;
+    if (!context || !token) return false;
+    return filteredPresets.some(p =>
+      presetMarksToken(p, token, context.book, context.chapter, context.translationId)
+    );
+  }, [markedPresetExists, context, filteredPresets]);
+
   const items = useMemo<LookAgainItem[]>(() => {
     if (!context) return [];
     const { analysis } = context;
@@ -212,30 +313,32 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainItem[] 
       result.push({
         id: 'repetition',
         label: `One word repeats ${analysis.repetition.count}× — find and mark it`,
-        done: markedPresetExists,
+        done: repetitionDone,
       });
     }
 
-    if (peopleVerses.length > 0) {
+    if (entitySourcesResolved && peopleVerses.length > 0 && peopleCount > 0) {
       result.push({
         id: 'person',
-        label: `${pluralize(peopleCount, 'person', 'people')} are named — mark one where a person appears`,
+        label: `${pluralize(peopleCount, 'person', 'people')} ${peopleCount === 1 ? 'is' : 'are'} named — mark one where a person appears`,
         done: personDone,
       });
     }
 
-    if (placesVerses.length > 0) {
+    if (entitySourcesResolved && placesVerses.length > 0 && placesCount > 0) {
       result.push({
         id: 'place',
-        label: `${pluralize(placesCount, 'place')} are named — mark one where a place appears`,
+        label: `${pluralize(placesCount, 'place')} ${placesCount === 1 ? 'is' : 'are'} named — mark one where a place appears`,
         done: placeDone,
       });
     }
 
-    if (analysis.connectors.length > 0) {
+    // Same threshold gate as DiscoveryPanel's HingesCard, so this row can
+    // never point at a card the panel decided not to render.
+    if (analysis.connectors.length >= thresholds.connectorChipMinCount && analysis.connectors.length > 0) {
       result.push({
         id: 'hinge',
-        label: `${pluralize(analysis.connectors.length, 'hinge')} hold this chapter together — mark one`,
+        label: `${pluralize(analysis.connectors.length, 'hinge')} ${analysis.connectors.length === 1 ? 'holds' : 'hold'} this chapter together — mark one`,
         done: hingeDone,
       });
     }
@@ -247,7 +350,13 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainItem[] 
     });
 
     return result;
-  }, [context, markedPresetExists, peopleVerses.length, peopleCount, personDone, placesVerses.length, placesCount, placeDone, hingeDone, chapterTitle]);
+  }, [context, repetitionDone, entitySourcesResolved, peopleVerses.length, peopleCount, personDone, placesVerses.length, placesCount, placeDone, thresholds.connectorChipMinCount, hingeDone, chapterTitle]);
+
+  // See `LookAgainResult.ready`. By the time `loaded` flips true (an awaited
+  // DB round-trip), the entity hooks' effects have already run, so their
+  // `isLoading` flags cover the entire settle window — including the
+  // capability-miss path, which toggles isLoading around its provider check.
+  const ready = loaded && !entitiesLoading && !indexLoading;
 
   // S4: fire completion telemetry only on an in-session *transition* — this
   // chapter visit's checklist had ≥1 undone item at some point and now has
@@ -265,14 +374,15 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainItem[] 
   const hadUndoneRef = useRef(false);
 
   useEffect(() => {
-    const key = context ? `${context.book}:${context.chapter}:${context.translationId}` : null;
-    if (trackingKeyRef.current !== key) {
-      trackingKeyRef.current = key;
+    // Same identity as `contextKey` (including the active study — switching
+    // studies re-arms tracking like any other identity change).
+    if (trackingKeyRef.current !== contextKey) {
+      trackingKeyRef.current = contextKey;
       hadUndoneRef.current = false;
     }
-    // Wait for the real chapter data (B1) — see `loaded`'s own comment for why
-    // the pre-load placeholder state must never count as "seen undone".
-    if (!context || items.length === 0 || !loaded) return;
+    // Wait for the full ready state — see `LookAgainResult.ready` for why the
+    // pre-load placeholder state must never count as "seen undone".
+    if (!context || items.length === 0 || !ready) return;
 
     const allDone = items.every(i => i.done);
     if (!allDone) {
@@ -283,7 +393,7 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainItem[] 
       track('discovery_checklist_completed');
       setChecklistCompletedTracked(true);
     }
-  }, [context, items, loaded, checklistCompletedTracked, setChecklistCompletedTracked]);
+  }, [context, contextKey, items, ready, checklistCompletedTracked, setChecklistCompletedTracked]);
 
-  return items;
+  return { items, ready };
 }

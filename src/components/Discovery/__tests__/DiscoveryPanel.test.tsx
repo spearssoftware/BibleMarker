@@ -98,7 +98,7 @@ describe('DiscoveryPanel', () => {
     expect(screen.queryByText('Reading the chapter…')).toBeNull();
   });
 
-  it('shows the Genre card and the Look-Again title item as soon as context exists, even before entities resolve', () => {
+  it('shows the Genre card immediately and the Look-Again title item once its DB data loads, even when entities never resolve', async () => {
     useDiscoveryStore.setState({
       context: makeDiscoveryContext({ analysis: { repetition: null, connectors: [], connectorRangesByVerse: new Map() } }),
     });
@@ -106,27 +106,29 @@ describe('DiscoveryPanel', () => {
     render(<DiscoveryPanel />);
     expect(screen.queryByText('Reading the chapter…')).toBeNull();
     expect(screen.getByText('John — a gospel')).toBeTruthy();
-    expect(screen.getByText('Say this chapter in your own words — give it a title')).toBeTruthy();
+    // The checklist waits for its own (mocked) DB load before rendering.
+    expect(await screen.findByText('Say this chapter in your own words — give it a title')).toBeTruthy();
   });
 
-  it('a bare chapter (no repetition, no hinges, no entities) still shows Genre + the Look-Again title item', () => {
+  it('a bare chapter (no repetition, no hinges, no entities) still shows Genre + the Look-Again title item', async () => {
     mockEntities = { book: 'John', chapter: 1, people: [], places: [], events: [], topics: [] };
     useDiscoveryStore.setState({
       context: makeDiscoveryContext({ analysis: { repetition: null, connectors: [], connectorRangesByVerse: new Map() } }),
     });
     render(<DiscoveryPanel />);
     expect(screen.getByText('John — a gospel')).toBeTruthy();
-    expect(screen.getByText('Say this chapter in your own words — give it a title')).toBeTruthy();
+    expect(await screen.findByText('Say this chapter in your own words — give it a title')).toBeTruthy();
     expect(screen.queryByTestId('hinges-card')).toBeNull();
   });
 
-  it('renders cards in Genre → Look-Again → Repetition → Hinges → People/Places order', () => {
+  it('renders cards in Genre → Look-Again → Repetition → Hinges → People/Places order', async () => {
     mockEntities = { book: 'John', chapter: 1, people: ['jesus'], places: [], events: [], topics: [] };
     useDiscoveryStore.setState({ context: makeDiscoveryContext({ translationCount: 2, primaryTranslationAbbrev: 'NASB' }) });
     const { container } = render(<DiscoveryPanel />);
+    await screen.findByText('Say this chapter in your own words — give it a title');
     const dialog = container.querySelector('[role="dialog"] > div');
     const testIds = Array.from(dialog?.children ?? []).map(el => {
-      if (el.querySelector('[role="checkbox"]')) return 'look-again';
+      if (el.querySelector('ul[aria-label="Look-again checklist"]')) return 'look-again';
       if (el.textContent?.includes('John — a gospel')) return 'genre';
       if (el.textContent?.includes('One word appears')) return 'repetition';
       if (el.querySelector('[data-testid="hinges-card"]')) return 'hinges';

@@ -54,7 +54,7 @@ export function DiscoveryPanel() {
     context?.chapter,
     discoveryEnabled
   );
-  const lookAgainItems = useLookAgain(context);
+  const { items: lookAgainItems, ready: lookAgainReady } = useLookAgain(context);
 
   const hasRepetition = Boolean(context?.analysis.repetition);
   const hingeCount = context?.analysis.connectors.length ?? 0;
@@ -87,6 +87,7 @@ export function DiscoveryPanel() {
       <GenreCard book={book} chapter={chapter} />
       <LookAgainCard
         items={lookAgainItems}
+        ready={lookAgainReady}
         anchors={{
           repetition: REPETITION_ANCHOR_ID,
           hinge: HINGE_ANCHOR_ID,
@@ -94,7 +95,7 @@ export function DiscoveryPanel() {
         }}
       />
       {hasRepetition && (
-        <div id={REPETITION_ANCHOR_ID} style={{ scrollMarginTop: '1rem' }}>
+        <div id={REPETITION_ANCHOR_ID} className="scroll-mt-4">
           <RepetitionCard
             repetition={analysis.repetition}
             translationCount={translationCount}
@@ -107,7 +108,7 @@ export function DiscoveryPanel() {
         </div>
       )}
       {showHinges && (
-        <div id={HINGE_ANCHOR_ID} style={{ scrollMarginTop: '1rem' }}>
+        <div id={HINGE_ANCHOR_ID} className="scroll-mt-4">
           <HingesCard
             connectorRangesByVerse={analysis.connectorRangesByVerse}
             hingeCount={hingeCount}
@@ -116,7 +117,7 @@ export function DiscoveryPanel() {
           />
         </div>
       )}
-      <div id={PEOPLE_PLACES_ANCHOR_ID} style={{ scrollMarginTop: '1rem' }}>
+      <div id={PEOPLE_PLACES_ANCHOR_ID} className="scroll-mt-4">
         <PeoplePlacesCard entities={entities} isLoading={entitiesLoading} error={entitiesError} />
       </div>
     </DiscoveryDialog>

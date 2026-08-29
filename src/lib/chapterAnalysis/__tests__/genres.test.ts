@@ -1,6 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import { BIBLE_BOOKS } from '@/types/bible'
-import { BOOK_GENRE, GENRE_ORIENTATION, GENRE_QUESTIONS, genreFor, orientationFor, questionFor } from '../genres'
+import {
+  BOOK_GENRE,
+  GENRE_ORIENTATION,
+  GENRE_QUESTIONS,
+  GENRE_LABEL,
+  CHAPTER_QUESTION_OVERRIDES,
+  genreFor,
+  orientationFor,
+  questionFor,
+} from '../genres'
 import type { Genre } from '../genres'
 
 const ALL_GENRES: Genre[] = [
@@ -15,7 +24,16 @@ const ALL_GENRES: Genre[] = [
   'apocalyptic',
 ]
 
-const BANNED_PHRASES = ['means', 'teaches that', 'this shows', 'god is telling', 'the point is']
+const BANNED_PHRASES = [
+  'means',
+  'teaches that',
+  'this shows',
+  'shows that',
+  'god is telling',
+  'the point is',
+  'reveals that',
+  'proves that',
+]
 
 function assertAnswerFree(text: string, label: string) {
   const lower = text.toLowerCase()
@@ -55,6 +73,12 @@ describe('GENRE_ORIENTATION and GENRE_QUESTIONS - coverage', () => {
     }
   })
 
+  it('has a label for every genre', () => {
+    for (const genre of ALL_GENRES) {
+      expect(GENRE_LABEL[genre], `missing label for ${genre}`).toBeTruthy()
+    }
+  })
+
   it('has at least 4 questions for every genre', () => {
     for (const genre of ALL_GENRES) {
       expect(GENRE_QUESTIONS[genre].length, `${genre} has too few questions`).toBeGreaterThanOrEqual(4)
@@ -80,6 +104,56 @@ describe('answer-free guard', () => {
       })
     }
   })
+
+  it('no chapter override asserts an interpretation', () => {
+    for (const [key, question] of Object.entries(CHAPTER_QUESTION_OVERRIDES)) {
+      assertAnswerFree(question, `override[${key}]`)
+    }
+  })
+
+  it('no genre label asserts an interpretation', () => {
+    for (const genre of ALL_GENRES) {
+      assertAnswerFree(GENRE_LABEL[genre], `${genre} label`)
+    }
+  })
+})
+
+describe('neutrality - no contested critical claims or presumed content', () => {
+  it('does not claim every law-book rule is protective', () => {
+    for (const question of GENRE_QUESTIONS.law) {
+      expect(question).not.toContain('This rule protects something')
+    }
+  })
+
+  it('does not assert wisdom books critique each other', () => {
+    for (const question of GENRE_QUESTIONS.wisdom) {
+      expect(question.toLowerCase()).not.toContain('argues with itself')
+    }
+  })
+
+  it('does not presume the gospels diverge on shared events', () => {
+    for (const question of GENRE_QUESTIONS.gospel) {
+      expect(question).not.toContain('reads differently across the four gospels')
+    }
+  })
+
+  it('does not claim prophecy is written "in verse" (Isaiah 36-39 is prose)', () => {
+    expect(GENRE_ORIENTATION.prophecy).not.toContain('in verse')
+  })
+
+  it('does not claim law books are "not a story" (Exodus contains narrative)', () => {
+    expect(GENRE_ORIENTATION.law.toLowerCase()).not.toContain('not a story')
+  })
+})
+
+describe('genre labels', () => {
+  it('describes Psalms-genre books as a collection, not a single poem', () => {
+    expect(GENRE_LABEL.poetry.toLowerCase()).toContain('collection')
+  })
+
+  it('avoids the jargon term "apocalypse" for Daniel/Revelation', () => {
+    expect(GENRE_LABEL.apocalyptic.toLowerCase()).not.toContain('apocalypse')
+  })
 })
 
 describe('genreFor / orientationFor', () => {
@@ -101,6 +175,28 @@ describe('genreFor / orientationFor', () => {
   })
 })
 
+describe('CHAPTER_QUESTION_OVERRIDES - key validity', () => {
+  const booksById = new Map(BIBLE_BOOKS.map(b => [b.id, b]))
+
+  it('every override key parses to a real book id and an in-range chapter', () => {
+    for (const key of Object.keys(CHAPTER_QUESTION_OVERRIDES)) {
+      const dot = key.lastIndexOf('.')
+      expect(dot, `override key "${key}" is not of the form 'Book.Chapter'`).toBeGreaterThan(0)
+
+      const bookId = key.slice(0, dot)
+      const chapter = Number(key.slice(dot + 1))
+      const book = booksById.get(bookId)
+
+      expect(book, `override key "${key}" references unknown book id "${bookId}"`).toBeDefined()
+      expect(Number.isInteger(chapter), `override key "${key}" has a non-integer chapter`).toBe(true)
+      expect(chapter, `override key "${key}" chapter is below 1`).toBeGreaterThanOrEqual(1)
+      if (book) {
+        expect(chapter, `override key "${key}" chapter exceeds ${bookId}'s ${book.chapters} chapters`).toBeLessThanOrEqual(book.chapters)
+      }
+    }
+  })
+})
+
 describe('questionFor - determinism and range', () => {
   it('is deterministic across repeated calls for the same book/chapter', () => {
     expect(questionFor('Heb', 1)).toBe(questionFor('Heb', 1))
@@ -114,13 +210,18 @@ describe('questionFor - determinism and range', () => {
     expect(questionFor('Heb', questions.length + 1)).toBe(questions[0])
   })
 
-  it('always returns a question from that genre\'s list, for every chapter of every book', () => {
+  it('always returns a question from that genre\'s list or a chapter override, for every chapter of every book', () => {
     for (const book of BIBLE_BOOKS) {
       const genre = BOOK_GENRE[book.id]
       const questions = GENRE_QUESTIONS[genre]
       for (let chapter = 1; chapter <= book.chapters; chapter++) {
         const question = questionFor(book.id, chapter)
-        expect(questions).toContain(question)
+        const override = CHAPTER_QUESTION_OVERRIDES[`${book.id}.${chapter}`]
+        if (override) {
+          expect(question).toBe(override)
+        } else {
+          expect(questions).toContain(question)
+        }
       }
     }
   })
@@ -129,9 +230,27 @@ describe('questionFor - determinism and range', () => {
     expect(questionFor('NotABook', 1)).toBeUndefined()
   })
 
-  it('gives Genesis 5 (a genealogy chapter) a genealogy-safe narrative question, not "someone wants something"', () => {
-    const question = questionFor('Gen', 5)
-    expect(question).not.toContain('Someone wants something')
+  it('gives Genesis 5 (a genealogy chapter) its dedicated genealogy override question', () => {
+    expect(questionFor('Gen', 5)).toBe(CHAPTER_QUESTION_OVERRIDES['Gen.5'])
+    expect(questionFor('Gen', 5)).not.toContain('Someone wants something')
+  })
+
+  it('gives 1 Chronicles 1 (genealogy) its dedicated genealogy override question', () => {
+    expect(questionFor('1Chr', 1)).toBe(CHAPTER_QUESTION_OVERRIDES['1Chr.1'])
+  })
+
+  it('gives Matthew 1 (genealogy, no dialogue) its dedicated genealogy override question', () => {
+    expect(questionFor('Matt', 1)).toBe(CHAPTER_QUESTION_OVERRIDES['Matt.1'])
+    expect(questionFor('Matt', 1)).not.toContain('Jesus is talking')
+  })
+
+  it('gives Numbers 1 (census) its dedicated genealogy override question', () => {
+    expect(questionFor('Num', 1)).toBe(CHAPTER_QUESTION_OVERRIDES['Num.1'])
+  })
+
+  it('gives Deuteronomy 34 (Moses\'s death, narrative) its dedicated override question', () => {
+    expect(questionFor('Deut', 34)).toBe(CHAPTER_QUESTION_OVERRIDES['Deut.34'])
+    expect(questionFor('Deut', 34)).not.toContain('Case law')
   })
 
   it('gives Psalm 1 and Psalm 2 different questions', () => {

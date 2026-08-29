@@ -143,6 +143,12 @@ export function useChapterEntityVerseIndex(
       try {
         const provider = await ensureProvider();
         if (!provider.getChapterEntityVerseIndex) {
+          // Cache the capability miss under the same key (as null) so an
+          // API-mode provider doesn't re-run ensureProvider on every mount —
+          // the effect's cache check above short-circuits on `null` too
+          // (only `undefined` means "not cached"). TTL-bounded like a real
+          // result, so a later mode switch eventually gets re-probed.
+          chapterEntityVerseIndexCache.set(key, null, CACHE_TTL.chapter);
           if (!cancelled) setIndex(null);
           return;
         }

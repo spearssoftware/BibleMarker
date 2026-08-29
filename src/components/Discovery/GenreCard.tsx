@@ -9,20 +9,7 @@
 
 import { getBookById } from '@/types';
 import { DiscoveryCard } from './DiscoveryCard';
-import { genreFor, orientationFor, questionFor, type Genre } from '@/lib/chapterAnalysis';
-
-/** Short "book name — label" tag for the card title, e.g. "Hebrews — a letter". */
-const GENRE_LABEL: Record<Genre, string> = {
-  law: 'a book of law',
-  narrative: 'a story',
-  poetry: 'a poem',
-  wisdom: 'wisdom literature',
-  prophecy: 'a prophecy',
-  gospel: 'a gospel',
-  acts: 'a travel narrative',
-  epistle: 'a letter',
-  apocalyptic: 'an apocalypse',
-};
+import { genreFor, orientationFor, questionFor, GENRE_LABEL } from '@/lib/chapterAnalysis';
 
 interface GenreCardProps {
   book: string;

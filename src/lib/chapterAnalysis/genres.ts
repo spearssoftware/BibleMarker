@@ -6,11 +6,27 @@
  * reader at something to find or notice, it never asserts what a passage
  * says. Same register as `connectors.ts`'s article-free em-dash prompts.
  *
+ * Two safety requirements drive the wording in this file:
+ * — Content-blind: a question must hold up for ANY chapter of its genre,
+ *   including the atypical ones a genre label doesn't warn you about
+ *   (a genealogy inside a narrative book, a song inside a law book, a
+ *   narrative closing chapter inside a law book). Most questions are
+ *   hedged ("if any", "if it does") so an atypical chapter just yields a
+ *   quiet "no" instead of a false or leading presupposition. A handful of
+ *   chapters are famous enough exceptions that they get a dedicated,
+ *   better-fitting question instead of a hedge — see
+ *   `CHAPTER_QUESTION_OVERRIDES` below.
+ * — Neutral: a question or orientation line may describe literary form
+ *   (parallelism, refrain, audience, structure) but must never assert a
+ *   reading, a contested critical claim, or a specific chapter's content.
+ *
  * Borderline genre calls (documented rather than hidden):
  * — Exodus: half the book is wilderness/exodus narrative (1-19, 32-34), half
  *   is covenant law and tabernacle instruction (20-31, 35-40). Classified
  *   `law` because the Sinai material is the book's structural hinge and its
- *   lasting identity ("the law of Moses" begins here).
+ *   lasting identity ("the law of Moses" begins here). The `law` orientation
+ *   is written to be true of this mix (law given inside a journey), not just
+ *   the legal chapters.
  * — Numbers: alternates census/legal material with wilderness narrative
  *   (the spies, Korah, Balaam). Classified `narrative` because the through-
  *   line readers actually follow is the journey, not the law lists.
@@ -102,12 +118,25 @@ export const BOOK_GENRE: Record<string, Genre> = {
   Rev: 'apocalyptic',
 };
 
+/** Short "book name — label" tag for the Discover panel's genre card title. */
+export const GENRE_LABEL: Record<Genre, string> = {
+  law: 'a book of law',
+  narrative: 'a story',
+  poetry: 'a collection of poems',
+  wisdom: 'wisdom literature',
+  prophecy: 'a prophecy',
+  gospel: 'a gospel',
+  acts: 'a travel narrative',
+  epistle: 'a letter',
+  apocalyptic: 'a book of visions',
+};
+
 export const GENRE_ORIENTATION: Record<Genre, string> = {
-  law: 'Rule after rule, not a story — case law and instruction, given in order.',
-  narrative: 'A story — someone wants something, and the chapter moves toward what happens.',
+  law: 'Law and story woven together — rules and instructions given inside a larger journey.',
+  narrative: 'A story — people, places, and events move toward what happens next.',
   poetry: 'Hebrew poetry — lines paired by parallel or contrasting thought, never by rhyme.',
   wisdom: 'Sayings and long reflection, weighing how life actually plays out.',
-  prophecy: 'An oracle — warning and hope addressed to a specific audience, in verse.',
+  prophecy: 'An oracle — warning and hope addressed to a specific audience, often in poetic lines.',
   gospel: 'An account of Jesus — his words and actions, arranged for a particular audience.',
   acts: 'A travel narrative — the story keeps moving, carried from place to place by different people.',
   epistle: 'A letter, written to answer real problems on the other end.',
@@ -116,18 +145,18 @@ export const GENRE_ORIENTATION: Record<Genre, string> = {
 
 export const GENRE_QUESTIONS: Record<Genre, readonly string[]> = {
   law: [
-    'This rule protects something — what does it guard against?',
-    'Every rule has a reach — who exactly is bound by this one?',
-    'Not all of these carry the same weight — which rule here comes with a penalty attached, and which with a promise?',
-    'Case law imagines a scenario before it legislates — what situation is this rule picturing?',
+    'What would break if this rule went unheeded — does the chapter say, or leave it unstated?',
+    "Legal language usually names who it binds — if this chapter does, who is it?",
+    'Some legal material comes with a penalty attached, some with a promise, some with neither — which is this?',
+    'Case law often pictures a scenario before it legislates — if this chapter does, what situation is it picturing?',
     "Some rules explain themselves and some don't — where is a reason given, if anywhere?",
   ],
   narrative: [
-    'Someone wants something in this chapter — who, and what stands in their way?',
-    'Track where this scene happens — does the place change, and what happens when it does?',
-    'Notice who speaks and who stays silent — what does the silence do?',
-    'Time moves unevenly here — find where it slows down to a single moment.',
-    'A list of names is still telling a story — what carries over from one name to the next?',
+    "Every story moves — what's different between the first verse and the last?",
+    'Track the transitions in this chapter — where does one section end and the next begin, and what marks the change?',
+    'If anyone speaks in this chapter, notice who else stays silent — what might that silence be doing?',
+    'Time moves unevenly here — find where it slows down to a single moment, if it does.',
+    'Follow the names through this chapter — what carries over from one to the next?',
   ],
   poetry: [
     'Hebrew poetry rhymes ideas, not sounds — find two lines that say the same thing differently.',
@@ -135,27 +164,27 @@ export const GENRE_QUESTIONS: Record<Genre, readonly string[]> = {
     'Follow one image through the poem — where does it change or return?',
     'Poems shift address — who is being spoken to at the start, and who by the end?',
     'Trace the swings in tone — where does it turn, and on what word?',
-    'A refrain repeats on purpose — what comes back more than once, and where?',
+    'Some poems build in a refrain — if this one does, what comes back more than once, and where?',
   ],
   wisdom: [
     'Wisdom sayings trade in comparison — find two things being weighed against each other.',
     'Some lines describe how life usually goes and some argue with that — which is this one doing?',
-    'A proverb is built for memory — what makes this line easy to carry?',
-    'Long arguments circle back — what question does this chapter keep returning to?',
-    'Wisdom literature argues with itself across chapters — where might another chapter push back on this one?',
+    'Some wisdom lines are built for memory — what, if anything, makes this line easy to carry?',
+    'Long arguments circle back — if this chapter keeps returning to one question, what is it?',
+    'Compare this chapter with another wisdom chapter you’ve read — where do they agree, and where might they read differently?',
   ],
   prophecy: [
-    'Prophets mix warning and hope — which is this chapter doing?',
+    'Prophets mix warning and hope — which does this chapter lean toward, if either?',
     'An oracle is addressed to someone specific — who is being spoken to here?',
-    'Find the image the prophet reaches for — what everyday thing is being used to say something bigger?',
+    'Find the image the prophet reaches for, if there is one — what everyday thing is being used to say something bigger?',
     'Judgment oracles name a charge — what is the audience accused of, if anything, in this chapter?',
-    'Prophecy often looks two directions — where does this chapter point to the near future, and where further out?',
+    'Prophecy sometimes points to more than one moment — if this chapter does, where does it seem nearest, and where furthest out?',
   ],
   gospel: [
-    'Watch who Jesus is talking to — does the audience change what he says?',
-    'Notice who asks the questions in this chapter, and who answers them.',
-    'The same event reads differently across the four gospels — what detail would you look for in another account?',
-    'Track the reactions around the edges of the scene — who is amazed, who is offended, who says nothing?',
+    'A gospel scene centers on Jesus one way or another — is he speaking, acting, or the one people react to?',
+    'If this chapter includes a question, notice who asks it and who answers it.',
+    "Each gospel writer chooses what to include — pick one detail here and see whether another gospel covers the same event, and if so, what it includes.",
+    'Track the reactions around the edges of the scene, if there are any — who is amazed, who is offended, who says nothing?',
     'A gospel writer chooses what to include — what does this chapter spend the most space on?',
   ],
   acts: [
@@ -163,23 +192,66 @@ export const GENRE_QUESTIONS: Record<Genre, readonly string[]> = {
     'The message keeps moving — where has it just traveled to, and by what route?',
     'Notice who is doing the speaking in this chapter — and who is only listening.',
     'Opposition shows up throughout Acts — where does it come from in this chapter, if anywhere?',
-    'Something changes hands in this chapter — attention, authority, or welcome — track what it is.',
+    'Something often changes hands in Acts — attention, authority, or welcome — track what it is here, if anything does.',
   ],
   epistle: [
-    'Letters answer problems — what problem is being answered here?',
-    'Find the hinge word where the letter turns from argument to instruction, or back again.',
+    "Letters often answer problems — if this chapter is, what's the problem?",
+    'Find the hinge word, if there is one, where the letter turns from argument to instruction — or back again.',
     'A letter assumes its reader already knows things — what does this chapter seem to assume you know?',
     "Track the pronouns — where does the writer say 'I', where 'you', where 'we'?",
-    'Letters build a case before they apply it — is this chapter building the case, or applying it?',
+    'Letters often build a case before they apply it — is this chapter doing one, the other, or neither?',
   ],
   apocalyptic: [
-    'Symbols stand for something else on purpose — what image here is doing double duty?',
-    'Find where the vision breaks into plain explanation — what gets explained outright?',
+    'If this chapter uses a symbol, what might it be standing in for?',
+    'Find where the vision breaks into plain explanation, if it does — what gets explained outright?',
     'Numbers carry weight in this kind of writing — which number shows up, and how often?',
-    'Track who is seeing the vision — what do they react to as it unfolds?',
+    "If this chapter is a vision, track who's seeing it — what do they react to as it unfolds?",
     'Part of this book reads like a story and part like a vision — which is this chapter doing?',
   ],
 };
+
+const GENEALOGY_QUESTION =
+  'This chapter is a list, not a scene — what pattern repeats from entry to entry, and where does it break?';
+
+const SONG_QUESTION =
+  'The story pauses for a song here — find the line that repeats or circles back within it.';
+
+function chapterRange(bookId: string, start: number, end: number): string[] {
+  const keys: string[] = [];
+  for (let chapter = start; chapter <= end; chapter++) {
+    keys.push(`${bookId}.${chapter}`);
+  }
+  return keys;
+}
+
+/**
+ * Per-chapter overrides for chapters whose content is famously not their
+ * book's genre — a genealogy inside a narrative or gospel book, a song
+ * inside a narrative or law book, a narrative closing chapter inside a law
+ * book. Kept modest and obviously-correct rather than exhaustive: most
+ * atypical chapters are handled by the hedges in `GENRE_QUESTIONS` instead.
+ * Keyed `'Book.Chapter'` (book id from `BOOK_GENRE`, 1-based chapter).
+ */
+export const CHAPTER_QUESTION_OVERRIDES: Record<string, string> = Object.fromEntries([
+  // Genealogies embedded in narrative/gospel books.
+  ['Gen.5', GENEALOGY_QUESTION],
+  ['Gen.10', GENEALOGY_QUESTION],
+  ['Gen.36', GENEALOGY_QUESTION],
+  ...chapterRange('1Chr', 1, 9).map((key) => [key, GENEALOGY_QUESTION] as const),
+  ['Num.1', GENEALOGY_QUESTION],
+  ['Num.26', GENEALOGY_QUESTION],
+  ['Ezra.2', GENEALOGY_QUESTION],
+  ['Neh.7', GENEALOGY_QUESTION],
+  ['Matt.1', GENEALOGY_QUESTION],
+  ['Luke.3', GENEALOGY_QUESTION],
+
+  // Songs embedded in narrative/law books.
+  ['Exod.15', SONG_QUESTION],
+  ['Judg.5', SONG_QUESTION],
+
+  // Deuteronomy's closing chapter is Moses's death narrative, not case law.
+  ['Deut.34', 'This chapter closes out both a life and a book — what does it hand off, and to whom?'],
+]);
 
 export function genreFor(bookId: string): Genre | undefined {
   return BOOK_GENRE[bookId];
@@ -193,6 +265,8 @@ export function orientationFor(bookId: string): string | undefined {
 export function questionFor(bookId: string, chapter: number): string | undefined {
   const genre = genreFor(bookId);
   if (!genre) return undefined;
+  const override = CHAPTER_QUESTION_OVERRIDES[`${bookId}.${chapter}`];
+  if (override) return override;
   const questions = GENRE_QUESTIONS[genre];
   return questions[(chapter - 1) % questions.length];
 }

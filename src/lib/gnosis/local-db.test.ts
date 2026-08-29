@@ -22,6 +22,10 @@ const state = vi.hoisted(() => ({
   closeSucceeds: true,
   /** Whether deleting the files actually yields a good copy. */
   deleteRepairs: true,
+  /** Recorded `select` calls, in order. */
+  selectCalls: [] as { sql: string; params?: unknown[] }[],
+  /** Rows returned for the chapter entity-verse-index query. */
+  entityVerseRows: [] as { kind: string; osis_ref: string }[],
 }));
 
 const NOT_A_DB = 'error returned from database: (code: 26) file is not a database';
@@ -45,11 +49,13 @@ vi.mock('@tauri-apps/api/path', () => ({
 
 vi.mock('@tauri-apps/plugin-sql', () => {
   const fakeDb = {
-    select: vi.fn(async (sql: string) => {
+    select: vi.fn(async (sql: string, params?: unknown[]) => {
+      state.selectCalls.push({ sql, params });
       if (state.corrupt) throw new Error(NOT_A_DB);
       if (sql.includes('sqlite_master')) return [{ tables: state.tableCount }];
       if (sql.includes('gnosis_meta')) return [];
       if (sql.includes('chapter_timeline')) return [{ year: -4, year_display: '4 BC' }];
+      if (sql.includes('person_verse')) return state.entityVerseRows;
       return [];
     }),
     close: vi.fn(async () => {
@@ -84,6 +90,8 @@ beforeEach(() => {
   state.closed = 0;
   state.closeSucceeds = true;
   state.deleteRepairs = true;
+  state.selectCalls = [];
+  state.entityVerseRows = [];
 });
 
 describe('mapChapterEntityVerseIndexRows', () => {
@@ -121,6 +129,29 @@ describe('mapChapterEntityVerseIndexRows', () => {
       { kind: 'person', osis_ref: 'Gen.1.NOPE' },
     ]);
     expect(result).toEqual({ book: 'Gen', chapter: 1, peopleVerses: [], placesVerses: [] });
+  });
+});
+
+describe('getChapterEntityVerseIndex', () => {
+  it('queries by osis_ref LIKE prefix for the chapter and maps the rows', async () => {
+    state.entityVerseRows = [
+      { kind: 'person', osis_ref: 'Gen.3.1' },
+      { kind: 'place', osis_ref: 'Gen.3.8' },
+    ];
+    const db = await freshDb();
+
+    await expect(db.getChapterEntityVerseIndex('Gen', 3)).resolves.toEqual({
+      book: 'Gen',
+      chapter: 3,
+      peopleVerses: [1],
+      placesVerses: [8],
+    });
+
+    const call = state.selectCalls.find(c => c.sql.includes('person_verse'));
+    expect(call).toBeDefined();
+    expect(call!.sql).toContain('v.osis_ref');
+    expect(call!.sql).toContain('?1');
+    expect(call!.params).toEqual(['Gen.3.%']);
   });
 });
 

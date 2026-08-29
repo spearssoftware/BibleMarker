@@ -24,6 +24,17 @@ describe('GenreCard', () => {
     expect(screen.getByText(questionFor('Heb', 1)!)).toBeTruthy();
   });
 
+  it('labels Psalms as a collection of poems, not a single poem', () => {
+    render(<GenreCard book="Ps" chapter={1} />);
+    expect(screen.getByText('Psalms — a collection of poems')).toBeTruthy();
+  });
+
+  it('labels Daniel with plain-language "visions", not the jargon term "apocalypse"', () => {
+    render(<GenreCard book="Dan" chapter={1} />);
+    expect(screen.getByText(/Daniel — /)).toBeTruthy();
+    expect(screen.queryByText(/apocalypse/i)).toBeNull();
+  });
+
   it('renders a different, deterministic question for a different chapter', () => {
     const { unmount } = render(<GenreCard book="Ps" chapter={1} />);
     const q1 = questionFor('Ps', 1)!;
