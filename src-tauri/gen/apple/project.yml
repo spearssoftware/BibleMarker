@@ -55,8 +55,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 3.2.6
-        CFBundleVersion: "3.2.6"
+        CFBundleShortVersionString: 3.2.7
+        CFBundleVersion: "3.2.7"
     entitlements:
       path: biblemarker_iOS/biblemarker_iOS.entitlements
     scheme:
