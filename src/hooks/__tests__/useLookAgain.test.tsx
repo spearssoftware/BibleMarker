@@ -35,8 +35,9 @@ vi.mock('@/lib/database');
 
 let mockIndex: ChapterEntityVerseIndex | null = null;
 let mockEntities: ChapterEntities | null = null;
+const { useChapterEntityVerseIndexMock } = vi.hoisted(() => ({ useChapterEntityVerseIndexMock: vi.fn() }));
 vi.mock('@/hooks/useGnosis', () => ({
-  useChapterEntityVerseIndex: () => ({ index: mockIndex, isLoading: false, error: null }),
+  useChapterEntityVerseIndex: useChapterEntityVerseIndexMock,
 }));
 
 const trackMock = vi.fn();
@@ -44,12 +45,14 @@ vi.mock('@/lib/telemetry', () => ({
   track: (...args: unknown[]) => trackMock(...args),
 }));
 
-// entities/entitiesLoading/entitiesError are now caller-supplied params (mirroring
-// DiscoveryPanel's own useChapterEntities call) rather than fetched internally by
-// the hook, so `mockEntities` is threaded through as the `entities` argument here.
-function renderLookAgain(context = makeDiscoveryContext()) {
+// entities/entitiesLoading are caller-supplied params (mirroring DiscoveryPanel's
+// own useChapterEntities call) rather than fetched internally by the hook, so
+// `mockEntities` is threaded through as the `entities` argument here.
+// `discoveryEnabled` defaults to true (the panel is on) for every existing test;
+// the kill-switch itself gets its own test below.
+function renderLookAgain(context = makeDiscoveryContext(), discoveryEnabled = true) {
   return renderHook(
-    (ctx: ReturnType<typeof makeDiscoveryContext> | null) => useLookAgain(ctx, mockEntities, false, null),
+    (ctx: ReturnType<typeof makeDiscoveryContext> | null) => useLookAgain(ctx, mockEntities, false, discoveryEnabled),
     { initialProps: context }
   );
 }
@@ -59,6 +62,7 @@ describe('useLookAgain', () => {
     vi.clearAllMocks();
     mockIndex = null;
     mockEntities = null;
+    useChapterEntityVerseIndexMock.mockImplementation(() => ({ index: mockIndex, isLoading: false, error: null }));
     vi.mocked(getChapterAnnotations).mockResolvedValue([]);
     vi.mocked(getChapterTitle).mockResolvedValue(undefined);
     useStudyStore.setState({ activeStudyId: null });
@@ -73,7 +77,6 @@ describe('useLookAgain', () => {
       found: null,
       markedPresetId: null,
       revealedRungs: [],
-      checklistCompletedTracked: false,
     });
   });
 
@@ -493,12 +496,58 @@ describe('useLookAgain', () => {
 
     await waitFor(() => expect(trackMock).toHaveBeenCalledWith('discovery_checklist_completed'));
     expect(trackMock).toHaveBeenCalledTimes(1);
-    expect(useDiscoveryStore.getState().checklistCompletedTracked).toBe(true);
 
     // Re-rendering with the same (already-complete) context must not re-fire.
     rerender(context);
     await act(async () => {});
     expect(trackMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires discovery_checklist_completed again after switching studies: the latch is keyed to {book, chapter, translationId, activeStudyId}, not global', async () => {
+    const bareAnalysis = makeChapterAnalysis({ repetition: null, connectors: [], connectorRangesByVerse: new Map() });
+    const context = makeDiscoveryContext({ analysis: bareAnalysis });
+
+    useStudyStore.setState({ activeStudyId: 'study-A' });
+    const { result } = renderLookAgain(context);
+    await waitFor(() => expect(getChapterTitle).toHaveBeenCalledWith(null, 'John', 1, 'study-A'));
+    expect(trackMock).not.toHaveBeenCalled();
+
+    vi.mocked(getChapterTitle).mockResolvedValue({
+      id: 'title-A',
+      book: 'John',
+      chapter: 1,
+      title: 'Title A',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    act(() => {
+      window.dispatchEvent(new Event('annotationsUpdated'));
+    });
+    await waitFor(() => expect(trackMock).toHaveBeenCalledTimes(1));
+
+    // Switching the active study is a new {book, chapter, translationId,
+    // activeStudyId} identity — the completion latch must re-arm rather than
+    // staying tripped from study A. Study B starts with no title of its own.
+    vi.mocked(getChapterTitle).mockResolvedValue(undefined);
+    act(() => {
+      useStudyStore.setState({ activeStudyId: 'study-B' });
+    });
+    await waitFor(() => expect(getChapterTitle).toHaveBeenCalledWith(null, 'John', 1, 'study-B'));
+    await waitFor(() => expect(result.current.items.find(i => i.id === 'title')?.done).toBe(false));
+
+    vi.mocked(getChapterTitle).mockResolvedValue({
+      id: 'title-B',
+      book: 'John',
+      chapter: 1,
+      title: 'Title B',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    act(() => {
+      window.dispatchEvent(new Event('annotationsUpdated'));
+    });
+
+    await waitFor(() => expect(trackMock).toHaveBeenCalledTimes(2));
   });
 
   it('does not fire completion telemetry when revisiting an already-complete chapter (first evaluation is already done)', async () => {
@@ -519,6 +568,55 @@ describe('useLookAgain', () => {
     await act(async () => {});
 
     expect(trackMock).not.toHaveBeenCalled();
-    expect(useDiscoveryStore.getState().checklistCompletedTracked).toBe(false);
+  });
+
+  it('renders conservative undone items (never throws or leaves an unhandled rejection) when the DB load fails', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(getChapterAnnotations).mockRejectedValue(new Error('DB unavailable'));
+
+    const { result } = renderLookAgain();
+
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    expect(result.current.items.length).toBeGreaterThan(0);
+    expect(result.current.items.find(i => i.id === 'title')).toMatchObject({ done: false });
+    expect(consoleError).toHaveBeenCalled();
+
+    consoleError.mockRestore();
+  });
+
+  it('re-runs the failed load on the next annotationsUpdated and recovers', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(getChapterAnnotations).mockRejectedValueOnce(new Error('DB unavailable'));
+
+    const { result } = renderLookAgain();
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    expect(result.current.items.find(i => i.id === 'title')?.done).toBe(false);
+
+    vi.mocked(getChapterAnnotations).mockResolvedValue([]);
+    vi.mocked(getChapterTitle).mockResolvedValue({
+      id: 'title-1',
+      book: 'John',
+      chapter: 1,
+      title: 'Recovered title',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    act(() => {
+      window.dispatchEvent(new Event('annotationsUpdated'));
+    });
+
+    await waitFor(() => expect(result.current.items.find(i => i.id === 'title')?.done).toBe(true));
+    consoleError.mockRestore();
+  });
+
+  it('does no DB work and returns not-ready when the Discover kill switch is off', async () => {
+    const { result } = renderLookAgain(makeDiscoveryContext(), false);
+
+    await act(async () => {});
+
+    expect(result.current).toEqual({ items: [], ready: false });
+    expect(getChapterAnnotations).not.toHaveBeenCalled();
+    expect(getChapterTitle).not.toHaveBeenCalled();
+    expect(useChapterEntityVerseIndexMock).toHaveBeenCalledWith('John', 1, false);
   });
 });

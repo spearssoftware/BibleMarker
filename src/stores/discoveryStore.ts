@@ -56,14 +56,6 @@ interface DiscoveryState {
    * rewind or relabel a rung the reader already earned.
    */
   revealedRungs: RepetitionRung[];
-  /**
-   * Latches once `discovery_checklist_completed` has fired for the chapter
-   * currently in `context`, so a revisit of an already-complete chapter (or a
-   * re-render after completion) never fires it twice. Cleared by
-   * `resetForChapter` — switching the primary translation re-arms it via the
-   * host's chapter reset, same as every other per-visit flag here.
-   */
-  checklistCompletedTracked: boolean;
 
   setContext: (context: DiscoveryContext | null) => void;
   setLensActive: (active: boolean) => void;
@@ -72,7 +64,6 @@ interface DiscoveryState {
   setFound: (found: DiscoveryFound | null) => void;
   setMarkedPresetId: (id: string | null) => void;
   revealRung: (rung: RepetitionRung) => void;
-  setChecklistCompletedTracked: (tracked: boolean) => void;
   /** Clears all Discover-layer UI state except context — called when the chapter changes. */
   resetForChapter: () => void;
 }
@@ -84,7 +75,6 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
   found: null,
   markedPresetId: null,
   revealedRungs: [],
-  checklistCompletedTracked: false,
 
   setContext: (context) => set({ context }),
   setLensActive: (active) => set({ lensActive: active }),
@@ -97,7 +87,6 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
     if (revealedRungs.includes(rung)) return;
     set({ revealedRungs: [...revealedRungs, rung] });
   },
-  setChecklistCompletedTracked: (tracked) => set({ checklistCompletedTracked: tracked }),
   resetForChapter: () =>
     set({
       lensActive: false,
@@ -105,7 +94,6 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
       found: null,
       markedPresetId: null,
       revealedRungs: [],
-      checklistCompletedTracked: false,
     }),
 }));
 

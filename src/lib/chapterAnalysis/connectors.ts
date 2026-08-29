@@ -8,7 +8,7 @@
  */
 
 import { findPhraseMatches } from '@/lib/keywordMatching';
-import type { AnalysisVerse, ConnectorCategory, ConnectorHit } from './types';
+import type { AnalysisVerse, ConnectorCategory, ConnectorHit, DiscoveryThresholds } from './types';
 
 export interface ConnectorDef {
   phrase: string;
@@ -142,4 +142,14 @@ const CATEGORY_PROMPTS: Record<ConnectorCategory, string> = {
 
 export function promptFor(hit: ConnectorHit): string {
   return CATEGORY_PROMPTS[hit.category].replace('{phrase}', hit.phrase);
+}
+
+/**
+ * Shared hinges gate: whether a chapter's connector count clears the
+ * configured threshold. Used by both `DiscoveryPanel` (to decide whether to
+ * render `HingesCard`) and `useLookAgain` (to decide whether the checklist's
+ * hinge row exists) so neither can disagree with the other.
+ */
+export function shouldShowHinges(connectorCount: number, thresholds: DiscoveryThresholds): boolean {
+  return connectorCount > 0 && connectorCount >= thresholds.connectorChipMinCount;
 }

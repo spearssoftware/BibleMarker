@@ -78,7 +78,6 @@ describe('DiscoveryPanel', () => {
       found: null,
       markedPresetId: null,
       revealedRungs: [],
-      checklistCompletedTracked: false,
     });
   });
 

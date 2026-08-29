@@ -24,6 +24,7 @@ import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryConfig, useDiscoveryEnabled } from '@/lib/discovery-config';
 import { useChapterEntities } from '@/hooks/useGnosis';
 import { useLookAgain } from '@/hooks/useLookAgain';
+import { shouldShowHinges } from '@/lib/chapterAnalysis';
 import { track } from '@/lib/telemetry';
 import { GenreCard } from './GenreCard';
 import { LookAgainCard } from './LookAgainCard';
@@ -55,11 +56,11 @@ export function DiscoveryPanel() {
     context?.chapter,
     discoveryEnabled
   );
-  const { items: lookAgainItems, ready: lookAgainReady } = useLookAgain(context, entities, entitiesLoading, entitiesError);
+  const { items: lookAgainItems, ready: lookAgainReady } = useLookAgain(context, entities, entitiesLoading, discoveryEnabled);
 
   const hasRepetition = Boolean(context?.analysis.repetition);
   const hingeCount = context?.analysis.connectors.length ?? 0;
-  const showHinges = hingeCount >= thresholds.connectorChipMinCount;
+  const showHinges = shouldShowHinges(hingeCount, thresholds);
   const hasEntities = !!entities && (entities.people.length > 0 || entities.places.length > 0);
 
   // Fire once per {book, chapter, translation} for each card actually shown —

@@ -202,13 +202,13 @@ export class GnosisLocalDb implements GnosisDataProvider {
 
   async getBookChapterYears(book: string): Promise<Map<number, { year: number; yearDisplay: string }>> {
     const db = await this.db();
-    const rows: any[] = await db.select(
+    const rows: { osis_ref: string; year: number; year_display: string }[] = await db.select(
       'SELECT osis_ref, year, year_display FROM chapter_timeline WHERE osis_ref LIKE ?',
       [`${book}.%`]
     );
     const result = new Map<number, { year: number; yearDisplay: string }>();
     for (const r of rows) {
-      const ch = parseInt(r.osis_ref.split('.')[1], 10);
+      const ch = parseOsisChapter(r.osis_ref);
       if (!isNaN(ch)) result.set(ch, { year: r.year, yearDisplay: r.year_display });
     }
     return result;
@@ -276,7 +276,7 @@ export class GnosisLocalDb implements GnosisDataProvider {
     const db = await this.db();
     const prefix = `${book}.${chapter}.%`;
 
-    const rows: any[] = await db.select(
+    const rows: { kind: string; osis_ref: string }[] = await db.select(
       `SELECT 'person' as kind, v.osis_ref FROM person p
          JOIN person_verse pv ON p.id = pv.person_id
          JOIN verse v ON pv.verse_id = v.id
@@ -873,11 +873,25 @@ function mapLocalPersonSummary(r: any): GnosisPerson {
 }
 
 /**
+ * OSIS refs are `Book.Chapter` or `Book.Chapter.Verse` (OSIS ids never
+ * contain a dot themselves), so the chapter is always the second
+ * '.'-separated segment and the verse — when present — is the last one.
+ * Shared by `getBookChapterYears` (chapter-only refs) and
+ * `mapChapterEntityVerseIndexRows` (chapter+verse refs).
+ */
+function parseOsisChapter(osisRef: string): number {
+  return parseInt(osisRef.split('.')[1], 10);
+}
+
+function parseOsisVerse(osisRef: string): number {
+  const segments = osisRef.split('.');
+  return parseInt(segments[segments.length - 1], 10);
+}
+
+/**
  * Maps `getChapterEntityVerseIndex`'s raw `{kind, osis_ref}` rows into sorted,
- * distinct verse-number lists. `osis_ref` is `Book.Chapter.Verse` (OSIS ids
- * never contain a dot), so the verse number is the last '.'-separated segment
- * — same idiom as `getBookChapterYears`'s chapter parse. Exported so the
- * mapping can be unit-tested without a mocked SQLite connection.
+ * distinct verse-number lists. Exported so the mapping can be unit-tested
+ * without a mocked SQLite connection.
  */
 export function mapChapterEntityVerseIndexRows(
   book: string,
@@ -889,8 +903,7 @@ export function mapChapterEntityVerseIndexRows(
   const buckets: Record<string, Set<number>> = { person: peopleVerses, place: placesVerses };
 
   for (const r of rows) {
-    const segments = r.osis_ref.split('.');
-    const verse = parseInt(segments[segments.length - 1], 10);
+    const verse = parseOsisVerse(r.osis_ref);
     if (isNaN(verse)) continue;
     buckets[r.kind]?.add(verse);
   }

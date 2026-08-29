@@ -36,18 +36,24 @@ interface LookAgainCardProps {
   anchors: LookAgainAnchors;
 }
 
+/**
+ * Which `LookAgainAnchors` key (if any) an item's undone row should scroll
+ * to. A `Record` keyed by the full `LookAgainItem['id']` union — rather than
+ * a `switch` with a `default` — so adding a new item id fails to compile
+ * here until this map says where it scrolls (`null` for 'title', which
+ * dispatches `openChapterTitleCreator` instead of scrolling).
+ */
+const ANCHOR_KEY_FOR_ITEM: Record<LookAgainItem['id'], keyof LookAgainAnchors | null> = {
+  repetition: 'repetition',
+  hinge: 'hinge',
+  person: 'peoplePlaces',
+  place: 'peoplePlaces',
+  title: null,
+};
+
 function anchorIdFor(item: LookAgainItem, anchors: LookAgainAnchors): string | undefined {
-  switch (item.id) {
-    case 'repetition':
-      return anchors.repetition;
-    case 'hinge':
-      return anchors.hinge;
-    case 'person':
-    case 'place':
-      return anchors.peoplePlaces;
-    default:
-      return undefined;
-  }
+  const key = ANCHOR_KEY_FOR_ITEM[item.id];
+  return key ? anchors[key] : undefined;
 }
 
 const ROW_CLASSES = 'flex items-start gap-2 px-2 py-1.5 rounded text-sm';

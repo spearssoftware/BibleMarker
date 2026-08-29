@@ -7,6 +7,7 @@
  * checkbox, no interactivity, no store reads.
  */
 
+import { useMemo } from 'react';
 import { getBookById } from '@/types';
 import { DiscoveryCard } from './DiscoveryCard';
 import { genreFor, orientationFor, questionFor, GENRE_LABEL } from '@/lib/chapterAnalysis';
@@ -17,7 +18,7 @@ interface GenreCardProps {
 }
 
 export function GenreCard({ book, chapter }: GenreCardProps) {
-  const bookName = getBookById(book)?.name ?? book;
+  const bookName = useMemo(() => getBookById(book)?.name ?? book, [book]);
   const genre = genreFor(book);
 
   if (!genre) {

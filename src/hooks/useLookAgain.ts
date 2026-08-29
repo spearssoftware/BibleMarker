@@ -25,13 +25,13 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useChapterEntityVerseIndex } from '@/hooks/useGnosis';
-import { useDiscoveryStore, useMarkedPresetExists, type DiscoveryContext } from '@/stores/discoveryStore';
+import { useMarkedPresetExists, type DiscoveryContext } from '@/stores/discoveryStore';
 import { useDiscoveryConfig } from '@/lib/discovery-config';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
-import { findKeywordMatches, normalizeForMatching, presetAppliesToChapter } from '@/lib/keywordMatching';
+import { findKeywordMatches, normalizeForMatching, presetAppliesToChapter, variantAppliesToChapter } from '@/lib/keywordMatching';
 import { track } from '@/lib/telemetry';
 import { pluralize, agree } from '@/lib/textUtils';
-import { singularize } from '@/lib/chapterAnalysis';
+import { singularize, shouldShowHinges } from '@/lib/chapterAnalysis';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import type { Annotation, ChapterEntities, ChapterTitle, MarkingPreset, TextAnnotation } from '@/types';
 
@@ -68,6 +68,16 @@ interface MarkCoverage {
 }
 
 /**
+ * A span open-ended from `startOffset` to the end of the verse (unbounded on
+ * the side facing into the rest of the selection), or the whole verse when
+ * there's no offset. Shared by both branches of `coverageForTextAnnotation`
+ * below that clamp a start verse this way.
+ */
+function openStartSpan(verse: number, startOffset: number | undefined): MarkCoverage {
+  return startOffset !== undefined ? { verse, charStart: startOffset, charEnd: Number.POSITIVE_INFINITY } : { verse };
+}
+
+/**
  * S2: an annotation with no character offsets covers its whole verse; a
  * multi-verse annotation covers its start/end verses per their own offsets
  * (unbounded on the side facing into the selection) and every verse between
@@ -92,9 +102,7 @@ function coverageForTextAnnotation(ann: TextAnnotation, book: string, chapter: n
     if (!endsInThisChapter) {
       // Cross-chapter span clamped to its start verse: covered from
       // startOffset (when present) to the end of that verse.
-      return ann.startOffset !== undefined
-        ? [{ verse: startVerse, charStart: ann.startOffset, charEnd: Number.POSITIVE_INFINITY }]
-        : [{ verse: startVerse }];
+      return [openStartSpan(startVerse, ann.startOffset)];
     }
     if (ann.startOffset !== undefined && ann.endOffset !== undefined) {
       return [{ verse: startVerse, charStart: ann.startOffset, charEnd: ann.endOffset }];
@@ -103,11 +111,7 @@ function coverageForTextAnnotation(ann: TextAnnotation, book: string, chapter: n
   }
 
   const spans: MarkCoverage[] = [];
-  spans.push(
-    ann.startOffset !== undefined
-      ? { verse: startVerse, charStart: ann.startOffset, charEnd: Number.POSITIVE_INFINITY }
-      : { verse: startVerse }
-  );
+  spans.push(openStartSpan(startVerse, ann.startOffset));
   for (let v = startVerse + 1; v < endVerse; v++) {
     spans.push({ verse: v });
   }
@@ -148,40 +152,32 @@ function presetMarksToken(preset: MarkingPreset, token: string, book: string, ch
   const matchesToken = (text: string | undefined): boolean =>
     text !== undefined && singularize(normalizeForMatching(text)) === token;
   if (matchesToken(preset.word)) return true;
-  return preset.variants.some(v => {
-    if (v.bookScope && v.bookScope !== book) return false;
-    if (v.bookScope && v.chapterScope !== undefined && v.chapterScope !== chapter) return false;
-    return matchesToken(v.text);
-  });
+  return preset.variants.some(v => variantAppliesToChapter(v, book, chapter) && matchesToken(v.text));
 }
 
 export function useLookAgain(
   context: DiscoveryContext | null,
   entities: ChapterEntities | null,
   entitiesLoading: boolean,
-  entitiesError: string | null
+  discoveryEnabled: boolean
 ): LookAgainResult {
-  // Accepted for interface symmetry with the caller's useChapterEntities
-  // result (DiscoveryPanel already has all three); the checklist logic below
-  // only needs entities/entitiesLoading.
-  void entitiesError;
-
   const activeStudyId = useStudyStore(s => s.activeStudyId);
-  const { presets } = useMarkingPresetStore();
-  const { exclusions } = useKeywordExclusionStore();
+  const presets = useMarkingPresetStore(s => s.presets);
+  const exclusions = useKeywordExclusionStore(s => s.exclusions);
   const activeChapterBook = useActiveChapterStore(s => s.book);
   const activeChapterChapter = useActiveChapterStore(s => s.chapter);
   const activeChapterTranslationId = useActiveChapterStore(s => s.translationId);
   const activeChapterVerses = useActiveChapterStore(s => s.verses);
   const markedPresetExists = useMarkedPresetExists();
   const thresholds = useDiscoveryConfig();
-  const checklistCompletedTracked = useDiscoveryStore(s => s.checklistCompletedTracked);
-  const setChecklistCompletedTracked = useDiscoveryStore(s => s.setChecklistCompletedTracked);
 
+  // Kill-switch (S3): when Discover is off, skip the per-verse entity query
+  // entirely (`enabled=false`) rather than let it run in the background for a
+  // panel that isn't rendering anything.
   const {
     index: entityVerseIndex,
     isLoading: indexLoading,
-  } = useChapterEntityVerseIndex(context?.book, context?.chapter, !!context);
+  } = useChapterEntityVerseIndex(context?.book, context?.chapter, discoveryEnabled && !!context);
 
   const [chapterAnnotations, setChapterAnnotations] = useState<Annotation[]>([]);
   const [chapterTitle, setChapterTitle] = useState<ChapterTitle | undefined>(undefined);
@@ -209,6 +205,15 @@ export function useLookAgain(
   // effect this used to need just to know when to reset.
   const hadUndoneRef = useRef(false);
 
+  // Latches once `discovery_checklist_completed` has fired for this hook's
+  // own {book, chapter, translationId, activeStudyId} identity, so a revisit
+  // of an already-complete chapter (or a re-render after completion) never
+  // fires it twice. Local to the hook (not `discoveryStore`) so it can share
+  // exactly `hadUndoneRef`'s identity and reset timing instead of the
+  // store's separate `resetForChapter` lifecycle, which didn't know about
+  // study switches. Same ref-not-state reasoning as `hadUndoneRef` above.
+  const checklistCompletedRef = useRef(false);
+
   const contextKey = context
     ? `${context.book}:${context.chapter}:${context.translationId}:${activeStudyId ?? ''}`
     : null;
@@ -229,14 +234,17 @@ export function useLookAgain(
 
   // B1: query the DB directly for this chapter's annotations + title, and
   // re-run whenever anything dispatches `annotationsUpdated` (creating a
-  // title from ChapterAtAGlance, adding a mark from the reader, etc).
+  // title from ChapterAtAGlance, adding a mark from the reader, etc). Skipped
+  // entirely while the Discover kill switch is off — see `discoveryEnabled`
+  // in the final `ready`/return gate below.
   useEffect(() => {
-    if (!context) return;
+    if (!context || !discoveryEnabled) return;
     const { book, chapter, translationId } = context;
     let cancelled = false;
-    // Same identity as `contextKey` — re-arm "seen undone" tracking whenever
-    // this effect re-runs for a new chapter/translation/study.
+    // Same identity as `contextKey` — re-arm "seen undone"/"seen complete"
+    // tracking whenever this effect re-runs for a new chapter/translation/study.
     hadUndoneRef.current = false;
+    checklistCompletedRef.current = false;
     // Monotonic request id: `annotationsUpdated` can fire while a previous
     // load is still in flight, and the DB queries can resolve out of order —
     // only the most recent request may commit its results.
@@ -244,14 +252,25 @@ export function useLookAgain(
 
     const load = async () => {
       const id = ++requestId;
-      const [anns, title] = await Promise.all([
-        getChapterAnnotations(translationId, book, chapter),
-        getChapterTitle(null, book, chapter, activeStudyId),
-      ]);
-      if (cancelled || id !== requestId) return;
-      setChapterAnnotations(anns);
-      setChapterTitle(title);
-      setLoaded(true);
+      try {
+        const [anns, title] = await Promise.all([
+          getChapterAnnotations(translationId, book, chapter),
+          getChapterTitle(null, book, chapter, activeStudyId),
+        ]);
+        if (cancelled || id !== requestId) return;
+        setChapterAnnotations(anns);
+        setChapterTitle(title);
+        setLoaded(true);
+      } catch (e) {
+        console.error('[useLookAgain] Failed to load chapter annotations/title:', e);
+        if (cancelled || id !== requestId) return;
+        // Conservative fallback: render the checklist with everything undone
+        // rather than leaving it stuck pre-load — `loaded` still flips true so
+        // `ready` can become true even though the DB query itself failed.
+        setChapterAnnotations([]);
+        setChapterTitle(undefined);
+        setLoaded(true);
+      }
     };
 
     // Coalesce back-to-back `annotationsUpdated` dispatches (several marks
@@ -259,10 +278,11 @@ export function useLookAgain(
     // dispatch in a macrotask schedules `load`, later ones in that same
     // macrotask find `pending` already set and no-op.
     let pending = false;
+    let timerId: ReturnType<typeof setTimeout> | undefined;
     const scheduleLoad = () => {
       if (pending) return;
       pending = true;
-      setTimeout(() => {
+      timerId = setTimeout(() => {
         pending = false;
         void load();
       }, 0);
@@ -273,9 +293,10 @@ export function useLookAgain(
     return () => {
       cancelled = true;
       window.removeEventListener('annotationsUpdated', scheduleLoad);
+      if (timerId !== undefined) clearTimeout(timerId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- context's own identity fully covered by its book/chapter/translationId
-  }, [context?.book, context?.chapter, context?.translationId, activeStudyId]);
+  }, [context?.book, context?.chapter, context?.translationId, activeStudyId, discoveryEnabled]);
 
   const realMarks = useMemo(
     () => (context ? chapterAnnotations.filter(a => a.moduleId === context.translationId) : []),
@@ -375,7 +396,7 @@ export function useLookAgain(
 
     // Same threshold gate as DiscoveryPanel's HingesCard, so this row can
     // never point at a card the panel decided not to render.
-    if (analysis.connectors.length >= thresholds.connectorChipMinCount && analysis.connectors.length > 0) {
+    if (shouldShowHinges(analysis.connectors.length, thresholds)) {
       result.push({
         id: 'hinge',
         label: `${pluralize(analysis.connectors.length, 'hinge')} ${agree(analysis.connectors.length, 'holds', 'hold')} this chapter together — mark one`,
@@ -390,7 +411,7 @@ export function useLookAgain(
     });
 
     return result;
-  }, [context, repetitionDone, entitySourcesResolved, peopleVerses.length, peopleCount, personDone, placesVerses.length, placesCount, placeDone, thresholds.connectorChipMinCount, hingeDone, chapterTitle]);
+  }, [context, repetitionDone, entitySourcesResolved, peopleVerses.length, peopleCount, personDone, placesVerses.length, placesCount, placeDone, thresholds, hingeDone, chapterTitle]);
 
   // See `LookAgainResult.ready`. By the time `loaded` flips true (an awaited
   // DB round-trip), the entity hooks' effects have already run, so their
@@ -403,17 +424,17 @@ export function useLookAgain(
 
   // S4: fire completion telemetry only on an in-session *transition* — this
   // chapter visit's checklist had ≥1 undone item at some point and now has
-  // none — latched via `discoveryStore.checklistCompletedTracked` (cleared
-  // by `resetForChapter`, which also re-arms this on a primary-translation
-  // switch). `hadUndoneRef` tracks that "seen undone" state for the current
-  // {book, chapter, translationId, activeStudyId} only, reset (in the
-  // render-time `contextKey` sync above) whenever that identity changes — so
-  // revisiting an already-complete chapter (first evaluation is already
-  // all-done) never fires, and completing the checklist while the panel
-  // (and this hook) is unmounted is an accepted undercount: nothing here
-  // runs to notice until the panel — and this hook — mounts again, at which
-  // point the first evaluation is already complete and, again, doesn't
-  // fire. See plan "Deliberate deltas" / Risks.
+  // none — latched via `checklistCompletedRef`, local to this hook (see its
+  // declaration above for why it moved out of `discoveryStore`). `hadUndoneRef`
+  // tracks that "seen undone" state for the current {book, chapter,
+  // translationId, activeStudyId} only, reset (in the B1 effect above)
+  // whenever that identity changes — so revisiting an already-complete
+  // chapter (first evaluation is already all-done) never fires, and
+  // completing the checklist while the panel (and this hook) is unmounted is
+  // an accepted undercount: nothing here runs to notice until the panel —
+  // and this hook — mounts again, at which point the first evaluation is
+  // already complete and, again, doesn't fire. See plan "Deliberate deltas" /
+  // Risks.
   useEffect(() => {
     // Wait for `ready` — see `LookAgainResult.ready` for why the pre-load
     // placeholder state must never count as "seen undone". `ready` already
@@ -425,11 +446,15 @@ export function useLookAgain(
       hadUndoneRef.current = true;
       return;
     }
-    if (hadUndoneRef.current && !checklistCompletedTracked) {
+    if (hadUndoneRef.current && !checklistCompletedRef.current) {
       track('discovery_checklist_completed');
-      setChecklistCompletedTracked(true);
+      checklistCompletedRef.current = true;
     }
-  }, [context, items, ready, checklistCompletedTracked, setChecklistCompletedTracked]);
+  }, [context, items, ready]);
+
+  // Kill-switch (S3): a disabled Discover layer never shows the checklist,
+  // regardless of whatever the hooks above computed from stale state.
+  if (!discoveryEnabled) return { items: [], ready: false };
 
   return { items, ready };
 }

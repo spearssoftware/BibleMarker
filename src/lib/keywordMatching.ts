@@ -50,25 +50,34 @@ function trimPunctuation(text: string): { trimmed: string; startOffset: number; 
 }
 
 /**
- * Check if a variant applies to the given verse based on its scope
+ * Check if a variant applies to the given book/chapter based on its scope
  * - Global (no bookScope): applies everywhere
  * - Book-scoped (bookScope set, no chapterScope): applies to that book
  * - Chapter-scoped (bookScope and chapterScope set): applies to that specific chapter
  */
-function variantAppliesToVerse(variant: { text: string; bookScope?: string; chapterScope?: number }, verseRef: VerseRef): boolean {
+export function variantAppliesToChapter(variant: { text: string; bookScope?: string; chapterScope?: number }, book: string, chapter: number): boolean {
   // Global variant (no scope) - applies everywhere
   if (!variant.bookScope) return true;
-  
+
   // Book-scoped - check if book matches
-  if (variant.bookScope !== verseRef.book) return false;
-  
+  if (variant.bookScope !== book) return false;
+
   // If chapter-scoped, check chapter matches
   if (variant.chapterScope !== undefined) {
-    return variant.chapterScope === verseRef.chapter;
+    return variant.chapterScope === chapter;
   }
-  
+
   // Book-scoped but not chapter-scoped - applies to all chapters in that book
   return true;
+}
+
+/**
+ * Check if a variant applies to the given verse based on its scope. Thin
+ * wrapper over `variantAppliesToChapter` — the verse number itself never
+ * factors into variant scoping.
+ */
+function variantAppliesToVerse(variant: { text: string; bookScope?: string; chapterScope?: number }, verseRef: VerseRef): boolean {
+  return variantAppliesToChapter(variant, verseRef.book, verseRef.chapter);
 }
 
 /**

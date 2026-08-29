@@ -1,16 +1,17 @@
 /**
  * @vitest-environment jsdom
  *
- * useChapterEntityVerseIndex: mirrors useChapterEntities.test.tsx — same
- * stuck-isLoading regression coverage — plus the capability check that makes
- * this hook resolve to `index: null` without ever querying a provider that
- * lacks `getChapterEntityVerseIndex` (the API-backed provider's shape).
+ * useChapterEntityVerseIndex: the stuck-isLoading regression coverage shared
+ * with the underlying cache machine lives in useChapterEntities.test.tsx —
+ * this file covers only what's unique to this hook: the `enabled` kill
+ * switch and the capability check that makes this hook resolve to
+ * `index: null` without ever querying a provider that lacks
+ * `getChapterEntityVerseIndex` (the API-backed provider's shape).
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useChapterEntityVerseIndex } from '../useGnosis';
-import type { ChapterEntityVerseIndex } from '@/types';
 
 const { getChapterEntityVerseIndexMock, mockProvider } = vi.hoisted(() => {
   const getChapterEntityVerseIndexMock = vi.fn();
@@ -27,43 +28,10 @@ vi.mock('@/lib/gnosis', () => ({
   initGnosis: vi.fn(async () => {}),
 }));
 
-function makeIndex(book: string, chapter: number): ChapterEntityVerseIndex {
-  return { book, chapter, peopleVerses: [1], placesVerses: [] };
-}
-
 describe('useChapterEntityVerseIndex', () => {
   beforeEach(() => {
     getChapterEntityVerseIndexMock.mockReset();
     mockProvider.getChapterEntityVerseIndex = getChapterEntityVerseIndexMock;
-  });
-
-  it('leaves isLoading false on a cache hit reached while a previous chapter fetch is still in flight', async () => {
-    getChapterEntityVerseIndexMock.mockResolvedValueOnce(makeIndex('CacheTest', 2));
-    const { result, rerender } = renderHook(
-      ({ chapter }: { chapter: number }) => useChapterEntityVerseIndex('CacheTest', chapter),
-      { initialProps: { chapter: 2 } }
-    );
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.index).toEqual(makeIndex('CacheTest', 2));
-
-    // Navigate to chapter 1, whose fetch never resolves during this test —
-    // an in-flight fetch, same as a slow query the user navigates away from.
-    let resolveChapter1: (v: ChapterEntityVerseIndex) => void = () => {};
-    getChapterEntityVerseIndexMock.mockImplementationOnce(
-      () => new Promise<ChapterEntityVerseIndex>((resolve) => { resolveChapter1 = resolve; })
-    );
-    rerender({ chapter: 1 });
-    await waitFor(() => expect(result.current.isLoading).toBe(true));
-
-    // Navigate straight to chapter 2 again (already cached) before chapter 1
-    // resolves — isLoading must not get stuck true (see useChapterEntities.test.tsx).
-    rerender({ chapter: 2 });
-
-    expect(result.current.isLoading).toBe(false);
-    expect(result.current.index).toEqual(makeIndex('CacheTest', 2));
-    expect(result.current.error).toBeNull();
-
-    resolveChapter1(makeIndex('CacheTest', 1));
   });
 
   it('never calls the provider when enabled is false', async () => {
