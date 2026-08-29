@@ -27,6 +27,78 @@ export function useGnosis(): {
   return { provider, isAvailable: available, mode: getGnosisMode() };
 }
 
+/**
+ * Shared state machine behind `useChapterEntities` and
+ * `useChapterEntityVerseIndex`: render-time cache-key sync (serves a cache
+ * hit synchronously during render, same pattern as `useGnosisSearch`'s
+ * prevQuery check below, rather than setState-in-effect — avoids the
+ * set-state-in-effect lint and an extra render), `isLoading` semantics (reset
+ * on a cache-key change too, so an in-flight previous-key fetch's cancelled
+ * `finally` can't leave it stuck `true` after navigating to a cached chapter),
+ * and the cancelled-guard fetch effect. `fetcher` is read through a ref so a
+ * fresh closure identity each render doesn't retrigger the effect (same
+ * pattern as `useGnosisEntity`'s `fetcherRef` below) — only `book`/`chapter`/
+ * `enabled` identity changes should restart the fetch.
+ */
+function useCachedChapterQuery<T>(
+  book: string | undefined,
+  chapter: number | undefined,
+  enabled: boolean,
+  cache: LRUCache,
+  fetcher: (book: string, chapter: number) => Promise<T>
+): {
+  data: T | null;
+  isLoading: boolean;
+  error: string | null;
+} {
+  const cacheKey = enabled && book && chapter !== undefined ? `${book}.${chapter}` : undefined;
+  const [data, setData] = useState<T | null>(() => (cacheKey ? cache.get<T>(cacheKey) ?? null : null));
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fetcherRef = useRef(fetcher);
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  });
+
+  const [prevCacheKey, setPrevCacheKey] = useState(cacheKey);
+  if (cacheKey !== prevCacheKey) {
+    setPrevCacheKey(cacheKey);
+    setData(cacheKey ? cache.get<T>(cacheKey) ?? null : null);
+    setError(null);
+    setIsLoading(false);
+  }
+
+  useEffect(() => {
+    if (!enabled || !book || chapter === undefined) return;
+    const key = `${book}.${chapter}`;
+    if (cache.get<T>(key) !== undefined) return; // already served synchronously above
+
+    let cancelled = false;
+
+    (async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await fetcherRef.current(book, chapter);
+        if (!cancelled) {
+          setData(result);
+          cache.set(key, result, CACHE_TTL.chapter);
+        }
+      } catch (e) {
+        console.error('[Gnosis] Chapter query error:', e);
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [book, chapter, enabled, cache]);
+
+  if (!enabled) return { data: null, isLoading: false, error: null };
+  return { data, isLoading, error };
+}
+
 /** Repeat mounts for the same chapter shouldn't re-query SQLite. */
 const chapterEntitiesCache = new LRUCache();
 
@@ -39,69 +111,31 @@ export function useChapterEntities(
   isLoading: boolean;
   error: string | null;
 } {
-  const cacheKey = enabled && book && chapter !== undefined ? `${book}.${chapter}` : undefined;
-  const [entities, setEntities] = useState<ChapterEntities | null>(
-    () => (cacheKey ? chapterEntitiesCache.get<ChapterEntities>(cacheKey) ?? null : null)
+  const { data, isLoading, error } = useCachedChapterQuery(
+    book,
+    chapter,
+    enabled,
+    chapterEntitiesCache,
+    async (b, c) => {
+      const provider = await ensureProvider();
+      return provider.getChapterEntities(b, c);
+    }
   );
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Serve a cache hit for the new key synchronously during render (same pattern as
-  // useGnosisSearch's prevQuery check below) rather than setState-in-effect, which
-  // would trip set-state-in-effect and cost an extra render besides. Resetting
-  // isLoading here too (not just entities/error) matters when the previous key's
-  // fetch is still in flight: the effect below early-returns on a cache hit and
-  // never reaches its own `finally`, so without this reset isLoading would stay
-  // stuck `true` forever after navigating from an in-flight chapter to a cached one.
-  const [prevCacheKey, setPrevCacheKey] = useState(cacheKey);
-  if (cacheKey !== prevCacheKey) {
-    setPrevCacheKey(cacheKey);
-    setEntities(cacheKey ? chapterEntitiesCache.get<ChapterEntities>(cacheKey) ?? null : null);
-    setError(null);
-    setIsLoading(false);
-  }
-
-  useEffect(() => {
-    if (!enabled || !book || chapter === undefined) return;
-    const key = `${book}.${chapter}`;
-    if (chapterEntitiesCache.get<ChapterEntities>(key) !== undefined) return; // already served synchronously above
-
-    let cancelled = false;
-
-    (async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const provider = await ensureProvider();
-        const result = await provider.getChapterEntities(book, chapter);
-        if (!cancelled) {
-          setEntities(result);
-          chapterEntitiesCache.set(key, result, CACHE_TTL.chapter);
-        }
-      } catch (e) {
-        console.error('[Gnosis] Chapter entities error:', e);
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [book, chapter, enabled]);
-
-  if (!enabled) return { entities: null, isLoading: false, error: null };
-  return { entities, isLoading, error };
+  return { entities: data, isLoading, error };
 }
 
 /** Repeat mounts for the same chapter shouldn't re-query SQLite. */
 const chapterEntityVerseIndexCache = new LRUCache();
 
 /**
- * Per-verse person/place membership for a chapter. Mirrors `useChapterEntities`
- * exactly (own LRU, same render-time cache-key sync, same isLoading semantics),
- * plus a capability check: the API-backed provider has no chapter-level
- * per-verse route, so a provider lacking `getChapterEntityVerseIndex` resolves
- * to `index: null` without ever issuing a query.
+ * Per-verse person/place membership for a chapter. Thin wrapper over
+ * `useCachedChapterQuery`, plus a capability check inside the fetcher: the
+ * API-backed provider has no chapter-level per-verse route, so a provider
+ * lacking `getChapterEntityVerseIndex` resolves to `null` without ever
+ * issuing a query — the shared helper caches that `null` under the same key
+ * (TTL-bounded like a real result), so a mode-lacking provider doesn't re-run
+ * `ensureProvider` on every mount, and a later mode switch eventually gets
+ * re-probed once the TTL lapses.
  */
 export function useChapterEntityVerseIndex(
   book: string | undefined,
@@ -112,64 +146,18 @@ export function useChapterEntityVerseIndex(
   isLoading: boolean;
   error: string | null;
 } {
-  const cacheKey = enabled && book && chapter !== undefined ? `${book}.${chapter}` : undefined;
-  const [index, setIndex] = useState<ChapterEntityVerseIndex | null>(
-    () => (cacheKey ? chapterEntityVerseIndexCache.get<ChapterEntityVerseIndex>(cacheKey) ?? null : null)
+  const { data, isLoading, error } = useCachedChapterQuery(
+    book,
+    chapter,
+    enabled,
+    chapterEntityVerseIndexCache,
+    async (b, c) => {
+      const provider = await ensureProvider();
+      if (!provider.getChapterEntityVerseIndex) return null;
+      return provider.getChapterEntityVerseIndex(b, c);
+    }
   );
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Same render-time cache-key sync as useChapterEntities (see the comment
-  // there): serves a cache hit synchronously and resets isLoading too, so an
-  // in-flight previous-key fetch's cancelled `finally` can't leave it stuck true.
-  const [prevCacheKey, setPrevCacheKey] = useState(cacheKey);
-  if (cacheKey !== prevCacheKey) {
-    setPrevCacheKey(cacheKey);
-    setIndex(cacheKey ? chapterEntityVerseIndexCache.get<ChapterEntityVerseIndex>(cacheKey) ?? null : null);
-    setError(null);
-    setIsLoading(false);
-  }
-
-  useEffect(() => {
-    if (!enabled || !book || chapter === undefined) return;
-    const key = `${book}.${chapter}`;
-    if (chapterEntityVerseIndexCache.get<ChapterEntityVerseIndex>(key) !== undefined) return; // already served synchronously above
-
-    let cancelled = false;
-
-    (async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const provider = await ensureProvider();
-        if (!provider.getChapterEntityVerseIndex) {
-          // Cache the capability miss under the same key (as null) so an
-          // API-mode provider doesn't re-run ensureProvider on every mount —
-          // the effect's cache check above short-circuits on `null` too
-          // (only `undefined` means "not cached"). TTL-bounded like a real
-          // result, so a later mode switch eventually gets re-probed.
-          chapterEntityVerseIndexCache.set(key, null, CACHE_TTL.chapter);
-          if (!cancelled) setIndex(null);
-          return;
-        }
-        const result = await provider.getChapterEntityVerseIndex(book, chapter);
-        if (!cancelled) {
-          setIndex(result);
-          chapterEntityVerseIndexCache.set(key, result, CACHE_TTL.chapter);
-        }
-      } catch (e) {
-        console.error('[Gnosis] Chapter entity verse index error:', e);
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [book, chapter, enabled]);
-
-  if (!enabled) return { index: null, isLoading: false, error: null };
-  return { index, isLoading, error };
+  return { index: data, isLoading, error };
 }
 
 export function useGnosisEntity<T>(

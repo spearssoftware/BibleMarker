@@ -216,12 +216,13 @@ const GENEALOGY_QUESTION =
 const SONG_QUESTION =
   'The story pauses for a song here — find the line that repeats or circles back within it.';
 
-function chapterRange(bookId: string, start: number, end: number): string[] {
-  const keys: string[] = [];
+/** Build a `{ chapter: question }` map for a contiguous, inclusive chapter range. */
+function chapterRangeOverrides(start: number, end: number, question: string): Record<number, string> {
+  const entries: Record<number, string> = {};
   for (let chapter = start; chapter <= end; chapter++) {
-    keys.push(`${bookId}.${chapter}`);
+    entries[chapter] = question;
   }
-  return keys;
+  return entries;
 }
 
 /**
@@ -230,28 +231,25 @@ function chapterRange(bookId: string, start: number, end: number): string[] {
  * inside a narrative or law book, a narrative closing chapter inside a law
  * book. Kept modest and obviously-correct rather than exhaustive: most
  * atypical chapters are handled by the hedges in `GENRE_QUESTIONS` instead.
- * Keyed `'Book.Chapter'` (book id from `BOOK_GENRE`, 1-based chapter).
+ * Keyed by OSIS book id (from `BOOK_GENRE`), then 1-based chapter number.
  */
-export const CHAPTER_QUESTION_OVERRIDES: Record<string, string> = Object.fromEntries([
+export const CHAPTER_QUESTION_OVERRIDES: Record<string /* OSIS book id */, Record<number, string>> = {
   // Genealogies embedded in narrative/gospel books.
-  ['Gen.5', GENEALOGY_QUESTION],
-  ['Gen.10', GENEALOGY_QUESTION],
-  ['Gen.36', GENEALOGY_QUESTION],
-  ...chapterRange('1Chr', 1, 9).map((key) => [key, GENEALOGY_QUESTION] as const),
-  ['Num.1', GENEALOGY_QUESTION],
-  ['Num.26', GENEALOGY_QUESTION],
-  ['Ezra.2', GENEALOGY_QUESTION],
-  ['Neh.7', GENEALOGY_QUESTION],
-  ['Matt.1', GENEALOGY_QUESTION],
-  ['Luke.3', GENEALOGY_QUESTION],
+  Gen: { 5: GENEALOGY_QUESTION, 10: GENEALOGY_QUESTION, 36: GENEALOGY_QUESTION },
+  '1Chr': chapterRangeOverrides(1, 9, GENEALOGY_QUESTION),
+  Num: { 1: GENEALOGY_QUESTION, 26: GENEALOGY_QUESTION },
+  Ezra: { 2: GENEALOGY_QUESTION },
+  Neh: { 7: GENEALOGY_QUESTION },
+  Matt: { 1: GENEALOGY_QUESTION },
+  Luke: { 3: GENEALOGY_QUESTION },
 
   // Songs embedded in narrative/law books.
-  ['Exod.15', SONG_QUESTION],
-  ['Judg.5', SONG_QUESTION],
+  Exod: { 15: SONG_QUESTION },
+  Judg: { 5: SONG_QUESTION },
 
   // Deuteronomy's closing chapter is Moses's death narrative, not case law.
-  ['Deut.34', 'This chapter closes out both a life and a book — what does it hand off, and to whom?'],
-]);
+  Deut: { 34: 'This chapter closes out both a life and a book — what does it hand off, and to whom?' },
+};
 
 export function genreFor(bookId: string): Genre | undefined {
   return BOOK_GENRE[bookId];
@@ -265,7 +263,7 @@ export function orientationFor(bookId: string): string | undefined {
 export function questionFor(bookId: string, chapter: number): string | undefined {
   const genre = genreFor(bookId);
   if (!genre) return undefined;
-  const override = CHAPTER_QUESTION_OVERRIDES[`${bookId}.${chapter}`];
+  const override = CHAPTER_QUESTION_OVERRIDES[bookId]?.[chapter];
   if (override) return override;
   const questions = GENRE_QUESTIONS[genre];
   return questions[(chapter - 1) % questions.length];

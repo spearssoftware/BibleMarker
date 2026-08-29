@@ -58,7 +58,8 @@ export function LookAgainCard({ items, ready, anchors }: LookAgainCardProps) {
   const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
   const openPanel = usePanelStore(s => s.openPanel);
 
-  if (!ready || items.length === 0) return null;
+  // `ready` (see useLookAgain.ts) already implies items.length > 0.
+  if (!ready) return null;
 
   const allDone = items.every(i => i.done);
 

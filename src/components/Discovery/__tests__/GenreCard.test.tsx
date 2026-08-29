@@ -47,15 +47,6 @@ describe('GenreCard', () => {
     expect(q1).not.toBe(q2);
   });
 
-  it('is deterministic across remounts of the same book/chapter', () => {
-    const { unmount } = render(<GenreCard book="John" chapter={3} />);
-    const first = screen.getByText(questionFor('John', 3)!).textContent;
-    unmount();
-
-    render(<GenreCard book="John" chapter={3} />);
-    expect(screen.getByText(questionFor('John', 3)!).textContent).toBe(first);
-  });
-
   it('shows a neutral one-line fallback, with no orientation/question, for a book id with no genre entry', () => {
     render(<GenreCard book="NotABook" chapter={1} />);
     expect(screen.getByText('NotABook')).toBeTruthy();

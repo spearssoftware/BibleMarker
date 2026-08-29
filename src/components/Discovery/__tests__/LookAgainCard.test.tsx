@@ -38,11 +38,9 @@ describe('LookAgainCard', () => {
     document.body.innerHTML = '';
   });
 
-  it('renders nothing for an empty item list', () => {
-    const { container } = render(<LookAgainCard items={[]} ready anchors={anchors} />);
-    expect(container.firstChild).toBeNull();
-  });
-
+  // `ready` (from useLookAgain) already implies items.length > 0 in real
+  // usage, so the card's render gate now checks only `ready` — an empty item
+  // list can no longer occur alongside `ready: true`.
   it('renders nothing until ready, even with items', () => {
     const { container } = render(<LookAgainCard items={makeItems()} ready={false} anchors={anchors} />);
     expect(container.firstChild).toBeNull();
@@ -67,36 +65,17 @@ describe('LookAgainCard', () => {
     expect(row?.querySelector('[aria-hidden="true"]')?.textContent).toBe('✓');
   });
 
-  it('scrolls to the repetition anchor when the undone repetition row is tapped', () => {
-    document.body.innerHTML += '<div id="anchor-repetition"></div>';
-    const anchorEl = document.getElementById('anchor-repetition')!;
+  it.each([
+    ['anchor-repetition', 'One word repeats 11× — find and mark it'],
+    ['anchor-hinge', '1 hinge holds this chapter together — mark one'],
+    ['anchor-people-places', '1 person is named — mark one where a person appears'],
+  ])('scrolls to the %s anchor when the matching undone row is tapped', (anchorId, label) => {
+    document.body.innerHTML += `<div id="${anchorId}"></div>`;
     const scrollSpy = vi.fn();
-    anchorEl.scrollIntoView = scrollSpy;
+    document.getElementById(anchorId)!.scrollIntoView = scrollSpy;
 
     render(<LookAgainCard items={makeItems()} ready anchors={anchors} />);
-    fireEvent.click(screen.getByRole('button', { name: 'One word repeats 11× — find and mark it' }));
-
-    expect(scrollSpy).toHaveBeenCalled();
-  });
-
-  it('scrolls to the hinge anchor when the undone hinge row is tapped', () => {
-    document.body.innerHTML += '<div id="anchor-hinge"></div>';
-    const scrollSpy = vi.fn();
-    document.getElementById('anchor-hinge')!.scrollIntoView = scrollSpy;
-
-    render(<LookAgainCard items={makeItems()} ready anchors={anchors} />);
-    fireEvent.click(screen.getByRole('button', { name: '1 hinge holds this chapter together — mark one' }));
-
-    expect(scrollSpy).toHaveBeenCalled();
-  });
-
-  it('scrolls to the people-places anchor when the undone person row is tapped', () => {
-    document.body.innerHTML += '<div id="anchor-people-places"></div>';
-    const scrollSpy = vi.fn();
-    document.getElementById('anchor-people-places')!.scrollIntoView = scrollSpy;
-
-    render(<LookAgainCard items={makeItems()} ready anchors={anchors} />);
-    fireEvent.click(screen.getByRole('button', { name: '1 person is named — mark one where a person appears' }));
+    fireEvent.click(screen.getByRole('button', { name: label }));
 
     expect(scrollSpy).toHaveBeenCalled();
   });

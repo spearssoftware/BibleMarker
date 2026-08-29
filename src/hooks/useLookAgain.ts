@@ -24,16 +24,16 @@ import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { useChapterEntities, useChapterEntityVerseIndex } from '@/hooks/useGnosis';
+import { useChapterEntityVerseIndex } from '@/hooks/useGnosis';
 import { useDiscoveryStore, useMarkedPresetExists, type DiscoveryContext } from '@/stores/discoveryStore';
 import { useDiscoveryConfig } from '@/lib/discovery-config';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
-import { findKeywordMatches, normalizeForMatching } from '@/lib/keywordMatching';
+import { findKeywordMatches, normalizeForMatching, presetAppliesToChapter } from '@/lib/keywordMatching';
 import { track } from '@/lib/telemetry';
-import { pluralize } from '@/lib/textUtils';
+import { pluralize, agree } from '@/lib/textUtils';
 import { singularize } from '@/lib/chapterAnalysis';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
-import type { Annotation, ChapterTitle, MarkingPreset, TextAnnotation } from '@/types';
+import type { Annotation, ChapterEntities, ChapterTitle, MarkingPreset, TextAnnotation } from '@/types';
 
 export interface LookAgainItem {
   id: 'repetition' | 'person' | 'place' | 'hinge' | 'title';
@@ -144,12 +144,7 @@ function coverageIntersectsHit(cov: MarkCoverage, hit: ConnectorHit): boolean {
  */
 function presetMarksToken(preset: MarkingPreset, token: string, book: string, chapter: number, translationId: string): boolean {
   if (preset.moduleScope && preset.moduleScope !== translationId) return false;
-  if (preset.scopes && preset.scopes.length > 0) {
-    const covers = preset.scopes.some(
-      s => s.book === book && (s.chapter === undefined || s.chapter === chapter)
-    );
-    if (!covers) return false;
-  }
+  if (!presetAppliesToChapter(preset, book, chapter)) return false;
   const matchesToken = (text: string | undefined): boolean =>
     text !== undefined && singularize(normalizeForMatching(text)) === token;
   if (matchesToken(preset.word)) return true;
@@ -160,7 +155,17 @@ function presetMarksToken(preset: MarkingPreset, token: string, book: string, ch
   });
 }
 
-export function useLookAgain(context: DiscoveryContext | null): LookAgainResult {
+export function useLookAgain(
+  context: DiscoveryContext | null,
+  entities: ChapterEntities | null,
+  entitiesLoading: boolean,
+  entitiesError: string | null
+): LookAgainResult {
+  // Accepted for interface symmetry with the caller's useChapterEntities
+  // result (DiscoveryPanel already has all three); the checklist logic below
+  // only needs entities/entitiesLoading.
+  void entitiesError;
+
   const activeStudyId = useStudyStore(s => s.activeStudyId);
   const { presets } = useMarkingPresetStore();
   const { exclusions } = useKeywordExclusionStore();
@@ -177,7 +182,6 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainResult 
     index: entityVerseIndex,
     isLoading: indexLoading,
   } = useChapterEntityVerseIndex(context?.book, context?.chapter, !!context);
-  const { entities, isLoading: entitiesLoading } = useChapterEntities(context?.book, context?.chapter, !!context);
 
   const [chapterAnnotations, setChapterAnnotations] = useState<Annotation[]>([]);
   const [chapterTitle, setChapterTitle] = useState<ChapterTitle | undefined>(undefined);
@@ -189,15 +193,32 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainResult 
   // even for a chapter that was already fully complete.
   const [loaded, setLoaded] = useState(false);
 
+  // S4: whether this chapter visit's checklist had ≥1 undone item at some
+  // point since the current {book, chapter, translationId, activeStudyId}
+  // identity was last established — see the completion-telemetry effect
+  // below. A ref (not state) so setting it doesn't itself trigger a render.
+  // Task note: the natural place to reset this would be inline in the
+  // render-time `contextKey` sync just below (alongside the other resets),
+  // but `react-hooks/refs` (eslint-plugin-react-hooks 7.x, enabled in this
+  // repo) forbids mutating `ref.current` during render, and switching this to
+  // state instead trips `react-hooks/set-state-in-effect` where it's set to
+  // `true` below (a direct, unconditional setState in an effect body).
+  // Resetting it here, in the B1 effect just below — which already re-runs
+  // on exactly this same identity (book/chapter/translationId/activeStudyId)
+  // — satisfies both rules and still drops the separate tracking-key ref +
+  // effect this used to need just to know when to reset.
+  const hadUndoneRef = useRef(false);
+
+  const contextKey = context
+    ? `${context.book}:${context.chapter}:${context.translationId}:${activeStudyId ?? ''}`
+    : null;
+
   // Reset synchronously during render (allowed setState, same pattern as
   // useChapterEntities's cache-key sync in useGnosis.ts) rather than in the
   // effect body below — avoids the cascading-render lint on setState-in-effect.
   // Includes the active study: switching studies changes which chapter title
-  // and presets apply, so it must reset the loaded data and re-arm tracking
-  // like any other identity change.
-  const contextKey = context
-    ? `${context.book}:${context.chapter}:${context.translationId}:${activeStudyId ?? ''}`
-    : null;
+  // and presets apply, so it must reset the loaded data like any other
+  // identity change.
   const [prevContextKey, setPrevContextKey] = useState(contextKey);
   if (contextKey !== prevContextKey) {
     setPrevContextKey(contextKey);
@@ -213,6 +234,9 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainResult 
     if (!context) return;
     const { book, chapter, translationId } = context;
     let cancelled = false;
+    // Same identity as `contextKey` — re-arm "seen undone" tracking whenever
+    // this effect re-runs for a new chapter/translation/study.
+    hadUndoneRef.current = false;
     // Monotonic request id: `annotationsUpdated` can fire while a previous
     // load is still in flight, and the DB queries can resolve out of order —
     // only the most recent request may commit its results.
@@ -230,11 +254,25 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainResult 
       setLoaded(true);
     };
 
+    // Coalesce back-to-back `annotationsUpdated` dispatches (several marks
+    // added in one interaction, e.g.) into a single query pass: the first
+    // dispatch in a macrotask schedules `load`, later ones in that same
+    // macrotask find `pending` already set and no-op.
+    let pending = false;
+    const scheduleLoad = () => {
+      if (pending) return;
+      pending = true;
+      setTimeout(() => {
+        pending = false;
+        void load();
+      }, 0);
+    };
+
     void load();
-    window.addEventListener('annotationsUpdated', load);
+    window.addEventListener('annotationsUpdated', scheduleLoad);
     return () => {
       cancelled = true;
-      window.removeEventListener('annotationsUpdated', load);
+      window.removeEventListener('annotationsUpdated', scheduleLoad);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- context's own identity fully covered by its book/chapter/translationId
   }, [context?.book, context?.chapter, context?.translationId, activeStudyId]);
@@ -279,6 +317,8 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainResult 
   // render "0 people are named" from one source while the other is pending
   // or errored, and a provider without the per-verse capability (index stays
   // null) hides the items entirely — their done-state would be uncomputable.
+  // Narrower than `ready` below: this only gates the person/place items
+  // themselves, not the whole checklist's render/telemetry gate.
   const entitySourcesResolved = entityVerseIndex !== null && entities !== null;
   const peopleVerses = entityVerseIndex?.peopleVerses ?? [];
   const placesVerses = entityVerseIndex?.placesVerses ?? [];
@@ -320,7 +360,7 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainResult 
     if (entitySourcesResolved && peopleVerses.length > 0 && peopleCount > 0) {
       result.push({
         id: 'person',
-        label: `${pluralize(peopleCount, 'person', 'people')} ${peopleCount === 1 ? 'is' : 'are'} named — mark one where a person appears`,
+        label: `${pluralize(peopleCount, 'person', 'people')} ${agree(peopleCount, 'is', 'are')} named — mark one where a person appears`,
         done: personDone,
       });
     }
@@ -328,7 +368,7 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainResult 
     if (entitySourcesResolved && placesVerses.length > 0 && placesCount > 0) {
       result.push({
         id: 'place',
-        label: `${pluralize(placesCount, 'place')} ${placesCount === 1 ? 'is' : 'are'} named — mark one where a place appears`,
+        label: `${pluralize(placesCount, 'place')} ${agree(placesCount, 'is', 'are')} named — mark one where a place appears`,
         done: placeDone,
       });
     }
@@ -338,7 +378,7 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainResult 
     if (analysis.connectors.length >= thresholds.connectorChipMinCount && analysis.connectors.length > 0) {
       result.push({
         id: 'hinge',
-        label: `${pluralize(analysis.connectors.length, 'hinge')} ${analysis.connectors.length === 1 ? 'holds' : 'hold'} this chapter together — mark one`,
+        label: `${pluralize(analysis.connectors.length, 'hinge')} ${agree(analysis.connectors.length, 'holds', 'hold')} this chapter together — mark one`,
         done: hingeDone,
       });
     }
@@ -356,33 +396,29 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainResult 
   // DB round-trip), the entity hooks' effects have already run, so their
   // `isLoading` flags cover the entire settle window — including the
   // capability-miss path, which toggles isLoading around its provider check.
-  const ready = loaded && !entitiesLoading && !indexLoading;
+  // `items.length > 0` is included so `ready` alone is a safe single gate for
+  // both the telemetry effect below and `LookAgainCard`'s render check — see
+  // `entitySourcesResolved` above for the narrower per-item gate this isn't.
+  const ready = loaded && !entitiesLoading && !indexLoading && items.length > 0;
 
   // S4: fire completion telemetry only on an in-session *transition* — this
   // chapter visit's checklist had ≥1 undone item at some point and now has
   // none — latched via `discoveryStore.checklistCompletedTracked` (cleared
   // by `resetForChapter`, which also re-arms this on a primary-translation
   // switch). `hadUndoneRef` tracks that "seen undone" state for the current
-  // {book, chapter, translationId} only, reset whenever that key changes —
-  // so revisiting an already-complete chapter (first evaluation is already
+  // {book, chapter, translationId, activeStudyId} only, reset (in the
+  // render-time `contextKey` sync above) whenever that identity changes — so
+  // revisiting an already-complete chapter (first evaluation is already
   // all-done) never fires, and completing the checklist while the panel
   // (and this hook) is unmounted is an accepted undercount: nothing here
   // runs to notice until the panel — and this hook — mounts again, at which
   // point the first evaluation is already complete and, again, doesn't
   // fire. See plan "Deliberate deltas" / Risks.
-  const trackingKeyRef = useRef<string | null>(null);
-  const hadUndoneRef = useRef(false);
-
   useEffect(() => {
-    // Same identity as `contextKey` (including the active study — switching
-    // studies re-arms tracking like any other identity change).
-    if (trackingKeyRef.current !== contextKey) {
-      trackingKeyRef.current = contextKey;
-      hadUndoneRef.current = false;
-    }
-    // Wait for the full ready state — see `LookAgainResult.ready` for why the
-    // pre-load placeholder state must never count as "seen undone".
-    if (!context || items.length === 0 || !ready) return;
+    // Wait for `ready` — see `LookAgainResult.ready` for why the pre-load
+    // placeholder state must never count as "seen undone". `ready` already
+    // implies `items.length > 0`, so no separate empty-items guard is needed.
+    if (!context || !ready) return;
 
     const allDone = items.every(i => i.done);
     if (!allDone) {
@@ -393,7 +429,7 @@ export function useLookAgain(context: DiscoveryContext | null): LookAgainResult 
       track('discovery_checklist_completed');
       setChecklistCompletedTracked(true);
     }
-  }, [context, contextKey, items, ready, checklistCompletedTracked, setChecklistCompletedTracked]);
+  }, [context, items, ready, checklistCompletedTracked, setChecklistCompletedTracked]);
 
   return { items, ready };
 }

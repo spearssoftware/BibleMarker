@@ -106,8 +106,10 @@ describe('answer-free guard', () => {
   })
 
   it('no chapter override asserts an interpretation', () => {
-    for (const [key, question] of Object.entries(CHAPTER_QUESTION_OVERRIDES)) {
-      assertAnswerFree(question, `override[${key}]`)
+    for (const [bookId, byChapter] of Object.entries(CHAPTER_QUESTION_OVERRIDES)) {
+      for (const [chapter, question] of Object.entries(byChapter)) {
+        assertAnswerFree(question, `override[${bookId}.${chapter}]`)
+      }
     }
   })
 
@@ -178,20 +180,17 @@ describe('genreFor / orientationFor', () => {
 describe('CHAPTER_QUESTION_OVERRIDES - key validity', () => {
   const booksById = new Map(BIBLE_BOOKS.map(b => [b.id, b]))
 
-  it('every override key parses to a real book id and an in-range chapter', () => {
-    for (const key of Object.keys(CHAPTER_QUESTION_OVERRIDES)) {
-      const dot = key.lastIndexOf('.')
-      expect(dot, `override key "${key}" is not of the form 'Book.Chapter'`).toBeGreaterThan(0)
-
-      const bookId = key.slice(0, dot)
-      const chapter = Number(key.slice(dot + 1))
+  it('every book key exists in BIBLE_BOOKS, and every chapter number is in that book\'s range', () => {
+    for (const [bookId, byChapter] of Object.entries(CHAPTER_QUESTION_OVERRIDES)) {
       const book = booksById.get(bookId)
+      expect(book, `override references unknown book id "${bookId}"`).toBeDefined()
 
-      expect(book, `override key "${key}" references unknown book id "${bookId}"`).toBeDefined()
-      expect(Number.isInteger(chapter), `override key "${key}" has a non-integer chapter`).toBe(true)
-      expect(chapter, `override key "${key}" chapter is below 1`).toBeGreaterThanOrEqual(1)
-      if (book) {
-        expect(chapter, `override key "${key}" chapter exceeds ${bookId}'s ${book.chapters} chapters`).toBeLessThanOrEqual(book.chapters)
+      for (const chapterKey of Object.keys(byChapter)) {
+        const chapter = Number(chapterKey)
+        expect(chapter, `override "${bookId}.${chapterKey}" chapter is below 1`).toBeGreaterThanOrEqual(1)
+        if (book) {
+          expect(chapter, `override "${bookId}.${chapterKey}" chapter exceeds ${bookId}'s ${book.chapters} chapters`).toBeLessThanOrEqual(book.chapters)
+        }
       }
     }
   })
@@ -216,7 +215,7 @@ describe('questionFor - determinism and range', () => {
       const questions = GENRE_QUESTIONS[genre]
       for (let chapter = 1; chapter <= book.chapters; chapter++) {
         const question = questionFor(book.id, chapter)
-        const override = CHAPTER_QUESTION_OVERRIDES[`${book.id}.${chapter}`]
+        const override = CHAPTER_QUESTION_OVERRIDES[book.id]?.[chapter]
         if (override) {
           expect(question).toBe(override)
         } else {
@@ -230,27 +229,16 @@ describe('questionFor - determinism and range', () => {
     expect(questionFor('NotABook', 1)).toBeUndefined()
   })
 
-  it('gives Genesis 5 (a genealogy chapter) its dedicated genealogy override question', () => {
-    expect(questionFor('Gen', 5)).toBe(CHAPTER_QUESTION_OVERRIDES['Gen.5'])
-    expect(questionFor('Gen', 5)).not.toContain('Someone wants something')
-  })
-
-  it('gives 1 Chronicles 1 (genealogy) its dedicated genealogy override question', () => {
-    expect(questionFor('1Chr', 1)).toBe(CHAPTER_QUESTION_OVERRIDES['1Chr.1'])
-  })
-
-  it('gives Matthew 1 (genealogy, no dialogue) its dedicated genealogy override question', () => {
-    expect(questionFor('Matt', 1)).toBe(CHAPTER_QUESTION_OVERRIDES['Matt.1'])
-    expect(questionFor('Matt', 1)).not.toContain('Jesus is talking')
-  })
-
-  it('gives Numbers 1 (census) its dedicated genealogy override question', () => {
-    expect(questionFor('Num', 1)).toBe(CHAPTER_QUESTION_OVERRIDES['Num.1'])
-  })
-
-  it('gives Deuteronomy 34 (Moses\'s death, narrative) its dedicated override question', () => {
-    expect(questionFor('Deut', 34)).toBe(CHAPTER_QUESTION_OVERRIDES['Deut.34'])
-    expect(questionFor('Deut', 34)).not.toContain('Case law')
+  // The exhaustive "every chapter of every book" test above already asserts
+  // these overrides fire and match; what's left to guard here is that each
+  // dedicated override actually avoids the generic genre phrasing it exists
+  // to replace.
+  it.each([
+    ['Gen', 5, 'Someone wants something'],
+    ['Matt', 1, 'Jesus is talking'],
+    ['Deut', 34, 'Case law'],
+  ])('the %s %i override avoids the generic-genre phrasing %j', (bookId, chapter, phrase) => {
+    expect(questionFor(bookId, chapter)).not.toContain(phrase)
   })
 
   it('gives Psalm 1 and Psalm 2 different questions', () => {

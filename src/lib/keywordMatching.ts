@@ -168,17 +168,26 @@ export function findPhraseMatches(text: string, phrase: string, caseSensitive = 
 }
 
 /**
+ * Check if a preset applies to the given book/chapter based on scope
+ * - Global (no scopes): applies everywhere
+ * - Multiple scopes: applies if any scope matches (book and optional chapter)
+ */
+export function presetAppliesToChapter(preset: MarkingPreset, book: string, chapter: number): boolean {
+  if (!preset.scopes || preset.scopes.length === 0) return true;
+  return preset.scopes.some(scope => {
+    if (scope.book !== book) return false;
+    if (scope.chapter !== undefined) return scope.chapter === chapter;
+    return true;
+  });
+}
+
+/**
  * Check if a preset applies to the given verse based on scope
  * - Global (no scopes): applies everywhere
  * - Multiple scopes: applies if any scope matches (book and optional chapter)
  */
 function presetAppliesToVerse(preset: MarkingPreset, verseRef: VerseRef): boolean {
-  if (!preset.scopes || preset.scopes.length === 0) return true;
-  return preset.scopes.some(scope => {
-    if (scope.book !== verseRef.book) return false;
-    if (scope.chapter !== undefined) return scope.chapter === verseRef.chapter;
-    return true;
-  });
+  return presetAppliesToChapter(preset, verseRef.book, verseRef.chapter);
 }
 
 /**

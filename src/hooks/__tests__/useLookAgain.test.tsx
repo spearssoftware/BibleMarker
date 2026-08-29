@@ -37,7 +37,6 @@ let mockIndex: ChapterEntityVerseIndex | null = null;
 let mockEntities: ChapterEntities | null = null;
 vi.mock('@/hooks/useGnosis', () => ({
   useChapterEntityVerseIndex: () => ({ index: mockIndex, isLoading: false, error: null }),
-  useChapterEntities: () => ({ entities: mockEntities, isLoading: false, error: null }),
 }));
 
 const trackMock = vi.fn();
@@ -45,10 +44,14 @@ vi.mock('@/lib/telemetry', () => ({
   track: (...args: unknown[]) => trackMock(...args),
 }));
 
+// entities/entitiesLoading/entitiesError are now caller-supplied params (mirroring
+// DiscoveryPanel's own useChapterEntities call) rather than fetched internally by
+// the hook, so `mockEntities` is threaded through as the `entities` argument here.
 function renderLookAgain(context = makeDiscoveryContext()) {
-  return renderHook((ctx: ReturnType<typeof makeDiscoveryContext> | null) => useLookAgain(ctx), {
-    initialProps: context,
-  });
+  return renderHook(
+    (ctx: ReturnType<typeof makeDiscoveryContext> | null) => useLookAgain(ctx, mockEntities, false, null),
+    { initialProps: context }
+  );
 }
 
 describe('useLookAgain', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stripSymbols, pluralize } from './textUtils';
+import { stripSymbols, pluralize, agree } from './textUtils';
 
 describe('stripSymbols', () => {
   it('returns empty string for empty input', () => {
@@ -42,5 +42,12 @@ describe('pluralize', () => {
 
   it('defaults the plural form to singular + "s" when omitted', () => {
     expect(pluralize(3, 'hinge')).toBe('3 hinges');
+  });
+});
+
+describe('agree', () => {
+  it('uses the singular verb form for a count of 1, and the plural form otherwise', () => {
+    expect(agree(1, 'is', 'are')).toBe('is');
+    expect(agree(2, 'is', 'are')).toBe('are');
   });
 });

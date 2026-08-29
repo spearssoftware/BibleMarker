@@ -34,3 +34,8 @@ export function stripSymbols(text: string): string {
 export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : plural}`;
 }
+
+/** Pick the singular/plural verb form for a count, e.g. `agree(1, 'is', 'are')` -> "is". */
+export function agree(count: number, singular: string, plural = `${singular}s`): string {
+  return count === 1 ? singular : plural;
+}
