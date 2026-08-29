@@ -1,5 +1,6 @@
 import type {
   ChapterEntities,
+  ChapterEntityVerseIndex,
   GnosisCrossReference,
   GnosisDictionaryEntry,
   GnosisEvent,
@@ -25,6 +26,13 @@ export interface GnosisDataProvider {
   getBookChapterYears(book: string): Promise<Map<number, { year: number; yearDisplay: string }>>;
   getChapterEntities(book: string, chapter: number): Promise<ChapterEntities>;
   getChapterYear(book: string, chapter: number): Promise<{ year: number; yearDisplay: string } | null>;
+  /**
+   * Which verses in a chapter name at least one person / place. Optional: only
+   * the local SQLite provider implements it — the API client has no chapter-level
+   * per-verse route, and N x `getVerseEntities` over HTTP is not an honest
+   * fallback. Callers must treat a missing method as "no per-verse data".
+   */
+  getChapterEntityVerseIndex?(book: string, chapter: number): Promise<ChapterEntityVerseIndex>;
 
   // People
   searchPeople(query: string, opts?: PaginationOpts & { gender?: string }): Promise<PaginatedResponse<GnosisPerson>>;

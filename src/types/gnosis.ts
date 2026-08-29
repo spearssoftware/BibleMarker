@@ -127,6 +127,16 @@ export interface ChapterEntities {
   topics: string[];
 }
 
+/** Per-verse membership: which verses in a chapter name at least one person / place. */
+export interface ChapterEntityVerseIndex {
+  book: string;
+  chapter: number;
+  /** Sorted, distinct verse numbers naming at least one person. */
+  peopleVerses: number[];
+  /** Sorted, distinct verse numbers naming at least one place. */
+  placesVerses: number[];
+}
+
 export interface GnosisCrossReference {
   fromVerse: string;
   toVerseStart: string;

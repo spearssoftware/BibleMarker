@@ -11,6 +11,7 @@ import { appDataDir, join } from '@tauri-apps/api/path';
 import type { GnosisDataProvider } from './provider';
 import type {
   ChapterEntities,
+  ChapterEntityVerseIndex,
   GnosisCrossReference,
   GnosisDictionaryEntry,
   GnosisDictionaryDefinition,
@@ -263,6 +264,32 @@ export class GnosisLocalDb implements GnosisDataProvider {
     }
 
     return { book, chapter, people, places, events, topics };
+  }
+
+  /**
+   * Which verses in the chapter name at least one person / place. Same JOIN
+   * shape as `getChapterEntities` but selecting `v.osis_ref` (person + place
+   * branches only — the checklist has no use for events/topics here) so the
+   * verse number can be parsed out instead of discarded.
+   */
+  async getChapterEntityVerseIndex(book: string, chapter: number): Promise<ChapterEntityVerseIndex> {
+    const db = await this.db();
+    const prefix = `${book}.${chapter}.%`;
+
+    const rows: any[] = await db.select(
+      `SELECT 'person' as kind, v.osis_ref FROM person p
+         JOIN person_verse pv ON p.id = pv.person_id
+         JOIN verse v ON pv.verse_id = v.id
+       WHERE v.osis_ref LIKE ?1
+       UNION
+       SELECT 'place', v.osis_ref FROM place pl
+         JOIN place_verse plv ON pl.id = plv.place_id
+         JOIN verse v ON plv.verse_id = v.id
+       WHERE v.osis_ref LIKE ?1`,
+      [prefix]
+    );
+
+    return mapChapterEntityVerseIndexRows(book, chapter, rows);
   }
 
   // --- People ---
@@ -842,6 +869,37 @@ function mapLocalPersonSummary(r: any): GnosisPerson {
     nameMeaning: r.name_meaning ?? null,
     peopleGroups: [],
     datesConfidence: r.dates_confidence ?? null,
+  };
+}
+
+/**
+ * Maps `getChapterEntityVerseIndex`'s raw `{kind, osis_ref}` rows into sorted,
+ * distinct verse-number lists. `osis_ref` is `Book.Chapter.Verse` (OSIS ids
+ * never contain a dot), so the verse number is the last '.'-separated segment
+ * — same idiom as `getBookChapterYears`'s chapter parse. Exported so the
+ * mapping can be unit-tested without a mocked SQLite connection.
+ */
+export function mapChapterEntityVerseIndexRows(
+  book: string,
+  chapter: number,
+  rows: { kind: string; osis_ref: string }[]
+): ChapterEntityVerseIndex {
+  const peopleVerses = new Set<number>();
+  const placesVerses = new Set<number>();
+  const buckets: Record<string, Set<number>> = { person: peopleVerses, place: placesVerses };
+
+  for (const r of rows) {
+    const segments = r.osis_ref.split('.');
+    const verse = parseInt(segments[segments.length - 1], 10);
+    if (isNaN(verse)) continue;
+    buckets[r.kind]?.add(verse);
+  }
+
+  return {
+    book,
+    chapter,
+    peopleVerses: Array.from(peopleVerses).sort((a, b) => a - b),
+    placesVerses: Array.from(placesVerses).sort((a, b) => a - b),
   };
 }
 

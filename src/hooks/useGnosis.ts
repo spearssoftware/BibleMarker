@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getGnosisProvider, isGnosisAvailable, getGnosisMode, initGnosis } from '@/lib/gnosis';
 import type { GnosisDataProvider } from '@/lib/gnosis';
 import { LRUCache, CACHE_TTL } from '@/lib/gnosis/cache';
-import type { ChapterEntities, PaginatedResponse, PaginationOpts } from '@/types';
+import type { ChapterEntities, ChapterEntityVerseIndex, PaginatedResponse, PaginationOpts } from '@/types';
 
 /** Get or lazily initialize the gnosis provider */
 async function ensureProvider(): Promise<GnosisDataProvider> {
@@ -91,6 +91,79 @@ export function useChapterEntities(
 
   if (!enabled) return { entities: null, isLoading: false, error: null };
   return { entities, isLoading, error };
+}
+
+/** Repeat mounts for the same chapter shouldn't re-query SQLite. */
+const chapterEntityVerseIndexCache = new LRUCache();
+
+/**
+ * Per-verse person/place membership for a chapter. Mirrors `useChapterEntities`
+ * exactly (own LRU, same render-time cache-key sync, same isLoading semantics),
+ * plus a capability check: the API-backed provider has no chapter-level
+ * per-verse route, so a provider lacking `getChapterEntityVerseIndex` resolves
+ * to `index: null` without ever issuing a query.
+ */
+export function useChapterEntityVerseIndex(
+  book: string | undefined,
+  chapter: number | undefined,
+  enabled = true
+): {
+  index: ChapterEntityVerseIndex | null;
+  isLoading: boolean;
+  error: string | null;
+} {
+  const cacheKey = enabled && book && chapter !== undefined ? `${book}.${chapter}` : undefined;
+  const [index, setIndex] = useState<ChapterEntityVerseIndex | null>(
+    () => (cacheKey ? chapterEntityVerseIndexCache.get<ChapterEntityVerseIndex>(cacheKey) ?? null : null)
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Same render-time cache-key sync as useChapterEntities (see the comment
+  // there): serves a cache hit synchronously and resets isLoading too, so an
+  // in-flight previous-key fetch's cancelled `finally` can't leave it stuck true.
+  const [prevCacheKey, setPrevCacheKey] = useState(cacheKey);
+  if (cacheKey !== prevCacheKey) {
+    setPrevCacheKey(cacheKey);
+    setIndex(cacheKey ? chapterEntityVerseIndexCache.get<ChapterEntityVerseIndex>(cacheKey) ?? null : null);
+    setError(null);
+    setIsLoading(false);
+  }
+
+  useEffect(() => {
+    if (!enabled || !book || chapter === undefined) return;
+    const key = `${book}.${chapter}`;
+    if (chapterEntityVerseIndexCache.get<ChapterEntityVerseIndex>(key) !== undefined) return; // already served synchronously above
+
+    let cancelled = false;
+
+    (async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const provider = await ensureProvider();
+        if (!provider.getChapterEntityVerseIndex) {
+          if (!cancelled) setIndex(null);
+          return;
+        }
+        const result = await provider.getChapterEntityVerseIndex(book, chapter);
+        if (!cancelled) {
+          setIndex(result);
+          chapterEntityVerseIndexCache.set(key, result, CACHE_TTL.chapter);
+        }
+      } catch (e) {
+        console.error('[Gnosis] Chapter entity verse index error:', e);
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [book, chapter, enabled]);
+
+  if (!enabled) return { index: null, isLoading: false, error: null };
+  return { index, isLoading, error };
 }
 
 export function useGnosisEntity<T>(

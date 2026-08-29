@@ -138,6 +138,15 @@ describe('handleEvents — validation', () => {
     expect(res.status).toBe(400);
   });
 
+  it('accepts the discovery_checklist_completed event name', async () => {
+    const { env } = envWith();
+    const res = await handleEvents(
+      req({ ...VALID_BODY, events: [{ name: 'discovery_checklist_completed' }] }),
+      env
+    );
+    expect(res.status).toBe(202);
+  });
+
   it('rejects an event name outside the allowlist', async () => {
     const { env } = envWith();
     const res = await handleEvents(

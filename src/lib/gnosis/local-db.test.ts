@@ -86,6 +86,44 @@ beforeEach(() => {
   state.deleteRepairs = true;
 });
 
+describe('mapChapterEntityVerseIndexRows', () => {
+  it('parses the verse number from the last osis_ref segment, per kind', async () => {
+    const { mapChapterEntityVerseIndexRows } = await import('./local-db');
+    const result = mapChapterEntityVerseIndexRows('Rom', 1, [
+      { kind: 'person', osis_ref: 'Rom.1.1' },
+      { kind: 'place', osis_ref: 'Rom.1.7' },
+      { kind: 'person', osis_ref: 'Rom.1.13' },
+    ]);
+    expect(result).toEqual({
+      book: 'Rom',
+      chapter: 1,
+      peopleVerses: [1, 13],
+      placesVerses: [7],
+    });
+  });
+
+  it('dedupes repeated verses and sorts ascending regardless of row order', async () => {
+    const { mapChapterEntityVerseIndexRows } = await import('./local-db');
+    const result = mapChapterEntityVerseIndexRows('Gen', 5, [
+      { kind: 'person', osis_ref: 'Gen.5.20' },
+      { kind: 'person', osis_ref: 'Gen.5.3' },
+      { kind: 'person', osis_ref: 'Gen.5.3' },
+      { kind: 'person', osis_ref: 'Gen.5.10' },
+    ]);
+    expect(result.peopleVerses).toEqual([3, 10, 20]);
+    expect(result.placesVerses).toEqual([]);
+  });
+
+  it('ignores rows for kinds it does not track and unparsable refs', async () => {
+    const { mapChapterEntityVerseIndexRows } = await import('./local-db');
+    const result = mapChapterEntityVerseIndexRows('Gen', 1, [
+      { kind: 'event', osis_ref: 'Gen.1.1' },
+      { kind: 'person', osis_ref: 'Gen.1.NOPE' },
+    ]);
+    expect(result).toEqual({ book: 'Gen', chapter: 1, peopleVerses: [], placesVerses: [] });
+  });
+});
+
 describe('gnosis local DB self-heal', () => {
   it('installs once and does not delete anything when the DB is readable', async () => {
     const db = await freshDb();
