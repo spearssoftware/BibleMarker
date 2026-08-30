@@ -95,6 +95,10 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
     await saveChapterTitle(updated);
     setSummary(prev => prev ? { ...prev, title: updated } : prev);
     setEditingTitle(false);
+    // Other chapter-title readers (e.g. the Look-Again checklist) query the DB
+    // directly rather than this component's local state, and only re-run on
+    // this event — without it, a title saved here wouldn't check off live.
+    window.dispatchEvent(new CustomEvent('annotationsUpdated'));
   };
 
   const saveTheme = async (newTheme: string) => {
@@ -104,6 +108,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
     await saveChapterTitle(updated);
     setSummary(prev => prev ? { ...prev, title: updated, theme: newTheme || null } : prev);
     setEditingTheme(false);
+    window.dispatchEvent(new CustomEvent('annotationsUpdated'));
   };
   
   const bookInfo = useMemo(() => getBookById(currentBook), [currentBook]);

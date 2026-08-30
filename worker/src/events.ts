@@ -27,6 +27,7 @@ const EVENT_NAMES = new Set([
   'discovery_chip_tapped',
   'discovery_find_confirmed',
   'lens_toggled',
+  'discovery_checklist_completed',
 ]);
 
 /** Mirrored from `src/lib/platform.ts` platform tags. */

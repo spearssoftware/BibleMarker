@@ -70,7 +70,7 @@ describe('readCachedFlags', () => {
 
 describe('readCachedConfig', () => {
   it('returns normalized config from the cache', async () => {
-    const valid = { repetitionMinCount: 7, repetitionMinWordLength: 3, connectorChipMinCount: 2 };
+    const valid = { repetitionMinCount: 7, repetitionMinWordLength: 3, connectorChipMinCount: 2, headingMinVerses: 8 };
     mockGetSyncConfig.mockResolvedValue(cached({}, { [CONFIG_KEYS.discoveryThresholds]: valid }));
     expect(await readCachedConfig()).toEqual({ discoveryThresholds: valid });
   });
@@ -101,7 +101,7 @@ describe('normalizeConfig', () => {
   });
 
   it('keeps valid in-range integers as-is', () => {
-    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 6, connectorChipMinCount: 2 };
+    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 6, connectorChipMinCount: 2, headingMinVerses: 8 };
     expect(normalizeConfig({ [CONFIG_KEYS.discoveryThresholds]: valid })).toEqual({ discoveryThresholds: valid });
   });
 
@@ -151,7 +151,7 @@ describe('fetchRemoteFlags', () => {
   });
 
   it('returns the worker-supplied config when present', async () => {
-    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 6, connectorChipMinCount: 2 };
+    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 6, connectorChipMinCount: 2, headingMinVerses: 8 };
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { findConnectors, groupConnectorsByVerse, promptFor } from '../connectors'
+import { findConnectors, groupConnectorsByVerse, promptFor, shouldShowHinges } from '../connectors'
 import type { AnalysisVerse } from '../types'
+import { DEFAULT_DISCOVERY_THRESHOLDS } from '../types'
 
 function verse(book: string, chapter: number, num: number, text: string): AnalysisVerse {
   return { ref: { book, chapter, verse: num }, text }
@@ -122,5 +123,13 @@ describe('promptFor', () => {
     for (const { category, phrase, expected } of categories) {
       expect(promptFor({ phrase, category, verse: 1, start: 0, end: phrase.length })).toBe(expected)
     }
+  })
+})
+
+describe('shouldShowHinges', () => {
+  it('is false at a zero threshold with no connectors, true once the count meets the threshold', () => {
+    expect(shouldShowHinges(0, { ...DEFAULT_DISCOVERY_THRESHOLDS, connectorChipMinCount: 0 })).toBe(false)
+    expect(shouldShowHinges(1, { ...DEFAULT_DISCOVERY_THRESHOLDS, connectorChipMinCount: 2 })).toBe(false)
+    expect(shouldShowHinges(2, { ...DEFAULT_DISCOVERY_THRESHOLDS, connectorChipMinCount: 2 })).toBe(true)
   })
 })

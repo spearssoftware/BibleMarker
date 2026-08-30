@@ -18,9 +18,10 @@ export type TelemetryEvent =
   | 'discovery_chip_shown'
   | 'discovery_chip_tapped'
   | 'discovery_find_confirmed'
-  | 'lens_toggled';
+  | 'lens_toggled'
+  | 'discovery_checklist_completed';
 
-export type TelemetryFeature = 'repetition' | 'connector' | 'entity';
+export type TelemetryFeature = 'repetition' | 'connector' | 'entity' | 'upsell';
 
 export interface TelemetryProps {
   feature?: TelemetryFeature;

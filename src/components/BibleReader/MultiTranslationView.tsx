@@ -498,6 +498,21 @@ export function MultiTranslationView() {
     };
   }, [activeView, currentBook, currentChapter, activeStudyId, loadAnnotations, loadSectionHeadings, loadChapterTitle, loadNotes]);
 
+  // Open the chapter title creator, fired by the Look-Again checklist's
+  // undone "title" item. Same window-event pattern as `openObservationTools`
+  // (listened for in Toolbar). The creator renders above the verse scroller,
+  // so it is visible regardless of scroll position — resetting scrollTop is
+  // just belt-and-braces so the reader also lands at the chapter's start.
+  useEffect(() => {
+    const handleOpenChapterTitleCreator = () => {
+      setCreatingChapterTitle(true);
+      const el = verseContainerRef.current;
+      if (el) el.scrollTop = 0;
+    };
+    window.addEventListener('openChapterTitleCreator', handleOpenChapterTitleCreator);
+    return () => window.removeEventListener('openChapterTitleCreator', handleOpenChapterTitleCreator);
+  }, []);
+
   // When modules are installed/removed or API configs change, reload translations list
   // and retry any failed chapters
   useEffect(() => {

@@ -57,10 +57,13 @@ export interface DiscoveryThresholds {
   repetitionMinCount: number;
   repetitionMinWordLength: number;
   connectorChipMinCount: number;
+  /** Minimum verse count for a chapter to earn the Look-Again heading challenge. */
+  headingMinVerses: number;
 }
 
 export const DEFAULT_DISCOVERY_THRESHOLDS: DiscoveryThresholds = {
   repetitionMinCount: 5,
   repetitionMinWordLength: 3,
   connectorChipMinCount: 1,
+  headingMinVerses: 10,
 };
