@@ -280,6 +280,13 @@ export const CHAPTER_QUESTION_OVERRIDES: Record<string /* OSIS book id */, Recor
  *   reserved for Revelation, the one book readers actually associate with
  *   it). Same rationale as the Genesis-in-"the law" call above: this map
  *   optimizes for where a reader would look, not for literary form.
+ *
+ * The NT entries (Matthew through Revelation) are currently unreachable as
+ * an Echo Hints *target* — `local-db.ts`'s `isOlderTarget` never lets an NT
+ * book win the "older" comparison, so `EchoesCard` never looks one up here.
+ * They're kept anyway so this map stays total over every book, matching
+ * `BOOK_GENRE`, rather than silently depending on the older-target rule's
+ * current shape.
  */
 export const ECHO_SECTION_LABEL: Record<string /* OSIS book id */, string> = {
   // The law (Torah/Pentateuch) — see file header re: Genesis vs. BOOK_GENRE.

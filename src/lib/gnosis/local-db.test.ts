@@ -64,7 +64,17 @@ vi.mock('@tauri-apps/plugin-sql', () => {
       if (sql.includes('gnosis_meta')) return [];
       if (sql.includes('chapter_timeline')) return [{ year: -4, year_display: '4 BC' }];
       if (sql.includes('person_verse')) return state.entityVerseRows;
-      if (sql.includes('cross_reference')) return state.echoRows;
+      if (sql.includes('cross_reference')) {
+        // Actually filter by the params the caller passed, rather than
+        // handing back state.echoRows unconditionally — otherwise a caller
+        // regression that sends the wrong prefix/minVotes would still pass
+        // the `params` assertion in the getChapterEchoIndex test below,
+        // since that assertion would be checking a value nothing downstream
+        // depends on.
+        const prefix = typeof params?.[0] === 'string' ? params[0].replace(/%$/, '') : '';
+        const minVotes = typeof params?.[1] === 'number' ? params[1] : -Infinity;
+        return state.echoRows.filter((r) => r.from_ref.startsWith(prefix) && r.votes >= minVotes);
+      }
       return [];
     }),
     close: vi.fn(async () => {
@@ -226,6 +236,15 @@ describe('mapChapterEchoIndexRows — dedupe, sort, ranges', () => {
     expect(result.echoes).toEqual([{ verse: 5, targetRef: 'Ps.2.7', targetEndRef: null, votes: 40 }]);
   });
 
+  it('keeps the highest-voted echo even when the lower-voted row for the same verse arrives first (votes-ascending order)', async () => {
+    const { mapChapterEchoIndexRows } = await import('./local-db');
+    const result = mapChapterEchoIndexRows('Heb', 1, [
+      { from_ref: 'Heb.1.5', to_start: 'Ps.89.27', to_end: null, votes: 15 },
+      { from_ref: 'Heb.1.5', to_start: 'Ps.2.7', to_end: null, votes: 40 },
+    ]);
+    expect(result.echoes).toEqual([{ verse: 5, targetRef: 'Ps.2.7', targetEndRef: null, votes: 40 }]);
+  });
+
   it('sorts echoes by verse ascending regardless of row order', async () => {
     const { mapChapterEchoIndexRows } = await import('./local-db');
     const result = mapChapterEchoIndexRows('Heb', 1, [
@@ -255,6 +274,16 @@ describe('getChapterEchoIndex', () => {
       echoes: [{ verse: 1, targetRef: 'Gen.1.1', targetEndRef: null, votes: 276 }],
     });
 
+    // These SQL-shape assertions guard the perf-critical query form documented
+    // on getChapterEchoIndex (the `IN (SELECT ...)` form hits the
+    // from_verse_id index; a LIKE join across the row would force a full
+    // table scan of the 345k-row cross_reference table) — that's the whole
+    // point of this test, so keep asserting on the SQL text even though it's
+    // more brittle than asserting on behavior alone. The `params` assertion
+    // means something here because the mock's cross_reference branch above
+    // actually filters state.echoRows by the params it receives, so a wrong
+    // prefix/minVotes would also fail the `resolves.toEqual` above, not just
+    // this line.
     const call = state.selectCalls.find((c) => c.sql.includes('cross_reference'));
     expect(call).toBeDefined();
     expect(call!.sql).toContain('cr.from_verse_id IN (SELECT id FROM verse WHERE osis_ref LIKE ?1)');

@@ -118,11 +118,27 @@ describe('EchoesCard', () => {
   });
 
   it('fires discovery_chip_shown once with the echo feature and dedupe key', () => {
-    renderCard([makeChapterEcho({ verse: 1 })], { book: 'Heb', chapter: 1, translationId: 'sword-NASB' });
+    const { rerender } = renderCard([makeChapterEcho({ verse: 1 })], {
+      book: 'Heb',
+      chapter: 1,
+      translationId: 'sword-NASB',
+    });
     expect(trackMock).toHaveBeenCalledWith('discovery_chip_shown', {
       feature: 'echo',
       dedupeKey: 'echo:Heb:1:sword-NASB',
     });
+    expect(trackMock).toHaveBeenCalledTimes(1);
+
+    // A rerender with the same chapter identity must not re-fire the shown event.
+    rerender(
+      <EchoesCard
+        echoes={[makeChapterEcho({ verse: 1 })]}
+        book="Heb"
+        chapter={1}
+        translationId="sword-NASB"
+      />
+    );
+    expect(trackMock).toHaveBeenCalledTimes(1);
   });
 
   it('fires discovery_chip_tapped once per echo, only on the first reveal', () => {
@@ -135,6 +151,60 @@ describe('EchoesCard', () => {
 
     fireEvent.click(screen.getByText('Show me'));
     expect(trackMock).toHaveBeenCalledTimes(1); // no second tap event for the same echo
+  });
+
+  it('keeps the reveal button focusable across the unrevealed → category transition (same DOM node, not a remount)', () => {
+    renderCard([makeChapterEcho({ verse: 1, targetRef: 'Gen.1.1' })]);
+    const button = screen.getByText('Where does v.1 come from?');
+    button.focus();
+    expect(document.activeElement).toBe(button);
+
+    fireEvent.click(button);
+    // Same element updated in place — its label changed, but focus never left it.
+    expect(document.activeElement).toBe(button);
+    expect(button.textContent).toBe('Show me');
+  });
+
+  it('gives each row a distinguishing accessible name once revealed, even when the category line is identical across rows', () => {
+    renderCard([
+      makeChapterEcho({ verse: 1, targetRef: 'Ps.2.7', votes: 100 }),
+      makeChapterEcho({ verse: 5, targetRef: 'Ps.45.6', votes: 90 }),
+      makeChapterEcho({ verse: 14, targetRef: 'Ps.89.27', votes: 80 }),
+    ]);
+
+    fireEvent.click(screen.getByText('Where does v.1 come from?'));
+    fireEvent.click(screen.getByText('Where does v.5 come from?'));
+
+    // Both rows now show a "Show me" button — the bare text is ambiguous,
+    // so the row for v.5 must be reachable by its distinguishing name.
+    expect(screen.getAllByText('Show me')).toHaveLength(2);
+    const showMeForFive = screen.getByRole('button', { name: 'Show me where v.5 comes from' });
+
+    fireEvent.click(showMeForFive);
+    expect(screen.getByText('Psalms 45:6')).toBeTruthy();
+    // The other row's ladder is untouched.
+    expect(screen.getByText('Show me')).toBeTruthy();
+  });
+
+  it('skips the category rung when the target book has no section label, going straight to the reference in one tap', () => {
+    renderCard([makeChapterEcho({ verse: 3, targetRef: 'Xyz.1.1' })]);
+
+    fireEvent.click(screen.getByText('Where does v.3 come from?'));
+
+    expect(screen.queryByText(/^It's in/)).toBeNull();
+    expect(screen.queryByText('Show me')).toBeNull();
+    expect(screen.getByText('Xyz 1:1')).toBeTruthy();
+  });
+
+  it('renders a target with no verse number as plain text instead of a jump button', () => {
+    renderCard([makeChapterEcho({ verse: 7, targetRef: 'Gen.5' })]);
+
+    fireEvent.click(screen.getByText('Where does v.7 come from?'));
+    fireEvent.click(screen.getByText('Show me'));
+
+    const text = screen.getByText('Gen.5');
+    expect(text.tagName).not.toBe('BUTTON');
+    expect(screen.queryByRole('button', { name: 'Gen.5' })).toBeNull();
   });
 });
 
@@ -153,5 +223,9 @@ describe('formatEchoTarget', () => {
 
   it('falls back to the start ref for a cross-book range', () => {
     expect(formatEchoTarget('Mal.4.5', 'Matt.11.14')).toBe('Malachi 4:5');
+  });
+
+  it('renders the plain start label when targetEndRef equals targetRef', () => {
+    expect(formatEchoTarget('Ps.45.6', 'Ps.45.6')).toBe('Psalms 45:6');
   });
 });
