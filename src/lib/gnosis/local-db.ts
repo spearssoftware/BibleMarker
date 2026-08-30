@@ -9,7 +9,7 @@ import Database from '@tauri-apps/plugin-sql';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import type { GnosisDataProvider } from './provider';
-import { isOlderTarget } from '@/lib/chapterAnalysis';
+import { isOlderTarget } from '@/lib/chapterAnalysis/echoes';
 import type {
   ChapterEcho,
   ChapterEchoIndex,

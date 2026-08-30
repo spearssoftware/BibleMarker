@@ -207,6 +207,20 @@ describe('mapChapterEchoIndexRows — dedupe, sort, ranges', () => {
     expect(result.echoes.map((e) => e.verse)).toEqual([5, 8]);
   });
 
+  it('drops rows whose target is not older, keeping the older ones alongside', async () => {
+    // Wiring guard: every other fixture here is NT->OT, so without this case
+    // deleting the mapper's isOlderTarget filter would leave the suite green.
+    const { mapChapterEchoIndexRows } = await import('./local-db');
+    const result = mapChapterEchoIndexRows('Heb', 1, [
+      { from_ref: 'Heb.1.3', to_start: 'Col.1.15', to_end: null, votes: 63 }, // NT -> NT
+      { from_ref: 'Heb.1.5', to_start: 'Heb.5.5', to_end: null, votes: 50 }, // same book
+      { from_ref: 'Heb.1.7', to_start: 'Ps.104.4', to_end: null, votes: 37 }, // NT -> OT
+    ]);
+    expect(result.echoes).toEqual([
+      { verse: 7, targetRef: 'Ps.104.4', targetEndRef: null, votes: 37 },
+    ]);
+  });
+
   it('preserves targetEndRef for range echoes', async () => {
     const { mapChapterEchoIndexRows } = await import('./local-db');
     const result = mapChapterEchoIndexRows('Heb', 1, [
