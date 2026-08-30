@@ -94,17 +94,24 @@ function normalizeFlags(raw: unknown): RemoteFlags {
   return flags;
 }
 
-function isValidThresholdField(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 1 && value <= 50;
-}
-
 /**
- * `echoMinVotes` is a cross-reference vote count, not a verse/word count — the
- * corpus's votes range into the thousands, so it gets its own wider range
- * rather than reusing `isValidThresholdField`'s 1..50 clamp.
+ * Valid `[min, max]` integer range per threshold field. `echoMinVotes` is a
+ * cross-reference vote count, not a verse/word count — the corpus's votes
+ * range into the thousands, so it gets its own wider range than the rest.
  */
-function isValidVotesField(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 1 && value <= 1000;
+const THRESHOLD_FIELD_RANGE: Record<keyof DiscoveryThresholds, { min: number; max: number }> = {
+  repetitionMinCount: { min: 1, max: 50 },
+  repetitionMinWordLength: { min: 1, max: 50 },
+  connectorChipMinCount: { min: 1, max: 50 },
+  headingMinVerses: { min: 1, max: 50 },
+  echoMinVotes: { min: 1, max: 1000 },
+};
+
+function clampThresholdField(field: keyof DiscoveryThresholds, value: unknown, fallback: number): number {
+  const { min, max } = THRESHOLD_FIELD_RANGE[field];
+  return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= min && value <= max
+    ? value
+    : fallback;
 }
 
 /**
@@ -116,25 +123,11 @@ export function normalizeConfig(raw: unknown): RemoteConfig {
   const obj = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   const thresholdsRaw = obj[CONFIG_KEYS.discoveryThresholds];
   const source = thresholdsRaw && typeof thresholdsRaw === 'object' ? (thresholdsRaw as Record<string, unknown>) : {};
-  return {
-    discoveryThresholds: {
-      repetitionMinCount: isValidThresholdField(source.repetitionMinCount)
-        ? source.repetitionMinCount
-        : DEFAULT_DISCOVERY_THRESHOLDS.repetitionMinCount,
-      repetitionMinWordLength: isValidThresholdField(source.repetitionMinWordLength)
-        ? source.repetitionMinWordLength
-        : DEFAULT_DISCOVERY_THRESHOLDS.repetitionMinWordLength,
-      connectorChipMinCount: isValidThresholdField(source.connectorChipMinCount)
-        ? source.connectorChipMinCount
-        : DEFAULT_DISCOVERY_THRESHOLDS.connectorChipMinCount,
-      headingMinVerses: isValidThresholdField(source.headingMinVerses)
-        ? source.headingMinVerses
-        : DEFAULT_DISCOVERY_THRESHOLDS.headingMinVerses,
-      echoMinVotes: isValidVotesField(source.echoMinVotes)
-        ? source.echoMinVotes
-        : DEFAULT_DISCOVERY_THRESHOLDS.echoMinVotes,
-    },
-  };
+  const discoveryThresholds = {} as DiscoveryThresholds;
+  for (const field of Object.keys(THRESHOLD_FIELD_RANGE) as (keyof DiscoveryThresholds)[]) {
+    discoveryThresholds[field] = clampThresholdField(field, source[field], DEFAULT_DISCOVERY_THRESHOLDS[field]);
+  }
+  return { discoveryThresholds };
 }
 
 /** Read the last cached snapshot, or `null` if absent/corrupt. */

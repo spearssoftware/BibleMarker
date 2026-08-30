@@ -1,35 +1,11 @@
 /**
- * EchoesCard — Echo Hints
- *
- * "{n} verses here echo something older" — a verse in this chapter quotes or
- * alludes to an earlier passage in the canon, and this card asks the reader
- * to guess before it tells. Each row is up to a two-rung ladder: a category
- * hint ("It's in the Psalms.") first, then the reference itself as a jump —
- * never the echoed verse's text inline (that stays `CrossRefsTab`'s job). A
- * row with no section label (unreachable via the local provider today, but
- * the prop type permits it) skips straight to the reference rung, and a
- * target with no verse number renders as plain text instead of a jump.
- * Rung state is per-echo (`discoveryStore.revealedEchoes`), keyed
- * `${book}.${chapter}:${verse}:${targetRef}`, so it survives the panel
- * closing and reopening but resets on chapter change.
- *
- * One stable `Button` carries the row through unrevealed → category — its
- * label and handler branch on the current rung, so revealing the category
- * hint updates the same DOM node instead of unmounting the button the
- * reader just activated (which would otherwise dump focus to `<body>`; see
- * `RepetitionCard`'s single "Need a hint?" button for the same pattern).
- * That button disappears only at the final `reference` rung, where it's
- * replaced by the jump control (or plain text). The `aria-live` region is
- * scoped to just the earned category line + reference, not the buttons —
- * otherwise the ladder button's own churn gets announced.
- *
- * Shows only the 3 highest-voted echoes, sliced here (not in the query) so a
- * future glyph or checklist phase can reuse the full index. Rendered
- * verse-ordered once sliced, so the ladder reads top-to-bottom the way the
- * chapter does.
+ * EchoesCard — Echo Hints. Up to a two-rung reveal ladder per row (category
+ * hint, then the reference as a jump), stored in
+ * `discoveryStore.revealedEchoes` keyed `${book}.${chapter}:${verse}:${targetRef}`
+ * so it survives the panel closing and reopening but resets on chapter change.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Button } from '@/components/shared';
 import { DiscoveryCard } from './DiscoveryCard';
 import { useDiscoveryStore, type EchoRung } from '@/stores/discoveryStore';
@@ -42,38 +18,63 @@ import type { ChapterEcho } from '@/types';
 
 const MAX_ROWS = 3;
 
+/** Where a row currently sits on the reveal ladder; `revealedEchoes[key]` maps 1:1 except for the unrevealed start. */
+type EchoPhase = 'hidden' | EchoRung;
+
 interface EchoesCardProps {
   echoes: ChapterEcho[];
   book: string;
   chapter: number;
-  translationId: string;
+}
+
+interface EchoRow {
+  echo: ChapterEcho;
+  key: string;
+  // No section label means there's nothing to ask the reader to guess —
+  // skip the category rung and go straight to the reference.
+  section: string | undefined;
+  label: string;
+  // Present only when the target has a verse to jump to; otherwise the
+  // reference rung renders as plain text instead of a jump button.
+  jumpTarget: { book: string; chapter: number; verse: number } | undefined;
 }
 
 function echoKey(book: string, chapter: number, echo: ChapterEcho): string {
   return `${book}.${chapter}:${echo.verse}:${echo.targetRef}`;
 }
 
-export function EchoesCard({ echoes, book, chapter, translationId }: EchoesCardProps) {
+export function EchoesCard({ echoes, book, chapter }: EchoesCardProps) {
   const revealedEchoes = useDiscoveryStore(s => s.revealedEchoes);
   const revealEchoRung = useDiscoveryStore(s => s.revealEchoRung);
   const navigateToVerse = useBibleStore(s => s.navigateToVerse);
 
-  const topEchoes = useMemo(
+  // Shows only the 3 highest-voted echoes (a future glyph/checklist phase can
+  // reuse the full index), then re-sorts verse-ordered so the ladder reads
+  // top-to-bottom the way the chapter does. Parsing/labeling happens once
+  // here rather than per row per render.
+  const topEchoes = useMemo<EchoRow[]>(
     () =>
       [...echoes]
         .sort((a, b) => b.votes - a.votes)
         .slice(0, MAX_ROWS)
-        .sort((a, b) => a.verse - b.verse),
-    [echoes]
+        .sort((a, b) => a.verse - b.verse)
+        .map(echo => {
+          const target = parseOsisRef(echo.targetRef);
+          return {
+            echo,
+            key: echoKey(book, chapter, echo),
+            section: target ? echoSectionFor(target.book) : undefined,
+            label: formatEchoTarget(echo.targetRef, echo.targetEndRef),
+            jumpTarget:
+              target && target.verse !== undefined
+                ? { book: target.book, chapter: target.chapter, verse: target.verse }
+                : undefined,
+          };
+        }),
+    [echoes, book, chapter]
   );
 
   const shownCount = topEchoes.length;
-
-  useEffect(() => {
-    if (shownCount === 0) return;
-    track('discovery_chip_shown', { feature: 'echo', dedupeKey: `echo:${book}:${chapter}:${translationId}` });
-  }, [shownCount, book, chapter, translationId]);
-
   if (shownCount === 0) return null;
 
   const title = `${pluralize(shownCount, 'verse')} here ${agree(shownCount, 'echoes', 'echo')} something older`;
@@ -87,45 +88,46 @@ export function EchoesCard({ echoes, book, chapter, translationId }: EchoesCardP
     <DiscoveryCard title={title}>
       <p className="text-sm text-scripture-text">Before you look — where do you think it comes from?</p>
       <div className="space-y-2">
-        {topEchoes.map(echo => {
-          const key = echoKey(book, chapter, echo);
-          const rung = revealedEchoes[key];
-          const target = parseOsisRef(echo.targetRef);
-          const section = target ? echoSectionFor(target.book) : undefined;
-          const targetVerse = target?.verse;
-          // No section label means there's nothing to ask the reader to guess
-          // — skip the category rung and go straight to the reference.
-          const nextRung: EchoRung = section ? 'category' : 'reference';
+        {topEchoes.map(row => {
+          // `revealedEchoes` is typed as always-present per key, but an
+          // unrevealed row's key is genuinely absent at runtime.
+          const phase: EchoPhase = (revealedEchoes[row.key] as EchoRung | undefined) ?? 'hidden';
 
           return (
-            <div key={key} className="space-y-1">
+            <div key={row.key} className="space-y-1">
+              {/* Scoped to the earned category line + reference, not the
+                  buttons below, so the ladder button's own churn isn't announced. */}
               <div aria-live="polite">
-                {rung && section && (
-                  <p className="text-sm text-scripture-muted">{`It's in ${section}.`}</p>
+                {phase !== 'hidden' && row.section && (
+                  <p className="text-sm text-scripture-muted">{`It's in ${row.section}.`}</p>
                 )}
-                {rung === 'reference' &&
-                  (target && targetVerse !== undefined ? (
+                {phase === 'reference' &&
+                  (row.jumpTarget ? (
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => navigateToVerse(target.book, target.chapter, targetVerse, true)}
+                      onClick={() => navigateToVerse(row.jumpTarget!.book, row.jumpTarget!.chapter, row.jumpTarget!.verse, true)}
                     >
-                      {formatEchoTarget(echo.targetRef, echo.targetEndRef)}
+                      {row.label}
                     </Button>
                   ) : (
-                    <p className="text-sm text-scripture-text">
-                      {formatEchoTarget(echo.targetRef, echo.targetEndRef)}
-                    </p>
+                    <p className="text-sm text-scripture-text">{row.label}</p>
                   ))}
               </div>
-              {rung !== 'reference' && (
+              {phase !== 'reference' && (
+                // One stable Button carries the row through hidden → category
+                // — its label/handler branch on `phase` so revealing the
+                // category hint updates this node in place instead of
+                // unmounting the button the reader just activated (which
+                // would dump focus to `<body>`; see RepetitionCard's single
+                // "Need a hint?" button for the same pattern).
                 <Button
                   variant="ghost"
                   size="sm"
-                  aria-label={rung === 'category' ? `Show me where v.${echo.verse} comes from` : undefined}
-                  onClick={() => handleReveal(key, rung === 'category' ? 'reference' : nextRung)}
+                  aria-label={phase === 'category' ? `Show me where v.${row.echo.verse} comes from` : undefined}
+                  onClick={() => handleReveal(row.key, phase === 'category' ? 'reference' : row.section ? 'category' : 'reference')}
                 >
-                  {rung === 'category' ? 'Show me' : `Where does v.${echo.verse} come from?`}
+                  {phase === 'category' ? 'Show me' : `Where does v.${row.echo.verse} come from?`}
                 </Button>
               )}
             </div>

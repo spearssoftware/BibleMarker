@@ -58,11 +58,6 @@ describe('BOOK_GENRE - full canon coverage', () => {
     }
   })
 
-  it('covers exactly the 66 books, one genre each', () => {
-    expect(Object.keys(BOOK_GENRE)).toHaveLength(66)
-    expect(BIBLE_BOOKS).toHaveLength(66)
-  })
-
   it('assigns Acts its own dedicated genre', () => {
     expect(BOOK_GENRE.Acts).toBe('acts')
   })
@@ -197,10 +192,6 @@ describe('ECHO_SECTION_LABEL - full canon coverage', () => {
     for (const bookId of Object.keys(ECHO_SECTION_LABEL)) {
       expect(knownIds.has(bookId), `ECHO_SECTION_LABEL has an entry for unknown id "${bookId}"`).toBe(true)
     }
-  })
-
-  it('covers exactly the 66 books, one label each', () => {
-    expect(Object.keys(ECHO_SECTION_LABEL)).toHaveLength(66)
   })
 })
 

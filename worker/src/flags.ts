@@ -172,29 +172,37 @@ async function getObject<T extends object>(env: Env, key: string, def: T, ctx: F
 }
 
 /**
+ * Valid `[min, max]` integer range per threshold field. `echoMinVotes` is a
+ * cross-reference vote count rather than a verse/word count, so it uses a
+ * separate, wider range than the rest.
+ */
+const THRESHOLD_FIELD_RANGE: Record<keyof DiscoveryThresholds, { min: number; max: number }> = {
+  repetitionMinCount: { min: 1, max: 50 },
+  repetitionMinWordLength: { min: 1, max: 50 },
+  connectorChipMinCount: { min: 1, max: 50 },
+  headingMinVerses: { min: 1, max: 50 },
+  echoMinVotes: { min: 1, max: 1000 },
+};
+
+/**
  * Coerces raw Flagship JSON into safe `DiscoveryThresholds`, field by field.
- * Any field that isn't a finite integer in `[1, 50]` falls back to `defaults`
- * — a malformed dashboard edit degrades to safe values, never a broken chip.
- * `echoMinVotes` is a cross-reference vote count rather than a verse/word
- * count, so it uses a separate, wider `[1, 1000]` range.
+ * Any field outside its `THRESHOLD_FIELD_RANGE` falls back to `defaults` — a
+ * malformed dashboard edit degrades to safe values, never a broken chip.
  */
 export function sanitizeThresholds(raw: unknown, defaults: DiscoveryThresholds): DiscoveryThresholds {
   const source = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
-  const field = (value: unknown, fallback: number): number =>
-    typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 1 && value <= 50
+  const clampField = (field: keyof DiscoveryThresholds): number => {
+    const { min, max } = THRESHOLD_FIELD_RANGE[field];
+    const value = source[field];
+    return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= min && value <= max
       ? value
-      : fallback;
-  const votesField = (value: unknown, fallback: number): number =>
-    typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 1 && value <= 1000
-      ? value
-      : fallback;
-  return {
-    repetitionMinCount: field(source.repetitionMinCount, defaults.repetitionMinCount),
-    repetitionMinWordLength: field(source.repetitionMinWordLength, defaults.repetitionMinWordLength),
-    connectorChipMinCount: field(source.connectorChipMinCount, defaults.connectorChipMinCount),
-    headingMinVerses: field(source.headingMinVerses, defaults.headingMinVerses),
-    echoMinVotes: votesField(source.echoMinVotes, defaults.echoMinVotes),
+      : defaults[field];
   };
+  const result = {} as DiscoveryThresholds;
+  for (const field of Object.keys(THRESHOLD_FIELD_RANGE) as (keyof DiscoveryThresholds)[]) {
+    result[field] = clampField(field);
+  }
+  return result;
 }
 
 /**

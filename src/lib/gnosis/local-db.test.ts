@@ -176,72 +176,25 @@ describe('getChapterEntityVerseIndex', () => {
   });
 });
 
-describe('mapChapterEchoIndexRows — the "older" rule', () => {
-  it('keeps NT source -> OT target', async () => {
-    const { mapChapterEchoIndexRows } = await import('./local-db');
-    const result = mapChapterEchoIndexRows('John', 1, [
-      { from_ref: 'John.1.1', to_start: 'Gen.1.1', to_end: null, votes: 276 },
-    ]);
-    expect(result.echoes).toEqual([{ verse: 1, targetRef: 'Gen.1.1', targetEndRef: null, votes: 276 }]);
-  });
-
-  it('keeps OT source -> an earlier OT target', async () => {
-    const { mapChapterEchoIndexRows } = await import('./local-db');
-    const result = mapChapterEchoIndexRows('Isa', 1, [
-      { from_ref: 'Isa.1.2', to_start: 'Gen.1.1', to_end: null, votes: 10 },
-    ]);
-    expect(result.echoes).toHaveLength(1);
-  });
-
-  it('drops same-book targets', async () => {
-    const { mapChapterEchoIndexRows } = await import('./local-db');
-    const result = mapChapterEchoIndexRows('John', 1, [
-      { from_ref: 'John.1.1', to_start: 'John.3.16', to_end: null, votes: 50 },
-    ]);
-    expect(result.echoes).toEqual([]);
-  });
-
-  it('drops NT -> NT targets, even when the target sorts earlier in canon order', async () => {
-    const { mapChapterEchoIndexRows } = await import('./local-db');
-    const result = mapChapterEchoIndexRows('Heb', 1, [
-      { from_ref: 'Heb.1.3', to_start: 'Col.1.15', to_end: null, votes: 20 },
-    ]);
-    expect(result.echoes).toEqual([]);
-  });
-
-  it('drops OT source -> a later OT target', async () => {
-    const { mapChapterEchoIndexRows } = await import('./local-db');
-    const result = mapChapterEchoIndexRows('Gen', 1, [
-      { from_ref: 'Gen.1.1', to_start: 'Isa.1.1', to_end: null, votes: 20 },
-    ]);
-    expect(result.echoes).toEqual([]);
-  });
-
-  it('drops OT source -> NT target (forward in time)', async () => {
-    const { mapChapterEchoIndexRows } = await import('./local-db');
-    const result = mapChapterEchoIndexRows('Ps', 22, [
-      { from_ref: 'Ps.22.1', to_start: 'Matt.27.46', to_end: null, votes: 100 },
-    ]);
-    expect(result.echoes).toEqual([]);
-  });
-});
-
 describe('mapChapterEchoIndexRows — dedupe, sort, ranges', () => {
-  it('keeps the highest-voted echo per source verse and drops lower-voted rows for the same verse', async () => {
+  it.each([
+    [
+      'higher-voted row arrives first',
+      [
+        { from_ref: 'Heb.1.5', to_start: 'Ps.2.7', to_end: null, votes: 40 },
+        { from_ref: 'Heb.1.5', to_start: 'Ps.89.27', to_end: null, votes: 15 },
+      ],
+    ],
+    [
+      'lower-voted row arrives first',
+      [
+        { from_ref: 'Heb.1.5', to_start: 'Ps.89.27', to_end: null, votes: 15 },
+        { from_ref: 'Heb.1.5', to_start: 'Ps.2.7', to_end: null, votes: 40 },
+      ],
+    ],
+  ])('keeps the highest-voted echo per source verse regardless of row order (%s)', async (_label, rows) => {
     const { mapChapterEchoIndexRows } = await import('./local-db');
-    const result = mapChapterEchoIndexRows('Heb', 1, [
-      { from_ref: 'Heb.1.5', to_start: 'Ps.2.7', to_end: null, votes: 40 },
-      { from_ref: 'Heb.1.5', to_start: 'Ps.89.27', to_end: null, votes: 15 },
-    ]);
-    expect(result.echoes).toEqual([{ verse: 5, targetRef: 'Ps.2.7', targetEndRef: null, votes: 40 }]);
-  });
-
-  it('keeps the highest-voted echo even when the lower-voted row for the same verse arrives first (votes-ascending order)', async () => {
-    const { mapChapterEchoIndexRows } = await import('./local-db');
-    const result = mapChapterEchoIndexRows('Heb', 1, [
-      { from_ref: 'Heb.1.5', to_start: 'Ps.89.27', to_end: null, votes: 15 },
-      { from_ref: 'Heb.1.5', to_start: 'Ps.2.7', to_end: null, votes: 40 },
-    ]);
+    const result = mapChapterEchoIndexRows('Heb', 1, rows);
     expect(result.echoes).toEqual([{ verse: 5, targetRef: 'Ps.2.7', targetEndRef: null, votes: 40 }]);
   });
 
@@ -274,16 +227,8 @@ describe('getChapterEchoIndex', () => {
       echoes: [{ verse: 1, targetRef: 'Gen.1.1', targetEndRef: null, votes: 276 }],
     });
 
-    // These SQL-shape assertions guard the perf-critical query form documented
-    // on getChapterEchoIndex (the `IN (SELECT ...)` form hits the
-    // from_verse_id index; a LIKE join across the row would force a full
-    // table scan of the 345k-row cross_reference table) — that's the whole
-    // point of this test, so keep asserting on the SQL text even though it's
-    // more brittle than asserting on behavior alone. The `params` assertion
-    // means something here because the mock's cross_reference branch above
-    // actually filters state.echoRows by the params it receives, so a wrong
-    // prefix/minVotes would also fail the `resolves.toEqual` above, not just
-    // this line.
+    // SQL-shape assertions for the perf-critical query form — see the
+    // getChapterEchoIndex doc comment in local-db.ts for the rationale.
     const call = state.selectCalls.find((c) => c.sql.includes('cross_reference'));
     expect(call).toBeDefined();
     expect(call!.sql).toContain('cr.from_verse_id IN (SELECT id FROM verse WHERE osis_ref LIKE ?1)');

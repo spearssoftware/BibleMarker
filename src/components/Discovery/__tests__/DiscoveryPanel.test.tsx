@@ -223,6 +223,23 @@ describe('DiscoveryPanel', () => {
     expect(trackMock).not.toHaveBeenCalledWith('discovery_chip_shown', expect.objectContaining({ feature: 'entity' }));
   });
 
+  it('fires discovery_chip_shown for the echo feature when the echo index has echoes', () => {
+    mockEchoIndex = { book: 'John', chapter: 1, echoes: [{ verse: 1, targetRef: 'Gen.1.1', targetEndRef: null, votes: 276 }] };
+    useDiscoveryStore.setState({ context: makeDiscoveryContext() });
+    render(<DiscoveryPanel />);
+    expect(trackMock).toHaveBeenCalledWith('discovery_chip_shown', {
+      feature: 'echo',
+      dedupeKey: 'echo:John:1:sword-NASB',
+    });
+  });
+
+  it('does not fire discovery_chip_shown for the echo feature when the echo index has no echoes', () => {
+    mockEchoIndex = null;
+    useDiscoveryStore.setState({ context: makeDiscoveryContext() });
+    render(<DiscoveryPanel />);
+    expect(trackMock).not.toHaveBeenCalledWith('discovery_chip_shown', expect.objectContaining({ feature: 'echo' }));
+  });
+
   it('does not fire discovery_chip_shown when the Discover kill switch is off', () => {
     discoveryEnabled = false;
     useDiscoveryStore.setState({ context: makeDiscoveryContext() });

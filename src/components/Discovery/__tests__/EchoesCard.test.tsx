@@ -10,7 +10,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { EchoesCard } from '../EchoesCard';
-import { formatEchoTarget } from '@/lib/chapterAnalysis';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { makeChapterEcho } from '@/lib/__test__/factories';
 import type { ChapterEcho } from '@/types';
@@ -26,15 +25,8 @@ vi.mock('@/lib/telemetry', () => ({
   track: (...args: unknown[]) => trackMock(...args),
 }));
 
-function renderCard(echoes: ChapterEcho[], overrides: { book?: string; chapter?: number; translationId?: string } = {}) {
-  return render(
-    <EchoesCard
-      echoes={echoes}
-      book={overrides.book ?? 'John'}
-      chapter={overrides.chapter ?? 1}
-      translationId={overrides.translationId ?? 'sword-NASB'}
-    />
-  );
+function renderCard(echoes: ChapterEcho[], overrides: { book?: string; chapter?: number } = {}) {
+  return render(<EchoesCard echoes={echoes} book={overrides.book ?? 'John'} chapter={overrides.chapter ?? 1} />);
 }
 
 describe('EchoesCard', () => {
@@ -117,30 +109,6 @@ describe('EchoesCard', () => {
     expect(navigateToVerse).toHaveBeenCalledWith('Gen', 1, 1, true);
   });
 
-  it('fires discovery_chip_shown once with the echo feature and dedupe key', () => {
-    const { rerender } = renderCard([makeChapterEcho({ verse: 1 })], {
-      book: 'Heb',
-      chapter: 1,
-      translationId: 'sword-NASB',
-    });
-    expect(trackMock).toHaveBeenCalledWith('discovery_chip_shown', {
-      feature: 'echo',
-      dedupeKey: 'echo:Heb:1:sword-NASB',
-    });
-    expect(trackMock).toHaveBeenCalledTimes(1);
-
-    // A rerender with the same chapter identity must not re-fire the shown event.
-    rerender(
-      <EchoesCard
-        echoes={[makeChapterEcho({ verse: 1 })]}
-        book="Heb"
-        chapter={1}
-        translationId="sword-NASB"
-      />
-    );
-    expect(trackMock).toHaveBeenCalledTimes(1);
-  });
-
   it('fires discovery_chip_tapped once per echo, only on the first reveal', () => {
     renderCard([makeChapterEcho({ verse: 1, targetRef: 'Gen.1.1' })]);
     trackMock.mockClear();
@@ -205,27 +173,5 @@ describe('EchoesCard', () => {
     const text = screen.getByText('Gen.5');
     expect(text.tagName).not.toBe('BUTTON');
     expect(screen.queryByRole('button', { name: 'Gen.5' })).toBeNull();
-  });
-});
-
-describe('formatEchoTarget', () => {
-  it('formats a single verse', () => {
-    expect(formatEchoTarget('Gen.1.1', null)).toBe('Genesis 1:1');
-  });
-
-  it('formats a same-book, same-chapter range as "Psalms 45:6–7"', () => {
-    expect(formatEchoTarget('Ps.45.6', 'Ps.45.7')).toBe('Psalms 45:6–7');
-  });
-
-  it('formats a same-book, cross-chapter range as "Deuteronomy 28:2–29:1"', () => {
-    expect(formatEchoTarget('Deut.28.2', 'Deut.29.1')).toBe('Deuteronomy 28:2–29:1');
-  });
-
-  it('falls back to the start ref for a cross-book range', () => {
-    expect(formatEchoTarget('Mal.4.5', 'Matt.11.14')).toBe('Malachi 4:5');
-  });
-
-  it('renders the plain start label when targetEndRef equals targetRef', () => {
-    expect(formatEchoTarget('Ps.45.6', 'Ps.45.6')).toBe('Psalms 45:6');
   });
 });

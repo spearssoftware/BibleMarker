@@ -268,21 +268,15 @@ export const CHAPTER_QUESTION_OVERRIDES: Record<string /* OSIS book id */, Recor
  * naming precisely.
  *
  * Judgment calls:
- * — Lamentations: genre-wise it's poetry, not prophecy, and it isn't one of
- *   the four books grouped as "the wisdom books" either. It sits in the
- *   prophets' canonical span (Isaiah-Malachi), is traditionally paired with
- *   Jeremiah's ministry, and a reader has nowhere better to reach for it —
- *   filed under "the prophets".
- * — Daniel: `BOOK_GENRE` calls it apocalyptic (same as Revelation), but
- *   English Bibles shelve it among the Major Prophets, between Ezekiel and
- *   Hosea, and that's the section a reader would guess. Filed under "the
- *   prophets" rather than carved out to "a book of visions" (that label is
- *   reserved for Revelation, the one book readers actually associate with
- *   it). Same rationale as the Genesis-in-"the law" call above: this map
- *   optimizes for where a reader would look, not for literary form.
+ * — Lamentations: genre-wise it's poetry, not prophecy, but it sits in the
+ *   prophets' canonical span and pairs with Jeremiah's ministry, so it's
+ *   filed under "the prophets" — nowhere better for a reader to reach for it.
+ * — Daniel: `BOOK_GENRE` calls it apocalyptic, but English Bibles shelve it
+ *   among the Major Prophets, so it's filed under "the prophets" rather than
+ *   carved out to "a book of visions" (reserved for Revelation).
  *
  * The NT entries (Matthew through Revelation) are currently unreachable as
- * an Echo Hints *target* — `local-db.ts`'s `isOlderTarget` never lets an NT
+ * an Echo Hints *target* — `echoes.ts`'s `isOlderTarget` never lets an NT
  * book win the "older" comparison, so `EchoesCard` never looks one up here.
  * They're kept anyway so this map stays total over every book, matching
  * `BOOK_GENRE`, rather than silently depending on the older-target rule's

@@ -16,10 +16,9 @@
  *
  * `discovery_chip_shown` telemetry lives here (not in `useDiscoveryHost`,
  * which is always-mounted) so it fires only when the panel actually renders
- * a repetition/hinges card, not merely when the chapter analysis exists.
- * `EchoesCard` fires its own `discovery_chip_shown`/`discovery_chip_tapped`
- * internally instead, since its "shown" condition (top-3 slice non-empty)
- * and per-echo tap tracking live naturally inside the card.
+ * a repetition/hinges/echo/entity card, not merely when the chapter analysis
+ * exists. `EchoesCard` still fires its own per-echo `discovery_chip_tapped`
+ * internally, since that tap tracking is naturally scoped to each row.
  */
 
 import type { ReactNode } from 'react';
@@ -80,7 +79,8 @@ export function DiscoveryPanel() {
     if (hasRepetition) track('discovery_chip_shown', { feature: 'repetition', dedupeKey: `repetition:${key}` });
     if (showHinges) track('discovery_chip_shown', { feature: 'connector', dedupeKey: `connector:${key}` });
     if (hasEntities) track('discovery_chip_shown', { feature: 'entity', dedupeKey: `entity:${key}` });
-  }, [discoveryEnabled, context, hasRepetition, showHinges, hasEntities]);
+    if (hasEchoes) track('discovery_chip_shown', { feature: 'echo', dedupeKey: `echo:${key}` });
+  }, [discoveryEnabled, context, hasRepetition, showHinges, hasEntities, hasEchoes]);
 
   if (!discoveryEnabled) {
     return <DiscoveryDialog><p className="text-sm text-scripture-muted">Discover is turned off right now.</p></DiscoveryDialog>;
@@ -129,7 +129,7 @@ export function DiscoveryPanel() {
       )}
       {hasEchoes && (
         <div id={ECHO_ANCHOR_ID} className={ANCHOR_CLASS}>
-          <EchoesCard echoes={echoIndex.echoes} book={book} chapter={chapter} translationId={translationId} />
+          <EchoesCard echoes={echoIndex.echoes} book={book} chapter={chapter} />
         </div>
       )}
       <div id={PEOPLE_PLACES_ANCHOR_ID} className={ANCHOR_CLASS}>
