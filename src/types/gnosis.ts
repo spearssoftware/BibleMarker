@@ -144,6 +144,24 @@ export interface GnosisCrossReference {
   votes: number;
 }
 
+/** A cross-reference from a verse in this chapter to an older passage in the canon. */
+export interface ChapterEcho {
+  /** Source verse number, within this chapter. */
+  verse: number;
+  /** Target passage start, OSIS. */
+  targetRef: string;
+  /** Target passage end, OSIS, when the target is a range. */
+  targetEndRef: string | null;
+  votes: number;
+}
+
+/** Per-chapter index of echoes to older passages, one entry per source verse. */
+export interface ChapterEchoIndex {
+  book: string;
+  chapter: number;
+  echoes: ChapterEcho[];
+}
+
 // --- Language / Lexicon ---
 
 export interface GnosisStrongsEntry {

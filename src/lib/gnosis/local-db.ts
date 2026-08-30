@@ -9,7 +9,10 @@ import Database from '@tauri-apps/plugin-sql';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import type { GnosisDataProvider } from './provider';
+import { getBookById } from '@/types';
 import type {
+  ChapterEcho,
+  ChapterEchoIndex,
   ChapterEntities,
   ChapterEntityVerseIndex,
   GnosisCrossReference,
@@ -298,6 +301,36 @@ export class GnosisLocalDb implements GnosisDataProvider {
     );
 
     return mapChapterEntityVerseIndexRows(book, chapter, rows);
+  }
+
+  /**
+   * Cross-references from verses in this chapter to older passages elsewhere
+   * in the canon (see `isOlderTarget`), with at least `minVotes` votes.
+   *
+   * The predicate is `cr.from_verse_id IN (SELECT id FROM verse WHERE
+   * osis_ref LIKE ?1)` rather than a `LIKE` on a joined column — the latter
+   * forces SQLite to scan every row of the 345k-row `cross_reference` table,
+   * while this form uses the index on `from_verse_id` (~7x faster). No SQL
+   * `LIMIT`: "older" is decided afterward in JS, so limiting here would drop
+   * rows that survive that filter (worst case ~257 rows to map — negligible).
+   */
+  async getChapterEchoIndex(book: string, chapter: number, minVotes: number): Promise<ChapterEchoIndex> {
+    const db = await this.db();
+    const prefix = `${book}.${chapter}.%`;
+
+    const rows: { from_ref: string; to_start: string; to_end: string | null; votes: number }[] = await db.select(
+      `SELECT vf.osis_ref as from_ref, vs.osis_ref as to_start, ve.osis_ref as to_end, cr.votes
+         FROM cross_reference cr
+         JOIN verse vf ON cr.from_verse_id = vf.id
+         JOIN verse vs ON cr.to_verse_start_id = vs.id
+         LEFT JOIN verse ve ON cr.to_verse_end_id = ve.id
+       WHERE cr.from_verse_id IN (SELECT id FROM verse WHERE osis_ref LIKE ?1)
+         AND cr.votes >= ?2
+       ORDER BY cr.votes DESC, vs.osis_ref`,
+      [prefix, minVotes]
+    );
+
+    return mapChapterEchoIndexRows(book, chapter, rows);
   }
 
   // --- People ---
@@ -891,6 +924,12 @@ function parseOsisChapter(osisRef: string): number {
   return parseInt(osisRef.split('.')[1], 10);
 }
 
+/**
+ * Returns the verse number from an OSIS ref's last dot-separated segment —
+ * safe because OSIS ids in `verse` never contain a dot themselves, so the
+ * final segment is always the verse for a `Book.Chapter.Verse` ref. Shared by
+ * `mapChapterEntityVerseIndexRows` and `mapChapterEchoIndexRows`.
+ */
 function parseOsisVerse(osisRef: string): number {
   const segments = osisRef.split('.');
   return parseInt(segments[segments.length - 1], 10);
@@ -922,6 +961,63 @@ export function mapChapterEntityVerseIndexRows(
     peopleVerses: Array.from(peopleVerses).sort((a, b) => a - b),
     placesVerses: Array.from(placesVerses).sort((a, b) => a - b),
   };
+}
+
+/**
+ * The strict "older" rule for Echo Hints: a naive `BIBLE_BOOKS.order`
+ * comparison mislabels roughly half of all cross-reference rows (same-book
+ * "echoes", and NT→NT rows where one epistle merely sorts after another —
+ * Psalm numbers and epistle order aren't chronology). A target only counts
+ * as older when it's in a **different book** and either the source is NT and
+ * the target is OT, or both are OT and the target's canonical order is
+ * earlier than the source's.
+ */
+function isOlderTarget(sourceBookId: string, targetBookId: string): boolean {
+  if (sourceBookId === targetBookId) return false;
+  const sourceBook = getBookById(sourceBookId);
+  const targetBook = getBookById(targetBookId);
+  if (!sourceBook || !targetBook) return false;
+  if (sourceBook.testament === 'NT' && targetBook.testament === 'OT') return true;
+  if (sourceBook.testament === 'OT' && targetBook.testament === 'OT') {
+    return targetBook.order < sourceBook.order;
+  }
+  return false;
+}
+
+/**
+ * Maps `getChapterEchoIndex`'s raw `{from_ref, to_start, to_end, votes}` rows
+ * into a chapter echo index. Exported so the mapping — the "older" rule,
+ * per-verse dedupe, and sort — can be unit-tested without a mocked SQLite
+ * connection.
+ *
+ * Rows arrive ordered `votes DESC, to_start ASC` from the query, so the first
+ * qualifying row seen for a given source verse is already its highest-voted
+ * echo; later rows for that verse are dropped.
+ */
+export function mapChapterEchoIndexRows(
+  book: string,
+  chapter: number,
+  rows: { from_ref: string; to_start: string; to_end: string | null; votes: number }[]
+): ChapterEchoIndex {
+  const bySourceVerse = new Map<number, ChapterEcho>();
+
+  for (const r of rows) {
+    const verse = parseOsisVerse(r.from_ref);
+    if (isNaN(verse)) continue;
+    const targetBookId = r.to_start.split('.')[0];
+    if (!isOlderTarget(book, targetBookId)) continue;
+    if (bySourceVerse.has(verse)) continue; // already have this verse's highest-voted echo
+
+    bySourceVerse.set(verse, {
+      verse,
+      targetRef: r.to_start,
+      targetEndRef: r.to_end ?? null,
+      votes: r.votes ?? 0,
+    });
+  }
+
+  const echoes = Array.from(bySourceVerse.values()).sort((a, b) => a.verse - b.verse);
+  return { book, chapter, echoes };
 }
 
 function mapLocalPlace(r: any): GnosisPlace {

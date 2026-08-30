@@ -251,6 +251,127 @@ export const CHAPTER_QUESTION_OVERRIDES: Record<string /* OSIS book id */, Recor
   Deut: { 34: 'This chapter closes out both a life and a book — what does it hand off, and to whom?' },
 };
 
+/**
+ * Section vocabulary for Echo Hints (`EchoesCard`) — the first, gentlest rung
+ * of the reveal ladder, rendered as "It's in {label}." before the reference
+ * itself is shown. Hand-authored and **not derived from `BOOK_GENRE`**: the
+ * two maps answer different questions. `BOOK_GENRE` says what a book reads
+ * like ("Genesis is narrative"); this map says where a reader would look for
+ * it ("Genesis is in the law") — the mental section a reader reaches for when
+ * told "it's somewhere earlier in the Bible," which for the Pentateuch is
+ * "the Torah/the law," not "the stories." Labels must (a) read naturally
+ * completing that sentence, (b) name a *section*, never a single book or a
+ * meaning, and (c) stay in plain English for a non-scholar. Psalms gets its
+ * own label rather than folding into "the wisdom books" or a "poetry"
+ * bucket — it is by far the most common echo target in the cross-reference
+ * data, and lumping it in would waste the hint on the one book most worth
+ * naming precisely.
+ *
+ * Judgment calls:
+ * — Lamentations: genre-wise it's poetry, not prophecy, and it isn't one of
+ *   the four books grouped as "the wisdom books" either. It sits in the
+ *   prophets' canonical span (Isaiah-Malachi), is traditionally paired with
+ *   Jeremiah's ministry, and a reader has nowhere better to reach for it —
+ *   filed under "the prophets".
+ * — Daniel: `BOOK_GENRE` calls it apocalyptic (same as Revelation), but
+ *   English Bibles shelve it among the Major Prophets, between Ezekiel and
+ *   Hosea, and that's the section a reader would guess. Filed under "the
+ *   prophets" rather than carved out to "a book of visions" (that label is
+ *   reserved for Revelation, the one book readers actually associate with
+ *   it). Same rationale as the Genesis-in-"the law" call above: this map
+ *   optimizes for where a reader would look, not for literary form.
+ */
+export const ECHO_SECTION_LABEL: Record<string /* OSIS book id */, string> = {
+  // The law (Torah/Pentateuch) — see file header re: Genesis vs. BOOK_GENRE.
+  Gen: 'the law',
+  Exod: 'the law',
+  Lev: 'the law',
+  Num: 'the law',
+  Deut: 'the law',
+
+  // Israel's history — Joshua through Esther.
+  Josh: "Israel's history",
+  Judg: "Israel's history",
+  Ruth: "Israel's history",
+  '1Sam': "Israel's history",
+  '2Sam': "Israel's history",
+  '1Kgs': "Israel's history",
+  '2Kgs': "Israel's history",
+  '1Chr': "Israel's history",
+  '2Chr': "Israel's history",
+  Ezra: "Israel's history",
+  Neh: "Israel's history",
+  Esth: "Israel's history",
+
+  // The Psalms — carved out on its own; see file header.
+  Ps: 'the Psalms',
+
+  // The wisdom books.
+  Job: 'the wisdom books',
+  Prov: 'the wisdom books',
+  Eccl: 'the wisdom books',
+  Song: 'the wisdom books',
+
+  // The prophets — Isaiah through Malachi, including the Lamentations and
+  // Daniel judgment calls documented in the file header.
+  Isa: 'the prophets',
+  Jer: 'the prophets',
+  Lam: 'the prophets', // judgment call — see file header
+  Ezek: 'the prophets',
+  Dan: 'the prophets', // judgment call — see file header
+  Hos: 'the prophets',
+  Joel: 'the prophets',
+  Amos: 'the prophets',
+  Obad: 'the prophets',
+  Jonah: 'the prophets',
+  Mic: 'the prophets',
+  Nah: 'the prophets',
+  Hab: 'the prophets',
+  Zeph: 'the prophets',
+  Hag: 'the prophets',
+  Zech: 'the prophets',
+  Mal: 'the prophets',
+
+  // The Gospels.
+  Matt: 'the Gospels',
+  Mark: 'the Gospels',
+  Luke: 'the Gospels',
+  John: 'the Gospels',
+
+  // Acts stands alone.
+  Acts: "the early church's story",
+
+  // The letters — Romans through Jude.
+  Rom: 'the letters',
+  '1Cor': 'the letters',
+  '2Cor': 'the letters',
+  Gal: 'the letters',
+  Eph: 'the letters',
+  Phil: 'the letters',
+  Col: 'the letters',
+  '1Thess': 'the letters',
+  '2Thess': 'the letters',
+  '1Tim': 'the letters',
+  '2Tim': 'the letters',
+  Titus: 'the letters',
+  Phlm: 'the letters',
+  Heb: 'the letters',
+  Jas: 'the letters',
+  '1Pet': 'the letters',
+  '2Pet': 'the letters',
+  '1John': 'the letters',
+  '2John': 'the letters',
+  '3John': 'the letters',
+  Jude: 'the letters',
+
+  // Revelation stands alone.
+  Rev: 'a book of visions',
+};
+
+export function echoSectionFor(bookId: string): string | undefined {
+  return ECHO_SECTION_LABEL[bookId];
+}
+
 export function genreFor(bookId: string): Genre | undefined {
   return BOOK_GENRE[bookId];
 }

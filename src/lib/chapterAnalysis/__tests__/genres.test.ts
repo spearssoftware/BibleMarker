@@ -6,9 +6,11 @@ import {
   GENRE_QUESTIONS,
   GENRE_LABEL,
   CHAPTER_QUESTION_OVERRIDES,
+  ECHO_SECTION_LABEL,
   genreFor,
   orientationFor,
   questionFor,
+  echoSectionFor,
 } from '../genres'
 import type { Genre } from '../genres'
 
@@ -118,6 +120,12 @@ describe('answer-free guard', () => {
       assertAnswerFree(GENRE_LABEL[genre], `${genre} label`)
     }
   })
+
+  it('no echo section label asserts an interpretation', () => {
+    for (const [bookId, label] of Object.entries(ECHO_SECTION_LABEL)) {
+      assertAnswerFree(label, `echo section label (${bookId})`)
+    }
+  })
 })
 
 describe('neutrality - no contested critical claims or presumed content', () => {
@@ -174,6 +182,59 @@ describe('genreFor / orientationFor', () => {
 
   it('returns undefined orientation for an unknown book id', () => {
     expect(orientationFor('NotABook')).toBeUndefined()
+  })
+})
+
+describe('ECHO_SECTION_LABEL - full canon coverage', () => {
+  it('assigns a section label to every BIBLE_BOOKS id', () => {
+    for (const book of BIBLE_BOOKS) {
+      expect(ECHO_SECTION_LABEL[book.id], `missing echo section for ${book.id}`).toBeDefined()
+    }
+  })
+
+  it('has no echo section entries for unknown book ids', () => {
+    const knownIds = new Set(BIBLE_BOOKS.map(b => b.id))
+    for (const bookId of Object.keys(ECHO_SECTION_LABEL)) {
+      expect(knownIds.has(bookId), `ECHO_SECTION_LABEL has an entry for unknown id "${bookId}"`).toBe(true)
+    }
+  })
+
+  it('covers exactly the 66 books, one label each', () => {
+    expect(Object.keys(ECHO_SECTION_LABEL)).toHaveLength(66)
+  })
+})
+
+describe('ECHO_SECTION_LABEL - reads naturally mid-sentence', () => {
+  // "Israel's history" is a documented exception: it leads with a proper
+  // noun, which stays capitalized even mid-sentence ("It's in Israel's
+  // history.") — see the ECHO_SECTION_LABEL doc comment in genres.ts.
+  const PROPER_NOUN_LEAD_EXCEPTIONS = new Set(["Israel's history"])
+
+  it('is non-empty for every book', () => {
+    for (const [bookId, label] of Object.entries(ECHO_SECTION_LABEL)) {
+      expect(label.length, `empty echo section label for ${bookId}`).toBeGreaterThan(0)
+    }
+  })
+
+  it('starts lowercase, so "It\'s in {label}." reads naturally', () => {
+    for (const [bookId, label] of Object.entries(ECHO_SECTION_LABEL)) {
+      if (PROPER_NOUN_LEAD_EXCEPTIONS.has(label)) continue
+      expect(label[0], `"${label}" (${bookId}) should start lowercase for mid-sentence use`).toBe(
+        label[0].toLowerCase()
+      )
+    }
+  })
+})
+
+describe('echoSectionFor', () => {
+  it('returns the assigned label for a known book', () => {
+    expect(echoSectionFor('Gen')).toBe('the law')
+    expect(echoSectionFor('Ps')).toBe('the Psalms')
+    expect(echoSectionFor('Rev')).toBe('a book of visions')
+  })
+
+  it('returns undefined for an unknown book id', () => {
+    expect(echoSectionFor('NotABook')).toBeUndefined()
   })
 })
 

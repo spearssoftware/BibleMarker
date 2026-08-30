@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getGnosisProvider, isGnosisAvailable, getGnosisMode, initGnosis } from '@/lib/gnosis';
 import type { GnosisDataProvider } from '@/lib/gnosis';
 import { LRUCache, CACHE_TTL } from '@/lib/gnosis/cache';
-import type { ChapterEntities, ChapterEntityVerseIndex, PaginatedResponse, PaginationOpts } from '@/types';
+import type { ChapterEchoIndex, ChapterEntities, ChapterEntityVerseIndex, PaginatedResponse, PaginationOpts } from '@/types';
 
 /** Get or lazily initialize the gnosis provider */
 async function ensureProvider(): Promise<GnosisDataProvider> {
@@ -38,20 +38,27 @@ export function useGnosis(): {
  * and the cancelled-guard fetch effect. `fetcher` is read through a ref so a
  * fresh closure identity each render doesn't retrigger the effect (same
  * pattern as `useGnosisEntity`'s `fetcherRef` below) — only `book`/`chapter`/
- * `enabled` identity changes should restart the fetch.
+ * `enabled`/`keySuffix` identity changes should restart the fetch.
+ *
+ * `keySuffix` extends the cache key beyond `book.chapter` for callers whose
+ * result also depends on another parameter (e.g. a votes threshold) — a
+ * change to that parameter must produce a different cache key and re-run the
+ * fetch effect, not silently serve a stale result cached under the same key.
+ * Existing callers pass nothing, so their keys are unchanged.
  */
 function useCachedChapterQuery<T>(
   book: string | undefined,
   chapter: number | undefined,
   enabled: boolean,
   cache: LRUCache,
-  fetcher: (book: string, chapter: number) => Promise<T>
+  fetcher: (book: string, chapter: number) => Promise<T>,
+  keySuffix = ''
 ): {
   data: T | null;
   isLoading: boolean;
   error: string | null;
 } {
-  const cacheKey = enabled && book && chapter !== undefined ? `${book}.${chapter}` : undefined;
+  const cacheKey = enabled && book && chapter !== undefined ? `${book}.${chapter}${keySuffix}` : undefined;
   const [data, setData] = useState<T | null>(() => (cacheKey ? cache.get<T>(cacheKey) ?? null : null));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +77,7 @@ function useCachedChapterQuery<T>(
 
   useEffect(() => {
     if (!enabled || !book || chapter === undefined) return;
-    const key = `${book}.${chapter}`;
+    const key = `${book}.${chapter}${keySuffix}`;
     if (cache.get<T>(key) !== undefined) return; // already served synchronously above
 
     let cancelled = false;
@@ -93,7 +100,7 @@ function useCachedChapterQuery<T>(
     })();
 
     return () => { cancelled = true; };
-  }, [book, chapter, enabled, cache]);
+  }, [book, chapter, enabled, cache, keySuffix]);
 
   if (!enabled) return { data: null, isLoading: false, error: null };
   return { data, isLoading, error };
@@ -156,6 +163,43 @@ export function useChapterEntityVerseIndex(
       if (!provider.getChapterEntityVerseIndex) return null;
       return provider.getChapterEntityVerseIndex(b, c);
     }
+  );
+  return { index: data, isLoading, error };
+}
+
+/** Repeat mounts for the same chapter+threshold shouldn't re-query SQLite. */
+const chapterEchoIndexCache = new LRUCache();
+
+/**
+ * Cross-references from verses in this chapter to older passages, gated on
+ * `minVotes`. Thin wrapper over `useCachedChapterQuery`, with `minVotes`
+ * folded into the cache key (via `keySuffix`) so a remote threshold change
+ * actually refetches instead of serving a stale result cached under the plain
+ * `book.chapter` key. Same optional-capability guard as
+ * `useChapterEntityVerseIndex`: a provider lacking `getChapterEchoIndex`
+ * resolves to `null` without ever issuing a query.
+ */
+export function useChapterEchoIndex(
+  book: string | undefined,
+  chapter: number | undefined,
+  minVotes: number,
+  enabled = true
+): {
+  index: ChapterEchoIndex | null;
+  isLoading: boolean;
+  error: string | null;
+} {
+  const { data, isLoading, error } = useCachedChapterQuery(
+    book,
+    chapter,
+    enabled,
+    chapterEchoIndexCache,
+    async (b, c) => {
+      const provider = await ensureProvider();
+      if (!provider.getChapterEchoIndex) return null;
+      return provider.getChapterEchoIndex(b, c, minVotes);
+    },
+    `:${minVotes}`
   );
   return { index: data, isLoading, error };
 }

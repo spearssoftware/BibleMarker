@@ -130,7 +130,7 @@ describe('buildClientConfig', () => {
   });
 
   it('keeps a valid object config value as-is', async () => {
-    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 5, connectorChipMinCount: 2, headingMinVerses: 8 };
+    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 5, connectorChipMinCount: 2, headingMinVerses: 8, echoMinVotes: 15 };
     const env = envWith(new MemoryFlags({ [CONFIG_KEYS.discoveryThresholds]: valid }));
     const cfg = await buildClientConfig(env, globalContext());
     expect(cfg.config[CONFIG_KEYS.discoveryThresholds]).toEqual(valid);
@@ -157,13 +157,44 @@ describe('sanitizeThresholds', () => {
   });
 
   it('keeps valid in-range integers as-is', () => {
-    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 5, connectorChipMinCount: 2, headingMinVerses: 8 };
+    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 5, connectorChipMinCount: 2, headingMinVerses: 8, echoMinVotes: 15 };
     expect(sanitizeThresholds(valid, DEFAULT_DISCOVERY_THRESHOLDS)).toEqual(valid);
   });
 
   it('defaults entirely for a non-object input', () => {
     expect(sanitizeThresholds(null, DEFAULT_DISCOVERY_THRESHOLDS)).toEqual(DEFAULT_DISCOVERY_THRESHOLDS);
     expect(sanitizeThresholds(undefined, DEFAULT_DISCOVERY_THRESHOLDS)).toEqual(DEFAULT_DISCOVERY_THRESHOLDS);
+  });
+
+  describe('echoMinVotes', () => {
+    it('accepts a value up to 1000, well past the 50-cap on the other fields', () => {
+      const result = sanitizeThresholds({ echoMinVotes: 100 }, DEFAULT_DISCOVERY_THRESHOLDS);
+      expect(result.echoMinVotes).toBe(100);
+    });
+
+    it('rejects 0, defaulting to 20', () => {
+      const result = sanitizeThresholds({ echoMinVotes: 0 }, DEFAULT_DISCOVERY_THRESHOLDS);
+      expect(result.echoMinVotes).toBe(DEFAULT_DISCOVERY_THRESHOLDS.echoMinVotes);
+    });
+
+    it('rejects 1001, past the wider cap', () => {
+      const result = sanitizeThresholds({ echoMinVotes: 1001 }, DEFAULT_DISCOVERY_THRESHOLDS);
+      expect(result.echoMinVotes).toBe(DEFAULT_DISCOVERY_THRESHOLDS.echoMinVotes);
+    });
+
+    it('rejects a non-integer', () => {
+      const result = sanitizeThresholds({ echoMinVotes: 20.5 }, DEFAULT_DISCOVERY_THRESHOLDS);
+      expect(result.echoMinVotes).toBe(DEFAULT_DISCOVERY_THRESHOLDS.echoMinVotes);
+    });
+
+    it('still clamps the other fields at 50 even when echoMinVotes is valid at 100', () => {
+      const result = sanitizeThresholds(
+        { repetitionMinCount: 100, echoMinVotes: 100 },
+        DEFAULT_DISCOVERY_THRESHOLDS
+      );
+      expect(result.repetitionMinCount).toBe(DEFAULT_DISCOVERY_THRESHOLDS.repetitionMinCount);
+      expect(result.echoMinVotes).toBe(100);
+    });
   });
 });
 

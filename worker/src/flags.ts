@@ -69,6 +69,8 @@ export interface DiscoveryThresholds {
   connectorChipMinCount: number;
   /** Minimum verse count for a chapter to earn the Look-Again heading challenge. */
   headingMinVerses: number;
+  /** Minimum cross-reference votes for a verse to surface an Echo Hint. */
+  echoMinVotes: number;
 }
 
 export const DEFAULT_DISCOVERY_THRESHOLDS: DiscoveryThresholds = {
@@ -76,6 +78,7 @@ export const DEFAULT_DISCOVERY_THRESHOLDS: DiscoveryThresholds = {
   repetitionMinWordLength: 3,
   connectorChipMinCount: 1,
   headingMinVerses: 10,
+  echoMinVotes: 20,
 };
 
 /**
@@ -172,6 +175,8 @@ async function getObject<T extends object>(env: Env, key: string, def: T, ctx: F
  * Coerces raw Flagship JSON into safe `DiscoveryThresholds`, field by field.
  * Any field that isn't a finite integer in `[1, 50]` falls back to `defaults`
  * — a malformed dashboard edit degrades to safe values, never a broken chip.
+ * `echoMinVotes` is a cross-reference vote count rather than a verse/word
+ * count, so it uses a separate, wider `[1, 1000]` range.
  */
 export function sanitizeThresholds(raw: unknown, defaults: DiscoveryThresholds): DiscoveryThresholds {
   const source = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
@@ -179,11 +184,16 @@ export function sanitizeThresholds(raw: unknown, defaults: DiscoveryThresholds):
     typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 1 && value <= 50
       ? value
       : fallback;
+  const votesField = (value: unknown, fallback: number): number =>
+    typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 1 && value <= 1000
+      ? value
+      : fallback;
   return {
     repetitionMinCount: field(source.repetitionMinCount, defaults.repetitionMinCount),
     repetitionMinWordLength: field(source.repetitionMinWordLength, defaults.repetitionMinWordLength),
     connectorChipMinCount: field(source.connectorChipMinCount, defaults.connectorChipMinCount),
     headingMinVerses: field(source.headingMinVerses, defaults.headingMinVerses),
+    echoMinVotes: votesField(source.echoMinVotes, defaults.echoMinVotes),
   };
 }
 

@@ -28,6 +28,8 @@ const state = vi.hoisted(() => ({
   entityVerseRows: [] as { kind: string; osis_ref: string }[],
   /** Remaining install_bundled_module calls that should throw. */
   installFailures: 0,
+  /** Rows returned for the chapter echo-index query. */
+  echoRows: [] as { from_ref: string; to_start: string; to_end: string | null; votes: number }[],
 }));
 
 const NOT_A_DB = 'error returned from database: (code: 26) file is not a database';
@@ -62,6 +64,7 @@ vi.mock('@tauri-apps/plugin-sql', () => {
       if (sql.includes('gnosis_meta')) return [];
       if (sql.includes('chapter_timeline')) return [{ year: -4, year_display: '4 BC' }];
       if (sql.includes('person_verse')) return state.entityVerseRows;
+      if (sql.includes('cross_reference')) return state.echoRows;
       return [];
     }),
     close: vi.fn(async () => {
@@ -99,6 +102,7 @@ beforeEach(() => {
   state.selectCalls = [];
   state.entityVerseRows = [];
   state.installFailures = 0;
+  state.echoRows = [];
 });
 
 describe('mapChapterEntityVerseIndexRows', () => {
@@ -159,6 +163,105 @@ describe('getChapterEntityVerseIndex', () => {
     expect(call!.sql).toContain('v.osis_ref');
     expect(call!.sql).toContain('?1');
     expect(call!.params).toEqual(['Gen.3.%']);
+  });
+});
+
+describe('mapChapterEchoIndexRows — the "older" rule', () => {
+  it('keeps NT source -> OT target', async () => {
+    const { mapChapterEchoIndexRows } = await import('./local-db');
+    const result = mapChapterEchoIndexRows('John', 1, [
+      { from_ref: 'John.1.1', to_start: 'Gen.1.1', to_end: null, votes: 276 },
+    ]);
+    expect(result.echoes).toEqual([{ verse: 1, targetRef: 'Gen.1.1', targetEndRef: null, votes: 276 }]);
+  });
+
+  it('keeps OT source -> an earlier OT target', async () => {
+    const { mapChapterEchoIndexRows } = await import('./local-db');
+    const result = mapChapterEchoIndexRows('Isa', 1, [
+      { from_ref: 'Isa.1.2', to_start: 'Gen.1.1', to_end: null, votes: 10 },
+    ]);
+    expect(result.echoes).toHaveLength(1);
+  });
+
+  it('drops same-book targets', async () => {
+    const { mapChapterEchoIndexRows } = await import('./local-db');
+    const result = mapChapterEchoIndexRows('John', 1, [
+      { from_ref: 'John.1.1', to_start: 'John.3.16', to_end: null, votes: 50 },
+    ]);
+    expect(result.echoes).toEqual([]);
+  });
+
+  it('drops NT -> NT targets, even when the target sorts earlier in canon order', async () => {
+    const { mapChapterEchoIndexRows } = await import('./local-db');
+    const result = mapChapterEchoIndexRows('Heb', 1, [
+      { from_ref: 'Heb.1.3', to_start: 'Col.1.15', to_end: null, votes: 20 },
+    ]);
+    expect(result.echoes).toEqual([]);
+  });
+
+  it('drops OT source -> a later OT target', async () => {
+    const { mapChapterEchoIndexRows } = await import('./local-db');
+    const result = mapChapterEchoIndexRows('Gen', 1, [
+      { from_ref: 'Gen.1.1', to_start: 'Isa.1.1', to_end: null, votes: 20 },
+    ]);
+    expect(result.echoes).toEqual([]);
+  });
+
+  it('drops OT source -> NT target (forward in time)', async () => {
+    const { mapChapterEchoIndexRows } = await import('./local-db');
+    const result = mapChapterEchoIndexRows('Ps', 22, [
+      { from_ref: 'Ps.22.1', to_start: 'Matt.27.46', to_end: null, votes: 100 },
+    ]);
+    expect(result.echoes).toEqual([]);
+  });
+});
+
+describe('mapChapterEchoIndexRows — dedupe, sort, ranges', () => {
+  it('keeps the highest-voted echo per source verse and drops lower-voted rows for the same verse', async () => {
+    const { mapChapterEchoIndexRows } = await import('./local-db');
+    const result = mapChapterEchoIndexRows('Heb', 1, [
+      { from_ref: 'Heb.1.5', to_start: 'Ps.2.7', to_end: null, votes: 40 },
+      { from_ref: 'Heb.1.5', to_start: 'Ps.89.27', to_end: null, votes: 15 },
+    ]);
+    expect(result.echoes).toEqual([{ verse: 5, targetRef: 'Ps.2.7', targetEndRef: null, votes: 40 }]);
+  });
+
+  it('sorts echoes by verse ascending regardless of row order', async () => {
+    const { mapChapterEchoIndexRows } = await import('./local-db');
+    const result = mapChapterEchoIndexRows('Heb', 1, [
+      { from_ref: 'Heb.1.8', to_start: 'Ps.45.6', to_end: 'Ps.45.7', votes: 30 },
+      { from_ref: 'Heb.1.5', to_start: 'Ps.2.7', to_end: null, votes: 40 },
+    ]);
+    expect(result.echoes.map((e) => e.verse)).toEqual([5, 8]);
+  });
+
+  it('preserves targetEndRef for range echoes', async () => {
+    const { mapChapterEchoIndexRows } = await import('./local-db');
+    const result = mapChapterEchoIndexRows('Heb', 1, [
+      { from_ref: 'Heb.1.8', to_start: 'Ps.45.6', to_end: 'Ps.45.7', votes: 30 },
+    ]);
+    expect(result.echoes[0]).toEqual({ verse: 8, targetRef: 'Ps.45.6', targetEndRef: 'Ps.45.7', votes: 30 });
+  });
+});
+
+describe('getChapterEchoIndex', () => {
+  it('queries via from_verse_id IN (SELECT ...), LEFT JOINs the range end, orders by votes then ref, and has no LIMIT', async () => {
+    state.echoRows = [{ from_ref: 'John.1.1', to_start: 'Gen.1.1', to_end: null, votes: 276 }];
+    const db = await freshDb();
+
+    await expect(db.getChapterEchoIndex('John', 1, 20)).resolves.toEqual({
+      book: 'John',
+      chapter: 1,
+      echoes: [{ verse: 1, targetRef: 'Gen.1.1', targetEndRef: null, votes: 276 }],
+    });
+
+    const call = state.selectCalls.find((c) => c.sql.includes('cross_reference'));
+    expect(call).toBeDefined();
+    expect(call!.sql).toContain('cr.from_verse_id IN (SELECT id FROM verse WHERE osis_ref LIKE ?1)');
+    expect(call!.sql).toContain('LEFT JOIN verse ve ON cr.to_verse_end_id = ve.id');
+    expect(call!.sql).toContain('ORDER BY cr.votes DESC, vs.osis_ref');
+    expect(call!.sql).not.toMatch(/LIMIT/i);
+    expect(call!.params).toEqual(['John.1.%', 20]);
   });
 });
 

@@ -99,6 +99,15 @@ function isValidThresholdField(value: unknown): value is number {
 }
 
 /**
+ * `echoMinVotes` is a cross-reference vote count, not a verse/word count — the
+ * corpus's votes range into the thousands, so it gets its own wider range
+ * rather than reusing `isValidThresholdField`'s 1..50 clamp.
+ */
+function isValidVotesField(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 1 && value <= 1000;
+}
+
+/**
  * Coerce raw `/config` JSON into safe `RemoteConfig`, field by field. Missing
  * or malformed fields (including an entirely absent `config`, from an older
  * cached snapshot or worker) fall back to `DEFAULT_DISCOVERY_THRESHOLDS`.
@@ -121,6 +130,9 @@ export function normalizeConfig(raw: unknown): RemoteConfig {
       headingMinVerses: isValidThresholdField(source.headingMinVerses)
         ? source.headingMinVerses
         : DEFAULT_DISCOVERY_THRESHOLDS.headingMinVerses,
+      echoMinVotes: isValidVotesField(source.echoMinVotes)
+        ? source.echoMinVotes
+        : DEFAULT_DISCOVERY_THRESHOLDS.echoMinVotes,
     },
   };
 }
