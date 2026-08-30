@@ -7,22 +7,26 @@
  * it needs is either already-mounted host state or store reads.
  *
  * Card order: Genre Compass → Look-Again checklist → Repetition → Hinges →
- * People & Places. Genre and the Look-Again title item need neither
- * analysis extras nor Gnosis, so the loading gate is `!context` only (S5) —
- * a Gnosis hiccup must not blank the whole panel. Each of the last three
- * cards is wrapped in a stable-id `div` so `LookAgainCard`'s undone rows can
- * scroll straight to the card that would satisfy them.
+ * Echo Hints → People & Places. Genre and the Look-Again title item need
+ * neither analysis extras nor Gnosis, so the loading gate is `!context` only
+ * (S5) — a Gnosis hiccup must not blank the whole panel. Each card after
+ * Look-Again is wrapped in a stable-id `div`; the first three are also
+ * `LookAgainCard` scroll targets for its undone rows (Echo Hints has no
+ * checklist item — see the Phase 2b plan's deliberate deltas).
  *
  * `discovery_chip_shown` telemetry lives here (not in `useDiscoveryHost`,
  * which is always-mounted) so it fires only when the panel actually renders
  * a repetition/hinges card, not merely when the chapter analysis exists.
+ * `EchoesCard` fires its own `discovery_chip_shown`/`discovery_chip_tapped`
+ * internally instead, since its "shown" condition (top-3 slice non-empty)
+ * and per-echo tap tracking live naturally inside the card.
  */
 
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryConfig, useDiscoveryEnabled } from '@/lib/discovery-config';
-import { useChapterEntities } from '@/hooks/useGnosis';
+import { useChapterEntities, useChapterEchoIndex } from '@/hooks/useGnosis';
 import { useLookAgain } from '@/hooks/useLookAgain';
 import { shouldShowHinges } from '@/lib/chapterAnalysis';
 import { track } from '@/lib/telemetry';
@@ -30,10 +34,12 @@ import { GenreCard } from './GenreCard';
 import { LookAgainCard } from './LookAgainCard';
 import { RepetitionCard } from './RepetitionCard';
 import { HingesCard } from './HingesCard';
+import { EchoesCard } from './EchoesCard';
 import { PeoplePlacesCard } from './PeoplePlacesCard';
 
 const REPETITION_ANCHOR_ID = 'discovery-card-repetition';
 const HINGE_ANCHOR_ID = 'discovery-card-hinges';
+const ECHO_ANCHOR_ID = 'discovery-card-echo';
 const PEOPLE_PLACES_ANCHOR_ID = 'discovery-card-people-places';
 const ANCHOR_CLASS = 'scroll-mt-4';
 
@@ -57,11 +63,13 @@ export function DiscoveryPanel() {
     discoveryEnabled
   );
   const { items: lookAgainItems, ready: lookAgainReady } = useLookAgain(context, entities, entitiesLoading, discoveryEnabled);
+  const { index: echoIndex } = useChapterEchoIndex(context?.book, context?.chapter, thresholds.echoMinVotes, discoveryEnabled);
 
   const hasRepetition = Boolean(context?.analysis.repetition);
   const hingeCount = context?.analysis.connectors.length ?? 0;
   const showHinges = shouldShowHinges(hingeCount, thresholds);
   const hasEntities = !!entities && (entities.people.length > 0 || entities.places.length > 0);
+  const hasEchoes = !!echoIndex && echoIndex.echoes.length > 0;
 
   // Fire once per {book, chapter, translation} for each card actually shown —
   // mirrors the dedupe keys the old `useDiscoveryHost`-hosted version used.
@@ -117,6 +125,11 @@ export function DiscoveryPanel() {
             book={book}
             chapter={chapter}
           />
+        </div>
+      )}
+      {hasEchoes && (
+        <div id={ECHO_ANCHOR_ID} className={ANCHOR_CLASS}>
+          <EchoesCard echoes={echoIndex.echoes} book={book} chapter={chapter} translationId={translationId} />
         </div>
       )}
       <div id={PEOPLE_PLACES_ANCHOR_ID} className={ANCHOR_CLASS}>

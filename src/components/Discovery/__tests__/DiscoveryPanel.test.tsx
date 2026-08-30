@@ -37,13 +37,16 @@ vi.mock('@/stores/studyStore', () => ({
 
 type MockEntities = { book: string; chapter: number; people: string[]; places: string[]; events: string[]; topics: string[] } | null;
 type MockEntityVerseIndex = { book: string; chapter: number; peopleVerses: number[]; placesVerses: number[] } | null;
+type MockEchoIndex = { book: string; chapter: number; echoes: { verse: number; targetRef: string; targetEndRef: string | null; votes: number }[] } | null;
 let mockEntities: MockEntities = null;
 let mockEntitiesLoading = false;
 let mockEntitiesError: string | null = null;
 let mockEntityVerseIndex: MockEntityVerseIndex = null;
+let mockEchoIndex: MockEchoIndex = null;
 vi.mock('@/hooks/useGnosis', () => ({
   useChapterEntities: () => ({ entities: mockEntities, isLoading: mockEntitiesLoading, error: mockEntitiesError }),
   useChapterEntityVerseIndex: () => ({ index: mockEntityVerseIndex, isLoading: false, error: null }),
+  useChapterEchoIndex: () => ({ index: mockEchoIndex, isLoading: false, error: null }),
 }));
 
 let discoveryEnabled = true;
@@ -63,6 +66,9 @@ vi.mock('../HingesCard', () => ({
 vi.mock('../PeoplePlacesCard', () => ({
   PeoplePlacesCard: () => <div data-testid="people-places-card">people-places</div>,
 }));
+vi.mock('../EchoesCard', () => ({
+  EchoesCard: () => <div data-testid="echoes-card">echoes</div>,
+}));
 
 describe('DiscoveryPanel', () => {
   beforeEach(() => {
@@ -70,6 +76,7 @@ describe('DiscoveryPanel', () => {
     mockEntitiesLoading = false;
     mockEntitiesError = null;
     mockEntityVerseIndex = null;
+    mockEchoIndex = null;
     discoveryEnabled = true;
     trackMock.mockClear();
     // useLookAgain (real, un-mocked here) requires this to match `context`'s
@@ -85,6 +92,7 @@ describe('DiscoveryPanel', () => {
       found: null,
       markedPresetId: null,
       revealedRungs: [],
+      revealedEchoes: {},
     });
   });
 
@@ -127,8 +135,9 @@ describe('DiscoveryPanel', () => {
     expect(screen.queryByTestId('hinges-card')).toBeNull();
   });
 
-  it('renders cards in Genre → Look-Again → Repetition → Hinges → People/Places order', async () => {
+  it('renders cards in Genre → Look-Again → Repetition → Hinges → Echoes → People/Places order', async () => {
     mockEntities = { book: 'John', chapter: 1, people: ['jesus'], places: [], events: [], topics: [] };
+    mockEchoIndex = { book: 'John', chapter: 1, echoes: [{ verse: 1, targetRef: 'Gen.1.1', targetEndRef: null, votes: 276 }] };
     useDiscoveryStore.setState({ context: makeDiscoveryContext({ translationCount: 2, primaryTranslationAbbrev: 'NASB' }) });
     const { container } = render(<DiscoveryPanel />);
     await screen.findByText('Say this chapter in your own words — give it a title');
@@ -138,10 +147,32 @@ describe('DiscoveryPanel', () => {
       if (el.textContent?.includes('John — a gospel')) return 'genre';
       if (el.textContent?.includes('One word appears')) return 'repetition';
       if (el.querySelector('[data-testid="hinges-card"]')) return 'hinges';
+      if (el.querySelector('[data-testid="echoes-card"]')) return 'echoes';
       if (el.querySelector('[data-testid="people-places-card"]')) return 'people-places';
       return 'unknown';
     });
-    expect(testIds).toEqual(['genre', 'look-again', 'repetition', 'hinges', 'people-places']);
+    expect(testIds).toEqual(['genre', 'look-again', 'repetition', 'hinges', 'echoes', 'people-places']);
+  });
+
+  it('hides the echoes card when the echo index is null', () => {
+    mockEchoIndex = null;
+    useDiscoveryStore.setState({ context: makeDiscoveryContext() });
+    render(<DiscoveryPanel />);
+    expect(screen.queryByTestId('echoes-card')).toBeNull();
+  });
+
+  it('hides the echoes card when the echo index has no echoes', () => {
+    mockEchoIndex = { book: 'John', chapter: 1, echoes: [] };
+    useDiscoveryStore.setState({ context: makeDiscoveryContext() });
+    render(<DiscoveryPanel />);
+    expect(screen.queryByTestId('echoes-card')).toBeNull();
+  });
+
+  it('shows the echoes card when the echo index has echoes', () => {
+    mockEchoIndex = { book: 'John', chapter: 1, echoes: [{ verse: 1, targetRef: 'Gen.1.1', targetEndRef: null, votes: 276 }] };
+    useDiscoveryStore.setState({ context: makeDiscoveryContext() });
+    render(<DiscoveryPanel />);
+    expect(screen.getByTestId('echoes-card')).toBeTruthy();
   });
 
   it('renders the repetition and hinges cards, with the real RepetitionCard suffix, when everything qualifies', () => {

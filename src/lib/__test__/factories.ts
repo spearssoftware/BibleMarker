@@ -7,7 +7,7 @@ import type { SyncStatus } from '@/lib/sync';
 import type { TextSelection } from '@/stores/annotationStore';
 import type { DiscoveryContext } from '@/stores/discoveryStore';
 import type { ChapterAnalysis, ConnectorHit } from '@/lib/chapterAnalysis';
-import type { ChapterEntities, ChapterEntityVerseIndex } from '@/types';
+import type { ChapterEcho, ChapterEchoIndex, ChapterEntities, ChapterEntityVerseIndex } from '@/types';
 
 export const ISO = '2025-01-01T00:00:00.000Z';
 
@@ -206,6 +206,25 @@ export function makeChapterEntityVerseIndex(overrides?: Partial<ChapterEntityVer
     chapter: 1,
     peopleVerses: [],
     placesVerses: [],
+    ...overrides,
+  };
+}
+
+export function makeChapterEcho(overrides?: Partial<ChapterEcho>): ChapterEcho {
+  return {
+    verse: 1,
+    targetRef: 'Gen.1.1',
+    targetEndRef: null,
+    votes: 100,
+    ...overrides,
+  };
+}
+
+export function makeChapterEchoIndex(overrides?: Partial<ChapterEchoIndex>): ChapterEchoIndex {
+  return {
+    book: 'John',
+    chapter: 1,
+    echoes: [makeChapterEcho()],
     ...overrides,
   };
 }

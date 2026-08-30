@@ -14,6 +14,14 @@ import type { ChapterAnalysis, ConnectorHit, RepetitionRung } from '@/lib/chapte
 import type { TextSelection } from '@/stores/annotationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 
+/**
+ * A rung on the Echo Hints reveal ladder, per echo. `'reference'` is the top
+ * rung — once earned it must never be downgraded back to `'category'` (a
+ * stale reveal for the same key arriving late shouldn't hide a reference the
+ * reader already earned).
+ */
+export type EchoRung = 'category' | 'reference';
+
 export interface DiscoveryFound {
   book: string;
   chapter: number;
@@ -56,6 +64,15 @@ interface DiscoveryState {
    * rewind or relabel a rung the reader already earned.
    */
   revealedRungs: RepetitionRung[];
+  /**
+   * Echo Hints reveal state, per echo — keyed `${book}.${chapter}:${verse}:${targetRef}`
+   * (the caller's concern; book/chapter ride along in the key so a stale
+   * entry can't collide across chapters even if the reset ever moves).
+   * Parallel to `revealedRungs`, not a reuse of it: that field is a single
+   * flat array for one challenge, while Echo Hints needs independent rung
+   * state per echo.
+   */
+  revealedEchoes: Record<string, EchoRung>;
 
   setContext: (context: DiscoveryContext | null) => void;
   setLensActive: (active: boolean) => void;
@@ -64,6 +81,8 @@ interface DiscoveryState {
   setFound: (found: DiscoveryFound | null) => void;
   setMarkedPresetId: (id: string | null) => void;
   revealRung: (rung: RepetitionRung) => void;
+  /** Monotone: a `'reference'` rung already recorded for `key` is never downgraded back to `'category'`. */
+  revealEchoRung: (key: string, rung: EchoRung) => void;
   /** Clears all Discover-layer UI state except context — called when the chapter changes. */
   resetForChapter: () => void;
 }
@@ -75,6 +94,7 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
   found: null,
   markedPresetId: null,
   revealedRungs: [],
+  revealedEchoes: {},
 
   setContext: (context) => set({ context }),
   setLensActive: (active) => set({ lensActive: active }),
@@ -87,6 +107,12 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
     if (revealedRungs.includes(rung)) return;
     set({ revealedRungs: [...revealedRungs, rung] });
   },
+  revealEchoRung: (key, rung) => {
+    const { revealedEchoes } = get();
+    const current = revealedEchoes[key];
+    if (current === 'reference' || current === rung) return;
+    set({ revealedEchoes: { ...revealedEchoes, [key]: rung } });
+  },
   resetForChapter: () =>
     set({
       lensActive: false,
@@ -94,6 +120,7 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
       found: null,
       markedPresetId: null,
       revealedRungs: [],
+      revealedEchoes: {},
     }),
 }));
 
