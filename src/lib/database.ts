@@ -339,12 +339,11 @@ export async function getAllChapterTitles(): Promise<ChapterTitle[]> {
 // ============================================================================
 
 export async function getChapterNotes(
-  moduleId: string,
   book: string,
   chapter: number
 ): Promise<Note[]> {
   const mod = await sqlite();
-  return mod.sqliteGetChapterNotes(moduleId, book, chapter);
+  return mod.sqliteGetChapterNotes(book, chapter);
 }
 
 export async function saveNote(note: Note): Promise<string> {

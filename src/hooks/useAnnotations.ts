@@ -8,7 +8,7 @@ import { useCallback } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { saveAnnotation, deleteAnnotation, findSisterAnnotations, getAnnotationById, getChapterAnnotations, getChapterHeadings, saveSectionHeading, deleteSectionHeading, getChapterTitle, saveChapterTitle, deleteChapterTitle, getChapterNotes, saveNote, deleteNote, getMarkingPreset } from '@/lib/database';
+import { saveAnnotation, deleteAnnotation, findSisterAnnotations, getAnnotationById, getChapterAnnotations, getChapterHeadings, saveSectionHeading, deleteSectionHeading, getChapterTitle, saveChapterTitle, deleteChapterTitle, saveNote, deleteNote, getMarkingPreset } from '@/lib/database';
 import type { Annotation, TextAnnotation, SymbolAnnotation, HighlightColor, SymbolKey, SectionHeading, ChapterTitle, Note, MarkingPreset, Verse } from '@/types';
 import { presetHasDecoration } from '@/types';
 import { autoAddToObservationTracker } from '@/lib/observationAutoAdd';
@@ -24,7 +24,6 @@ export function useAnnotations() {
     setAnnotations,
     setSectionHeadings,
     setChapterTitle,
-    setNotes,
     clearSelection,
     addRecentColor,
     addRecentSymbol,
@@ -59,20 +58,6 @@ export function useAnnotations() {
     const title = await getChapterTitle(null, currentBook, currentChapter, activeStudyId);
     setChapterTitle(title || null);
   }, [currentBook, currentChapter, activeStudyId, setChapterTitle]);
-
-  /**
-   * Load notes for the current chapter
-   */
-  const loadNotes = useCallback(async () => {
-    if (!currentModuleId) return;
-    
-    const notes = await getChapterNotes(
-      currentModuleId,
-      currentBook,
-      currentChapter
-    );
-    setNotes(notes);
-  }, [currentModuleId, currentBook, currentChapter, setNotes]);
 
   /**
    * Create a highlight, text color, or underline annotation
@@ -535,10 +520,9 @@ export function useAnnotations() {
     };
 
     await saveNote(note);
-    await loadNotes();
     window.dispatchEvent(new CustomEvent('annotationsUpdated'));
     return note;
-  }, [currentModuleId, currentBook, currentChapter, loadNotes]);
+  }, [currentModuleId, currentBook, currentChapter]);
 
   /**
    * Update a note
@@ -549,24 +533,21 @@ export function useAnnotations() {
       updatedAt: new Date(),
     };
     await saveNote(updated);
-    await loadNotes();
     window.dispatchEvent(new CustomEvent('annotationsUpdated'));
-  }, [loadNotes]);
+  }, []);
 
   /**
    * Remove a note
    */
   const removeNote = useCallback(async (id: string): Promise<void> => {
     await deleteNote(id);
-    await loadNotes();
     window.dispatchEvent(new CustomEvent('annotationsUpdated'));
-  }, [loadNotes]);
+  }, []);
 
   return {
     loadAnnotations,
     loadSectionHeadings,
     loadChapterTitle,
-    loadNotes,
     createTextAnnotation,
     createSymbolAnnotation,
     createAnnotationsAcrossTranslations,

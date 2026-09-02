@@ -45,7 +45,9 @@ export function MultiTranslationView() {
   const [translationChapters, setTranslationChapters] = useState<Map<string, TranslationChapter>>(new Map());
   const [annotationsByTranslation, setAnnotationsByTranslation] = useState<Map<string, Annotation[]>>(new Map());
   
-  // Get the primary translation ID (first valid one) for section headings, chapter titles, and notes
+  // Get the primary translation ID (first valid one) for the chapter title UI
+  // and per-translation pane decisions. Section headings, chapter titles and
+  // notes are all translation-agnostic and are not queried by it.
   // Fall back to currentModuleId if no active view or if active view has no translations
   // Memoize to prevent unnecessary re-renders - use stringified array to compare by value, not reference
   const translationIdsJoin = activeView?.translationIds?.join(',');
@@ -261,10 +263,9 @@ export function MultiTranslationView() {
   }, [currentBook, currentChapter, activeStudyId]);
   
   const loadNotes = useCallback(async () => {
-    if (!primaryTranslationId) return;
-    const notesData = await getChapterNotes(primaryTranslationId, currentBook, currentChapter);
+    const notesData = await getChapterNotes(currentBook, currentChapter);
     setNotes(notesData);
-  }, [primaryTranslationId, currentBook, currentChapter]);
+  }, [currentBook, currentChapter]);
 
   const loadAnnotations = useCallback(async () => {
     if (!activeView) return;
@@ -471,7 +472,9 @@ export function MultiTranslationView() {
         await Promise.all([
           loadChapters(),
           loadAnnotations(),
-          ...(primaryTranslationId ? [loadSectionHeadings(), loadChapterTitle(), loadNotes()] : []),
+          loadSectionHeadings(),
+          loadChapterTitle(),
+          loadNotes(),
         ]);
       })();
     }
@@ -788,8 +791,8 @@ export function MultiTranslationView() {
                   })}
                 </div>
 
-              {/* Notes for this verse - show once per verse row, only for primary translation */}
-              {primaryTranslationId && verseNotes.length > 0 && (
+              {/* Notes for this verse - show once per verse row, regardless of translation */}
+              {verseNotes.length > 0 && (
                 <div className="mt-2 mb-2">
                   {verseNotes.map((note) => (
                     <NoteEditor
@@ -831,7 +834,7 @@ export function MultiTranslationView() {
               )}
 
               {/* Note creator */}
-              {creatingNoteAt === verseNum && primaryTranslationId && (
+              {creatingNoteAt === verseNum && (
                 <div className="mt-2 mb-2">
                   <NoteCreator
                     verseNum={verseNum}
