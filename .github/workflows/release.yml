@@ -398,6 +398,9 @@ jobs:
     runs-on: macos-15
     permissions:
       contents: write
+    outputs:
+      build_number: ${{ steps.build.outputs.build_number }}
+      notes_sha: ${{ steps.build.outputs.notes_sha }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -510,12 +513,18 @@ jobs:
       # Android share one scheme — Android's versionCode must stay under Google Play's
       # ~2.1B cap, which epoch seconds would hit around 2036.
       - name: Build iOS app
+        id: build
         run: |
           # Xcode's Rust build phase doesn't inherit step env vars (tauri#13856),
           # so write the NASB key to a file build.rs reads to embed it.
           printf '%s' "$NASB_SIGNING_KEY" > src-tauri/nasb_signing_key.txt
           BUILD_NUMBER=$(( $(date +%s) / 60 ))
           echo "CFBundleVersion (build number): $BUILD_NUMBER"
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          # Capture provenance now, at archive time. The notes are written many
+          # minutes later, in a separate job, and must describe the tree that was
+          # actually built.
+          echo "notes_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           printf '{"bundle":{"iOS":{"bundleVersion":"%s"}}}' "$BUILD_NUMBER" > "$RUNNER_TEMP/bundle-version.json"
           pnpm tauri ios build --export-method app-store-connect --config "$RUNNER_TEMP/bundle-version.json"
         env:
@@ -548,6 +557,27 @@ jobs:
             --file "$IPA_PATH" \
             --apiKey "$API_KEY_ID" \
             --apiIssuer "$API_ISSUER_ID"
+
+  # Fill the build's "What to Test" from git, so a build in App Store Connect
+  # identifies itself. CFBundleVersion holds only period-separated integers, so
+  # the notes are the only place the tag and SHA can live.
+  #
+  # Its own job because it waits on Apple's processing queue: as a step it would
+  # hold build-ios open for 5-20 minutes and delay publish-release behind it.
+  # A leaf job — publish-release does not depend on it and the IPA is already in
+  # TestFlight, so a failure here costs a red job and nothing else. That red job
+  # is the signal to dispatch testflight-notes manually and retry.
+  testflight-notes:
+    needs: build-ios
+    uses: ./.github/workflows/testflight-notes.yml
+    secrets:
+      APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+    with:
+      build_number: ${{ needs.build-ios.outputs.build_number }}
+      ref: ${{ github.ref_name }}
+      sha: ${{ needs.build-ios.outputs.notes_sha }}
 
   build-android:
     needs: prepare
