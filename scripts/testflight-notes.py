@@ -63,6 +63,10 @@ class Transient(Exception):
     """A failure worth retrying: rate limiting, a 5xx, or a dropped connection."""
 
 
+class Unauthorized(Transient):
+    """A 401. Retryable exactly once, to cover a token that expired in flight."""
+
+
 # --- JWT ------------------------------------------------------------------
 
 
@@ -173,7 +177,7 @@ class Client:
             if err.code == 401:
                 # Usually an expired token; drop it so the retry re-mints.
                 self._token = None
-                raise Transient(f"HTTP 401 on {method} {path}") from None
+                raise Unauthorized(f"HTTP 401 on {method} {path}") from None
             if err.code == 429 or err.code >= 500:
                 raise Transient(f"HTTP {err.code} on {method} {path}") from None
             raise RuntimeError(
@@ -183,9 +187,22 @@ class Client:
             raise Transient(f"{type(err).__name__} on {method} {path}: {err}") from None
 
     def request(self, method, path, params=None, body=None):
+        reauthed = False
         while True:
             try:
                 return self._send(method, path, params, body)
+            except Unauthorized as err:
+                # One immediate retry covers a token that expired in flight. A
+                # second 401 means the credentials themselves are wrong, and
+                # retrying those to the deadline just burns 20 minutes of runner
+                # time before saying so.
+                if reauthed:
+                    raise RuntimeError(
+                        f"{err}; check APP_STORE_CONNECT_KEY_ID, "
+                        "APP_STORE_CONNECT_ISSUER_ID, and the .p8 key"
+                    ) from None
+                reauthed = True
+                log(f"  {err}; re-minting the token and retrying")
             except Transient as err:
                 if time.monotonic() >= self.deadline:
                     raise RuntimeError(f"{err} (giving up at deadline)") from None
@@ -374,8 +391,15 @@ def compose_notes(branch, build_number, count):
     points at by then. The branch label is the one fact a detached checkout
     can't recover, which is why it alone is passed in.
     """
+    # Without a SHA there is no provenance to write, only a header naming a
+    # branch — which would overwrite good notes on a rebuild with worse ones.
+    sha = git("rev-parse", "--short", "HEAD")
+    if not sha:
+        raise RuntimeError(
+            "cannot resolve HEAD; the notes must be composed from a git checkout"
+        )
+
     branch = branch or git("rev-parse", "--abbrev-ref", "HEAD") or "unknown"
-    sha = git("rev-parse", "--short", "HEAD") or "unknown"
 
     header = f"{branch} @ {sha}"
     if build_number:
@@ -452,8 +476,6 @@ def main(argv=None):
     notes = truncate(
         compose_notes(args.branch, args.build_number, args.commit_count).strip()
     )
-    if not notes:
-        sys.exit("error: composed notes are empty; refusing to overwrite")
 
     log("Notes to write:")
     log("\n".join("  | " + line for line in notes.splitlines()))
@@ -480,4 +502,9 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    main()
+    # Deadline and API failures are expected outcomes here, not crashes — report
+    # them the same way as the precondition checks rather than as a traceback.
+    try:
+        main()
+    except RuntimeError as exc:
+        sys.exit(f"error: {exc}")
