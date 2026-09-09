@@ -1,0 +1,62 @@
+# Retry entry point for TestFlight "What to Test" notes.
+#
+# The notes step in `testflight` and `release` is non-fatal, so a failure there
+# leaves a good build in TestFlight with empty notes. This workflow rewrites them
+# without rebuilding — no Xcode, no Rust, no archive, so it finishes in about a
+# minute instead of fifteen.
+name: testflight-notes
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or tag to take the commit list from"
+        required: false
+        default: "main"
+      build_number:
+        description: "CFBundleVersion to target (blank = most recently uploaded build)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  write-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+          # Enough history for the commit list; the default depth of 1 would
+          # leave it with a single subject.
+          fetch-depth: 50
+
+      - name: Set up App Store Connect API key
+        env:
+          API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$API_KEY" | base64 --decode > "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8"
+
+      - name: Write TestFlight release notes
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          NOTES_BRANCH: ${{ inputs.ref }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          if ! python3 -c 'import cryptography' 2>/dev/null; then
+            python3 -m pip install --quiet --disable-pip-version-check cryptography \
+              || python3 -m pip install --quiet --disable-pip-version-check \
+                   --break-system-packages cryptography
+          fi
+          # No --notes-file here: this path recomposes the notes from the checkout
+          # rather than from the archive, since the archive is long gone.
+          ARGS=(--bundle-id app.biblemarker --branch "$NOTES_BRANCH")
+          if [ -n "$BUILD_NUMBER" ]; then
+            ARGS+=(--build-number "$BUILD_NUMBER")
+          fi
+          python3 scripts/testflight-notes.py "${ARGS[@]}"
