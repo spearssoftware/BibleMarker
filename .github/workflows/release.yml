@@ -524,12 +524,7 @@ jobs:
           # Capture provenance now, at archive time. The notes are written many
           # minutes later, after processing finishes, and must describe the tree
           # that was actually built.
-          {
-            printf '%s @ %s  (build %s)\n\n' \
-              "$NOTES_BRANCH" "$(git rev-parse --short HEAD)" "$BUILD_NUMBER"
-            printf 'Recent commits:\n'
-            git log -10 --no-merges --pretty=format:'- %s'
-          } > "$RUNNER_TEMP/tf-notes.txt"
+          echo "NOTES_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
           printf '{"bundle":{"iOS":{"bundleVersion":"%s"}}}' "$BUILD_NUMBER" > "$RUNNER_TEMP/bundle-version.json"
           pnpm tauri ios build --export-method app-store-connect --config "$RUNNER_TEMP/bundle-version.json"
         env:
@@ -577,16 +572,21 @@ jobs:
         env:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          # NOTES_SHA comes from $GITHUB_ENV, written by the build step.
+          NOTES_BRANCH: ${{ github.ref_name }}
         run: |
           if ! python3 -c 'import cryptography' 2>/dev/null; then
-            python3 -m pip install --quiet --disable-pip-version-check cryptography \
+            # The first attempt fails noisily under PEP 668; keep that out of the
+            # log, since the --break-system-packages retry is the expected path.
+            python3 -m pip install --quiet --disable-pip-version-check cryptography 2>/dev/null \
               || python3 -m pip install --quiet --disable-pip-version-check \
                    --break-system-packages cryptography
           fi
           python3 scripts/testflight-notes.py \
             --bundle-id app.biblemarker \
             --build-number "$BUILD_NUMBER" \
-            --notes-file "$RUNNER_TEMP/tf-notes.txt"
+            --branch "$NOTES_BRANCH" \
+            --sha "$NOTES_SHA"
 
   build-android:
     needs: prepare

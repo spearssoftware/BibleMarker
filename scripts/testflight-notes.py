@@ -1,28 +1,32 @@
 #!/usr/bin/env python3
-"""Write TestFlight "What to Test" notes for an uploaded build.
+r"""Write TestFlight "What to Test" notes for an uploaded build.
 
 CFBundleVersion is limited to period-separated integers, so the build number
 can't carry a SHA or a branch name. The beta build localization notes are the
 only place that provenance can live, which is what this script fills in after a
 successful upload.
 
-Usage (after an upload, targeting a specific build):
-    scripts/testflight-notes.py --bundle-id app.biblemarker \
-        --build-number 29815116 --notes-file "$RUNNER_TEMP/tf-notes.txt"
+Usage (after an upload, targeting the build that was just archived):
 
-Retry entry point (no build number — targets the most recently uploaded build,
-composing notes from the current checkout):
-    scripts/testflight-notes.py --bundle-id app.biblemarker
+    scripts/testflight-notes.py --bundle-id app.biblemarker \
+        --build-number 29815116 --branch main --sha a1ff643
+
+Retry entry point, when a notes write failed but the build is already in
+TestFlight (--newest targets the most recently uploaded build):
+
+    scripts/testflight-notes.py --bundle-id app.biblemarker --newest
 
 Credentials come from the same env vars and key file the altool upload uses:
-    APP_STORE_CONNECT_KEY_ID, APP_STORE_CONNECT_ISSUER_ID, and the private key at
-    ~/.appstoreconnect/private_keys/AuthKey_<key id>.p8 (override with
-    APP_STORE_CONNECT_KEY_PATH).
+APP_STORE_CONNECT_KEY_ID, APP_STORE_CONNECT_ISSUER_ID, and the private key at
+~/.appstoreconnect/private_keys/AuthKey_<key id>.p8 (override with
+APP_STORE_CONNECT_KEY_PATH).
 """
 import argparse
 import base64
+import http.client
 import json
 import os
+import socket
 import subprocess
 import sys
 import time
@@ -36,6 +40,16 @@ API = "https://api.appstoreconnect.apple.com"
 # App Store Connect caps beta build localization notes at 4000 characters.
 NOTES_MAX = 4000
 
+# Apple rejects a token whose exp is more than 20 minutes past its iat. That is
+# shorter than the time a build can spend processing, so tokens are re-minted
+# mid-run rather than issued once up front.
+TOKEN_LIFETIME = 15 * 60
+TOKEN_REFRESH = 12 * 60
+
+# Grace period granted to the write/verify calls once polling is done, so a
+# nearly-exhausted poll deadline doesn't leave them with no retries.
+WRITE_GRACE = 120
+
 # Terminal states for Build.processingState. Notes are rejected while a build is
 # still PROCESSING, so we wait for one of these before writing.
 DONE_STATES = {"VALID", "FAILED", "INVALID"}
@@ -43,6 +57,10 @@ DONE_STATES = {"VALID", "FAILED", "INVALID"}
 
 def log(msg):
     print(msg, flush=True)
+
+
+class Transient(Exception):
+    """A failure worth retrying: rate limiting, a 5xx, or a dropped connection."""
 
 
 # --- JWT ------------------------------------------------------------------
@@ -77,11 +95,10 @@ def mint_token(key_id, issuer_id, key_path):
 
     now = int(time.time())
     header = {"alg": "ES256", "kid": key_id, "typ": "JWT"}
-    # Apple rejects tokens with an exp more than 20 minutes out.
     payload = {
         "iss": issuer_id,
         "iat": now,
-        "exp": now + 15 * 60,
+        "exp": now + TOKEN_LIFETIME,
         "aud": "appstoreconnect-v1",
     }
 
@@ -100,42 +117,84 @@ def mint_token(key_id, issuer_id, key_path):
     return (signing_input + b"." + b64url(signature)).decode()
 
 
-# --- HTTP -----------------------------------------------------------------
+# --- Client ---------------------------------------------------------------
 
 
-def request(token, method, path, params=None, body=None):
-    url = API + path
-    if params:
-        url += "?" + urllib.parse.urlencode(params)
+class Client:
+    """App Store Connect client with a self-renewing token and retries.
 
-    data = json.dumps(body).encode() if body is not None else None
-    headers = {"Authorization": "Bearer " + token}
-    if data:
-        headers["Content-Type"] = "application/json"
+    A run routinely outlives a single token: waiting for a build to appear and
+    finish processing can take longer than the 20 minutes Apple allows on a
+    token's exp, so the token is minted lazily and refreshed as it ages.
+    """
 
-    req = urllib.request.Request(url, data=data, headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            raw = resp.read()
-            return json.loads(raw) if raw else {}
-    except urllib.error.HTTPError as err:
-        detail = err.read().decode(errors="replace")
-        raise RuntimeError(
-            f"{method} {path} failed with HTTP {err.code}: {detail}"
-        ) from None
+    def __init__(self, key_id, issuer_id, key_path, interval=30):
+        self.key_id = key_id
+        self.issuer_id = issuer_id
+        self.key_path = key_path
+        self.interval = interval
+        self.deadline = 0.0
+        self._token = None
+        self._minted_at = 0.0
+
+    def token(self):
+        age = time.monotonic() - self._minted_at
+        if self._token is None or age > TOKEN_REFRESH:
+            self._token = mint_token(self.key_id, self.issuer_id, self.key_path)
+            self._minted_at = time.monotonic()
+        return self._token
+
+    def _send(self, method, path, params, body):
+        url = API + path
+        if params:
+            url += "?" + urllib.parse.urlencode(params)
+
+        data = json.dumps(body).encode() if body is not None else None
+        headers = {"Authorization": "Bearer " + self.token()}
+        if data:
+            headers["Content-Type"] = "application/json"
+
+        req = urllib.request.Request(url, data=data, headers=headers, method=method)
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                raw = resp.read()
+                return json.loads(raw) if raw else {}
+        except urllib.error.HTTPError as err:
+            detail = err.read().decode(errors="replace")
+            if err.code == 401:
+                # Usually an expired token; drop it so the retry re-mints.
+                self._token = None
+                raise Transient(f"HTTP 401 on {method} {path}") from None
+            if err.code == 429 or err.code >= 500:
+                raise Transient(f"HTTP {err.code} on {method} {path}") from None
+            raise RuntimeError(
+                f"{method} {path} failed with HTTP {err.code}: {detail}"
+            ) from None
+        except (urllib.error.URLError, socket.timeout, http.client.HTTPException) as err:
+            raise Transient(f"{type(err).__name__} on {method} {path}: {err}") from None
+
+    def request(self, method, path, params=None, body=None):
+        while True:
+            try:
+                return self._send(method, path, params, body)
+            except Transient as err:
+                if time.monotonic() >= self.deadline:
+                    raise RuntimeError(f"{err} (giving up at deadline)") from None
+                log(f"  {err}; retrying in {self.interval}s")
+                time.sleep(self.interval)
 
 
 # --- App Store Connect ----------------------------------------------------
 
 
-def resolve_app_id(token, bundle_id):
-    data = request(token, "GET", "/v1/apps", {"filter[bundleId]": bundle_id})["data"]
+def resolve_app_id(client, bundle_id):
+    data = client.request("GET", "/v1/apps", {"filter[bundleId]": bundle_id})["data"]
     if not data:
         raise RuntimeError(f"no app found for bundle id {bundle_id}")
     return data[0]["id"]
 
 
-def find_build(token, app_id, build_number):
+def find_build(client, app_id, build_number):
     """Look a build up by CFBundleVersion, or newest-first when unspecified.
 
     Deliberately not filtered by filter[preReleaseVersion.version]: the build
@@ -144,51 +203,53 @@ def find_build(token, app_id, build_number):
     script's idea of the version drifts from the one Tauri baked into the
     archive — prerelease suffixes are stripped for iOS by scripts/sync-version.js,
     so package.json and CFBundleShortVersionString disagree on every beta.
+
+    Apple only guarantees CFBundleVersion uniqueness within a marketing version,
+    so ask for two and sort, to notice ambiguity rather than pick blind.
     """
-    params = {"filter[app]": app_id, "limit": "1"}
+    params = {"filter[app]": app_id, "sort": "-uploadedDate", "limit": "2"}
     if build_number:
         params["filter[version]"] = build_number
-    else:
-        params["sort"] = "-uploadedDate"
 
-    data = request(token, "GET", "/v1/builds", params)["data"]
+    data = client.request("GET", "/v1/builds", params)["data"]
+    if build_number and len(data) > 1:
+        log(
+            f"  warning: {len(data)} builds match version {build_number}; "
+            "using the most recently uploaded"
+        )
     return data[0] if data else None
 
 
-def wait_for_build(token, app_id, build_number, timeout, interval):
+def wait_for_build(client, app_id, build_number):
     """Wait for the build to appear, then for it to finish processing.
 
-    Both waits share one deadline. A freshly uploaded build is not queryable for
-    several minutes after the upload command exits, so "not found" is an
+    Both waits share client.deadline. A freshly uploaded build is not queryable
+    for several minutes after the upload command exits, so "not found" is an
     expected transient state here, not an error.
     """
-    deadline = time.monotonic() + timeout
     target = build_number or "most recent"
 
-    build = None
     while True:
-        build = find_build(token, app_id, build_number)
+        build = find_build(client, app_id, build_number)
         if build:
             break
-        if time.monotonic() >= deadline:
-            raise RuntimeError(
-                f"build {target} never appeared within {timeout}s of polling"
-            )
-        log(f"  build {target} not visible yet; waiting {interval}s")
-        time.sleep(interval)
+        if time.monotonic() >= client.deadline:
+            raise RuntimeError(f"build {target} never appeared before the deadline")
+        log(f"  build {target} not visible yet; waiting {client.interval}s")
+        time.sleep(client.interval)
 
     while True:
-        state = build["attributes"]["processingState"]
+        attrs = build["attributes"]
+        state = attrs["processingState"]
         if state in DONE_STATES:
             break
-        if time.monotonic() >= deadline:
+        if time.monotonic() >= client.deadline:
             raise RuntimeError(
-                f"build {build['attributes']['version']} still {state} "
-                f"after {timeout}s"
+                f"build {attrs['version']} still {state} at the deadline"
             )
-        log(f"  build {build['attributes']['version']} is {state}; waiting {interval}s")
-        time.sleep(interval)
-        build = request(token, "GET", f"/v1/builds/{build['id']}")["data"]
+        log(f"  build {attrs['version']} is {state}; waiting {client.interval}s")
+        time.sleep(client.interval)
+        build = client.request("GET", f"/v1/builds/{build['id']}")["data"]
 
     state = build["attributes"]["processingState"]
     if state != "VALID":
@@ -197,17 +258,22 @@ def wait_for_build(token, app_id, build_number, timeout, interval):
     return build
 
 
-def write_notes(token, build_id, notes):
-    """PATCH the existing en-US localization, or POST one if there isn't one."""
-    existing = request(
-        token, "GET", f"/v1/builds/{build_id}/betaBuildLocalizations"
+def localizations(client, build_id):
+    return client.request(
+        "GET", f"/v1/builds/{build_id}/betaBuildLocalizations"
     )["data"]
+
+
+def write_notes(client, build_id, notes):
+    """PATCH the existing en-US localization, or POST one if there isn't one."""
+    existing = localizations(client, build_id)
 
     # The attribute is `whatsNew`, NOT `whatsToTest` — TestFlight's UI labels the
     # field "What to Test" and Apple's docs have used both names, but sending
-    # `whatsToTest` fails with ENTITY_ERROR.ATTRIBUTE.UNKNOWN. Dumping the live
-    # attribute keys here keeps that verifiable from the build log rather than
-    # from memory.
+    # `whatsToTest` fails with ENTITY_ERROR.ATTRIBUTE.UNKNOWN. The attribute keys
+    # are logged here and in verify_notes so the live field name stays checkable
+    # from the build log rather than from memory. A brand-new build has no
+    # localizations at all, which is why verify_notes logs them too.
     for loc in existing:
         log(
             f"  existing localization {loc['attributes'].get('locale')}: "
@@ -219,8 +285,7 @@ def write_notes(token, build_id, notes):
     )
 
     if en_us:
-        request(
-            token,
+        client.request(
             "PATCH",
             f"/v1/betaBuildLocalizations/{en_us['id']}",
             body={
@@ -233,8 +298,7 @@ def write_notes(token, build_id, notes):
         )
         log(f"  patched existing en-US localization {en_us['id']}")
     else:
-        request(
-            token,
+        client.request(
             "POST",
             "/v1/betaBuildLocalizations",
             body={
@@ -250,21 +314,35 @@ def write_notes(token, build_id, notes):
         log("  created en-US localization")
 
 
-def verify_notes(token, build_id, expected):
-    """Read the notes back — a 200 on the write is not proof they landed."""
-    data = request(token, "GET", f"/v1/builds/{build_id}/betaBuildLocalizations")["data"]
-    en_us = next(
-        (loc for loc in data if loc["attributes"].get("locale") == "en-US"), None
-    )
-    if not en_us:
-        raise RuntimeError("no en-US localization present after writing notes")
+def normalize(text):
+    return (text or "").replace("\r\n", "\n").strip()
 
-    actual = en_us["attributes"].get("whatsNew") or ""
-    if actual.strip() != expected.strip():
-        raise RuntimeError(
-            "notes read back did not match what was written:\n"
-            f"--- expected ---\n{expected}\n--- actual ---\n{actual}"
+
+def verify_notes(client, build_id, expected, attempts=3, wait=5):
+    """Read the notes back — a 200 on the write is not proof they landed.
+
+    Retried a few times: the relationship endpoint can briefly serve the
+    pre-write representation, which would otherwise look like a failed write.
+    """
+    actual = ""
+    for attempt in range(1, attempts + 1):
+        data = localizations(client, build_id)
+        en_us = next(
+            (loc for loc in data if loc["attributes"].get("locale") == "en-US"), None
         )
+        if en_us:
+            log(f"  en-US localization attributes: {sorted(en_us['attributes'])}")
+            actual = en_us["attributes"].get("whatsNew")
+            if normalize(actual) == normalize(expected):
+                return
+        if attempt < attempts:
+            log(f"  notes not readable back yet (attempt {attempt}); waiting {wait}s")
+            time.sleep(wait)
+
+    raise RuntimeError(
+        "notes read back did not match what was written:\n"
+        f"--- expected ---\n{expected}\n--- actual ---\n{actual}"
+    )
 
 
 # --- Notes ----------------------------------------------------------------
@@ -280,10 +358,11 @@ def git(*args):
 
 
 def compose_notes(branch, sha, build_number, count):
-    """Build the notes body from the current checkout.
+    """Build the notes body.
 
-    Only used on the retry path; the normal path passes --notes-file, captured at
-    archive time so the notes describe the tree that was actually built.
+    Branch and SHA are passed in, captured at archive time — the notes are
+    written many minutes later and must describe the tree that was built, not
+    whatever the checkout looks like by then.
     """
     branch = branch or git("rev-parse", "--abbrev-ref", "HEAD") or "unknown"
     sha = sha or git("rev-parse", "--short", "HEAD") or "unknown"
@@ -310,25 +389,38 @@ def truncate(notes):
 # --- Entry point ----------------------------------------------------------
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--bundle-id", required=True)
+    parser.add_argument("--build-number", help="CFBundleVersion to target.")
     parser.add_argument(
-        "--build-number",
-        help="CFBundleVersion to target. Omit to target the most recently "
-        "uploaded build (the retry path).",
+        "--newest",
+        action="store_true",
+        help="Target the most recently uploaded build instead of a specific "
+        "build number. Only for the retry path.",
     )
-    parser.add_argument(
-        "--notes-file",
-        help="File holding the notes body, captured at archive time. Omit to "
-        "compose from the current checkout.",
-    )
-    parser.add_argument("--branch", help="Branch/tag name, when composing notes.")
-    parser.add_argument("--sha", help="Short SHA, when composing notes.")
+    parser.add_argument("--branch", help="Branch/tag name, captured at archive time.")
+    parser.add_argument("--sha", help="Short SHA, captured at archive time.")
     parser.add_argument("--commit-count", type=int, default=10)
     parser.add_argument("--timeout", type=int, default=1200)
     parser.add_argument("--interval", type=int, default=30)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+
+    # An empty --build-number must not silently fall through to "newest": that
+    # would stamp this run's provenance onto an unrelated build.
+    if args.newest:
+        if args.build_number:
+            parser.error("--newest and --build-number are mutually exclusive")
+    elif not args.build_number:
+        parser.error("--build-number is required (or pass --newest)")
+
+    return args
+
+
+def main(argv=None):
+    args = parse_args(argv)
 
     key_id = os.environ.get("APP_STORE_CONNECT_KEY_ID")
     issuer_id = os.environ.get("APP_STORE_CONNECT_ISSUER_ID")
@@ -344,29 +436,36 @@ def main():
     if not Path(key_path).is_file():
         sys.exit(f"error: private key not found at {key_path}")
 
-    if args.notes_file:
-        notes = Path(args.notes_file).read_text()
-    else:
-        notes = compose_notes(
+    notes = truncate(
+        compose_notes(
             args.branch, args.sha, args.build_number, args.commit_count
-        )
-    notes = truncate(notes.strip())
+        ).strip()
+    )
+    if not notes:
+        sys.exit("error: composed notes are empty; refusing to overwrite")
 
     log("Notes to write:")
     log("\n".join("  | " + line for line in notes.splitlines()))
 
-    token = mint_token(key_id, issuer_id, key_path)
+    client = Client(key_id, issuer_id, key_path, interval=args.interval)
+    client.deadline = time.monotonic() + args.timeout
 
-    app_id = resolve_app_id(token, args.bundle_id)
+    app_id = resolve_app_id(client, args.bundle_id)
     log(f"Resolved {args.bundle_id} to app {app_id}")
 
-    build = wait_for_build(
-        token, app_id, args.build_number, args.timeout, args.interval
+    build = wait_for_build(client, app_id, args.build_number)
+    attrs = build["attributes"]
+    log(
+        f"Build {attrs['version']} ({build['id']}) is VALID, "
+        f"uploaded {attrs.get('uploadedDate')}"
     )
-    log(f"Build {build['attributes']['version']} ({build['id']}) is VALID")
 
-    write_notes(token, build["id"], notes)
-    verify_notes(token, build["id"], notes)
+    # Polling may have consumed almost the whole deadline; give the writes their
+    # own room so they aren't left with zero retries.
+    client.deadline = time.monotonic() + WRITE_GRACE
+
+    write_notes(client, build["id"], notes)
+    verify_notes(client, build["id"], notes)
     log("Notes verified by reading them back from the API.")
 
 

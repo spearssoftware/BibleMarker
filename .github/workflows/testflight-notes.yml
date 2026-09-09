@@ -4,17 +4,31 @@
 # leaves a good build in TestFlight with empty notes. This workflow rewrites them
 # without rebuilding — no Xcode, no Rust, no archive, so it finishes in about a
 # minute instead of fifteen.
+#
+# Give it the build number from App Store Connect and the ref that was built.
+# The archive is long gone by now, so provenance can't be recaptured from it:
+# pass `sha` explicitly whenever the branch has moved since the build, or the
+# notes will name whatever that ref points at today.
 name: testflight-notes
 
 on:
   workflow_dispatch:
     inputs:
+      build_number:
+        description: "CFBundleVersion of the build to write notes for"
+        required: false
+        default: ""
+      newest:
+        description: "Target the most recently uploaded build instead (ignores build_number)"
+        type: boolean
+        required: false
+        default: false
       ref:
-        description: "Branch or tag to take the commit list from"
+        description: "Branch or tag that was built — sources the commit list"
         required: false
         default: "main"
-      build_number:
-        description: "CFBundleVersion to target (blank = most recently uploaded build)"
+      sha:
+        description: "Short SHA that was built (defaults to the tip of ref)"
         required: false
         default: ""
 
@@ -46,17 +60,26 @@ jobs:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           NOTES_BRANCH: ${{ inputs.ref }}
+          NOTES_SHA: ${{ inputs.sha }}
           BUILD_NUMBER: ${{ inputs.build_number }}
+          NEWEST: ${{ inputs.newest }}
         run: |
           if ! python3 -c 'import cryptography' 2>/dev/null; then
-            python3 -m pip install --quiet --disable-pip-version-check cryptography \
+            # The first attempt fails noisily under PEP 668; keep that out of the
+            # log, since the --break-system-packages retry is the expected path.
+            python3 -m pip install --quiet --disable-pip-version-check cryptography 2>/dev/null \
               || python3 -m pip install --quiet --disable-pip-version-check \
                    --break-system-packages cryptography
           fi
-          # No --notes-file here: this path recomposes the notes from the checkout
-          # rather than from the archive, since the archive is long gone.
           ARGS=(--bundle-id app.biblemarker --branch "$NOTES_BRANCH")
-          if [ -n "$BUILD_NUMBER" ]; then
+          if [ -n "$NOTES_SHA" ]; then
+            ARGS+=(--sha "$NOTES_SHA")
+          fi
+          # The script rejects the case where neither is supplied, rather than
+          # quietly stamping this run's provenance onto an unrelated build.
+          if [ "$NEWEST" = "true" ]; then
+            ARGS+=(--newest)
+          elif [ -n "$BUILD_NUMBER" ]; then
             ARGS+=(--build-number "$BUILD_NUMBER")
           fi
           python3 scripts/testflight-notes.py "${ARGS[@]}"
