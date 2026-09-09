@@ -1,21 +1,53 @@
-# Retry entry point for TestFlight "What to Test" notes.
+# Writes a TestFlight build's "What to Test" notes from git.
 #
-# The notes step in `testflight` and `release` is non-fatal, so a failure there
-# leaves a good build in TestFlight with empty notes. This workflow rewrites them
-# without rebuilding — no Xcode, no Rust, no archive, so it finishes in about a
-# minute instead of fifteen.
+# Runs two ways:
 #
-# Give it the build number from App Store Connect and the ref that was built.
-# The archive is long gone by now, so provenance can't be recaptured from it:
-# pass `sha` explicitly whenever the branch has moved since the build, or the
-# notes will name whatever that ref points at today.
+#   - Called by `testflight` and `release` after their iOS upload. It waits for
+#     Apple to finish processing, which takes 5-20 minutes, so it is a separate
+#     job rather than a step: the caller's build job finishes immediately and
+#     `publish-release` is not held up behind Apple's processing queue.
+#
+#   - Dispatched manually, to rewrite notes for a build that is already in
+#     TestFlight. The notes step is non-fatal in both callers, so a failure
+#     leaves a good build with empty notes; this rewrites them without
+#     rebuilding — no Xcode, no Rust, no archive, so about a minute.
+#
+# On the manual path the archive is long gone, so provenance can't be recovered
+# from it: pass `sha` whenever the branch has moved since the build, or the notes
+# will name whatever that ref points at today.
 name: testflight-notes
 
 on:
+  workflow_call:
+    inputs:
+      build_number:
+        type: string
+        required: false
+        default: ""
+      newest:
+        type: boolean
+        required: false
+        default: false
+      ref:
+        type: string
+        required: false
+        default: "main"
+      sha:
+        type: string
+        required: false
+        default: ""
+      non_fatal:
+        # Callers set this: by the time notes are written the IPA is already in
+        # TestFlight, so a notes failure must not fail their build. Left false on
+        # the manual path, where a failed retry should be loud.
+        type: boolean
+        required: false
+        default: false
   workflow_dispatch:
     inputs:
       build_number:
         description: "CFBundleVersion of the build to write notes for"
+        type: string
         required: false
         default: ""
       newest:
@@ -25,10 +57,12 @@ on:
         default: false
       ref:
         description: "Branch or tag that was built — sources the commit list"
+        type: string
         required: false
         default: "main"
       sha:
         description: "Short SHA that was built (defaults to the tip of ref)"
+        type: string
         required: false
         default: ""
 
@@ -56,6 +90,7 @@ jobs:
           echo "$API_KEY" | base64 --decode > "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8"
 
       - name: Write TestFlight release notes
+        continue-on-error: ${{ inputs.non_fatal }}
         env:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
