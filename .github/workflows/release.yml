@@ -404,10 +404,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-        with:
-          # Enough history for the commit list in the TestFlight release notes;
-          # the default depth of 1 would leave it with a single subject.
-          fetch-depth: 50
 
       - name: Download gnosis-lite.db
         run: |
@@ -528,7 +524,7 @@ jobs:
           # Capture provenance now, at archive time. The notes are written many
           # minutes later, in a separate job, and must describe the tree that was
           # actually built.
-          echo "notes_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "notes_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           printf '{"bundle":{"iOS":{"bundleVersion":"%s"}}}' "$BUILD_NUMBER" > "$RUNNER_TEMP/bundle-version.json"
           pnpm tauri ios build --export-method app-store-connect --config "$RUNNER_TEMP/bundle-version.json"
         env:
@@ -568,14 +564,17 @@ jobs:
   #
   # Its own job because it waits on Apple's processing queue: as a step it would
   # hold build-ios open for 5-20 minutes and delay publish-release behind it.
-  # Non-fatal — the IPA is already safely in TestFlight, and testflight-notes can
-  # be dispatched manually to retry in about a minute without rebuilding.
+  # A leaf job — publish-release does not depend on it and the IPA is already in
+  # TestFlight, so a failure here costs a red job and nothing else. That red job
+  # is the signal to dispatch testflight-notes manually and retry.
   testflight-notes:
     needs: build-ios
     uses: ./.github/workflows/testflight-notes.yml
-    secrets: inherit
+    secrets:
+      APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
     with:
-      non_fatal: true
       build_number: ${{ needs.build-ios.outputs.build_number }}
       ref: ${{ github.ref_name }}
       sha: ${{ needs.build-ios.outputs.notes_sha }}

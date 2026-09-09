@@ -128,14 +128,23 @@ class Client:
     token's exp, so the token is minted lazily and refreshed as it ages.
     """
 
-    def __init__(self, key_id, issuer_id, key_path, interval=30):
+    def __init__(self, key_id, issuer_id, key_path, timeout, interval=30):
         self.key_id = key_id
         self.issuer_id = issuer_id
         self.key_path = key_path
         self.interval = interval
-        self.deadline = 0.0
         self._token = None
         self._minted_at = 0.0
+        self.budget(timeout)
+
+    def budget(self, seconds):
+        """Give the calls that follow their own window to retry within.
+
+        Polling and the write/verify calls get separate budgets: polling can
+        legitimately consume its whole deadline waiting on Apple, which would
+        otherwise leave the writes with no retries at all.
+        """
+        self.deadline = time.monotonic() + seconds
 
     def token(self):
         age = time.monotonic() - self._minted_at
@@ -264,6 +273,10 @@ def localizations(client, build_id):
     )["data"]
 
 
+def find_en_us(locs):
+    return next((loc for loc in locs if loc["attributes"].get("locale") == "en-US"), None)
+
+
 def write_notes(client, build_id, notes):
     """PATCH the existing en-US localization, or POST one if there isn't one."""
     existing = localizations(client, build_id)
@@ -280,9 +293,7 @@ def write_notes(client, build_id, notes):
             f"attributes {sorted(loc['attributes'])}"
         )
 
-    en_us = next(
-        (loc for loc in existing if loc["attributes"].get("locale") == "en-US"), None
-    )
+    en_us = find_en_us(existing)
 
     if en_us:
         client.request(
@@ -326,10 +337,7 @@ def verify_notes(client, build_id, expected, attempts=3, wait=5):
     """
     actual = ""
     for attempt in range(1, attempts + 1):
-        data = localizations(client, build_id)
-        en_us = next(
-            (loc for loc in data if loc["attributes"].get("locale") == "en-US"), None
-        )
+        en_us = find_en_us(localizations(client, build_id))
         if en_us:
             log(f"  en-US localization attributes: {sorted(en_us['attributes'])}")
             actual = en_us["attributes"].get("whatsNew")
@@ -357,15 +365,17 @@ def git(*args):
         return ""
 
 
-def compose_notes(branch, sha, build_number, count):
-    """Build the notes body.
+def compose_notes(branch, build_number, count):
+    """Build the notes body from the current checkout.
 
-    Branch and SHA are passed in, captured at archive time — the notes are
-    written many minutes later and must describe the tree that was built, not
-    whatever the checkout looks like by then.
+    Everything but the branch label falls out of the checkout, so the caller's
+    only job is to check out the commit that was built — the notes are written
+    many minutes later and must describe that tree, not whatever the branch
+    points at by then. The branch label is the one fact a detached checkout
+    can't recover, which is why it alone is passed in.
     """
     branch = branch or git("rev-parse", "--abbrev-ref", "HEAD") or "unknown"
-    sha = sha or git("rev-parse", "--short", "HEAD") or "unknown"
+    sha = git("rev-parse", "--short", "HEAD") or "unknown"
 
     header = f"{branch} @ {sha}"
     if build_number:
@@ -401,8 +411,11 @@ def parse_args(argv=None):
         help="Target the most recently uploaded build instead of a specific "
         "build number. Only for the retry path.",
     )
-    parser.add_argument("--branch", help="Branch/tag name, captured at archive time.")
-    parser.add_argument("--sha", help="Short SHA, captured at archive time.")
+    parser.add_argument(
+        "--branch",
+        help="Branch/tag label for the header. The SHA and commit list come "
+        "from the checkout, so check out the commit that was built.",
+    )
     parser.add_argument("--commit-count", type=int, default=10)
     parser.add_argument("--timeout", type=int, default=1200)
     parser.add_argument("--interval", type=int, default=30)
@@ -437,9 +450,7 @@ def main(argv=None):
         sys.exit(f"error: private key not found at {key_path}")
 
     notes = truncate(
-        compose_notes(
-            args.branch, args.sha, args.build_number, args.commit_count
-        ).strip()
+        compose_notes(args.branch, args.build_number, args.commit_count).strip()
     )
     if not notes:
         sys.exit("error: composed notes are empty; refusing to overwrite")
@@ -447,8 +458,9 @@ def main(argv=None):
     log("Notes to write:")
     log("\n".join("  | " + line for line in notes.splitlines()))
 
-    client = Client(key_id, issuer_id, key_path, interval=args.interval)
-    client.deadline = time.monotonic() + args.timeout
+    client = Client(
+        key_id, issuer_id, key_path, timeout=args.timeout, interval=args.interval
+    )
 
     app_id = resolve_app_id(client, args.bundle_id)
     log(f"Resolved {args.bundle_id} to app {app_id}")
@@ -460,9 +472,7 @@ def main(argv=None):
         f"uploaded {attrs.get('uploadedDate')}"
     )
 
-    # Polling may have consumed almost the whole deadline; give the writes their
-    # own room so they aren't left with zero retries.
-    client.deadline = time.monotonic() + WRITE_GRACE
+    client.budget(WRITE_GRACE)
 
     write_notes(client, build["id"], notes)
     verify_notes(client, build["id"], notes)
