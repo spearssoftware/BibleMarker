@@ -19,7 +19,7 @@ jobs:
       notes_sha: ${{ steps.build.outputs.notes_sha }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.ref }}
 
