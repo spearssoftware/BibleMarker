@@ -113,6 +113,13 @@ export function MultiTranslationView() {
   const [creatingHeadingAt, setCreatingHeadingAt] = useState<number | null>(null);
   const [creatingChapterTitle, setCreatingChapterTitle] = useState(false);
   const [creatingNoteAt, setCreatingNoteAt] = useState<number | null>(null);
+  // Editing state for notes/headings lives here (not in the editor components)
+  // because the verse list below re-keys on resize/panel changes, remounting
+  // every child. Local editor state would be wiped by that remount — which
+  // made the note editor close the instant the on-screen keyboard resized
+  // the window on mobile.
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingHeadingId, setEditingHeadingId] = useState<string | null>(null);
   const [verseMenuAt, setVerseMenuAt] = useState<{ verseNum: number; translationId: string } | null>(null);
   // Bumped when API configs change (e.g. after sync) to retry failed chapters
   const [configGeneration, setConfigGeneration] = useState(0);
@@ -143,20 +150,58 @@ export function MultiTranslationView() {
   const openPanel = usePanelStore(s => s.openPanel);
   const prevDraggingRef = useRef(false);
 
+  // Re-keying remounts everything inside the verse container, which destroys
+  // any open inline editor (note/heading editors and creators) along with the
+  // user's unsaved text — on mobile, focusing an editor opens the on-screen
+  // keyboard, which fires a resize, which would re-key and kill the editor.
+  // Defer bumps while an editor is open and apply them once it closes.
+  // Ignore a lingering editing id whose note/heading no longer exists
+  // (deleted on another device, chapter changed, etc.).
+  const activeNoteEditId =
+    editingNoteId !== null && notes.some(n => n.id === editingNoteId)
+      ? editingNoteId
+      : null;
+  const activeHeadingEditId =
+    editingHeadingId !== null && sectionHeadings.some(h => h.id === editingHeadingId)
+      ? editingHeadingId
+      : null;
+  const inlineEditorOpen =
+    activeNoteEditId !== null ||
+    activeHeadingEditId !== null ||
+    creatingNoteAt !== null ||
+    creatingHeadingAt !== null;
+  const inlineEditorOpenRef = useRef(false);
+  const pendingLayoutBumpRef = useRef(false);
+  const bumpLayoutKey = useCallback(() => {
+    if (inlineEditorOpenRef.current) {
+      pendingLayoutBumpRef.current = true;
+      return;
+    }
+    setLayoutKey(k => k + 1);
+  }, []);
+  useEffect(() => {
+    inlineEditorOpenRef.current = inlineEditorOpen;
+    if (!inlineEditorOpen && pendingLayoutBumpRef.current) {
+      pendingLayoutBumpRef.current = false;
+      const timer = setTimeout(() => setLayoutKey(k => k + 1), 0);
+      return () => clearTimeout(timer);
+    }
+  }, [inlineEditorOpen]);
+
   // Re-key after panel open/close/collapse (wait for 300ms CSS transition)
   useEffect(() => {
-    const timer = setTimeout(() => setLayoutKey(k => k + 1), 350);
+    const timer = setTimeout(bumpLayoutKey, 350);
     return () => clearTimeout(timer);
-  }, [panelActive, panelCollapsed]);
+  }, [panelActive, panelCollapsed, bumpLayoutKey]);
 
   // Re-key after drag ends (isDragging transitions true → false)
   useEffect(() => {
     if (prevDraggingRef.current && !panelDragging) {
-      const timer = setTimeout(() => setLayoutKey(k => k + 1), 50);
+      const timer = setTimeout(bumpLayoutKey, 50);
       return () => clearTimeout(timer);
     }
     prevDraggingRef.current = panelDragging;
-  }, [panelDragging]);
+  }, [panelDragging, bumpLayoutKey]);
 
   // Re-key after window resize (debounced). Without this, resizing the
   // desktop window leaves verse block heights stale and the last lines
@@ -165,14 +210,14 @@ export function MultiTranslationView() {
     let timer: ReturnType<typeof setTimeout> | null = null;
     const onResize = () => {
       if (timer) clearTimeout(timer);
-      timer = setTimeout(() => setLayoutKey(k => k + 1), 150);
+      timer = setTimeout(bumpLayoutKey, 150);
     };
     window.addEventListener('resize', onResize);
     return () => {
       window.removeEventListener('resize', onResize);
       if (timer) clearTimeout(timer);
     };
-  }, []);
+  }, [bumpLayoutKey]);
 
   // Track the last book/chapter we loaded to prevent duplicate calls
   const lastLoadedRef = useRef<{ book: string; chapter: number } | null>(null);
@@ -611,6 +656,12 @@ export function MultiTranslationView() {
                     <SectionHeadingEditor
                       heading={heading}
                       verseNum={verseNum}
+                      isEditing={activeHeadingEditId === heading.id}
+                      onEditingChange={(editing) =>
+                        setEditingHeadingId((current) =>
+                          editing ? heading.id : current === heading.id ? null : current
+                        )
+                      }
                       onSave={updateSectionHeading}
                       onDelete={removeSectionHeading}
                     />
@@ -747,6 +798,12 @@ export function MultiTranslationView() {
                       verseNum={verseNum}
                       book={currentBook}
                       chapter={currentChapter}
+                      isEditing={activeNoteEditId === note.id}
+                      onEditingChange={(editing) =>
+                        setEditingNoteId((current) =>
+                          editing ? note.id : current === note.id ? null : current
+                        )
+                      }
                       onSave={async (updated) => {
                         // Optimistically reflect the edit in the displayed notes
                         // so it appears immediately, not only after the next

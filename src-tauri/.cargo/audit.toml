@@ -7,6 +7,10 @@ ignore = [
     "RUSTSEC-2023-0071",
     # sqlx 0.8.x — binary protocol misuse. Pinned by tauri-plugin-sql.
     "RUSTSEC-2024-0363",
+    # rkyv 0.7.x — optional dep of rust_decimal (tauri-plugin-sql → sqlx-core).
+    # We never enable the feature, so it is in Cargo.lock but absent from
+    # `cargo tree -i rkyv --target all` and never compiled into the binary.
+    "RUSTSEC-2026-0235",
 
     # rustls-webpki — name constraint verification bugs. Transitive via quinn → reqwest.
     # Waiting for upstream bump through tauri's networking stack.

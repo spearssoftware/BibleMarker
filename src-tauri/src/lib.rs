@@ -61,6 +61,7 @@ impl AppBuilder {
         builder
             .invoke_handler(tauri::generate_handler![
                 db_maintenance::delete_local_database,
+                db_maintenance::delete_gnosis_database,
                 download::download_file,
                 download::install_bundled_module,
                 flatpak::check_flatpak,

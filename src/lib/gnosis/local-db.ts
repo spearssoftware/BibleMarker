@@ -32,32 +32,150 @@ import type {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+const DB_FILE = 'gnosis-lite.db';
+// Use just the filename — Tauri SQL plugin resolves relative to app data dir
+const DB_URL = `sqlite:${DB_FILE}`;
+
 let dbInitPromise: Promise<Database> | null = null;
+/** A rebuild is expensive and never helps twice; one attempt per session. */
+let rebuildAttempted = false;
+/** Why the rebuild failed, so later errors can repeat the real cause. */
+let rebuildFailure: string | null = null;
+/** Bound install attempts per session: a transient failure deserves another
+ *  try on a later call, but a broken device must not repeat a
+ *  tens-of-megabytes copy attempt on every gnosis call. */
+const MAX_INSTALL_ATTEMPTS = 3;
+let installAttempts = 0;
 
 async function getGnosisDb(): Promise<Database> {
   if (!dbInitPromise) {
-    dbInitPromise = initGnosisDb();
+    // Clear the cached promise on failure so a later call can retry, rather
+    // than every future caller re-awaiting the same rejection. sqlite-db.ts
+    // deliberately does not do this: retrying a read-only reference DB is free,
+    // while re-running init on the user's live database is not.
+    dbInitPromise = initGnosisDb().catch(e => {
+      dbInitPromise = null;
+      throw e;
+    });
   }
   return dbInitPromise;
 }
 
-async function initGnosisDb(): Promise<Database> {
-  const dataDir = await appDataDir();
-  const destPath = await join(dataDir, 'gnosis-lite.db');
+async function installBundledDb(destPath: string): Promise<void> {
+  await invoke('install_bundled_module', { resourceName: DB_FILE, destPath });
+}
 
-  // Copy bundled resource if not present
+function errorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
+type GnosisProbe = { db: Database } | { error: string };
+
+/**
+ * Open the DB and confirm it is actually readable; on failure, close it and
+ * return the reason so callers can surface a diagnosable message.
+ *
+ * Reading the schema is enough: a damaged file (or one shadowed by a stale
+ * `-wal`/`-shm` pair) throws "file is not a database" on any read, and a file
+ * that went missing opens as a brand-new empty DB with no tables at all. A full
+ * `PRAGMA integrity_check` would catch more, but it scans every page of a
+ * reference DB tens of megabytes large, on a path that runs at first use.
+ */
+async function openIfReadable(): Promise<GnosisProbe> {
+  let db: Database;
   try {
-    await invoke('install_bundled_module', {
-      resourceName: 'gnosis-lite.db',
-      destPath,
-    });
-    console.log('[Gnosis] Bundled DB installed at:', destPath);
+    db = await Database.load(DB_URL);
   } catch (e) {
-    console.warn('[Gnosis] Failed to install bundled gnosis-lite.db:', e);
+    console.warn('[Gnosis] Could not open DB:', e);
+    return { error: `could not open: ${errorMessage(e)}` };
   }
 
-  // Use just the filename — Tauri SQL plugin resolves relative to app data dir
-  const db = await Database.load('sqlite:gnosis-lite.db');
+  let error: string;
+  try {
+    const rows = await db.select<{ tables: number }[]>(
+      "SELECT count(*) AS tables FROM sqlite_master WHERE type = 'table'"
+    );
+    if ((rows[0]?.tables ?? 0) > 0) return { db };
+    console.warn('[Gnosis] DB opened but has no tables');
+    error = 'opened but has no tables';
+  } catch (e) {
+    console.warn('[Gnosis] DB is not readable:', e);
+    error = `not readable: ${errorMessage(e)}`;
+  }
+
+  // The close matters: plugin-sql keys its pool by path and load() returns the
+  // pooled connection for a path it already holds, so a handle left open would
+  // survive the reinstall and be handed straight back. Report rather than
+  // swallow — it explains an otherwise baffling second failure.
+  try {
+    if (!(await db.close())) {
+      console.error('[Gnosis] Failed to close the unusable DB; it may stay cached');
+    }
+  } catch (e) {
+    console.error('[Gnosis] Error closing the unusable DB:', e);
+  }
+  return { error };
+}
+
+async function initGnosisDb(): Promise<Database> {
+  const dataDir = await appDataDir();
+  const destPath = await join(dataDir, DB_FILE);
+
+  // Copy bundled resource if not present
+  if (installAttempts < MAX_INSTALL_ATTEMPTS) {
+    installAttempts += 1;
+    try {
+      await installBundledDb(destPath);
+      console.log('[Gnosis] Bundled DB installed at:', destPath);
+    } catch (e) {
+      console.warn('[Gnosis] Failed to install bundled gnosis-lite.db:', e);
+    }
+  }
+
+  let probe = await openIfReadable();
+
+  if ('error' in probe) {
+    if (rebuildAttempted) {
+      // Retrying init is cheap and worth doing, but repeating the rebuild is
+      // not: on a device that simply cannot install the resource it would copy
+      // tens of megabytes again on every call. Repeat the original cause —
+      // this generic path must not mask what actually went wrong.
+      throw new Error(
+        `gnosis-lite.db is unreadable and was already rebuilt this session (${rebuildFailure ?? probe.error})`
+      );
+    }
+    rebuildAttempted = true;
+
+    // The install skips a file its marker records as current, so a damaged
+    // install can survive it. Delete the DB with its sidecars and marker, then
+    // reinstall, so the panel repairs itself instead of showing the user a raw
+    // SQLite error.
+    console.warn(`[Gnosis] Unusable DB (${probe.error}) — deleting and reinstalling`);
+    try {
+      await invoke('delete_gnosis_database');
+    } catch (e) {
+      rebuildFailure = `delete failed: ${errorMessage(e)}`;
+      throw new Error(`gnosis-lite.db could not be deleted for rebuilding: ${errorMessage(e)}`);
+    }
+    try {
+      await installBundledDb(destPath);
+    } catch (e) {
+      rebuildFailure = `reinstall failed: ${errorMessage(e)}`;
+      throw new Error(`gnosis-lite.db could not be reinstalled: ${errorMessage(e)}`);
+    }
+    probe = await openIfReadable();
+
+    if ('error' in probe) {
+      // Deliberately not stored in rebuildFailure: a later call re-probes and
+      // reports its own fresh cause, which must not be shadowed by this
+      // snapshot. Only delete/reinstall failures — which a fresh probe cannot
+      // reconstruct — are pinned.
+      throw new Error(`gnosis-lite.db is unreadable even after reinstalling it (${probe.error})`);
+    }
+    console.log('[Gnosis] Rebuilt gnosis-lite.db');
+  }
+
+  const db = probe.db;
 
   try {
     const meta = await db.select<{ key: string; value: string }[]>('SELECT key, value FROM gnosis_meta');

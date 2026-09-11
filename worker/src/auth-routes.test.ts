@@ -9,7 +9,7 @@ class FakeSender implements EmailSender {
   readonly sent: { to: string; code: string }[] = [];
   shouldThrow = false;
   async sendOtp(to: string, code: string): Promise<void> {
-    if (this.shouldThrow) throw new Error('postmark down');
+    if (this.shouldThrow) throw new Error('email send failed');
     this.sent.push({ to, code });
   }
 }

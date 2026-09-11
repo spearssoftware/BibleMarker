@@ -84,9 +84,10 @@ export async function handleAuthRequest(
   } catch {
     // Don't leave an undeliverable code blocking the cooldown — let a retry work.
     await env.DB.prepare('DELETE FROM otp_codes WHERE email_hash = ?').bind(eHash).run();
-    // 502 (not 200) so the client can prompt a retry. This is not an enumeration
-    // oracle: Postmark accepts every syntactically valid recipient (bounces are
-    // async), so a 502 reflects a provider/server error, never address validity.
+    // 502 (not 200) so the client can prompt a retry. This is not an account
+    // enumeration oracle: Cloudflare accepts every syntactically valid recipient
+    // (bounces are async), so a 502 reflects a provider/server error, never
+    // whether a BibleMarker account exists for the address.
     return jsonError(502, 'Failed to send verification email');
   }
 

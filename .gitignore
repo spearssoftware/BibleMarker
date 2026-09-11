@@ -70,3 +70,4 @@ src-tauri/resources/gnosis-lite.db
 # NASB signing key written by CI so build.rs can embed it on iOS (env vars don't
 # reach the Xcode Rust build phase). Never commit — it's a secret.
 src-tauri/nasb_signing_key.txt
+__pycache__/

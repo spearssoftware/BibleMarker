@@ -3,11 +3,12 @@
 
 Patches:
 1. build.gradle.kts — release signing config (reads credentials from env vars set in CI).
-2. build.gradle.kts — androidResources.noCompress for asset types that must survive
+2. build.gradle.kts — release ndk.debugSymbolLevel so native symbols ship in the AAB.
+3. build.gradle.kts — androidResources.noCompress for asset types that must survive
    raw in the APK: .zip (SWORD modules) and .db (gnosis-lite). AGP's compressAssets
    task otherwise wraps these files inside a .jar container, which corrupts them
    when read back via the Tauri FS plugin / AssetManager.
-3. MainActivity.kt — suppress Android WebView's native text-selection ActionMode
+4. MainActivity.kt — suppress Android WebView's native text-selection ActionMode
    (the floating Copy/Share/Select-all toolbar). On long-press the system toolbar
    otherwise intercepts our marking flow and our custom BibleMarker menu never
    appears. Dismissing ActionMode in onActionModeStarted lets the JS selection
@@ -54,6 +55,18 @@ if "signingConfigs" not in content:
     print("Patched: signing config")
 else:
     print("Skipped: signing config already present")
+
+# Native debug symbols travel inside the AAB so Play can symbolicate
+# crashes/ANRs; without this Play warns at every submission.
+if "debugSymbolLevel" not in content:
+    content = content.replace(
+        'getByName("release") {',
+        'getByName("release") {\n            ndk { debugSymbolLevel = "SYMBOL_TABLE" }',
+        1,
+    )
+    print("Patched: debugSymbolLevel")
+else:
+    print("Skipped: debugSymbolLevel already present")
 
 if "androidResources" not in content:
     content = content.replace(

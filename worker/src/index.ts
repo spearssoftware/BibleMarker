@@ -13,7 +13,7 @@ import { handleModuleRequest } from './modules';
 import { authenticate } from './auth';
 import { handleSync } from './sync';
 import { handleAccountDelete } from './account';
-import { PostmarkSender } from './email';
+import { CloudflareEmailSender } from './email';
 import { handleAuthRequest, handleAuthVerify, handleAuthRevoke } from './auth-routes';
 import { handleConfig, isSyncEnabled, isOtpEnabled } from './flags';
 import { cleanupExpired } from './cleanup';
@@ -38,7 +38,7 @@ export default {
         if (!(await isOtpEnabled(env))) {
           return jsonError(503, 'Sign-in temporarily unavailable');
         }
-        const sender = new PostmarkSender(env.POSTMARK_SERVER_TOKEN, env.OTP_FROM_EMAIL);
+        const sender = new CloudflareEmailSender(env.EMAIL, env.OTP_FROM_EMAIL);
         return handleAuthRequest(request, env, sender);
       }
       if (path === '/auth/verify') return handleAuthVerify(request, env);

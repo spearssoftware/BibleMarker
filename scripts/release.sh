@@ -18,7 +18,9 @@ while [[ $# -gt 0 ]]; do
         echo "Error: --notes requires a non-empty value" >&2
         exit 1
       fi
-      WHATS_NEW="$2"
+      # %b so the documented `--notes "- One\n- Two"` form yields real newlines
+      # instead of a literal backslash-n.
+      WHATS_NEW=$(printf '%b' "$2")
       shift 2
       ;;
     *)
@@ -94,6 +96,17 @@ fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 
 pnpm run version:sync
 
+# The GitHub Release doesn't exist yet — it's created by the publish workflow
+# once merging this PR tags the commit. Commit the notes so that workflow can
+# prepend them; see the "Prepend What's New" step in .github/workflows/release.yml.
+if [ -n "$WHATS_NEW" ]; then
+  NOTES_FILE=".github/release-notes/v${NEW_VERSION}.md"
+  mkdir -p "$(dirname "$NOTES_FILE")"
+  printf '%s\n' "$WHATS_NEW" > "$NOTES_FILE"
+  git add "$NOTES_FILE"
+  echo "Wrote release notes to $NOTES_FILE"
+fi
+
 git add package.json src-tauri/Cargo.toml src-tauri/Cargo.lock
 # Also stage iOS/Xcode files if they were modified
 git add src-tauri/gen/apple/biblemarker_iOS/Info.plist 2>/dev/null || true
@@ -106,10 +119,11 @@ git push -u origin "$BRANCH_NAME"
 
 PR_BODY="Version bump to v${NEW_VERSION}. Merging this PR will automatically create the \`app-v${NEW_VERSION}\` tag and trigger the release build."
 if [ -n "$WHATS_NEW" ]; then
+  # Point at the file rather than copying the text: the copy would go stale the
+  # moment someone rewords the notes on the branch, and the file is in the diff.
   PR_BODY="${PR_BODY}
 
-## What's New
-${WHATS_NEW}"
+User-facing release notes are in \`${NOTES_FILE}\`."
 fi
 
 PR_URL=$(gh pr create --title "release: v${NEW_VERSION}" --body "$PR_BODY")
@@ -117,3 +131,6 @@ PR_URL=$(gh pr create --title "release: v${NEW_VERSION}" --body "$PR_BODY")
 echo ""
 echo "Release PR created: $PR_URL"
 echo "After CI passes, merge the PR to trigger the release build."
+if [ -n "$WHATS_NEW" ]; then
+  echo "The What's New section will be prepended to the release notes automatically."
+fi

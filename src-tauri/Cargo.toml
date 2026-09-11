@@ -1,6 +1,6 @@
 [package]
 name = "biblemarker"
-version = "3.2.1"
+version = "3.2.7"
 description = "A focused Bible study app with rich annotation tools"
 authors = ["Kevin Spears <biblemarker@spearssoftware.com>"]
 license = "AGPL-3.0-or-later"
@@ -28,7 +28,7 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 reqwest = { version = "0.12", features = ["rustls-tls"], default-features = false }
 sha2 = "0.11"
 hmac = "0.13"
-base64 = "0.22"
+base64 = "0.23"
 
 # Desktop-only: updater and process (excludes iOS)
 [target.'cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))'.dependencies]

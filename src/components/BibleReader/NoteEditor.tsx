@@ -13,16 +13,30 @@ interface NoteEditorProps {
   verseNum: number;
   book: string;
   chapter: number;
+  /**
+   * Controlled editing state. Provide together with onEditingChange when the
+   * parent may remount this component while the editor is open (e.g. the
+   * verse list re-keys on resize) — local state would be wiped by the remount.
+   */
+  isEditing?: boolean;
+  onEditingChange?: (editing: boolean) => void;
   onSave?: (note: Note) => void;
   onDelete?: (id: string) => void;
 }
 
-export function NoteEditor({ 
-  note, 
-  onSave, 
-  onDelete 
+export function NoteEditor({
+  note,
+  isEditing: isEditingProp,
+  onEditingChange,
+  onSave,
+  onDelete
 }: NoteEditorProps) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [localEditing, setLocalEditing] = useState(false);
+  const isEditing = isEditingProp ?? localEditing;
+  const setIsEditing = (editing: boolean) => {
+    setLocalEditing(editing);
+    onEditingChange?.(editing);
+  };
   const [editContent, setEditContent] = useState(note.content);
   const [isDeleting, setIsDeleting] = useState(false);
 

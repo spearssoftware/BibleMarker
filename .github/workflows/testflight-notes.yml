@@ -1,0 +1,115 @@
+# Writes a TestFlight build's "What to Test" notes from git.
+#
+# Runs two ways:
+#
+#   - Called by `testflight` and `release` after their iOS upload. It waits for
+#     Apple to finish processing, which takes 5-20 minutes, so it is a separate
+#     job rather than a step: the caller's build job finishes immediately and
+#     `publish-release` is not held up behind Apple's processing queue. It is a
+#     leaf job in both callers — nothing depends on it, so a failure here costs
+#     a red job and nothing else. That red job is the signal to dispatch this
+#     workflow manually and retry.
+#
+#   - Dispatched manually, to rewrite notes for a build already in TestFlight.
+#     No Xcode, no Rust, no archive, so about a minute rather than fifteen.
+#
+# The job checks out the commit that was built (`sha`, falling back to `ref`),
+# so the SHA and the commit list both describe that tree. The branch label is
+# the one thing a detached checkout can't recover, which is why `ref` is passed
+# through separately. On the manual path, pass `sha` whenever the branch has
+# moved since the build.
+name: testflight-notes
+
+on:
+  workflow_call:
+    inputs:
+      build_number:
+        type: string
+        required: true
+      ref:
+        type: string
+        required: true
+      sha:
+        # Full SHA — actions/checkout can't resolve an abbreviation.
+        type: string
+        required: true
+    secrets:
+      APP_STORE_CONNECT_API_KEY:
+        required: true
+      APP_STORE_CONNECT_KEY_ID:
+        required: true
+      APP_STORE_CONNECT_ISSUER_ID:
+        required: true
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "CFBundleVersion of the build to write notes for"
+        type: string
+        required: false
+        default: ""
+      newest:
+        description: "Target the most recently uploaded build instead (ignores build_number)"
+        type: boolean
+        required: false
+        default: false
+      ref:
+        description: "Branch or tag that was built — the header's label"
+        type: string
+        required: false
+        default: "main"
+      sha:
+        description: "Full SHA that was built (defaults to the tip of ref)"
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  write-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the commit that was built
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.sha || inputs.ref }}
+          # Enough history for the commit list; the default depth of 1 would
+          # leave it with a single subject.
+          fetch-depth: 50
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: python3 -m pip install --quiet --disable-pip-version-check cryptography
+
+      - name: Set up App Store Connect API key
+        env:
+          API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$API_KEY" | base64 --decode > "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8"
+
+      - name: Write TestFlight release notes
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          NOTES_BRANCH: ${{ inputs.ref }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          NEWEST: ${{ inputs.newest }}
+        run: |
+          # Both flags are forwarded as given; the script owns the rule that
+          # exactly one of them must be set, so a manual dispatch with both
+          # filled in fails loudly instead of one silently winning here.
+          ARGS=(--bundle-id app.biblemarker --branch "$NOTES_BRANCH")
+          if [ "$NEWEST" = "true" ]; then
+            ARGS+=(--newest)
+          fi
+          if [ -n "$BUILD_NUMBER" ]; then
+            ARGS+=(--build-number "$BUILD_NUMBER")
+          fi
+          python3 scripts/testflight-notes.py "${ARGS[@]}"

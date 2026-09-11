@@ -6,7 +6,7 @@
  */
 
 import JSZip from 'jszip';
-import pako from 'pako';
+import * as pako from 'pako';
 import { BIBLE_BOOKS, getVerseCount } from '@/types';
 
 /** Map of filename (lowercase) to file content */
