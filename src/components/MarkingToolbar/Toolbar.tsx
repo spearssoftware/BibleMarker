@@ -171,7 +171,7 @@ export function Toolbar() {
     // Propagate to every other installed translation unless scoped out.
     if (scope !== 'all') return;
 
-    let allTranslations: Awaited<ReturnType<typeof getAllTranslations>> = [];
+    let allTranslations: Awaited<ReturnType<typeof getAllTranslations>>;
     try {
       allTranslations = await getAllTranslations();
     } catch (err) {

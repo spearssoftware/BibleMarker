@@ -155,13 +155,13 @@ async function initGnosisDb(): Promise<Database> {
       await invoke('delete_gnosis_database');
     } catch (e) {
       rebuildFailure = `delete failed: ${errorMessage(e)}`;
-      throw new Error(`gnosis-lite.db could not be deleted for rebuilding: ${errorMessage(e)}`);
+      throw new Error(`gnosis-lite.db could not be deleted for rebuilding: ${errorMessage(e)}`, { cause: e });
     }
     try {
       await installBundledDb(destPath);
     } catch (e) {
       rebuildFailure = `reinstall failed: ${errorMessage(e)}`;
-      throw new Error(`gnosis-lite.db could not be reinstalled: ${errorMessage(e)}`);
+      throw new Error(`gnosis-lite.db could not be reinstalled: ${errorMessage(e)}`, { cause: e });
     }
     probe = await openIfReadable();
 

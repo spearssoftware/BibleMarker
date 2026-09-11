@@ -39,7 +39,7 @@ export async function saveValidated<T>(
   } catch (error) {
     if (error instanceof ValidationError) {
       console.error(`[${opts.logPrefix}] Validation error:`, error.message, error.field, error.value);
-      throw new Error(`Invalid ${opts.dataLabel} data: ${error.message}`);
+      throw new Error(`Invalid ${opts.dataLabel} data: ${error.message}`, { cause: error });
     }
     throw error;
   }
