@@ -399,7 +399,7 @@ export async function exportStudyData(): Promise<string | void> {
         await writeTextFile(filePath, markdown);
         return filename;
       } catch (error: unknown) {
-        throw new Error(`Failed to export: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw new Error(`Failed to export: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
       }
     }
 
@@ -423,7 +423,7 @@ export async function exportStudyData(): Promise<string | void> {
         if (error instanceof Error && error.message === 'Export cancelled') {
           throw error;
         }
-        throw new Error(`Failed to save export: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw new Error(`Failed to save export: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
       }
     }
 
@@ -444,7 +444,7 @@ export async function exportStudyData(): Promise<string | void> {
         return;
       } catch (error: unknown) {
         if (error instanceof Error && error.name === 'AbortError') {
-          throw new Error('Export cancelled');
+          throw new Error('Export cancelled', { cause: error });
         }
         console.warn('File System Access API failed, falling back to download:', error);
       }
@@ -463,6 +463,6 @@ export async function exportStudyData(): Promise<string | void> {
     if (error instanceof Error && (error.message === 'Export cancelled' || error.message === 'Export cancelled')) {
       return; // User cancelled, don't show error
     }
-    throw new Error(`Failed to export study data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to export study data: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
   }
 }
