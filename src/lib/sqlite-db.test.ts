@@ -19,6 +19,9 @@ const state = vi.hoisted(() => ({
   schemaVersion: 11 as number | null,
   // Rows returned for "SELECT updated_at FROM <table> WHERE id = ?"
   existingRow: null as { updated_at: string } | null,
+  // Rows returned for "SELECT * FROM notes"
+  noteRows: [] as Record<string, unknown>[],
+  selectCalls: [] as { sql: string; params?: unknown[] }[],
 }));
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -31,7 +34,8 @@ vi.mock('@tauri-apps/plugin-sql', () => {
       state.executeCalls.push({ sql, params });
       return { rowsAffected: 0, lastInsertId: 0 };
     }),
-    select: vi.fn(async (sql: string) => {
+    select: vi.fn(async (sql: string, params?: unknown[]) => {
+      state.selectCalls.push({ sql, params });
       if (sql.includes('integrity_check')) {
         return [{ integrity_check: 'ok' }];
       }
@@ -46,6 +50,9 @@ vi.mock('@tauri-apps/plugin-sql', () => {
       }
       if (sql.includes('SELECT updated_at FROM')) {
         return state.existingRow ? [state.existingRow] : [];
+      }
+      if (sql.includes('FROM notes')) {
+        return state.noteRows;
       }
       return [];
     }),
@@ -69,6 +76,102 @@ beforeEach(() => {
   state.executeCalls = [];
   state.schemaVersion = 11;
   state.existingRow = null;
+  state.noteRows = [];
+  state.selectCalls = [];
+});
+
+describe('sqliteGetChapterNotes', () => {
+  function noteRow(overrides: Record<string, unknown>) {
+    return {
+      id: 'note-1',
+      module_id: 'sword-NASB2020',
+      ref: JSON.stringify({ book: 'John', chapter: 3, verse: 16 }),
+      range: null,
+      content: 'For God so loved the world',
+      created_at: '2026-01-01T00:00:00.000Z',
+      updated_at: '2026-01-01T00:00:00.000Z',
+      ...overrides,
+    };
+  }
+
+  it('returns notes from every translation, not just the one being read', async () => {
+    state.noteRows = [
+      noteRow({ id: 'nasb-note', module_id: 'sword-NASB2020' }),
+      noteRow({ id: 'esv-note', module_id: 'esv' }),
+      noteRow({ id: 'kjv-note', module_id: 'sword-KJV', content: 'a third note' }),
+    ];
+    const mod = await loadModule();
+
+    const notes = await mod.sqliteGetChapterNotes('John', 3);
+
+    expect(notes.map((n) => n.id).sort()).toEqual(['esv-note', 'kjv-note', 'nasb-note']);
+  });
+
+  // The driver mock cannot evaluate a WHERE clause, so the filtering tests
+  // below exercise the JS filter only. These assertions are the sole guard on
+  // the SQL predicate itself — a wrong JSON path would otherwise ship green
+  // and return nothing on a real database.
+  it('filters by book and chapter in SQL, with no module_id predicate', async () => {
+    const mod = await loadModule();
+    await mod.sqliteGetChapterNotes('John', 3);
+
+    const noteSelect = state.selectCalls.find((c) => c.sql.includes('FROM notes'));
+    expect(noteSelect).toBeDefined();
+    expect(noteSelect!.sql).not.toMatch(/module_id/);
+    expect(noteSelect!.params).toEqual(['John', 3]);
+  });
+
+  it('keys the SQL predicate off range.start with a fallback to ref', async () => {
+    const mod = await loadModule();
+    await mod.sqliteGetChapterNotes('John', 3);
+
+    const sql = state.selectCalls.find((c) => c.sql.includes('FROM notes'))!.sql;
+    expect(sql).toMatch(/json_extract\(\s*range\s*,\s*'\$\.start\.book'\s*\)/);
+    expect(sql).toMatch(/json_extract\(\s*range\s*,\s*'\$\.start\.chapter'\s*\)/);
+    expect(sql).toMatch(/json_extract\(\s*ref\s*,\s*'\$\.book'\s*\)/);
+    expect(sql).toMatch(/json_extract\(\s*ref\s*,\s*'\$\.chapter'\s*\)/);
+    // Malformed JSON in either column must not abort the whole statement.
+    expect(sql).toMatch(/json_valid\(\s*range\s*\)/);
+    expect(sql).toMatch(/json_valid\(\s*ref\s*\)/);
+  });
+
+  it('still filters to the requested book and chapter', async () => {
+    state.noteRows = [
+      noteRow({ id: 'in-chapter' }),
+      noteRow({ id: 'other-chapter', ref: JSON.stringify({ book: 'John', chapter: 4, verse: 1 }) }),
+      noteRow({ id: 'other-book', ref: JSON.stringify({ book: 'Mark', chapter: 3, verse: 16 }) }),
+    ];
+    const mod = await loadModule();
+
+    const notes = await mod.sqliteGetChapterNotes('John', 3);
+
+    expect(notes.map((n) => n.id)).toEqual(['in-chapter']);
+  });
+
+  it('matches a range note by the start of its range', async () => {
+    state.noteRows = [
+      noteRow({
+        id: 'range-note',
+        ref: JSON.stringify({ book: 'John', chapter: 3, verse: 16 }),
+        range: JSON.stringify({
+          start: { book: 'John', chapter: 3, verse: 16 },
+          end: { book: 'John', chapter: 3, verse: 18 },
+        }),
+      }),
+      noteRow({
+        id: 'other-chapter-range',
+        range: JSON.stringify({
+          start: { book: 'John', chapter: 9, verse: 1 },
+          end: { book: 'John', chapter: 9, verse: 3 },
+        }),
+      }),
+    ];
+    const mod = await loadModule();
+
+    const notes = await mod.sqliteGetChapterNotes('John', 3);
+
+    expect(notes.map((n) => n.id)).toEqual(['range-note']);
+  });
 });
 
 describe('applyRemoteChange', () => {
