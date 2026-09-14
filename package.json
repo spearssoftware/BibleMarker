@@ -31,7 +31,7 @@
     "@tauri-apps/plugin-opener": "^2.5.4",
     "@tauri-apps/plugin-process": "^2.0.0",
     "@tauri-apps/plugin-sql": "^2.4.0",
-    "@tauri-apps/plugin-updater": "^2.10.1",
+    "@tauri-apps/plugin-updater": "^2.11.0",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "maplibre-gl": "^6.8.0",
