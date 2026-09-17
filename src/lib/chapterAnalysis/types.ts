@@ -59,8 +59,8 @@ export interface DiscoveryThresholds {
   connectorChipMinCount: number;
   /** Minimum verse count for a chapter to earn the Look-Again heading challenge. */
   headingMinVerses: number;
-  /** Minimum cross-reference votes for a verse to surface an Echo Hint. */
-  echoMinVotes: number;
+  /** Minimum cross-reference votes for a verse to surface a cross-reference hint. */
+  crossRefMinVotes: number;
 }
 
 export const DEFAULT_DISCOVERY_THRESHOLDS: DiscoveryThresholds = {
@@ -68,5 +68,5 @@ export const DEFAULT_DISCOVERY_THRESHOLDS: DiscoveryThresholds = {
   repetitionMinWordLength: 3,
   connectorChipMinCount: 1,
   headingMinVerses: 10,
-  echoMinVotes: 20,
+  crossRefMinVotes: 20,
 };

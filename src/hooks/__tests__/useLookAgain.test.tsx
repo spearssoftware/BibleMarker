@@ -4,7 +4,7 @@
  * useLookAgain derives the Look-Again checklist items. Exercises: DB-sourced
  * chapter data (mocked `@/lib/database`, reloaded on `annotationsUpdated`),
  * real-annotation + virtual-keyword-match marked-verse detection (B2), the
- * S2 overlap rules (offset-less = whole verse, hinge char-range overlap),
+ * S2 overlap rules (offset-less = whole verse, connector char-range overlap),
  * and the S4 in-session-transition-only completion telemetry.
  */
 
@@ -139,13 +139,13 @@ describe('useLookAgain', () => {
     await waitFor(() => expect(result.current.ready).toBe(true));
   });
 
-  it('shows repetition, hinge, and title items (no entities index) and queries the DB for the chapter', async () => {
+  it('shows repetition, connector, and title items (no entities index) and queries the DB for the chapter', async () => {
     const { result } = renderLookAgain();
 
     await waitFor(() => expect(getChapterAnnotations).toHaveBeenCalledWith('sword-NASB', 'John', 1));
     expect(getChapterTitle).toHaveBeenCalledWith(null, 'John', 1, null);
 
-    await waitFor(() => expect(result.current.items.map(i => i.id)).toEqual(['repetition', 'hinge', 'title']));
+    await waitFor(() => expect(result.current.items.map(i => i.id)).toEqual(['repetition', 'connector', 'title']));
     expect(result.current.items.find(i => i.id === 'repetition')).toMatchObject({
       label: 'One word repeats 11× — find and mark it',
       done: false,
@@ -207,7 +207,7 @@ describe('useLookAgain', () => {
     mockEntities = makeChapterEntities({ people: ['Jesus'], places: ['Jerusalem', 'Galilee'] });
 
     const { result } = renderLookAgain();
-    await waitFor(() => expect(result.current.items.map(i => i.id)).toEqual(['repetition', 'person', 'place', 'hinge', 'title']));
+    await waitFor(() => expect(result.current.items.map(i => i.id)).toEqual(['repetition', 'person', 'place', 'connector', 'title']));
 
     expect(result.current.items.find(i => i.id === 'person')).toMatchObject({
       label: '1 person is named — mark one where a person appears',
@@ -628,7 +628,7 @@ describe('useLookAgain', () => {
     });
   });
 
-  it('hides the hinge item below the connector threshold, matching the panel card gate', async () => {
+  it('hides the connector item below the connector threshold, matching the panel card gate', async () => {
     useFeatureFlagsStore.setState({
       config: {
         ...DEFAULT_CONFIG,
@@ -638,19 +638,19 @@ describe('useLookAgain', () => {
 
     const { result } = renderLookAgain(); // factory analysis has 1 connector
     await waitFor(() => expect(result.current.ready).toBe(true));
-    expect(result.current.items.some(i => i.id === 'hinge')).toBe(false);
+    expect(result.current.items.some(i => i.id === 'connector')).toBe(false);
   });
 
-  it('uses the singular hinge wording for exactly one hinge (refinement B)', async () => {
+  it('uses the singular connecting-word wording for exactly one connector (refinement B)', async () => {
     const { result } = renderLookAgain(); // factory analysis has 1 connector
     await waitFor(() =>
-      expect(result.current.items.find(i => i.id === 'hinge')).toMatchObject({
-        label: '1 hinge holds this chapter — mark it',
+      expect(result.current.items.find(i => i.id === 'connector')).toMatchObject({
+        label: '1 connecting word holds this chapter — mark it',
       })
     );
   });
 
-  it('uses the plural "which one carries the argument" wording for 2+ hinges (refinement B)', async () => {
+  it('uses the plural "which one carries the argument" wording for 2+ connectors (refinement B)', async () => {
     const hits = [
       { phrase: 'therefore', category: 'conclusion' as const, verse: 1, start: 0, end: 9 },
       { phrase: 'but', category: 'contrast' as const, verse: 2, start: 0, end: 3 },
@@ -661,8 +661,8 @@ describe('useLookAgain', () => {
 
     const { result } = renderLookAgain(context);
     await waitFor(() =>
-      expect(result.current.items.find(i => i.id === 'hinge')).toMatchObject({
-        label: '2 hinges — which one carries the argument? Mark it',
+      expect(result.current.items.find(i => i.id === 'connector')).toMatchObject({
+        label: '2 connecting words — which one carries the argument? Mark it',
       })
     );
   });
@@ -730,7 +730,7 @@ describe('useLookAgain', () => {
       await waitFor(() => expect(result.current.items.find(i => i.id === 'person')?.done).toBe(true));
     });
 
-    it('bounds the start verse by its startOffset (hinge before the offset does not overlap)', async () => {
+    it('bounds the start verse by its startOffset (connector before the offset does not overlap)', async () => {
       const context = makeDiscoveryContext({
         analysis: makeChapterAnalysis({
           connectors: [{ phrase: 'therefore', category: 'conclusion', verse: 2, start: 0, end: 9 }],
@@ -741,10 +741,10 @@ describe('useLookAgain', () => {
 
       const { result } = renderLookAgain(context);
       await waitFor(() => expect(result.current.ready).toBe(true));
-      expect(result.current.items.find(i => i.id === 'hinge')?.done).toBe(false);
+      expect(result.current.items.find(i => i.id === 'connector')?.done).toBe(false);
     });
 
-    it('bounds the end verse by its endOffset (hinge after the offset does not overlap; before does)', async () => {
+    it('bounds the end verse by its endOffset (connector after the offset does not overlap; before does)', async () => {
       const past = makeDiscoveryContext({
         analysis: makeChapterAnalysis({
           connectors: [{ phrase: 'therefore', category: 'conclusion', verse: 4, start: 10, end: 19 }],
@@ -755,7 +755,7 @@ describe('useLookAgain', () => {
 
       const first = renderLookAgain(past);
       await waitFor(() => expect(first.result.current.ready).toBe(true));
-      expect(first.result.current.items.find(i => i.id === 'hinge')?.done).toBe(false);
+      expect(first.result.current.items.find(i => i.id === 'connector')?.done).toBe(false);
       first.unmount();
 
       const within = makeDiscoveryContext({
@@ -765,7 +765,7 @@ describe('useLookAgain', () => {
         }),
       });
       const second = renderLookAgain(within);
-      await waitFor(() => expect(second.result.current.items.find(i => i.id === 'hinge')?.done).toBe(true));
+      await waitFor(() => expect(second.result.current.items.find(i => i.id === 'connector')?.done).toBe(true));
     });
 
     it('an annotation starting in a different chapter contributes nothing here', async () => {
@@ -870,7 +870,7 @@ describe('useLookAgain', () => {
     expect(result.current.items.find(i => i.id === 'person')?.done).toBe(false);
   });
 
-  it('hinge done when a marked range overlaps the connector hit char range', async () => {
+  it('connector done when a marked range overlaps the connector hit char range', async () => {
     const context = makeDiscoveryContext({
       analysis: makeChapterAnalysis({
         connectors: [{ phrase: 'therefore', category: 'conclusion', verse: 1, start: 10, end: 19 }],
@@ -888,10 +888,10 @@ describe('useLookAgain', () => {
     ]);
 
     const { result } = renderLookAgain(context);
-    await waitFor(() => expect(result.current.items.find(i => i.id === 'hinge')?.done).toBe(true));
+    await waitFor(() => expect(result.current.items.find(i => i.id === 'connector')?.done).toBe(true));
   });
 
-  it('hinge stays undone when the marked range does not overlap the connector hit', async () => {
+  it('connector stays undone when the marked range does not overlap the connector hit', async () => {
     const context = makeDiscoveryContext({
       analysis: makeChapterAnalysis({
         connectors: [{ phrase: 'therefore', category: 'conclusion', verse: 1, start: 10, end: 19 }],
@@ -909,8 +909,8 @@ describe('useLookAgain', () => {
     ]);
 
     const { result } = renderLookAgain(context);
-    await waitFor(() => expect(result.current.items.some(i => i.id === 'hinge')).toBe(true));
-    expect(result.current.items.find(i => i.id === 'hinge')?.done).toBe(false);
+    await waitFor(() => expect(result.current.items.some(i => i.id === 'connector')).toBe(true));
+    expect(result.current.items.find(i => i.id === 'connector')?.done).toBe(false);
   });
 
   it('title item checks off after the chapter title loads following an annotationsUpdated event', async () => {

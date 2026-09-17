@@ -453,9 +453,9 @@ select:focus-visible {
     opacity: 1;
   }
 
-  /* Connector Lens: everything except a hinge word dims; hinges themselves
-     get an underline + accent color so the argument skeleton reads at a
-     glance. */
+  /* Connector Lens: everything except a connecting word dims; connectors
+     themselves get an underline + accent color so the argument skeleton
+     reads at a glance. */
   .lens-dim {
     opacity: var(--lens-dim-opacity);
     transition: opacity 150ms;

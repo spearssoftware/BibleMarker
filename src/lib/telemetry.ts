@@ -21,7 +21,7 @@ export type TelemetryEvent =
   | 'lens_toggled'
   | 'discovery_checklist_completed';
 
-export type TelemetryFeature = 'repetition' | 'connector' | 'entity' | 'upsell' | 'echo';
+export type TelemetryFeature = 'repetition' | 'connector' | 'entity' | 'upsell' | 'crossref';
 
 export interface TelemetryProps {
   feature?: TelemetryFeature;

@@ -70,7 +70,7 @@ describe('readCachedFlags', () => {
 
 describe('readCachedConfig', () => {
   it('returns normalized config from the cache', async () => {
-    const valid = { repetitionMinCount: 7, repetitionMinWordLength: 3, connectorChipMinCount: 2, headingMinVerses: 8, echoMinVotes: 15 };
+    const valid = { repetitionMinCount: 7, repetitionMinWordLength: 3, connectorChipMinCount: 2, headingMinVerses: 8, crossRefMinVotes: 15 };
     mockGetSyncConfig.mockResolvedValue(cached({}, { [CONFIG_KEYS.discoveryThresholds]: valid }));
     expect(await readCachedConfig()).toEqual({ discoveryThresholds: valid });
   });
@@ -101,7 +101,7 @@ describe('normalizeConfig', () => {
   });
 
   it('keeps valid in-range integers as-is', () => {
-    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 6, connectorChipMinCount: 2, headingMinVerses: 8, echoMinVotes: 15 };
+    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 6, connectorChipMinCount: 2, headingMinVerses: 8, crossRefMinVotes: 15 };
     expect(normalizeConfig({ [CONFIG_KEYS.discoveryThresholds]: valid })).toEqual({ discoveryThresholds: valid });
   });
 
@@ -111,33 +111,33 @@ describe('normalizeConfig', () => {
     expect(normalizeConfig([])).toEqual(DEFAULT_CONFIG);
   });
 
-  describe('echoMinVotes', () => {
+  describe('crossRefMinVotes', () => {
     it('accepts a value up to 1000, well past the 50-cap on the other fields', () => {
-      const result = normalizeConfig({ [CONFIG_KEYS.discoveryThresholds]: { echoMinVotes: 100 } });
-      expect(result.discoveryThresholds.echoMinVotes).toBe(100);
+      const result = normalizeConfig({ [CONFIG_KEYS.discoveryThresholds]: { crossRefMinVotes: 100 } });
+      expect(result.discoveryThresholds.crossRefMinVotes).toBe(100);
     });
 
     it('rejects 0, defaulting to 20', () => {
-      const result = normalizeConfig({ [CONFIG_KEYS.discoveryThresholds]: { echoMinVotes: 0 } });
-      expect(result.discoveryThresholds.echoMinVotes).toBe(DEFAULT_CONFIG.discoveryThresholds.echoMinVotes);
+      const result = normalizeConfig({ [CONFIG_KEYS.discoveryThresholds]: { crossRefMinVotes: 0 } });
+      expect(result.discoveryThresholds.crossRefMinVotes).toBe(DEFAULT_CONFIG.discoveryThresholds.crossRefMinVotes);
     });
 
     it('rejects 1001, past the wider cap', () => {
-      const result = normalizeConfig({ [CONFIG_KEYS.discoveryThresholds]: { echoMinVotes: 1001 } });
-      expect(result.discoveryThresholds.echoMinVotes).toBe(DEFAULT_CONFIG.discoveryThresholds.echoMinVotes);
+      const result = normalizeConfig({ [CONFIG_KEYS.discoveryThresholds]: { crossRefMinVotes: 1001 } });
+      expect(result.discoveryThresholds.crossRefMinVotes).toBe(DEFAULT_CONFIG.discoveryThresholds.crossRefMinVotes);
     });
 
     it('rejects a non-integer', () => {
-      const result = normalizeConfig({ [CONFIG_KEYS.discoveryThresholds]: { echoMinVotes: 20.5 } });
-      expect(result.discoveryThresholds.echoMinVotes).toBe(DEFAULT_CONFIG.discoveryThresholds.echoMinVotes);
+      const result = normalizeConfig({ [CONFIG_KEYS.discoveryThresholds]: { crossRefMinVotes: 20.5 } });
+      expect(result.discoveryThresholds.crossRefMinVotes).toBe(DEFAULT_CONFIG.discoveryThresholds.crossRefMinVotes);
     });
 
-    it('still clamps the other fields at 50 even when echoMinVotes is valid at 100', () => {
+    it('still clamps the other fields at 50 even when crossRefMinVotes is valid at 100', () => {
       const result = normalizeConfig({
-        [CONFIG_KEYS.discoveryThresholds]: { repetitionMinCount: 100, echoMinVotes: 100 },
+        [CONFIG_KEYS.discoveryThresholds]: { repetitionMinCount: 100, crossRefMinVotes: 100 },
       });
       expect(result.discoveryThresholds.repetitionMinCount).toBe(DEFAULT_CONFIG.discoveryThresholds.repetitionMinCount);
-      expect(result.discoveryThresholds.echoMinVotes).toBe(100);
+      expect(result.discoveryThresholds.crossRefMinVotes).toBe(100);
     });
   });
 });
@@ -181,7 +181,7 @@ describe('fetchRemoteFlags', () => {
   });
 
   it('returns the worker-supplied config when present', async () => {
-    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 6, connectorChipMinCount: 2, headingMinVerses: 8, echoMinVotes: 15 };
+    const valid = { repetitionMinCount: 3, repetitionMinWordLength: 6, connectorChipMinCount: 2, headingMinVerses: 8, crossRefMinVotes: 15 };
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({

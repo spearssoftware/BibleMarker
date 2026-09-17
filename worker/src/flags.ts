@@ -69,8 +69,8 @@ export interface DiscoveryThresholds {
   connectorChipMinCount: number;
   /** Minimum verse count for a chapter to earn the Look-Again heading challenge. */
   headingMinVerses: number;
-  /** Minimum cross-reference votes for a verse to surface an Echo Hint. */
-  echoMinVotes: number;
+  /** Minimum cross-reference votes for a verse to surface a cross-reference hint. */
+  crossRefMinVotes: number;
 }
 
 export const DEFAULT_DISCOVERY_THRESHOLDS: DiscoveryThresholds = {
@@ -78,7 +78,7 @@ export const DEFAULT_DISCOVERY_THRESHOLDS: DiscoveryThresholds = {
   repetitionMinWordLength: 3,
   connectorChipMinCount: 1,
   headingMinVerses: 10,
-  echoMinVotes: 20,
+  crossRefMinVotes: 20,
 };
 
 /**
@@ -172,7 +172,7 @@ async function getObject<T extends object>(env: Env, key: string, def: T, ctx: F
 }
 
 /**
- * Valid `[min, max]` integer range per threshold field. `echoMinVotes` is a
+ * Valid `[min, max]` integer range per threshold field. `crossRefMinVotes` is a
  * cross-reference vote count rather than a verse/word count, so it uses a
  * separate, wider range than the rest.
  */
@@ -181,7 +181,7 @@ const THRESHOLD_FIELD_RANGE: Record<keyof DiscoveryThresholds, { min: number; ma
   repetitionMinWordLength: { min: 1, max: 50 },
   connectorChipMinCount: { min: 1, max: 50 },
   headingMinVerses: { min: 1, max: 50 },
-  echoMinVotes: { min: 1, max: 1000 },
+  crossRefMinVotes: { min: 1, max: 1000 },
 };
 
 /**

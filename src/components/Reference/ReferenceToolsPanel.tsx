@@ -25,7 +25,7 @@ interface ReferenceToolsPanelProps {
  * the everyday "who/where/where-else" lookups a reader reaches for without
  * any inductive-study intent. Strong's, Hebrew/Greek and Cross-Refs are the
  * language-study tools that come with the inductive toolkit (Cross-Refs is
- * also the raw form of the future Echo Hints discovery feature, so it stays
+ * also the raw form of the Discover panel's cross-reference card, so it stays
  * behind the toggle for now) — they're just not advertised by default; see
  * the deep-link handling below for when the reader explicitly asks for one.
  */

@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * Connector Lens render pass: every text segment in the verse must end up
- * wrapped in either `.lens-connector` (a hinge word, carrying its data
+ * wrapped in either `.lens-connector` (a connecting word, carrying its data
  * attrs back out for the click handler) or `.lens-dim` (everything else) —
  * including a segment that already carries a real annotation. A missed push
  * site would leave an undimmed island of plain text.

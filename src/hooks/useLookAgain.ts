@@ -35,7 +35,7 @@ import { findKeywordMatches, normalizeForMatching, presetAppliesToChapter, varia
 import { createBookScopedKeywordPreset } from '@/lib/discoveryActions';
 import { track } from '@/lib/telemetry';
 import { pluralize, agree } from '@/lib/textUtils';
-import { singularize, shouldShowHinges, slugMatches } from '@/lib/chapterAnalysis';
+import { singularize, shouldShowConnectors, slugMatches } from '@/lib/chapterAnalysis';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import { getRandomHighlightColor } from '@/types';
 import type { Annotation, ChapterEntities, ChapterTitle, MarkingPreset, SectionHeading, TextAnnotation, VerseRef } from '@/types';
@@ -53,7 +53,7 @@ export interface LookAgainFollowUp {
 }
 
 export interface LookAgainItem {
-  id: 'repetition' | 'person' | 'place' | 'hinge' | 'title' | 'heading';
+  id: 'repetition' | 'person' | 'place' | 'connector' | 'title' | 'heading';
   label: string;
   done: boolean;
   /**
@@ -153,7 +153,7 @@ function coverageForMark(ann: Annotation, book: string, chapter: number): MarkCo
   return coverageForTextAnnotation(ann, book, chapter);
 }
 
-/** Hinge overlap (S2): char-range intersection when the mark has one, else verse-level. */
+/** Connector overlap (S2): char-range intersection when the mark has one, else verse-level. */
 function coverageIntersectsHit(cov: MarkCoverage, hit: ConnectorHit): boolean {
   if (cov.verse !== hit.verse) return false;
   if (cov.charStart === undefined || cov.charEnd === undefined) return true;
@@ -560,7 +560,7 @@ export function useLookAgain(
   const personDone = peopleVerses.some(v => markedVerseSet.has(v));
   const placeDone = placesVerses.some(v => markedVerseSet.has(v));
 
-  const hingeDone = useMemo(() => {
+  const connectorDone = useMemo(() => {
     const connectors = context?.analysis.connectors ?? [];
     return connectors.some(hit => coverage.some(cov => coverageIntersectsHit(cov, hit)));
   }, [context, coverage]);
@@ -616,17 +616,17 @@ export function useLookAgain(
       result.push(item);
     }
 
-    // Same threshold gate as DiscoveryPanel's HingesCard, so this row can
+    // Same threshold gate as DiscoveryPanel's ConnectorsCard, so this row can
     // never point at a card the panel decided not to render.
-    if (shouldShowHinges(analysis.connectors.length, thresholds)) {
-      const hingeCount = analysis.connectors.length;
+    if (shouldShowConnectors(analysis.connectors.length, thresholds)) {
+      const connectorCount = analysis.connectors.length;
       result.push({
-        id: 'hinge',
+        id: 'connector',
         label:
-          hingeCount === 1
-            ? '1 hinge holds this chapter — mark it'
-            : `${hingeCount} hinges — which one carries the argument? Mark it`,
-        done: hingeDone,
+          connectorCount === 1
+            ? '1 connecting word holds this chapter — mark it'
+            : `${connectorCount} connecting words — which one carries the argument? Mark it`,
+        done: connectorDone,
       });
     }
 
@@ -664,7 +664,7 @@ export function useLookAgain(
     filteredPresets,
     activeStudyId,
     thresholds,
-    hingeDone,
+    connectorDone,
     chapterTitle,
     activeChapterVerseCount,
     chapterHeadings,

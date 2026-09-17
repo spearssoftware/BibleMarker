@@ -1,25 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { formatEchoTarget, isOlderTarget } from '../echoes';
+import { formatCrossRefTarget, isOlderTarget } from '../crossRefs';
 
-describe('formatEchoTarget', () => {
+describe('formatCrossRefTarget', () => {
   it('formats a single verse', () => {
-    expect(formatEchoTarget('Gen.1.1', null)).toBe('Genesis 1:1');
+    expect(formatCrossRefTarget('Gen.1.1', null)).toBe('Genesis 1:1');
   });
 
   it('formats a same-book, same-chapter range as "Psalms 45:6–7"', () => {
-    expect(formatEchoTarget('Ps.45.6', 'Ps.45.7')).toBe('Psalms 45:6–7');
+    expect(formatCrossRefTarget('Ps.45.6', 'Ps.45.7')).toBe('Psalms 45:6–7');
   });
 
   it('formats a same-book, cross-chapter range as "Deuteronomy 28:2–29:1"', () => {
-    expect(formatEchoTarget('Deut.28.2', 'Deut.29.1')).toBe('Deuteronomy 28:2–29:1');
+    expect(formatCrossRefTarget('Deut.28.2', 'Deut.29.1')).toBe('Deuteronomy 28:2–29:1');
   });
 
   it('falls back to the start ref for a cross-book range', () => {
-    expect(formatEchoTarget('Mal.4.5', 'Matt.11.14')).toBe('Malachi 4:5');
+    expect(formatCrossRefTarget('Mal.4.5', 'Matt.11.14')).toBe('Malachi 4:5');
   });
 
   it('renders the plain start label when targetEndRef equals targetRef', () => {
-    expect(formatEchoTarget('Ps.45.6', 'Ps.45.6')).toBe('Psalms 45:6');
+    expect(formatCrossRefTarget('Ps.45.6', 'Ps.45.6')).toBe('Psalms 45:6');
   });
 });
 

@@ -6,18 +6,18 @@
  * `useDiscoveryHost`, plus entity counts from Gnosis. No props — everything
  * it needs is either already-mounted host state or store reads.
  *
- * Card order: Genre Compass → Look-Again checklist → Repetition → Hinges →
- * Echo Hints → People & Places. Genre and the Look-Again title item need
+ * Card order: Genre Compass → Look-Again checklist → Repetition → Connectors →
+ * Cross-References → People & Places. Genre and the Look-Again title item need
  * neither analysis extras nor Gnosis, so the loading gate is `!context` only
  * (S5) — a Gnosis hiccup must not blank the whole panel. Each card after
  * Look-Again is wrapped in a stable-id `div`; the first three are also
- * `LookAgainCard` scroll targets for its undone rows (Echo Hints has no
+ * `LookAgainCard` scroll targets for its undone rows (Cross-References has no
  * checklist item — see the Phase 2b plan's deliberate deltas).
  *
  * `discovery_chip_shown` telemetry lives here (not in `useDiscoveryHost`,
  * which is always-mounted) so it fires only when the panel actually renders
- * a repetition/hinges/echo/entity card, not merely when the chapter analysis
- * exists. `EchoesCard` still fires its own per-echo `discovery_chip_tapped`
+ * a repetition/connector/cross-reference/entity card, not merely when the chapter analysis
+ * exists. `CrossRefsCard` still fires its own per-cross-reference `discovery_chip_tapped`
  * internally, since that tap tracking is naturally scoped to each row.
  */
 
@@ -25,20 +25,20 @@ import type { ReactNode } from 'react';
 import { useEffect } from 'react';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryConfig, useDiscoveryEnabled } from '@/lib/discovery-config';
-import { useChapterEntities, useChapterEchoIndex } from '@/hooks/useGnosis';
+import { useChapterEntities, useChapterCrossRefIndex } from '@/hooks/useGnosis';
 import { useLookAgain } from '@/hooks/useLookAgain';
-import { shouldShowHinges } from '@/lib/chapterAnalysis';
+import { shouldShowConnectors } from '@/lib/chapterAnalysis';
 import { track } from '@/lib/telemetry';
 import { GenreCard } from './GenreCard';
 import { LookAgainCard } from './LookAgainCard';
 import { RepetitionCard } from './RepetitionCard';
-import { HingesCard } from './HingesCard';
-import { EchoesCard } from './EchoesCard';
+import { ConnectorsCard } from './ConnectorsCard';
+import { CrossRefsCard } from './CrossRefsCard';
 import { PeoplePlacesCard } from './PeoplePlacesCard';
 
 const REPETITION_ANCHOR_ID = 'discovery-card-repetition';
-const HINGE_ANCHOR_ID = 'discovery-card-hinges';
-const ECHO_ANCHOR_ID = 'discovery-card-echo';
+const CONNECTOR_ANCHOR_ID = 'discovery-card-connectors';
+const CROSS_REFS_ANCHOR_ID = 'discovery-card-cross-refs';
 const PEOPLE_PLACES_ANCHOR_ID = 'discovery-card-people-places';
 const ANCHOR_CLASS = 'scroll-mt-4';
 
@@ -62,13 +62,13 @@ export function DiscoveryPanel() {
     discoveryEnabled
   );
   const { items: lookAgainItems, ready: lookAgainReady } = useLookAgain(context, entities, entitiesLoading, discoveryEnabled);
-  const { index: echoIndex } = useChapterEchoIndex(context?.book, context?.chapter, thresholds.echoMinVotes, discoveryEnabled);
+  const { index: crossRefIndex } = useChapterCrossRefIndex(context?.book, context?.chapter, thresholds.crossRefMinVotes, discoveryEnabled);
 
   const hasRepetition = Boolean(context?.analysis.repetition);
-  const hingeCount = context?.analysis.connectors.length ?? 0;
-  const showHinges = shouldShowHinges(hingeCount, thresholds);
+  const connectorCount = context?.analysis.connectors.length ?? 0;
+  const showConnectors = shouldShowConnectors(connectorCount, thresholds);
   const hasEntities = !!entities && (entities.people.length > 0 || entities.places.length > 0);
-  const hasEchoes = !!echoIndex && echoIndex.echoes.length > 0;
+  const hasCrossRefs = !!crossRefIndex && crossRefIndex.crossRefs.length > 0;
 
   // Fire once per {book, chapter, translation} for each card actually shown —
   // mirrors the dedupe keys the old `useDiscoveryHost`-hosted version used.
@@ -77,10 +77,10 @@ export function DiscoveryPanel() {
     const { book, chapter, translationId } = context;
     const key = `${book}:${chapter}:${translationId}`;
     if (hasRepetition) track('discovery_chip_shown', { feature: 'repetition', dedupeKey: `repetition:${key}` });
-    if (showHinges) track('discovery_chip_shown', { feature: 'connector', dedupeKey: `connector:${key}` });
+    if (showConnectors) track('discovery_chip_shown', { feature: 'connector', dedupeKey: `connector:${key}` });
     if (hasEntities) track('discovery_chip_shown', { feature: 'entity', dedupeKey: `entity:${key}` });
-    if (hasEchoes) track('discovery_chip_shown', { feature: 'echo', dedupeKey: `echo:${key}` });
-  }, [discoveryEnabled, context, hasRepetition, showHinges, hasEntities, hasEchoes]);
+    if (hasCrossRefs) track('discovery_chip_shown', { feature: 'crossref', dedupeKey: `crossref:${key}` });
+  }, [discoveryEnabled, context, hasRepetition, showConnectors, hasEntities, hasCrossRefs]);
 
   if (!discoveryEnabled) {
     return <DiscoveryDialog><p className="text-sm text-scripture-muted">Discover is turned off right now.</p></DiscoveryDialog>;
@@ -100,7 +100,7 @@ export function DiscoveryPanel() {
         ready={lookAgainReady}
         anchors={{
           repetition: REPETITION_ANCHOR_ID,
-          hinge: HINGE_ANCHOR_ID,
+          connector: CONNECTOR_ANCHOR_ID,
           peoplePlaces: PEOPLE_PLACES_ANCHOR_ID,
         }}
       />
@@ -117,19 +117,19 @@ export function DiscoveryPanel() {
           />
         </div>
       )}
-      {showHinges && (
-        <div id={HINGE_ANCHOR_ID} className={ANCHOR_CLASS}>
-          <HingesCard
+      {showConnectors && (
+        <div id={CONNECTOR_ANCHOR_ID} className={ANCHOR_CLASS}>
+          <ConnectorsCard
             connectorRangesByVerse={analysis.connectorRangesByVerse}
-            hingeCount={hingeCount}
+            connectorCount={connectorCount}
             book={book}
             chapter={chapter}
           />
         </div>
       )}
-      {hasEchoes && (
-        <div id={ECHO_ANCHOR_ID} className={ANCHOR_CLASS}>
-          <EchoesCard echoes={echoIndex.echoes} book={book} chapter={chapter} />
+      {hasCrossRefs && (
+        <div id={CROSS_REFS_ANCHOR_ID} className={ANCHOR_CLASS}>
+          <CrossRefsCard crossRefs={crossRefIndex.crossRefs} book={book} chapter={chapter} />
         </div>
       )}
       <div id={PEOPLE_PLACES_ANCHOR_ID} className={ANCHOR_CLASS}>

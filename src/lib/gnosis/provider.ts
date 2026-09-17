@@ -1,5 +1,5 @@
 import type {
-  ChapterEchoIndex,
+  ChapterCrossRefIndex,
   ChapterEntities,
   ChapterEntityVerseIndex,
   GnosisCrossReference,
@@ -38,9 +38,9 @@ export interface GnosisDataProvider {
    * Cross-references from verses in this chapter to older passages in the
    * canon, with at least `minVotes` votes. Optional for the same reason as
    * `getChapterEntityVerseIndex`: only the local SQLite provider implements
-   * it. Callers must treat a missing method as "no echo data".
+   * it. Callers must treat a missing method as "no cross-reference data".
    */
-  getChapterEchoIndex?(book: string, chapter: number, minVotes: number): Promise<ChapterEchoIndex>;
+  getChapterCrossRefIndex?(book: string, chapter: number, minVotes: number): Promise<ChapterCrossRefIndex>;
 
   // People
   searchPeople(query: string, opts?: PaginationOpts & { gender?: string }): Promise<PaginatedResponse<GnosisPerson>>;

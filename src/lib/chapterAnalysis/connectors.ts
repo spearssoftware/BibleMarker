@@ -101,7 +101,7 @@ export function findConnectors(verses: AnalysisVerse[]): ConnectorHit[] {
     }
   }
 
-  // Post-filter: a bare "then" only counts as a condition hinge when an "if"
+  // Post-filter: a bare "then" only counts as a condition connector when an "if"
   // hit precedes it in the same verse.
   const filtered = hits.filter(hit => {
     if (hit.category !== 'condition' || hit.phrase.toLowerCase() !== 'then') return true;
@@ -145,11 +145,11 @@ export function promptFor(hit: ConnectorHit): string {
 }
 
 /**
- * Shared hinges gate: whether a chapter's connector count clears the
+ * Shared connectors gate: whether a chapter's connector count clears the
  * configured threshold. Used by both `DiscoveryPanel` (to decide whether to
- * render `HingesCard`) and `useLookAgain` (to decide whether the checklist's
- * hinge row exists) so neither can disagree with the other.
+ * render `ConnectorsCard`) and `useLookAgain` (to decide whether the checklist's
+ * connector row exists) so neither can disagree with the other.
  */
-export function shouldShowHinges(connectorCount: number, thresholds: DiscoveryThresholds): boolean {
+export function shouldShowConnectors(connectorCount: number, thresholds: DiscoveryThresholds): boolean {
   return connectorCount > 0 && connectorCount >= thresholds.connectorChipMinCount;
 }

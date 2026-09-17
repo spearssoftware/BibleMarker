@@ -7,7 +7,7 @@ import type { SyncStatus } from '@/lib/sync';
 import type { TextSelection } from '@/stores/annotationStore';
 import type { DiscoveryContext } from '@/stores/discoveryStore';
 import type { ChapterAnalysis, ConnectorHit } from '@/lib/chapterAnalysis';
-import type { ChapterEcho, ChapterEchoIndex, ChapterEntities, ChapterEntityVerseIndex } from '@/types';
+import type { ChapterCrossRef, ChapterCrossRefIndex, ChapterEntities, ChapterEntityVerseIndex } from '@/types';
 
 export const ISO = '2025-01-01T00:00:00.000Z';
 
@@ -210,7 +210,7 @@ export function makeChapterEntityVerseIndex(overrides?: Partial<ChapterEntityVer
   };
 }
 
-export function makeChapterEcho(overrides?: Partial<ChapterEcho>): ChapterEcho {
+export function makeChapterCrossRef(overrides?: Partial<ChapterCrossRef>): ChapterCrossRef {
   return {
     verse: 1,
     targetRef: 'Gen.1.1',
@@ -220,11 +220,11 @@ export function makeChapterEcho(overrides?: Partial<ChapterEcho>): ChapterEcho {
   };
 }
 
-export function makeChapterEchoIndex(overrides?: Partial<ChapterEchoIndex>): ChapterEchoIndex {
+export function makeChapterCrossRefIndex(overrides?: Partial<ChapterCrossRefIndex>): ChapterCrossRefIndex {
   return {
     book: 'John',
     chapter: 1,
-    echoes: [makeChapterEcho()],
+    crossRefs: [makeChapterCrossRef()],
     ...overrides,
   };
 }

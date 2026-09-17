@@ -1,7 +1,7 @@
 /**
- * Echo Hints — reference formatting and the "older target" rule.
+ * Cross-references — reference formatting and the "older target" rule.
  *
- * Pure logic for a `ChapterEcho` target, split out from `EchoesCard` (the
+ * Pure logic for a `ChapterCrossRef` target, split out from `CrossRefsCard` (the
  * formatting) and `local-db.ts` (the older-target rule) so both can be
  * unit-tested directly and the card file stays fast-refresh friendly
  * (component-only exports).
@@ -10,15 +10,15 @@
 import { formatVerseRef, getBookById, parseOsisRef } from '@/types';
 
 /**
- * Format an echo's target as a readable reference. Ranges render as
+ * Format a cross-reference's target as a readable reference. Ranges render as
  * "Psalms 45:6–7" when the range stays within one book+chapter, or
  * "Deuteronomy 28:2–29:1" when it crosses chapters within the same book.
  * A cross-book range (14 rows Bible-wide), a degenerate range where the end
  * ref equals the start ref (present in the corpus — see `CrossRefsTab`'s
  * `formatRef`, which guards the same case), or an unparsable end just
- * renders the start ref — never the echoed verse's text.
+ * renders the start ref — never the cross-referenced verse's text.
  */
-export function formatEchoTarget(targetRef: string, targetEndRef: string | null): string {
+export function formatCrossRefTarget(targetRef: string, targetEndRef: string | null): string {
   const start = parseOsisRef(targetRef);
   if (!start || start.verse === undefined) return targetRef;
   const startLabel = formatVerseRef(start.book, start.chapter, start.verse);
@@ -35,9 +35,9 @@ export function formatEchoTarget(targetRef: string, targetEndRef: string | null)
 }
 
 /**
- * The strict "older" rule for Echo Hints: a naive `BIBLE_BOOKS.order`
+ * The strict "older" rule for cross-references: a naive `BIBLE_BOOKS.order`
  * comparison mislabels roughly half of all cross-reference rows (same-book
- * "echoes", and NT→NT rows where one epistle merely sorts after another —
+ * cross-references, and NT→NT rows where one epistle merely sorts after another —
  * Psalm numbers and epistle order aren't chronology). A target only counts
  * as older when it's in a **different book** and either the source is NT and
  * the target is OT, or both are OT and the target's canonical order is

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getGnosisProvider, isGnosisAvailable, getGnosisMode, initGnosis } from '@/lib/gnosis';
 import type { GnosisDataProvider } from '@/lib/gnosis';
 import { LRUCache, CACHE_TTL } from '@/lib/gnosis/cache';
-import type { ChapterEchoIndex, ChapterEntities, ChapterEntityVerseIndex, PaginatedResponse, PaginationOpts } from '@/types';
+import type { ChapterCrossRefIndex, ChapterEntities, ChapterEntityVerseIndex, PaginatedResponse, PaginationOpts } from '@/types';
 
 /** Get or lazily initialize the gnosis provider */
 async function ensureProvider(): Promise<GnosisDataProvider> {
@@ -168,7 +168,7 @@ export function useChapterEntityVerseIndex(
 }
 
 /** Repeat mounts for the same chapter+threshold shouldn't re-query SQLite. */
-const chapterEchoIndexCache = new LRUCache();
+const chapterCrossRefIndexCache = new LRUCache();
 
 /**
  * Cross-references from verses in this chapter to older passages, gated on
@@ -176,16 +176,16 @@ const chapterEchoIndexCache = new LRUCache();
  * folded into the cache key (via `keySuffix`) so a remote threshold change
  * actually refetches instead of serving a stale result cached under the plain
  * `book.chapter` key. Same optional-capability guard as
- * `useChapterEntityVerseIndex`: a provider lacking `getChapterEchoIndex`
+ * `useChapterEntityVerseIndex`: a provider lacking `getChapterCrossRefIndex`
  * resolves to `null` without ever issuing a query.
  */
-export function useChapterEchoIndex(
+export function useChapterCrossRefIndex(
   book: string | undefined,
   chapter: number | undefined,
   minVotes: number,
   enabled = true
 ): {
-  index: ChapterEchoIndex | null;
+  index: ChapterCrossRefIndex | null;
   isLoading: boolean;
   error: string | null;
 } {
@@ -193,11 +193,11 @@ export function useChapterEchoIndex(
     book,
     chapter,
     enabled,
-    chapterEchoIndexCache,
+    chapterCrossRefIndexCache,
     async (b, c) => {
       const provider = await ensureProvider();
-      if (!provider.getChapterEchoIndex) return null;
-      return provider.getChapterEchoIndex(b, c, minVotes);
+      if (!provider.getChapterCrossRefIndex) return null;
+      return provider.getChapterCrossRefIndex(b, c, minVotes);
     },
     `:${minVotes}`
   );

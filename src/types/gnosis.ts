@@ -145,7 +145,7 @@ export interface GnosisCrossReference {
 }
 
 /** A cross-reference from a verse in this chapter to an older passage in the canon. */
-export interface ChapterEcho {
+export interface ChapterCrossRef {
   /** Source verse number, within this chapter. */
   verse: number;
   /** Target passage start, OSIS. */
@@ -155,11 +155,11 @@ export interface ChapterEcho {
   votes: number;
 }
 
-/** Per-chapter index of echoes to older passages, one entry per source verse. */
-export interface ChapterEchoIndex {
+/** Per-chapter index of cross-references to older passages, one entry per source verse. */
+export interface ChapterCrossRefIndex {
   book: string;
   chapter: number;
-  echoes: ChapterEcho[];
+  crossRefs: ChapterCrossRef[];
 }
 
 // --- Language / Lexicon ---

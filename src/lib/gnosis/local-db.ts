@@ -9,10 +9,10 @@ import Database from '@tauri-apps/plugin-sql';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import type { GnosisDataProvider } from './provider';
-import { isOlderTarget } from '@/lib/chapterAnalysis/echoes';
+import { isOlderTarget } from '@/lib/chapterAnalysis/crossRefs';
 import type {
-  ChapterEcho,
-  ChapterEchoIndex,
+  ChapterCrossRef,
+  ChapterCrossRefIndex,
   ChapterEntities,
   ChapterEntityVerseIndex,
   GnosisCrossReference,
@@ -314,7 +314,7 @@ export class GnosisLocalDb implements GnosisDataProvider {
    * `LIMIT`: "older" is decided afterward in JS, so limiting here would drop
    * rows that survive that filter (worst case ~257 rows to map — negligible).
    */
-  async getChapterEchoIndex(book: string, chapter: number, minVotes: number): Promise<ChapterEchoIndex> {
+  async getChapterCrossRefIndex(book: string, chapter: number, minVotes: number): Promise<ChapterCrossRefIndex> {
     const db = await this.db();
     const prefix = `${book}.${chapter}.%`;
 
@@ -330,7 +330,7 @@ export class GnosisLocalDb implements GnosisDataProvider {
       [prefix, minVotes]
     );
 
-    return mapChapterEchoIndexRows(book, chapter, rows);
+    return mapChapterCrossRefIndexRows(book, chapter, rows);
   }
 
   // --- People ---
@@ -928,7 +928,7 @@ function parseOsisChapter(osisRef: string): number {
  * Returns the verse number from an OSIS ref's last dot-separated segment —
  * safe because OSIS ids in `verse` never contain a dot themselves, so the
  * final segment is always the verse for a `Book.Chapter.Verse` ref. Shared by
- * `mapChapterEntityVerseIndexRows` and `mapChapterEchoIndexRows`.
+ * `mapChapterEntityVerseIndexRows` and `mapChapterCrossRefIndexRows`.
  */
 function parseOsisVerse(osisRef: string): number {
   const segments = osisRef.split('.');
@@ -964,8 +964,8 @@ export function mapChapterEntityVerseIndexRows(
 }
 
 /**
- * Maps `getChapterEchoIndex`'s raw `{from_ref, to_start, to_end, votes}` rows
- * into a chapter echo index. Exported so the mapping — the "older" rule,
+ * Maps `getChapterCrossRefIndex`'s raw `{from_ref, to_start, to_end, votes}` rows
+ * into a chapter cross-reference index. Exported so the mapping — the "older" rule,
  * per-verse dedupe, and sort — can be unit-tested without a mocked SQLite
  * connection.
  *
@@ -975,12 +975,12 @@ export function mapChapterEntityVerseIndexRows(
  * `votes DESC, to_start ASC` — the query orders it that way too, but this
  * function doesn't depend on that.
  */
-export function mapChapterEchoIndexRows(
+export function mapChapterCrossRefIndexRows(
   book: string,
   chapter: number,
   rows: { from_ref: string; to_start: string; to_end: string | null; votes: number }[]
-): ChapterEchoIndex {
-  const bySourceVerse = new Map<number, ChapterEcho>();
+): ChapterCrossRefIndex {
+  const bySourceVerse = new Map<number, ChapterCrossRef>();
 
   for (const r of rows) {
     const verse = parseOsisVerse(r.from_ref);
@@ -989,7 +989,7 @@ export function mapChapterEchoIndexRows(
     if (!isOlderTarget(book, targetBookId)) continue;
 
     const existing = bySourceVerse.get(verse);
-    if (existing && existing.votes >= r.votes) continue; // keep the higher-voted echo for this verse
+    if (existing && existing.votes >= r.votes) continue; // keep the higher-voted cross-reference for this verse
 
     bySourceVerse.set(verse, {
       verse,
@@ -999,8 +999,8 @@ export function mapChapterEchoIndexRows(
     });
   }
 
-  const echoes = Array.from(bySourceVerse.values()).sort((a, b) => a.verse - b.verse);
-  return { book, chapter, echoes };
+  const crossRefs = Array.from(bySourceVerse.values()).sort((a, b) => a.verse - b.verse);
+  return { book, chapter, crossRefs };
 }
 
 function mapLocalPlace(r: any): GnosisPlace {

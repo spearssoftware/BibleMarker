@@ -95,7 +95,7 @@ function normalizeFlags(raw: unknown): RemoteFlags {
 }
 
 /**
- * Valid `[min, max]` integer range per threshold field. `echoMinVotes` is a
+ * Valid `[min, max]` integer range per threshold field. `crossRefMinVotes` is a
  * cross-reference vote count, not a verse/word count — the corpus's votes
  * range into the thousands, so it gets its own wider range than the rest.
  */
@@ -104,7 +104,7 @@ const THRESHOLD_FIELD_RANGE: Record<keyof DiscoveryThresholds, { min: number; ma
   repetitionMinWordLength: { min: 1, max: 50 },
   connectorChipMinCount: { min: 1, max: 50 },
   headingMinVerses: { min: 1, max: 50 },
-  echoMinVotes: { min: 1, max: 1000 },
+  crossRefMinVotes: { min: 1, max: 1000 },
 };
 
 function clampThresholdField(field: keyof DiscoveryThresholds, value: unknown, fallback: number): number {

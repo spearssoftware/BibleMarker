@@ -28,8 +28,8 @@ const state = vi.hoisted(() => ({
   entityVerseRows: [] as { kind: string; osis_ref: string }[],
   /** Remaining install_bundled_module calls that should throw. */
   installFailures: 0,
-  /** Rows returned for the chapter echo-index query. */
-  echoRows: [] as { from_ref: string; to_start: string; to_end: string | null; votes: number }[],
+  /** Rows returned for the chapter cross-reference-index query. */
+  crossRefRows: [] as { from_ref: string; to_start: string; to_end: string | null; votes: number }[],
 }));
 
 const NOT_A_DB = 'error returned from database: (code: 26) file is not a database';
@@ -66,14 +66,14 @@ vi.mock('@tauri-apps/plugin-sql', () => {
       if (sql.includes('person_verse')) return state.entityVerseRows;
       if (sql.includes('cross_reference')) {
         // Actually filter by the params the caller passed, rather than
-        // handing back state.echoRows unconditionally — otherwise a caller
+        // handing back state.crossRefRows unconditionally — otherwise a caller
         // regression that sends the wrong prefix/minVotes would still pass
-        // the `params` assertion in the getChapterEchoIndex test below,
+        // the `params` assertion in the getChapterCrossRefIndex test below,
         // since that assertion would be checking a value nothing downstream
         // depends on.
         const prefix = typeof params?.[0] === 'string' ? params[0].replace(/%$/, '') : '';
         const minVotes = typeof params?.[1] === 'number' ? params[1] : -Infinity;
-        return state.echoRows.filter((r) => r.from_ref.startsWith(prefix) && r.votes >= minVotes);
+        return state.crossRefRows.filter((r) => r.from_ref.startsWith(prefix) && r.votes >= minVotes);
       }
       return [];
     }),
@@ -112,7 +112,7 @@ beforeEach(() => {
   state.selectCalls = [];
   state.entityVerseRows = [];
   state.installFailures = 0;
-  state.echoRows = [];
+  state.crossRefRows = [];
 });
 
 describe('mapChapterEntityVerseIndexRows', () => {
@@ -176,7 +176,7 @@ describe('getChapterEntityVerseIndex', () => {
   });
 });
 
-describe('mapChapterEchoIndexRows — dedupe, sort, ranges', () => {
+describe('mapChapterCrossRefIndexRows — dedupe, sort, ranges', () => {
   it.each([
     [
       'higher-voted row arrives first',
@@ -192,57 +192,57 @@ describe('mapChapterEchoIndexRows — dedupe, sort, ranges', () => {
         { from_ref: 'Heb.1.5', to_start: 'Ps.2.7', to_end: null, votes: 40 },
       ],
     ],
-  ])('keeps the highest-voted echo per source verse regardless of row order (%s)', async (_label, rows) => {
-    const { mapChapterEchoIndexRows } = await import('./local-db');
-    const result = mapChapterEchoIndexRows('Heb', 1, rows);
-    expect(result.echoes).toEqual([{ verse: 5, targetRef: 'Ps.2.7', targetEndRef: null, votes: 40 }]);
+  ])('keeps the highest-voted cross-reference per source verse regardless of row order (%s)', async (_label, rows) => {
+    const { mapChapterCrossRefIndexRows } = await import('./local-db');
+    const result = mapChapterCrossRefIndexRows('Heb', 1, rows);
+    expect(result.crossRefs).toEqual([{ verse: 5, targetRef: 'Ps.2.7', targetEndRef: null, votes: 40 }]);
   });
 
-  it('sorts echoes by verse ascending regardless of row order', async () => {
-    const { mapChapterEchoIndexRows } = await import('./local-db');
-    const result = mapChapterEchoIndexRows('Heb', 1, [
+  it('sorts cross-references by verse ascending regardless of row order', async () => {
+    const { mapChapterCrossRefIndexRows } = await import('./local-db');
+    const result = mapChapterCrossRefIndexRows('Heb', 1, [
       { from_ref: 'Heb.1.8', to_start: 'Ps.45.6', to_end: 'Ps.45.7', votes: 30 },
       { from_ref: 'Heb.1.5', to_start: 'Ps.2.7', to_end: null, votes: 40 },
     ]);
-    expect(result.echoes.map((e) => e.verse)).toEqual([5, 8]);
+    expect(result.crossRefs.map((e) => e.verse)).toEqual([5, 8]);
   });
 
   it('drops rows whose target is not older, keeping the older ones alongside', async () => {
     // Wiring guard: every other fixture here is NT->OT, so without this case
     // deleting the mapper's isOlderTarget filter would leave the suite green.
-    const { mapChapterEchoIndexRows } = await import('./local-db');
-    const result = mapChapterEchoIndexRows('Heb', 1, [
+    const { mapChapterCrossRefIndexRows } = await import('./local-db');
+    const result = mapChapterCrossRefIndexRows('Heb', 1, [
       { from_ref: 'Heb.1.3', to_start: 'Col.1.15', to_end: null, votes: 63 }, // NT -> NT
       { from_ref: 'Heb.1.5', to_start: 'Heb.5.5', to_end: null, votes: 50 }, // same book
       { from_ref: 'Heb.1.7', to_start: 'Ps.104.4', to_end: null, votes: 37 }, // NT -> OT
     ]);
-    expect(result.echoes).toEqual([
+    expect(result.crossRefs).toEqual([
       { verse: 7, targetRef: 'Ps.104.4', targetEndRef: null, votes: 37 },
     ]);
   });
 
-  it('preserves targetEndRef for range echoes', async () => {
-    const { mapChapterEchoIndexRows } = await import('./local-db');
-    const result = mapChapterEchoIndexRows('Heb', 1, [
+  it('preserves targetEndRef for range cross-references', async () => {
+    const { mapChapterCrossRefIndexRows } = await import('./local-db');
+    const result = mapChapterCrossRefIndexRows('Heb', 1, [
       { from_ref: 'Heb.1.8', to_start: 'Ps.45.6', to_end: 'Ps.45.7', votes: 30 },
     ]);
-    expect(result.echoes[0]).toEqual({ verse: 8, targetRef: 'Ps.45.6', targetEndRef: 'Ps.45.7', votes: 30 });
+    expect(result.crossRefs[0]).toEqual({ verse: 8, targetRef: 'Ps.45.6', targetEndRef: 'Ps.45.7', votes: 30 });
   });
 });
 
-describe('getChapterEchoIndex', () => {
+describe('getChapterCrossRefIndex', () => {
   it('queries via from_verse_id IN (SELECT ...), LEFT JOINs the range end, orders by votes then ref, and has no LIMIT', async () => {
-    state.echoRows = [{ from_ref: 'John.1.1', to_start: 'Gen.1.1', to_end: null, votes: 276 }];
+    state.crossRefRows = [{ from_ref: 'John.1.1', to_start: 'Gen.1.1', to_end: null, votes: 276 }];
     const db = await freshDb();
 
-    await expect(db.getChapterEchoIndex('John', 1, 20)).resolves.toEqual({
+    await expect(db.getChapterCrossRefIndex('John', 1, 20)).resolves.toEqual({
       book: 'John',
       chapter: 1,
-      echoes: [{ verse: 1, targetRef: 'Gen.1.1', targetEndRef: null, votes: 276 }],
+      crossRefs: [{ verse: 1, targetRef: 'Gen.1.1', targetEndRef: null, votes: 276 }],
     });
 
     // SQL-shape assertions for the perf-critical query form — see the
-    // getChapterEchoIndex doc comment in local-db.ts for the rationale.
+    // getChapterCrossRefIndex doc comment in local-db.ts for the rationale.
     const call = state.selectCalls.find((c) => c.sql.includes('cross_reference'));
     expect(call).toBeDefined();
     expect(call!.sql).toContain('cr.from_verse_id IN (SELECT id FROM verse WHERE osis_ref LIKE ?1)');

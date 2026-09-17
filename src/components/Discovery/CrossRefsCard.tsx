@@ -1,34 +1,34 @@
 /**
- * EchoesCard — Echo Hints. Up to a two-rung reveal ladder per row (category
+ * CrossRefsCard — cross-reference card. Up to a two-rung reveal ladder per row (category
  * hint, then the reference as a jump), stored in
- * `discoveryStore.revealedEchoes` keyed `${book}.${chapter}:${verse}:${targetRef}`
+ * `discoveryStore.revealedCrossRefs` keyed `${book}.${chapter}:${verse}:${targetRef}`
  * so it survives the panel closing and reopening but resets on chapter change.
  */
 
 import { useMemo } from 'react';
 import { Button } from '@/components/shared';
 import { DiscoveryCard } from './DiscoveryCard';
-import { useDiscoveryStore, type EchoRung } from '@/stores/discoveryStore';
+import { useDiscoveryStore, type CrossRefRung } from '@/stores/discoveryStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { track } from '@/lib/telemetry';
 import { pluralize, agree } from '@/lib/textUtils';
-import { echoSectionFor, formatEchoTarget } from '@/lib/chapterAnalysis';
+import { canonSectionFor, formatCrossRefTarget } from '@/lib/chapterAnalysis';
 import { parseOsisRef } from '@/types';
-import type { ChapterEcho } from '@/types';
+import type { ChapterCrossRef } from '@/types';
 
 const MAX_ROWS = 3;
 
-/** Where a row currently sits on the reveal ladder; `revealedEchoes[key]` maps 1:1 except for the unrevealed start. */
-type EchoPhase = 'hidden' | EchoRung;
+/** Where a row currently sits on the reveal ladder; `revealedCrossRefs[key]` maps 1:1 except for the unrevealed start. */
+type CrossRefPhase = 'hidden' | CrossRefRung;
 
-interface EchoesCardProps {
-  echoes: ChapterEcho[];
+interface CrossRefsCardProps {
+  crossRefs: ChapterCrossRef[];
   book: string;
   chapter: number;
 }
 
-interface EchoRow {
-  echo: ChapterEcho;
+interface CrossRefRow {
+  crossRef: ChapterCrossRef;
   key: string;
   // No section label means there's nothing to ask the reader to guess —
   // skip the category rung and go straight to the reference.
@@ -39,59 +39,59 @@ interface EchoRow {
   jumpTarget: { book: string; chapter: number; verse: number } | undefined;
 }
 
-function echoKey(book: string, chapter: number, echo: ChapterEcho): string {
-  return `${book}.${chapter}:${echo.verse}:${echo.targetRef}`;
+function crossRefKey(book: string, chapter: number, crossRef: ChapterCrossRef): string {
+  return `${book}.${chapter}:${crossRef.verse}:${crossRef.targetRef}`;
 }
 
-export function EchoesCard({ echoes, book, chapter }: EchoesCardProps) {
-  const revealedEchoes = useDiscoveryStore(s => s.revealedEchoes);
-  const revealEchoRung = useDiscoveryStore(s => s.revealEchoRung);
+export function CrossRefsCard({ crossRefs, book, chapter }: CrossRefsCardProps) {
+  const revealedCrossRefs = useDiscoveryStore(s => s.revealedCrossRefs);
+  const revealCrossRefRung = useDiscoveryStore(s => s.revealCrossRefRung);
   const navigateToVerse = useBibleStore(s => s.navigateToVerse);
 
-  // Shows only the 3 highest-voted echoes (a future glyph/checklist phase can
+  // Shows only the 3 highest-voted cross-references (a future glyph/checklist phase can
   // reuse the full index), then re-sorts verse-ordered so the ladder reads
   // top-to-bottom the way the chapter does. Parsing/labeling happens once
   // here rather than per row per render.
-  const topEchoes = useMemo<EchoRow[]>(
+  const topCrossRefs = useMemo<CrossRefRow[]>(
     () =>
-      [...echoes]
+      [...crossRefs]
         .sort((a, b) => b.votes - a.votes)
         .slice(0, MAX_ROWS)
         .sort((a, b) => a.verse - b.verse)
-        .map(echo => {
-          const target = parseOsisRef(echo.targetRef);
+        .map(crossRef => {
+          const target = parseOsisRef(crossRef.targetRef);
           return {
-            echo,
-            key: echoKey(book, chapter, echo),
-            section: target ? echoSectionFor(target.book) : undefined,
-            label: formatEchoTarget(echo.targetRef, echo.targetEndRef),
+            crossRef,
+            key: crossRefKey(book, chapter, crossRef),
+            section: target ? canonSectionFor(target.book) : undefined,
+            label: formatCrossRefTarget(crossRef.targetRef, crossRef.targetEndRef),
             jumpTarget:
               target && target.verse !== undefined
                 ? { book: target.book, chapter: target.chapter, verse: target.verse }
                 : undefined,
           };
         }),
-    [echoes, book, chapter]
+    [crossRefs, book, chapter]
   );
 
-  const shownCount = topEchoes.length;
+  const shownCount = topCrossRefs.length;
   if (shownCount === 0) return null;
 
-  const title = `${pluralize(shownCount, 'verse')} here ${agree(shownCount, 'echoes', 'echo')} something older`;
+  const title = `${pluralize(shownCount, 'verse')} here ${agree(shownCount, 'connects', 'connect')} to older Scripture`;
 
-  const handleReveal = (key: string, rung: EchoRung) => {
-    if (!revealedEchoes[key]) track('discovery_chip_tapped', { feature: 'echo' });
-    revealEchoRung(key, rung);
+  const handleReveal = (key: string, rung: CrossRefRung) => {
+    if (!revealedCrossRefs[key]) track('discovery_chip_tapped', { feature: 'crossref' });
+    revealCrossRefRung(key, rung);
   };
 
   return (
     <DiscoveryCard title={title}>
       <p className="text-sm text-scripture-text">Before you look — where do you think it comes from?</p>
       <div className="space-y-2">
-        {topEchoes.map(row => {
-          // `revealedEchoes` is typed as always-present per key, but an
+        {topCrossRefs.map(row => {
+          // `revealedCrossRefs` is typed as always-present per key, but an
           // unrevealed row's key is genuinely absent at runtime.
-          const phase: EchoPhase = (revealedEchoes[row.key] as EchoRung | undefined) ?? 'hidden';
+          const phase: CrossRefPhase = (revealedCrossRefs[row.key] as CrossRefRung | undefined) ?? 'hidden';
 
           return (
             <div key={row.key} className="space-y-1">
@@ -124,10 +124,10 @@ export function EchoesCard({ echoes, book, chapter }: EchoesCardProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  aria-label={phase === 'category' ? `Show me where v.${row.echo.verse} comes from` : undefined}
+                  aria-label={phase === 'category' ? `Show me where v.${row.crossRef.verse} comes from` : undefined}
                   onClick={() => handleReveal(row.key, phase === 'category' ? 'reference' : row.section ? 'category' : 'reference')}
                 >
-                  {phase === 'category' ? 'Show me' : `Where does v.${row.echo.verse} come from?`}
+                  {phase === 'category' ? 'Show me' : `Where does v.${row.crossRef.verse} come from?`}
                 </Button>
               )}
             </div>
