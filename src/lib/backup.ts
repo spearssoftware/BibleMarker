@@ -206,7 +206,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<strin
         await writeTextFile(filePath, json);
         return filename;
       } catch (error: unknown) {
-        throw new Error(`Failed to export backup: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
+        throw new Error(`Failed to export backup: ${error instanceof Error ? error.message : JSON.stringify(error)}`, { cause: error });
       }
     }
 
@@ -231,7 +231,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<strin
         if (error instanceof Error && error.message === 'Export cancelled') {
           throw error;
         }
-        throw new Error(`Failed to save backup: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
+        throw new Error(`Failed to save backup: ${error instanceof Error ? error.message : JSON.stringify(error)}`, { cause: error });
       }
     }
 
@@ -254,7 +254,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<strin
       } catch (error: unknown) {
         // User cancelled or error - fall through to download
         if (error instanceof Error && error.name === 'AbortError') {
-          throw new Error('Export cancelled');
+          throw new Error('Export cancelled', { cause: error });
         }
         console.warn('File System Access API failed, falling back to download:', error);
       }
@@ -270,7 +270,7 @@ export async function exportBackup(includeCache: boolean = false): Promise<strin
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   } catch (error) {
-    throw new Error(`Failed to export backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to export backup: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
   }
 }
 
@@ -423,7 +423,7 @@ export async function importBackup(): Promise<BackupData> {
         if (error instanceof Error && error.message === 'Import cancelled') {
           throw error;
         }
-        throw new Error(`Failed to read backup file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw new Error(`Failed to read backup file: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
       }
     } else if (isFileSystemAccessSupported()) {
       // Use File System Access API if available (browser)
@@ -441,7 +441,7 @@ export async function importBackup(): Promise<BackupData> {
         text = await file.text();
       } catch (error: unknown) {
         if (error instanceof Error && error.name === 'AbortError') {
-          throw new Error('Import cancelled');
+          throw new Error('Import cancelled', { cause: error });
         }
         throw error;
       }
@@ -473,7 +473,7 @@ export async function importBackup(): Promise<BackupData> {
     try {
       backup = JSON.parse(text) as BackupData;
     } catch (error) {
-      throw new Error('Invalid JSON file: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      throw new Error('Invalid JSON file: ' + (error instanceof Error ? error.message : 'Unknown error'), { cause: error });
     }
 
     // Validate backup with detailed error messages
@@ -491,7 +491,7 @@ export async function importBackup(): Promise<BackupData> {
     if (error instanceof Error && error.message === 'Import cancelled') {
       throw error;
     }
-    throw new Error(`Failed to import backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to import backup: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
   }
 }
 
@@ -678,6 +678,6 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
       }
     }
   } catch (error) {
-    throw new Error(`Failed to restore backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to restore backup: ${error instanceof Error ? error.message : 'Unknown error'}`, { cause: error });
   }
 }

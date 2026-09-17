@@ -15,7 +15,7 @@ jobs:
     container:
       image: ghcr.io/spearssoftware/biblemarker/ci-node:latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install dependencies
         run: pnpm install
       - name: Lint
@@ -34,13 +34,13 @@ jobs:
       release_id: ${{ steps.get-release-id.outputs.id }}
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: pnpm/action-setup@v6
         with:
           version: 10
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "lts/*"
       - id: version
@@ -125,7 +125,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download gnosis-lite.db
         run: |
@@ -145,7 +145,7 @@ jobs:
           version: 10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "lts/*"
           cache: "pnpm"
@@ -188,7 +188,7 @@ jobs:
       - name: Build and release
         id: build
         if: matrix.platform != 'macos-latest'
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -269,7 +269,7 @@ jobs:
       # macOS: build only (no upload)
       - name: Build (macOS only)
         if: matrix.platform == 'macos-latest'
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -327,7 +327,7 @@ jobs:
       # TODO: Pinned to v2.4.2 to avoid "Too many retries" in v2.5.0 (issue #704). Check for fixed version later.
       - name: Upload macOS artifact to release
         if: matrix.platform == 'macos-latest'
-        uses: softprops/action-gh-release@v3.0.2
+        uses: softprops/action-gh-release@v3.0.3
         with:
           tag_name: app-v${{ needs.prepare.outputs.version }}
           name: BibleMarker v${{ needs.prepare.outputs.version }}
@@ -340,7 +340,7 @@ jobs:
       # Same action pin as above (v2.5.0 retry bug)
       - name: Upload macOS updater artifacts to release
         if: matrix.platform == 'macos-latest' && steps.create-updater.outcome == 'success'
-        uses: softprops/action-gh-release@v3.0.2
+        uses: softprops/action-gh-release@v3.0.3
         with:
           tag_name: app-v${{ needs.prepare.outputs.version }}
           name: BibleMarker v${{ needs.prepare.outputs.version }}
@@ -387,7 +387,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Create and upload latest.json
         run: node scripts/create-latest-json.js app-v${{ needs.prepare.outputs.version }} ${{ needs.prepare.outputs.version }}
         env:
@@ -398,9 +398,12 @@ jobs:
     runs-on: macos-15
     permissions:
       contents: write
+    outputs:
+      build_number: ${{ steps.build.outputs.build_number }}
+      notes_sha: ${{ steps.build.outputs.notes_sha }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download gnosis-lite.db
         run: |
@@ -417,7 +420,7 @@ jobs:
           version: 10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "lts/*"
           cache: "pnpm"
@@ -510,12 +513,18 @@ jobs:
       # Android share one scheme — Android's versionCode must stay under Google Play's
       # ~2.1B cap, which epoch seconds would hit around 2036.
       - name: Build iOS app
+        id: build
         run: |
           # Xcode's Rust build phase doesn't inherit step env vars (tauri#13856),
           # so write the NASB key to a file build.rs reads to embed it.
           printf '%s' "$NASB_SIGNING_KEY" > src-tauri/nasb_signing_key.txt
           BUILD_NUMBER=$(( $(date +%s) / 60 ))
           echo "CFBundleVersion (build number): $BUILD_NUMBER"
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          # Capture provenance now, at archive time. The notes are written many
+          # minutes later, in a separate job, and must describe the tree that was
+          # actually built.
+          echo "notes_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           printf '{"bundle":{"iOS":{"bundleVersion":"%s"}}}' "$BUILD_NUMBER" > "$RUNNER_TEMP/bundle-version.json"
           pnpm tauri ios build --export-method app-store-connect --config "$RUNNER_TEMP/bundle-version.json"
         env:
@@ -549,6 +558,27 @@ jobs:
             --apiKey "$API_KEY_ID" \
             --apiIssuer "$API_ISSUER_ID"
 
+  # Fill the build's "What to Test" from git, so a build in App Store Connect
+  # identifies itself. CFBundleVersion holds only period-separated integers, so
+  # the notes are the only place the tag and SHA can live.
+  #
+  # Its own job because it waits on Apple's processing queue: as a step it would
+  # hold build-ios open for 5-20 minutes and delay publish-release behind it.
+  # A leaf job — publish-release does not depend on it and the IPA is already in
+  # TestFlight, so a failure here costs a red job and nothing else. That red job
+  # is the signal to dispatch testflight-notes manually and retry.
+  testflight-notes:
+    needs: build-ios
+    uses: ./.github/workflows/testflight-notes.yml
+    secrets:
+      APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+    with:
+      build_number: ${{ needs.build-ios.outputs.build_number }}
+      ref: ${{ github.ref_name }}
+      sha: ${{ needs.build-ios.outputs.notes_sha }}
+
   build-android:
     needs: prepare
     runs-on: ubuntu-latest
@@ -556,7 +586,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download gnosis-lite.db
         run: |
@@ -584,7 +614,7 @@ jobs:
           version: 10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "lts/*"
           cache: "pnpm"
@@ -648,8 +678,14 @@ jobs:
           echo "Found AAB: $AAB"
           cp "$AAB" BibleMarker-android.aab
 
+      # Google Play rejects releases whose native libraries aren't 16 KB
+      # page-aligned, and it says so only at submission time. Fail the build
+      # here instead.
+      - name: Verify 16 KB page alignment of native libraries
+        run: python3 scripts/verify-android-alignment.py BibleMarker-android.aab
+
       - name: Upload AAB to release
-        uses: softprops/action-gh-release@v3.0.2
+        uses: softprops/action-gh-release@v3.0.3
         with:
           tag_name: app-v${{ needs.prepare.outputs.version }}
           name: BibleMarker v${{ needs.prepare.outputs.version }}

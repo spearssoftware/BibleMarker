@@ -113,7 +113,7 @@ export const useListStore = create<ListState>()(
         } catch (error) {
           if (error instanceof ValidationError) {
             console.error('[createList] Validation error:', error.message, error.field, error.value);
-            throw new Error(`Invalid observation list data: ${error.message}`);
+            throw new Error(`Invalid observation list data: ${error.message}`, { cause: error });
           }
           throw error;
         }
@@ -136,7 +136,7 @@ export const useListStore = create<ListState>()(
         } catch (error) {
           if (error instanceof ValidationError) {
             console.error('[updateList] Validation error:', error.message, error.field, error.value);
-            throw new Error(`Invalid observation list data: ${error.message}`);
+            throw new Error(`Invalid observation list data: ${error.message}`, { cause: error });
           }
           throw error;
         }
@@ -201,7 +201,7 @@ export const useListStore = create<ListState>()(
         } catch (error) {
           if (error instanceof ValidationError) {
             console.error('[updateItem] Validation error:', error.message, error.field, error.value);
-            throw new Error(`Invalid observation list data: ${error.message}`);
+            throw new Error(`Invalid observation list data: ${error.message}`, { cause: error });
           }
           throw error;
         }
@@ -225,7 +225,7 @@ export const useListStore = create<ListState>()(
         } catch (error) {
           if (error instanceof ValidationError) {
             console.error('[deleteItem] Validation error:', error.message, error.field, error.value);
-            throw new Error(`Invalid observation list data: ${error.message}`);
+            throw new Error(`Invalid observation list data: ${error.message}`, { cause: error });
           }
           throw error;
         }

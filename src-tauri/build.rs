@@ -1,6 +1,15 @@
 use std::{env, fs, path::Path};
 
 fn main() {
+    // Google Play requires 16 KB page-size support (targetSdk 35+): every
+    // LOAD segment of the shipped .so must be 16 KB-aligned. Which default
+    // you get depends on the linker cargo happens to resolve (NDK clang
+    // aligns, rust-lld does not), and that resolution has flipped between CI
+    // runs. Pass the flag explicitly so no toolchain default can regress it.
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("android") {
+        println!("cargo:rustc-link-arg=-Wl,-z,max-page-size=16384");
+    }
+
     // NASB download signing key. `signed_download.rs` reads it via
     // `option_env!("NASB_SIGNING_KEY")`. Desktop builds get it straight from the
     // process env, but Tauri's iOS "Build Rust Code" Xcode phase runs in Xcode's

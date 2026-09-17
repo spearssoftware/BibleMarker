@@ -26,6 +26,8 @@ const state = vi.hoisted(() => ({
   selectCalls: [] as { sql: string; params?: unknown[] }[],
   /** Rows returned for the chapter entity-verse-index query. */
   entityVerseRows: [] as { kind: string; osis_ref: string }[],
+  /** Remaining install_bundled_module calls that should throw. */
+  installFailures: 0,
 }));
 
 const NOT_A_DB = 'error returned from database: (code: 26) file is not a database';
@@ -33,6 +35,10 @@ const NOT_A_DB = 'error returned from database: (code: 26) file is not a databas
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(async (cmd: string, args?: Record<string, unknown>) => {
     state.invocations.push({ cmd, args });
+    if (cmd === 'install_bundled_module' && state.installFailures > 0) {
+      state.installFailures -= 1;
+      throw new Error('Failed to install gnosis-lite.db: transient I/O error');
+    }
     // Deleting the files lets the following reinstall lay down a good copy.
     if (cmd === 'delete_gnosis_database' && state.deleteRepairs) {
       state.corrupt = false;
@@ -92,6 +98,7 @@ beforeEach(() => {
   state.deleteRepairs = true;
   state.selectCalls = [];
   state.entityVerseRows = [];
+  state.installFailures = 0;
 });
 
 describe('mapChapterEntityVerseIndexRows', () => {
@@ -224,6 +231,25 @@ describe('gnosis local DB self-heal', () => {
     await expect(db.getChapterYear('Gen', 1)).rejects.toThrow(/already rebuilt this session/);
 
     expect(commands().filter(c => c === 'delete_gnosis_database')).toHaveLength(1);
+    // Install attempts are bounded per session, not repeated on every retried
+    // call: eager attempts stop after the cap, plus one inside the rebuild.
+    expect(
+      commands().filter(c => c === 'install_bundled_module').length
+    ).toBeLessThanOrEqual(4);
+  });
+
+  it('recovers on a later call when an install failure was transient', async () => {
+    // Both the eager install and the rebuild's reinstall fail once each,
+    // then whatever was wrong with the device clears.
+    state.corrupt = true;
+    state.deleteRepairs = true;
+    state.installFailures = 2;
+    const db = await freshDb();
+
+    await expect(db.getChapterYear('Gen', 1)).rejects.toThrow(/could not be reinstalled/);
+
+    // The next call's eager install succeeds and the panel heals itself.
+    await expect(db.getChapterYear('Gen', 1)).resolves.not.toBeNull();
   });
 
   it('reports a close that fails, since the handle stays pooled', async () => {

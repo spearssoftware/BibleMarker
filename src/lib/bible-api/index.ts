@@ -127,7 +127,7 @@ export async function fetchChapter(
   if (cached) {
     const isESV = isEsvTranslation(translationId);
     const verses = Object.entries(cached.verses).map(([num, text]) => {
-      let textStr = '';
+      let textStr: string;
       if (typeof text === 'string') {
         textStr = text;
       } else if (text && typeof text === 'object') {
@@ -154,7 +154,7 @@ export async function fetchChapter(
   // Determine source
   const isESV = isEsvTranslation(translationId);
 
-  let chapterData: ChapterResponse | null = null;
+  let chapterData: ChapterResponse | null;
 
   if (isSword) {
     chapterData = await swordClient.getChapter(translationId, book, chapter);

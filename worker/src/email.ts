@@ -32,7 +32,7 @@ export class CloudflareEmailSender implements EmailSender {
       // E_RECIPIENT_SUPPRESSED). Surface it so the Worker logs say why.
       const code = (err as { code?: string }).code ?? 'unknown';
       const message = err instanceof Error ? err.message : String(err);
-      throw new Error(`Email send failed (${code}): ${message.slice(0, 200)}`);
+      throw new Error(`Email send failed (${code}): ${message.slice(0, 200)}`, { cause: err });
     }
   }
 }

@@ -2,11 +2,6 @@
 
 declare const __APP_VERSION__: string
 
-declare module 'pako' {
-  function _inflate(data: Uint8Array, options?: { raw?: boolean }): Uint8Array;
-  const pako: { inflate: typeof _inflate };
-  export default pako;
-}
 
 // File System Access API types
 interface FileSystemHandle {

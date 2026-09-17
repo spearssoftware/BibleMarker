@@ -10,16 +10,30 @@ import type { SectionHeading } from '@/types';
 interface SectionHeadingEditorProps {
   heading: SectionHeading;
   verseNum: number;
+  /**
+   * Controlled editing state. Provide together with onEditingChange when the
+   * parent may remount this component while the editor is open (e.g. the
+   * verse list re-keys on resize) — local state would be wiped by the remount.
+   */
+  isEditing?: boolean;
+  onEditingChange?: (editing: boolean) => void;
   onSave?: (heading: SectionHeading) => void;
   onDelete?: (id: string) => void;
 }
 
-export function SectionHeadingEditor({ 
-  heading, 
-  onSave, 
-  onDelete 
+export function SectionHeadingEditor({
+  heading,
+  isEditing: isEditingProp,
+  onEditingChange,
+  onSave,
+  onDelete
 }: SectionHeadingEditorProps) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [localEditing, setLocalEditing] = useState(false);
+  const isEditing = isEditingProp ?? localEditing;
+  const setIsEditing = (editing: boolean) => {
+    setLocalEditing(editing);
+    onEditingChange?.(editing);
+  };
   const [editText, setEditText] = useState(heading.title);
   const [isDeleting, setIsDeleting] = useState(false);
 

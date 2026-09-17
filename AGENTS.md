@@ -185,7 +185,8 @@ For a specific target: `CARGO_HOME="$(pwd)/.cargo-home" unset CI && pnpm tauri b
 | `release` | tag `app-v*` / manual | Tauri builds (macOS, Linux, Windows, iOS, Android) + draft release |
 | `release-tag` | release PR merged | creates the `app-vX.Y.Z` tag that triggers `release` |
 | `promote-release` | manual | flips a prerelease to the stable/latest release |
-| `testflight` | manual | iOS build + TestFlight upload |
+| `testflight` | manual | iOS build + TestFlight upload (writes "What to Test" notes) |
+| `testflight-notes` | manual | rewrites a build's "What to Test" notes without rebuilding |
 | `build-ci-images` | weekly / manual | rebuilds the CI container images |
 | `regenerate-flatpak-sources` | manual | regenerates vendored Flatpak sources (parked) |
 
