@@ -1,10 +1,12 @@
 /**
  * @vitest-environment jsdom
  *
- * The cross-reference card must never leak the target reference into the DOM before the
- * reader has earned the second rung — the category hint ("It's in the
- * law.") comes first and stays visible once the reference is revealed,
- * mirroring `RepetitionCard`'s accumulating ladder.
+ * CrossRefsCard shows two passages side by side and lets the reader tap the
+ * words they share — `useCrossRefPassages` is mocked here (its own behavior,
+ * including the network-cost rule, is covered by its own test file) so this
+ * file only exercises the card's rendering and store wiring. The shared-word
+ * answer must never leak into the DOM as a prompt/answer line before the
+ * reader finds it or presses "Show me".
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -12,6 +14,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { CrossRefsCard } from '../CrossRefsCard';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { makeChapterCrossRef } from '@/lib/__test__/factories';
+import type { CrossRefPassageRow } from '@/hooks/useCrossRefPassages';
 import type { ChapterCrossRef } from '@/types';
 
 const navigateToVerse = vi.fn();
@@ -25,153 +28,251 @@ vi.mock('@/lib/telemetry', () => ({
   track: (...args: unknown[]) => trackMock(...args),
 }));
 
-function renderCard(crossRefs: ChapterCrossRef[], overrides: { book?: string; chapter?: number } = {}) {
-  return render(<CrossRefsCard crossRefs={crossRefs} book={overrides.book ?? 'John'} chapter={overrides.chapter ?? 1} />);
+const expandMock = vi.fn();
+let mockRows: CrossRefPassageRow[] = [];
+vi.mock('@/hooks/useCrossRefPassages', () => ({
+  useCrossRefPassages: () => ({ rows: mockRows, expand: expandMock }),
+}));
+
+function makeRow(overrides: Partial<CrossRefPassageRow> = {}): CrossRefPassageRow {
+  const crossRef: ChapterCrossRef = makeChapterCrossRef({ verse: 29, targetRef: 'Isa.53.7', votes: 100 });
+  return {
+    key: 'John.1:29:Isa.53.7',
+    crossRef,
+    section: 'the prophets',
+    label: 'Isaiah 53:7',
+    jumpTarget: { book: 'Isa', chapter: 53, verse: 7 },
+    sourceRefLabel: 'John 1:29',
+    sourceText: 'Behold, the Lamb of God who takes away the sin of the world',
+    status: 'ready',
+    targetVerses: [{ verse: 7, text: 'He was led like a lamb to the slaughter' }],
+    shared: ['lamb'],
+    ...overrides,
+  };
+}
+
+function renderCard(overrides: { book?: string; chapter?: number; translationId?: string; crossRefs?: ChapterCrossRef[] } = {}) {
+  return render(
+    <CrossRefsCard
+      crossRefs={overrides.crossRefs ?? [makeChapterCrossRef({ verse: 29, targetRef: 'Isa.53.7' })]}
+      book={overrides.book ?? 'John'}
+      chapter={overrides.chapter ?? 1}
+      translationId={overrides.translationId ?? 'sword-NASB'}
+    />
+  );
 }
 
 describe('CrossRefsCard', () => {
   beforeEach(() => {
-    useDiscoveryStore.setState({ revealedCrossRefs: {} });
+    useDiscoveryStore.setState({ crossRefProgress: {} });
+    mockRows = [];
     navigateToVerse.mockClear();
     trackMock.mockClear();
+    expandMock.mockClear();
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  it('renders nothing when there are no cross-references', () => {
-    const { container } = renderCard([]);
+  it('renders nothing when the hook yields no rows', () => {
+    mockRows = [];
+    const { container } = renderCard();
     expect(container.innerHTML).toBe('');
   });
 
-  it('agrees the title at n=1', () => {
-    renderCard([makeChapterCrossRef({ verse: 1 })]);
+  it('agrees the title and shows the intro line for n=1', () => {
+    mockRows = [makeRow()];
+    renderCard();
     expect(screen.getByText('1 verse here connects to older Scripture')).toBeTruthy();
+    expect(screen.getByText('Read them together — what do they share?')).toBeTruthy();
   });
 
   it('agrees the title at n>1', () => {
-    renderCard([
-      makeChapterCrossRef({ verse: 1, votes: 300 }),
-      makeChapterCrossRef({ verse: 14, targetRef: 'Isa.40.5', votes: 200 }),
-    ]);
+    mockRows = [makeRow({ key: 'a' }), makeRow({ key: 'b', crossRef: makeChapterCrossRef({ verse: 14 }) })];
+    renderCard();
     expect(screen.getByText('2 verses here connect to older Scripture')).toBeTruthy();
   });
 
-  it('shows at most the 3 highest-voted cross-references, verse-ordered', () => {
-    const crossRefs = [
-      makeChapterCrossRef({ verse: 29, targetRef: 'Isa.53.7', votes: 50 }),
-      makeChapterCrossRef({ verse: 1, targetRef: 'Gen.1.1', votes: 276 }),
-      makeChapterCrossRef({ verse: 14, targetRef: 'Isa.40.5', votes: 150 }),
-      makeChapterCrossRef({ verse: 5, targetRef: 'Ps.2.7', votes: 10 }), // lowest-voted, should be dropped
-    ];
-    renderCard(crossRefs);
-    expect(screen.getByText('3 verses here connect to older Scripture')).toBeTruthy();
-    const buttons = screen.getAllByText(/Where does v\.\d+ come from\?/);
-    expect(buttons).toHaveLength(3);
-    expect(buttons[0].textContent).toContain('v.1');
-    expect(buttons[1].textContent).toContain('v.14');
-    expect(buttons[2].textContent).toContain('v.29');
+  it('shows a collapsed row with the section teaser and no passage text', () => {
+    mockRows = [makeRow()];
+    renderCard();
+    expect(screen.getByText('v.29 — something in the prophets')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Read v.29 together with its older passage' })).toBeTruthy();
+    expect(screen.queryByText(/Behold, the Lamb/)).toBeNull();
+    expect(screen.queryByText(/led like a lamb/)).toBeNull();
+    // The answer must never leak before the row is opened.
+    expect(document.body.innerHTML).not.toContain('lamb');
   });
 
-  it('advances the ladder unrevealed → category → reference, keeping the category line visible, and never renders the target ref before the second rung', () => {
-    renderCard([makeChapterCrossRef({ verse: 1, targetRef: 'Gen.1.1' })]);
-
-    expect(screen.getByText('Where does v.1 come from?')).toBeTruthy();
-    expect(screen.queryByText('Genesis 1:1')).toBeNull();
-
-    fireEvent.click(screen.getByText('Where does v.1 come from?'));
-    expect(screen.getByText("It's in the law.")).toBeTruthy();
-    expect(screen.getByText('Show me')).toBeTruthy();
-    expect(screen.queryByText('Genesis 1:1')).toBeNull();
-
-    fireEvent.click(screen.getByText('Show me'));
-    expect(screen.getByText("It's in the law.")).toBeTruthy();
-    expect(screen.getByText('Genesis 1:1')).toBeTruthy();
-    expect(screen.queryByText('Show me')).toBeNull();
-    expect(screen.queryByText('Where does v.1 come from?')).toBeNull();
+  it('falls back to "an older passage" when the row has no section', () => {
+    mockRows = [makeRow({ section: undefined })];
+    renderCard();
+    expect(screen.getByText('v.29 — an older passage')).toBeTruthy();
   });
 
-  it('reveal state is store-backed and survives unmount/remount', () => {
-    const { unmount } = renderCard([makeChapterCrossRef({ verse: 1, targetRef: 'Gen.1.1' })]);
-    fireEvent.click(screen.getByText('Where does v.1 come from?'));
-    unmount();
+  it('opens the row, fires the tap telemetry once, and shows both passages', () => {
+    mockRows = [makeRow()];
+    renderCard();
 
-    renderCard([makeChapterCrossRef({ verse: 1, targetRef: 'Gen.1.1' })]);
-    expect(screen.getByText("It's in the law.")).toBeTruthy();
-  });
+    fireEvent.click(screen.getByRole('button', { name: 'Read v.29 together with its older passage' }));
 
-  it('jumps via navigateToVerse with the parsed start reference, pushing history', () => {
-    renderCard([makeChapterCrossRef({ verse: 1, targetRef: 'Gen.1.1' })]);
-    fireEvent.click(screen.getByText('Where does v.1 come from?'));
-    fireEvent.click(screen.getByText('Show me'));
-    fireEvent.click(screen.getByText('Genesis 1:1'));
-    expect(navigateToVerse).toHaveBeenCalledWith('Gen', 1, 1, true);
-  });
-
-  it('fires discovery_chip_tapped once per cross-reference, only on the first reveal', () => {
-    renderCard([makeChapterCrossRef({ verse: 1, targetRef: 'Gen.1.1' })]);
-    trackMock.mockClear();
-
-    fireEvent.click(screen.getByText('Where does v.1 come from?'));
+    expect(expandMock).toHaveBeenCalledWith('John.1:29:Isa.53.7');
     expect(trackMock).toHaveBeenCalledWith('discovery_chip_tapped', { feature: 'crossref' });
     expect(trackMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('John 1:29')).toBeTruthy();
+    expect(screen.getByText('Isaiah 53:7')).toBeTruthy();
+    expect(screen.getByText(/These share 1 word — tap it\./)).toBeTruthy();
 
-    fireEvent.click(screen.getByText('Show me'));
-    expect(trackMock).toHaveBeenCalledTimes(1); // no second tap event for the same cross-reference
+    // Re-clicking (row already open) must not fire the telemetry again.
+    useDiscoveryStore.getState().openCrossRef('John.1:29:Isa.53.7');
+    expect(trackMock).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the reveal button focusable across the unrevealed → category transition (same DOM node, not a remount)', () => {
-    renderCard([makeChapterCrossRef({ verse: 1, targetRef: 'Gen.1.1' })]);
-    const button = screen.getByText('Where does v.1 come from?');
-    button.focus();
-    expect(document.activeElement).toBe(button);
+  it('never renders stopwords as buttons', () => {
+    mockRows = [makeRow({ shared: ['lamb'], sourceText: 'the Lamb of God' })];
+    renderCard();
+    fireEvent.click(screen.getByRole('button', { name: 'Read v.29 together with its older passage' }));
 
-    fireEvent.click(button);
-    // Same element updated in place — its label changed, but focus never left it.
-    expect(document.activeElement).toBe(button);
-    expect(button.textContent).toBe('Show me');
+    const theButtons = screen.queryAllByRole('button', { name: 'the' });
+    expect(theButtons).toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Lamb' })).toBeTruthy();
   });
 
-  it('gives each row a distinguishing accessible name once revealed, even when the category line is identical across rows', () => {
-    renderCard([
-      makeChapterCrossRef({ verse: 1, targetRef: 'Ps.2.7', votes: 100 }),
-      makeChapterCrossRef({ verse: 5, targetRef: 'Ps.45.6', votes: 90 }),
-      makeChapterCrossRef({ verse: 14, targetRef: 'Ps.89.27', votes: 80 }),
-    ]);
+  it('tapping the shared word highlights it in both passages and updates the found count', () => {
+    mockRows = [
+      makeRow({
+        shared: ['lamb'],
+        sourceText: 'Behold the Lamb of God',
+        targetVerses: [{ verse: 7, text: 'like a lamb led to slaughter' }],
+      }),
+    ];
+    renderCard();
+    fireEvent.click(screen.getByRole('button', { name: 'Read v.29 together with its older passage' }));
 
-    fireEvent.click(screen.getByText('Where does v.1 come from?'));
-    fireEvent.click(screen.getByText('Where does v.5 come from?'));
+    const lambButtons = screen.getAllByRole('button', { name: 'Lamb' }).concat(screen.getAllByRole('button', { name: 'lamb' }));
+    expect(lambButtons).toHaveLength(2);
+    fireEvent.click(lambButtons[0]);
 
-    // Both rows now show a "Show me" button — the bare text is ambiguous,
-    // so the row for v.5 must be reachable by its distinguishing name.
-    expect(screen.getAllByText('Show me')).toHaveLength(2);
-    const showMeForFive = screen.getByRole('button', { name: 'Show me where v.5 comes from' });
-
-    fireEvent.click(showMeForFive);
-    expect(screen.getByText('Psalms 45:6')).toBeTruthy();
-    // The other row's ladder is untouched.
-    expect(screen.getByText('Show me')).toBeTruthy();
+    const foundButtons = screen.getAllByRole('button', { name: /lamb/i });
+    expect(foundButtons.every(b => b.getAttribute('aria-pressed') === 'true')).toBe(true);
   });
 
-  it('skips the category rung when the target book has no section label, going straight to the reference in one tap', () => {
-    renderCard([makeChapterCrossRef({ verse: 3, targetRef: 'Xyz.1.1' })]);
+  it('shows a miss message on a wrong tap and clears it on the next correct tap', () => {
+    mockRows = [
+      makeRow({
+        shared: ['lamb'],
+        sourceText: 'Behold the Lamb of God',
+        targetVerses: [{ verse: 7, text: 'like a lamb led to slaughter' }],
+      }),
+    ];
+    renderCard();
+    fireEvent.click(screen.getByRole('button', { name: 'Read v.29 together with its older passage' }));
 
-    fireEvent.click(screen.getByText('Where does v.3 come from?'));
+    fireEvent.click(screen.getByRole('button', { name: 'God' }));
+    expect(screen.getByText('Not that one — it has to appear in both.')).toBeTruthy();
 
-    expect(screen.queryByText(/^It's in/)).toBeNull();
-    expect(screen.queryByText('Show me')).toBeNull();
-    expect(screen.getByText('Xyz 1:1')).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('button', { name: /lamb/i })[0]);
+    expect(screen.queryByText('Not that one — it has to appear in both.')).toBeNull();
   });
 
-  it('renders a target with no verse number as plain text instead of a jump button', () => {
-    renderCard([makeChapterCrossRef({ verse: 7, targetRef: 'Gen.5' })]);
+  it('completing by tapping shows "Both say…" using source surface form, a jump button, and fires the confirm telemetry once', () => {
+    useDiscoveryStore.setState({ crossRefProgress: { 'John.1:29:Isa.53.7': { opened: true, found: [], shownAll: false } } });
+    mockRows = [
+      makeRow({
+        shared: ['lamb'],
+        sourceText: 'Behold the Lamb of God',
+        targetVerses: [{ verse: 7, text: 'like a lamb led to slaughter' }],
+      }),
+    ];
+    renderCard();
+    trackMock.mockClear();
 
-    fireEvent.click(screen.getByText('Where does v.7 come from?'));
-    fireEvent.click(screen.getByText('Show me'));
+    fireEvent.click(screen.getAllByRole('button', { name: /lamb/i })[0]);
 
-    const text = screen.getByText('Gen.5');
-    expect(text.tagName).not.toBe('BUTTON');
-    expect(screen.queryByRole('button', { name: 'Gen.5' })).toBeNull();
+    expect(screen.getByText((_, el) => el?.tagName === 'P' && el?.textContent === 'Both say Lamb.')).toBeTruthy();
+    expect(screen.getByText('Lamb', { selector: 'strong' })).toBeTruthy(); // surface form from the SOURCE text, capitalized
+    const jump = screen.getByRole('button', { name: 'Go to Isaiah 53:7' });
+    expect(jump).toBeTruthy();
+    expect(trackMock).toHaveBeenCalledWith('discovery_find_confirmed', { feature: 'crossref' });
+    expect(trackMock).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(jump);
+    expect(navigateToVerse).toHaveBeenCalledWith('Isa', 53, 7, true);
+  });
+
+  it('"Show me" completes the row without firing the confirm telemetry', () => {
+    useDiscoveryStore.setState({ crossRefProgress: { 'John.1:29:Isa.53.7': { opened: true, found: [], shownAll: false } } });
+    mockRows = [makeRow({ shared: ['lamb', 'slaughter'] })];
+    renderCard();
+    trackMock.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show me' }));
+
+    expect(screen.getByText((_, el) => el?.tagName === 'P' && (el?.textContent?.startsWith('Both say') ?? false))).toBeTruthy();
+    expect(trackMock).not.toHaveBeenCalledWith('discovery_find_confirmed', expect.anything());
+  });
+
+  it('zero-shared ready row renders plain text, the idea prompt, and shows the jump button immediately', () => {
+    useDiscoveryStore.setState({ crossRefProgress: { 'John.1:29:Isa.53.7': { opened: true, found: [], shownAll: false } } });
+    mockRows = [makeRow({ shared: [] })];
+    renderCard();
+
+    expect(screen.getByText('What idea connects these?')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Go to Isaiah 53:7' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /lamb/i })).toBeNull();
+  });
+
+  it('shows a loading state and an error state with a jump button', () => {
+    useDiscoveryStore.setState({ crossRefProgress: { 'John.1:29:Isa.53.7': { opened: true, found: [], shownAll: false } } });
+    mockRows = [makeRow({ status: 'loading', targetVerses: [], shared: [] })];
+    const { rerender } = renderCard();
+    expect(screen.getByText('Loading…')).toBeTruthy();
+
+    mockRows = [makeRow({ status: 'error', targetVerses: [], shared: [] })];
+    rerender(<CrossRefsCard crossRefs={[makeChapterCrossRef({ verse: 29, targetRef: 'Isa.53.7' })]} book="John" chapter={1} translationId="sword-NASB" />);
+    expect(screen.getByText("Couldn't load that passage.")).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Go to Isaiah 53:7' })).toBeTruthy();
+  });
+
+  it('fires discovery_chip_tapped only once per row even across two rows', () => {
+    mockRows = [
+      makeRow({ key: 'row-a', crossRef: makeChapterCrossRef({ verse: 1, targetRef: 'Gen.1.1' }) }),
+      makeRow({ key: 'row-b', crossRef: makeChapterCrossRef({ verse: 5, targetRef: 'Ps.2.7' }) }),
+    ];
+    renderCard();
+
+    fireEvent.click(screen.getByRole('button', { name: /Read v\.1 together/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Read v\.5 together/ }));
+    expect(trackMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('reloads a row that was opened before the panel closed (store says opened, hook says idle)', () => {
+    useDiscoveryStore.setState({
+      crossRefProgress: { 'John.1:29:Isa.53.7': { opened: true, found: [], shownAll: false } },
+    });
+    mockRows = [makeRow({ status: 'idle', targetVerses: [], shared: [] })];
+    renderCard();
+    expect(expandMock).toHaveBeenCalledTimes(1);
+    expect(expandMock).toHaveBeenCalledWith('John.1:29:Isa.53.7');
+  });
+
+  it('never calls expand for a row the reader has not opened', () => {
+    mockRows = [makeRow({ status: 'idle', targetVerses: [], shared: [] })];
+    renderCard();
+    expect(expandMock).not.toHaveBeenCalled();
+  });
+
+  it('"Show me" highlights the shared word in both passages and ignores later taps', () => {
+    mockRows = [makeRow()];
+    renderCard();
+    fireEvent.click(screen.getByRole('button', { name: /Read v\.29 together/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show me' }));
+
+    const pressed = screen.getAllByRole('button', { pressed: true });
+    expect(pressed.map(b => b.textContent)).toEqual(['Lamb', 'lamb']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'slaughter' }));
+    expect(screen.queryByText(/Not that one/)).toBeNull();
   });
 });

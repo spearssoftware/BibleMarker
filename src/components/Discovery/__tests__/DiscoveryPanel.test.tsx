@@ -92,7 +92,7 @@ describe('DiscoveryPanel', () => {
       found: null,
       markedPresetId: null,
       revealedRungs: [],
-      revealedCrossRefs: {},
+      crossRefProgress: {},
     });
   });
 

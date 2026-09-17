@@ -15,12 +15,18 @@ import type { TextSelection } from '@/stores/annotationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 
 /**
- * A rung on the cross-reference reveal ladder, per cross-reference. `'reference'` is the top
- * rung — once earned it must never be downgraded back to `'category'` (a
- * stale reveal for the same key arriving late shouldn't hide a reference the
- * reader already earned).
+ * Progress on one cross-reference's "read them together" challenge, keyed by
+ * the caller's row key. `opened` gates the passages being fetched/shown at
+ * all; `found` accumulates the shared-word stems the reader has tapped
+ * correctly (idempotent — tapping an already-found stem again is a no-op);
+ * `shownAll` is set by "Show me" and, like `found`, is monotone — once true
+ * it stays true regardless of what `found` does afterward.
  */
-export type CrossRefRung = 'category' | 'reference';
+export interface CrossRefProgress {
+  opened: boolean;
+  found: string[];
+  shownAll: boolean;
+}
 
 export interface DiscoveryFound {
   book: string;
@@ -65,14 +71,12 @@ interface DiscoveryState {
    */
   revealedRungs: RepetitionRung[];
   /**
-   * Cross-reference reveal state, per cross-reference — keyed `${book}.${chapter}:${verse}:${targetRef}`
-   * (the caller's concern; book/chapter ride along in the key so a stale
-   * entry can't collide across chapters even if the reset ever moves).
-   * Parallel to `revealedRungs`, not a reuse of it: that field is a single
-   * flat array for one challenge, while cross-references need independent rung
-   * state per cross-reference.
+   * Cross-reference "read them together" progress, per row — keyed
+   * `${book}.${chapter}:${verse}:${targetRef}` (the caller's concern;
+   * book/chapter ride along in the key so a stale entry can't collide across
+   * chapters even if the reset ever moves).
    */
-  revealedCrossRefs: Record<string, CrossRefRung>;
+  crossRefProgress: Record<string, CrossRefProgress>;
 
   setContext: (context: DiscoveryContext | null) => void;
   setLensActive: (active: boolean) => void;
@@ -81,11 +85,17 @@ interface DiscoveryState {
   setFound: (found: DiscoveryFound | null) => void;
   setMarkedPresetId: (id: string | null) => void;
   revealRung: (rung: RepetitionRung) => void;
-  /** Monotone: a `'reference'` rung already recorded for `key` is never downgraded back to `'category'`. */
-  revealCrossRefRung: (key: string, rung: CrossRefRung) => void;
+  /** Idempotent: opening an already-opened row is a no-op. */
+  openCrossRef: (key: string) => void;
+  /** Idempotent per stem: tapping a stem already found for `key` is a no-op. */
+  findCrossRefWord: (key: string, stem: string) => void;
+  /** Idempotent: "Show me" on an already-`shownAll` row is a no-op. */
+  showAllCrossRefWords: (key: string) => void;
   /** Clears all Discover-layer UI state except context — called when the chapter changes. */
   resetForChapter: () => void;
 }
+
+const EMPTY_CROSS_REF_PROGRESS: CrossRefProgress = { opened: false, found: [], shownAll: false };
 
 export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
   context: null,
@@ -94,7 +104,7 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
   found: null,
   markedPresetId: null,
   revealedRungs: [],
-  revealedCrossRefs: {},
+  crossRefProgress: {},
 
   setContext: (context) => set({ context }),
   setLensActive: (active) => set({ lensActive: active }),
@@ -107,11 +117,23 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
     if (revealedRungs.includes(rung)) return;
     set({ revealedRungs: [...revealedRungs, rung] });
   },
-  revealCrossRefRung: (key, rung) => {
-    const { revealedCrossRefs } = get();
-    const current = revealedCrossRefs[key];
-    if (current === 'reference' || current === rung) return;
-    set({ revealedCrossRefs: { ...revealedCrossRefs, [key]: rung } });
+  openCrossRef: (key) => {
+    const { crossRefProgress } = get();
+    const current = crossRefProgress[key] ?? EMPTY_CROSS_REF_PROGRESS;
+    if (current.opened) return;
+    set({ crossRefProgress: { ...crossRefProgress, [key]: { ...current, opened: true } } });
+  },
+  findCrossRefWord: (key, stem) => {
+    const { crossRefProgress } = get();
+    const current = crossRefProgress[key] ?? EMPTY_CROSS_REF_PROGRESS;
+    if (current.found.includes(stem)) return;
+    set({ crossRefProgress: { ...crossRefProgress, [key]: { ...current, found: [...current.found, stem] } } });
+  },
+  showAllCrossRefWords: (key) => {
+    const { crossRefProgress } = get();
+    const current = crossRefProgress[key] ?? EMPTY_CROSS_REF_PROGRESS;
+    if (current.shownAll) return;
+    set({ crossRefProgress: { ...crossRefProgress, [key]: { ...current, shownAll: true } } });
   },
   resetForChapter: () =>
     set({
@@ -120,7 +142,7 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
       found: null,
       markedPresetId: null,
       revealedRungs: [],
-      revealedCrossRefs: {},
+      crossRefProgress: {},
     }),
 }));
 

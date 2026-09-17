@@ -5,4 +5,5 @@ export * from './repetition';
 export * from './connectors';
 export * from './genres';
 export * from './crossRefs';
+export * from './sharedWords';
 export * from './analyzeChapter';

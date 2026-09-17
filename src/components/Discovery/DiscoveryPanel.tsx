@@ -129,7 +129,7 @@ export function DiscoveryPanel() {
       )}
       {hasCrossRefs && (
         <div id={CROSS_REFS_ANCHOR_ID} className={ANCHOR_CLASS}>
-          <CrossRefsCard crossRefs={crossRefIndex.crossRefs} book={book} chapter={chapter} />
+          <CrossRefsCard crossRefs={crossRefIndex.crossRefs} book={book} chapter={chapter} translationId={translationId} />
         </div>
       )}
       <div id={PEOPLE_PLACES_ANCHOR_ID} className={ANCHOR_CLASS}>
