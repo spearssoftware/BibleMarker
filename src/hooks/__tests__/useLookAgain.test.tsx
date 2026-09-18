@@ -115,7 +115,7 @@ describe('useLookAgain', () => {
     useFeatureFlagsStore.setState({ config: DEFAULT_CONFIG });
     useDiscoveryStore.setState({
       context: null,
-      lensActive: false,
+      lens: null,
       activePrompt: null,
       found: null,
       markedPresetId: null,

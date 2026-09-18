@@ -38,7 +38,7 @@ const connectorRangesByVerse = groupConnectorsByVerse(hits);
 
 describe('ConnectorsCard', () => {
   beforeEach(() => {
-    useDiscoveryStore.setState({ lensActive: false, activePrompt: null });
+    useDiscoveryStore.setState({ lens: null, activePrompt: null });
     usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
     useToastStore.setState({ toasts: [] });
     navigateToVerse.mockClear();
@@ -117,11 +117,11 @@ describe('ConnectorsCard', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it('toggles lensActive via the toggle switch', () => {
+  it('toggles the connectors lens via the toggle switch', () => {
     render(<ConnectorsCard connectorRangesByVerse={connectorRangesByVerse} connectorCount={hits.length} book="Rom" chapter={5} />);
     const toggle = screen.getByRole('switch', { name: 'Show connecting words in the text' });
     expect(toggle.getAttribute('aria-checked')).toBe('false');
     fireEvent.click(toggle);
-    expect(useDiscoveryStore.getState().lensActive).toBe(true);
+    expect(useDiscoveryStore.getState().lens).toBe('connectors');
   });
 });

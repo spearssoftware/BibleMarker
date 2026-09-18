@@ -21,7 +21,10 @@ import { DiscoveryPanel } from '../DiscoveryPanel';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { DEFAULT_DISCOVERY_THRESHOLDS } from '@/lib/chapterAnalysis';
-import { makeChapterAnalysis, makeDiscoveryContext } from '@/lib/__test__/factories';
+import { makeChapterAnalysis, makeCrossRefPassageRow, makeDiscoveryContext } from '@/lib/__test__/factories';
+
+const NO_CROSS_REF_PASSAGES = { rows: [], expand: () => {} };
+const ONE_CROSS_REF_PASSAGE = { rows: [makeCrossRefPassageRow()], expand: () => {} };
 
 vi.mock('@/lib/database', () => ({
   updatePreferences: vi.fn(async () => {}),
@@ -37,16 +40,13 @@ vi.mock('@/stores/studyStore', () => ({
 
 type MockEntities = { book: string; chapter: number; people: string[]; places: string[]; events: string[]; topics: string[] } | null;
 type MockEntityVerseIndex = { book: string; chapter: number; peopleVerses: number[]; placesVerses: number[] } | null;
-type MockCrossRefIndex = { book: string; chapter: number; crossRefs: { verse: number; targetRef: string; targetEndRef: string | null; votes: number }[] } | null;
 let mockEntities: MockEntities = null;
 let mockEntitiesLoading = false;
 let mockEntitiesError: string | null = null;
 let mockEntityVerseIndex: MockEntityVerseIndex = null;
-let mockCrossRefIndex: MockCrossRefIndex = null;
 vi.mock('@/hooks/useGnosis', () => ({
   useChapterEntities: () => ({ entities: mockEntities, isLoading: mockEntitiesLoading, error: mockEntitiesError }),
   useChapterEntityVerseIndex: () => ({ index: mockEntityVerseIndex, isLoading: false, error: null }),
-  useChapterCrossRefIndex: () => ({ index: mockCrossRefIndex, isLoading: false, error: null }),
 }));
 
 let discoveryEnabled = true;
@@ -76,7 +76,6 @@ describe('DiscoveryPanel', () => {
     mockEntitiesLoading = false;
     mockEntitiesError = null;
     mockEntityVerseIndex = null;
-    mockCrossRefIndex = null;
     discoveryEnabled = true;
     trackMock.mockClear();
     // useLookAgain (real, un-mocked here) requires this to match `context`'s
@@ -87,8 +86,10 @@ describe('DiscoveryPanel', () => {
     useActiveChapterStore.setState({ book: 'John', chapter: 1, translationId: 'sword-NASB', verses: [] });
     useDiscoveryStore.setState({
       context: null,
-      lensActive: false,
+      lens: null,
       activePrompt: null,
+      activeCrossRefKey: null,
+      crossRefPassages: NO_CROSS_REF_PASSAGES,
       found: null,
       markedPresetId: null,
       revealedRungs: [],
@@ -137,8 +138,10 @@ describe('DiscoveryPanel', () => {
 
   it('renders cards in Genre → Look-Again → Repetition → Connectors → Cross-References → People/Places order', async () => {
     mockEntities = { book: 'John', chapter: 1, people: ['jesus'], places: [], events: [], topics: [] };
-    mockCrossRefIndex = { book: 'John', chapter: 1, crossRefs: [{ verse: 1, targetRef: 'Gen.1.1', targetEndRef: null, votes: 276 }] };
-    useDiscoveryStore.setState({ context: makeDiscoveryContext({ translationCount: 2, primaryTranslationAbbrev: 'NASB' }) });
+    useDiscoveryStore.setState({
+      context: makeDiscoveryContext({ translationCount: 2, primaryTranslationAbbrev: 'NASB' }),
+      crossRefPassages: ONE_CROSS_REF_PASSAGE,
+    });
     const { container } = render(<DiscoveryPanel />);
     await screen.findByText('Say this chapter in your own words — give it a title');
     const dialog = container.querySelector('[role="dialog"] > div');
@@ -154,23 +157,14 @@ describe('DiscoveryPanel', () => {
     expect(testIds).toEqual(['genre', 'look-again', 'repetition', 'connectors', 'cross-refs', 'people-places']);
   });
 
-  it('hides the cross-refs card when the cross-reference index is null', () => {
-    mockCrossRefIndex = null;
-    useDiscoveryStore.setState({ context: makeDiscoveryContext() });
+  it('hides the cross-refs card when the host published no cross-reference rows', () => {
+    useDiscoveryStore.setState({ context: makeDiscoveryContext(), crossRefPassages: NO_CROSS_REF_PASSAGES });
     render(<DiscoveryPanel />);
     expect(screen.queryByTestId('cross-refs-card')).toBeNull();
   });
 
-  it('hides the cross-refs card when the cross-reference index has no cross-references', () => {
-    mockCrossRefIndex = { book: 'John', chapter: 1, crossRefs: [] };
-    useDiscoveryStore.setState({ context: makeDiscoveryContext() });
-    render(<DiscoveryPanel />);
-    expect(screen.queryByTestId('cross-refs-card')).toBeNull();
-  });
-
-  it('shows the cross-refs card when the cross-reference index has cross-references', () => {
-    mockCrossRefIndex = { book: 'John', chapter: 1, crossRefs: [{ verse: 1, targetRef: 'Gen.1.1', targetEndRef: null, votes: 276 }] };
-    useDiscoveryStore.setState({ context: makeDiscoveryContext() });
+  it('shows the cross-refs card when the host published cross-reference rows', () => {
+    useDiscoveryStore.setState({ context: makeDiscoveryContext(), crossRefPassages: ONE_CROSS_REF_PASSAGE });
     render(<DiscoveryPanel />);
     expect(screen.getByTestId('cross-refs-card')).toBeTruthy();
   });
@@ -223,9 +217,8 @@ describe('DiscoveryPanel', () => {
     expect(trackMock).not.toHaveBeenCalledWith('discovery_chip_shown', expect.objectContaining({ feature: 'entity' }));
   });
 
-  it('fires discovery_chip_shown for the crossref feature when the cross-reference index has cross-references', () => {
-    mockCrossRefIndex = { book: 'John', chapter: 1, crossRefs: [{ verse: 1, targetRef: 'Gen.1.1', targetEndRef: null, votes: 276 }] };
-    useDiscoveryStore.setState({ context: makeDiscoveryContext() });
+  it('fires discovery_chip_shown for the crossref feature when cross-reference rows exist', () => {
+    useDiscoveryStore.setState({ context: makeDiscoveryContext(), crossRefPassages: ONE_CROSS_REF_PASSAGE });
     render(<DiscoveryPanel />);
     expect(trackMock).toHaveBeenCalledWith('discovery_chip_shown', {
       feature: 'crossref',
@@ -233,9 +226,8 @@ describe('DiscoveryPanel', () => {
     });
   });
 
-  it('does not fire discovery_chip_shown for the crossref feature when the cross-reference index has no cross-references', () => {
-    mockCrossRefIndex = null;
-    useDiscoveryStore.setState({ context: makeDiscoveryContext() });
+  it('does not fire discovery_chip_shown for the crossref feature when there are no cross-reference rows', () => {
+    useDiscoveryStore.setState({ context: makeDiscoveryContext(), crossRefPassages: NO_CROSS_REF_PASSAGES });
     render(<DiscoveryPanel />);
     expect(trackMock).not.toHaveBeenCalledWith('discovery_chip_shown', expect.objectContaining({ feature: 'crossref' }));
   });

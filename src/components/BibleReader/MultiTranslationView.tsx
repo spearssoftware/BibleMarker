@@ -36,7 +36,9 @@ import { useChapterAnalysis } from '@/hooks/useChapterAnalysis';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryHost } from '@/hooks/useDiscoveryHost';
 import { useDiscoveryEnabled } from '@/lib/discovery-config';
+import { track } from '@/lib/telemetry';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
+import type { VerseLens } from './VerseText';
 import type { Annotation, Chapter, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
 import { LAYOUT_REKEY_MS } from './layoutConstants';
 
@@ -81,19 +83,46 @@ export function MultiTranslationView() {
   const { activeStudyId } = useStudyStore();
 
   // Discover layer: chapter analysis for the primary translation, the
-  // Connector Lens toggle, and the tap handler that opens the Discover panel
-  // focused on the tapped connector. `useDiscoveryHost` owns the rest of the
-  // Discover-layer state (chapter reset, publish, confirm, telemetry) so it
+  // connector / cross-reference lenses, and the tap handlers that open the
+  // Discover panel focused on the tapped connector or verse.
+  // `useDiscoveryHost` owns the rest of the Discover-layer state (chapter
+  // reset, publish, cross-reference passages, confirm, telemetry) so it
   // keeps working while the reader reads even though the panel is usually
   // unmounted.
   const analysis = useChapterAnalysis(currentBook, currentChapter, primaryTranslationId);
   const discoveryEnabled = useDiscoveryEnabled();
-  const lensActive = useDiscoveryStore(s => s.lensActive);
+  const lens = useDiscoveryStore(s => s.lens);
   const setActivePrompt = useDiscoveryStore(s => s.setActivePrompt);
+  const setActiveCrossRefKey = useDiscoveryStore(s => s.setActiveCrossRefKey);
+  const crossRefRows = useDiscoveryStore(s => s.crossRefPassages.rows);
   const handleConnectorTap = useCallback((hit: ConnectorHit) => {
     setActivePrompt(hit);
     usePanelStore.getState().openPanel('discovery');
   }, [setActivePrompt]);
+  const handleCrossRefTap = useCallback((key: string) => {
+    setActiveCrossRefKey(key);
+    track('discovery_chip_tapped', { feature: 'crossref', dedupeKey: `crossref-tap:${key}` });
+    usePanelStore.getState().openPanel('discovery');
+  }, [setActiveCrossRefKey]);
+  // Cross-references are verse-level, so the lens lights the same verse in
+  // every translation column (unlike connectors, which are primary-only).
+  const crossRefKeyByVerse = useMemo(
+    () => new Map(crossRefRows.map(row => [row.crossRef.verse, row.key])),
+    [crossRefRows]
+  );
+  const lensFor = (translationId: string, verseNum: number): VerseLens | undefined => {
+    if (lens === 'connectors' && analysis) {
+      return {
+        kind: 'connectors',
+        ranges: translationId === primaryTranslationId ? analysis.connectorRangesByVerse.get(verseNum) ?? [] : [],
+        onConnectorTap: handleConnectorTap,
+      };
+    }
+    if (lens === 'crossRefs') {
+      return { kind: 'crossRefs', crossRefKey: crossRefKeyByVerse.get(verseNum) ?? null, onCrossRefTap: handleCrossRefTap };
+    }
+    return undefined;
+  };
   const translationCount = translationChapters.size;
   const primaryTranslationAbbrev = primaryTranslationId
     ? translationChapters.get(primaryTranslationId)?.translation.abbreviation ?? null
@@ -837,17 +866,7 @@ export function MultiTranslationView() {
                                   ? { startOffset: selection.startOffset, endOffset: selection.endOffset }
                                   : undefined
                               }
-                              lens={
-                                analysis && lensActive
-                                  ? {
-                                      ranges:
-                                        translation.id === primaryTranslationId
-                                          ? analysis.connectorRangesByVerse.get(verseNum) ?? []
-                                          : [],
-                                      onConnectorTap: handleConnectorTap,
-                                    }
-                                  : undefined
-                              }
+                              lens={lensFor(translation.id, verseNum)}
                             />
                           </div>
                         ) : (

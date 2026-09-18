@@ -1,8 +1,8 @@
 /**
  * Discovery Store
  *
- * Chapter-level state for the Discover panel — repetition challenge,
- * Connector Lens, and the entity teaser. Owned by the always-mounted
+ * Chapter-level state for the Discover panel — repetition challenge, the
+ * connector and cross-reference lenses, and the entity teaser. Owned by the always-mounted
  * `useDiscoveryHost` (called once from `MultiTranslationView`) so it keeps
  * working while the reader reads even when the panel itself is unmounted.
  * Plain Zustand, not persisted — a fresh reader should never boot up with
@@ -11,21 +11,31 @@
 
 import { create } from 'zustand';
 import type { ChapterAnalysis, ConnectorHit, RepetitionRung } from '@/lib/chapterAnalysis';
+import type { CrossRefPassageRow } from '@/hooks/useCrossRefPassages';
 import type { TextSelection } from '@/stores/annotationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 
+/** Which reading-pane lens is on. Only one at a time — turning one on turns the other off. */
+export type DiscoveryLens = 'connectors' | 'crossRefs' | null;
+
 /**
- * Progress on one cross-reference's "read them together" challenge, keyed by
- * the caller's row key. `opened` gates the passages being fetched/shown at
- * all; `found` accumulates the shared-word stems the reader has tapped
- * correctly (idempotent — tapping an already-found stem again is a no-op);
- * `shownAll` is set by "Show me" and, like `found`, is monotone — once true
- * it stays true regardless of what `found` does afterward.
+ * Progress on one cross-reference's optional shared-word hunt, keyed by the
+ * caller's row key. By default a row shows its shared words already lit;
+ * `hunting` is set when the reader chooses to find them unaided and cleared
+ * by "Show me". `found` accumulates the stems the reader has tapped
+ * correctly (idempotent — tapping an already-found stem again is a no-op)
+ * and survives the hunt being switched off and on.
  */
 export interface CrossRefProgress {
-  opened: boolean;
+  hunting: boolean;
   found: string[];
-  shownAll: boolean;
+}
+
+/** Cross-reference passages published by the host hook so the lens and the card share one source. */
+export interface CrossRefPassages {
+  rows: CrossRefPassageRow[];
+  /** Fetches a network translation's target passage for one row; a no-op for local translations. */
+  expand: (key: string) => void;
 }
 
 export interface DiscoveryFound {
@@ -55,10 +65,18 @@ interface DiscoveryState {
    */
   context: DiscoveryContext | null;
 
-  /** Whether the Connector Lens dimming pass is active. */
-  lensActive: boolean;
+  /** Which lens dimming pass is active in the reading pane, if any. */
+  lens: DiscoveryLens;
   /** The connector hit whose row/prompt is currently expanded, if any. */
   activePrompt: ConnectorHit | null;
+  /** Row key of the cross-reference whose passages are currently expanded, if any. */
+  activeCrossRefKey: string | null;
+  /**
+   * Cross-reference rows for the current chapter, published by
+   * `useDiscoveryHost` so they exist while the panel is unmounted — the
+   * cross-reference lens needs them to know which verses to light.
+   */
+  crossRefPassages: CrossRefPassages;
   /** Set once the reader's own selection confirms the Repetition Radar word. */
   found: DiscoveryFound | null;
   /** Preset id after "Highlight it…" / "Mark it as a key word" succeeds. */
@@ -71,7 +89,7 @@ interface DiscoveryState {
    */
   revealedRungs: RepetitionRung[];
   /**
-   * Cross-reference "read them together" progress, per row — keyed
+   * Cross-reference shared-word hunt progress, per row — keyed
    * `${book}.${chapter}:${verse}:${targetRef}` (the caller's concern;
    * book/chapter ride along in the key so a stale entry can't collide across
    * chapters even if the reset ever moves).
@@ -79,37 +97,42 @@ interface DiscoveryState {
   crossRefProgress: Record<string, CrossRefProgress>;
 
   setContext: (context: DiscoveryContext | null) => void;
-  setLensActive: (active: boolean) => void;
-  toggleLens: () => void;
+  setLens: (lens: DiscoveryLens) => void;
+  /** Turns `kind` on, or off if it is already the active lens. */
+  toggleLens: (kind: Exclude<DiscoveryLens, null>) => void;
   setActivePrompt: (hit: ConnectorHit | null) => void;
+  setActiveCrossRefKey: (key: string | null) => void;
+  setCrossRefPassages: (passages: CrossRefPassages) => void;
   setFound: (found: DiscoveryFound | null) => void;
   setMarkedPresetId: (id: string | null) => void;
   revealRung: (rung: RepetitionRung) => void;
-  /** Idempotent: opening an already-opened row is a no-op. */
-  openCrossRef: (key: string) => void;
+  setCrossRefHunting: (key: string, hunting: boolean) => void;
   /** Idempotent per stem: tapping a stem already found for `key` is a no-op. */
   findCrossRefWord: (key: string, stem: string) => void;
-  /** Idempotent: "Show me" on an already-`shownAll` row is a no-op. */
-  showAllCrossRefWords: (key: string) => void;
   /** Clears all Discover-layer UI state except context — called when the chapter changes. */
   resetForChapter: () => void;
 }
 
-const EMPTY_CROSS_REF_PROGRESS: CrossRefProgress = { opened: false, found: [], shownAll: false };
+const EMPTY_CROSS_REF_PROGRESS: CrossRefProgress = { hunting: false, found: [] };
+const NO_CROSS_REF_PASSAGES: CrossRefPassages = { rows: [], expand: () => {} };
 
 export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
   context: null,
-  lensActive: false,
+  lens: null,
   activePrompt: null,
+  activeCrossRefKey: null,
+  crossRefPassages: NO_CROSS_REF_PASSAGES,
   found: null,
   markedPresetId: null,
   revealedRungs: [],
   crossRefProgress: {},
 
   setContext: (context) => set({ context }),
-  setLensActive: (active) => set({ lensActive: active }),
-  toggleLens: () => set({ lensActive: !get().lensActive }),
+  setLens: (lens) => set({ lens }),
+  toggleLens: (kind) => set({ lens: get().lens === kind ? null : kind }),
   setActivePrompt: (hit) => set({ activePrompt: hit }),
+  setActiveCrossRefKey: (key) => set({ activeCrossRefKey: key }),
+  setCrossRefPassages: (passages) => set({ crossRefPassages: passages }),
   setFound: (found) => set({ found }),
   setMarkedPresetId: (id) => set({ markedPresetId: id }),
   revealRung: (rung) => {
@@ -117,11 +140,11 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
     if (revealedRungs.includes(rung)) return;
     set({ revealedRungs: [...revealedRungs, rung] });
   },
-  openCrossRef: (key) => {
+  setCrossRefHunting: (key, hunting) => {
     const { crossRefProgress } = get();
     const current = crossRefProgress[key] ?? EMPTY_CROSS_REF_PROGRESS;
-    if (current.opened) return;
-    set({ crossRefProgress: { ...crossRefProgress, [key]: { ...current, opened: true } } });
+    if (current.hunting === hunting) return;
+    set({ crossRefProgress: { ...crossRefProgress, [key]: { ...current, hunting } } });
   },
   findCrossRefWord: (key, stem) => {
     const { crossRefProgress } = get();
@@ -129,16 +152,11 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
     if (current.found.includes(stem)) return;
     set({ crossRefProgress: { ...crossRefProgress, [key]: { ...current, found: [...current.found, stem] } } });
   },
-  showAllCrossRefWords: (key) => {
-    const { crossRefProgress } = get();
-    const current = crossRefProgress[key] ?? EMPTY_CROSS_REF_PROGRESS;
-    if (current.shownAll) return;
-    set({ crossRefProgress: { ...crossRefProgress, [key]: { ...current, shownAll: true } } });
-  },
   resetForChapter: () =>
     set({
-      lensActive: false,
+      lens: null,
       activePrompt: null,
+      activeCrossRefKey: null,
       found: null,
       markedPresetId: null,
       revealedRungs: [],

@@ -39,7 +39,7 @@ function pendingKeyFor(hit: ConnectorHit): string {
 }
 
 export function ConnectorsCard({ connectorRangesByVerse, connectorCount, book, chapter }: ConnectorsCardProps) {
-  const lensActive = useDiscoveryStore(s => s.lensActive);
+  const lensActive = useDiscoveryStore(s => s.lens === 'connectors');
   const toggleLens = useDiscoveryStore(s => s.toggleLens);
   const activePrompt = useDiscoveryStore(s => s.activePrompt);
   const setActivePrompt = useDiscoveryStore(s => s.setActivePrompt);
@@ -66,7 +66,7 @@ export function ConnectorsCard({ connectorRangesByVerse, connectorCount, book, c
 
   const handleToggleLens = () => {
     track('lens_toggled', { feature: 'connector' });
-    toggleLens();
+    toggleLens('connectors');
   };
 
   const isRowActive = (hit: ConnectorHit) =>

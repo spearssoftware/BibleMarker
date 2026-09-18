@@ -17,15 +17,16 @@
  * `discovery_chip_shown` telemetry lives here (not in `useDiscoveryHost`,
  * which is always-mounted) so it fires only when the panel actually renders
  * a repetition/connector/cross-reference/entity card, not merely when the chapter analysis
- * exists. `CrossRefsCard` still fires its own per-cross-reference `discovery_chip_tapped`
- * internally, since that tap tracking is naturally scoped to each row.
+ * exists. The cross-reference rows themselves are loaded by `useDiscoveryHost`
+ * (the cross-reference lens needs them while the panel is closed) and read
+ * from the store here.
  */
 
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryConfig, useDiscoveryEnabled } from '@/lib/discovery-config';
-import { useChapterEntities, useChapterCrossRefIndex } from '@/hooks/useGnosis';
+import { useChapterEntities } from '@/hooks/useGnosis';
 import { useLookAgain } from '@/hooks/useLookAgain';
 import { shouldShowConnectors } from '@/lib/chapterAnalysis';
 import { track } from '@/lib/telemetry';
@@ -62,13 +63,13 @@ export function DiscoveryPanel() {
     discoveryEnabled
   );
   const { items: lookAgainItems, ready: lookAgainReady } = useLookAgain(context, entities, entitiesLoading, discoveryEnabled);
-  const { index: crossRefIndex } = useChapterCrossRefIndex(context?.book, context?.chapter, thresholds.crossRefMinVotes, discoveryEnabled);
+  const crossRefPassages = useDiscoveryStore(s => s.crossRefPassages);
 
   const hasRepetition = Boolean(context?.analysis.repetition);
   const connectorCount = context?.analysis.connectors.length ?? 0;
   const showConnectors = shouldShowConnectors(connectorCount, thresholds);
   const hasEntities = !!entities && (entities.people.length > 0 || entities.places.length > 0);
-  const hasCrossRefs = !!crossRefIndex && crossRefIndex.crossRefs.length > 0;
+  const hasCrossRefs = crossRefPassages.rows.length > 0;
 
   // Fire once per {book, chapter, translation} for each card actually shown —
   // mirrors the dedupe keys the old `useDiscoveryHost`-hosted version used.
@@ -129,7 +130,7 @@ export function DiscoveryPanel() {
       )}
       {hasCrossRefs && (
         <div id={CROSS_REFS_ANCHOR_ID} className={ANCHOR_CLASS}>
-          <CrossRefsCard crossRefs={crossRefIndex.crossRefs} book={book} chapter={chapter} translationId={translationId} />
+          <CrossRefsCard rows={crossRefPassages.rows} expand={crossRefPassages.expand} book={book} chapter={chapter} />
         </div>
       )}
       <div id={PEOPLE_PLACES_ANCHOR_ID} className={ANCHOR_CLASS}>

@@ -20,11 +20,26 @@ import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 
-interface VerseLens {
+interface ConnectorLens {
+  kind: 'connectors';
   /** Connector hits to keep bright in this verse; empty dims the whole verse uniformly. */
   ranges: ConnectorHit[];
   onConnectorTap?: (hit: ConnectorHit) => void;
 }
+
+interface CrossRefLens {
+  kind: 'crossRefs';
+  /** Row key of this verse's cross-reference when it should stay bright; null dims the whole verse. */
+  crossRefKey: string | null;
+  onCrossRefTap?: (key: string) => void;
+}
+
+/**
+ * A Discover-layer dimming pass. The connector lens works inside the verse
+ * text (phrases stay bright); the cross-reference lens works per verse, so
+ * it is applied as a class on the whole content span instead.
+ */
+export type VerseLens = ConnectorLens | CrossRefLens;
 
 interface VerseTextProps {
   verse: Verse;
@@ -39,7 +54,7 @@ interface VerseTextProps {
   onShowVerse?: (ref: VerseRef) => void; // Show verse in overlay
   onKeywordTap?: (presetId: string, verseRef: VerseRef) => void;
   selectionRange?: { startOffset: number; endOffset: number };
-  /** Connector Lens dimming pass — present only while the lens is toggled on. */
+  /** Discover-layer dimming pass — present only while a lens is toggled on. */
   lens?: VerseLens;
 }
 
@@ -47,6 +62,9 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
   const [crossRefState, setCrossRefState] = useState<{ refs: string[]; position: { x: number; y: number } } | null>(null);
   const [overlayVerse, setOverlayVerse] = useState<VerseRef | null>(null);
   const verseContentRef = useRef<HTMLSpanElement>(null);
+  const connectorLens = lens?.kind === 'connectors' ? lens : undefined;
+  const crossRefLensClass =
+    lens?.kind === 'crossRefs' ? (lens.crossRefKey ? ' lens-crossref' : ' lens-dim') : '';
   
   // Get all marking presets for cross-translation keyword highlighting
   const { presets } = useMarkingPresetStore();
@@ -393,17 +411,19 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
 
     const noMarkup = verseAnnotations.length === 0 && verseCenterSymbols.length === 0 && !selectionRange;
 
-    // If no annotations, no selection, and no lens pass, return as-is. The lens
-    // pass must still run a verse with zero connectors (empty `lens.ranges`) so
-    // it gets dimmed uniformly like every other non-primary column.
-    if (noMarkup && !lens) {
+    // If no annotations, no selection, and no connector lens pass, return
+    // as-is. The lens pass must still run a verse with zero connectors (empty
+    // `lens.ranges`) so it gets dimmed uniformly like every other non-primary
+    // column. (The cross-reference lens never touches the HTML — see the
+    // content span's className.)
+    if (noMarkup && !connectorLens) {
       return sourceText;
     }
 
     // Fast path: lens on, but this verse has no connector hits, no annotations,
     // no symbols, and no active selection — the whole verse is just uniformly
     // dimmed, so skip the segment/boundary machinery below entirely.
-    if (lens && lens.ranges.length === 0 && noMarkup) {
+    if (connectorLens && connectorLens.ranges.length === 0 && noMarkup) {
       return `<span class="lens-dim">${escapeHtml(sourceText)}</span>`;
     }
 
@@ -637,8 +657,8 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     // Connector Lens boundaries: each hit's start/end so segments align exactly
     // with connector ranges (a segment is then always fully inside or fully
     // outside a hit — never a partial overlap).
-    if (lens) {
-      for (const hit of lens.ranges) {
+    if (connectorLens) {
+      for (const hit of connectorLens.ranges) {
         boundaries.add(Math.max(0, Math.min(hit.start, plainText.length)));
         boundaries.add(Math.max(0, Math.min(hit.end, plainText.length)));
       }
@@ -694,8 +714,8 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
       // either fully inside or fully outside a hit.
       let lensOpen = '';
       let lensClose = '';
-      if (lens) {
-        const hit = lens.ranges.find(r => segment.start >= r.start && segment.end <= r.end);
+      if (connectorLens) {
+        const hit = connectorLens.ranges.find(r => segment.start >= r.start && segment.end <= r.end);
         if (hit) {
           lensOpen =
             `<span class="lens-connector" data-connector-verse="${hit.verse}" ` +
@@ -871,7 +891,18 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     // connector that's also a marked keyword opens the lens prompt, not the
     // keyword list — the lens span wraps the annotation-group span, so
     // `.closest('.lens-connector')` finds it first regardless of nesting.
-    if (lens?.onConnectorTap) {
+    if (lens?.kind === 'crossRefs' && lens.crossRefKey && lens.onCrossRefTap) {
+      // Whole-verse lens: any simple tap on a bright verse opens its passages.
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) {
+        e.preventDefault();
+        e.stopPropagation();
+        lens.onCrossRefTap(lens.crossRefKey);
+        return;
+      }
+    }
+
+    if (lens?.kind === 'connectors' && lens.onConnectorTap) {
       const connectorEl = target.closest('.lens-connector') as HTMLElement;
       if (connectorEl) {
         // Only trigger on a simple tap (collapsed selection — not a text drag/selection)
@@ -996,7 +1027,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
       {/* Verse text with styling */}
       <span 
         ref={verseContentRef}
-        className="verse-content"
+        className={`verse-content${crossRefLensClass}`}
         data-original-text={plainTextForOffset}
         dangerouslySetInnerHTML={{ __html: content }}
         onClick={handleVerseContentClick}

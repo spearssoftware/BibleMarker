@@ -5,10 +5,12 @@
  * reads even though the Discover panel itself is usually unmounted: the
  * chapter-change reset (including clearing a stale text selection so it
  * can't re-confirm the repetition word after navigating away and back),
- * publishing the atomic chapter context to the store, the lens auto-off, and
- * the repetition "find" confirmation (ported from the old `RepetitionChip`'s
- * confirm effect). On confirm, if the Discover panel isn't open to show the
- * result, a toast nudges the reader to open it. Call once from
+ * publishing the atomic chapter context to the store, the lens auto-off, the
+ * cross-reference passages (the cross-reference lens needs them to know
+ * which verses to light while the panel is closed), and the repetition
+ * "find" confirmation (ported from the old `RepetitionChip`'s confirm
+ * effect). On confirm, if the Discover panel isn't open to show the result,
+ * a toast nudges the reader to open it. Call once from
  * `MultiTranslationView`.
  *
  * `discovery_chip_shown` telemetry does NOT live here — it moved to
@@ -23,7 +25,13 @@ import { usePanelStore } from '@/stores/panelStore';
 import { toast, useToastStore } from '@/stores/toastStore';
 import { track } from '@/lib/telemetry';
 import { normalizeForMatching } from '@/lib/keywordMatching';
+import { useDiscoveryConfig } from '@/lib/discovery-config';
 import { singularize, type ChapterAnalysis } from '@/lib/chapterAnalysis';
+import type { ChapterCrossRef } from '@/types';
+import { useChapterCrossRefIndex } from '@/hooks/useGnosis';
+import { useCrossRefPassages } from '@/hooks/useCrossRefPassages';
+
+const NO_CROSS_REFS: ChapterCrossRef[] = [];
 
 interface UseDiscoveryHostOptions {
   currentBook: string;
@@ -46,7 +54,8 @@ export function useDiscoveryHost({
 }: UseDiscoveryHostOptions): void {
   const resetForChapter = useDiscoveryStore(s => s.resetForChapter);
   const setContext = useDiscoveryStore(s => s.setContext);
-  const setLensActive = useDiscoveryStore(s => s.setLensActive);
+  const setLens = useDiscoveryStore(s => s.setLens);
+  const setCrossRefPassages = useDiscoveryStore(s => s.setCrossRefPassages);
   const found = useDiscoveryStore(s => s.found);
   const setFound = useDiscoveryStore(s => s.setFound);
   const selection = useAnnotationStore(s => s.selection);
@@ -97,10 +106,25 @@ export function useDiscoveryHost({
   // have no analysis) can turn `enabled` off while the lens is mid-toggle —
   // clear it so VerseText doesn't keep dimming with no control left for it.
   useEffect(() => {
-    if (!enabled) setLensActive(false);
-  }, [enabled, setLensActive]);
+    if (!enabled) setLens(null);
+  }, [enabled, setLens]);
 
-  // 4. Repetition confirm: once the reader selects the exact word themselves
+  // 4. Cross-reference passages: loaded here rather than in the card so the
+  // cross-reference lens can light the right verses while the panel is
+  // closed, and so a row's fetched passage survives the panel closing.
+  const { crossRefMinVotes } = useDiscoveryConfig();
+  const { index: crossRefIndex } = useChapterCrossRefIndex(currentBook, currentChapter, crossRefMinVotes, enabled);
+  const { rows, expand } = useCrossRefPassages(
+    crossRefIndex?.crossRefs ?? NO_CROSS_REFS,
+    currentBook,
+    currentChapter,
+    primaryTranslationId ?? ''
+  );
+  useEffect(() => {
+    setCrossRefPassages({ rows, expand });
+  }, [rows, expand, setCrossRefPassages]);
+
+  // 5. Repetition confirm: once the reader selects the exact word themselves
   // in the primary translation column, mark it found. If the Discover panel
   // isn't open to show the result, nudge the reader toward it with a toast.
   const repetition = analysis?.repetition ?? null;

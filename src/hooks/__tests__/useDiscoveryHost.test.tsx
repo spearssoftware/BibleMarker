@@ -19,12 +19,37 @@ import { useAnnotationStore } from '@/stores/annotationStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { usePanelStore } from '@/stores/panelStore';
 import { useToastStore } from '@/stores/toastStore';
-import type { ChapterAnalysis } from '@/lib/chapterAnalysis';
-import { makeChapterAnalysis, makeDiscoveryContext, makeTextSelection } from '@/lib/__test__/factories';
+import { DEFAULT_DISCOVERY_THRESHOLDS, type ChapterAnalysis } from '@/lib/chapterAnalysis';
+import type { CrossRefPassageRow } from '@/hooks/useCrossRefPassages';
+import type { ChapterCrossRefIndex } from '@/types';
+import {
+  makeChapterAnalysis,
+  makeChapterCrossRefIndex,
+  makeCrossRefPassageRow,
+  makeDiscoveryContext,
+  makeTextSelection,
+} from '@/lib/__test__/factories';
 
 const trackMock = vi.fn();
 vi.mock('@/lib/telemetry', () => ({
   track: (...args: unknown[]) => trackMock(...args),
+}));
+
+vi.mock('@/lib/discovery-config', () => ({
+  useDiscoveryConfig: () => DEFAULT_DISCOVERY_THRESHOLDS,
+}));
+
+let mockCrossRefIndex: ChapterCrossRefIndex | null = null;
+const crossRefIndexMock = vi.fn(() => ({ index: mockCrossRefIndex, isLoading: false, error: null }));
+vi.mock('@/hooks/useGnosis', () => ({
+  useChapterCrossRefIndex: (...args: unknown[]) => crossRefIndexMock(...(args as [])),
+}));
+
+let mockRows: CrossRefPassageRow[] = [];
+const expandMock = vi.fn();
+const crossRefPassagesMock = vi.fn(() => ({ rows: mockRows, expand: expandMock }));
+vi.mock('@/hooks/useCrossRefPassages', () => ({
+  useCrossRefPassages: (...args: unknown[]) => crossRefPassagesMock(...(args as [])),
 }));
 
 interface HostProps {
@@ -54,11 +79,17 @@ const baseProps: HostProps = {
 describe('useDiscoveryHost', () => {
   beforeEach(() => {
     trackMock.mockClear();
+    crossRefIndexMock.mockClear();
+    crossRefPassagesMock.mockClear();
+    mockCrossRefIndex = null;
+    mockRows = [];
     useAnnotationStore.setState({ selection: null });
     useDiscoveryStore.setState({
       context: null,
-      lensActive: false,
+      lens: null,
       activePrompt: null,
+      activeCrossRefKey: null,
+      crossRefPassages: { rows: [], expand: () => {} },
       found: null,
       markedPresetId: null,
       revealedRungs: [],
@@ -157,8 +188,9 @@ describe('useDiscoveryHost', () => {
 
     act(() => {
       useDiscoveryStore.setState({
-        lensActive: true,
+        lens: 'crossRefs',
         activePrompt: makeChapterAnalysis().connectors[0],
+        activeCrossRefKey: 'John.1:1:Gen.1.1',
         revealedRungs: ['range', 'first'],
         markedPresetId: 'preset-1',
       });
@@ -167,8 +199,9 @@ describe('useDiscoveryHost', () => {
     rerender({ ...baseProps, currentChapter: 2 });
 
     const state = useDiscoveryStore.getState();
-    expect(state.lensActive).toBe(false);
+    expect(state.lens).toBeNull();
     expect(state.activePrompt).toBeNull();
+    expect(state.activeCrossRefKey).toBeNull();
     expect(state.revealedRungs).toEqual([]);
     expect(state.markedPresetId).toBeNull();
     // The publish effect re-runs with the new chapter, but the analysis
@@ -218,10 +251,27 @@ describe('useDiscoveryHost', () => {
     const { rerender } = renderHost({ ...baseProps, enabled: true });
 
     act(() => {
-      useDiscoveryStore.setState({ lensActive: true });
+      useDiscoveryStore.setState({ lens: 'connectors' });
     });
 
     rerender({ ...baseProps, enabled: false });
-    expect(useDiscoveryStore.getState().lensActive).toBe(false);
+    expect(useDiscoveryStore.getState().lens).toBeNull();
+  });
+
+  it('loads the cross-reference index for the chapter and publishes the passages to the store', () => {
+    mockCrossRefIndex = makeChapterCrossRefIndex();
+    const row = makeCrossRefPassageRow();
+    mockRows = [row];
+
+    renderHost(baseProps);
+
+    expect(crossRefIndexMock).toHaveBeenCalledWith('John', 1, DEFAULT_DISCOVERY_THRESHOLDS.crossRefMinVotes, true);
+    expect(crossRefPassagesMock).toHaveBeenCalledWith(mockCrossRefIndex.crossRefs, 'John', 1, 'sword-NASB');
+    expect(useDiscoveryStore.getState().crossRefPassages).toEqual({ rows: [row], expand: expandMock });
+  });
+
+  it('passes `enabled` through to the cross-reference index query', () => {
+    renderHost({ ...baseProps, enabled: false });
+    expect(crossRefIndexMock).toHaveBeenCalledWith('John', 1, DEFAULT_DISCOVERY_THRESHOLDS.crossRefMinVotes, false);
   });
 });

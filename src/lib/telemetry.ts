@@ -26,8 +26,9 @@ export type TelemetryFeature = 'repetition' | 'connector' | 'entity' | 'upsell' 
 export interface TelemetryProps {
   feature?: TelemetryFeature;
   /**
-   * Local-only dedupe key for `discovery_chip_shown`, e.g. `${book}:${chapter}:${translationId}`.
-   * Used to collapse repeat renders of the same chapter into one count.
+   * Local-only dedupe key, e.g. `${book}:${chapter}:${translationId}` for
+   * `discovery_chip_shown`. An event with a key already seen this session is
+   * dropped, so repeat renders or taps of the same thing count once.
    * NEVER sent to the server.
    */
   dedupeKey?: string;
@@ -49,15 +50,15 @@ const MAX_EVENTS_PER_REQUEST = 30;
 /** Hard cap on the in-memory queue — oldest events are dropped beyond this. */
 const MAX_QUEUE_SIZE = 200;
 /** Hard cap on the dedupe set — oldest keys are evicted beyond this. */
-const MAX_SHOWN_CHIP_KEYS = 500;
+const MAX_DEDUPE_KEYS = 500;
 
 let queue: QueuedEvent[] = [];
 /** Per-launch, in-memory only — never persisted or synced. */
 let sessionId: string | null = null;
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 let visibilityAttached = false;
-/** `discovery_chip_shown` dedupe set, keyed by the caller-supplied `dedupeKey`. */
-const shownChipKeys = new Set<string>();
+/** Dedupe set, keyed by the caller-supplied `dedupeKey`. */
+const seenDedupeKeys = new Set<string>();
 /** Coalesces a threshold-triggered flush to one microtask per burst — see `scheduleFlush`. */
 let flushScheduled = false;
 
@@ -98,12 +99,12 @@ export function track(name: TelemetryEvent, props?: TelemetryProps): void {
   try {
     if (!usePreferencesStore.getState().telemetryEnabled) return;
 
-    if (name === 'discovery_chip_shown' && props?.dedupeKey) {
-      if (shownChipKeys.has(props.dedupeKey)) return;
-      shownChipKeys.add(props.dedupeKey);
-      if (shownChipKeys.size > MAX_SHOWN_CHIP_KEYS) {
-        const oldestKey = shownChipKeys.keys().next().value;
-        if (oldestKey !== undefined) shownChipKeys.delete(oldestKey);
+    if (props?.dedupeKey) {
+      if (seenDedupeKeys.has(props.dedupeKey)) return;
+      seenDedupeKeys.add(props.dedupeKey);
+      if (seenDedupeKeys.size > MAX_DEDUPE_KEYS) {
+        const oldestKey = seenDedupeKeys.keys().next().value;
+        if (oldestKey !== undefined) seenDedupeKeys.delete(oldestKey);
       }
     }
 
@@ -129,7 +130,7 @@ export function track(name: TelemetryEvent, props?: TelemetryProps): void {
 async function flush(): Promise<void> {
   if (!usePreferencesStore.getState().telemetryEnabled) {
     queue = [];
-    shownChipKeys.clear();
+    seenDedupeKeys.clear();
     return;
   }
   if (queue.length === 0) return;
@@ -165,7 +166,7 @@ async function flush(): Promise<void> {
 export function initTelemetry(): void {
   sessionId = crypto.randomUUID();
   queue = [];
-  shownChipKeys.clear();
+  seenDedupeKeys.clear();
   flushScheduled = false;
 
   if (flushTimer) clearInterval(flushTimer);
