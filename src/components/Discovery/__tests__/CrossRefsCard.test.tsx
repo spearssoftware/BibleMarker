@@ -83,9 +83,9 @@ describe('CrossRefsCard', () => {
     expect(trackMock).toHaveBeenCalledWith('lens_toggled', { feature: 'crossref' });
   });
 
-  it('shows a collapsed row with the verse and target label and no passage text', () => {
+  it('shows a collapsed row as "source → target" with no passage text', () => {
     renderCard([makeCrossRefPassageRow()]);
-    const header = screen.getByRole('button', { name: 'v.29 Isaiah 53:7' });
+    const header = screen.getByRole('button', { name: 'John 1:29 Isaiah 53:7' });
     expect(header.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByText(/Behold, the Lamb/)).toBeNull();
     expect(screen.queryByText(/led like a lamb/)).toBeNull();
@@ -94,12 +94,12 @@ describe('CrossRefsCard', () => {
   it('tapping a row jumps the reader there, expands both passages with the shared word lit, and fires the tap telemetry', () => {
     renderCard([lambRow()]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'v.29 Isaiah 53:7' }));
+    fireEvent.click(screen.getByRole('button', { name: 'John 1:29 Isaiah 53:7' }));
 
     expect(navigateToVerse).toHaveBeenCalledWith('John', 1, 29);
     expect(useDiscoveryStore.getState().activeCrossRefKey).toBe(ROW_KEY);
     expect(trackMock).toHaveBeenCalledWith('discovery_chip_tapped', { feature: 'crossref', dedupeKey: `crossref-tap:${ROW_KEY}` });
-    expect(screen.getByText('John 1:29')).toBeTruthy();
+    expect(screen.getByText('John 1:29', { selector: 'p' })).toBeTruthy();
     expect(screen.getByText('Isaiah 53:7', { selector: 'p' })).toBeTruthy();
 
     // Shared words are lit by default as plain marks, not tap targets.
@@ -111,27 +111,45 @@ describe('CrossRefsCard', () => {
     expect(screen.queryByText(/These share/)).toBeNull();
   });
 
+  it('keeps punctuation outside the highlight and out of "Both say…"', () => {
+    useDiscoveryStore.setState({ activeCrossRefKey: ROW_KEY });
+    renderCard([
+      lambRow({
+        shared: ['glory'],
+        sourceText: 'we saw His glory, glory as of the only Son',
+        targetVerses: [{ verse: 5, text: 'Then the glory of the Lord' }],
+      }),
+    ]);
+    const marks = Array.from(document.querySelectorAll('mark')).map(m => m.textContent);
+    expect(marks).toEqual(['glory', 'glory', 'glory']);
+    expect(screen.getByText('John 1:29', { selector: 'p' }).nextSibling?.textContent).toBe('we saw His glory, glory as of the only Son');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Find them yourself' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'glory' })[0]);
+    expect(screen.getByText((_, el) => el?.tagName === 'P' && el?.textContent === 'Both say glory.')).toBeTruthy();
+  });
+
   it('tapping the active row again collapses it', () => {
     useDiscoveryStore.setState({ activeCrossRefKey: ROW_KEY });
     renderCard([lambRow()]);
-    expect(screen.getByRole('button', { name: 'v.29 Isaiah 53:7' }).getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('button', { name: 'John 1:29 Isaiah 53:7' }).getAttribute('aria-expanded')).toBe('true');
 
-    fireEvent.click(screen.getByRole('button', { name: 'v.29 Isaiah 53:7' }));
+    fireEvent.click(screen.getByRole('button', { name: 'John 1:29 Isaiah 53:7' }));
 
     expect(useDiscoveryStore.getState().activeCrossRefKey).toBeNull();
-    expect(screen.queryByText('John 1:29')).toBeNull();
+    expect(screen.queryByText('John 1:29', { selector: 'p' })).toBeNull();
     expect(navigateToVerse).not.toHaveBeenCalled();
   });
 
   it('expands the row when the active key is set from outside (lens tap in the text)', () => {
     renderCard([lambRow()]);
-    expect(screen.queryByText('John 1:29')).toBeNull();
+    expect(screen.queryByText('John 1:29', { selector: 'p' })).toBeNull();
 
     act(() => {
       useDiscoveryStore.getState().setActiveCrossRefKey(ROW_KEY);
     });
 
-    expect(screen.getByText('John 1:29')).toBeTruthy();
+    expect(screen.getByText('John 1:29', { selector: 'p' })).toBeTruthy();
     expect(navigateToVerse).not.toHaveBeenCalled();
   });
 

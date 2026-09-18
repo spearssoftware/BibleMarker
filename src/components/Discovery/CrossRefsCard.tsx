@@ -40,10 +40,20 @@ interface CrossRefsCardProps {
 const EMPTY_PROGRESS: CrossRefProgress = { hunting: false, found: [] };
 const LIT_WORD_CLASSES = 'bg-scripture-accent/20 text-scripture-accent rounded';
 
-/** Surface form (original casing/punctuation) of the first token in `text` whose stem matches — e.g. "God" not "god". */
+/**
+ * Split a token's surface text into the word itself and the punctuation
+ * around it, so a highlight covers "glory" rather than "glory,".
+ */
+function splitPunctuation(surface: string): { before: string; word: string; after: string } {
+  const match = /^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/su.exec(surface);
+  if (!match) return { before: '', word: surface, after: '' };
+  return { before: match[1], word: match[2], after: match[3] };
+}
+
+/** Surface form (original casing, no punctuation) of the first token in `text` whose stem matches — e.g. "God" not "god". */
 function surfaceForm(text: string, stem: string): string {
   for (const token of tokenizeVerse(text)) {
-    if (wordStem(token.normalized) === stem) return text.slice(token.startIndex, token.endIndex);
+    if (wordStem(token.normalized) === stem) return splitPunctuation(text.slice(token.startIndex, token.endIndex)).word;
   }
   return stem;
 }
@@ -74,24 +84,29 @@ function renderPassageWords(text: string, litStems: ReadonlySet<string>, onTap?:
     const isLit = stem !== null && litStems.has(stem);
     if (stem === null || (!onTap && !isLit)) {
       nodes.push(surface);
-    } else if (!onTap) {
-      nodes.push(
-        <mark key={i} className={LIT_WORD_CLASSES}>
-          {surface}
-        </mark>
-      );
     } else {
-      nodes.push(
-        <button
-          key={i}
-          type="button"
-          className={`inline bg-transparent border-0 p-0 m-0 hover:text-scripture-accent ${isLit ? LIT_WORD_CLASSES : ''}`}
-          aria-pressed={isLit ? 'true' : undefined}
-          onClick={() => onTap(stem)}
-        >
-          {surface}
-        </button>
-      );
+      const { before, word, after } = splitPunctuation(surface);
+      nodes.push(before);
+      if (!onTap) {
+        nodes.push(
+          <mark key={i} className={LIT_WORD_CLASSES}>
+            {word}
+          </mark>
+        );
+      } else {
+        nodes.push(
+          <button
+            key={i}
+            type="button"
+            className={`inline bg-transparent border-0 p-0 m-0 hover:text-scripture-accent ${isLit ? LIT_WORD_CLASSES : ''}`}
+            aria-pressed={isLit ? 'true' : undefined}
+            onClick={() => onTap(stem)}
+          >
+            {word}
+          </button>
+        );
+      }
+      nodes.push(after);
     }
     cursor = token.endIndex;
   });
@@ -163,7 +178,8 @@ function CrossRefRow({ row, active, onToggle, expand }: CrossRefRowProps) {
         aria-controls={passagesId}
         className="w-full flex items-center gap-2 text-left px-2 py-1.5 rounded hover:bg-scripture-elevated text-sm"
       >
-        <span className="text-scripture-muted">{`v.${row.crossRef.verse}`}</span>{' '}
+        <span className="text-scripture-text font-medium">{row.sourceRefLabel}</span>{' '}
+        <span className="text-scripture-muted" aria-hidden="true">→</span>{' '}
         <span className="text-scripture-text font-medium">{row.label}</span>
       </button>
 
