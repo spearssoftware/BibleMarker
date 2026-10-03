@@ -11,7 +11,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/shared';
 import { useChapterPeople, usePeopleSpread } from '@/hooks/useGnosis';
-import { DEITY_SLUGS, isInChapter } from '@/lib/chapterAnalysis';
+import { DEITY_SLUGS, FORETOLD_SLUGS, isInChapter } from '@/lib/chapterAnalysis';
 import { pluralize } from '@/lib/textUtils';
 import { formatVerseRef, getBookById, parseOsisRef } from '@/types';
 import type { ChapterPerson, EntitySpread } from '@/types';
@@ -21,28 +21,46 @@ import { MoreInReference, VerseLinks } from './InlineDetail';
 
 export const WHOS_HERE_ANCHOR_ID = 'discovery-whos-here';
 const VISIBLE_LIMIT = 5;
-const LISTED_BOOKS = 2;
+const MAX_LISTED_BOOKS = 4;
+const LISTED_BOOKS = 3;
 
 function compareRows(a: ChapterPerson, b: ChapterPerson): number {
   return b.verses.length - a.verses.length || a.name.localeCompare(b.name) || a.slug.localeCompare(b.slug);
 }
 
-function firstAppearsText(spread: EntitySpread, book: string, chapter: number): string | null {
-  if (isInChapter(spread.firstRef, book, chapter)) return 'First time in Scripture';
-  const ref = parseOsisRef(spread.firstRef);
-  if (!ref) return null;
-  return `First appears in ${formatVerseRef(ref.book, ref.chapter, ref.verse)}`;
+function describeRef(osisRef: string): string | null {
+  const ref = parseOsisRef(osisRef);
+  return ref ? formatVerseRef(ref.book, ref.chapter, ref.verse) : null;
 }
 
-/** "Named in Genesis", "Named in Genesis and Exodus", "Named in Genesis, Exodus, and Leviticus", "Named in Genesis, Exodus, and 13 other books". */
+/** Lines under a name: where the person first appears, plus "Foretold from" for prophecy-tagged people in the NT. */
+function firstAppearsLines(person: ChapterPerson, spread: EntitySpread, book: string, chapter: number): string[] {
+  if (!FORETOLD_SLUGS.has(person.slug)) {
+    if (isInChapter(spread.firstRef, book, chapter)) return ['First time in Scripture'];
+    const where = describeRef(spread.firstRef);
+    return where ? [`First appears in ${where}`] : [];
+  }
+  if (getBookById(book)?.testament === 'OT' || !spread.firstNtRef) return [];
+  const lines: string[] = [];
+  if (isInChapter(spread.firstNtRef, book, chapter)) {
+    lines.push('First named here');
+  } else {
+    const where = describeRef(spread.firstNtRef);
+    if (where) lines.push(`First named in ${where}`);
+  }
+  const foretold = getBookById(parseOsisRef(spread.firstRef)?.book ?? '')?.testament === 'OT' ? describeRef(spread.firstRef) : null;
+  if (foretold) lines.push(`Foretold from ${foretold}`);
+  return lines;
+}
+
+/** "Named in Genesis", "... Genesis and Exodus", up to four books with an Oxford comma, else the first 3 and "and N other books". */
 function namedInBooksText(bookIds: string[]): string | null {
   const names = bookIds.map(id => getBookById(id)?.name ?? id);
   if (names.length === 0) return null;
   if (names.length === 1) return `Named in ${names[0]}`;
   if (names.length === 2) return `Named in ${names[0]} and ${names[1]}`;
-  if (names.length === 3) return `Named in ${names[0]}, ${names[1]}, and ${names[2]}`;
-  const rest = names.length - LISTED_BOOKS;
-  return `Named in ${names.slice(0, LISTED_BOOKS).join(', ')}, and ${rest} other books`;
+  if (names.length <= MAX_LISTED_BOOKS) return `Named in ${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+  return `Named in ${names.slice(0, LISTED_BOOKS).join(', ')}, and ${names.length - LISTED_BOOKS} other books`;
 }
 
 interface WhosHereCardProps {
@@ -54,6 +72,7 @@ interface WhosHereCardProps {
 export function WhosHereCard({ book, chapter, translationId }: WhosHereCardProps) {
   const [expandedSlug, setExpandedSlug] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const isOldTestament = getBookById(book)?.testament === 'OT';
   const { people, isLoading, error } = useChapterPeople(book, chapter);
 
   const rows = useMemo(
@@ -62,6 +81,8 @@ export function WhosHereCard({ book, chapter, translationId }: WhosHereCardProps
   );
   const slugs = useMemo(() => rows.map(p => p.slug), [rows]);
   const { spread } = usePeopleSpread(book, chapter, slugs, rows.length > 0);
+
+  const foretoldHere = (person: ChapterPerson) => isOldTestament && FORETOLD_SLUGS.has(person.slug);
 
   const visible = !isLoading && !error && rows.length > 0;
   useEffect(() => {
@@ -87,8 +108,13 @@ export function WhosHereCard({ book, chapter, translationId }: WhosHereCardProps
       <ul className="space-y-1">
         {shown.map(person => {
           const personSpread = spread?.find(s => s.slug === person.slug);
-          const firstAppears = personSpread ? firstAppearsText(personSpread, book, chapter) : null;
-          const books = personSpread ? namedInBooksText(personSpread.books) : null;
+          const firstLines = personSpread ? firstAppearsLines(person, personSpread, book, chapter) : [];
+          const verb = foretoldHere(person) ? 'Foretold' : 'Named';
+          // Prophecy-tagged OT books aren't places the person is named.
+          const namedBooks = personSpread && FORETOLD_SLUGS.has(person.slug)
+            ? personSpread.books.filter(id => getBookById(id)?.testament === 'NT')
+            : personSpread?.books;
+          const books = namedBooks ? namedInBooksText(namedBooks) : null;
           const expanded = expandedSlug === person.slug;
           const detailId = `person-detail-${person.slug}`;
           return (
@@ -101,9 +127,11 @@ export function WhosHereCard({ book, chapter, translationId }: WhosHereCardProps
                 className="w-full text-left px-2 py-1.5 rounded hover:bg-scripture-elevated"
               >
                 <span className="block text-sm text-scripture-text font-medium">{person.name}</span>
-                {firstAppears && <span className="block text-xs text-scripture-muted">{firstAppears}</span>}
+                {firstLines.map(line => (
+                  <span key={line} className="block text-xs text-scripture-muted">{line}</span>
+                ))}
                 <span className="block text-xs text-scripture-muted">
-                  {`Named in ${pluralize(person.verses.length, 'verse')} here`}
+                  {`${verb} in ${pluralize(person.verses.length, 'verse')} here`}
                 </span>
               </button>
               {expanded && (

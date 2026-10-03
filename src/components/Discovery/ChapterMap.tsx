@@ -12,8 +12,8 @@ import MapGL, { Marker, type MapRef } from 'react-map-gl/maplibre';
 import { Button } from '@/components/shared';
 import { useMapAvailability } from '@/hooks/useMapAvailability';
 import { boundsFor, ensurePmtilesProtocol, getStyles } from '@/lib/map/mapStyle';
-import { useBibleStore } from '@/stores/bibleStore';
 import type { ChapterPlace } from '@/types';
+import { VerseLinks } from './InlineDetail';
 
 ensurePmtilesProtocol();
 
@@ -117,8 +117,12 @@ interface ChapterMapProps {
 }
 
 export function ChapterMap({ places, book, chapter, onMarkerTap, onOpenFullMap }: ChapterMapProps) {
-  const navigateToVerse = useBibleStore(s => s.navigateToVerse);
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  const [prevChapter, setPrevChapter] = useState({ book, chapter });
+  if (prevChapter.book !== book || prevChapter.chapter !== chapter) {
+    setPrevChapter({ book, chapter });
+    setSelectedSlug(null);
+  }
 
   if (places.length === 0) return null;
 
@@ -141,20 +145,7 @@ export function ChapterMap({ places, book, chapter, onMarkerTap, onOpenFullMap }
       {selected && (
         <div className="text-sm text-scripture-text">
           <div className="font-medium">{selected.name}</div>
-          <div className="flex flex-wrap items-center gap-x-1 text-scripture-muted">
-            <span>{selected.verses.length === 1 ? 'Verse' : 'Verses'}</span>
-            {selected.verses.map((verse, i) => (
-              <span key={verse}>
-                <button
-                  onClick={() => navigateToVerse(book, chapter, verse, true)}
-                  className="text-scripture-accent hover:text-scripture-accent/70"
-                >
-                  {verse}
-                </button>
-                {i < selected.verses.length - 1 && ','}
-              </span>
-            ))}
-          </div>
+          <VerseLinks book={book} chapter={chapter} verses={selected.verses} />
         </div>
       )}
       <Button variant="secondary" size="sm" onClick={onOpenFullMap}>

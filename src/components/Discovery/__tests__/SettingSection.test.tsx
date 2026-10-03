@@ -91,6 +91,27 @@ describe('SettingSection', () => {
     expect(screen.getByText('About 1921 BC · 2 people · 2 places · The call of Abram')).toBeTruthy();
   });
 
+  it('excludes foretold people from the count in OT chapters only', () => {
+    entitiesResult = ok({ ...entities, people: ['jesus-son-of-joseph', 'david'], places: [] });
+    eventsResult = ok([]);
+    yearResult = ok(null);
+    renderSetting('Ps', 2);
+    expect(screen.getByText('1 person')).toBeTruthy();
+    cleanup();
+    renderSetting('Matt', 1);
+    expect(screen.getByText('2 people')).toBeTruthy();
+  });
+
+  it('resets the intro toggle and full map when the chapter changes without remounting', () => {
+    const { rerender } = renderSetting('Phil', 2);
+    fireEvent.click(screen.getByRole('button', { name: 'About Philippians' }));
+    fireEvent.click(screen.getByText(/Open full map/));
+    expect(screen.getByTestId('map-modal')).toBeTruthy();
+    rerender(<SettingSection book="Phil" chapter={3} translationId="nasb" />);
+    expect(screen.getByRole('button', { name: 'About Philippians' }).getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByTestId('map-modal')).toBeNull();
+  });
+
   it('omits the year for Genesis 1-11', () => {
     renderSetting('Gen', 6);
     expect(screen.getByText('2 people · 2 places · The call of Abram')).toBeTruthy();
@@ -129,6 +150,12 @@ describe('SettingSection', () => {
     const features = vi.mocked(track).mock.calls.filter(c => c[0] === 'discovery_chip_shown').map(c => c[1]?.feature);
     expect(features).toContain('setting');
     expect(features).toContain('setting_timeline');
+  });
+
+  it('hides the era strip for Genesis 1-11 while the year is loading', () => {
+    yearResult = { isLoading: true, error: null, data: null };
+    renderSetting('Gen', 3);
+    expect(screen.queryByTestId('era-strip')).toBeNull();
   });
 
   it('hides every Gnosis piece while loading, on error or for a null capability, but keeps intro and genre', () => {

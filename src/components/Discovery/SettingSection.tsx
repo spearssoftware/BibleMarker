@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import { useChapterEntities, useChapterEvents, useChapterPlaces, useChapterYear } from '@/hooks/useGnosis';
 import {
   DEITY_SLUGS,
+  FORETOLD_SLUGS,
   GENRE_LABEL,
   buildChapterLine,
   genreFor,
@@ -40,6 +41,12 @@ interface SettingSectionProps {
 export function SettingSection({ book, chapter, translationId }: SettingSectionProps) {
   const [introOpen, setIntroOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  const [prevChapter, setPrevChapter] = useState({ book, chapter });
+  if (prevChapter.book !== book || prevChapter.chapter !== chapter) {
+    setPrevChapter({ book, chapter });
+    setIntroOpen(false);
+    setMapOpen(false);
+  }
   const scope = { book, chapter, translationId };
 
   const { entities, isLoading: entitiesLoading, error: entitiesError } = useChapterEntities(book, chapter);
@@ -62,14 +69,17 @@ export function SettingSection({ book, chapter, translationId }: SettingSectionP
   }, [hasMap, book, chapter, translationId]);
 
   const bookName = getBookById(book)?.name ?? book;
+  const isOldTestament = getBookById(book)?.testament === 'OT';
   const genre = genreFor(book);
   const intro = introFor(book);
   const orientation = orientationFor(book);
   const question = questionFor(book, chapter);
 
+  const excludedPeople = isOldTestament ? new Set([...DEITY_SLUGS, ...FORETOLD_SLUGS]) : DEITY_SLUGS;
+
   const chapterLine = buildChapterLine({
     yearDisplay: readyYear?.yearDisplay,
-    peopleCount: readyEntities ? readyEntities.people.filter(slug => !DEITY_SLUGS.has(slug)).length : 0,
+    peopleCount: readyEntities ? readyEntities.people.filter(slug => !excludedPeople.has(slug)).length : 0,
     placeCount: readyEntities ? readyEntities.places.length : 0,
     firstEventTitle: readyEvents?.[0]?.title,
     primeval: isPrimeval(book, chapter),
@@ -116,7 +126,13 @@ export function SettingSection({ book, chapter, translationId }: SettingSectionP
           <ChapterMapModal isOpen={mapOpen} onClose={() => setMapOpen(false)} places={readyPlaces} />
         </>
       )}
-      <EraStrip book={book} chapter={chapter} translationId={translationId} year={readyYear?.year ?? null} />
+      <EraStrip
+        book={book}
+        chapter={chapter}
+        translationId={translationId}
+        year={readyYear?.year ?? null}
+        yearPending={yearLoading || !!yearError}
+      />
       {readyEvents && <EventList events={readyEvents} book={book} chapter={chapter} translationId={translationId} />}
     </DiscoveryCard>
   );

@@ -1163,6 +1163,7 @@ export function mapChapterEventRows(
 }
 
 const BOOK_ORDER = new Map(BIBLE_BOOKS.map((b) => [b.id, b.order]));
+const NT_BOOKS = new Set(BIBLE_BOOKS.filter((b) => b.testament === 'NT').map((b) => b.id));
 
 /** [book order, chapter, verse] for an OSIS ref; unknown books sort last. */
 function canonicalKey(osisRef: string): [number, number, number] {
@@ -1181,24 +1182,29 @@ function compareCanonical(a: [number, number, number], b: [number, number, numbe
  * people (jesus-son-of-joseph reads 1Chr.17.13 though Gen.49.10 is earlier).
  */
 export function mapPeopleSpreadRows(rows: { slug: string; osis_ref: string }[]): EntitySpread[] {
-  const bySlug = new Map<string, { first: { ref: string; key: [number, number, number] }; books: Map<string, number> }>();
+  type Hit = { ref: string; key: [number, number, number] };
+  const bySlug = new Map<string, { first: Hit; firstNt: Hit | null; books: Map<string, number> }>();
 
   for (const r of rows) {
     const key = canonicalKey(r.osis_ref);
     if (key.some(isNaN)) continue;
     const book = r.osis_ref.split('.')[0];
+    const hit = { ref: r.osis_ref, key };
+    const isNt = NT_BOOKS.has(book);
     const entry = bySlug.get(r.slug);
     if (!entry) {
-      bySlug.set(r.slug, { first: { ref: r.osis_ref, key }, books: new Map([[book, key[0]]]) });
+      bySlug.set(r.slug, { first: hit, firstNt: isNt ? hit : null, books: new Map([[book, key[0]]]) });
       continue;
     }
-    if (compareCanonical(key, entry.first.key) < 0) entry.first = { ref: r.osis_ref, key };
+    if (compareCanonical(key, entry.first.key) < 0) entry.first = hit;
+    if (isNt && (!entry.firstNt || compareCanonical(key, entry.firstNt.key) < 0)) entry.firstNt = hit;
     entry.books.set(book, key[0]);
   }
 
-  return Array.from(bySlug, ([slug, { first, books }]) => ({
+  return Array.from(bySlug, ([slug, { first, firstNt, books }]) => ({
     slug,
     firstRef: first.ref,
+    firstNtRef: firstNt?.ref ?? null,
     books: Array.from(books).sort((a, b) => a[1] - b[1]).map(([book]) => book),
   }));
 }

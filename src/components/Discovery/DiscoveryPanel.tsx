@@ -10,8 +10,9 @@
  * (Repetition, Connectors, Look-Again). Setting's intro and genre lines need
  * neither analysis extras nor Gnosis, so the loading gate is `!context` only
  * (S5) — a Gnosis hiccup must not blank the whole panel. Setting and Who's
- * here are keyed per chapter so their local state (expanded intro, open map,
- * expanded person) resets on navigation. Look closer renders its children
+ * here: Who's here is keyed per chapter so its expanded person resets on
+ * navigation, while Setting stays mounted (so the map's WebGL context isn't
+ * recreated every chapter) and resets its own local state. Look closer renders its children
  * only while open, so those cards' stable-id anchor divs exist only then.
  * Look-Again scroll targets are fallback chains resolved at tap time: place →
  * the Setting map, else Setting; person → Who's here, else Setting.
@@ -98,7 +99,7 @@ export function DiscoveryPanel() {
 
   return (
     <DiscoveryDialog>
-      <SettingSection key={`setting:${book}:${chapter}`} book={book} chapter={chapter} translationId={translationId} />
+      <SettingSection book={book} chapter={chapter} translationId={translationId} />
       {hasCrossRefs && (
         <div id={CROSS_REFS_ANCHOR_ID} className={ANCHOR_CLASS}>
           <CrossRefsCard rows={crossRefPassages.rows} expand={crossRefPassages.expand} book={book} chapter={chapter} />

@@ -79,6 +79,14 @@ describe('ChapterMap', () => {
     expect(navigateToVerse).toHaveBeenCalledWith('Genesis', 12, 8, true);
   });
 
+  it('clears the selected place when the chapter changes', () => {
+    const { rerender } = render(<ChapterMap places={PLACES} book="Genesis" chapter={12} />);
+    fireEvent.click(screen.getAllByTestId('marker')[1]);
+    expect(screen.getByText('Verses')).toBeTruthy();
+    rerender(<ChapterMap places={PLACES} book="Genesis" chapter={13} />);
+    expect(screen.queryByText('Verses')).toBeNull();
+  });
+
   it('calls onOpenFullMap', () => {
     const onOpenFullMap = vi.fn();
     render(<ChapterMap places={PLACES} book="Genesis" chapter={12} onOpenFullMap={onOpenFullMap} />);

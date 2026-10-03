@@ -101,6 +101,21 @@ describe('LookCloserSection', () => {
     expect(screen.queryByText('cards')).toBeNull();
   });
 
+  it('disables the toggle while an active prompt or lens forces it open', () => {
+    useDiscoveryPrefsStore.setState({ lookCloserOpen: undefined });
+    for (const forced of [{ lens: 'connectors' as const, activePrompt: null }, { lens: null, activePrompt: {} as ConnectorHit }]) {
+      useDiscoveryStore.setState(forced);
+      renderSection();
+      const toggle = screen.getByRole('button', { name: /Look closer/ }) as HTMLButtonElement;
+      expect(toggle.disabled).toBe(true);
+      fireEvent.click(toggle);
+      expect(useDiscoveryPrefsStore.getState().lookCloserOpen).toBeUndefined();
+      expect(track).not.toHaveBeenCalled();
+      expect(screen.getByText('cards')).toBeTruthy();
+      cleanup();
+    }
+  });
+
   it('persists only lookCloserOpen', () => {
     useDiscoveryPrefsStore.getState().forceLookCloserOpen();
     useDiscoveryPrefsStore.getState().setLookCloserOpen(true);

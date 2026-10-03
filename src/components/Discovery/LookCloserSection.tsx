@@ -3,12 +3,13 @@
  *
  * Children (Repetition, Connectors, Look-Again, with their scroll-anchor
  * divs) render only while open, with no transition so a hydration flip
- * doesn't animate. Open state comes from `useLookCloserOpen`; a toggle
- * stores the reader's choice on this device.
+ * doesn't animate. Open state comes from `useLookCloserState`; a toggle
+ * stores the reader's choice on this device, and is disabled while an active
+ * prompt or lens holds the section open.
  */
 
 import type { ReactNode } from 'react';
-import { useLookCloserOpen } from '@/hooks/useLookCloserOpen';
+import { useLookCloserState } from '@/hooks/useLookCloserOpen';
 import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
 import { trackChip } from './discoveryTelemetry';
 
@@ -20,10 +21,11 @@ interface LookCloserSectionProps {
 }
 
 export function LookCloserSection({ book, chapter, translationId, children }: LookCloserSectionProps) {
-  const isOpen = useLookCloserOpen();
+  const { open: isOpen, locked } = useLookCloserState();
   const setLookCloserOpen = useDiscoveryPrefsStore(s => s.setLookCloserOpen);
 
   const handleToggle = () => {
+    if (locked) return;
     trackChip('discovery_chip_tapped', 'look_closer', { book, chapter, translationId });
     setLookCloserOpen(!isOpen);
   };
@@ -34,6 +36,7 @@ export function LookCloserSection({ book, chapter, translationId, children }: Lo
         type="button"
         aria-expanded={isOpen}
         onClick={handleToggle}
+        disabled={locked}
         className="w-full flex items-center justify-between px-1 text-sm font-ui font-semibold text-scripture-text"
       >
         <span>Look closer</span>

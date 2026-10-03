@@ -372,6 +372,7 @@ describe('mapPeopleSpreadRows', () => {
     const { mapPeopleSpreadRows } = await import('./local-db');
     const result = mapPeopleSpreadRows([
       { slug: 'jesus-son-of-joseph', osis_ref: '1Chr.17.13' },
+      { slug: 'jesus-son-of-joseph', osis_ref: 'Matt.1.21' },
       { slug: 'jesus-son-of-joseph', osis_ref: 'Matt.1.1' },
       { slug: 'jesus-son-of-joseph', osis_ref: 'Gen.49.10' },
       { slug: 'jesus-son-of-joseph', osis_ref: 'Gen.9.3' },
@@ -380,8 +381,8 @@ describe('mapPeopleSpreadRows', () => {
       { slug: 'other', osis_ref: 'Gen.9.20' },
     ]);
     expect(result).toEqual([
-      { slug: 'jesus-son-of-joseph', firstRef: 'Gen.9.3', books: ['Gen', '1Chr', 'Matt'] },
-      { slug: 'other', firstRef: 'Gen.9.20', books: ['Gen'] },
+      { slug: 'jesus-son-of-joseph', firstRef: 'Gen.9.3', firstNtRef: 'Matt.1.1', books: ['Gen', '1Chr', 'Matt'] },
+      { slug: 'other', firstRef: 'Gen.9.20', firstNtRef: null, books: ['Gen'] },
     ]);
   });
 
@@ -447,7 +448,7 @@ describe('chapter data queries', () => {
 
     state.spreadRows = [{ slug: 'abram', osis_ref: 'Gen.12.1' }];
     await expect(db.getPeopleSpread(['abram', 'sarai'])).resolves.toEqual([
-      { slug: 'abram', firstRef: 'Gen.12.1', books: ['Gen'] },
+      { slug: 'abram', firstRef: 'Gen.12.1', firstNtRef: null, books: ['Gen'] },
     ]);
 
     const call = state.selectCalls.find((c) => c.sql.includes('p.slug IN'));

@@ -3,7 +3,9 @@
  *
  * Eight equal-width era bands with a marker at `index + fraction`. Genesis
  * 1–11 carries no year, so its marker sits at the center of Beginnings.
- * Hidden when the chapter has no year and isn't primeval.
+ * Hidden when the chapter has no year and isn't primeval, and while the year
+ * is still loading or failed (`yearPending`). The marker is inset within its
+ * band so a band's first year doesn't sit on the seam.
  */
 
 import { useEffect } from 'react';
@@ -16,14 +18,18 @@ interface EraStripProps {
   translationId: string;
   /** Astronomical chapter year (-4003 = 4004 BC); null when undated. */
   year: number | null;
+  /** True while the chapter-year query is loading or errored. */
+  yearPending: boolean;
 }
 
-export function EraStrip({ book, chapter, translationId, year }: EraStripProps) {
-  const position = isPrimeval(book, chapter)
-    ? { index: 0, fraction: 0.5 }
-    : year === null
-      ? null
-      : eraPosition(year);
+export function EraStrip({ book, chapter, translationId, year, yearPending }: EraStripProps) {
+  const position = yearPending
+    ? null
+    : isPrimeval(book, chapter)
+      ? { index: 0, fraction: 0.5 }
+      : year === null
+        ? null
+        : eraPosition(year);
 
   const visible = position !== null;
   useEffect(() => {
@@ -32,11 +38,16 @@ export function EraStrip({ book, chapter, translationId, year }: EraStripProps) 
 
   if (!position) return null;
 
-  const left = `${((position.index + position.fraction) / ERA_BANDS.length) * 100}%`;
+  const left = `${((position.index + 0.1 + position.fraction * 0.8) / ERA_BANDS.length) * 100}%`;
 
   return (
     <div className="space-y-1">
-      <div className="relative flex gap-0.5 pt-2" data-testid="era-strip">
+      <div
+        role="img"
+        aria-label={`Era: ${ERA_BANDS[position.index].label}`}
+        className="relative flex gap-0.5 pt-2"
+        data-testid="era-strip"
+      >
         {ERA_BANDS.map((band, i) => (
           <div
             key={band.label}

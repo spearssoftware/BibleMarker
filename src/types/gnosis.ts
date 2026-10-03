@@ -196,6 +196,8 @@ export interface EntitySpread {
   slug: string;
   /** Earliest OSIS ref in canonical order. */
   firstRef: string;
+  /** Earliest New Testament OSIS ref in canonical order; null when none. */
+  firstNtRef: string | null;
   /** Distinct OSIS book ids, in canonical order. */
   books: string[];
 }

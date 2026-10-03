@@ -3,6 +3,12 @@ import { pluralize } from '@/lib/textUtils';
 /** Entities excluded from "who's here" counts: present everywhere, so they say nothing about the chapter. */
 export const DEITY_SLUGS: ReadonlySet<string> = new Set(['god', 'holy-spirit']);
 
+/**
+ * People Gnosis tags in Old Testament verses that read as prophecy: the text
+ * never names them there, so the OT chapter is "foretold in", not "named in".
+ */
+export const FORETOLD_SLUGS: ReadonlySet<string> = new Set(['jesus-son-of-joseph']);
+
 /** "about 1921 BC", or "About 1921 BC" at the start of a line. */
 export function formatAboutYear(display: string, { capitalized }: { capitalized: boolean }): string {
   return `${capitalized ? 'About' : 'about'} ${display}`;

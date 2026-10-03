@@ -41,8 +41,8 @@ describe('WhosHereCard', () => {
     };
     spreadResult = {
       spread: [
-        { slug: 'abram', firstRef: 'Gen.11.26', books: ['Gen'] },
-        { slug: 'lot', firstRef: 'Gen.12.4', books: ['Gen', 'Exod'] },
+        { slug: 'abram', firstRef: 'Gen.11.26', firstNtRef: null, books: ['Gen'] },
+        { slug: 'lot', firstRef: 'Gen.12.4', firstNtRef: null, books: ['Gen', 'Exod'] },
       ],
       isLoading: false,
       error: null,
@@ -92,15 +92,17 @@ describe('WhosHereCard', () => {
     expect(state.referenceEntityType).toBe('person');
   });
 
-  it('words the books line for 1, 3 and many books', () => {
+  it('words the books line for 1 to 4 books and for many', () => {
     const books = (n: number) => ['Gen', 'Exod', 'Lev', 'Num', 'Deut', 'Josh'].slice(0, n);
     const cases: [number, string][] = [
       [1, 'Named in Genesis'],
       [3, 'Named in Genesis, Exodus, and Leviticus'],
-      [6, 'Named in Genesis, Exodus, and 4 other books'],
+      [4, 'Named in Genesis, Exodus, Leviticus, and Numbers'],
+      [5, 'Named in Genesis, Exodus, Leviticus, and 2 other books'],
+      [6, 'Named in Genesis, Exodus, Leviticus, and 3 other books'],
     ];
     for (const [n, text] of cases) {
-      spreadResult = { spread: [{ slug: 'abram', firstRef: 'Gen.11.26', books: books(n) }], isLoading: false, error: null };
+      spreadResult = { spread: [{ slug: 'abram', firstRef: 'Gen.11.26', firstNtRef: null, books: books(n) }], isLoading: false, error: null };
       render(<WhosHereCard book="Gen" chapter={12} translationId="nasb" />);
       fireEvent.click(screen.getByRole('button', { name: /Abram/ }));
       expect(screen.getByText(text)).toBeTruthy();
@@ -139,5 +141,60 @@ describe('WhosHereCard', () => {
     const calls = vi.mocked(track).mock.calls;
     expect(calls).toContainEqual(['discovery_chip_shown', { feature: 'entity', dedupeKey: 'discovery_chip_shown:entity:Gen:12:nasb' }]);
     expect(calls).toContainEqual(['discovery_chip_tapped', { feature: 'entity', dedupeKey: 'discovery_chip_tapped:entity:Gen:12:nasb' }]);
+  });
+
+  describe('foretold people', () => {
+    const jesusSpread: EntitySpread = {
+      slug: 'jesus-son-of-joseph',
+      firstRef: 'Gen.49.10',
+      firstNtRef: 'Matt.1.1',
+      books: ['Gen', 'Matt'],
+    };
+    const setJesus = (verses: number[]) => {
+      peopleResult = { people: [person('jesus-son-of-joseph', 'Jesus', verses)], isLoading: false, error: null };
+      spreadResult = { spread: [jesusSpread], isLoading: false, error: null };
+    };
+
+    it('reads "Foretold in N verses here" with no first-appears line in an OT chapter', () => {
+      setJesus([1, 2]);
+      render(<WhosHereCard book="Ps" chapter={2} translationId="nasb" />);
+      expect(screen.getByText('Foretold in 2 verses here')).toBeTruthy();
+      expect(screen.queryByText(/Named in/)).toBeNull();
+      expect(screen.queryByText(/First/)).toBeNull();
+      cleanup();
+
+      setJesus([1]);
+      render(<WhosHereCard book="Ps" chapter={2} translationId="nasb" />);
+      expect(screen.getByText('Foretold in 1 verse here')).toBeTruthy();
+    });
+
+    it('says First named here plus Foretold from in the first NT chapter', () => {
+      setJesus([1, 16]);
+      render(<WhosHereCard book="Matt" chapter={1} translationId="nasb" />);
+      expect(screen.getByText('First named here')).toBeTruthy();
+      expect(screen.getByText('Foretold from Genesis 49:10')).toBeTruthy();
+      expect(screen.getByText('Named in 2 verses here')).toBeTruthy();
+    });
+
+    it('says First named in <ref> in a later NT chapter', () => {
+      setJesus([1]);
+      render(<WhosHereCard book="Mark" chapter={1} translationId="nasb" />);
+      expect(screen.getByText('First named in Matthew 1:1')).toBeTruthy();
+      expect(screen.getByText('Foretold from Genesis 49:10')).toBeTruthy();
+    });
+
+    it('omits Foretold from when the first ref is already in the NT', () => {
+      peopleResult = { people: [person('jesus-son-of-joseph', 'Jesus', [1])], isLoading: false, error: null };
+      spreadResult = { spread: [{ ...jesusSpread, firstRef: 'Matt.1.1' }], isLoading: false, error: null };
+      render(<WhosHereCard book="Mark" chapter={1} translationId="nasb" />);
+      expect(screen.queryByText(/Foretold from/)).toBeNull();
+    });
+
+    it('lists only NT books in the inline detail', () => {
+      setJesus([1]);
+      render(<WhosHereCard book="Matt" chapter={1} translationId="nasb" />);
+      fireEvent.click(screen.getByRole('button', { name: /Jesus/ }));
+      expect(screen.getByText('Named in Matthew')).toBeTruthy();
+    });
   });
 });
