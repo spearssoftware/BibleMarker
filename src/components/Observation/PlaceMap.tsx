@@ -7,16 +7,12 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import * as maplibregl from 'maplibre-gl';
 import MapGL, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
-import type { StyleSpecification } from 'maplibre-gl';
-import { Protocol } from 'pmtiles';
-import { layers, namedFlavor } from '@protomaps/basemaps';
-
-const pmtilesProtocol = new Protocol();
-maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
+import { ensurePmtilesProtocol, getStyles, isTileError, boundsFor } from '@/lib/map/mapStyle';
 import type { GnosisPlace, Place, VerseRef } from '@/types';
 import { formatVerseRef } from '@/types';
+
+ensurePmtilesProtocol();
 
 interface PlaceMapProps {
   places: Place[];
@@ -49,61 +45,6 @@ function groupPlaces(places: Place[]): PlaceGroup[] {
     }
   }
   return Array.from(map.values());
-}
-
-const PMTILES_URL = import.meta.env.VITE_PMTILES_URL
-  ?? (import.meta.env.DEV
-    ? `${window.location.origin}/tiles/biblical-lands.pmtiles`
-    : 'https://tiles.biblemarker.app/biblical-lands.pmtiles');
-
-const SOURCE_NAME = 'protomaps';
-
-function buildMapStyle(): StyleSpecification {
-  return {
-    version: 8,
-    glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
-    sources: {
-      [SOURCE_NAME]: {
-        type: 'vector',
-        url: `pmtiles://${PMTILES_URL}`,
-        attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
-      },
-    },
-    layers: layers(SOURCE_NAME, namedFlavor('light'), { lang: 'en' }),
-  };
-}
-
-function buildSatelliteStyle(): StyleSpecification {
-  return {
-    version: 8,
-    glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
-    sources: {
-      [SOURCE_NAME]: {
-        type: 'vector',
-        url: `pmtiles://${PMTILES_URL}`,
-        attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
-      },
-      satellite: {
-        type: 'raster',
-        tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-        tileSize: 256,
-        attribution: '&copy; <a href="https://www.esri.com">Esri</a>',
-      },
-    },
-    layers: [
-      { id: 'satellite', type: 'raster', source: 'satellite' },
-      ...layers(SOURCE_NAME, namedFlavor('light'), { labelsOnly: true, lang: 'en' }),
-    ],
-  };
-}
-
-let cachedStyles: { map: StyleSpecification; satellite: StyleSpecification } | null = null;
-
-function getStyles() {
-  if (!cachedStyles) {
-    cachedStyles = { map: buildMapStyle(), satellite: buildSatelliteStyle() };
-  }
-  return cachedStyles;
 }
 
 export function PlaceMap({ places, gnosisPlaces = [], onNavigate }: PlaceMapProps) {
@@ -143,10 +84,7 @@ export function PlaceMap({ places, gnosisPlaces = [], onNavigate }: PlaceMapProp
     : null;
 
   const handleMapError = useCallback((e: { error: { message?: string; url?: string } }) => {
-    const msg = e.error?.message ?? e.error?.url ?? '';
-    if (msg.includes(PMTILES_URL) || msg.includes('pmtiles')) {
-      setTileError(true);
-    }
+    if (isTileError(e)) setTileError(true);
   }, []);
 
   const styles = getStyles();
@@ -168,10 +106,8 @@ export function PlaceMap({ places, gnosisPlaces = [], onNavigate }: PlaceMapProp
       map.flyTo({ center: allCoords[0], zoom: 8, duration: 0 });
       return;
     }
-    const lngs = allCoords.map(c => c[0]);
-    const lats = allCoords.map(c => c[1]);
     map.fitBounds(
-      [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+      boundsFor(allCoords),
       { padding: 40, maxZoom: 10, duration: 0 }
     );
   }, [allCoords]);
