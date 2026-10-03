@@ -90,6 +90,7 @@ Replaces `PeoplePlacesCard`.
   - the person's name
   - `First appears in <reference>`, the person's canonically first verse computed from `person_verse` (not `person.first_mention`, which is wrong for some people), formatted with `formatVerseRef`; or `First time in Scripture` when that verse falls in this chapter
   - `Named in N verses here` (`Named in 1 verse here` when N is 1)
+- **Prophecy-tagged people:** Gnosis tags `jesus-son-of-joseph` in Old Testament verses read as prophecy, where the text does not name him. In an OT chapter his row reads `Foretold in N verses here` with no first-appears line, and he is left out of the chapter line's people count. In an NT chapter he shows `First named here` / `First named in <reference>` from his first NT verse, plus `Foretold from <OT reference>`, and his book list counts NT books only.
 - When two people in the chapter share a name, each row is still listed separately. The first-appears reference tells them apart.
 - Tapping a row expands it inline (see Inline detail).
 - Hidden when the chapter names no people after the exclusion.
@@ -315,6 +316,7 @@ All events are deduped per `{book, chapter, translation}`, matching `DiscoveryPa
 | Who's here cap | 5, with `+N more` | Crowded genealogy chapters | User |
 | Person/event tap | Inline expand + `More in Reference` (fix the deep link) | Keep readers in Discover | User |
 | Full map | Read-only large modal, not the Analyze panel | Analyze is inductive-mode UI and can write `Place` rows | User |
+| Jesus in OT verses | Keep, worded `Foretold` rather than `Named` | The OT points to Jesus, but the text doesn't name him there | User |
 | Deity exclusion | Exclude `god`, `holy-spirit`; keep Jesus | God tops every count otherwise | User |
 | Look closer default | Collapsed in discovery mode, expanded in inductive mode, reader's toggle persisted | Keep analysis out of the way unless wanted | User |
 | Worth noticing kinds | First mention (places), only here, heavily linked, reach; max 4 in that order | Deterministic from existing data | User |
