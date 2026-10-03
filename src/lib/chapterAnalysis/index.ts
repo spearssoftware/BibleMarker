@@ -7,3 +7,6 @@ export * from './genres';
 export * from './crossRefs';
 export * from './sharedWords';
 export * from './analyzeChapter';
+export * from './bookIntros';
+export * from './eras';
+export * from './setting';
