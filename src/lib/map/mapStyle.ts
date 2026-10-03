@@ -4,23 +4,23 @@
  */
 
 import * as maplibregl from 'maplibre-gl';
-import type { StyleSpecification } from 'maplibre-gl';
+import type { StyleSpecification, VectorSourceSpecification } from 'maplibre-gl';
 import { Protocol } from 'pmtiles';
 import { layers, namedFlavor } from '@protomaps/basemaps';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 
-let protocolRegistered = false;
+let setupDone = false;
 
 /**
- * Register the `pmtiles://` protocol once; safe to call from every map module.
- * Also points MapLibre at a Vite-bundled copy of its worker: MapLibre 6 loads
- * the worker relative to its own module URL, which breaks once Vite pre-bundles
- * the module (dev) or the app is served from a non-http origin (Tauri), leaving
- * a blank basemap with only DOM markers.
+ * One-time MapLibre setup; safe to call from every map module. Registers the
+ * `pmtiles://` protocol and points MapLibre at a Vite-bundled copy of its
+ * worker: MapLibre 6 loads the worker relative to its own module URL, which
+ * breaks once Vite pre-bundles the module (dev) or the app is served from a
+ * non-http origin (Tauri), leaving a blank basemap with only DOM markers.
  */
-export function ensurePmtilesProtocol(): void {
-  if (protocolRegistered) return;
-  protocolRegistered = true;
+export function ensureMapLibreSetup(): void {
+  if (setupDone) return;
+  setupDone = true;
   maplibregl.setWorkerUrl(maplibreWorkerUrl);
   const pmtilesProtocol = new Protocol();
   maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
@@ -31,33 +31,33 @@ export const PMTILES_URL = import.meta.env.VITE_PMTILES_URL
     ? `${window.location.origin}/tiles/biblical-lands.pmtiles`
     : 'https://tiles.biblemarker.app/biblical-lands.pmtiles');
 
-export const SOURCE_NAME = 'protomaps';
+const SOURCE_NAME = 'protomaps';
 
-export function buildMapStyle(): StyleSpecification {
+function vectorSource(): VectorSourceSpecification {
+  return {
+    type: 'vector',
+    url: `pmtiles://${PMTILES_URL}`,
+    attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
+  };
+}
+
+function buildMapStyle(): StyleSpecification {
   return {
     version: 8,
     glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
     sources: {
-      [SOURCE_NAME]: {
-        type: 'vector',
-        url: `pmtiles://${PMTILES_URL}`,
-        attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
-      },
+      [SOURCE_NAME]: vectorSource(),
     },
     layers: layers(SOURCE_NAME, namedFlavor('light'), { lang: 'en' }),
   };
 }
 
-export function buildSatelliteStyle(): StyleSpecification {
+function buildSatelliteStyle(): StyleSpecification {
   return {
     version: 8,
     glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
     sources: {
-      [SOURCE_NAME]: {
-        type: 'vector',
-        url: `pmtiles://${PMTILES_URL}`,
-        attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
-      },
+      [SOURCE_NAME]: vectorSource(),
       satellite: {
         type: 'raster',
         tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
@@ -92,4 +92,16 @@ export function boundsFor(coords: [number, number][]): [[number, number], [numbe
   const lngs = coords.map(c => c[0]);
   const lats = coords.map(c => c[1]);
   return [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]];
+}
+
+/** Frames the map on the given `[lng, lat]` coordinates: a fixed zoom for one, fit-to-bounds for several. */
+export function fitToCoords(
+  map: Pick<maplibregl.Map, 'flyTo' | 'fitBounds'>,
+  coords: [number, number][],
+): void {
+  if (coords.length === 1) {
+    map.flyTo({ center: coords[0], zoom: 8, duration: 0 });
+    return;
+  }
+  map.fitBounds(boundsFor(coords), { padding: 40, maxZoom: 10, duration: 0 });
 }

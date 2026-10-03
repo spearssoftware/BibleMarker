@@ -8,25 +8,21 @@
  * missing or failed spread only drops the first-appears and books lines.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Button } from '@/components/shared';
 import { useChapterPeople, usePeopleSpread } from '@/hooks/useGnosis';
-import { DEITY_SLUGS, FORETOLD_SLUGS, isInChapter } from '@/lib/chapterAnalysis';
+import { DEITY_SLUGS, FORETOLD_SLUGS, isForetoldIn, isInChapter } from '@/lib/chapterAnalysis';
 import { pluralize } from '@/lib/textUtils';
-import { formatVerseRef, getBookById, parseOsisRef } from '@/types';
+import { formatVerseRef, getBookById, isOldTestament, parseOsisRef } from '@/types';
 import type { ChapterPerson, EntitySpread } from '@/types';
 import { DiscoveryCard } from './DiscoveryCard';
 import { trackChip } from './discoveryTelemetry';
 import { MoreInReference, VerseLinks } from './InlineDetail';
+import { useExpandableList } from './useExpandableList';
 
 export const WHOS_HERE_ANCHOR_ID = 'discovery-whos-here';
-const VISIBLE_LIMIT = 5;
 const MAX_LISTED_BOOKS = 4;
 const LISTED_BOOKS = 3;
-
-function compareRows(a: ChapterPerson, b: ChapterPerson): number {
-  return b.verses.length - a.verses.length || a.name.localeCompare(b.name) || a.slug.localeCompare(b.slug);
-}
 
 function describeRef(osisRef: string): string | null {
   const ref = parseOsisRef(osisRef);
@@ -40,7 +36,7 @@ function firstAppearsLines(person: ChapterPerson, spread: EntitySpread, book: st
     const where = describeRef(spread.firstRef);
     return where ? [`First appears in ${where}`] : [];
   }
-  if (getBookById(book)?.testament === 'OT' || !spread.firstNtRef) return [];
+  if (isOldTestament(book) || !spread.firstNtRef) return [];
   const lines: string[] = [];
   if (isInChapter(spread.firstNtRef, book, chapter)) {
     lines.push('First named here');
@@ -48,7 +44,7 @@ function firstAppearsLines(person: ChapterPerson, spread: EntitySpread, book: st
     const where = describeRef(spread.firstNtRef);
     if (where) lines.push(`First named in ${where}`);
   }
-  const foretold = getBookById(parseOsisRef(spread.firstRef)?.book ?? '')?.testament === 'OT' ? describeRef(spread.firstRef) : null;
+  const foretold = isOldTestament(parseOsisRef(spread.firstRef)?.book ?? '') ? describeRef(spread.firstRef) : null;
   if (foretold) lines.push(`Foretold from ${foretold}`);
   return lines;
 }
@@ -70,19 +66,17 @@ interface WhosHereCardProps {
 }
 
 export function WhosHereCard({ book, chapter, translationId }: WhosHereCardProps) {
-  const [expandedSlug, setExpandedSlug] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(false);
-  const isOldTestament = getBookById(book)?.testament === 'OT';
   const { people, isLoading, error } = useChapterPeople(book, chapter);
 
-  const rows = useMemo(
-    () => (people ?? []).filter(p => !DEITY_SLUGS.has(p.slug)).sort(compareRows),
-    [people]
-  );
+  // The provider already orders people by verses named, then name, then slug.
+  const rows = useMemo(() => (people ?? []).filter(p => !DEITY_SLUGS.has(p.slug)), [people]);
   const slugs = useMemo(() => rows.map(p => p.slug), [rows]);
   const { spread } = usePeopleSpread(book, chapter, slugs, rows.length > 0);
+  const spreadBySlug = useMemo(() => new Map((spread ?? []).map(s => [s.slug, s])), [spread]);
 
-  const foretoldHere = (person: ChapterPerson) => isOldTestament && FORETOLD_SLUGS.has(person.slug);
+  const { shown, hidden, expandedSlug, toggle, showAll } = useExpandableList(rows, () =>
+    trackChip('discovery_chip_tapped', 'entity', { book, chapter, translationId })
+  );
 
   const visible = !isLoading && !error && rows.length > 0;
   useEffect(() => {
@@ -91,25 +85,13 @@ export function WhosHereCard({ book, chapter, translationId }: WhosHereCardProps
 
   if (!visible) return null;
 
-  const shown = showAll ? rows : rows.slice(0, VISIBLE_LIMIT);
-  const hidden = rows.length - shown.length;
-
-  const handleToggle = (slug: string) => {
-    if (expandedSlug === slug) {
-      setExpandedSlug(null);
-      return;
-    }
-    setExpandedSlug(slug);
-    trackChip('discovery_chip_tapped', 'entity', { book, chapter, translationId });
-  };
-
   return (
     <DiscoveryCard id={WHOS_HERE_ANCHOR_ID} title="Who's here">
       <ul className="space-y-1">
         {shown.map(person => {
-          const personSpread = spread?.find(s => s.slug === person.slug);
+          const personSpread = spreadBySlug.get(person.slug);
           const firstLines = personSpread ? firstAppearsLines(person, personSpread, book, chapter) : [];
-          const verb = foretoldHere(person) ? 'Foretold' : 'Named';
+          const verb = isForetoldIn(person.slug, book) ? 'Foretold' : 'Named';
           // Prophecy-tagged OT books aren't places the person is named.
           const namedBooks = personSpread && FORETOLD_SLUGS.has(person.slug)
             ? personSpread.books.filter(id => getBookById(id)?.testament === 'NT')
@@ -123,7 +105,7 @@ export function WhosHereCard({ book, chapter, translationId }: WhosHereCardProps
                 type="button"
                 aria-expanded={expanded}
                 aria-controls={detailId}
-                onClick={() => handleToggle(person.slug)}
+                onClick={() => toggle(person.slug)}
                 className="w-full text-left px-2 py-1.5 rounded hover:bg-scripture-elevated"
               >
                 <span className="block text-sm text-scripture-text font-medium">{person.name}</span>
@@ -146,7 +128,7 @@ export function WhosHereCard({ book, chapter, translationId }: WhosHereCardProps
         })}
       </ul>
       {hidden > 0 && (
-        <Button variant="ghost" size="sm" onClick={() => setShowAll(true)}>{`+${hidden} more`}</Button>
+        <Button variant="ghost" size="sm" onClick={showAll}>{`+${hidden} more`}</Button>
       )}
     </DiscoveryCard>
   );

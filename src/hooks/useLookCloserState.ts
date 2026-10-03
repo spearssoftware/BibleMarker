@@ -21,7 +21,3 @@ export function useLookCloserState(): { open: boolean; locked: boolean } {
   if (forcedBySession) return { open: true, locked: false };
   return { open: stored ?? modeDefault, locked: false };
 }
-
-export function useLookCloserOpen(): boolean {
-  return useLookCloserState().open;
-}

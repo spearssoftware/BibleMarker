@@ -1,4 +1,5 @@
 import { pluralize } from '@/lib/textUtils';
+import { isOldTestament } from '@/types';
 
 /** Entities excluded from "who's here" counts: present everywhere, so they say nothing about the chapter. */
 export const DEITY_SLUGS: ReadonlySet<string> = new Set(['god', 'holy-spirit']);
@@ -8,6 +9,11 @@ export const DEITY_SLUGS: ReadonlySet<string> = new Set(['god', 'holy-spirit']);
  * never names them there, so the OT chapter is "foretold in", not "named in".
  */
 export const FORETOLD_SLUGS: ReadonlySet<string> = new Set(['jesus-son-of-joseph']);
+
+/** True when `slug` is a prophecy-tagged person read in an Old Testament `book`: foretold there, not named. */
+export function isForetoldIn(slug: string, book: string): boolean {
+  return FORETOLD_SLUGS.has(slug) && isOldTestament(book);
+}
 
 /** "about 1921 BC", or "About 1921 BC" at the start of a line. */
 export function formatAboutYear(display: string, { capitalized }: { capitalized: boolean }): string {

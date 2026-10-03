@@ -49,3 +49,19 @@ export function eraPosition(year: number): { index: number; fraction: number } |
 export function isPrimeval(book: string, chapter: number): boolean {
   return book === 'Gen' && chapter >= 1 && chapter <= 11;
 }
+
+/**
+ * Where a chapter sits on the era strip: the center of Beginnings for
+ * Genesis 1–11, else the chapter's year; null while the year is `pending`
+ * or the chapter is undated.
+ */
+export function chapterEraPosition(
+  book: string,
+  chapter: number,
+  year: number | null,
+  pending: boolean
+): { index: number; fraction: number } | null {
+  if (pending) return null;
+  if (isPrimeval(book, chapter)) return { index: 0, fraction: 0.5 };
+  return year === null ? null : eraPosition(year);
+}

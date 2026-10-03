@@ -50,6 +50,7 @@ export interface GnosisDataProvider {
    * their verse numbers, plus each person's spread across the canon. Optional
    * for the same reason as `getChapterEntityVerseIndex`: only the local SQLite
    * provider implements them. Callers must treat a missing method as "no data".
+   * `getChapterPeople` returns people most-verses-first, then by name, then slug.
    */
   getChapterPeople?(book: string, chapter: number): Promise<ChapterPerson[]>;
   getChapterPlaces?(book: string, chapter: number): Promise<ChapterPlace[]>;

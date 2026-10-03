@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { act, render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { DiscoveryPanel } from '../DiscoveryPanel';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useActiveChapterStore } from '@/stores/activeChapterStore';
@@ -190,6 +190,15 @@ describe('DiscoveryPanel', () => {
     expect(inner).toEqual(['repetition', 'connectors', 'look-again']);
   });
 
+  it('resets Setting\'s local state when the chapter changes', () => {
+    useDiscoveryStore.setState({ context: makeDiscoveryContext({ chapter: 2 }) });
+    render(<DiscoveryPanel />);
+    fireEvent.click(screen.getByRole('button', { name: 'About John' }));
+    expect(screen.getByRole('button', { name: 'About John' }).getAttribute('aria-expanded')).toBe('true');
+    act(() => useDiscoveryStore.setState({ context: makeDiscoveryContext({ chapter: 3 }) }));
+    expect(screen.getByRole('button', { name: 'About John' }).getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('hides the cross-refs card when the host published no cross-reference rows', () => {
     useDiscoveryStore.setState({ context: makeDiscoveryContext(), crossRefPassages: NO_CROSS_REF_PASSAGES });
     render(<DiscoveryPanel />);
@@ -328,11 +337,11 @@ describe('DiscoveryPanel', () => {
       render(<DiscoveryPanel />);
       expect(trackMock).toHaveBeenCalledWith('discovery_chip_shown', {
         feature: 'repetition',
-        dedupeKey: 'repetition:John:1:sword-NASB',
+        dedupeKey: 'discovery_chip_shown:repetition:John:1:sword-NASB',
       });
       expect(trackMock).toHaveBeenCalledWith('discovery_chip_shown', {
         feature: 'connector',
-        dedupeKey: 'connector:John:1:sword-NASB',
+        dedupeKey: 'discovery_chip_shown:connector:John:1:sword-NASB',
       });
     });
 
@@ -351,7 +360,7 @@ describe('DiscoveryPanel', () => {
       fireEvent.click(screen.getByRole('button', LOOK_CLOSER));
       expect(trackMock).toHaveBeenCalledWith('discovery_chip_shown', {
         feature: 'repetition',
-        dedupeKey: 'repetition:John:1:sword-NASB',
+        dedupeKey: 'discovery_chip_shown:repetition:John:1:sword-NASB',
       });
     });
 
@@ -375,7 +384,7 @@ describe('DiscoveryPanel', () => {
       render(<DiscoveryPanel />);
       expect(trackMock).toHaveBeenCalledWith('discovery_chip_shown', {
         feature: 'crossref',
-        dedupeKey: 'crossref:John:1:sword-NASB',
+        dedupeKey: 'discovery_chip_shown:crossref:John:1:sword-NASB',
       });
       cleanup();
       trackMock.mockClear();

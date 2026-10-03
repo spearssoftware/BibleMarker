@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { DEITY_SLUGS, buildChapterLine, formatAboutYear, isInChapter } from '../setting'
+import { DEITY_SLUGS, buildChapterLine, formatAboutYear, isForetoldIn, isInChapter } from '../setting'
 
 const base = {
   yearDisplay: '1921 BC',
@@ -70,5 +70,13 @@ describe('isInChapter', () => {
 
   it('rejects other books', () => {
     expect(isInChapter('Exod.12.1', 'Gen', 12)).toBe(false)
+  })
+})
+
+describe('isForetoldIn', () => {
+  it('is true only for a foretold person in an Old Testament book', () => {
+    expect(isForetoldIn('jesus-son-of-joseph', 'Gen')).toBe(true)
+    expect(isForetoldIn('jesus-son-of-joseph', 'Matt')).toBe(false)
+    expect(isForetoldIn('abraham', 'Gen')).toBe(false)
   })
 })

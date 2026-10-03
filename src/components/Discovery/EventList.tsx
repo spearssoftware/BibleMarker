@@ -7,14 +7,12 @@
  * Genesis 1–11, which has none.
  */
 
-import { useEffect, useState } from 'react';
 import { Button } from '@/components/shared';
 import { formatAboutYear, isPrimeval } from '@/lib/chapterAnalysis';
 import type { ChapterEvent } from '@/types';
 import { trackChip } from './discoveryTelemetry';
 import { MoreInReference, VerseLinks } from './InlineDetail';
-
-const VISIBLE_LIMIT = 5;
+import { useExpandableList } from './useExpandableList';
 
 interface EventListProps {
   events: ChapterEvent[];
@@ -24,32 +22,16 @@ interface EventListProps {
 }
 
 export function EventList({ events, book, chapter, translationId }: EventListProps) {
-  const [expandedSlug, setExpandedSlug] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(false);
+  const { shown, hidden, expandedSlug, toggle, showAll } = useExpandableList(events, () =>
+    trackChip('discovery_chip_tapped', 'setting_timeline', { book, chapter, translationId })
+  );
   const primeval = isPrimeval(book, chapter);
 
-  const hasEvents = events.length > 0;
-  useEffect(() => {
-    if (hasEvents) trackChip('discovery_chip_shown', 'setting_timeline', { book, chapter, translationId });
-  }, [hasEvents, book, chapter, translationId]);
-
-  if (!hasEvents) return null;
-
-  const visible = showAll ? events : events.slice(0, VISIBLE_LIMIT);
-  const hidden = events.length - visible.length;
-
-  const handleToggle = (slug: string) => {
-    if (expandedSlug === slug) {
-      setExpandedSlug(null);
-      return;
-    }
-    setExpandedSlug(slug);
-    trackChip('discovery_chip_tapped', 'setting_timeline', { book, chapter, translationId });
-  };
+  if (events.length === 0) return null;
 
   return (
     <ul className="space-y-1">
-      {visible.map(event => {
+      {shown.map(event => {
         const expanded = expandedSlug === event.slug;
         const year = !primeval && event.startYearDisplay ? formatAboutYear(event.startYearDisplay, { capitalized: false }) : null;
         const detailId = `event-detail-${event.slug}`;
@@ -59,7 +41,7 @@ export function EventList({ events, book, chapter, translationId }: EventListPro
               type="button"
               aria-expanded={expanded}
               aria-controls={detailId}
-              onClick={() => handleToggle(event.slug)}
+              onClick={() => toggle(event.slug)}
               className="w-full flex items-baseline justify-between gap-2 text-left px-2 py-1.5 rounded hover:bg-scripture-elevated text-sm"
             >
               <span className="text-scripture-text">{event.title}</span>
@@ -82,7 +64,7 @@ export function EventList({ events, book, chapter, translationId }: EventListPro
       })}
       {hidden > 0 && (
         <li>
-          <Button variant="ghost" size="sm" onClick={() => setShowAll(true)}>{`+${hidden} more`}</Button>
+          <Button variant="ghost" size="sm" onClick={showAll}>{`+${hidden} more`}</Button>
         </li>
       )}
     </ul>

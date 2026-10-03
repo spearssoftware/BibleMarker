@@ -162,7 +162,11 @@ export interface ChapterCrossRefIndex {
   crossRefs: ChapterCrossRef[];
 }
 
-/** A person named in a chapter, with the verses that name them. */
+/**
+ * A person named in a chapter, with the verses that name them. Providers
+ * return lists ordered by verses named (most first), then name, then slug;
+ * consumers rely on that order.
+ */
 export interface ChapterPerson {
   slug: string;
   name: string;

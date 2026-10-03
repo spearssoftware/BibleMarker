@@ -8,11 +8,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MapGL, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
-import { ensurePmtilesProtocol, getStyles, isTileError, boundsFor } from '@/lib/map/mapStyle';
+import { ensureMapLibreSetup, getStyles, isTileError, fitToCoords } from '@/lib/map/mapStyle';
 import type { GnosisPlace, Place, VerseRef } from '@/types';
 import { formatVerseRef } from '@/types';
 
-ensurePmtilesProtocol();
+ensureMapLibreSetup();
 
 interface PlaceMapProps {
   places: Place[];
@@ -102,14 +102,7 @@ export function PlaceMap({ places, gnosisPlaces = [], onNavigate }: PlaceMapProp
   const fitAll = useCallback(() => {
     const map = mapRef.current;
     if (!map || allCoords.length === 0) return;
-    if (allCoords.length === 1) {
-      map.flyTo({ center: allCoords[0], zoom: 8, duration: 0 });
-      return;
-    }
-    map.fitBounds(
-      boundsFor(allCoords),
-      { padding: 40, maxZoom: 10, duration: 0 }
-    );
+    fitToCoords(map, allCoords);
   }, [allCoords]);
 
   // Fly to selected place (either tracked or gnosis)

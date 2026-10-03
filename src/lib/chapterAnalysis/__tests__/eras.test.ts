@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ERA_BANDS, eraPosition, isPrimeval } from '../eras'
+import { ERA_BANDS, chapterEraPosition, eraPosition, isPrimeval } from '../eras'
 
 describe('ERA_BANDS', () => {
   it('has the eight labels in order', () => {
@@ -78,5 +78,14 @@ describe('isPrimeval', () => {
   it('is false for other books', () => {
     expect(isPrimeval('Exod', 1)).toBe(false)
     expect(isPrimeval('Matt', 1)).toBe(false)
+  })
+})
+
+describe('chapterEraPosition', () => {
+  it('is null while pending, centered in Beginnings for Genesis 1-11, and null when undated', () => {
+    expect(chapterEraPosition('Gen', 3, null, true)).toBeNull()
+    expect(chapterEraPosition('Gen', 3, null, false)).toEqual({ index: 0, fraction: 0.5 })
+    expect(chapterEraPosition('Ps', 23, null, false)).toBeNull()
+    expect(chapterEraPosition('Gen', 12, -1920, false)).toEqual(eraPosition(-1920))
   })
 })

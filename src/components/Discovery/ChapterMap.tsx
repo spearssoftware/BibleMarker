@@ -11,14 +11,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import MapGL, { Marker, type MapRef } from 'react-map-gl/maplibre';
 import { Button } from '@/components/shared';
 import { useMapAvailability } from '@/hooks/useMapAvailability';
-import { boundsFor, ensurePmtilesProtocol, getStyles } from '@/lib/map/mapStyle';
+import { ensureMapLibreSetup, fitToCoords, getStyles } from '@/lib/map/mapStyle';
 import type { ChapterPlace } from '@/types';
 import { VerseLinks } from './InlineDetail';
 
-ensurePmtilesProtocol();
-
-const SINGLE_PLACE_ZOOM = 8;
-const FIT_MAX_ZOOM = 10;
+ensureMapLibreSetup();
 
 interface ChapterMapCanvasProps {
   places: ChapterPlace[];
@@ -37,12 +34,7 @@ export function ChapterMapCanvas({ places, interactive, selectedSlug, onSelect, 
   const fitAll = useCallback(() => {
     const map = mapRef.current;
     if (!map || places.length === 0) return;
-    const coords = places.map(p => [p.longitude, p.latitude] as [number, number]);
-    if (coords.length === 1) {
-      map.flyTo({ center: coords[0], zoom: SINGLE_PLACE_ZOOM, duration: 0 });
-      return;
-    }
-    map.fitBounds(boundsFor(coords), { padding: 40, maxZoom: FIT_MAX_ZOOM, duration: 0 });
+    fitToCoords(map, places.map(p => [p.longitude, p.latitude] as [number, number]));
   }, [places]);
 
   useEffect(() => {
@@ -118,11 +110,6 @@ interface ChapterMapProps {
 
 export function ChapterMap({ places, book, chapter, onMarkerTap, onOpenFullMap }: ChapterMapProps) {
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
-  const [prevChapter, setPrevChapter] = useState({ book, chapter });
-  if (prevChapter.book !== book || prevChapter.chapter !== chapter) {
-    setPrevChapter({ book, chapter });
-    setSelectedSlug(null);
-  }
 
   if (places.length === 0) return null;
 

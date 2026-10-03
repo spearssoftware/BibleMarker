@@ -50,7 +50,7 @@ describe('WhosHereCard', () => {
   });
   afterEach(cleanup);
 
-  it('excludes deity slugs and orders by verses named', () => {
+  it('excludes deity slugs and keeps the provider order', () => {
     render(<WhosHereCard book="Gen" chapter={12} translationId="nasb" />);
     expect(screen.queryByText('God')).toBeNull();
     const names = screen.getAllByRole('button').map(b => b.textContent);

@@ -8,34 +8,19 @@
  * band so a band's first year doesn't sit on the seam.
  */
 
-import { useEffect } from 'react';
-import { ERA_BANDS, eraPosition, isPrimeval } from '@/lib/chapterAnalysis';
-import { trackChip } from './discoveryTelemetry';
+import { ERA_BANDS, chapterEraPosition } from '@/lib/chapterAnalysis';
 
 interface EraStripProps {
   book: string;
   chapter: number;
-  translationId: string;
   /** Astronomical chapter year (-4003 = 4004 BC); null when undated. */
   year: number | null;
   /** True while the chapter-year query is loading or errored. */
   yearPending: boolean;
 }
 
-export function EraStrip({ book, chapter, translationId, year, yearPending }: EraStripProps) {
-  const position = yearPending
-    ? null
-    : isPrimeval(book, chapter)
-      ? { index: 0, fraction: 0.5 }
-      : year === null
-        ? null
-        : eraPosition(year);
-
-  const visible = position !== null;
-  useEffect(() => {
-    if (visible) trackChip('discovery_chip_shown', 'setting_timeline', { book, chapter, translationId });
-  }, [visible, book, chapter, translationId]);
-
+export function EraStrip({ book, chapter, year, yearPending }: EraStripProps) {
+  const position = chapterEraPosition(book, chapter, year, yearPending);
   if (!position) return null;
 
   const left = `${((position.index + 0.1 + position.fraction * 0.8) / ERA_BANDS.length) * 100}%`;

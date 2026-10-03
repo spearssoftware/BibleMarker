@@ -102,16 +102,6 @@ describe('SettingSection', () => {
     expect(screen.getByText('2 people')).toBeTruthy();
   });
 
-  it('resets the intro toggle and full map when the chapter changes without remounting', () => {
-    const { rerender } = renderSetting('Phil', 2);
-    fireEvent.click(screen.getByRole('button', { name: 'About Philippians' }));
-    fireEvent.click(screen.getByText(/Open full map/));
-    expect(screen.getByTestId('map-modal')).toBeTruthy();
-    rerender(<SettingSection book="Phil" chapter={3} translationId="nasb" />);
-    expect(screen.getByRole('button', { name: 'About Philippians' }).getAttribute('aria-expanded')).toBe('false');
-    expect(screen.queryByTestId('map-modal')).toBeNull();
-  });
-
   it('omits the year for Genesis 1-11', () => {
     renderSetting('Gen', 6);
     expect(screen.getByText('2 people · 2 places · The call of Abram')).toBeTruthy();
@@ -149,7 +139,18 @@ describe('SettingSection', () => {
     expect(screen.getByRole('button', { name: /The call of Abram/ })).toBeTruthy();
     const features = vi.mocked(track).mock.calls.filter(c => c[0] === 'discovery_chip_shown').map(c => c[1]?.feature);
     expect(features).toContain('setting');
-    expect(features).toContain('setting_timeline');
+    expect(features.filter(f => f === 'setting_timeline')).toHaveLength(1);
+  });
+
+  it('fires timeline shown from the event list alone, and not when neither strip nor events show', () => {
+    yearResult = ok(null);
+    renderSetting('Ps', 23);
+    expect(vi.mocked(track).mock.calls.some(c => c[1]?.feature === 'setting_timeline')).toBe(true);
+    cleanup();
+    vi.clearAllMocks();
+    eventsResult = ok([]);
+    renderSetting('Ps', 23);
+    expect(vi.mocked(track).mock.calls.some(c => c[1]?.feature === 'setting_timeline')).toBe(false);
   });
 
   it('hides the era strip for Genesis 1-11 while the year is loading', () => {

@@ -23,7 +23,7 @@ vi.mock('@/lib/telemetry', () => ({
   track: (...args: unknown[]) => trackMock(...args),
 }));
 
-const anchors = { repetition: 'anchor-repetition', connector: 'anchor-connector', people: 'anchor-people', places: ['anchor-map', 'anchor-setting'] };
+const anchors = { repetition: ['anchor-repetition'], connector: ['anchor-connector'], people: ['anchor-people'], places: ['anchor-map', 'anchor-setting'] };
 
 function makeItems(overrides?: Partial<Record<LookAgainItem['id'], boolean>>): LookAgainItem[] {
   return [

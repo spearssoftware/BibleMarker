@@ -33,14 +33,14 @@ import { DiscoveryCard } from './DiscoveryCard';
 import type { LookAgainFollowUp, LookAgainItem } from '@/hooks/useLookAgain';
 
 /**
- * Scroll targets per row. A list is a fallback chain: the first id whose
+ * Scroll targets per row. Each list is a fallback chain: the first id whose
  * element is actually in the DOM wins (e.g. place → map, else Setting).
  */
 export interface LookAgainAnchors {
-  repetition?: string | string[];
-  connector?: string | string[];
-  people?: string | string[];
-  places?: string | string[];
+  repetition?: string[];
+  connector?: string[];
+  people?: string[];
+  places?: string[];
 }
 
 interface LookAgainCardProps {
@@ -97,7 +97,7 @@ function anchorElementFor(item: LookAgainItem, anchors: LookAgainAnchors): HTMLE
   const key = ANCHOR_KEY_FOR_ITEM[item.id];
   const ids = key ? anchors[key] : undefined;
   if (!ids) return null;
-  for (const id of typeof ids === 'string' ? [ids] : ids) {
+  for (const id of ids) {
     const el = document.getElementById(id);
     if (el) return el;
   }

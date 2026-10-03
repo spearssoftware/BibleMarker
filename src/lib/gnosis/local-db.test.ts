@@ -47,7 +47,7 @@ const state = vi.hoisted(() => ({
     osis_ref: string;
   }[],
   participantRows: [] as { event_slug: string; slug: string; name: string }[],
-  spreadRows: [] as { slug: string; osis_ref: string }[],
+  spreadRows: [] as { slug: string; book: string; first_key: number }[],
 }));
 
 const NOT_A_DB = 'error returned from database: (code: 26) file is not a database';
@@ -371,14 +371,10 @@ describe('mapPeopleSpreadRows', () => {
   it('computes firstRef by canonical order, not string order, and books in canonical order', async () => {
     const { mapPeopleSpreadRows } = await import('./local-db');
     const result = mapPeopleSpreadRows([
-      { slug: 'jesus-son-of-joseph', osis_ref: '1Chr.17.13' },
-      { slug: 'jesus-son-of-joseph', osis_ref: 'Matt.1.21' },
-      { slug: 'jesus-son-of-joseph', osis_ref: 'Matt.1.1' },
-      { slug: 'jesus-son-of-joseph', osis_ref: 'Gen.49.10' },
-      { slug: 'jesus-son-of-joseph', osis_ref: 'Gen.9.3' },
-      { slug: 'jesus-son-of-joseph', osis_ref: 'Gen.49.2' },
-      { slug: 'other', osis_ref: 'Gen.10.2' },
-      { slug: 'other', osis_ref: 'Gen.9.20' },
+      { slug: 'jesus-son-of-joseph', book: '1Chr', first_key: 17013 },
+      { slug: 'jesus-son-of-joseph', book: 'Matt', first_key: 1001 },
+      { slug: 'jesus-son-of-joseph', book: 'Gen', first_key: 9003 },
+      { slug: 'other', book: 'Gen', first_key: 9020 },
     ]);
     expect(result).toEqual([
       { slug: 'jesus-son-of-joseph', firstRef: 'Gen.9.3', firstNtRef: 'Matt.1.1', books: ['Gen', '1Chr', 'Matt'] },
@@ -389,10 +385,20 @@ describe('mapPeopleSpreadRows', () => {
   it('picks Gen.49.10 over 1Chr.17.13', async () => {
     const { mapPeopleSpreadRows } = await import('./local-db');
     const [jesus] = mapPeopleSpreadRows([
-      { slug: 'jesus-son-of-joseph', osis_ref: '1Chr.17.13' },
-      { slug: 'jesus-son-of-joseph', osis_ref: 'Gen.49.10' },
+      { slug: 'jesus-son-of-joseph', book: '1Chr', first_key: 17013 },
+      { slug: 'jesus-son-of-joseph', book: 'Gen', first_key: 49010 },
     ]);
     expect(jesus.firstRef).toBe('Gen.49.10');
+  });
+
+  it('picks the earliest NT book for firstNtRef and drops unknown books', async () => {
+    const { mapPeopleSpreadRows } = await import('./local-db');
+    const [jesus] = mapPeopleSpreadRows([
+      { slug: 'jesus-son-of-joseph', book: 'John', first_key: 1001 },
+      { slug: 'jesus-son-of-joseph', book: 'Matt', first_key: 1001 },
+      { slug: 'jesus-son-of-joseph', book: 'Nope', first_key: 1001 },
+    ]);
+    expect(jesus).toEqual({ slug: 'jesus-son-of-joseph', firstRef: 'Matt.1.1', firstNtRef: 'Matt.1.1', books: ['Matt', 'John'] });
   });
 });
 
@@ -422,10 +428,9 @@ describe('chapter data queries', () => {
     expect(call!.params).toEqual(['Gen.12.', 'Gen.12/']);
   });
 
-  it('getChapterEvents runs the participants query with the same range and skips it when there are no events', async () => {
+  it('getChapterEvents runs the participants query with the same range and returns nothing when there are no events', async () => {
     const db = await freshDb();
     await expect(db.getChapterEvents('Gen', 12)).resolves.toEqual([]);
-    expect(state.selectCalls.some((c) => c.sql.includes('FROM event_participant'))).toBe(false);
 
     state.eventRows = [
       { slug: 'abraham-enters-canaan', title: 'Abraham Enters Canaan', start_year_display: null, sort_key: 5, osis_ref: 'Gen.12.5' },
@@ -446,7 +451,7 @@ describe('chapter data queries', () => {
     await expect(db.getPeopleSpread([])).resolves.toEqual([]);
     expect(state.selectCalls.some((c) => c.sql.includes('p.slug IN'))).toBe(false);
 
-    state.spreadRows = [{ slug: 'abram', osis_ref: 'Gen.12.1' }];
+    state.spreadRows = [{ slug: 'abram', book: 'Gen', first_key: 12001 }];
     await expect(db.getPeopleSpread(['abram', 'sarai'])).resolves.toEqual([
       { slug: 'abram', firstRef: 'Gen.12.1', firstNtRef: null, books: ['Gen'] },
     ]);
@@ -454,6 +459,7 @@ describe('chapter data queries', () => {
     const call = state.selectCalls.find((c) => c.sql.includes('p.slug IN'));
     expect(call!.sql).toContain('p.slug IN (?1, ?2)');
     expect(call!.params).toEqual(['abram', 'sarai']);
+    expect(call!.sql).toContain('GROUP BY p.id, book');
   });
 });
 

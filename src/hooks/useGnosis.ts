@@ -37,6 +37,27 @@ export function useGnosis(): {
   return { provider, isAvailable: available, mode: getGnosisMode() };
 }
 
+/** In-flight queries per cache, keyed like the cache, so concurrent mounts share one query. */
+const inFlight = new WeakMap<LRUCache, Map<string, Promise<unknown>>>();
+
+function fetchOnce<T>(cache: LRUCache, key: string, run: () => Promise<T>): Promise<T> {
+  let pending = inFlight.get(cache);
+  if (!pending) {
+    pending = new Map();
+    inFlight.set(cache, pending);
+  }
+  const existing = pending.get(key);
+  if (existing) return existing as Promise<T>;
+  const promise = run()
+    .then(result => {
+      cache.set(key, result, CACHE_TTL.chapter);
+      return result;
+    })
+    .finally(() => pending.delete(key));
+  pending.set(key, promise);
+  return promise;
+}
+
 /**
  * Shared state machine behind `useChapterEntities` and
  * `useChapterEntityVerseIndex`: render-time cache-key sync (serves a cache
@@ -45,8 +66,10 @@ export function useGnosis(): {
  * set-state-in-effect lint and an extra render), `isLoading` semantics (reset
  * on a cache-key change too, so an in-flight previous-key fetch's cancelled
  * `finally` can't leave it stuck `true` after navigating to a cached chapter),
- * and the cancelled-guard fetch effect. `fetcher` is read through a ref so a
- * fresh closure identity each render doesn't retrigger the effect (same
+ * and the cancelled-guard fetch effect. Concurrent mounts of the same key
+ * share one in-flight query (`fetchOnce`), which also fills the cache.
+ * `fetcher` is read through a ref so a fresh closure identity each render
+ * doesn't retrigger the effect (same
  * pattern as `useGnosisEntity`'s `fetcherRef` below) — only `book`/`chapter`/
  * `enabled`/`keySuffix` identity changes should restart the fetch.
  *
@@ -96,11 +119,8 @@ function useCachedChapterQuery<T>(
       setIsLoading(true);
       setError(null);
       try {
-        const result = await fetcherRef.current(book, chapter);
-        if (!cancelled) {
-          setData(result);
-          cache.set(key, result, CACHE_TTL.chapter);
-        }
+        const result = await fetchOnce(cache, key, () => fetcherRef.current(book, chapter));
+        if (!cancelled) setData(result);
       } catch (e) {
         console.error('[Gnosis] Chapter query error:', e);
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));

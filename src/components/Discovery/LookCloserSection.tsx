@@ -9,7 +9,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { useLookCloserState } from '@/hooks/useLookCloserOpen';
+import { useLookCloserState } from '@/hooks/useLookCloserState';
 import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
 import { trackChip } from './discoveryTelemetry';
 
