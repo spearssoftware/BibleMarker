@@ -163,7 +163,7 @@ Error handling: use `BibleApiError`, check `isNetworkError()` / `isOnline()`, us
 
 ## Running the App
 
-The `justfile` wraps the commands below — run `just` to list recipes. `just check` runs the full CI gate (lint, typecheck, tests, Rust fmt + clippy).
+The `justfile` wraps the commands below — run `just` to list recipes. `just check` runs the full CI gate (lint, typecheck, tests, web build, Rust fmt + clippy).
 
 ```bash
 pnpm run tauri:dev        # Desktop dev (sets CARGO_HOME, unsets CI)

@@ -1,8 +1,5 @@
-# Task runner for BibleMarker. `just` with no arguments lists these.
-#
-# Recipes wrap the pnpm scripts and cargo commands CI runs, so CI and the
-# package.json scripts stay the source of truth. Cargo runs with CARGO_HOME in
-# the workspace, matching scripts/tauri.sh.
+# Task runner for BibleMarker. Recipes wrap the pnpm scripts and cargo commands
+# CI runs; cargo uses the workspace CARGO_HOME, matching scripts/tauri.sh.
 
 set positional-arguments
 
@@ -21,8 +18,8 @@ setup:
 dev:
     pnpm run tauri:dev
 
-# The full gate CI runs: lint, typecheck, tests, Rust format and clippy.
-check: lint typecheck test fmt-check clippy
+# The full gate CI runs, cheapest first: Rust format, lint, typecheck, tests, web build, clippy.
+check: fmt-check lint typecheck test web-build clippy
 
 # Run ESLint.
 lint:
@@ -40,17 +37,24 @@ test *args:
 test-watch:
     pnpm run test:watch
 
+# Build the web frontend only (tsc -b + vite), as CI does.
+web-build:
+    pnpm build
+
 # Format the Rust code.
+[working-directory: 'src-tauri']
 fmt:
-    cd src-tauri && cargo fmt
+    cargo fmt
 
 # Fail if the Rust code is not formatted.
+[working-directory: 'src-tauri']
 fmt-check:
-    cd src-tauri && cargo fmt --check
+    cargo fmt --check
 
 # Lint the Rust code. Needs the SWORD modules and gnosis-lite.db in src-tauri/resources.
+[working-directory: 'src-tauri']
 clippy:
-    cd src-tauri && cargo clippy -- -D warnings
+    cargo clippy -- -D warnings
 
 # Build the desktop app for production.
 build:
@@ -77,14 +81,17 @@ android-build:
     pnpm run android:build
 
 # Run the sync worker locally.
+[working-directory: 'worker']
 worker-dev:
-    pnpm --dir worker run dev
+    pnpm run dev
 
 # Typecheck and test the sync worker.
+[working-directory: 'worker']
 worker-check:
-    pnpm --dir worker run typecheck
-    pnpm --dir worker test
+    pnpm run typecheck
+    pnpm test
 
 # Deploy the sync worker to production.
+[working-directory: 'worker']
 worker-deploy:
-    pnpm --dir worker run publish
+    pnpm run publish
