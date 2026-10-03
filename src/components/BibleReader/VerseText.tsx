@@ -892,9 +892,14 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
     // keyword list — the lens span wraps the annotation-group span, so
     // `.closest('.lens-connector')` finds it first regardless of nesting.
     if (lens?.kind === 'crossRefs' && lens.crossRefKey && lens.onCrossRefTap) {
-      // Whole-verse lens: any simple tap on a bright verse opens its passages.
+      // Whole-verse lens: a simple tap on a bright verse opens its passages —
+      // except on a keyword, remove button, or cross-reference link, which keep
+      // their own behavior below.
       const sel = window.getSelection();
-      if (!sel || sel.isCollapsed) {
+      const onOwnTarget = target.closest(
+        `${onKeywordTap ? '.annotation-group, ' : ''}.annotation-remove, .cross-ref`
+      );
+      if (!onOwnTarget && (!sel || sel.isCollapsed)) {
         e.preventDefault();
         e.stopPropagation();
         lens.onCrossRefTap(lens.crossRefKey);

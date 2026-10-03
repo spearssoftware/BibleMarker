@@ -174,6 +174,44 @@ describe('VerseText — cross-reference lens', () => {
     expect(onCrossRefTap).toHaveBeenCalledWith('John.1:1:Gen.1.1');
   });
 
+  it('leaves a tap on a marked keyword to the keyword list, and opens the row for taps elsewhere', () => {
+    const presetId = '11111111-1111-1111-1111-111111111111';
+    const text = 'In the beginning was the Word.';
+    const kwVerse: Verse = { ref: { book: 'John', chapter: 1, verse: 1 }, text };
+    const start = text.indexOf('Word');
+    const annotation: TextAnnotation = {
+      id: 'ann-kw',
+      moduleId: 'sword-NASB',
+      type: 'highlight',
+      presetId,
+      startRef: kwVerse.ref,
+      endRef: kwVerse.ref,
+      startOffset: start,
+      endOffset: start + 'Word'.length,
+      color: 'yellow',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const onCrossRefTap = vi.fn();
+    const onKeywordTap = vi.fn();
+    const { container } = render(
+      <VerseText
+        verse={kwVerse}
+        annotations={[annotation]}
+        moduleId="sword-NASB"
+        onKeywordTap={onKeywordTap}
+        lens={{ kind: 'crossRefs', crossRefKey: 'John.1:1:Gen.1.1', onCrossRefTap }}
+      />
+    );
+
+    fireEvent.click(container.querySelector('.annotation-group .annotation-text')!);
+    expect(onKeywordTap).toHaveBeenCalledWith(presetId, { book: 'John', chapter: 1, verse: 1 });
+    expect(onCrossRefTap).not.toHaveBeenCalled();
+
+    fireEvent.click(container.querySelector('.verse-content')!);
+    expect(onCrossRefTap).toHaveBeenCalledWith('John.1:1:Gen.1.1');
+  });
+
   it('ignores taps on a dimmed verse', () => {
     const onCrossRefTap = vi.fn();
     const { container } = render(

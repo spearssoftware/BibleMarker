@@ -27,7 +27,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { LAYOUT_REKEY_MS } from '@/components/BibleReader/layoutConstants';
 import type { CrossRefPassageRow } from '@/hooks/useCrossRefPassages';
 import { track } from '@/lib/telemetry';
-import { pluralize, agree } from '@/lib/textUtils';
+import { pluralize } from '@/lib/textUtils';
 import { tokenizeVerse, wordStem } from '@/lib/chapterAnalysis';
 
 interface CrossRefsCardProps {
@@ -133,6 +133,16 @@ function CrossRefRow({ row, active, onToggle, expand }: CrossRefRowProps) {
   useEffect(() => {
     if (active && row.status === 'idle') expand(row.key);
   }, [active, row.status, row.key, expand]);
+
+  // A failed fetch retries when the row is re-opened — keyed on `active` only,
+  // so a row that keeps failing doesn't loop while it stays open.
+  const statusRef = useRef(row.status);
+  useEffect(() => {
+    statusRef.current = row.status;
+  });
+  useEffect(() => {
+    if (active && statusRef.current === 'error') expand(row.key);
+  }, [active, row.key, expand]);
 
   const shared = row.shared;
   const hasShared = shared.length > 0;
@@ -292,7 +302,7 @@ export function CrossRefsCard({ rows, expand, book, chapter }: CrossRefsCardProp
     track('discovery_chip_tapped', { feature: 'crossref', dedupeKey: `crossref-tap:${row.key}` });
   };
 
-  const title = `${pluralize(rows.length, 'verse')} here ${agree(rows.length, 'connects', 'connect')} to older Scripture`;
+  const title = `${pluralize(rows.length, 'verse')} to read alongside older Scripture`;
 
   return (
     <DiscoveryCard title={title}>

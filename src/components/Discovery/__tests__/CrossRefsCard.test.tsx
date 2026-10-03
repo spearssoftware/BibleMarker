@@ -63,7 +63,7 @@ describe('CrossRefsCard', () => {
 
   it('agrees the title, shows the intro line and lens toggle for n=1', () => {
     renderCard([makeCrossRefPassageRow()]);
-    expect(screen.getByText('1 verse here connects to older Scripture')).toBeTruthy();
+    expect(screen.getByText('1 verse to read alongside older Scripture')).toBeTruthy();
     expect(screen.getByText('Read them together — what do they share?')).toBeTruthy();
     expect(screen.getByRole('switch', { name: 'Show connecting verses in the text' })).toBeTruthy();
   });
@@ -73,7 +73,7 @@ describe('CrossRefsCard', () => {
       makeCrossRefPassageRow(),
       makeCrossRefPassageRow({ crossRef: makeChapterCrossRef({ verse: 14, targetRef: 'Isa.40.5' }) }),
     ]);
-    expect(screen.getByText('2 verses here connect to older Scripture')).toBeTruthy();
+    expect(screen.getByText('2 verses to read alongside older Scripture')).toBeTruthy();
   });
 
   it('toggles the cross-reference lens and fires lens_toggled', () => {
@@ -249,6 +249,23 @@ describe('CrossRefsCard', () => {
     expect(document.querySelectorAll('mark')).toHaveLength(0);
     expect(screen.queryByRole('button', { name: 'Find them yourself' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Go to Isaiah 53:7' })).toBeTruthy();
+  });
+
+  it('retries a failed row when it is re-opened, but not on every re-render', () => {
+    const errorRow = lambRow({ status: 'error', targetVerses: [], shared: [] });
+    const { rerender } = renderCard([errorRow]);
+    expect(expandMock).not.toHaveBeenCalled();
+
+    act(() => useDiscoveryStore.setState({ activeCrossRefKey: ROW_KEY }));
+    expect(expandMock).toHaveBeenCalledTimes(1);
+    expect(expandMock).toHaveBeenCalledWith(ROW_KEY);
+
+    rerender(<CrossRefsCard rows={[{ ...errorRow }]} expand={expandMock} book="John" chapter={1} />);
+    expect(expandMock).toHaveBeenCalledTimes(1);
+
+    act(() => useDiscoveryStore.setState({ activeCrossRefKey: null }));
+    act(() => useDiscoveryStore.setState({ activeCrossRefKey: ROW_KEY }));
+    expect(expandMock).toHaveBeenCalledTimes(2);
   });
 
   it('shows a loading state and an error state with a jump button', () => {

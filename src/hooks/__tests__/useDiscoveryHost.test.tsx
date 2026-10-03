@@ -40,14 +40,16 @@ vi.mock('@/lib/discovery-config', () => ({
 }));
 
 let mockCrossRefIndex: ChapterCrossRefIndex | null = null;
-const crossRefIndexMock = vi.fn(() => ({ index: mockCrossRefIndex, isLoading: false, error: null }));
+let mockIndexLoading = false;
+const crossRefIndexMock = vi.fn(() => ({ index: mockCrossRefIndex, isLoading: mockIndexLoading, error: null }));
 vi.mock('@/hooks/useGnosis', () => ({
   useChapterCrossRefIndex: (...args: unknown[]) => crossRefIndexMock(...(args as [])),
 }));
 
 let mockRows: CrossRefPassageRow[] = [];
 const expandMock = vi.fn();
-const crossRefPassagesMock = vi.fn(() => ({ rows: mockRows, expand: expandMock }));
+let mockPassagesLoading = false;
+const crossRefPassagesMock = vi.fn(() => ({ rows: mockRows, expand: expandMock, isLoading: mockPassagesLoading }));
 vi.mock('@/hooks/useCrossRefPassages', () => ({
   useCrossRefPassages: (...args: unknown[]) => crossRefPassagesMock(...(args as [])),
 }));
@@ -83,6 +85,8 @@ describe('useDiscoveryHost', () => {
     crossRefPassagesMock.mockClear();
     mockCrossRefIndex = null;
     mockRows = [];
+    mockIndexLoading = false;
+    mockPassagesLoading = false;
     useAnnotationStore.setState({ selection: null });
     useDiscoveryStore.setState({
       context: null,
@@ -262,6 +266,7 @@ describe('useDiscoveryHost', () => {
     mockCrossRefIndex = makeChapterCrossRefIndex();
     const row = makeCrossRefPassageRow();
     mockRows = [row];
+    usePanelStore.setState({ activePanel: 'discovery' });
 
     renderHost(baseProps);
 
@@ -271,7 +276,100 @@ describe('useDiscoveryHost', () => {
   });
 
   it('passes `enabled` through to the cross-reference index query', () => {
+    usePanelStore.setState({ activePanel: 'discovery' });
     renderHost({ ...baseProps, enabled: false });
     expect(crossRefIndexMock).toHaveBeenCalledWith('John', 1, DEFAULT_DISCOVERY_THRESHOLDS.crossRefMinVotes, false);
+  });
+
+  describe('cross-reference work gating', () => {
+    it('does not query or fetch while the panel is closed and the lens is off', () => {
+      mockCrossRefIndex = makeChapterCrossRefIndex();
+      renderHost(baseProps);
+
+      expect(crossRefIndexMock).toHaveBeenLastCalledWith('John', 1, DEFAULT_DISCOVERY_THRESHOLDS.crossRefMinVotes, false);
+      expect(crossRefPassagesMock).toHaveBeenLastCalledWith([], 'John', 1, 'sword-NASB');
+    });
+
+    it('starts loading when the Discover panel opens', () => {
+      mockCrossRefIndex = makeChapterCrossRefIndex();
+      renderHost(baseProps);
+
+      act(() => {
+        usePanelStore.setState({ activePanel: 'discovery' });
+      });
+
+      expect(crossRefIndexMock).toHaveBeenLastCalledWith('John', 1, DEFAULT_DISCOVERY_THRESHOLDS.crossRefMinVotes, true);
+      expect(crossRefPassagesMock).toHaveBeenLastCalledWith(mockCrossRefIndex.crossRefs, 'John', 1, 'sword-NASB');
+    });
+
+    it('keeps loading while the cross-reference lens is on and the panel is closed, including on the next chapter', () => {
+      mockCrossRefIndex = makeChapterCrossRefIndex();
+      mockRows = [makeCrossRefPassageRow()];
+      const { rerender } = renderHost(baseProps);
+
+      act(() => {
+        useDiscoveryStore.setState({ lens: 'crossRefs' });
+      });
+      expect(crossRefIndexMock).toHaveBeenLastCalledWith('John', 1, DEFAULT_DISCOVERY_THRESHOLDS.crossRefMinVotes, true);
+
+      rerender({ ...baseProps, currentChapter: 2 });
+      act(() => {
+        useDiscoveryStore.setState({ lens: 'crossRefs' });
+      });
+      expect(crossRefIndexMock).toHaveBeenLastCalledWith('John', 2, DEFAULT_DISCOVERY_THRESHOLDS.crossRefMinVotes, true);
+      expect(crossRefPassagesMock).toHaveBeenLastCalledWith(mockCrossRefIndex.crossRefs, 'John', 2, 'sword-NASB');
+    });
+  });
+
+  describe('cross-reference lens auto-off', () => {
+    it('turns the lens off once the chapter has settled with no rows', () => {
+      mockCrossRefIndex = makeChapterCrossRefIndex();
+      mockRows = [];
+      renderHost(baseProps);
+
+      act(() => {
+        useDiscoveryStore.setState({ lens: 'crossRefs' });
+      });
+
+      expect(useDiscoveryStore.getState().lens).toBeNull();
+    });
+
+    it('leaves the lens on while the index or passages are still loading', () => {
+      mockCrossRefIndex = makeChapterCrossRefIndex();
+      mockRows = [];
+      mockPassagesLoading = true;
+      const { rerender } = renderHost(baseProps);
+
+      act(() => {
+        useDiscoveryStore.setState({ lens: 'crossRefs' });
+      });
+      expect(useDiscoveryStore.getState().lens).toBe('crossRefs');
+
+      mockPassagesLoading = false;
+      mockIndexLoading = true;
+      rerender(baseProps);
+      expect(useDiscoveryStore.getState().lens).toBe('crossRefs');
+
+      mockIndexLoading = false;
+      rerender(baseProps);
+      expect(useDiscoveryStore.getState().lens).toBeNull();
+    });
+
+    it('leaves the lens on when rows exist, and leaves the connector lens alone', () => {
+      mockCrossRefIndex = makeChapterCrossRefIndex();
+      mockRows = [makeCrossRefPassageRow()];
+      renderHost(baseProps);
+
+      act(() => {
+        useDiscoveryStore.setState({ lens: 'crossRefs' });
+      });
+      expect(useDiscoveryStore.getState().lens).toBe('crossRefs');
+
+      mockRows = [];
+      act(() => {
+        useDiscoveryStore.setState({ lens: 'connectors' });
+      });
+      expect(useDiscoveryStore.getState().lens).toBe('connectors');
+    });
   });
 });

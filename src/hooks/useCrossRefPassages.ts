@@ -21,7 +21,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchChapter } from '@/lib/bible-api';
-import { canonSectionFor, findSharedWords, formatCrossRefTarget } from '@/lib/chapterAnalysis';
+import { findSharedWords, formatCrossRefTarget } from '@/lib/chapterAnalysis';
 import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { formatVerseRef, parseOsisRef } from '@/types';
 import type { Chapter, ChapterCrossRef } from '@/types';
@@ -34,7 +34,6 @@ const MAX_CACHE_ENTRIES = 20;
 export interface CrossRefPassageRow {
   key: string;
   crossRef: ChapterCrossRef;
-  section: string | undefined;
   label: string;
   jumpTarget?: { book: string; chapter: number; verse: number };
   sourceRefLabel: string;
@@ -48,7 +47,6 @@ export interface CrossRefPassageRow {
 interface CrossRefCandidate {
   key: string;
   crossRef: ChapterCrossRef;
-  section: string | undefined;
   label: string;
   jumpTarget: { book: string; chapter: number; verse: number };
   sourceRefLabel: string;
@@ -77,8 +75,9 @@ function getCachedChapter(translationId: string, book: string, chapter: number):
 
   const promise = fetchChapter(translationId, book, chapter);
   promise.catch(() => {
-    // A failed fetch shouldn't poison the cache for a retry later.
-    chapterCache.delete(key);
+    // A failed fetch shouldn't poison the cache for a retry later — but only
+    // evict our own entry, not a newer one stored under the same key.
+    if (chapterCache.get(key) === promise) chapterCache.delete(key);
   });
   chapterCache.set(key, promise);
   if (chapterCache.size > MAX_CACHE_ENTRIES) {
@@ -110,7 +109,6 @@ function buildCandidate(book: string, chapter: number, crossRef: ChapterCrossRef
   return {
     key: `${book}.${chapter}:${crossRef.verse}:${crossRef.targetRef}`,
     crossRef,
-    section: canonSectionFor(target.book),
     label: formatCrossRefTarget(crossRef.targetRef, crossRef.targetEndRef),
     jumpTarget: { book: target.book, chapter: target.chapter, verse: target.verse },
     sourceRefLabel: formatVerseRef(book, chapter, crossRef.verse),
@@ -135,7 +133,6 @@ function toRow(candidate: CrossRefCandidate, sourceText: string | null, state: R
   return {
     key: candidate.key,
     crossRef: candidate.crossRef,
-    section: candidate.section,
     label: candidate.label,
     jumpTarget: candidate.jumpTarget,
     sourceRefLabel: candidate.sourceRefLabel,
@@ -151,7 +148,7 @@ export function useCrossRefPassages(
   book: string,
   chapter: number,
   translationId: string
-): { rows: CrossRefPassageRow[]; expand: (key: string) => void } {
+): { rows: CrossRefPassageRow[]; expand: (key: string) => void; isLoading: boolean } {
   const isLocal = translationId.startsWith('sword-');
 
   const activeTranslationId = useActiveChapterStore(s => s.translationId);
@@ -270,5 +267,9 @@ export function useCrossRefPassages(
       .map(candidate => toRow(candidate, getSourceText(candidate.crossRef.verse), rowStates[candidate.key]));
   }, [matches, isLocal, localRows, candidates, rowStates, getSourceText]);
 
-  return { rows, expand };
+  // `rows` is [] both while the local path is still settling and once it has
+  // settled with nothing to show; `isLoading` tells the two apart.
+  const isLoading = !matches || (isLocal && candidates.length > 0 && localRows === null);
+
+  return { rows, expand, isLoading };
 }

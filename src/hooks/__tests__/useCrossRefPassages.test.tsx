@@ -156,6 +156,25 @@ describe('useCrossRefPassages', () => {
       await waitFor(() => expect(result.current.rows[0].status).toBe('error'));
     });
 
+    it('retries a failed row when expand is called again', async () => {
+      seedActiveChapter('esv', 'John', 1, { 29: 'Behold, the Lamb of God' });
+      const crossRefs = [makeChapterCrossRef({ verse: 29, targetRef: 'Isa.53.7' })];
+      fetchChapterMock.mockRejectedValueOnce(new Error('network down'));
+
+      const { result } = renderHook(() => useCrossRefPassages(crossRefs, 'John', 1, 'esv'));
+      act(() => {
+        result.current.expand(result.current.rows[0].key);
+      });
+      await waitFor(() => expect(result.current.rows[0].status).toBe('error'));
+
+      fetchChapterMock.mockResolvedValueOnce(makeChapter('Isa', 53, { 7: 'He was led like a lamb' }));
+      act(() => {
+        result.current.expand(result.current.rows[0].key);
+      });
+      await waitFor(() => expect(result.current.rows[0].status).toBe('ready'));
+      expect(fetchChapterMock).toHaveBeenCalledTimes(2);
+    });
+
     it('returns multiple target verses for a same-chapter range, and only the start verse for a cross-chapter range', async () => {
       seedActiveChapter('esv', 'John', 1, {
         1: 'source verse one',

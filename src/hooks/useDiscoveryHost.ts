@@ -105,6 +105,8 @@ export function useDiscoveryHost({
   // 3. The kill-switch (or a losing race with a chapter that turns out to
   // have no analysis) can turn `enabled` off while the lens is mid-toggle —
   // clear it so VerseText doesn't keep dimming with no control left for it.
+  // (The cross-reference lens is also cleared when it has nothing to light —
+  // see the effect after the cross-reference passages below.)
   useEffect(() => {
     if (!enabled) setLens(null);
   }, [enabled, setLens]);
@@ -113,9 +115,18 @@ export function useDiscoveryHost({
   // cross-reference lens can light the right verses while the panel is
   // closed, and so a row's fetched passage survives the panel closing.
   const { crossRefMinVotes } = useDiscoveryConfig();
-  const { index: crossRefIndex } = useChapterCrossRefIndex(currentBook, currentChapter, crossRefMinVotes, enabled);
-  const { rows, expand } = useCrossRefPassages(
-    crossRefIndex?.crossRefs ?? NO_CROSS_REFS,
+  // Only do the work (index query + up to 6 chapter fetches) while something
+  // can show it: the Discover panel is open, or the lens is already on.
+  const discoverOpen = usePanelStore(s => s.activePanel === 'discovery');
+  const lens = useDiscoveryStore(s => s.lens);
+  const crossRefsActive = enabled && (discoverOpen || lens === 'crossRefs');
+  const {
+    index: crossRefIndex,
+    isLoading: indexLoading,
+    error: indexError,
+  } = useChapterCrossRefIndex(currentBook, currentChapter, crossRefMinVotes, crossRefsActive);
+  const { rows, expand, isLoading: passagesLoading } = useCrossRefPassages(
+    crossRefsActive ? crossRefIndex?.crossRefs ?? NO_CROSS_REFS : NO_CROSS_REFS,
     currentBook,
     currentChapter,
     primaryTranslationId ?? ''
@@ -123,6 +134,14 @@ export function useDiscoveryHost({
   useEffect(() => {
     setCrossRefPassages({ rows, expand });
   }, [rows, expand, setCrossRefPassages]);
+
+  // A lens left on with nothing to light would dim the whole chapter with no
+  // way back. Wait until both the index and the passages have settled so the
+  // brief loading window after a chapter change doesn't switch it off.
+  const crossRefsSettled = !indexLoading && !passagesLoading && (crossRefIndex !== null || indexError !== null);
+  useEffect(() => {
+    if (lens === 'crossRefs' && crossRefsSettled && rows.length === 0) setLens(null);
+  }, [lens, crossRefsSettled, rows.length, setLens]);
 
   // 5. Repetition confirm: once the reader selects the exact word themselves
   // in the primary translation column, mark it found. If the Discover panel
