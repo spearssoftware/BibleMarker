@@ -71,14 +71,14 @@ Rendered in this order inside one section:
 3. **Mini map.** A static inline map with one marker per place in the chapter that has latitude and longitude.
    - The map does not pan or zoom. Its view fits all markers. With a single marker, it centers on that marker at a fixed zoom.
    - Tapping a marker shows the place name and the verses in this chapter that name it (for example `Verses 6, 8`). Tapping a verse jumps the reader to that verse.
-   - An `Open full map` link opens a full-screen modal with the same places on a pannable, zoomable map. The modal is read-only and writes no user data. It closes back to the Discover panel.
+   - An `Open full map` link opens a large modal (80% of the viewport height, the shared `Modal` maximum) with the same places on a pannable, zoomable map. The modal is read-only and writes no user data. It closes back to the Discover panel.
    - The map is hidden when no place in the chapter has coordinates.
 4. **Era strip ("you are here").** A horizontal strip of eight equal-width era bands, with a marker for this chapter.
    - Bands, in order: `Beginnings`, `Patriarchs`, `Exodus & Wilderness`, `Judges`, `Kingdom`, `Exile`, `Return`, `Jesus & the Church`. Each band has a start year and an end year, drafted by the agent and reviewed by the product owner.
    - The marker is placed proportionally to the chapter year within its band's start-to-end range.
    - Genesis 1–11: the marker sits in `Beginnings`, centered, with no year shown.
    - The strip shows the band label of the chapter's band. It is hidden when the chapter has no year and is not Genesis 1–11.
-5. **Event list.** This chapter's Gnosis events, ordered by `sortKey`, then by `slug`. Each row shows the event title, plus `about <startYearDisplay>` when one exists. Tapping a row expands it inline (see Inline detail).
+5. **Event list.** This chapter's Gnosis events, ordered by `sortKey`, then by `slug`. Shows up to 5 rows, with a `+N more` expander for the rest (Genesis 11 has about 30 events). Each row shows the event title, plus `about <startYearDisplay>` when one exists, except in Genesis 1–11. Tapping a row expands it inline (see Inline detail).
    - Hidden when the chapter has no events.
 
 ### Who's here
@@ -88,7 +88,7 @@ Replaces `PeoplePlacesCard`.
 - Shows up to 5 rows, ordered by the number of verses in this chapter that name the person (most first), then by name, then by slug. When there are more, a `+N more` expander reveals the rest.
 - Each row shows:
   - the person's name
-  - `First appears in <reference>` from `firstMention`, formatted with `parseOsisRef` / `formatVerseRef`; or `First time in Scripture` when `firstMention` falls in this chapter
+  - `First appears in <reference>`, the person's canonically first verse computed from `person_verse` (not `person.first_mention`, which is wrong for some people), formatted with `formatVerseRef`; or `First time in Scripture` when that verse falls in this chapter
   - `Named in N verses here` (`Named in 1 verse here` when N is 1)
 - When two people in the chapter share a name, each row is still listed separately. The first-appears reference tells them apart.
 - Tapping a row expands it inline (see Inline detail).
@@ -98,7 +98,7 @@ Replaces `PeoplePlacesCard`.
 
 Tapping a Who's here or event-list row expands it in place. It does not leave the Discover panel.
 - **Person:** the books they are named in (`Named in Genesis, Exodus, and 13 other books` style: up to 3 book names, then `and N other books`), plus the verses in this chapter that name them, each tappable to jump.
-- **Event:** its year (`about <startYearDisplay>`) when present, its participants and locations by name, and the verses in this chapter linked to it, each tappable.
+- **Event:** its year (`about <startYearDisplay>`) when present, its participants by name (Gnosis has no event-location data), and the verses in this chapter linked to it, each tappable.
 - Both show a `More in Reference` link that opens the Reference panel on that entity's `PersonDetail` / `EventDetail`. This leaves the Discover panel. Phase 3a fixes the existing `referenceEntitySlug` deep link, which currently renders `No detail view for type: search` (`ReferenceToolsPanel.tsx`), so it opens the correct detail view.
 
 ### Worth noticing (3b)
@@ -127,7 +127,7 @@ Phase 3b adds a `Later in Scripture` group below:
 A collapsible section containing, in order: Repetition (`RepetitionCard`), Connectors (`ConnectorsCard`), Look-Again (`LookAgainCard`).
 - Default state: collapsed when `inductiveToolsEnabled` is false, expanded when true. Until `preferencesStore` is hydrated, it renders collapsed and does not animate when hydration flips it open.
 - When the reader toggles it, the state persists on this device only (Zustand `persist`, not the synced SQLite `preferences` row) and survives an app restart. Once the reader has toggled it, their choice wins over the mode default.
-- Look-Again's person and place rows today scroll to the `peoplePlaces` anchor. In Phase 3a both scroll to the Who's here section. Repetition and connector rows keep scrolling to their cards, which are inside Look closer and so already visible.
+- Look-Again's person and place rows today scroll to the `peoplePlaces` anchor. In Phase 3a person rows scroll to Who's here (or Setting when Who's here is hidden) and place rows scroll to the Setting map (or Setting when there is no map); Who's here lists people only. Repetition and connector rows keep scrolling to their cards, which are inside Look closer and so already visible.
 
 ## Data and interfaces
 
@@ -140,7 +140,7 @@ Both are drafted by the agent and reviewed by the product owner.
 
 ### Deity exclusion
 
-Gnosis person slugs `god` and `holy-spirit` are excluded from Who's here, the people count, "only here", and "reach". `jesus` is included.
+Gnosis person slugs `god` and `holy-spirit` are excluded from Who's here, the people count, "only here", and "reach". Jesus is included (`jesus-son-of-joseph` in Gnosis; the `jesus` slug is Jesus Justus, Col 4:11).
 
 ### Canonical order and the "later" rule
 
@@ -155,7 +155,7 @@ Gnosis person slugs `god` and `holy-spirit` are excluded from Who's here, the pe
 | Chapter people, places, events | `getChapterEntities` |
 | Place coordinates | `place.latitude` / `place.longitude` |
 | Place verses | `place_verse` |
-| Person verses, first mention | `person_verse`, `person.first_mention` (OSIS string) |
+| Person verses, first appearance | `person_verse` (first appearance computed in canonical order) |
 | Event order and details | `event.sort_key`, `event_participant`, `event_verse` |
 | Cross-references | `cross_reference` (votes may be negative) |
 
@@ -163,7 +163,7 @@ Gnosis person slugs `god` and `holy-spirit` are excluded from Who's here, the pe
 
 Added as optional provider capabilities, following the existing pattern in `src/lib/gnosis/provider.ts`. `GnosisApiClient` does not implement them, and the UI hides the dependent pieces when they are absent.
 
-- **Chapter people with counts:** each person in a chapter with the count of verses in this chapter that name them, and their `first_mention`. One query per chapter, not one `getPerson` per person.
+- **Chapter people with counts:** each person in a chapter with the count of verses in this chapter that name them, One query per chapter, not one `getPerson` per person.
 - **Chapter places with verses:** each place in a chapter with coordinates and the verse numbers in this chapter that name it.
 - **Entity book spread (3b and inline detail):** for a set of person or place ids, the distinct books and the canonical-first verse. Used for "only here", "reach", place first mention, and the inline person detail. One batched query per chapter.
 - **Forward cross-references (3b):** the chapter's cross-references with votes at or above `crossRefMinVotes`, filtered in TypeScript by the "later" rule, then deduped.
@@ -314,8 +314,8 @@ All events are deduped per `{book, chapter, translation}`, matching `DiscoveryPa
 | Who's here content | Name, first appearance, verses named here; no name meaning | `name_meaning` is a dictionary article | User |
 | Who's here cap | 5, with `+N more` | Crowded genealogy chapters | User |
 | Person/event tap | Inline expand + `More in Reference` (fix the deep link) | Keep readers in Discover | User |
-| Full map | Read-only full-screen modal, not the Analyze panel | Analyze is inductive-mode UI and can write `Place` rows | User |
-| Deity exclusion | Exclude `god`, `holy-spirit`; keep `jesus` | God tops every count otherwise | User |
+| Full map | Read-only large modal, not the Analyze panel | Analyze is inductive-mode UI and can write `Place` rows | User |
+| Deity exclusion | Exclude `god`, `holy-spirit`; keep Jesus | God tops every count otherwise | User |
 | Look closer default | Collapsed in discovery mode, expanded in inductive mode, reader's toggle persisted | Keep analysis out of the way unless wanted | User |
 | Worth noticing kinds | First mention (places), only here, heavily linked, reach; max 4 in that order | Deterministic from existing data | User |
 | Heavily linked | Top 5% by density (cross-references at or above vote minimum ÷ verses) | Normalizes chapter length | User |
