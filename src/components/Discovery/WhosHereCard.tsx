@@ -19,6 +19,7 @@ import { DiscoveryCard } from './DiscoveryCard';
 import { trackChip } from './discoveryTelemetry';
 import { MoreInReference, VerseLinks } from './InlineDetail';
 
+export const WHOS_HERE_ANCHOR_ID = 'discovery-whos-here';
 const VISIBLE_LIMIT = 5;
 const LISTED_BOOKS = 2;
 
@@ -82,7 +83,7 @@ export function WhosHereCard({ book, chapter, translationId }: WhosHereCardProps
   };
 
   return (
-    <DiscoveryCard title="Who's here">
+    <DiscoveryCard id={WHOS_HERE_ANCHOR_ID} title="Who's here">
       <ul className="space-y-1">
         {shown.map(person => {
           const personSpread = spread?.find(s => s.slug === person.slug);

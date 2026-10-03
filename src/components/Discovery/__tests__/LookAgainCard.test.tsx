@@ -23,7 +23,7 @@ vi.mock('@/lib/telemetry', () => ({
   track: (...args: unknown[]) => trackMock(...args),
 }));
 
-const anchors = { repetition: 'anchor-repetition', connector: 'anchor-connector', peoplePlaces: 'anchor-people-places' };
+const anchors = { repetition: 'anchor-repetition', connector: 'anchor-connector', people: 'anchor-people', places: ['anchor-map', 'anchor-setting'] };
 
 function makeItems(overrides?: Partial<Record<LookAgainItem['id'], boolean>>): LookAgainItem[] {
   return [
@@ -77,7 +77,7 @@ describe('LookAgainCard', () => {
   it.each([
     ['anchor-repetition', 'One word repeats 11× — find and mark it'],
     ['anchor-connector', '1 connecting word holds this chapter — mark it'],
-    ['anchor-people-places', '1 person is named — mark one where a person appears'],
+    ['anchor-people', '1 person is named — mark one where a person appears'],
   ])('scrolls to the %s anchor when the matching undone row is tapped', (anchorId, label) => {
     document.body.innerHTML += `<div id="${anchorId}"></div>`;
     const scrollSpy = vi.fn();
@@ -85,6 +85,18 @@ describe('LookAgainCard', () => {
 
     render(<LookAgainCard items={makeItems()} ready anchors={anchors} />);
     fireEvent.click(screen.getByRole('button', { name: label }));
+
+    expect(scrollSpy).toHaveBeenCalled();
+  });
+
+  it('falls back to the next place anchor when the first is not rendered', () => {
+    document.body.innerHTML += '<div id="anchor-setting"></div>';
+    const scrollSpy = vi.fn();
+    document.getElementById('anchor-setting')!.scrollIntoView = scrollSpy;
+
+    const placeItem: LookAgainItem = { id: 'place', label: '1 place is named — mark one where a place appears', done: false };
+    render(<LookAgainCard items={[placeItem]} ready anchors={anchors} />);
+    fireEvent.click(screen.getByRole('button', { name: placeItem.label }));
 
     expect(scrollSpy).toHaveBeenCalled();
   });

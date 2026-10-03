@@ -3,8 +3,9 @@
  *
  * Renders `useLookAgain`'s auto-generated items as a list: undone items are
  * either a button that jumps the reader to the card that can satisfy them
- * (repetition/person/place/connector rows scroll the matching card into view via
- * an id anchor passed down from `DiscoveryPanel`; the title row instead
+ * (repetition/person/place/connector rows scroll the matching element into view via
+ * id anchors passed down from `DiscoveryPanel` — person → Who's here, place → the
+ * Setting map, each falling back to Setting when that element isn't rendered; the title row instead
  * dispatches `openChapterTitleCreator`, handled in `MultiTranslationView`,
  * same window-event pattern as `openObservationTools`) or, for 'heading'
  * (refinement C), a static row — there's no single card to jump to, so it
@@ -31,10 +32,15 @@ import { Button } from '@/components/shared';
 import { DiscoveryCard } from './DiscoveryCard';
 import type { LookAgainFollowUp, LookAgainItem } from '@/hooks/useLookAgain';
 
+/**
+ * Scroll targets per row. A list is a fallback chain: the first id whose
+ * element is actually in the DOM wins (e.g. place → map, else Setting).
+ */
 export interface LookAgainAnchors {
-  repetition?: string;
-  connector?: string;
-  peoplePlaces?: string;
+  repetition?: string | string[];
+  connector?: string | string[];
+  people?: string | string[];
+  places?: string | string[];
 }
 
 interface LookAgainCardProps {
@@ -65,8 +71,8 @@ const ACTION_FOR_ITEM: Record<LookAgainItem['id'], 'scroll' | 'title-event' | 'n
 const ANCHOR_KEY_FOR_ITEM: Record<LookAgainItem['id'], keyof LookAgainAnchors | null> = {
   repetition: 'repetition',
   connector: 'connector',
-  person: 'peoplePlaces',
-  place: 'peoplePlaces',
+  person: 'people',
+  place: 'places',
   title: null,
   heading: null,
 };
@@ -87,9 +93,15 @@ const HOW_TO_FOR_ITEM: Record<LookAgainItem['id'], string | null> = {
   heading: 'Tap a verse number, then Add Section Heading.',
 };
 
-function anchorIdFor(item: LookAgainItem, anchors: LookAgainAnchors): string | undefined {
+function anchorElementFor(item: LookAgainItem, anchors: LookAgainAnchors): HTMLElement | null {
   const key = ANCHOR_KEY_FOR_ITEM[item.id];
-  return key ? anchors[key] : undefined;
+  const ids = key ? anchors[key] : undefined;
+  if (!ids) return null;
+  for (const id of typeof ids === 'string' ? [ids] : ids) {
+    const el = document.getElementById(id);
+    if (el) return el;
+  }
+  return null;
 }
 
 const ROW_CLASSES = 'flex items-start gap-2 px-2 py-1.5 rounded text-sm';
@@ -153,9 +165,7 @@ export function LookAgainCard({ items, ready, anchors }: LookAgainCardProps) {
       return;
     }
     if (action === 'scroll') {
-      const id = anchorIdFor(item, anchors);
-      if (!id) return;
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      anchorElementFor(item, anchors)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   };
 

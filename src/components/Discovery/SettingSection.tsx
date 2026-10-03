@@ -28,6 +28,9 @@ import { EraStrip } from './EraStrip';
 import { EventList } from './EventList';
 import { trackChip } from './discoveryTelemetry';
 
+export const SETTING_ANCHOR_ID = 'discovery-setting';
+export const SETTING_MAP_ANCHOR_ID = 'discovery-setting-map';
+
 interface SettingSectionProps {
   book: string;
   chapter: number;
@@ -78,7 +81,7 @@ export function SettingSection({ book, chapter, translationId }: SettingSectionP
   };
 
   return (
-    <DiscoveryCard title={genre ? `${bookName} — ${GENRE_LABEL[genre]}` : bookName}>
+    <DiscoveryCard id={SETTING_ANCHOR_ID} title={genre ? `${bookName} — ${GENRE_LABEL[genre]}` : bookName}>
       {intro && chapter === 1 && <p className="text-sm text-scripture-text">{intro}</p>}
       {intro && chapter !== 1 && (
         <div>
@@ -98,16 +101,18 @@ export function SettingSection({ book, chapter, translationId }: SettingSectionP
       {chapterLine && <p className="text-sm text-scripture-text">{chapterLine}</p>}
       {hasMap && (
         <>
-          <ChapterMap
-            places={readyPlaces}
-            book={book}
-            chapter={chapter}
-            onMarkerTap={() => trackChip('discovery_chip_tapped', 'setting_map', scope)}
-            onOpenFullMap={() => {
-              trackChip('discovery_chip_tapped', 'setting_map', scope);
-              setMapOpen(true);
-            }}
-          />
+          <div id={SETTING_MAP_ANCHOR_ID} className="scroll-mt-4">
+            <ChapterMap
+              places={readyPlaces}
+              book={book}
+              chapter={chapter}
+              onMarkerTap={() => trackChip('discovery_chip_tapped', 'setting_map', scope)}
+              onOpenFullMap={() => {
+                trackChip('discovery_chip_tapped', 'setting_map', scope);
+                setMapOpen(true);
+              }}
+            />
+          </div>
           <ChapterMapModal isOpen={mapOpen} onClose={() => setMapOpen(false)} places={readyPlaces} />
         </>
       )}
