@@ -58,6 +58,18 @@ describe('useCrossRefPassages', () => {
     expect(result.current.rows).toEqual([]);
   });
 
+  it('labels only the target verses it will show, not a capped or cross-chapter range', () => {
+    seedActiveChapter('esv', 'Ps', 1, { 1: 'Blessed is the man', 2: 'his delight is in the law' });
+    const crossRefs = [
+      makeChapterCrossRef({ verse: 1, targetRef: 'Deut.28.2', targetEndRef: 'Deut.28.68', votes: 50 }),
+      makeChapterCrossRef({ verse: 2, targetRef: 'Josh.1.8', targetEndRef: 'Josh.2.1', votes: 40 }),
+    ];
+
+    const { result } = renderHook(() => useCrossRefPassages(crossRefs, 'Ps', 1, 'esv'));
+
+    expect(result.current.rows.map(r => r.label)).toEqual(['Deuteronomy 28:2–4', 'Joshua 1:8']);
+  });
+
   describe('local (sword-*) path', () => {
     it('drops a candidate with no shared words and caps at 3 shown rows', async () => {
       seedActiveChapter('sword-NASB', 'John', 1, {

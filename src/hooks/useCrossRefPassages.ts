@@ -112,7 +112,11 @@ function buildCandidate(book: string, chapter: number, crossRef: ChapterCrossRef
   return {
     key: `${book}.${chapter}:${crossRef.verse}:${crossRef.targetRef}`,
     crossRef,
-    label: formatCrossRefTarget(crossRef.targetRef, crossRef.targetEndRef),
+    // Label the verses actually shown, not the full (possibly cross-chapter or capped) range.
+    label: formatCrossRefTarget(
+      crossRef.targetRef,
+      cappedEndVerse > target.verse ? `${target.book}.${target.chapter}.${cappedEndVerse}` : null
+    ),
     jumpTarget: { book: target.book, chapter: target.chapter, verse: target.verse },
     sourceRefLabel: formatVerseRef(book, chapter, crossRef.verse),
     verseNumbers,
