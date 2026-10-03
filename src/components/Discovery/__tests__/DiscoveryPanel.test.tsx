@@ -120,7 +120,7 @@ describe('DiscoveryPanel', () => {
     yearState = ready();
     discoveryEnabled = true;
     trackMock.mockClear();
-    useDiscoveryPrefsStore.setState({ lookCloserOpen: undefined, lookCloserForcedOpen: false });
+    useDiscoveryPrefsStore.setState({ lookCloserOpen: undefined, lookCloserForcedFor: null });
     usePreferencesStore.setState({ isHydrated: true, inductiveToolsEnabled: false });
     // useLookAgain (real, un-mocked here) requires this to match `context`'s
     // identity before it reports ready — see `activeChapterVersesReady` in

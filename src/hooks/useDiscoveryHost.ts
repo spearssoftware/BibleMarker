@@ -154,7 +154,7 @@ export function useDiscoveryHost({
       });
       track('discovery_find_confirmed', { feature: 'repetition' });
       if (usePanelStore.getState().activePanel !== 'discovery') {
-        useDiscoveryPrefsStore.getState().forceLookCloserOpen();
+        useDiscoveryPrefsStore.getState().forceLookCloserOpen(currentBook, currentChapter);
         foundToastIdRef.current = toast.info('You found it — open Discover to highlight it.');
       }
     }

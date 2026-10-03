@@ -10,6 +10,7 @@ import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { track } from '@/lib/telemetry';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
+import { makeDiscoveryContext } from '@/lib/__test__/factories';
 
 vi.mock('@/lib/database');
 vi.mock('@/lib/telemetry', () => ({ track: vi.fn() }));
@@ -23,13 +24,13 @@ function renderSection() {
 }
 
 const resetPrefs = () =>
-  useDiscoveryPrefsStore.setState({ lookCloserOpen: undefined, lookCloserForcedOpen: false });
+  useDiscoveryPrefsStore.setState({ lookCloserOpen: undefined, lookCloserForcedFor: null });
 
 describe('LookCloserSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetPrefs();
-    useDiscoveryStore.setState({ lens: null, activePrompt: null });
+    useDiscoveryStore.setState({ lens: null, activePrompt: null, context: makeDiscoveryContext({ book: 'Gen', chapter: 12 }) });
     usePreferencesStore.setState({ isHydrated: true, inductiveToolsEnabled: false });
   });
   afterEach(cleanup);
@@ -89,13 +90,13 @@ describe('LookCloserSection', () => {
     cleanup();
 
     useDiscoveryStore.setState({ activePrompt: null });
-    useDiscoveryPrefsStore.getState().forceLookCloserOpen();
+    useDiscoveryPrefsStore.getState().forceLookCloserOpen('Gen', 12);
     renderSection();
     expect(screen.getByText('cards')).toBeTruthy();
   });
 
   it('lets the reader close a session-forced section', () => {
-    useDiscoveryPrefsStore.getState().forceLookCloserOpen();
+    useDiscoveryPrefsStore.getState().forceLookCloserOpen('Gen', 12);
     renderSection();
     fireEvent.click(screen.getByRole('button', { name: /Look closer/ }));
     expect(screen.queryByText('cards')).toBeNull();
@@ -116,8 +117,16 @@ describe('LookCloserSection', () => {
     }
   });
 
+  it('stops forcing open once the reader moves to another chapter', () => {
+    useDiscoveryPrefsStore.getState().forceLookCloserOpen('Gen', 12);
+    renderSection();
+    expect(screen.getByText('cards')).toBeTruthy();
+    act(() => useDiscoveryStore.setState({ context: makeDiscoveryContext({ book: 'Gen', chapter: 13 }) }));
+    expect(screen.queryByText('cards')).toBeNull();
+  });
+
   it('persists only lookCloserOpen', () => {
-    useDiscoveryPrefsStore.getState().forceLookCloserOpen();
+    useDiscoveryPrefsStore.getState().forceLookCloserOpen('Gen', 12);
     useDiscoveryPrefsStore.getState().setLookCloserOpen(true);
     const options = useDiscoveryPrefsStore.persist.getOptions();
     expect(options.name).toBe('discovery-prefs');
