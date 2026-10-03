@@ -196,7 +196,7 @@ export const GENRE_QUESTIONS: Record<Genre, readonly string[]> = {
   ],
   epistle: [
     "Letters often answer problems — if this chapter is, what's the problem?",
-    'Find the hinge word, if there is one, where the letter turns from argument to instruction — or back again.',
+    'Find the connecting word, if there is one, where the letter turns from argument to instruction — or back again.',
     'A letter assumes its reader already knows things — what does this chapter seem to assume you know?',
     "Track the pronouns — where does the writer say 'I', where 'you', where 'we'?",
     'Letters often build a case before they apply it — is this chapter doing one, the other, or neither?',

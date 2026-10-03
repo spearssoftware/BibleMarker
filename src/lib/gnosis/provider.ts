@@ -1,4 +1,5 @@
 import type {
+  ChapterCrossRefIndex,
   ChapterEntities,
   ChapterEntityVerseIndex,
   GnosisCrossReference,
@@ -33,6 +34,13 @@ export interface GnosisDataProvider {
    * fallback. Callers must treat a missing method as "no per-verse data".
    */
   getChapterEntityVerseIndex?(book: string, chapter: number): Promise<ChapterEntityVerseIndex>;
+  /**
+   * Cross-references from verses in this chapter to older passages in the
+   * canon, with at least `minVotes` votes. Optional for the same reason as
+   * `getChapterEntityVerseIndex`: only the local SQLite provider implements
+   * it. Callers must treat a missing method as "no cross-reference data".
+   */
+  getChapterCrossRefIndex?(book: string, chapter: number, minVotes: number): Promise<ChapterCrossRefIndex>;
 
   // People
   searchPeople(query: string, opts?: PaginationOpts & { gender?: string }): Promise<PaginatedResponse<GnosisPerson>>;

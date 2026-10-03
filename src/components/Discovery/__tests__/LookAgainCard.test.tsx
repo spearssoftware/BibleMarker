@@ -23,13 +23,13 @@ vi.mock('@/lib/telemetry', () => ({
   track: (...args: unknown[]) => trackMock(...args),
 }));
 
-const anchors = { repetition: 'anchor-repetition', hinge: 'anchor-hinge', peoplePlaces: 'anchor-people-places' };
+const anchors = { repetition: 'anchor-repetition', connector: 'anchor-connector', peoplePlaces: 'anchor-people-places' };
 
 function makeItems(overrides?: Partial<Record<LookAgainItem['id'], boolean>>): LookAgainItem[] {
   return [
     { id: 'repetition', label: 'One word repeats 11× — find and mark it', done: overrides?.repetition ?? false },
     { id: 'person', label: '1 person is named — mark one where a person appears', done: overrides?.person ?? false },
-    { id: 'hinge', label: '1 hinge holds this chapter — mark it', done: overrides?.hinge ?? false },
+    { id: 'connector', label: '1 connecting word holds this chapter — mark it', done: overrides?.connector ?? false },
     { id: 'title', label: 'Say this chapter in your own words — give it a title', done: overrides?.title ?? false },
   ];
 }
@@ -76,7 +76,7 @@ describe('LookAgainCard', () => {
 
   it.each([
     ['anchor-repetition', 'One word repeats 11× — find and mark it'],
-    ['anchor-hinge', '1 hinge holds this chapter — mark it'],
+    ['anchor-connector', '1 connecting word holds this chapter — mark it'],
     ['anchor-people-places', '1 person is named — mark one where a person appears'],
   ])('scrolls to the %s anchor when the matching undone row is tapped', (anchorId, label) => {
     document.body.innerHTML += `<div id="${anchorId}"></div>`;
@@ -117,7 +117,7 @@ describe('LookAgainCard', () => {
 
     rerender(
       <LookAgainCard
-        items={makeItems({ repetition: true, person: true, hinge: true, title: true })}
+        items={makeItems({ repetition: true, person: true, connector: true, title: true })}
         ready
         anchors={anchors}
       />
@@ -128,7 +128,7 @@ describe('LookAgainCard', () => {
   it('the footer nudge button opens Settings on the Bible tab', () => {
     render(
       <LookAgainCard
-        items={makeItems({ repetition: true, person: true, hinge: true, title: true })}
+        items={makeItems({ repetition: true, person: true, connector: true, title: true })}
         ready
         anchors={anchors}
       />
@@ -144,7 +144,7 @@ describe('LookAgainCard', () => {
     usePreferencesStore.setState({ inductiveToolsEnabled: true });
     render(
       <LookAgainCard
-        items={makeItems({ repetition: true, person: true, hinge: true, title: true })}
+        items={makeItems({ repetition: true, person: true, connector: true, title: true })}
         ready
         anchors={anchors}
       />

@@ -6,8 +6,9 @@ import type {
 import type { SyncStatus } from '@/lib/sync';
 import type { TextSelection } from '@/stores/annotationStore';
 import type { DiscoveryContext } from '@/stores/discoveryStore';
+import type { CrossRefPassageRow } from '@/hooks/useCrossRefPassages';
 import type { ChapterAnalysis, ConnectorHit } from '@/lib/chapterAnalysis';
-import type { ChapterEntities, ChapterEntityVerseIndex } from '@/types';
+import type { ChapterCrossRef, ChapterCrossRefIndex, ChapterEntities, ChapterEntityVerseIndex } from '@/types';
 
 export const ISO = '2025-01-01T00:00:00.000Z';
 
@@ -206,6 +207,41 @@ export function makeChapterEntityVerseIndex(overrides?: Partial<ChapterEntityVer
     chapter: 1,
     peopleVerses: [],
     placesVerses: [],
+    ...overrides,
+  };
+}
+
+export function makeChapterCrossRef(overrides?: Partial<ChapterCrossRef>): ChapterCrossRef {
+  return {
+    verse: 1,
+    targetRef: 'Gen.1.1',
+    targetEndRef: null,
+    votes: 100,
+    ...overrides,
+  };
+}
+
+export function makeChapterCrossRefIndex(overrides?: Partial<ChapterCrossRefIndex>): ChapterCrossRefIndex {
+  return {
+    book: 'John',
+    chapter: 1,
+    crossRefs: [makeChapterCrossRef()],
+    ...overrides,
+  };
+}
+
+export function makeCrossRefPassageRow(overrides?: Partial<CrossRefPassageRow>): CrossRefPassageRow {
+  const crossRef = overrides?.crossRef ?? makeChapterCrossRef({ verse: 29, targetRef: 'Isa.53.7', votes: 100 });
+  return {
+    key: `John.1:${crossRef.verse}:${crossRef.targetRef}`,
+    crossRef,
+    label: 'Isaiah 53:7',
+    jumpTarget: { book: 'Isa', chapter: 53, verse: 7 },
+    sourceRefLabel: 'John 1:29',
+    sourceText: 'Behold, the Lamb of God who takes away the sin of the world',
+    status: 'ready',
+    targetVerses: [{ verse: 7, text: 'He was led like a lamb to the slaughter' }],
+    shared: ['lamb'],
     ...overrides,
   };
 }

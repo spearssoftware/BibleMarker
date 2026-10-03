@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { findConnectors, groupConnectorsByVerse, promptFor, shouldShowHinges } from '../connectors'
+import { findConnectors, groupConnectorsByVerse, promptFor, shouldShowConnectors } from '../connectors'
 import type { AnalysisVerse } from '../types'
 import { DEFAULT_DISCOVERY_THRESHOLDS } from '../types'
 
@@ -25,7 +25,7 @@ const ROMANS_5: AnalysisVerse[] = [
 describe('findConnectors - Romans 5 fixture', () => {
   const hits = findConnectors(ROMANS_5)
 
-  it('finds a conclusion hinge on "therefore" at v.1', () => {
+  it('finds a conclusion connector on "therefore" at v.1', () => {
     const hit = hits.find(h => h.verse === 1 && h.category === 'conclusion')
     expect(hit).toBeDefined()
     expect(hit!.phrase.toLowerCase()).toBe('therefore')
@@ -126,10 +126,10 @@ describe('promptFor', () => {
   })
 })
 
-describe('shouldShowHinges', () => {
+describe('shouldShowConnectors', () => {
   it('is false at a zero threshold with no connectors, true once the count meets the threshold', () => {
-    expect(shouldShowHinges(0, { ...DEFAULT_DISCOVERY_THRESHOLDS, connectorChipMinCount: 0 })).toBe(false)
-    expect(shouldShowHinges(1, { ...DEFAULT_DISCOVERY_THRESHOLDS, connectorChipMinCount: 2 })).toBe(false)
-    expect(shouldShowHinges(2, { ...DEFAULT_DISCOVERY_THRESHOLDS, connectorChipMinCount: 2 })).toBe(true)
+    expect(shouldShowConnectors(0, { ...DEFAULT_DISCOVERY_THRESHOLDS, connectorChipMinCount: 0 })).toBe(false)
+    expect(shouldShowConnectors(1, { ...DEFAULT_DISCOVERY_THRESHOLDS, connectorChipMinCount: 2 })).toBe(false)
+    expect(shouldShowConnectors(2, { ...DEFAULT_DISCOVERY_THRESHOLDS, connectorChipMinCount: 2 })).toBe(true)
   })
 })

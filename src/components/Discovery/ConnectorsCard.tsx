@@ -1,8 +1,8 @@
 /**
- * HingesCard — Connector Lens (replaces the old `ConnectorChip` + `ConnectorPrompt`)
+ * ConnectorsCard — Connector Lens (replaces the old `ConnectorChip` + `ConnectorPrompt`)
  *
- * "{n} hinges in this chapter" with a toggle that lights the connectors in
- * the text, plus a list of every hinge grouped by verse. Tapping a row jumps
+ * "{n} connecting words in this chapter" with a toggle that lights the connectors in
+ * the text, plus a list of every connecting word grouped by verse. Tapping a row jumps
  * the reader there and expands the row's Socratic prompt; tapping a lit
  * connector in the text (lens on) sets the same `activePrompt` and opens
  * this panel, so the effect below scrolls the matching row into view. The
@@ -23,9 +23,9 @@ import { pluralize } from '@/lib/textUtils';
 import { addConnectorToFlow } from '@/lib/discoveryActions';
 import { promptFor, type ConnectorHit } from '@/lib/chapterAnalysis';
 
-interface HingesCardProps {
+interface ConnectorsCardProps {
   connectorRangesByVerse: Map<number, ConnectorHit[]>;
-  hingeCount: number;
+  connectorCount: number;
   book: string;
   chapter: number;
 }
@@ -38,8 +38,8 @@ function pendingKeyFor(hit: ConnectorHit): string {
   return `${hit.verse}:${hit.start}`;
 }
 
-export function HingesCard({ connectorRangesByVerse, hingeCount, book, chapter }: HingesCardProps) {
-  const lensActive = useDiscoveryStore(s => s.lensActive);
+export function ConnectorsCard({ connectorRangesByVerse, connectorCount, book, chapter }: ConnectorsCardProps) {
+  const lensActive = useDiscoveryStore(s => s.lens === 'connectors');
   const toggleLens = useDiscoveryStore(s => s.toggleLens);
   const activePrompt = useDiscoveryStore(s => s.activePrompt);
   const setActivePrompt = useDiscoveryStore(s => s.setActivePrompt);
@@ -58,7 +58,7 @@ export function HingesCard({ connectorRangesByVerse, hingeCount, book, chapter }
     const key = rowKey(activePrompt);
     // +50ms past MultiTranslationView's layout re-key so the row has settled into its final position before we scroll to it.
     const timer = setTimeout(() => {
-      const el = containerRef.current?.querySelector(`[data-hinge-row="${key}"]`);
+      const el = containerRef.current?.querySelector(`[data-connector-row="${key}"]`);
       el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, LAYOUT_REKEY_MS + 50);
     return () => clearTimeout(timer);
@@ -66,7 +66,7 @@ export function HingesCard({ connectorRangesByVerse, hingeCount, book, chapter }
 
   const handleToggleLens = () => {
     track('lens_toggled', { feature: 'connector' });
-    toggleLens();
+    toggleLens('connectors');
   };
 
   const isRowActive = (hit: ConnectorHit) =>
@@ -87,7 +87,7 @@ export function HingesCard({ connectorRangesByVerse, hingeCount, book, chapter }
     try {
       await addConnectorToFlow(hit, book, chapter);
     } catch (err) {
-      console.error('[HingesCard] Failed to add connector to Flow:', err);
+      console.error('[ConnectorsCard] Failed to add connector to Flow:', err);
       toast.error("Couldn't add to Flow.");
     } finally {
       setPendingKey(null);
@@ -95,18 +95,18 @@ export function HingesCard({ connectorRangesByVerse, hingeCount, book, chapter }
   };
 
   return (
-    <DiscoveryCard title={`${pluralize(hingeCount, 'hinge')} in this chapter`}>
+    <DiscoveryCard title={`${pluralize(connectorCount, 'connecting word')} in this chapter`}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm text-scripture-text">Show hinges in the text</span>
-        <ToggleSwitch checked={lensActive} onChange={handleToggleLens} label="Show hinges in the text" />
+        <span className="text-sm text-scripture-text">Show connecting words in the text</span>
+        <ToggleSwitch checked={lensActive} onChange={handleToggleLens} label="Show connecting words in the text" />
       </div>
       <div ref={containerRef} className="space-y-1">
         {verses.map(verseNum =>
           (connectorRangesByVerse.get(verseNum) ?? []).map(hit => {
             const active = isRowActive(hit);
-            const promptId = `hinge-prompt-${rowKey(hit)}`;
+            const promptId = `connector-prompt-${rowKey(hit)}`;
             return (
-              <div key={rowKey(hit)} data-hinge-row={rowKey(hit)}>
+              <div key={rowKey(hit)} data-connector-row={rowKey(hit)}>
                 <button
                   type="button"
                   onClick={() => handleRowTap(hit)}

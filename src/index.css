@@ -453,9 +453,9 @@ select:focus-visible {
     opacity: 1;
   }
 
-  /* Connector Lens: everything except a hinge word dims; hinges themselves
-     get an underline + accent color so the argument skeleton reads at a
-     glance. */
+  /* Connector Lens: everything except a connecting word dims; connectors
+     themselves get an underline + accent color so the argument skeleton
+     reads at a glance. */
   .lens-dim {
     opacity: var(--lens-dim-opacity);
     transition: opacity 150ms;
@@ -466,6 +466,16 @@ select:focus-visible {
     color: var(--scripture-accent);
     cursor: pointer;
     border-bottom: 1px dotted currentColor;
+  }
+
+  /* Cross-reference lens: a verse that connects to older Scripture stays
+     bright with a soft accent wash; tapping it opens its passages. */
+  .lens-crossref {
+    cursor: pointer;
+    background: color-mix(in srgb, var(--scripture-accent) 12%, transparent);
+    border-radius: 3px;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
   }
 
   .symbol-overlay svg {

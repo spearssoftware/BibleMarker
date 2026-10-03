@@ -3,7 +3,7 @@
  *
  * Renders `useLookAgain`'s auto-generated items as a list: undone items are
  * either a button that jumps the reader to the card that can satisfy them
- * (repetition/person/place/hinge rows scroll the matching card into view via
+ * (repetition/person/place/connector rows scroll the matching card into view via
  * an id anchor passed down from `DiscoveryPanel`; the title row instead
  * dispatches `openChapterTitleCreator`, handled in `MultiTranslationView`,
  * same window-event pattern as `openObservationTools`) or, for 'heading'
@@ -33,7 +33,7 @@ import type { LookAgainFollowUp, LookAgainItem } from '@/hooks/useLookAgain';
 
 export interface LookAgainAnchors {
   repetition?: string;
-  hinge?: string;
+  connector?: string;
   peoplePlaces?: string;
 }
 
@@ -54,7 +54,7 @@ interface LookAgainCardProps {
  */
 const ACTION_FOR_ITEM: Record<LookAgainItem['id'], 'scroll' | 'title-event' | 'none'> = {
   repetition: 'scroll',
-  hinge: 'scroll',
+  connector: 'scroll',
   person: 'scroll',
   place: 'scroll',
   title: 'title-event',
@@ -64,7 +64,7 @@ const ACTION_FOR_ITEM: Record<LookAgainItem['id'], 'scroll' | 'title-event' | 'n
 /** Which `LookAgainAnchors` key a 'scroll'-action item's undone row targets. */
 const ANCHOR_KEY_FOR_ITEM: Record<LookAgainItem['id'], keyof LookAgainAnchors | null> = {
   repetition: 'repetition',
-  hinge: 'hinge',
+  connector: 'connector',
   person: 'peoplePlaces',
   place: 'peoplePlaces',
   title: null,
@@ -80,7 +80,7 @@ const ANCHOR_KEY_FOR_ITEM: Record<LookAgainItem['id'], keyof LookAgainAnchors | 
  */
 const HOW_TO_FOR_ITEM: Record<LookAgainItem['id'], string | null> = {
   repetition: null,
-  hinge: null,
+  connector: null,
   person: null,
   place: null,
   title: null,

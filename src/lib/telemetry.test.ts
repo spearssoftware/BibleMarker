@@ -157,7 +157,7 @@ describe('telemetry', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('dedupes discovery_chip_shown per dedupeKey within a session', async () => {
+  it('dedupes any event per dedupeKey within a session', async () => {
     usePreferencesStore.setState({ telemetryEnabled: true });
     initTelemetry();
 
@@ -166,15 +166,18 @@ describe('telemetry', () => {
     }
     // A different chapter still counts.
     track('discovery_chip_shown', { feature: 'repetition', dedupeKey: 'JHN:3:sword-NASB' });
+    // Other events dedupe the same way — a repeat tap on one cross-reference row counts once.
+    track('discovery_chip_tapped', { feature: 'crossref', dedupeKey: 'crossref-tap:John.1:1:Gen.1.1' });
+    track('discovery_chip_tapped', { feature: 'crossref', dedupeKey: 'crossref-tap:John.1:1:Gen.1.1' });
     await flushMicrotasks();
 
-    expect(fetchMock).not.toHaveBeenCalled(); // only 2 distinct events queued, below the batch threshold
+    expect(fetchMock).not.toHaveBeenCalled(); // only 3 distinct events queued, below the batch threshold
 
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
     document.dispatchEvent(new Event('visibilitychange'));
     await flushMicrotasks();
 
-    expect(lastRequestBody(fetchMock).events).toHaveLength(2);
+    expect(lastRequestBody(fetchMock).events).toHaveLength(3);
   });
 
   it('never includes the dedupeKey in the outgoing payload', async () => {

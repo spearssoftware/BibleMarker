@@ -4,9 +4,9 @@
  * DiscoveryPanel composes the "reading…" / card states, plus the
  * `discovery_chip_shown` telemetry that lives here (not in the
  * always-mounted `useDiscoveryHost`) so it only fires when a card is
- * actually rendered. HingesCard and PeoplePlacesCard are shallow-mocked so
+ * actually rendered. ConnectorsCard and PeoplePlacesCard are shallow-mocked so
  * this file mostly exercises DiscoveryPanel's own branching — their content
- * is covered by HingesCard.test.tsx / PeoplePlacesCard's own coverage.
+ * is covered by ConnectorsCard.test.tsx / PeoplePlacesCard's own coverage.
  * RepetitionCard is deliberately left un-mocked so at least the translation
  * suffix is verified end-to-end through the real component. The Genre and
  * Look-Again cards are also left un-mocked (they're the reason the empty
@@ -21,7 +21,10 @@ import { DiscoveryPanel } from '../DiscoveryPanel';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { DEFAULT_DISCOVERY_THRESHOLDS } from '@/lib/chapterAnalysis';
-import { makeChapterAnalysis, makeDiscoveryContext } from '@/lib/__test__/factories';
+import { makeChapterAnalysis, makeCrossRefPassageRow, makeDiscoveryContext } from '@/lib/__test__/factories';
+
+const NO_CROSS_REF_PASSAGES = { rows: [], expand: () => {} };
+const ONE_CROSS_REF_PASSAGE = { rows: [makeCrossRefPassageRow()], expand: () => {} };
 
 vi.mock('@/lib/database', () => ({
   updatePreferences: vi.fn(async () => {}),
@@ -57,11 +60,14 @@ vi.mock('@/lib/telemetry', () => ({
   track: (...args: unknown[]) => trackMock(...args),
 }));
 
-vi.mock('../HingesCard', () => ({
-  HingesCard: () => <div data-testid="hinges-card">hinges</div>,
+vi.mock('../ConnectorsCard', () => ({
+  ConnectorsCard: () => <div data-testid="connectors-card">connectors</div>,
 }));
 vi.mock('../PeoplePlacesCard', () => ({
   PeoplePlacesCard: () => <div data-testid="people-places-card">people-places</div>,
+}));
+vi.mock('../CrossRefsCard', () => ({
+  CrossRefsCard: () => <div data-testid="cross-refs-card">cross-refs</div>,
 }));
 
 describe('DiscoveryPanel', () => {
@@ -80,11 +86,14 @@ describe('DiscoveryPanel', () => {
     useActiveChapterStore.setState({ book: 'John', chapter: 1, translationId: 'sword-NASB', verses: [] });
     useDiscoveryStore.setState({
       context: null,
-      lensActive: false,
+      lens: null,
       activePrompt: null,
+      activeCrossRefKey: null,
+      crossRefPassages: NO_CROSS_REF_PASSAGES,
       found: null,
       markedPresetId: null,
       revealedRungs: [],
+      crossRefProgress: {},
     });
   });
 
@@ -116,7 +125,7 @@ describe('DiscoveryPanel', () => {
     expect(await screen.findByText('Say this chapter in your own words — give it a title')).toBeTruthy();
   });
 
-  it('a bare chapter (no repetition, no hinges, no entities) still shows Genre + the Look-Again title item', async () => {
+  it('a bare chapter (no repetition, no connectors, no entities) still shows Genre + the Look-Again title item', async () => {
     mockEntities = { book: 'John', chapter: 1, people: [], places: [], events: [], topics: [] };
     useDiscoveryStore.setState({
       context: makeDiscoveryContext({ analysis: { repetition: null, connectors: [], connectorRangesByVerse: new Map() } }),
@@ -124,12 +133,15 @@ describe('DiscoveryPanel', () => {
     render(<DiscoveryPanel />);
     expect(screen.getByText('John — a gospel')).toBeTruthy();
     expect(await screen.findByText('Say this chapter in your own words — give it a title')).toBeTruthy();
-    expect(screen.queryByTestId('hinges-card')).toBeNull();
+    expect(screen.queryByTestId('connectors-card')).toBeNull();
   });
 
-  it('renders cards in Genre → Look-Again → Repetition → Hinges → People/Places order', async () => {
+  it('renders cards in Genre → Look-Again → Repetition → Connectors → Cross-References → People/Places order', async () => {
     mockEntities = { book: 'John', chapter: 1, people: ['jesus'], places: [], events: [], topics: [] };
-    useDiscoveryStore.setState({ context: makeDiscoveryContext({ translationCount: 2, primaryTranslationAbbrev: 'NASB' }) });
+    useDiscoveryStore.setState({
+      context: makeDiscoveryContext({ translationCount: 2, primaryTranslationAbbrev: 'NASB' }),
+      crossRefPassages: ONE_CROSS_REF_PASSAGE,
+    });
     const { container } = render(<DiscoveryPanel />);
     await screen.findByText('Say this chapter in your own words — give it a title');
     const dialog = container.querySelector('[role="dialog"] > div');
@@ -137,32 +149,45 @@ describe('DiscoveryPanel', () => {
       if (el.querySelector('ul[aria-label="Look-again checklist"]')) return 'look-again';
       if (el.textContent?.includes('John — a gospel')) return 'genre';
       if (el.textContent?.includes('One word appears')) return 'repetition';
-      if (el.querySelector('[data-testid="hinges-card"]')) return 'hinges';
+      if (el.querySelector('[data-testid="connectors-card"]')) return 'connectors';
+      if (el.querySelector('[data-testid="cross-refs-card"]')) return 'cross-refs';
       if (el.querySelector('[data-testid="people-places-card"]')) return 'people-places';
       return 'unknown';
     });
-    expect(testIds).toEqual(['genre', 'look-again', 'repetition', 'hinges', 'people-places']);
+    expect(testIds).toEqual(['genre', 'look-again', 'repetition', 'connectors', 'cross-refs', 'people-places']);
   });
 
-  it('renders the repetition and hinges cards, with the real RepetitionCard suffix, when everything qualifies', () => {
+  it('hides the cross-refs card when the host published no cross-reference rows', () => {
+    useDiscoveryStore.setState({ context: makeDiscoveryContext(), crossRefPassages: NO_CROSS_REF_PASSAGES });
+    render(<DiscoveryPanel />);
+    expect(screen.queryByTestId('cross-refs-card')).toBeNull();
+  });
+
+  it('shows the cross-refs card when the host published cross-reference rows', () => {
+    useDiscoveryStore.setState({ context: makeDiscoveryContext(), crossRefPassages: ONE_CROSS_REF_PASSAGE });
+    render(<DiscoveryPanel />);
+    expect(screen.getByTestId('cross-refs-card')).toBeTruthy();
+  });
+
+  it('renders the repetition and connectors cards, with the real RepetitionCard suffix, when everything qualifies', () => {
     mockEntities = { book: 'John', chapter: 1, people: ['jesus'], places: [], events: [], topics: [] };
     useDiscoveryStore.setState({ context: makeDiscoveryContext({ translationCount: 2, primaryTranslationAbbrev: 'NASB' }) });
     render(<DiscoveryPanel />);
     expect(screen.getByText('One word appears 11× in this chapter (NASB)')).toBeTruthy();
-    expect(screen.getByTestId('hinges-card')).toBeTruthy();
+    expect(screen.getByTestId('connectors-card')).toBeTruthy();
     expect(screen.getByTestId('people-places-card')).toBeTruthy();
   });
 
-  it('hides the hinges card below the connector threshold', () => {
+  it('hides the connectors card below the connector threshold', () => {
     useDiscoveryStore.setState({
       context: makeDiscoveryContext({ analysis: makeChapterAnalysis({ connectors: [], connectorRangesByVerse: new Map() }) }),
     });
     render(<DiscoveryPanel />);
     expect(screen.getByText('One word appears 11× in this chapter')).toBeTruthy();
-    expect(screen.queryByTestId('hinges-card')).toBeNull();
+    expect(screen.queryByTestId('connectors-card')).toBeNull();
   });
 
-  it('fires discovery_chip_shown, deduped per chapter, when the repetition and hinges cards render', () => {
+  it('fires discovery_chip_shown, deduped per chapter, when the repetition and connectors cards render', () => {
     useDiscoveryStore.setState({ context: makeDiscoveryContext() });
     render(<DiscoveryPanel />);
     expect(trackMock).toHaveBeenCalledWith('discovery_chip_shown', {
@@ -190,6 +215,21 @@ describe('DiscoveryPanel', () => {
     useDiscoveryStore.setState({ context: makeDiscoveryContext() });
     render(<DiscoveryPanel />);
     expect(trackMock).not.toHaveBeenCalledWith('discovery_chip_shown', expect.objectContaining({ feature: 'entity' }));
+  });
+
+  it('fires discovery_chip_shown for the crossref feature when cross-reference rows exist', () => {
+    useDiscoveryStore.setState({ context: makeDiscoveryContext(), crossRefPassages: ONE_CROSS_REF_PASSAGE });
+    render(<DiscoveryPanel />);
+    expect(trackMock).toHaveBeenCalledWith('discovery_chip_shown', {
+      feature: 'crossref',
+      dedupeKey: 'crossref:John:1:sword-NASB',
+    });
+  });
+
+  it('does not fire discovery_chip_shown for the crossref feature when there are no cross-reference rows', () => {
+    useDiscoveryStore.setState({ context: makeDiscoveryContext(), crossRefPassages: NO_CROSS_REF_PASSAGES });
+    render(<DiscoveryPanel />);
+    expect(trackMock).not.toHaveBeenCalledWith('discovery_chip_shown', expect.objectContaining({ feature: 'crossref' }));
   });
 
   it('does not fire discovery_chip_shown when the Discover kill switch is off', () => {

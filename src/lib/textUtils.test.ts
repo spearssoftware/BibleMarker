@@ -41,7 +41,7 @@ describe('pluralize', () => {
   });
 
   it('defaults the plural form to singular + "s" when omitted', () => {
-    expect(pluralize(3, 'hinge')).toBe('3 hinges');
+    expect(pluralize(3, 'connector')).toBe('3 connectors');
   });
 });
 

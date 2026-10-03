@@ -1,14 +1,14 @@
 /**
  * @vitest-environment jsdom
  *
- * HingesCard replaces the old ConnectorChip + ConnectorPrompt: a list of
- * every hinge grouped by verse, a lens toggle, and per-row "Add to Flow"
+ * ConnectorsCard replaces the old ConnectorChip + ConnectorPrompt: a list of
+ * every connecting word grouped by verse, a lens toggle, and per-row "Add to Flow"
  * gated behind the inductive toolkit.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import { HingesCard } from '../HingesCard';
+import { ConnectorsCard } from '../ConnectorsCard';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { useToastStore } from '@/stores/toastStore';
@@ -36,9 +36,9 @@ const hits: ConnectorHit[] = [
 ];
 const connectorRangesByVerse = groupConnectorsByVerse(hits);
 
-describe('HingesCard', () => {
+describe('ConnectorsCard', () => {
   beforeEach(() => {
-    useDiscoveryStore.setState({ lensActive: false, activePrompt: null });
+    useDiscoveryStore.setState({ lens: null, activePrompt: null });
     usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
     useToastStore.setState({ toasts: [] });
     navigateToVerse.mockClear();
@@ -51,8 +51,8 @@ describe('HingesCard', () => {
   });
 
   it('lists rows grouped by verse in ascending order', () => {
-    render(<HingesCard connectorRangesByVerse={connectorRangesByVerse} hingeCount={hits.length} book="Rom" chapter={5} />);
-    expect(screen.getByText('2 hinges in this chapter')).toBeTruthy();
+    render(<ConnectorsCard connectorRangesByVerse={connectorRangesByVerse} connectorCount={hits.length} book="Rom" chapter={5} />);
+    expect(screen.getByText('2 connecting words in this chapter')).toBeTruthy();
     const rows = screen.getAllByRole('button', { name: /v\.\d/ });
     expect(rows).toHaveLength(2);
     expect(rows[0].textContent).toContain('v.3');
@@ -60,21 +60,21 @@ describe('HingesCard', () => {
   });
 
   it('tapping a row navigates to the verse and expands the prompt', () => {
-    render(<HingesCard connectorRangesByVerse={connectorRangesByVerse} hingeCount={hits.length} book="Rom" chapter={5} />);
+    render(<ConnectorsCard connectorRangesByVerse={connectorRangesByVerse} connectorCount={hits.length} book="Rom" chapter={5} />);
     fireEvent.click(screen.getByText(/But/));
     expect(navigateToVerse).toHaveBeenCalledWith('Rom', 5, 3);
     expect(useDiscoveryStore.getState().activePrompt).toMatchObject({ verse: 3, phrase: 'But' });
   });
 
   it('shows "Add to Flow" only when the inductive toolkit is on', () => {
-    render(<HingesCard connectorRangesByVerse={connectorRangesByVerse} hingeCount={hits.length} book="Rom" chapter={5} />);
+    render(<ConnectorsCard connectorRangesByVerse={connectorRangesByVerse} connectorCount={hits.length} book="Rom" chapter={5} />);
     fireEvent.click(screen.getByText(/But/));
     expect(screen.queryByText('Add to Flow')).toBeNull();
   });
 
   it('shows and calls "Add to Flow" when the inductive toolkit is on', async () => {
     usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
-    render(<HingesCard connectorRangesByVerse={connectorRangesByVerse} hingeCount={hits.length} book="Rom" chapter={5} />);
+    render(<ConnectorsCard connectorRangesByVerse={connectorRangesByVerse} connectorCount={hits.length} book="Rom" chapter={5} />);
     fireEvent.click(screen.getByText(/But/));
     const addButton = screen.getByText('Add to Flow');
     fireEvent.click(addButton);
@@ -85,7 +85,7 @@ describe('HingesCard', () => {
     let resolveAdd: () => void = () => {};
     addConnectorToFlowMock.mockImplementation(() => new Promise<void>(resolve => { resolveAdd = resolve; }));
     usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
-    render(<HingesCard connectorRangesByVerse={connectorRangesByVerse} hingeCount={hits.length} book="Rom" chapter={5} />);
+    render(<ConnectorsCard connectorRangesByVerse={connectorRangesByVerse} connectorCount={hits.length} book="Rom" chapter={5} />);
 
     fireEvent.click(screen.getByText(/But/));
     fireEvent.click(screen.getByText('Add to Flow'));
@@ -103,7 +103,7 @@ describe('HingesCard', () => {
     addConnectorToFlowMock.mockRejectedValueOnce(new Error('db write failed'));
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
-    render(<HingesCard connectorRangesByVerse={connectorRangesByVerse} hingeCount={hits.length} book="Rom" chapter={5} />);
+    render(<ConnectorsCard connectorRangesByVerse={connectorRangesByVerse} connectorCount={hits.length} book="Rom" chapter={5} />);
 
     fireEvent.click(screen.getByText(/But/));
     fireEvent.click(screen.getByText('Add to Flow'));
@@ -117,11 +117,11 @@ describe('HingesCard', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it('toggles lensActive via the toggle switch', () => {
-    render(<HingesCard connectorRangesByVerse={connectorRangesByVerse} hingeCount={hits.length} book="Rom" chapter={5} />);
-    const toggle = screen.getByRole('switch', { name: 'Show hinges in the text' });
+  it('toggles the connectors lens via the toggle switch', () => {
+    render(<ConnectorsCard connectorRangesByVerse={connectorRangesByVerse} connectorCount={hits.length} book="Rom" chapter={5} />);
+    const toggle = screen.getByRole('switch', { name: 'Show connecting words in the text' });
     expect(toggle.getAttribute('aria-checked')).toBe('false');
     fireEvent.click(toggle);
-    expect(useDiscoveryStore.getState().lensActive).toBe(true);
+    expect(useDiscoveryStore.getState().lens).toBe('connectors');
   });
 });

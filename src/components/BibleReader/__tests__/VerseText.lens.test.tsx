@@ -2,14 +2,18 @@
  * @vitest-environment jsdom
  *
  * Connector Lens render pass: every text segment in the verse must end up
- * wrapped in either `.lens-connector` (a hinge word, carrying its data
+ * wrapped in either `.lens-connector` (a connecting word, carrying its data
  * attrs back out for the click handler) or `.lens-dim` (everything else) —
  * including a segment that already carries a real annotation. A missed push
  * site would leave an undimmed island of plain text.
+ *
+ * Cross-reference lens: verse-level, so it never touches the HTML — the
+ * whole content span is classed bright or dim, and a simple tap on a bright
+ * verse reports its row key.
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, fireEvent } from '@testing-library/react';
 import { VerseText } from '../VerseText';
 import type { Verse, TextAnnotation, SymbolAnnotation } from '@/types';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
@@ -79,7 +83,7 @@ describe('VerseText — Connector Lens', () => {
         verse={verse}
         annotations={[annotation, symbol]}
         moduleId="sword-NASB"
-        lens={{ ranges: [hit], onConnectorTap: vi.fn() }}
+        lens={{ kind: 'connectors', ranges: [hit], onConnectorTap: vi.fn() }}
       />
     );
 
@@ -128,12 +132,92 @@ describe('VerseText — Connector Lens', () => {
         verse={verse}
         annotations={[]}
         moduleId="sword-NASB"
-        lens={{ ranges: [] }}
+        lens={{ kind: 'connectors', ranges: [] }}
       />
     );
 
     const verseContent = container.querySelector('.verse-content');
     expect(verseContent).toBeTruthy();
     expect(verseContent!.innerHTML).toBe(`<span class="lens-dim">${text}</span>`);
+  });
+});
+
+describe('VerseText — cross-reference lens', () => {
+  const verse: Verse = { ref: { book: 'John', chapter: 1, verse: 1 }, text: 'In the beginning was the Word.' };
+
+  it('dims the whole content span, leaving the HTML untouched, when the verse has no cross-reference', () => {
+    const { container } = render(
+      <VerseText verse={verse} annotations={[]} moduleId="sword-NASB" lens={{ kind: 'crossRefs', crossRefKey: null }} />
+    );
+    const verseContent = container.querySelector('.verse-content')!;
+    expect(verseContent.classList.contains('lens-dim')).toBe(true);
+    expect(verseContent.classList.contains('lens-crossref')).toBe(false);
+    expect(verseContent.innerHTML).toBe(verse.text);
+  });
+
+  it('keeps a connecting verse bright and reports its key on a simple tap', () => {
+    const onCrossRefTap = vi.fn();
+    const { container } = render(
+      <VerseText
+        verse={verse}
+        annotations={[]}
+        moduleId="sword-NASB"
+        lens={{ kind: 'crossRefs', crossRefKey: 'John.1:1:Gen.1.1', onCrossRefTap }}
+      />
+    );
+    const verseContent = container.querySelector('.verse-content')!;
+    expect(verseContent.classList.contains('lens-crossref')).toBe(true);
+    expect(verseContent.classList.contains('lens-dim')).toBe(false);
+    expect(verseContent.innerHTML).toBe(verse.text);
+
+    fireEvent.click(verseContent);
+    expect(onCrossRefTap).toHaveBeenCalledWith('John.1:1:Gen.1.1');
+  });
+
+  it('leaves a tap on a marked keyword to the keyword list, and opens the row for taps elsewhere', () => {
+    const presetId = '11111111-1111-1111-1111-111111111111';
+    const text = 'In the beginning was the Word.';
+    const kwVerse: Verse = { ref: { book: 'John', chapter: 1, verse: 1 }, text };
+    const start = text.indexOf('Word');
+    const annotation: TextAnnotation = {
+      id: 'ann-kw',
+      moduleId: 'sword-NASB',
+      type: 'highlight',
+      presetId,
+      startRef: kwVerse.ref,
+      endRef: kwVerse.ref,
+      startOffset: start,
+      endOffset: start + 'Word'.length,
+      color: 'yellow',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const onCrossRefTap = vi.fn();
+    const onKeywordTap = vi.fn();
+    const { container } = render(
+      <VerseText
+        verse={kwVerse}
+        annotations={[annotation]}
+        moduleId="sword-NASB"
+        onKeywordTap={onKeywordTap}
+        lens={{ kind: 'crossRefs', crossRefKey: 'John.1:1:Gen.1.1', onCrossRefTap }}
+      />
+    );
+
+    fireEvent.click(container.querySelector('.annotation-group .annotation-text')!);
+    expect(onKeywordTap).toHaveBeenCalledWith(presetId, { book: 'John', chapter: 1, verse: 1 });
+    expect(onCrossRefTap).not.toHaveBeenCalled();
+
+    fireEvent.click(container.querySelector('.verse-content')!);
+    expect(onCrossRefTap).toHaveBeenCalledWith('John.1:1:Gen.1.1');
+  });
+
+  it('ignores taps on a dimmed verse', () => {
+    const onCrossRefTap = vi.fn();
+    const { container } = render(
+      <VerseText verse={verse} annotations={[]} moduleId="sword-NASB" lens={{ kind: 'crossRefs', crossRefKey: null, onCrossRefTap }} />
+    );
+    fireEvent.click(container.querySelector('.verse-content')!);
+    expect(onCrossRefTap).not.toHaveBeenCalled();
   });
 });
