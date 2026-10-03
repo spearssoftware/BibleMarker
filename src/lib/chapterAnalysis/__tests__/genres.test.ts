@@ -6,11 +6,9 @@ import {
   GENRE_QUESTIONS,
   GENRE_LABEL,
   CHAPTER_QUESTION_OVERRIDES,
-  CANON_SECTION_LABEL,
   genreFor,
   orientationFor,
   questionFor,
-  canonSectionFor,
 } from '../genres'
 import type { Genre } from '../genres'
 
@@ -56,6 +54,11 @@ describe('BOOK_GENRE - full canon coverage', () => {
     for (const bookId of Object.keys(BOOK_GENRE)) {
       expect(knownIds.has(bookId), `BOOK_GENRE has an entry for unknown id "${bookId}"`).toBe(true)
     }
+  })
+
+  it('covers exactly the 66 books, one genre each', () => {
+    expect(Object.keys(BOOK_GENRE)).toHaveLength(66)
+    expect(BIBLE_BOOKS).toHaveLength(66)
   })
 
   it('assigns Acts its own dedicated genre', () => {
@@ -115,12 +118,6 @@ describe('answer-free guard', () => {
       assertAnswerFree(GENRE_LABEL[genre], `${genre} label`)
     }
   })
-
-  it('no canon section label asserts an interpretation', () => {
-    for (const [bookId, label] of Object.entries(CANON_SECTION_LABEL)) {
-      assertAnswerFree(label, `canon section label (${bookId})`)
-    }
-  })
 })
 
 describe('neutrality - no contested critical claims or presumed content', () => {
@@ -177,55 +174,6 @@ describe('genreFor / orientationFor', () => {
 
   it('returns undefined orientation for an unknown book id', () => {
     expect(orientationFor('NotABook')).toBeUndefined()
-  })
-})
-
-describe('CANON_SECTION_LABEL - full canon coverage', () => {
-  it('assigns a section label to every BIBLE_BOOKS id', () => {
-    for (const book of BIBLE_BOOKS) {
-      expect(CANON_SECTION_LABEL[book.id], `missing canon section for ${book.id}`).toBeDefined()
-    }
-  })
-
-  it('has no canon section entries for unknown book ids', () => {
-    const knownIds = new Set(BIBLE_BOOKS.map(b => b.id))
-    for (const bookId of Object.keys(CANON_SECTION_LABEL)) {
-      expect(knownIds.has(bookId), `CANON_SECTION_LABEL has an entry for unknown id "${bookId}"`).toBe(true)
-    }
-  })
-})
-
-describe('CANON_SECTION_LABEL - reads naturally mid-sentence', () => {
-  // "Israel's history" is a documented exception: it leads with a proper
-  // noun, which stays capitalized even mid-sentence ("It's in Israel's
-  // history.") — see the CANON_SECTION_LABEL doc comment in genres.ts.
-  const PROPER_NOUN_LEAD_EXCEPTIONS = new Set(["Israel's history"])
-
-  it('is non-empty for every book', () => {
-    for (const [bookId, label] of Object.entries(CANON_SECTION_LABEL)) {
-      expect(label.length, `empty canon section label for ${bookId}`).toBeGreaterThan(0)
-    }
-  })
-
-  it('starts lowercase, so "It\'s in {label}." reads naturally', () => {
-    for (const [bookId, label] of Object.entries(CANON_SECTION_LABEL)) {
-      if (PROPER_NOUN_LEAD_EXCEPTIONS.has(label)) continue
-      expect(label[0], `"${label}" (${bookId}) should start lowercase for mid-sentence use`).toBe(
-        label[0].toLowerCase()
-      )
-    }
-  })
-})
-
-describe('canonSectionFor', () => {
-  it('returns the assigned label for a known book', () => {
-    expect(canonSectionFor('Gen')).toBe('the law')
-    expect(canonSectionFor('Ps')).toBe('the Psalms')
-    expect(canonSectionFor('Rev')).toBe('a book of visions')
-  })
-
-  it('returns undefined for an unknown book id', () => {
-    expect(canonSectionFor('NotABook')).toBeUndefined()
   })
 })
 

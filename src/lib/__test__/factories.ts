@@ -235,7 +235,6 @@ export function makeCrossRefPassageRow(overrides?: Partial<CrossRefPassageRow>):
   return {
     key: `John.1:${crossRef.verse}:${crossRef.targetRef}`,
     crossRef,
-    section: 'the prophets',
     label: 'Isaiah 53:7',
     jumpTarget: { book: 'Isa', chapter: 53, verse: 7 },
     sourceRefLabel: 'John 1:29',
