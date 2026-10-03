@@ -7,13 +7,21 @@ import * as maplibregl from 'maplibre-gl';
 import type { StyleSpecification } from 'maplibre-gl';
 import { Protocol } from 'pmtiles';
 import { layers, namedFlavor } from '@protomaps/basemaps';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 
 let protocolRegistered = false;
 
-/** Register the `pmtiles://` protocol once; safe to call from every map module. */
+/**
+ * Register the `pmtiles://` protocol once; safe to call from every map module.
+ * Also points MapLibre at a Vite-bundled copy of its worker: MapLibre 6 loads
+ * the worker relative to its own module URL, which breaks once Vite pre-bundles
+ * the module (dev) or the app is served from a non-http origin (Tauri), leaving
+ * a blank basemap with only DOM markers.
+ */
 export function ensurePmtilesProtocol(): void {
   if (protocolRegistered) return;
   protocolRegistered = true;
+  maplibregl.setWorkerUrl(maplibreWorkerUrl);
   const pmtilesProtocol = new Protocol();
   maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
 }

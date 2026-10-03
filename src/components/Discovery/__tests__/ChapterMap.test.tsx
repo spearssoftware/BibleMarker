@@ -19,7 +19,7 @@ vi.mock('react-map-gl/maplibre', () => ({
   ),
   Popup: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
 }));
-vi.mock('maplibre-gl', () => ({ addProtocol: vi.fn() }));
+vi.mock('maplibre-gl', () => ({ addProtocol: vi.fn(), setWorkerUrl: vi.fn() }));
 vi.mock('pmtiles', () => ({ Protocol: class { tile = vi.fn(); } }));
 vi.mock('@protomaps/basemaps', () => ({ layers: () => [], namedFlavor: () => ({}) }));
 
