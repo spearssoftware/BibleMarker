@@ -18,7 +18,7 @@ vi.mock('../SearchTab', () => ({ SearchTab: () => <div>search-tab</div> }));
 vi.mock('../CrossRefsTab', () => ({ CrossRefsTab: () => <div>cross-refs-tab</div> }));
 vi.mock('../OriginalLanguageTab', () => ({ OriginalLanguageTab: () => <div>original-lang-tab</div> }));
 vi.mock('../StrongsTab', () => ({ StrongsTab: () => <div>strongs-tab</div> }));
-vi.mock('../PersonDetail', () => ({ PersonDetail: () => null }));
+vi.mock('../PersonDetail', () => ({ PersonDetail: ({ slug }: { slug: string }) => <div>person-detail:{slug}</div> }));
 vi.mock('../PlaceDetail', () => ({ PlaceDetail: () => null }));
 vi.mock('../EventDetail', () => ({ EventDetail: () => null }));
 vi.mock('../TopicDetail', () => ({ TopicDetail: () => null }));
@@ -91,5 +91,14 @@ describe('ReferenceToolsPanel tab gating', () => {
     const panel = screen.getByRole('tabpanel');
     expect(panel.id).toBe('reference-tabpanel-cross-refs');
     expect(panel.getAttribute('aria-labelledby')).toBe('reference-tab-cross-refs');
+  });
+
+  it('deep link: opens the typed entity detail view instead of "No detail view"', () => {
+    usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+
+    render(<ReferenceToolsPanel onClose={() => {}} entitySlug="moses" entityType="person" />);
+
+    expect(screen.getByText('person-detail:moses')).toBeTruthy();
+    expect(screen.queryByText(/No detail view for type/)).toBeNull();
   });
 });

@@ -7,6 +7,7 @@ import type { SettingsTab } from '@/components/Settings';
 
 export type PanelType = 'keywords' | 'observe' | 'analyze' | 'reference' | 'settings' | 'discovery';
 
+export type ReferenceEntityType = 'person' | 'place' | 'event' | 'topic';
 export type ReferenceTab = 'chapter' | 'search' | 'cross-refs' | 'original-lang' | 'strongs';
 
 interface PanelOpenOptions {
@@ -23,6 +24,7 @@ interface PanelOpenOptions {
   // Reference
   referenceInitialTab?: ReferenceTab;
   referenceEntitySlug?: string;
+  referenceEntityType?: ReferenceEntityType;
   referenceSearchQuery?: string;
   referenceStrongsNumber?: string;
   referenceVerse?: number;
@@ -52,6 +54,7 @@ interface PanelState {
   analyzeThemeSearchTerm: string | undefined;
   referenceInitialTab: ReferenceTab;
   referenceEntitySlug: string | undefined;
+  referenceEntityType: ReferenceEntityType | undefined;
   referenceSearchQuery: string | undefined;
   referenceStrongsNumber: string | undefined;
   referenceVerse: number | undefined;
@@ -95,6 +98,7 @@ export const usePanelStore = create<PanelState>()(
       analyzeThemeSearchTerm: undefined,
       referenceInitialTab: DEFAULT_REFERENCE_TAB,
       referenceEntitySlug: undefined,
+      referenceEntityType: undefined,
       referenceSearchQuery: undefined,
       referenceStrongsNumber: undefined,
       referenceVerse: undefined,
@@ -115,6 +119,7 @@ export const usePanelStore = create<PanelState>()(
           analyzeThemeSearchTerm: opts?.analyzeThemeSearchTerm,
           referenceInitialTab: opts?.referenceInitialTab ?? DEFAULT_REFERENCE_TAB,
           referenceEntitySlug: opts?.referenceEntitySlug,
+          referenceEntityType: opts?.referenceEntityType,
           referenceSearchQuery: opts?.referenceSearchQuery,
           referenceStrongsNumber: opts?.referenceStrongsNumber,
           referenceVerse: opts?.referenceVerse,
@@ -136,6 +141,7 @@ export const usePanelStore = create<PanelState>()(
           analyzeThemeSearchTerm: undefined,
           referenceInitialTab: DEFAULT_REFERENCE_TAB,
           referenceEntitySlug: undefined,
+          referenceEntityType: undefined,
           referenceSearchQuery: undefined,
           referenceStrongsNumber: undefined,
           referenceVerse: undefined,
