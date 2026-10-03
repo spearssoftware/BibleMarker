@@ -4,7 +4,7 @@
  * useDiscoveryHost owns the Discover-layer state that must keep working
  * while the reader reads even though the Discover panel is usually
  * unmounted: the chapter-change reset (including clearing a stale text
- * selection), publishing analysis/translation meta, lens auto-off, and the
+ * selection), publishing analysis/translation meta, and the
  * repetition "find" confirmation ported from the old `RepetitionChip`'s
  * confirm effect (moduleId/book/chapter/single-verse guards included), plus
  * the toast nudge shown when the reader confirms a find with the Discover
@@ -40,16 +40,14 @@ vi.mock('@/lib/discovery-config', () => ({
 }));
 
 let mockCrossRefIndex: ChapterCrossRefIndex | null = null;
-let mockIndexLoading = false;
-const crossRefIndexMock = vi.fn(() => ({ index: mockCrossRefIndex, isLoading: mockIndexLoading, error: null }));
+const crossRefIndexMock = vi.fn(() => ({ index: mockCrossRefIndex, isLoading: false, error: null }));
 vi.mock('@/hooks/useGnosis', () => ({
   useChapterCrossRefIndex: (...args: unknown[]) => crossRefIndexMock(...(args as [])),
 }));
 
 let mockRows: CrossRefPassageRow[] = [];
 const expandMock = vi.fn();
-let mockPassagesLoading = false;
-const crossRefPassagesMock = vi.fn(() => ({ rows: mockRows, expand: expandMock, isLoading: mockPassagesLoading }));
+const crossRefPassagesMock = vi.fn(() => ({ rows: mockRows, expand: expandMock }));
 vi.mock('@/hooks/useCrossRefPassages', () => ({
   useCrossRefPassages: (...args: unknown[]) => crossRefPassagesMock(...(args as [])),
 }));
@@ -85,8 +83,6 @@ describe('useDiscoveryHost', () => {
     crossRefPassagesMock.mockClear();
     mockCrossRefIndex = null;
     mockRows = [];
-    mockIndexLoading = false;
-    mockPassagesLoading = false;
     useAnnotationStore.setState({ selection: null });
     useDiscoveryStore.setState({
       context: null,
@@ -321,8 +317,8 @@ describe('useDiscoveryHost', () => {
     });
   });
 
-  describe('cross-reference lens auto-off', () => {
-    it('turns the lens off once the chapter has settled with no rows', () => {
+  describe('cross-reference lens', () => {
+    it('leaves the lens on when there are no rows — the reader derives "nothing to dim" itself', () => {
       mockCrossRefIndex = makeChapterCrossRefIndex();
       mockRows = [];
       renderHost(baseProps);
@@ -331,28 +327,7 @@ describe('useDiscoveryHost', () => {
         useDiscoveryStore.setState({ lens: 'crossRefs' });
       });
 
-      expect(useDiscoveryStore.getState().lens).toBeNull();
-    });
-
-    it('leaves the lens on while the index or passages are still loading', () => {
-      mockCrossRefIndex = makeChapterCrossRefIndex();
-      mockRows = [];
-      mockPassagesLoading = true;
-      const { rerender } = renderHost(baseProps);
-
-      act(() => {
-        useDiscoveryStore.setState({ lens: 'crossRefs' });
-      });
       expect(useDiscoveryStore.getState().lens).toBe('crossRefs');
-
-      mockPassagesLoading = false;
-      mockIndexLoading = true;
-      rerender(baseProps);
-      expect(useDiscoveryStore.getState().lens).toBe('crossRefs');
-
-      mockIndexLoading = false;
-      rerender(baseProps);
-      expect(useDiscoveryStore.getState().lens).toBeNull();
     });
 
     it('leaves the lens on when rows exist, and leaves the connector lens alone', () => {

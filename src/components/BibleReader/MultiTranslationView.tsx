@@ -36,7 +36,6 @@ import { useChapterAnalysis } from '@/hooks/useChapterAnalysis';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryHost } from '@/hooks/useDiscoveryHost';
 import { useDiscoveryEnabled } from '@/lib/discovery-config';
-import { track } from '@/lib/telemetry';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import type { VerseLens } from './VerseText';
 import type { Annotation, Chapter, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
@@ -93,17 +92,16 @@ export function MultiTranslationView() {
   const discoveryEnabled = useDiscoveryEnabled();
   const lens = useDiscoveryStore(s => s.lens);
   const setActivePrompt = useDiscoveryStore(s => s.setActivePrompt);
-  const setActiveCrossRefKey = useDiscoveryStore(s => s.setActiveCrossRefKey);
+  const activateCrossRef = useDiscoveryStore(s => s.activateCrossRef);
   const crossRefRows = useDiscoveryStore(s => s.crossRefPassages.rows);
   const handleConnectorTap = useCallback((hit: ConnectorHit) => {
     setActivePrompt(hit);
     usePanelStore.getState().openPanel('discovery');
   }, [setActivePrompt]);
   const handleCrossRefTap = useCallback((key: string) => {
-    setActiveCrossRefKey(key);
-    track('discovery_chip_tapped', { feature: 'crossref', dedupeKey: `crossref-tap:${key}` });
+    activateCrossRef(key);
     usePanelStore.getState().openPanel('discovery');
-  }, [setActiveCrossRefKey]);
+  }, [activateCrossRef]);
   // Cross-references are verse-level, so the lens lights the same verse in
   // every translation column (unlike connectors, which are primary-only).
   const crossRefKeyByVerse = useMemo(
@@ -118,7 +116,7 @@ export function MultiTranslationView() {
         onConnectorTap: handleConnectorTap,
       };
     }
-    if (lens === 'crossRefs') {
+    if (lens === 'crossRefs' && crossRefRows.length > 0) {
       return { kind: 'crossRefs', crossRefKey: crossRefKeyByVerse.get(verseNum) ?? null, onCrossRefTap: handleCrossRefTap };
     }
     return undefined;

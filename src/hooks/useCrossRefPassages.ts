@@ -35,7 +35,7 @@ export interface CrossRefPassageRow {
   key: string;
   crossRef: ChapterCrossRef;
   label: string;
-  jumpTarget?: { book: string; chapter: number; verse: number };
+  jumpTarget: { book: string; chapter: number; verse: number };
   sourceRefLabel: string;
   sourceText: string | null;
   status: 'idle' | 'loading' | 'ready' | 'error';
@@ -50,8 +50,6 @@ interface CrossRefCandidate {
   label: string;
   jumpTarget: { book: string; chapter: number; verse: number };
   sourceRefLabel: string;
-  targetBook: string;
-  targetChapter: number;
   verseNumbers: number[];
 }
 
@@ -92,6 +90,11 @@ export function __resetCrossRefPassageCache(): void {
   chapterCache = new Map();
 }
 
+const byVotesDesc = (a: { crossRef: ChapterCrossRef }, b: { crossRef: ChapterCrossRef }): number =>
+  b.crossRef.votes - a.crossRef.votes;
+const byVerse = (a: { crossRef: ChapterCrossRef }, b: { crossRef: ChapterCrossRef }): number =>
+  a.crossRef.verse - b.crossRef.verse;
+
 function buildCandidate(book: string, chapter: number, crossRef: ChapterCrossRef): CrossRefCandidate | null {
   const target = parseOsisRef(crossRef.targetRef);
   if (!target || target.verse === undefined) return null;
@@ -112,8 +115,6 @@ function buildCandidate(book: string, chapter: number, crossRef: ChapterCrossRef
     label: formatCrossRefTarget(crossRef.targetRef, crossRef.targetEndRef),
     jumpTarget: { book: target.book, chapter: target.chapter, verse: target.verse },
     sourceRefLabel: formatVerseRef(book, chapter, crossRef.verse),
-    targetBook: target.book,
-    targetChapter: target.chapter,
     verseNumbers,
   };
 }
@@ -122,7 +123,7 @@ async function loadTargetVerses(
   translationId: string,
   candidate: CrossRefCandidate
 ): Promise<{ verse: number; text: string }[]> {
-  const chapterData = await getCachedChapter(translationId, candidate.targetBook, candidate.targetChapter);
+  const chapterData = await getCachedChapter(translationId, candidate.jumpTarget.book, candidate.jumpTarget.chapter);
   const verseText = new Map(chapterData.verses.map(v => [v.ref.verse, v.text]));
   return candidate.verseNumbers
     .map(verse => ({ verse, text: verseText.get(verse) }))
@@ -148,7 +149,7 @@ export function useCrossRefPassages(
   book: string,
   chapter: number,
   translationId: string
-): { rows: CrossRefPassageRow[]; expand: (key: string) => void; isLoading: boolean } {
+): { rows: CrossRefPassageRow[]; expand: (key: string) => void } {
   const isLocal = translationId.startsWith('sword-');
 
   const activeTranslationId = useActiveChapterStore(s => s.translationId);
@@ -181,15 +182,17 @@ export function useCrossRefPassages(
   }
 
   const contextKeyRef = useRef(contextKey);
+  const rowStatesRef = useRef(rowStates);
   useEffect(() => {
     contextKeyRef.current = contextKey;
-  }, [contextKey]);
+    rowStatesRef.current = rowStates;
+  }, [contextKey, rowStates]);
 
   // Local path: fetch the top candidates' target chapters up front, filter to
   // rows that actually share a word with the source, and settle on the top 3.
   useEffect(() => {
     if (!isLocal || !matches) return;
-    const topCandidates = [...candidates].sort((a, b) => b.crossRef.votes - a.crossRef.votes).slice(0, LOCAL_CANDIDATE_COUNT);
+    const topCandidates = [...candidates].sort(byVotesDesc).slice(0, LOCAL_CANDIDATE_COUNT);
     if (topCandidates.length === 0) return; // nothing to fetch — the `rows` memo below already returns [] for this case
 
     let cancelled = false;
@@ -214,9 +217,9 @@ export function useCrossRefPassages(
 
       const kept = results
         .filter((r): r is NonNullable<typeof r> => r !== null)
-        .sort((a, b) => b.candidate.crossRef.votes - a.candidate.crossRef.votes)
+        .sort((a, b) => byVotesDesc(a.candidate, b.candidate))
         .slice(0, MAX_SHOWN_ROWS)
-        .sort((a, b) => a.candidate.crossRef.verse - b.candidate.crossRef.verse);
+        .sort((a, b) => byVerse(a.candidate, b.candidate));
 
       setLocalRows(
         kept.map(({ candidate, sourceText, targetVerses, shared }) =>
@@ -234,11 +237,15 @@ export function useCrossRefPassages(
   const expand = useCallback(
     (key: string) => {
       if (isLocal) return;
+      const status = rowStatesRef.current[key]?.status;
+      if (status === 'loading' || status === 'ready') return;
       const candidate = candidates.find(c => c.key === key);
       if (!candidate) return;
 
       const callContextKey = contextKeyRef.current;
-      setRowStates(prev => ({ ...prev, [key]: { status: 'loading', targetVerses: [], shared: [] } }));
+      const loading: RowRuntimeState = { status: 'loading', targetVerses: [], shared: [] };
+      rowStatesRef.current = { ...rowStatesRef.current, [key]: loading };
+      setRowStates(prev => ({ ...prev, [key]: loading }));
 
       (async () => {
         try {
@@ -261,15 +268,11 @@ export function useCrossRefPassages(
     if (isLocal) return candidates.length === 0 ? [] : localRows ?? [];
 
     return [...candidates]
-      .sort((a, b) => b.crossRef.votes - a.crossRef.votes)
+      .sort(byVotesDesc)
       .slice(0, MAX_SHOWN_ROWS)
-      .sort((a, b) => a.crossRef.verse - b.crossRef.verse)
+      .sort(byVerse)
       .map(candidate => toRow(candidate, getSourceText(candidate.crossRef.verse), rowStates[candidate.key]));
   }, [matches, isLocal, localRows, candidates, rowStates, getSourceText]);
 
-  // `rows` is [] both while the local path is still settling and once it has
-  // settled with nothing to show; `isLoading` tells the two apart.
-  const isLoading = !matches || (isLocal && candidates.length > 0 && localRows === null);
-
-  return { rows, expand, isLoading };
+  return { rows, expand };
 }

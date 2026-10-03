@@ -109,7 +109,7 @@ const THRESHOLD_FIELD_RANGE: Record<keyof DiscoveryThresholds, { min: number; ma
 
 function clampThresholdField(field: keyof DiscoveryThresholds, value: unknown, fallback: number): number {
   const { min, max } = THRESHOLD_FIELD_RANGE[field];
-  return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= min && value <= max
+  return typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max
     ? value
     : fallback;
 }

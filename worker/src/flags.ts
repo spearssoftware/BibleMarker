@@ -194,7 +194,7 @@ export function sanitizeThresholds(raw: unknown, defaults: DiscoveryThresholds):
   const clampField = (field: keyof DiscoveryThresholds): number => {
     const { min, max } = THRESHOLD_FIELD_RANGE[field];
     const value = source[field];
-    return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= min && value <= max
+    return typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max
       ? value
       : defaults[field];
   };

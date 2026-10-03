@@ -12,7 +12,7 @@
  * (S5) — a Gnosis hiccup must not blank the whole panel. Each card after
  * Look-Again is wrapped in a stable-id `div`; the first three are also
  * `LookAgainCard` scroll targets for its undone rows (Cross-References has no
- * checklist item — see the Phase 2b plan's deliberate deltas).
+ * Look-Again checklist item, so it has no scroll target).
  *
  * `discovery_chip_shown` telemetry lives here (not in `useDiscoveryHost`,
  * which is always-mounted) so it fires only when the panel actually renders

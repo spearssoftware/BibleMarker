@@ -14,6 +14,7 @@ import type { ChapterAnalysis, ConnectorHit, RepetitionRung } from '@/lib/chapte
 import type { CrossRefPassageRow } from '@/hooks/useCrossRefPassages';
 import type { TextSelection } from '@/stores/annotationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
+import { track } from '@/lib/telemetry';
 
 /** Which reading-pane lens is on. Only one at a time — turning one on turns the other off. */
 export type DiscoveryLens = 'connectors' | 'crossRefs' | null;
@@ -102,6 +103,8 @@ interface DiscoveryState {
   toggleLens: (kind: Exclude<DiscoveryLens, null>) => void;
   setActivePrompt: (hit: ConnectorHit | null) => void;
   setActiveCrossRefKey: (key: string | null) => void;
+  /** Marks a cross-reference row active and records the tap — the one path for both the card and the lens. */
+  activateCrossRef: (key: string) => void;
   setCrossRefPassages: (passages: CrossRefPassages) => void;
   setFound: (found: DiscoveryFound | null) => void;
   setMarkedPresetId: (id: string | null) => void;
@@ -113,7 +116,7 @@ interface DiscoveryState {
   resetForChapter: () => void;
 }
 
-const EMPTY_CROSS_REF_PROGRESS: CrossRefProgress = { hunting: false, found: [] };
+export const EMPTY_CROSS_REF_PROGRESS: CrossRefProgress = { hunting: false, found: [] };
 const NO_CROSS_REF_PASSAGES: CrossRefPassages = { rows: [], expand: () => {} };
 
 export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
@@ -132,6 +135,10 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
   toggleLens: (kind) => set({ lens: get().lens === kind ? null : kind }),
   setActivePrompt: (hit) => set({ activePrompt: hit }),
   setActiveCrossRefKey: (key) => set({ activeCrossRefKey: key }),
+  activateCrossRef: (key) => {
+    set({ activeCrossRefKey: key });
+    track('discovery_chip_tapped', { feature: 'crossref', dedupeKey: `crossref-tap:${key}` });
+  },
   setCrossRefPassages: (passages) => set({ crossRefPassages: passages }),
   setFound: (found) => set({ found }),
   setMarkedPresetId: (id) => set({ markedPresetId: id }),

@@ -18,11 +18,11 @@
  * presses "Show me". Progress lives in `discoveryStore.crossRefProgress`.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Button, ToggleSwitch } from '@/components/shared';
 import { DiscoveryCard } from './DiscoveryCard';
-import { useDiscoveryStore, type CrossRefProgress } from '@/stores/discoveryStore';
+import { EMPTY_CROSS_REF_PROGRESS, useDiscoveryStore } from '@/stores/discoveryStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { LAYOUT_REKEY_MS } from '@/components/BibleReader/layoutConstants';
 import type { CrossRefPassageRow } from '@/hooks/useCrossRefPassages';
@@ -37,7 +37,6 @@ interface CrossRefsCardProps {
   chapter: number;
 }
 
-const EMPTY_PROGRESS: CrossRefProgress = { hunting: false, found: [] };
 const LIT_WORD_CLASSES = 'bg-scripture-accent/20 text-scripture-accent rounded';
 
 /**
@@ -122,7 +121,7 @@ interface CrossRefRowProps {
 }
 
 function CrossRefRow({ row, active, onToggle, expand }: CrossRefRowProps) {
-  const progress = useDiscoveryStore(s => s.crossRefProgress[row.key]) ?? EMPTY_PROGRESS;
+  const progress = useDiscoveryStore(s => s.crossRefProgress[row.key]) ?? EMPTY_CROSS_REF_PROGRESS;
   const setCrossRefHunting = useDiscoveryStore(s => s.setCrossRefHunting);
   const findCrossRefWord = useDiscoveryStore(s => s.findCrossRefWord);
   const navigateToVerse = useBibleStore(s => s.navigateToVerse);
@@ -130,18 +129,10 @@ function CrossRefRow({ row, active, onToggle, expand }: CrossRefRowProps) {
 
   // A network row fetches only once it is expanded — whether from the row
   // tap here or from a lens tap in the text, which only sets the active key.
+  // `expand` is a no-op for loading/ready rows and retries failed ones, so
+  // re-opening a failed row retries without looping while it stays open.
   useEffect(() => {
-    if (active && row.status === 'idle') expand(row.key);
-  }, [active, row.status, row.key, expand]);
-
-  // A failed fetch retries when the row is re-opened — keyed on `active` only,
-  // so a row that keeps failing doesn't loop while it stays open.
-  const statusRef = useRef(row.status);
-  useEffect(() => {
-    statusRef.current = row.status;
-  });
-  useEffect(() => {
-    if (active && statusRef.current === 'error') expand(row.key);
+    if (active) expand(row.key);
   }, [active, row.key, expand]);
 
   const shared = row.shared;
@@ -169,15 +160,12 @@ function CrossRefRow({ row, active, onToggle, expand }: CrossRefRowProps) {
   const onWordTap = hunting && canTap ? handleTap : undefined;
   const passagesId = `crossref-passages-${row.key}`;
 
-  const jumpButton = row.jumpTarget ? (
-    <Button
-      variant="secondary"
-      size="sm"
-      onClick={() => navigateToVerse(row.jumpTarget!.book, row.jumpTarget!.chapter, row.jumpTarget!.verse, true)}
-    >
+  const { book: jumpBook, chapter: jumpChapter, verse: jumpVerse } = row.jumpTarget;
+  const jumpButton = (
+    <Button variant="secondary" size="sm" onClick={() => navigateToVerse(jumpBook, jumpChapter, jumpVerse, true)}>
       {`Go to ${row.label}`}
     </Button>
-  ) : null;
+  );
 
   return (
     <div data-crossref-row={row.key}>
@@ -270,20 +258,19 @@ export function CrossRefsCard({ rows, expand, book, chapter }: CrossRefsCardProp
   const toggleLens = useDiscoveryStore(s => s.toggleLens);
   const activeCrossRefKey = useDiscoveryStore(s => s.activeCrossRefKey);
   const setActiveCrossRefKey = useDiscoveryStore(s => s.setActiveCrossRefKey);
+  const activateCrossRef = useDiscoveryStore(s => s.activateCrossRef);
   const navigateToVerse = useBibleStore(s => s.navigateToVerse);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const rowKeys = useMemo(() => new Set(rows.map(r => r.key)), [rows]);
-
   useEffect(() => {
-    if (!activeCrossRefKey || !rowKeys.has(activeCrossRefKey)) return;
+    if (!activeCrossRefKey) return;
     // +50ms past MultiTranslationView's layout re-key so the row has settled into its final position before we scroll to it.
     const timer = setTimeout(() => {
       const el = containerRef.current?.querySelector(`[data-crossref-row="${activeCrossRefKey}"]`);
       el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, LAYOUT_REKEY_MS + 50);
     return () => clearTimeout(timer);
-  }, [activeCrossRefKey, rowKeys]);
+  }, [activeCrossRefKey]);
 
   if (rows.length === 0) return null;
 
@@ -298,8 +285,7 @@ export function CrossRefsCard({ rows, expand, book, chapter }: CrossRefsCardProp
       return;
     }
     navigateToVerse(book, chapter, row.crossRef.verse);
-    setActiveCrossRefKey(row.key);
-    track('discovery_chip_tapped', { feature: 'crossref', dedupeKey: `crossref-tap:${row.key}` });
+    activateCrossRef(row.key);
   };
 
   const title = `${pluralize(rows.length, 'verse')} to read alongside older Scripture`;
