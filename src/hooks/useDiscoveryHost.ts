@@ -21,6 +21,7 @@
 import { useEffect, useRef } from 'react';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
+import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
 import { usePanelStore } from '@/stores/panelStore';
 import { toast, useToastStore } from '@/stores/toastStore';
 import { track } from '@/lib/telemetry';
@@ -153,6 +154,7 @@ export function useDiscoveryHost({
       });
       track('discovery_find_confirmed', { feature: 'repetition' });
       if (usePanelStore.getState().activePanel !== 'discovery') {
+        useDiscoveryPrefsStore.getState().forceLookCloserOpen();
         foundToastIdRef.current = toast.info('You found it — open Discover to highlight it.');
       }
     }
