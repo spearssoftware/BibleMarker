@@ -324,7 +324,8 @@ export function useLookAgain(
   context: DiscoveryContext | null,
   entities: ChapterEntities | null,
   entitiesLoading: boolean,
-  discoveryEnabled: boolean
+  discoveryEnabled: boolean,
+  upsellTelemetryEnabled: boolean
 ): LookAgainResult {
   const activeStudyId = useStudyStore(s => s.activeStudyId);
   const presets = useMarkingPresetStore(s => s.presets);
@@ -684,9 +685,10 @@ export function useLookAgain(
   // Telemetry (item 8): fire once per {item, chapter, translation} the first
   // time a follow-up actually shows — `track`'s own `dedupeKey` dedupe makes
   // this safe to call on every items recompute rather than needing our own
-  // "first time" bookkeeping.
+  // "first time" bookkeeping. Gated by `upsellTelemetryEnabled`: the panel
+  // only renders Look-Again while Look closer is open.
   useEffect(() => {
-    if (!context) return;
+    if (!context || !upsellTelemetryEnabled) return;
     for (const item of items) {
       if (!item.followUp) continue;
       track('discovery_chip_shown', {
@@ -694,7 +696,7 @@ export function useLookAgain(
         dedupeKey: `upsell:${item.id}:${context.book}:${context.chapter}:${context.translationId}`,
       });
     }
-  }, [context, items]);
+  }, [context, items, upsellTelemetryEnabled]);
 
   // S4: fire completion telemetry only on an in-session *transition* — this
   // chapter visit's checklist had ≥1 undone item at some point and now has

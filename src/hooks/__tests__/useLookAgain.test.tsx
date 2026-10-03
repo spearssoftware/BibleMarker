@@ -80,9 +80,9 @@ function makeVerses(book: string, chapter: number, count: number): { ref: VerseR
 // `mockEntities` is threaded through as the `entities` argument here.
 // `discoveryEnabled` defaults to true (the panel is on) for every existing test;
 // the kill-switch itself gets its own test below.
-function renderLookAgain(context = makeDiscoveryContext(), discoveryEnabled = true) {
+function renderLookAgain(context = makeDiscoveryContext(), discoveryEnabled = true, upsellTelemetryEnabled = true) {
   return renderHook(
-    (ctx: ReturnType<typeof makeDiscoveryContext> | null) => useLookAgain(ctx, mockEntities, false, discoveryEnabled),
+    (ctx: ReturnType<typeof makeDiscoveryContext> | null) => useLookAgain(ctx, mockEntities, false, discoveryEnabled, upsellTelemetryEnabled),
     { initialProps: context }
   );
 }
@@ -625,6 +625,22 @@ describe('useLookAgain', () => {
         feature: 'upsell',
         dedupeKey: 'upsell:person:John:1:sword-NASB',
       });
+    });
+
+    it('telemetry (item 8): does not fire the upsell shown event while upsell telemetry is disabled (Look closer collapsed)', async () => {
+      vi.mocked(getChapterAnnotations).mockResolvedValue([
+        makeHighlightAnnotation({
+          moduleId: 'sword-NASB',
+          startRef: { book: 'John', chapter: 1, verse: 2 },
+          endRef: { book: 'John', chapter: 1, verse: 2 },
+          selectedText: 'Pharaoh',
+        }),
+      ]);
+
+      const { result } = renderLookAgain(makeDiscoveryContext(), true, false);
+      await waitFor(() => expect(result.current.items.find(i => i.id === 'person')?.followUp).toBeDefined());
+
+      expect(trackMock).not.toHaveBeenCalledWith('discovery_chip_shown', expect.objectContaining({ feature: 'upsell' }));
     });
   });
 

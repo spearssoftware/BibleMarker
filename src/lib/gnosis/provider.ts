@@ -2,6 +2,10 @@ import type {
   ChapterCrossRefIndex,
   ChapterEntities,
   ChapterEntityVerseIndex,
+  ChapterEvent,
+  ChapterPerson,
+  ChapterPlace,
+  EntitySpread,
   GnosisCrossReference,
   GnosisDictionaryEntry,
   GnosisEvent,
@@ -41,6 +45,17 @@ export interface GnosisDataProvider {
    * it. Callers must treat a missing method as "no cross-reference data".
    */
   getChapterCrossRefIndex?(book: string, chapter: number, minVotes: number): Promise<ChapterCrossRefIndex>;
+  /**
+   * People, places (with coordinates only) and events named in a chapter, with
+   * their verse numbers, plus each person's spread across the canon. Optional
+   * for the same reason as `getChapterEntityVerseIndex`: only the local SQLite
+   * provider implements them. Callers must treat a missing method as "no data".
+   * `getChapterPeople` returns people most-verses-first, then by name, then slug.
+   */
+  getChapterPeople?(book: string, chapter: number): Promise<ChapterPerson[]>;
+  getChapterPlaces?(book: string, chapter: number): Promise<ChapterPlace[]>;
+  getChapterEvents?(book: string, chapter: number): Promise<ChapterEvent[]>;
+  getPeopleSpread?(slugs: string[]): Promise<EntitySpread[]>;
 
   // People
   searchPeople(query: string, opts?: PaginationOpts & { gender?: string }): Promise<PaginatedResponse<GnosisPerson>>;
