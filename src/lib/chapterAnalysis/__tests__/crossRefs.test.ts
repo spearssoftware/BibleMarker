@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { formatCrossRefTarget, isOlderTarget } from '../crossRefs';
+import { BIBLE_BOOKS } from '@/types';
+import { buildCrossRefKeyByVerse, formatCrossRefTarget, isLaterTarget, isOlderTarget } from '../crossRefs';
 
 describe('formatCrossRefTarget', () => {
   it('formats a single verse', () => {
@@ -33,5 +34,39 @@ describe('isOlderTarget - the "older" rule', () => {
     ['OT source -> NT target (forward in time)', 'Ps', 'Matt', false],
   ])('%s: isOlderTarget(%s, %s) -> %s', (_label, sourceBookId, targetBookId, expected) => {
     expect(isOlderTarget(sourceBookId, targetBookId)).toBe(expected);
+  });
+});
+
+describe('isLaterTarget - the "later" rule', () => {
+  it.each<[string, string, string, boolean]>([
+    ['OT source -> NT target', 'Ps', 'Matt', true],
+    ['OT source -> a later OT target', 'Gen', 'Isa', true],
+    ['same-book target', 'Isa', 'Isa', false],
+    ['OT source -> an earlier OT target', 'Isa', 'Gen', false],
+    ['NT -> NT target, even when it sorts later in canon order', 'Col', 'Heb', false],
+    ['NT source -> OT target', 'John', 'Gen', false],
+  ])('%s: isLaterTarget(%s, %s) -> %s', (_label, sourceBookId, targetBookId, expected) => {
+    expect(isLaterTarget(sourceBookId, targetBookId)).toBe(expected);
+  });
+
+  it('is the exact mirror of isOlderTarget for every pair of books', () => {
+    for (const a of BIBLE_BOOKS) {
+      for (const b of BIBLE_BOOKS) {
+        expect(isLaterTarget(a.id, b.id)).toBe(isOlderTarget(b.id, a.id));
+      }
+    }
+  });
+});
+
+describe('buildCrossRefKeyByVerse', () => {
+  it('maps each verse to its row key', () => {
+    const map = buildCrossRefKeyByVerse([{ key: 'o1', crossRef: { verse: 1 } }], [{ key: 'l5', crossRef: { verse: 5 } }]);
+    expect(map.get(1)).toBe('o1');
+    expect(map.get(5)).toBe('l5');
+  });
+
+  it('lets the older row win a verse that has both', () => {
+    const map = buildCrossRefKeyByVerse([{ key: 'older', crossRef: { verse: 3 } }], [{ key: 'later', crossRef: { verse: 3 } }]);
+    expect(map.get(3)).toBe('older');
   });
 });

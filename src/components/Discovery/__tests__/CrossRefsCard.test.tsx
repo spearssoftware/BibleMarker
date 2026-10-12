@@ -30,8 +30,12 @@ vi.mock('@/lib/telemetry', () => ({
 const ROW_KEY = 'John.1:29:Isa.53.7';
 const expandMock = vi.fn();
 
-function renderCard(rows: CrossRefPassageRow[]) {
-  return render(<CrossRefsCard rows={rows} expand={expandMock} book="John" chapter={1} />);
+const laterExpandMock = vi.fn();
+
+function renderCard(rows: CrossRefPassageRow[], laterRows: CrossRefPassageRow[] = []) {
+  return render(
+    <CrossRefsCard rows={rows} expand={expandMock} laterRows={laterRows} laterExpand={laterExpandMock} book="John" chapter={1} />
+  );
 }
 
 /** Row with a single shared word ("lamb") appearing once in each passage. */
@@ -50,6 +54,7 @@ describe('CrossRefsCard', () => {
     navigateToVerse.mockClear();
     trackMock.mockClear();
     expandMock.mockClear();
+    laterExpandMock.mockClear();
   });
 
   afterEach(() => {
@@ -260,7 +265,7 @@ describe('CrossRefsCard', () => {
     expect(expandMock).toHaveBeenCalledTimes(1);
     expect(expandMock).toHaveBeenCalledWith(ROW_KEY);
 
-    rerender(<CrossRefsCard rows={[{ ...errorRow }]} expand={expandMock} book="John" chapter={1} />);
+    rerender(<CrossRefsCard rows={[{ ...errorRow }]} expand={expandMock} laterRows={[]} laterExpand={laterExpandMock} book="John" chapter={1} />);
     expect(expandMock).toHaveBeenCalledTimes(1);
 
     act(() => useDiscoveryStore.setState({ activeCrossRefKey: null }));
@@ -273,8 +278,52 @@ describe('CrossRefsCard', () => {
     const { rerender } = renderCard([lambRow({ status: 'loading', targetVerses: [], shared: [] })]);
     expect(screen.getByText('Loading…')).toBeTruthy();
 
-    rerender(<CrossRefsCard rows={[lambRow({ status: 'error', targetVerses: [], shared: [] })]} expand={expandMock} book="John" chapter={1} />);
+    rerender(<CrossRefsCard rows={[lambRow({ status: 'error', targetVerses: [], shared: [] })]} expand={expandMock} laterRows={[]} laterExpand={laterExpandMock} book="John" chapter={1} />);
     expect(screen.getByText("Couldn't load that passage.")).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Go to Isaiah 53:7' })).toBeTruthy();
+  });
+
+  describe('Later in Scripture', () => {
+    const LATER_KEY = 'John.1:5:Rev.1.5';
+    const laterRow = () =>
+      makeCrossRefPassageRow({
+        key: LATER_KEY,
+        crossRef: makeChapterCrossRef({ verse: 5, targetRef: 'Rev.1.5', votes: 60 }),
+        label: 'Revelation 1:5',
+        jumpTarget: { book: 'Rev', chapter: 1, verse: 5 },
+        sourceRefLabel: 'John 1:5',
+        sourceText: 'The light shines in the darkness',
+        targetVerses: [{ verse: 5, text: 'the light' }],
+        shared: ['light'],
+        status: 'ready',
+      });
+
+    it('shows both group headings and keeps the older-rows title when both groups have rows', () => {
+      renderCard([makeCrossRefPassageRow()], [laterRow()]);
+      expect(screen.getByText('Earlier in Scripture')).toBeTruthy();
+      expect(screen.getByText('Later in Scripture')).toBeTruthy();
+      expect(screen.getByText('1 verse to read alongside older Scripture')).toBeTruthy();
+    });
+
+    it('shows only the Earlier heading when there are no later rows', () => {
+      renderCard([makeCrossRefPassageRow()]);
+      expect(screen.getByText('Earlier in Scripture')).toBeTruthy();
+      expect(screen.queryByText('Later in Scripture')).toBeNull();
+    });
+
+    it('renders with later rows alone, retitled and without an Earlier heading', () => {
+      renderCard([], [laterRow()]);
+      expect(screen.getByText('1 verse to read alongside later Scripture')).toBeTruthy();
+      expect(screen.getByText('Later in Scripture')).toBeTruthy();
+      expect(screen.queryByText('Earlier in Scripture')).toBeNull();
+    });
+
+    it('expands a later row through laterExpand and activates it through the store', () => {
+      renderCard([makeCrossRefPassageRow()], [laterRow()]);
+      fireEvent.click(screen.getByRole('button', { name: /John 1:5/ }));
+      expect(useDiscoveryStore.getState().activeCrossRefKey).toBe(LATER_KEY);
+      expect(laterExpandMock).toHaveBeenCalledWith(LATER_KEY);
+      expect(expandMock).not.toHaveBeenCalled();
+    });
   });
 });

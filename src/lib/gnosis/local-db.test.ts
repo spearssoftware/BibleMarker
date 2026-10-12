@@ -249,6 +249,31 @@ describe('mapChapterCrossRefIndexRows — dedupe, sort, ranges', () => {
     expect(result.crossRefs).toEqual([
       { verse: 7, targetRef: 'Ps.104.4', targetEndRef: null, votes: 37 },
     ]);
+    expect(result.laterCrossRefs).toEqual([]);
+  });
+
+  it('partitions an OT chapter into older and later rows, deduped per verse and sorted by verse', async () => {
+    const { mapChapterCrossRefIndexRows } = await import('./local-db');
+    const result = mapChapterCrossRefIndexRows('Isa', 53, [
+      { from_ref: 'Isa.53.7', to_start: 'Matt.26.63', to_end: null, votes: 20 }, // later (NT)
+      { from_ref: 'Isa.53.7', to_start: 'Acts.8.32', to_end: 'Acts.8.33', votes: 70 }, // later, higher votes wins
+      { from_ref: 'Isa.53.3', to_start: 'Mal.3.1', to_end: null, votes: 25 }, // later OT book
+      { from_ref: 'Isa.53.9', to_start: 'Gen.4.8', to_end: null, votes: 30 }, // older
+      { from_ref: 'Isa.53.4', to_start: 'Isa.1.1', to_end: null, votes: 90 }, // same book: neither
+    ]);
+    expect(result.crossRefs).toEqual([{ verse: 9, targetRef: 'Gen.4.8', targetEndRef: null, votes: 30 }]);
+    expect(result.laterCrossRefs).toEqual([
+      { verse: 3, targetRef: 'Mal.3.1', targetEndRef: null, votes: 25 },
+      { verse: 7, targetRef: 'Acts.8.32', targetEndRef: 'Acts.8.33', votes: 70 },
+    ]);
+  });
+
+  it('gives an NT chapter no later rows', async () => {
+    const { mapChapterCrossRefIndexRows } = await import('./local-db');
+    const result = mapChapterCrossRefIndexRows('Col', 1, [
+      { from_ref: 'Col.1.15', to_start: 'Heb.1.3', to_end: null, votes: 63 },
+    ]);
+    expect(result.laterCrossRefs).toEqual([]);
   });
 
   it('preserves targetEndRef for range cross-references', async () => {
@@ -269,6 +294,7 @@ describe('getChapterCrossRefIndex', () => {
       book: 'John',
       chapter: 1,
       crossRefs: [{ verse: 1, targetRef: 'Gen.1.1', targetEndRef: null, votes: 276 }],
+      laterCrossRefs: [],
     });
 
     // SQL-shape assertions for the perf-critical query form — see the

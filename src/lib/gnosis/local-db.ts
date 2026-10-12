@@ -9,7 +9,7 @@ import Database from '@tauri-apps/plugin-sql';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import type { GnosisDataProvider } from './provider';
-import { isOlderTarget } from '@/lib/chapterAnalysis/crossRefs';
+import { isLaterTarget, isOlderTarget } from '@/lib/chapterAnalysis/crossRefs';
 import { BIBLE_BOOKS, getNTBooks } from '@/types';
 import type {
   ChapterCrossRef,
@@ -309,14 +309,15 @@ export class GnosisLocalDb implements GnosisDataProvider {
   }
 
   /**
-   * Cross-references from verses in this chapter to older passages elsewhere
-   * in the canon (see `isOlderTarget`), with at least `minVotes` votes.
+   * Cross-references from verses in this chapter to older and later passages
+   * elsewhere in the canon (see `isOlderTarget` / `isLaterTarget`), with at
+   * least `minVotes` votes.
    *
    * The predicate is `cr.from_verse_id IN (SELECT id FROM verse WHERE
    * osis_ref LIKE ?1)` rather than a `LIKE` on a joined column — the latter
    * forces SQLite to scan every row of the 345k-row `cross_reference` table,
    * while this form uses the index on `from_verse_id` (~7x faster). No SQL
-   * `LIMIT`: "older" is decided afterward in JS, so limiting here would drop
+   * `LIMIT`: "older"/"later" is decided afterward in JS, so limiting here would drop
    * rows that survive that filter (worst case ~257 rows to map — negligible).
    */
   async getChapterCrossRefIndex(book: string, chapter: number, minVotes: number): Promise<ChapterCrossRefIndex> {
@@ -1214,8 +1215,8 @@ export function mapPeopleSpreadRows(rows: { slug: string; book: string; first_ke
 
 /**
  * Maps `getChapterCrossRefIndex`'s raw `{from_ref, to_start, to_end, votes}` rows
- * into a chapter cross-reference index. Exported so the mapping — the "older" rule,
- * per-verse dedupe, and sort — can be unit-tested without a mocked SQLite
+ * into a chapter cross-reference index. Exported so the mapping — the "older" and
+ * "later" rules, per-verse dedupe, and sort — can be unit-tested without a mocked SQLite
  * connection.
  *
  * Dedupe keeps the highest-voted row per source verse explicitly (comparing
@@ -1229,13 +1230,19 @@ export function mapChapterCrossRefIndexRows(
   chapter: number,
   rows: { from_ref: string; to_start: string; to_end: string | null; votes: number }[]
 ): ChapterCrossRefIndex {
-  const bySourceVerse = new Map<number, ChapterCrossRef>();
+  const olderByVerse = new Map<number, ChapterCrossRef>();
+  const laterByVerse = new Map<number, ChapterCrossRef>();
 
   for (const r of rows) {
     const verse = parseOsisVerse(r.from_ref);
     if (isNaN(verse)) continue;
     const targetBookId = r.to_start.split('.')[0];
-    if (!isOlderTarget(book, targetBookId)) continue;
+    const bySourceVerse = isOlderTarget(book, targetBookId)
+      ? olderByVerse
+      : isLaterTarget(book, targetBookId)
+        ? laterByVerse
+        : null;
+    if (!bySourceVerse) continue;
 
     const existing = bySourceVerse.get(verse);
     if (existing && existing.votes >= r.votes) continue; // keep the higher-voted cross-reference for this verse
@@ -1248,8 +1255,13 @@ export function mapChapterCrossRefIndexRows(
     });
   }
 
-  const crossRefs = Array.from(bySourceVerse.values()).sort((a, b) => a.verse - b.verse);
-  return { book, chapter, crossRefs };
+  const byVerse = (a: ChapterCrossRef, b: ChapterCrossRef) => a.verse - b.verse;
+  return {
+    book,
+    chapter,
+    crossRefs: Array.from(olderByVerse.values()).sort(byVerse),
+    laterCrossRefs: Array.from(laterByVerse.values()).sort(byVerse),
+  };
 }
 
 function mapLocalPlace(r: any): GnosisPlace {

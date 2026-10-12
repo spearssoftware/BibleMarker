@@ -147,7 +147,7 @@ Gnosis person slugs `god` and `holy-spirit` are excluded from Who's here, the pe
 ### Canonical order and the "later" rule
 
 - Canonical order is book order from `BIBLE_BOOKS`, then numeric chapter, then numeric verse, computed in TypeScript. It is never `ORDER BY verse.id` or `ORDER BY osis_ref`, because both sort by OSIS string.
-- A target is **later** when it is in a different book, and either the source is OT and the target is NT, or both are in the same testament and the target book comes later in canonical order. This is the mirror of `isOlderTarget` (`src/lib/chapterAnalysis/crossRefs.ts`), and like it, it excludes same-book references.
+- A target is **later** when it is in a different book, and either the source is OT and the target is NT, or both are OT and the target book comes later in canonical order. This is the exact mirror of `isOlderTarget` (`src/lib/chapterAnalysis/crossRefs.ts`), and like it, it excludes same-book references and NT→NT references (epistle order is not chronology), so NT chapters have no later rows.
 
 ### Existing Gnosis data used (no schema change)
 
@@ -215,7 +215,7 @@ All events are deduped per `{book, chapter, translation}`, matching `DiscoveryPa
   - **Unit:**
     - Worth noticing fact selection: each kind, priority and in-kind order, cap of 4, deity exclusion, empty result.
     - Era band lookup and proportional marker position, including band edges and Genesis 1–11.
-    - The "later" rule: OT→NT, same testament with a later book, same book (excluded), earlier book (excluded).
+    - The "later" rule: OT→NT, later OT book, NT→NT (excluded), same book (excluded), earlier book (excluded).
     - Forward selection: vote minimum, per-verse dedupe, cap of 3, vote ordering.
     - Year formatting (`about <year_display>`).
     - Density ranking and the 95th-percentile cutoff, including ties.
@@ -334,7 +334,7 @@ All events are deduped per `{book, chapter, translation}`, matching `DiscoveryPa
 | Performance | No numeric target; intro never waits on Gnosis | Only hard rule needed | User |
 | Branching | 3a/3b off `discovery`; spec on its own branch | Same as earlier phases | User |
 | People first-mention placement | Who's here only; Worth noticing first mention covers places | Avoid saying the same thing twice | Agent default |
-| "Later" rule | Mirror of `isOlderTarget`; excludes same-book references | Keep forward and older symmetric | Agent default |
+| "Later" rule | Exact mirror of `isOlderTarget`; excludes same-book and NT→NT references | Keep forward and older symmetric | Owner (2026-10-12) |
 | Forward row pipeline | Same `useCrossRefPassages` filter and expand flow as older rows | One row behavior | Agent default |
 | Lens conflict | The earlier row wins when a verse has both | The lens holds one key per verse | Agent default |
 | Look closer persistence | Device-local Zustand `persist`, not synced | It's a UI convenience | Agent default |

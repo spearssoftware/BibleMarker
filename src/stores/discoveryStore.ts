@@ -20,6 +20,7 @@ import { normalizeForMatching, presetAppliesToChapter, variantAppliesToChapter }
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import type { MarkingPreset } from '@/types';
 import { track } from '@/lib/telemetry';
+import { trackChip } from '@/components/Discovery/discoveryTelemetry';
 
 /** Which reading-pane lens is on. Only one at a time — turning one on turns the other off. */
 export type DiscoveryLens = 'connectors' | 'crossRefs' | null;
@@ -83,6 +84,8 @@ interface DiscoveryState {
    * cross-reference lens needs them to know which verses to light.
    */
   crossRefPassages: CrossRefPassages;
+  /** Same, for cross-references to later passages (votes-ordered). */
+  laterCrossRefPassages: CrossRefPassages;
   /** Set once the reader's own selection confirms the Repetition Radar word. */
   found: DiscoveryFound | null;
   /** Preset id after "Highlight it…" / "Mark it as a key word" succeeds. */
@@ -111,6 +114,7 @@ interface DiscoveryState {
   /** Marks a cross-reference row active and records the tap — the one path for both the card and the lens. */
   activateCrossRef: (key: string) => void;
   setCrossRefPassages: (passages: CrossRefPassages) => void;
+  setLaterCrossRefPassages: (passages: CrossRefPassages) => void;
   setFound: (found: DiscoveryFound | null) => void;
   setMarkedPresetId: (id: string | null) => void;
   revealRung: (rung: RepetitionRung) => void;
@@ -130,6 +134,7 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
   activePrompt: null,
   activeCrossRefKey: null,
   crossRefPassages: NO_CROSS_REF_PASSAGES,
+  laterCrossRefPassages: NO_CROSS_REF_PASSAGES,
   found: null,
   markedPresetId: null,
   revealedRungs: [],
@@ -141,10 +146,16 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
   setActivePrompt: (hit) => set({ activePrompt: hit }),
   setActiveCrossRefKey: (key) => set({ activeCrossRefKey: key }),
   activateCrossRef: (key) => {
+    const { context, laterCrossRefPassages } = get();
     set({ activeCrossRefKey: key });
+    if (context && laterCrossRefPassages.rows.some(row => row.key === key)) {
+      trackChip('discovery_chip_tapped', 'crossref_later', context);
+      return;
+    }
     track('discovery_chip_tapped', { feature: 'crossref', dedupeKey: `crossref-tap:${key}` });
   },
   setCrossRefPassages: (passages) => set({ crossRefPassages: passages }),
+  setLaterCrossRefPassages: (passages) => set({ laterCrossRefPassages: passages }),
   setFound: (found) => set({ found }),
   setMarkedPresetId: (id) => set({ markedPresetId: id }),
   revealRung: (rung) => {

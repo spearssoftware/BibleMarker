@@ -27,6 +27,7 @@ export type TelemetryFeature =
   | 'entity'
   | 'upsell'
   | 'crossref'
+  | 'crossref_later'
   | 'setting'
   | 'setting_map'
   | 'setting_timeline'

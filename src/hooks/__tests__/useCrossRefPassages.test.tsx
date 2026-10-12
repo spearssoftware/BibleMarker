@@ -128,6 +128,37 @@ describe('useCrossRefPassages', () => {
     });
   });
 
+  describe("order: 'votes'", () => {
+    const crossRefs = [
+      makeChapterCrossRef({ verse: 1, targetRef: 'Rev.1.1', votes: 30 }),
+      makeChapterCrossRef({ verse: 2, targetRef: 'Rev.2.1', votes: 50 }),
+      makeChapterCrossRef({ verse: 3, targetRef: 'Rev.3.1', votes: 30 }),
+      makeChapterCrossRef({ verse: 4, targetRef: 'Rev.4.1', votes: 90 }),
+    ];
+
+    it('keeps network rows votes-descending, with votes ties in verse order, and defaults to verse order', () => {
+      seedActiveChapter('esv', 'Isa', 53, { 1: 'a', 2: 'b', 3: 'c', 4: 'd' });
+
+      const { result } = renderHook(() => useCrossRefPassages(crossRefs, 'Isa', 53, 'esv', { order: 'votes' }));
+      expect(result.current.rows.map(r => r.crossRef.verse)).toEqual([4, 2, 1]);
+
+      const { result: byVerse } = renderHook(() => useCrossRefPassages(crossRefs, 'Isa', 53, 'esv'));
+      expect(byVerse.current.rows.map(r => r.crossRef.verse)).toEqual([1, 2, 4]);
+    });
+
+    it('keeps local rows votes-descending', async () => {
+      seedActiveChapter('sword-NASB', 'Isa', 53, { 1: 'the lamb', 2: 'the lamb', 3: 'the lamb', 4: 'the lamb' });
+      fetchChapterMock.mockImplementation(async (_t: string, book: string, chapter: number) =>
+        makeChapter(book, chapter, { 1: 'the lamb' })
+      );
+
+      const { result } = renderHook(() => useCrossRefPassages(crossRefs, 'Isa', 53, 'sword-NASB', { order: 'votes' }));
+      await waitFor(() => expect(result.current.rows.length).toBe(3));
+
+      expect(result.current.rows.map(r => r.crossRef.verse)).toEqual([4, 2, 1]);
+    });
+  });
+
   describe('network (non-sword) path', () => {
     it('never fetches until expand, then fetches exactly once and reaches ready', async () => {
       seedActiveChapter('esv', 'John', 1, { 29: 'Behold, the Lamb of God who takes away the sin of the world' });

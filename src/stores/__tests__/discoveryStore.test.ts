@@ -7,8 +7,12 @@
  * `resetForChapter` clears it along with everything else.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
+import { makeCrossRefPassageRow, makeDiscoveryContext } from '@/lib/__test__/factories';
+
+const trackMock = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/telemetry', () => ({ track: trackMock }));
 
 describe('discoveryStore — lens', () => {
   beforeEach(() => {
@@ -78,5 +82,31 @@ describe('discoveryStore — cross-reference progress', () => {
     expect(state.crossRefProgress).toEqual({});
     expect(state.activeCrossRefKey).toBeNull();
     expect(state.lens).toBeNull();
+  });
+});
+
+describe('discoveryStore — activateCrossRef telemetry', () => {
+  beforeEach(() => {
+    trackMock.mockClear();
+    useDiscoveryStore.setState({
+      context: makeDiscoveryContext(),
+      activeCrossRefKey: null,
+      laterCrossRefPassages: { rows: [makeCrossRefPassageRow({ key: 'later-key' })], expand: () => {} },
+    });
+  });
+
+  it('records a later row under crossref_later', () => {
+    useDiscoveryStore.getState().activateCrossRef('later-key');
+    expect(useDiscoveryStore.getState().activeCrossRefKey).toBe('later-key');
+    expect(trackMock).toHaveBeenCalledTimes(1);
+    expect(trackMock).toHaveBeenCalledWith('discovery_chip_tapped', {
+      feature: 'crossref_later',
+      dedupeKey: 'discovery_chip_tapped:crossref_later:John:1:sword-NASB',
+    });
+  });
+
+  it('records any other row under crossref', () => {
+    useDiscoveryStore.getState().activateCrossRef('older-key');
+    expect(trackMock).toHaveBeenCalledWith('discovery_chip_tapped', { feature: 'crossref', dedupeKey: 'crossref-tap:older-key' });
   });
 });

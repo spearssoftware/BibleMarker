@@ -24,7 +24,7 @@
  * Look closer is open. Setting and Who's here fire their own events. The
  * cross-reference rows themselves are loaded by `useDiscoveryHost` (the
  * cross-reference lens needs them while the panel is closed) and read from
- * the store here.
+ * the store here; later-Scripture rows fire their own `crossref_later` event.
  */
 
 import type { ReactNode } from 'react';
@@ -71,11 +71,13 @@ export function DiscoveryPanel() {
   );
   const { items: lookAgainItems, ready: lookAgainReady } = useLookAgain(context, entities, entitiesLoading, discoveryEnabled, lookCloserOpen);
   const crossRefPassages = useDiscoveryStore(s => s.crossRefPassages);
+  const laterCrossRefPassages = useDiscoveryStore(s => s.laterCrossRefPassages);
 
   const hasRepetition = Boolean(context?.analysis.repetition);
   const connectorCount = context?.analysis.connectors.length ?? 0;
   const showConnectors = shouldShowConnectors(connectorCount, thresholds);
   const hasCrossRefs = crossRefPassages.rows.length > 0;
+  const hasLaterCrossRefs = laterCrossRefPassages.rows.length > 0;
 
   // Fire once per {book, chapter, translation} for each card actually shown.
   useEffect(() => {
@@ -84,7 +86,8 @@ export function DiscoveryPanel() {
     if (lookCloserOpen && hasRepetition) trackChip('discovery_chip_shown', 'repetition', scope);
     if (lookCloserOpen && showConnectors) trackChip('discovery_chip_shown', 'connector', scope);
     if (hasCrossRefs) trackChip('discovery_chip_shown', 'crossref', scope);
-  }, [discoveryEnabled, context, lookCloserOpen, hasRepetition, showConnectors, hasCrossRefs]);
+    if (hasLaterCrossRefs) trackChip('discovery_chip_shown', 'crossref_later', scope);
+  }, [discoveryEnabled, context, lookCloserOpen, hasRepetition, showConnectors, hasCrossRefs, hasLaterCrossRefs]);
 
   if (!discoveryEnabled) {
     return <DiscoveryDialog><p className="text-sm text-scripture-muted">Discover is turned off right now.</p></DiscoveryDialog>;
@@ -99,9 +102,16 @@ export function DiscoveryPanel() {
   return (
     <DiscoveryDialog>
       <SettingSection key={`setting:${book}:${chapter}`} book={book} chapter={chapter} translationId={translationId} />
-      {hasCrossRefs && (
+      {(hasCrossRefs || hasLaterCrossRefs) && (
         <div id={CROSS_REFS_ANCHOR_ID} className={ANCHOR_CLASS}>
-          <CrossRefsCard rows={crossRefPassages.rows} expand={crossRefPassages.expand} book={book} chapter={chapter} />
+          <CrossRefsCard
+            rows={crossRefPassages.rows}
+            expand={crossRefPassages.expand}
+            laterRows={laterCrossRefPassages.rows}
+            laterExpand={laterCrossRefPassages.expand}
+            book={book}
+            chapter={chapter}
+          />
         </div>
       )}
       <WhosHereCard key={`whos-here:${book}:${chapter}`} book={book} chapter={chapter} translationId={translationId} />

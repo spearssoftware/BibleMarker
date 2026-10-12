@@ -134,6 +134,7 @@ describe('DiscoveryPanel', () => {
       activePrompt: null,
       activeCrossRefKey: null,
       crossRefPassages: NO_CROSS_REF_PASSAGES,
+      laterCrossRefPassages: NO_CROSS_REF_PASSAGES,
       found: null,
       markedPresetId: null,
       revealedRungs: [],
@@ -390,6 +391,17 @@ describe('DiscoveryPanel', () => {
       trackMock.mockClear();
       useDiscoveryStore.setState({ crossRefPassages: NO_CROSS_REF_PASSAGES });
       render(<DiscoveryPanel />);
+      expect(trackMock).not.toHaveBeenCalledWith('discovery_chip_shown', expect.objectContaining({ feature: 'crossref' }));
+    });
+
+    it('renders the cross-reference card and fires crossref_later when only later rows exist', () => {
+      useDiscoveryStore.setState({ context: makeDiscoveryContext(), laterCrossRefPassages: ONE_CROSS_REF_PASSAGE });
+      render(<DiscoveryPanel />);
+      expect(screen.getByTestId('cross-refs-card')).toBeTruthy();
+      expect(trackMock).toHaveBeenCalledWith('discovery_chip_shown', {
+        feature: 'crossref_later',
+        dedupeKey: 'discovery_chip_shown:crossref_later:John:1:sword-NASB',
+      });
       expect(trackMock).not.toHaveBeenCalledWith('discovery_chip_shown', expect.objectContaining({ feature: 'crossref' }));
     });
 

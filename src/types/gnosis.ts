@@ -144,7 +144,7 @@ export interface GnosisCrossReference {
   votes: number;
 }
 
-/** A cross-reference from a verse in this chapter to an older passage in the canon. */
+/** A cross-reference from a verse in this chapter to an older or later passage in the canon. */
 export interface ChapterCrossRef {
   /** Source verse number, within this chapter. */
   verse: number;
@@ -155,11 +155,14 @@ export interface ChapterCrossRef {
   votes: number;
 }
 
-/** Per-chapter index of cross-references to older passages, one entry per source verse. */
+/** Per-chapter index of cross-references to older and later passages, one entry per source verse in each. */
 export interface ChapterCrossRefIndex {
   book: string;
   chapter: number;
+  /** Cross-references to older passages. */
   crossRefs: ChapterCrossRef[];
+  /** Cross-references to later passages. */
+  laterCrossRefs: ChapterCrossRef[];
 }
 
 /**

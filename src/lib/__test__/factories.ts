@@ -226,6 +226,7 @@ export function makeChapterCrossRefIndex(overrides?: Partial<ChapterCrossRefInde
     book: 'John',
     chapter: 1,
     crossRefs: [makeChapterCrossRef()],
+    laterCrossRefs: [],
     ...overrides,
   };
 }

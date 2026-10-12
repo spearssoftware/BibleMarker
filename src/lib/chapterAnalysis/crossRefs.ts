@@ -61,3 +61,30 @@ export function isOlderTarget(sourceBookId: string, targetBookId: string): boole
   }
   return false;
 }
+
+/**
+ * The strict "later" rule, the exact mirror of `isOlderTarget`
+ * (`isLaterTarget(a, b) === isOlderTarget(b, a)`): a target counts as later
+ * only in a **different book**, and either the source is OT and the target
+ * is NT, or both are OT and the target's canonical order is later. NT→NT is
+ * excluded for the same reason as in `isOlderTarget` — epistle order isn't
+ * chronology — so NT chapters never have later targets.
+ */
+export function isLaterTarget(sourceBookId: string, targetBookId: string): boolean {
+  return isOlderTarget(targetBookId, sourceBookId);
+}
+
+/**
+ * Maps each source verse to the cross-reference row the lens should open.
+ * Later rows are inserted first so an older row wins a verse that has both
+ * (the card's "Earlier in Scripture" group leads).
+ */
+export function buildCrossRefKeyByVerse(
+  olderRows: { key: string; crossRef: { verse: number } }[],
+  laterRows: { key: string; crossRef: { verse: number } }[]
+): Map<number, string> {
+  const keyByVerse = new Map<number, string>();
+  for (const row of laterRows) keyByVerse.set(row.crossRef.verse, row.key);
+  for (const row of olderRows) keyByVerse.set(row.crossRef.verse, row.key);
+  return keyByVerse;
+}
