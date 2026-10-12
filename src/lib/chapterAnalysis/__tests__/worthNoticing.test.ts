@@ -65,6 +65,9 @@ describe('selectWorthNoticing', () => {
     ...spread(slug, firstRef, lastRef, books),
     name,
   });
+  /** Spread of a (lowercased) name across every person and place bearing it. */
+  const nameOf = (name: string, firstRef: string, lastRef: string, books: string[]): EntitySpread =>
+    spread(name.toLowerCase(), firstRef, lastRef, books);
   const manyBooks = (n: number) => BIBLE_BOOKS.slice(0, n).map(b => b.id);
 
   const base: WorthNoticingInput = {
@@ -74,19 +77,21 @@ describe('selectWorthNoticing', () => {
     peopleSpread: [],
     places: [],
     placesSpread: [],
+    nameSpread: [],
     heavilyLinked: new Set(),
   };
   const select = (overrides: Partial<WorthNoticingInput>) => selectWorthNoticing({ ...base, ...overrides });
 
   it('returns nothing when there are no inputs', () => {
     expect(select({})).toEqual([]);
-    expect(select({ people: null, peopleSpread: null, places: null, placesSpread: null, heavilyLinked: null })).toEqual([]);
+    expect(select({ people: null, peopleSpread: null, places: null, placesSpread: null, nameSpread: null, heavilyLinked: null })).toEqual([]);
   });
 
   it('reports a place first named in this chapter', () => {
     const facts = select({
       places: ['bethel'],
       placesSpread: [placeSpread('bethel', 'Bethel', 'Gen.12.8', 'Judg.20.31', ['Gen', 'Judg'])],
+      nameSpread: [nameOf('Bethel', 'Gen.12.8', 'Judg.20.31', ['Gen', 'Judg'])],
     });
     expect(facts).toEqual([{ kind: 'first-mention', text: 'Bethel is named for the first time here.', key: 'first-mention:bethel' }]);
   });
@@ -96,6 +101,7 @@ describe('selectWorthNoticing', () => {
       select({
         places: ['bethel'],
         placesSpread: [placeSpread('bethel', 'Bethel', 'Gen.11.8', 'Judg.20.31', ['Gen', 'Judg'])],
+        nameSpread: [nameOf('Bethel', 'Gen.11.8', 'Judg.20.31', ['Gen', 'Judg'])],
       })
     ).toEqual([]);
   });
@@ -104,8 +110,9 @@ describe('selectWorthNoticing', () => {
     const facts = select({
       places: ['salem'],
       placesSpread: [placeSpread('salem', 'Salem', 'Gen.12.9', 'Gen.12.9', ['Gen'])],
+      nameSpread: [nameOf('Salem', 'Gen.12.9', 'Gen.12.9', ['Gen'])],
     });
-    expect(facts).toEqual([{ kind: 'only-here', text: 'This is the only chapter that names Salem.', key: 'only-here:place:salem' }]);
+    expect(facts).toEqual([{ kind: 'only-here', text: 'This is the only chapter that names Salem.', key: 'only-here:salem' }]);
   });
 
   it('requires first and last mention in this chapter for only-here', () => {
@@ -113,6 +120,7 @@ describe('selectWorthNoticing', () => {
       select({
         places: ['salem'],
         placesSpread: [placeSpread('salem', 'Salem', 'Gen.12.9', 'Gen.13.1', ['Gen'])],
+        nameSpread: [nameOf('Salem', 'Gen.12.9', 'Gen.13.1', ['Gen'])],
       }).map(f => f.kind)
     ).toEqual(['first-mention']);
   });
@@ -125,8 +133,13 @@ describe('selectWorthNoticing', () => {
         spread('god', 'Gen.12.1', 'Gen.12.20', ['Gen']),
         spread('jesus-son-of-joseph', 'Gen.12.3', 'Gen.12.3', ['Gen']),
       ],
+      nameSpread: [
+        nameOf('Melchizedek', 'Gen.12.18', 'Gen.12.18', ['Gen']),
+        nameOf('God', 'Gen.12.1', 'Gen.12.20', ['Gen']),
+        nameOf('Jesus', 'Gen.12.3', 'Gen.12.3', ['Gen']),
+      ],
     });
-    expect(facts.map(f => f.key)).toEqual(['only-here:person:melchizedek']);
+    expect(facts.map(f => f.key)).toEqual(['only-here:melchizedek']);
   });
 
   it('reports a heavily cross-referenced chapter', () => {
@@ -170,6 +183,12 @@ describe('selectWorthNoticing', () => {
         placeSpread('ai', 'Ai', 'Gen.12.8', 'Josh.8.1', ['Gen', 'Josh']),
         placeSpread('shechem', 'Shechem', 'Gen.12.6', 'Josh.24.1', ['Gen', 'Josh']),
       ],
+      nameSpread: [
+        nameOf('Zoar', 'Gen.12.8', 'Gen.19.30', ['Gen']),
+        nameOf('Bethel', 'Gen.12.8', 'Judg.20.31', ['Gen', 'Judg']),
+        nameOf('Ai', 'Gen.12.8', 'Josh.8.1', ['Gen', 'Josh']),
+        nameOf('Shechem', 'Gen.12.6', 'Josh.24.1', ['Gen', 'Josh']),
+      ],
       heavilyLinked: new Set(['Gen.12']),
     });
     expect(facts.map(f => f.key)).toEqual([
@@ -189,24 +208,101 @@ describe('selectWorthNoticing', () => {
         placeSpread('bethel', 'Bethel', 'Gen.12.8', 'Judg.20.31', ['Gen', 'Judg']),
         placeSpread('salem', 'Salem', 'Gen.12.9', 'Gen.12.9', ['Gen']),
       ],
+      nameSpread: [
+        nameOf('Bethel', 'Gen.12.8', 'Judg.20.31', ['Gen', 'Judg']),
+        nameOf('Salem', 'Gen.12.9', 'Gen.12.9', ['Gen']),
+      ],
       heavilyLinked: new Set(['Gen.12']),
     });
     expect(facts.map(f => f.kind)).toEqual(['first-mention', 'only-here', 'heavily-linked', 'reach']);
   });
 
-  it('capitalizes a lowercase place name at the start of a sentence and keys on slug', () => {
+  it('capitalizes a lowercase place name at the start of a sentence and keys on the lowercased name', () => {
+    const facts = select({
+      places: ['vale-of-siddim'],
+      placesSpread: [placeSpread('vale-of-siddim', 'vale of Siddim', 'Gen.12.1', 'Gen.14.3', ['Gen'])],
+      nameSpread: [nameOf('vale of Siddim', 'Gen.12.1', 'Gen.14.3', ['Gen'])],
+    });
+    expect(facts).toEqual([
+      { kind: 'first-mention', text: 'Vale of Siddim is named for the first time here.', key: 'first-mention:vale of siddim' },
+    ]);
+  });
+
+  it('emits one fact for a name shared by two places in the chapter', () => {
     const facts = select({
       places: ['vale-of-siddim', 'vale-of-siddim-2'],
       placesSpread: [
         placeSpread('vale-of-siddim', 'vale of Siddim', 'Gen.12.1', 'Gen.14.3', ['Gen']),
         placeSpread('vale-of-siddim-2', 'vale of Siddim', 'Gen.12.2', 'Gen.14.8', ['Gen']),
       ],
+      nameSpread: [nameOf('vale of Siddim', 'Gen.12.1', 'Gen.14.8', ['Gen'])],
     });
-    expect(facts.map(f => f.text)).toEqual([
-      'Vale of Siddim is named for the first time here.',
-      'Vale of Siddim is named for the first time here.',
-    ]);
-    expect(new Set(facts.map(f => f.key)).size).toBe(2);
+    expect(facts.map(f => f.key)).toEqual(['first-mention:vale of siddim']);
+  });
+
+  describe('shared names', () => {
+    it('does not say a person is named only here when a place of that name is elsewhere', () => {
+      const facts = select({
+        book: 'Acts',
+        chapter: 4,
+        people: [person('john', 'John', [6])],
+        peopleSpread: [spread('john', 'Acts.4.6', 'Acts.4.6', ['Acts'])],
+        nameSpread: [nameOf('John', 'Matt.3.1', 'Rev.22.8', ['Matt', 'Acts', 'Rev'])],
+      });
+      expect(facts).toEqual([]);
+    });
+
+    it('does not call a place first named here when a person of that name comes earlier', () => {
+      const facts = select({
+        book: 'Gen',
+        chapter: 14,
+        places: ['elam'],
+        placesSpread: [placeSpread('elam', 'Elam', 'Gen.14.1', 'Gen.14.9', ['Gen'])],
+        nameSpread: [nameOf('Elam', 'Gen.10.22', 'Ezra.10.26', ['Gen', 'Ezra'])],
+      });
+      expect(facts).toEqual([]);
+    });
+
+    it('does not call a place named only here when a person of that name appears elsewhere', () => {
+      const facts = select({
+        book: 'Gen',
+        chapter: 14,
+        places: ['ham'],
+        placesSpread: [placeSpread('ham', 'Ham', 'Gen.14.5', 'Gen.14.5', ['Gen'])],
+        nameSpread: [nameOf('Ham', 'Gen.5.32', 'Ps.106.22', ['Gen', 'Ps'])],
+      });
+      expect(facts).toEqual([]);
+    });
+
+    it('does not call a person named only here when another person shares the name', () => {
+      const facts = select({
+        people: [person('simon-1', 'Simon', [3])],
+        peopleSpread: [spread('simon-1', 'Gen.12.3', 'Gen.12.3', ['Gen'])],
+        nameSpread: [nameOf('Simon', 'Gen.12.3', 'Acts.10.32', ['Gen', 'Acts'])],
+      });
+      expect(facts).toEqual([]);
+    });
+
+    it('emits a single only-here fact when a person and a place share a name that appears only here', () => {
+      const facts = select({
+        people: [person('enoch', 'Enoch', [4])],
+        peopleSpread: [spread('enoch', 'Gen.12.4', 'Gen.12.4', ['Gen'])],
+        places: ['enoch-city'],
+        placesSpread: [placeSpread('enoch-city', 'Enoch', 'Gen.12.6', 'Gen.12.6', ['Gen'])],
+        nameSpread: [nameOf('Enoch', 'Gen.12.4', 'Gen.12.6', ['Gen'])],
+      });
+      expect(facts).toEqual([{ kind: 'only-here', text: 'This is the only chapter that names Enoch.', key: 'only-here:enoch' }]);
+    });
+
+    it('drops a name with no name spread rather than guessing', () => {
+      expect(
+        select({
+          places: ['bethel'],
+          placesSpread: [placeSpread('bethel', 'Bethel', 'Gen.12.8', 'Judg.20.31', ['Gen', 'Judg'])],
+          nameSpread: [],
+        })
+      ).toEqual([]);
+    });
   });
 
   it('ignores spread rows for places not in the chapter and people not in the chapter', () => {
@@ -214,6 +310,7 @@ describe('selectWorthNoticing', () => {
       select({
         places: [],
         placesSpread: [placeSpread('bethel', 'Bethel', 'Gen.12.8', 'Judg.20.31', ['Gen', 'Judg'])],
+        nameSpread: [nameOf('Bethel', 'Gen.12.8', 'Judg.20.31', ['Gen', 'Judg'])],
         people: [],
         peopleSpread: [spread('abraham', 'Gen.11.26', 'Rev.1.1', manyBooks(15))],
       })

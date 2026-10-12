@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * Gnosis hooks behind Worth noticing: `usePlacesSpread`, the session-wide
+ * Gnosis hooks behind Worth noticing: `usePlacesSpread`, `useNameSpread`, the session-wide
  * `useHeavilyLinkedChapters`, and `useGnosisCapabilities`.
  */
 
@@ -12,17 +12,20 @@ import {
   __resetHeavilyLinkedChaptersCache,
   useGnosisCapabilities,
   useHeavilyLinkedChapters,
+  useNameSpread,
   usePlacesSpread,
 } from '../useGnosis';
 
-const { getPlacesSpreadMock, getCrossRefCountsByChapterMock, mockProvider } = vi.hoisted(() => {
+const { getPlacesSpreadMock, getNameSpreadMock, getCrossRefCountsByChapterMock, mockProvider } = vi.hoisted(() => {
   const getPlacesSpreadMock = vi.fn();
+  const getNameSpreadMock = vi.fn();
   const getCrossRefCountsByChapterMock = vi.fn();
   const mockProvider: {
     getPlacesSpread?: typeof getPlacesSpreadMock;
+    getNameSpread?: typeof getNameSpreadMock;
     getCrossRefCountsByChapter?: typeof getCrossRefCountsByChapterMock;
   } = {};
-  return { getPlacesSpreadMock, getCrossRefCountsByChapterMock, mockProvider };
+  return { getPlacesSpreadMock, getNameSpreadMock, getCrossRefCountsByChapterMock, mockProvider };
 });
 
 vi.mock('@/lib/gnosis', () => ({
@@ -53,6 +56,33 @@ describe('usePlacesSpread', () => {
   it('resolves to null when the provider lacks getPlacesSpread', async () => {
     mockProvider.getPlacesSpread = undefined;
     const { result } = renderHook(() => usePlacesSpread('PlacesSpreadMissing', 1, ['bethel'], true));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.spread).toBeNull();
+    expect(result.current.error).toBeNull();
+  });
+});
+
+describe('useNameSpread', () => {
+  beforeEach(() => {
+    getNameSpreadMock.mockReset();
+    mockProvider.getNameSpread = getNameSpreadMock;
+  });
+
+  it('fetches the spread for the names and does not query with none', async () => {
+    getNameSpreadMock.mockResolvedValue([{ slug: 'elam' }]);
+
+    const { result: empty } = renderHook(() => useNameSpread('NameSpreadTest', 1, [], true));
+    expect(empty.current.spread).toBeNull();
+    expect(getNameSpreadMock).not.toHaveBeenCalled();
+
+    const { result } = renderHook(() => useNameSpread('NameSpreadTest', 1, ['elam'], true));
+    await waitFor(() => expect(result.current.spread).toEqual([{ slug: 'elam' }]));
+    expect(getNameSpreadMock).toHaveBeenCalledWith(['elam']);
+  });
+
+  it('resolves to null when the provider lacks getNameSpread', async () => {
+    mockProvider.getNameSpread = undefined;
+    const { result } = renderHook(() => useNameSpread('NameSpreadMissing', 1, ['elam'], true));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.spread).toBeNull();
     expect(result.current.error).toBeNull();
@@ -105,6 +135,6 @@ describe('useGnosisCapabilities', () => {
     mockProvider.getPlacesSpread = getPlacesSpreadMock;
     mockProvider.getCrossRefCountsByChapter = undefined;
     const { result } = renderHook(() => useGnosisCapabilities());
-    expect(result.current).toEqual({ peopleSpread: false, placesSpread: true, crossRefCounts: false });
+    expect(result.current).toEqual({ peopleSpread: false, placesSpread: true, nameSpread: false, crossRefCounts: false });
   });
 });

@@ -471,8 +471,42 @@ export class GnosisLocalDb implements GnosisDataProvider {
   }
 
   /**
+   * Spread of each name across every person AND place bearing it, matched
+   * case-insensitively. Rows are keyed by the lowercased name (returned as
+   * `slug`): "first mention" and "only here" are claims about a name, and
+   * `john` the person and a place called John share one. Names are expected
+   * lowercased; SQLite's `lower()` folds ASCII only.
+   */
+  async getNameSpread(names: string[]): Promise<EntitySpread[]> {
+    if (names.length === 0) return [];
+    const db = await this.db();
+    const placeholders = names.map((_, i) => `?${i + 1}`).join(', ');
+
+    const rows: EntitySpreadRow[] = await db.select(
+      `SELECT n.name_key AS slug, substr(v.osis_ref, 1, instr(v.osis_ref, '.') - 1) AS book,
+              MIN(${CHAPTER_VERSE_KEY}) AS first_key, MAX(${CHAPTER_VERSE_KEY}) AS last_key
+         FROM (
+           SELECT lower(p.name) AS name_key, pv.verse_id FROM person p
+             JOIN person_verse pv ON p.id = pv.person_id
+            WHERE lower(p.name) IN (${placeholders})
+           UNION ALL
+           SELECT lower(pl.name) AS name_key, plv.verse_id FROM place pl
+             JOIN place_verse plv ON pl.id = plv.place_id
+            WHERE lower(pl.name) IN (${placeholders})
+         ) n
+         JOIN verse v ON n.verse_id = v.id
+       GROUP BY n.name_key, book`,
+      names
+    );
+
+    return mapEntitySpreadRows(rows);
+  }
+
+  /**
    * Cross-references leaving each chapter, Bible-wide, with at least
    * `minVotes` votes. Grouped in SQL on the from verse (~624 rows at 20 votes).
+   * Counts every outgoing reference, including same-book and NT-to-NT ones,
+   * unlike the older/later rules, which drop those.
    */
   async getCrossRefCountsByChapter(minVotes: number): Promise<ChapterCrossRefCount[]> {
     const db = await this.db();

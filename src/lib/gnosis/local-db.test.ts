@@ -49,6 +49,7 @@ const state = vi.hoisted(() => ({
   participantRows: [] as { event_slug: string; slug: string; name: string }[],
   spreadRows: [] as { slug: string; book: string; first_key: number; last_key: number }[],
   placeSpreadRows: [] as { slug: string; name: string; book: string; first_key: number; last_key: number }[],
+  nameSpreadRows: [] as { slug: string; book: string; first_key: number; last_key: number }[],
   crossRefCountRows: [] as { book: string; chapter: number; count: number }[],
 }));
 
@@ -91,6 +92,7 @@ vi.mock('@tauri-apps/plugin-sql', () => {
       if (sql.includes('FROM event_participant')) return state.participantRows;
       if (sql.includes('p.slug IN')) return state.spreadRows;
       if (sql.includes('pl.slug IN')) return state.placeSpreadRows;
+      if (sql.includes('name_key')) return state.nameSpreadRows;
       if (sql.includes('GROUP BY book, chapter')) return state.crossRefCountRows;
       if (sql.includes('person_verse')) return state.entityVerseRows;
       if (sql.includes('cross_reference')) {
@@ -148,6 +150,7 @@ beforeEach(() => {
   state.participantRows = [];
   state.spreadRows = [];
   state.placeSpreadRows = [];
+  state.nameSpreadRows = [];
   state.crossRefCountRows = [];
 });
 
@@ -521,6 +524,29 @@ describe('chapter data queries', () => {
     expect(call!.sql).not.toContain('latitude');
     expect(call!.params).toEqual(['bethel', 'ai']);
     expect(call!.sql).toContain('GROUP BY pl.id, book');
+  });
+
+  it('getNameSpread matches people and places by lowercased name and keys rows on it', async () => {
+    const db = await freshDb();
+    await expect(db.getNameSpread([])).resolves.toEqual([]);
+    expect(state.selectCalls.some((c) => c.sql.includes('name_key'))).toBe(false);
+
+    state.nameSpreadRows = [
+      { slug: 'elam', book: 'Gen', first_key: 10022, last_key: 14009 },
+      { slug: 'elam', book: 'Ezra', first_key: 2007, last_key: 10026 },
+    ];
+    await expect(db.getNameSpread(['elam', 'ham'])).resolves.toEqual([
+      { slug: 'elam', firstRef: 'Gen.10.22', firstNtRef: null, lastRef: 'Ezra.10.26', books: ['Gen', 'Ezra'] },
+    ]);
+
+    const call = state.selectCalls.find((c) => c.sql.includes('name_key'));
+    expect(call!.sql).toContain('lower(p.name) IN (?1, ?2)');
+    expect(call!.sql).toContain('lower(pl.name) IN (?1, ?2)');
+    expect(call!.sql).toContain('UNION ALL');
+    expect(call!.sql).toContain('FROM person p');
+    expect(call!.sql).toContain('FROM place pl');
+    expect(call!.sql).toContain('GROUP BY n.name_key, book');
+    expect(call!.params).toEqual(['elam', 'ham']);
   });
 
   it('getCrossRefCountsByChapter groups by chapter with the vote minimum bound', async () => {

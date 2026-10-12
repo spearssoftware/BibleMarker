@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { WorthNoticingCard } from '../WorthNoticingCard';
 import { track } from '@/lib/telemetry';
+import { BIBLE_BOOKS } from '@/types';
 import type { ChapterEntities, ChapterPerson, EntitySpread, PlaceSpread } from '@/types';
 
 vi.mock('@/lib/telemetry', () => ({ track: vi.fn() }));
@@ -18,14 +19,16 @@ let people: Query<ChapterPerson[]>;
 let entities: Query<ChapterEntities>;
 let peopleSpread: Query<EntitySpread[]>;
 let placesSpread: Query<PlaceSpread[]>;
+let nameSpread: Query<EntitySpread[]>;
 let heavilyLinked: Query<ReadonlySet<string>>;
-let capabilities: { peopleSpread: boolean; placesSpread: boolean; crossRefCounts: boolean };
+let capabilities: { peopleSpread: boolean; placesSpread: boolean; nameSpread: boolean; crossRefCounts: boolean };
 
 vi.mock('@/hooks/useGnosis', () => ({
   useChapterPeople: () => ({ people: people.data, isLoading: people.isLoading, error: people.error }),
   useChapterEntities: () => ({ entities: entities.data, isLoading: entities.isLoading, error: entities.error }),
   usePeopleSpread: () => ({ spread: peopleSpread.data, isLoading: peopleSpread.isLoading, error: peopleSpread.error }),
   usePlacesSpread: () => ({ spread: placesSpread.data, isLoading: placesSpread.isLoading, error: placesSpread.error }),
+  useNameSpread: () => ({ spread: nameSpread.data, isLoading: nameSpread.isLoading, error: nameSpread.error }),
   useHeavilyLinkedChapters: () => ({
     chapters: heavilyLinked.data,
     isLoading: heavilyLinked.isLoading,
@@ -34,9 +37,19 @@ vi.mock('@/hooks/useGnosis', () => ({
   useGnosisCapabilities: () => capabilities,
 }));
 
+const MELCHIZEDEK: ChapterPerson = { slug: 'melchizedek', name: 'Melchizedek', verses: [18] };
+
 const BETHEL: PlaceSpread = {
   slug: 'bethel',
   name: 'Bethel',
+  firstRef: 'Gen.12.8',
+  firstNtRef: null,
+  lastRef: 'Judg.20.31',
+  books: ['Gen', 'Judg'],
+};
+
+const BETHEL_NAME: EntitySpread = {
+  slug: 'bethel',
   firstRef: 'Gen.12.8',
   firstNtRef: null,
   lastRef: 'Judg.20.31',
@@ -52,8 +65,9 @@ describe('WorthNoticingCard', () => {
     entities = ok<ChapterEntities>({ book: 'Gen', chapter: 12, people: [], places: ['bethel'], events: [], topics: [] });
     peopleSpread = ok<EntitySpread[]>(null);
     placesSpread = ok<PlaceSpread[]>([BETHEL]);
+    nameSpread = ok<EntitySpread[]>([BETHEL_NAME]);
     heavilyLinked = ok<ReadonlySet<string>>(new Set(['Gen.12']));
-    capabilities = { peopleSpread: true, placesSpread: true, crossRefCounts: true };
+    capabilities = { peopleSpread: true, placesSpread: true, nameSpread: true, crossRefCounts: true };
   });
 
   afterEach(() => {
@@ -80,6 +94,7 @@ describe('WorthNoticingCard', () => {
 
   it('is hidden, and fires nothing, when no fact qualifies', () => {
     placesSpread = ok<PlaceSpread[]>([{ ...BETHEL, firstRef: 'Gen.11.1' }]);
+    nameSpread = ok<EntitySpread[]>([{ ...BETHEL_NAME, firstRef: 'Gen.11.1' }]);
     heavilyLinked = ok<ReadonlySet<string>>(new Set());
     const { container } = renderCard();
     expect(container.innerHTML).toBe('');
@@ -90,6 +105,11 @@ describe('WorthNoticingCard', () => {
     ['people are loading', () => { people = { isLoading: true, error: null, data: null }; }],
     ['entities are loading', () => { entities = { isLoading: true, error: null, data: null }; }],
     ['the places spread has not arrived', () => { placesSpread = ok<PlaceSpread[]>(null); }],
+    ['the name spread has not arrived', () => { nameSpread = ok<EntitySpread[]>(null); }],
+    ['the people spread has not arrived', () => {
+      people = ok<ChapterPerson[]>([MELCHIZEDEK]);
+      peopleSpread = ok<EntitySpread[]>(null);
+    }],
     ['the heavily-linked set has not arrived', () => { heavilyLinked = ok<ReadonlySet<string>>(null); }],
   ])('is hidden while %s', (_label, arrange) => {
     arrange();
@@ -112,7 +132,7 @@ describe('WorthNoticingCard', () => {
   });
 
   it('treats missing capabilities as no facts of that kind, not as loading', () => {
-    capabilities = { peopleSpread: false, placesSpread: false, crossRefCounts: true };
+    capabilities = { peopleSpread: false, placesSpread: false, nameSpread: false, crossRefCounts: true };
     placesSpread = ok<PlaceSpread[]>(null);
     renderCard();
     expect(screen.getAllByRole('listitem').map(li => li.textContent)).toEqual([
@@ -126,6 +146,26 @@ describe('WorthNoticingCard', () => {
     renderCard();
     expect(screen.getAllByRole('listitem').map(li => li.textContent)).toEqual([
       'This chapter is one of the most cross-referenced in Scripture.',
+    ]);
+  });
+
+  it('renders an only-here person fact and a reach fact', () => {
+    people = ok<ChapterPerson[]>([MELCHIZEDEK, { slug: 'abraham', name: 'Abraham', verses: [1] }]);
+    peopleSpread = ok<EntitySpread[]>([
+      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'] },
+      { slug: 'abraham', firstRef: 'Gen.11.26', firstNtRef: 'Matt.1.1', lastRef: 'Rev.1.1', books: BIBLE_BOOKS.slice(0, 12).map(b => b.id) },
+    ]);
+    nameSpread = ok<EntitySpread[]>([
+      BETHEL_NAME,
+      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'] },
+      { slug: 'abraham', firstRef: 'Gen.11.26', firstNtRef: 'Matt.1.1', lastRef: 'Rev.1.1', books: ['Gen', 'Matt'] },
+    ]);
+    renderCard();
+    expect(screen.getAllByRole('listitem').map(li => li.textContent)).toEqual([
+      'Bethel is named for the first time here.',
+      'This is the only chapter that names Melchizedek.',
+      'This chapter is one of the most cross-referenced in Scripture.',
+      'Abraham is named in 12 books of the Bible.',
     ]);
   });
 });

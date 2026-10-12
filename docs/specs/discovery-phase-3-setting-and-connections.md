@@ -197,7 +197,7 @@ All events are deduped per `{book, chapter, translation}`, matching `DiscoveryPa
 - **Gnosis API mode:** pieces that depend on the new local-provider queries, or on `getChapterYear` (which returns null in API mode), are hidden.
 - **Offline or map tiles unreachable:** when `isOnline()` is false, or the map style or tiles fail to load, or the map has not loaded within 10 seconds, the map is replaced by a plain list of the chapter's place names and the line `Map needs an internet connection.` The same applies inside the full-map modal. The 10-second timeout is an agent default.
 - **Crowded chapters** (for example Genesis 10, 1 Chronicles 1–9): Who's here is capped at 5 with `+N more`. The map shows every place with coordinates, with no cap; its view fits all markers. All counts come from per-chapter queries, not per-person lookups.
-- **Duplicate names:** listed as separate rows, and as separate facts in Worth noticing.
+- **Duplicate names:** listed as separate rows. Worth noticing facts (first mention, only here) are decided by name across all people and places sharing it, so a shared name yields one fact or none.
 - **Genesis 1–11:** no year anywhere; the era strip marker sits in `Beginnings`.
 - **Undated chapter outside Genesis 1–11:** the era strip is hidden and the chapter line omits the year.
 - **Book without a genre entry:** the intro still shows; the genre lines are omitted.

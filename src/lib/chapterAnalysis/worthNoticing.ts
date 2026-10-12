@@ -19,7 +19,7 @@ export type WorthNoticingKind = 'first-mention' | 'only-here' | 'heavily-linked'
 export interface WorthNoticingFact {
   kind: WorthNoticingKind;
   text: string;
-  /** Kind + slug (never the text — place names repeat, e.g. `valley-of-shaveh-2`). */
+  /** Kind + lowercased name, or slug for reach (never the text). */
   key: string;
 }
 
@@ -54,11 +54,15 @@ export interface WorthNoticingInput {
   peopleSpread: EntitySpread[] | null;
   /** Slugs of the places named in the chapter. */
   places: string[] | null;
+  /** Spread of the chapter's places; supplies their names. */
   placesSpread: PlaceSpread[] | null;
+  /** Spread by lowercased name (in `slug`) across all people and places sharing it. */
+  nameSpread: EntitySpread[] | null;
   heavilyLinked: ReadonlySet<string> | null;
 }
 
 interface Candidate {
+  /** Slug for entity candidates; lowercased name for name candidates. */
   slug: string;
   name: string;
   /** First verse in this chapter naming the entity. */
@@ -66,6 +70,14 @@ interface Candidate {
   spread: EntitySpread;
   /** People only: distinct books the person is named in. */
   namedBooks: number;
+}
+
+/** A name named in the chapter, by a person or a place; the claims about it are decided on `nameSpread`. */
+interface NameCandidate {
+  name: string;
+  verse: number;
+  spread: EntitySpread;
+  isPlace: boolean;
 }
 
 const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
@@ -91,9 +103,11 @@ function namedBookCount(slug: string, spread: EntitySpread): number {
 
 /**
  * Up to 4 facts for the chapter, in fixed kind priority: first mention of a
- * place, an entity named only here, a heavily cross-referenced chapter, a
- * person named across 10+ books. Within a kind: first verse here, then name.
- * An entity appears in at most one fact — a place named only here is listed
+ * place, a name used only here, a heavily cross-referenced chapter, a person
+ * named across 10+ books. Within a kind: first verse here, then name.
+ * First mention and only here are claims about a name, decided across every
+ * person and place sharing it (`nameSpread`), so a shared name yields one fact
+ * or none. A name appears in at most one fact — one used only here is listed
  * under "only here", not "first mention".
  */
 export function selectWorthNoticing({
@@ -103,6 +117,7 @@ export function selectWorthNoticing({
   peopleSpread,
   places,
   placesSpread,
+  nameSpread,
   heavilyLinked,
 }: WorthNoticingInput): WorthNoticingFact[] {
   const peopleBySlug = new Map((people ?? []).map(p => [p.slug, p]));
@@ -120,37 +135,56 @@ export function selectWorthNoticing({
   }
 
   const chapterPlaces = new Set(places ?? []);
-  const placeCandidates: Candidate[] = (placesSpread ?? [])
-    .filter(spread => chapterPlaces.has(spread.slug))
-    .map(spread => ({ slug: spread.slug, name: spread.name, verse: verseOf(spread.firstRef), spread, namedBooks: 0 }));
+  const namedHere: { name: string; verse: number; isPlace: boolean }[] = [
+    ...(placesSpread ?? [])
+      .filter(spread => chapterPlaces.has(spread.slug))
+      .map(spread => ({ name: spread.name, verse: verseOf(spread.firstRef), isPlace: true })),
+    ...personCandidates
+      .filter(c => !FORETOLD_SLUGS.has(c.slug))
+      .map(c => ({ name: c.name, verse: c.verse, isPlace: false })),
+  ];
 
-  const onlyHerePlaces = placeCandidates.filter(c => isOnlyHere(c.spread, book, chapter));
-  const onlyHerePeople = personCandidates.filter(
-    c => !FORETOLD_SLUGS.has(c.slug) && isOnlyHere(c.spread, book, chapter)
-  );
-  const onlyHereSlugs = new Set(onlyHerePlaces.map(c => c.slug));
+  // One candidate per name, whoever bears it: a name shared by a person and a
+  // place, or by two people, is a single claim.
+  const spreadByName = new Map((nameSpread ?? []).map(spread => [spread.slug, spread]));
+  const nameCandidates = new Map<string, NameCandidate>();
+  for (const { name, verse, isPlace } of namedHere) {
+    const key = name.toLowerCase();
+    const spread = spreadByName.get(key);
+    if (!spread) continue;
+    const existing = nameCandidates.get(key);
+    if (!existing) {
+      nameCandidates.set(key, { name, verse, spread, isPlace });
+      continue;
+    }
+    existing.isPlace ||= isPlace;
+    existing.verse = Math.min(existing.verse, verse);
+  }
 
-  const firstMentions = placeCandidates
-    .filter(c => isInChapter(c.spread.firstRef, book, chapter) && !onlyHereSlugs.has(c.slug))
-    .sort(byVerseThenName);
-  const onlyHere = [
-    ...onlyHerePlaces.map(c => ({ ...c, entity: 'place' })),
-    ...onlyHerePeople.map(c => ({ ...c, entity: 'person' })),
-  ].sort(byVerseThenName);
+  const byVerseThenNameCandidate = (a: NameCandidate, b: NameCandidate): number =>
+    a.verse - b.verse || a.name.localeCompare(b.name);
+  const all = [...nameCandidates.entries()];
+  const onlyHere = all
+    .filter(([, c]) => isOnlyHere(c.spread, book, chapter))
+    .sort(([, a], [, b]) => byVerseThenNameCandidate(a, b));
+  const onlyHereKeys = new Set(onlyHere.map(([key]) => key));
+  const firstMentions = all
+    .filter(([key, c]) => c.isPlace && isInChapter(c.spread.firstRef, book, chapter) && !onlyHereKeys.has(key))
+    .sort(([, a], [, b]) => byVerseThenNameCandidate(a, b));
   const reach = personCandidates
     .filter(c => !isForetoldIn(c.slug, book) && c.namedBooks >= REACH_MIN_BOOKS)
     .sort(byVerseThenName);
 
   const facts: WorthNoticingFact[] = [
-    ...firstMentions.map(c => ({
+    ...firstMentions.map(([key, c]) => ({
       kind: 'first-mention' as const,
       text: capitalize(`${c.name} is named for the first time here.`),
-      key: `first-mention:${c.slug}`,
+      key: `first-mention:${key}`,
     })),
-    ...onlyHere.map(c => ({
+    ...onlyHere.map(([key, c]) => ({
       kind: 'only-here' as const,
       text: capitalize(`This is the only chapter that names ${c.name}.`),
-      key: `only-here:${c.entity}:${c.slug}`,
+      key: `only-here:${key}`,
     })),
     ...(heavilyLinked?.has(`${book}.${chapter}`)
       ? [

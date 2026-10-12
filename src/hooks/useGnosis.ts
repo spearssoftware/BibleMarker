@@ -346,16 +346,50 @@ export function usePlacesSpread(
   return { spread: data, isLoading, error };
 }
 
+/** Same as `peopleSpreadCache`, for names. */
+const nameSpreadCache = new LRUCache();
+
 /**
- * Which optional provider methods exist. `usePeopleSpread` / `usePlacesSpread`
- * return `spread: null` for both "no slugs" and "no such method", so callers
+ * Spread across all people and places sharing each lowercased name (rows keyed
+ * by that name in `slug`). Resolves to `null` when the provider lacks `getNameSpread`.
+ */
+export function useNameSpread(
+  book: string | undefined,
+  chapter: number | undefined,
+  names: string[],
+  enabled = true
+): { spread: EntitySpread[] | null; isLoading: boolean; error: string | null } {
+  const { data, isLoading, error } = useCachedChapterQuery(
+    book,
+    chapter,
+    enabled && names.length > 0,
+    nameSpreadCache,
+    async () => {
+      const provider = await ensureProvider();
+      if (!provider.getNameSpread) return null;
+      return provider.getNameSpread(names);
+    },
+    `:${[...names].sort().join(',')}`
+  );
+  return { spread: data, isLoading, error };
+}
+
+/**
+ * Which optional provider methods exist. `usePeopleSpread` / `usePlacesSpread` /
+ * `useNameSpread` return `spread: null` for both "no slugs" and "no such method", so callers
  * use this to tell a missing capability from an empty result.
  */
-export function useGnosisCapabilities(): { peopleSpread: boolean; placesSpread: boolean; crossRefCounts: boolean } {
+export function useGnosisCapabilities(): {
+  peopleSpread: boolean;
+  placesSpread: boolean;
+  nameSpread: boolean;
+  crossRefCounts: boolean;
+} {
   const { provider } = useGnosis();
   return {
     peopleSpread: typeof provider?.getPeopleSpread === 'function',
     placesSpread: typeof provider?.getPlacesSpread === 'function',
+    nameSpread: typeof provider?.getNameSpread === 'function',
     crossRefCounts: typeof provider?.getCrossRefCountsByChapter === 'function',
   };
 }
