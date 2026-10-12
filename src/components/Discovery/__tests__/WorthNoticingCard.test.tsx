@@ -50,6 +50,7 @@ const BETHEL: PlaceSpread = {
   firstNtRef: null,
   lastRef: 'Judg.20.31',
   books: ['Gen', 'Judg'],
+  firstRefByBook: {},
 };
 
 const BETHEL_NAME: EntitySpread = {
@@ -58,6 +59,7 @@ const BETHEL_NAME: EntitySpread = {
   firstNtRef: null,
   lastRef: 'Judg.20.31',
   books: ['Gen', 'Judg'],
+  firstRefByBook: {},
 };
 
 const renderCard = () => render(<WorthNoticingCard book="Gen" chapter={12} translationId="sword-NASB" />);
@@ -156,13 +158,13 @@ describe('WorthNoticingCard', () => {
   it('renders an only-here person fact and a reach fact', () => {
     people = ok<ChapterPerson[]>([MELCHIZEDEK, { slug: 'abraham', name: 'Abraham', verses: [1] }]);
     peopleSpread = ok<EntitySpread[]>([
-      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'] },
-      { slug: 'abraham', firstRef: 'Gen.11.26', firstNtRef: 'Matt.1.1', lastRef: 'Rev.1.1', books: BIBLE_BOOKS.slice(0, 12).map(b => b.id) },
+      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'], firstRefByBook: {} },
+      { slug: 'abraham', firstRef: 'Gen.11.26', firstNtRef: 'Matt.1.1', lastRef: 'Rev.1.1', books: BIBLE_BOOKS.slice(0, 12).map(b => b.id), firstRefByBook: { Gen: 'Gen.12.1' } },
     ]);
     nameSpread = ok<EntitySpread[]>([
       BETHEL_NAME,
-      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'] },
-      { slug: 'abraham', firstRef: 'Gen.11.26', firstNtRef: 'Matt.1.1', lastRef: 'Rev.1.1', books: ['Gen', 'Matt'] },
+      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'], firstRefByBook: {} },
+      { slug: 'abraham', firstRef: 'Gen.11.26', firstNtRef: 'Matt.1.1', lastRef: 'Rev.1.1', books: ['Gen', 'Matt'], firstRefByBook: {} },
     ]);
     renderCard();
     expect(screen.getAllByRole('listitem').map(li => li.textContent)).toEqual([
@@ -178,10 +180,10 @@ describe('WorthNoticingCard', () => {
     placesSpread = ok<PlaceSpread[]>(null);
     people = ok<ChapterPerson[]>([MELCHIZEDEK]);
     peopleSpread = ok<EntitySpread[]>([
-      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'] },
+      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'], firstRefByBook: {} },
     ]);
     nameSpread = ok<EntitySpread[]>([
-      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'] },
+      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'], firstRefByBook: {} },
     ]);
     renderCard();
     expect(screen.getByText('This is the only chapter that names Melchizedek.')).toBeTruthy();

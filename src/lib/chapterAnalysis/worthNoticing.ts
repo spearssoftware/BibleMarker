@@ -97,7 +97,8 @@ function isOnlyHere(spread: EntitySpread, book: string, chapter: number): boolea
 /**
  * Up to 4 facts for the chapter, in fixed kind priority: first mention of a
  * place, a name used only here, a heavily cross-referenced chapter, a person
- * named across 10+ books. Within a kind: first verse here, then name.
+ * named across 10+ books (only in the chapter where this book first names
+ * them). Within a kind: first verse here, then name.
  * First mention and only here are claims about a name, decided across every
  * person and place sharing it (`nameSpread`), so a shared name yields one fact
  * or none. A name appears in at most one fact — one used only here is listed
@@ -166,6 +167,8 @@ export function selectWorthNoticing({
   const reachByName = new Map<string, Candidate>();
   for (const c of personCandidates) {
     if (isForetoldIn(c.slug, book) || c.namedBooks < REACH_MIN_BOOKS) continue;
+    // Once per book, where the book first names them: otherwise it repeats down every chapter of John.
+    if (!isInChapter(c.spread.firstRefByBook[book] ?? '', book, chapter)) continue;
     const key = c.name.toLowerCase();
     const existing = reachByName.get(key);
     if (!existing || c.namedBooks > existing.namedBooks) reachByName.set(key, c);

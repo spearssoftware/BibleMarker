@@ -109,7 +109,7 @@ Up to 4 facts, taken in this fixed priority order until 4 are shown. Within a ki
 1. **First mention (places only):** a place whose first mention in Scripture falls in this chapter. Example template: `Bethel is named for the first time here.` People's first mentions are shown in Who's here instead, so they are not repeated.
 2. **Only here:** a person (excluding deity slugs) or place whose every mention in Scripture falls within this chapter. Example: `This is the only chapter that names Salem.`
 3. **Heavily linked:** this chapter is in the top 5% of all chapters by cross-reference density. Text: `This chapter is one of the most cross-referenced in Scripture.`
-4. **Reach:** a person in this chapter (excluding deity slugs) named in 10 or more distinct books. Example: `Abraham is named in 15 books of the Bible.`
+4. **Reach:** a person in this chapter (excluding deity slugs) named in 10 or more distinct books, shown only in the chapter where this book first names them, so it does not repeat down every chapter of a book. Example: `Abraham is named in 15 books of the Bible.`
 
 The exact templates are drafted by the agent in this voice and reviewed in the 3b PR. The card is hidden when no fact qualifies.
 

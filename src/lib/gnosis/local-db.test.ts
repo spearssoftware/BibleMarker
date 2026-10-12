@@ -412,8 +412,8 @@ describe('mapEntitySpreadRows', () => {
       { slug: 'other', book: 'Gen', first_key: 9020, last_key: 9020 },
     ]);
     expect(result).toEqual([
-      { slug: 'jesus-son-of-joseph', firstRef: 'Gen.9.3', firstNtRef: 'Matt.1.1', lastRef: 'Matt.28.20', books: ['Gen', '1Chr', 'Matt'] },
-      { slug: 'other', firstRef: 'Gen.9.20', firstNtRef: null, lastRef: 'Gen.9.20', books: ['Gen'] },
+      { slug: 'jesus-son-of-joseph', firstRef: 'Gen.9.3', firstNtRef: 'Matt.1.1', lastRef: 'Matt.28.20', books: ['Gen', '1Chr', 'Matt'], firstRefByBook: { Gen: 'Gen.9.3', '1Chr': '1Chr.17.13', Matt: 'Matt.1.1' } },
+      { slug: 'other', firstRef: 'Gen.9.20', firstNtRef: null, lastRef: 'Gen.9.20', books: ['Gen'], firstRefByBook: { Gen: 'Gen.9.20' } },
     ]);
   });
 
@@ -441,6 +441,7 @@ describe('mapEntitySpreadRows', () => {
       firstNtRef: 'Matt.1.1',
       lastRef: 'John.1.1',
       books: ['Matt', 'John'],
+      firstRefByBook: { Matt: 'Matt.1.1', John: 'John.1.1' },
     });
   });
 });
@@ -496,7 +497,7 @@ describe('chapter data queries', () => {
 
     state.spreadRows = [{ slug: 'abram', book: 'Gen', first_key: 12001, last_key: 25010 }];
     await expect(db.getPeopleSpread(['abram', 'sarai'])).resolves.toEqual([
-      { slug: 'abram', firstRef: 'Gen.12.1', firstNtRef: null, lastRef: 'Gen.25.10', books: ['Gen'] },
+      { slug: 'abram', firstRef: 'Gen.12.1', firstNtRef: null, lastRef: 'Gen.25.10', books: ['Gen'], firstRefByBook: { Gen: 'Gen.12.1' } },
     ]);
 
     const call = state.selectCalls.find((c) => c.sql.includes('p.slug IN'));
@@ -516,7 +517,7 @@ describe('chapter data queries', () => {
       { slug: 'bethel', name: 'Bethel', book: 'Judg', first_key: 1022, last_key: 20031 },
     ];
     await expect(db.getPlacesSpread(['bethel', 'ai'])).resolves.toEqual([
-      { slug: 'bethel', name: 'Bethel', firstRef: 'Gen.12.8', firstNtRef: null, lastRef: 'Judg.20.31', books: ['Gen', 'Judg'] },
+      { slug: 'bethel', name: 'Bethel', firstRef: 'Gen.12.8', firstNtRef: null, lastRef: 'Judg.20.31', books: ['Gen', 'Judg'], firstRefByBook: { Gen: 'Gen.12.8', Judg: 'Judg.1.22' } },
     ]);
 
     const call = state.selectCalls.find((c) => c.sql.includes('pl.slug IN'));
@@ -536,7 +537,7 @@ describe('chapter data queries', () => {
       { slug: 'elam', book: 'Ezra', first_key: 2007, last_key: 10026 },
     ];
     await expect(db.getNameSpread(['elam', 'ham'])).resolves.toEqual([
-      { slug: 'elam', firstRef: 'Gen.10.22', firstNtRef: null, lastRef: 'Ezra.10.26', books: ['Gen', 'Ezra'] },
+      { slug: 'elam', firstRef: 'Gen.10.22', firstNtRef: null, lastRef: 'Ezra.10.26', books: ['Gen', 'Ezra'], firstRefByBook: { Gen: 'Gen.10.22', Ezra: 'Ezra.2.7' } },
     ]);
 
     const call = state.selectCalls.find((c) => c.sql.includes('name_key'));

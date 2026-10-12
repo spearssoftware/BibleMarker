@@ -209,6 +209,8 @@ export interface EntitySpread {
   lastRef: string;
   /** Distinct OSIS book ids, in canonical order. */
   books: string[];
+  /** Earliest OSIS ref within each of `books`, by book id. */
+  firstRefByBook: Record<string, string>;
 }
 
 /** Where a place appears across the canon, with its name. */

@@ -60,6 +60,7 @@ describe('selectWorthNoticing', () => {
     firstNtRef,
     lastRef,
     books,
+    firstRefByBook: Object.fromEntries(books.map(b => [b, firstRef.startsWith(`${b}.`) ? firstRef : `${b}.1.1`])),
   });
   const placeSpread = (slug: string, name: string, firstRef: string, lastRef: string, books: string[]): PlaceSpread => ({
     ...spread(slug, firstRef, lastRef, books),
@@ -152,15 +153,22 @@ describe('selectWorthNoticing', () => {
   it('reports a person named across 10 or more books, but not 9', () => {
     const facts = select({
       people: [person('abraham', 'Abraham', [1]), person('lot', 'Lot', [4])],
-      peopleSpread: [spread('abraham', 'Gen.11.26', 'Rev.1.1', manyBooks(15)), spread('lot', 'Gen.11.27', 'Rev.1.1', manyBooks(9))],
+      peopleSpread: [spread('abraham', 'Gen.12.1', 'Rev.1.1', manyBooks(15)), spread('lot', 'Gen.11.27', 'Rev.1.1', manyBooks(9))],
     });
     expect(facts).toEqual([{ kind: 'reach', text: 'Abraham is named in 15 books of the Bible.', key: 'reach:abraham' }]);
+  });
+
+  it('reports reach only in the chapter where the book first names the person', () => {
+    const abraham = spread('abraham', 'Gen.11.26', 'Rev.1.1', manyBooks(15));
+    const people = [person('abraham', 'Abraham', [1])];
+    expect(select({ chapter: 11, people, peopleSpread: [abraham] }).map(f => f.key)).toEqual(['reach:abraham']);
+    expect(select({ chapter: 12, people, peopleSpread: [abraham] })).toEqual([]);
   });
 
   it('makes one reach claim per name, keeping the wider spread', () => {
     const facts = select({
       people: [person('john', 'John', [1]), person('john-2', 'John', [2])],
-      peopleSpread: [spread('john', 'Gen.11.26', 'Rev.1.1', manyBooks(11)), spread('john-2', 'Gen.11.27', 'Rev.1.1', manyBooks(14))],
+      peopleSpread: [spread('john', 'Gen.12.1', 'Rev.1.1', manyBooks(11)), spread('john-2', 'Gen.12.2', 'Rev.1.1', manyBooks(14))],
     });
     expect(facts).toEqual([{ kind: 'reach', text: 'John is named in 14 books of the Bible.', key: 'reach:john-2' }]);
   });
@@ -183,7 +191,7 @@ describe('selectWorthNoticing', () => {
   it('orders by kind priority, then first verse here, then name, and caps at 4', () => {
     const facts = select({
       people: [person('abraham', 'Abraham', [1]), person('sarah', 'Sarah', [5])],
-      peopleSpread: [spread('abraham', 'Gen.11.26', 'Rev.1.1', manyBooks(15)), spread('sarah', 'Gen.11.29', 'Rev.1.1', manyBooks(12))],
+      peopleSpread: [spread('abraham', 'Gen.12.1', 'Rev.1.1', manyBooks(15)), spread('sarah', 'Gen.11.29', 'Rev.1.1', manyBooks(12))],
       places: ['ai', 'bethel', 'shechem', 'zoar'],
       placesSpread: [
         placeSpread('zoar', 'Zoar', 'Gen.12.8', 'Gen.19.30', ['Gen']),
@@ -210,7 +218,7 @@ describe('selectWorthNoticing', () => {
   it('puts only-here, heavily-linked and reach after first mentions', () => {
     const facts = select({
       people: [person('abraham', 'Abraham', [1])],
-      peopleSpread: [spread('abraham', 'Gen.11.26', 'Rev.1.1', manyBooks(15))],
+      peopleSpread: [spread('abraham', 'Gen.12.1', 'Rev.1.1', manyBooks(15))],
       places: ['bethel', 'salem'],
       placesSpread: [
         placeSpread('bethel', 'Bethel', 'Gen.12.8', 'Judg.20.31', ['Gen', 'Judg']),
@@ -320,7 +328,7 @@ describe('selectWorthNoticing', () => {
         placesSpread: [placeSpread('bethel', 'Bethel', 'Gen.12.8', 'Judg.20.31', ['Gen', 'Judg'])],
         nameSpread: [nameOf('Bethel', 'Gen.12.8', 'Judg.20.31', ['Gen', 'Judg'])],
         people: [],
-        peopleSpread: [spread('abraham', 'Gen.11.26', 'Rev.1.1', manyBooks(15))],
+        peopleSpread: [spread('abraham', 'Gen.12.1', 'Rev.1.1', manyBooks(15))],
       })
     ).toEqual([]);
   });

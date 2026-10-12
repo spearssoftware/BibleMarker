@@ -1294,7 +1294,8 @@ interface EntitySpreadRow {
  * would put 1Chr before Gen). Rows are the spread queries' per-book minimums
  * and maximums, where each key is `chapter * 1000 + verse`; the
  * canonically-earliest book gives `firstRef`, the earliest NT book
- * `firstNtRef`, the canonically-latest book `lastRef`. `person.first_mention`
+ * `firstNtRef`, the canonically-latest book `lastRef`; each book's minimum
+ * gives `firstRefByBook`. `person.first_mention`
  * is not used: it is wrong for some people (jesus-son-of-joseph reads
  * 1Chr.17.13 though Gen.49.10 is earlier). Rows for unknown books are dropped.
  */
@@ -1320,6 +1321,7 @@ export function mapEntitySpreadRows(rows: EntitySpreadRow[]): EntitySpread[] {
       firstNtRef: firstNt ? refOf(firstNt.book, firstNt.first) : null,
       lastRef: refOf(last.book, last.last),
       books: hits.map((h) => h.book),
+      firstRefByBook: Object.fromEntries(hits.map((h) => [h.book, refOf(h.book, h.first)])),
     };
   });
 }
