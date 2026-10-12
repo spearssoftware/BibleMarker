@@ -109,7 +109,8 @@ Up to 4 facts, taken in this fixed priority order until 4 are shown. Within a ki
 1. **First mention (places only):** a place whose first mention in Scripture falls in this chapter. Example template: `Bethel is named for the first time here.` People's first mentions are shown in Who's here instead, so they are not repeated.
 2. **Only here:** a person (excluding deity slugs) or place whose every mention in Scripture falls within this chapter. Example: `This is the only chapter that names Salem.`
 3. **Heavily linked:** this chapter is in the top 5% of all chapters by cross-reference density. Text: `This chapter is one of the most cross-referenced in Scripture.`
-4. **Reach:** a person in this chapter (excluding deity slugs) named in 10 or more distinct books, shown only in the chapter where this book first names them, so it does not repeat down every chapter of a book. Example: `Abraham is named in 15 books of the Bible.`
+
+A "reach" fact (`Abraham is named in 15 books of the Bible.`) was built and then dropped in 3b review: it repeated in every chapter naming a well-known person (all of John read `Jesus is named in 26 books`), and Who's here already shows the books a person is named in.
 
 The exact templates are drafted by the agent in this voice and reviewed in the 3b PR. The card is hidden when no fact qualifies.
 
@@ -142,7 +143,7 @@ Both are drafted by the agent and reviewed by the product owner.
 
 ### Deity exclusion
 
-Gnosis person slugs `god` and `holy-spirit` are excluded from Who's here, the people count, "only here", and "reach". Jesus is included (`jesus-son-of-joseph` in Gnosis; the `jesus` slug is Jesus Justus, Col 4:11).
+Gnosis person slugs `god` and `holy-spirit` are excluded from Who's here, the people count, and "only here". Jesus is included (`jesus-son-of-joseph` in Gnosis; the `jesus` slug is Jesus Justus, Col 4:11).
 
 ### Canonical order and the "later" rule
 
@@ -167,7 +168,7 @@ Added as optional provider capabilities, following the existing pattern in `src/
 
 - **Chapter people with counts:** each person in a chapter with the count of verses in this chapter that name them, One query per chapter, not one `getPerson` per person.
 - **Chapter places with verses:** each place in a chapter with coordinates and the verse numbers in this chapter that name it.
-- **Entity book spread (3b and inline detail):** for a set of person or place ids, the distinct books and the canonical-first verse. Used for "only here", "reach", place first mention, and the inline person detail. One batched query per chapter.
+- **Entity book spread (3b and inline detail):** for a set of person or place ids, the distinct books and the canonical-first verse. Used for "only here", place first mention, and the inline person detail. One batched query per chapter.
 - **Forward cross-references (3b):** the chapter's cross-references with votes at or above `crossRefMinVotes`, filtered in TypeScript by the "later" rule, then deduped.
 - **Chapter cross-reference density ranking (3b):** for every chapter, the count of cross-references originating in it with votes at or above `crossRefMinVotes`, divided by the chapter's verse count. Computed lazily on the first Worth noticing render after Gnosis is ready, cached for the session, and never blocking other sections. A chapter is "top 5%" when its density is at or above the 95th-percentile value; ties at the cutoff are included.
 
@@ -276,7 +277,7 @@ All events are deduped per `{book, chapter, translation}`, matching `DiscoveryPa
 ### Phase 3b
 
 11. Worth noticing:
-    - It shows up to 4 facts in the order: first mention (places) → only here → heavily linked → reach (10 or more books).
+    - It shows up to 4 facts in the order: first mention (places) → only here → heavily linked.
     - It excludes the deity slugs.
     - It is absent when none qualify.
     - Verified by unit tests on fact selection and the density ranking, and a component test.
@@ -320,9 +321,8 @@ All events are deduped per `{book, chapter, translation}`, matching `DiscoveryPa
 | Jesus in OT verses | Keep, worded `Foretold` rather than `Named` | The OT points to Jesus, but the text doesn't name him there | User |
 | Deity exclusion | Exclude `god`, `holy-spirit`; keep Jesus | God tops every count otherwise | User |
 | Look closer default | Collapsed in discovery mode, expanded in inductive mode, reader's toggle persisted | Keep analysis out of the way unless wanted | User |
-| Worth noticing kinds | First mention (places), only here, heavily linked, reach; max 4 in that order | Deterministic from existing data | User |
+| Worth noticing kinds | First mention (places), only here, heavily linked; max 4 in that order (reach dropped in 3b review) | Deterministic from existing data; reach repeated down whole books | User |
 | Heavily linked | Top 5% by density (cross-references at or above vote minimum ÷ verses) | Normalizes chapter length | User |
-| Reach threshold | 10 or more books | Proposed by agent, accepted | User |
 | Forward cross-reference cap | 3, at or above `crossRefMinVotes` | Long lists in Genesis and Isaiah | User |
 | Delete replaced cards | Delete `GenreCard.tsx`, `PeoplePlacesCard.tsx` and their tests | Replaced by the new sections | User |
 | Intro and era storage | TypeScript module next to `genres.ts` | Ships with the app; editable in a PR | User |

@@ -6,7 +6,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { WorthNoticingCard } from '../WorthNoticingCard';
 import { track } from '@/lib/telemetry';
-import { BIBLE_BOOKS } from '@/types';
 import type { ChapterEntities, ChapterPerson, EntitySpread, PlaceSpread } from '@/types';
 
 vi.mock('@/lib/telemetry', () => ({ track: vi.fn() }));
@@ -18,16 +17,14 @@ const ok = <T,>(data: T | null): Query<T> => ({ isLoading: false, error: null, d
 
 let people: Query<ChapterPerson[]>;
 let entities: Query<ChapterEntities>;
-let peopleSpread: Query<EntitySpread[]>;
 let placesSpread: Query<PlaceSpread[]>;
 let nameSpread: Query<EntitySpread[]>;
 let heavilyLinked: Query<ReadonlySet<string>>;
-let capabilities: { ready: boolean; peopleSpread: boolean; placesSpread: boolean; nameSpread: boolean; crossRefCounts: boolean };
+let capabilities: { ready: boolean; placesSpread: boolean; nameSpread: boolean; crossRefCounts: boolean };
 
 vi.mock('@/hooks/useGnosis', () => ({
   useChapterPeople: () => ({ people: people.data, isLoading: people.isLoading, error: people.error }),
   useChapterEntities: () => ({ entities: entities.data, isLoading: entities.isLoading, error: entities.error }),
-  usePeopleSpread: () => ({ spread: peopleSpread.data, isLoading: peopleSpread.isLoading, error: peopleSpread.error }),
   // Disabled queries return null data, like the real hooks, so gating bugs surface here.
   usePlacesSpread: (_b: string, _c: number, _s: string[], enabled: boolean) =>
     enabled ? { spread: placesSpread.data, isLoading: placesSpread.isLoading, error: placesSpread.error } : DISABLED,
@@ -50,7 +47,6 @@ const BETHEL: PlaceSpread = {
   firstNtRef: null,
   lastRef: 'Judg.20.31',
   books: ['Gen', 'Judg'],
-  firstRefByBook: {},
 };
 
 const BETHEL_NAME: EntitySpread = {
@@ -59,7 +55,6 @@ const BETHEL_NAME: EntitySpread = {
   firstNtRef: null,
   lastRef: 'Judg.20.31',
   books: ['Gen', 'Judg'],
-  firstRefByBook: {},
 };
 
 const renderCard = () => render(<WorthNoticingCard book="Gen" chapter={12} translationId="sword-NASB" />);
@@ -69,11 +64,10 @@ describe('WorthNoticingCard', () => {
     vi.clearAllMocks();
     people = ok<ChapterPerson[]>([]);
     entities = ok<ChapterEntities>({ book: 'Gen', chapter: 12, people: [], places: ['bethel'], events: [], topics: [] });
-    peopleSpread = ok<EntitySpread[]>(null);
     placesSpread = ok<PlaceSpread[]>([BETHEL]);
     nameSpread = ok<EntitySpread[]>([BETHEL_NAME]);
     heavilyLinked = ok<ReadonlySet<string>>(new Set(['Gen.12']));
-    capabilities = { ready: true, peopleSpread: true, placesSpread: true, nameSpread: true, crossRefCounts: true };
+    capabilities = { ready: true, placesSpread: true, nameSpread: true, crossRefCounts: true };
   });
 
   afterEach(() => {
@@ -112,10 +106,6 @@ describe('WorthNoticingCard', () => {
     ['entities are loading', () => { entities = { isLoading: true, error: null, data: null }; }],
     ['the places spread has not arrived', () => { placesSpread = ok<PlaceSpread[]>(null); }],
     ['the name spread has not arrived', () => { nameSpread = ok<EntitySpread[]>(null); }],
-    ['the people spread has not arrived', () => {
-      people = ok<ChapterPerson[]>([MELCHIZEDEK]);
-      peopleSpread = ok<EntitySpread[]>(null);
-    }],
     ['the heavily-linked set has not arrived', () => { heavilyLinked = ok<ReadonlySet<string>>(null); }],
   ])('is hidden while %s', (_label, arrange) => {
     arrange();
@@ -138,7 +128,7 @@ describe('WorthNoticingCard', () => {
   });
 
   it('treats missing capabilities as no facts of that kind, not as loading', () => {
-    capabilities = { ready: true, peopleSpread: false, placesSpread: false, nameSpread: false, crossRefCounts: true };
+    capabilities = { ready: true, placesSpread: false, nameSpread: false, crossRefCounts: true };
     placesSpread = ok<PlaceSpread[]>(null);
     renderCard();
     expect(screen.getAllByRole('listitem').map(li => li.textContent)).toEqual([
@@ -155,23 +145,18 @@ describe('WorthNoticingCard', () => {
     ]);
   });
 
-  it('renders an only-here person fact and a reach fact', () => {
+  it('renders an only-here person fact and no reach fact for a widely named person', () => {
     people = ok<ChapterPerson[]>([MELCHIZEDEK, { slug: 'abraham', name: 'Abraham', verses: [1] }]);
-    peopleSpread = ok<EntitySpread[]>([
-      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'], firstRefByBook: {} },
-      { slug: 'abraham', firstRef: 'Gen.11.26', firstNtRef: 'Matt.1.1', lastRef: 'Rev.1.1', books: BIBLE_BOOKS.slice(0, 12).map(b => b.id), firstRefByBook: { Gen: 'Gen.12.1' } },
-    ]);
     nameSpread = ok<EntitySpread[]>([
       BETHEL_NAME,
-      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'], firstRefByBook: {} },
-      { slug: 'abraham', firstRef: 'Gen.11.26', firstNtRef: 'Matt.1.1', lastRef: 'Rev.1.1', books: ['Gen', 'Matt'], firstRefByBook: {} },
+      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'] },
+      { slug: 'abraham', firstRef: 'Gen.11.26', firstNtRef: 'Matt.1.1', lastRef: 'Rev.1.1', books: ['Gen', 'Matt'] },
     ]);
     renderCard();
     expect(screen.getAllByRole('listitem').map(li => li.textContent)).toEqual([
       'Bethel is named for the first time here.',
       'This is the only chapter that names Melchizedek.',
       'This chapter is one of the most cross-referenced in Scripture.',
-      'Abraham is named in 12 books of the Bible.',
     ]);
   });
 
@@ -179,11 +164,8 @@ describe('WorthNoticingCard', () => {
     entities = ok<ChapterEntities>({ book: 'Gen', chapter: 12, people: [], places: [], events: [], topics: [] });
     placesSpread = ok<PlaceSpread[]>(null);
     people = ok<ChapterPerson[]>([MELCHIZEDEK]);
-    peopleSpread = ok<EntitySpread[]>([
-      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'], firstRefByBook: {} },
-    ]);
     nameSpread = ok<EntitySpread[]>([
-      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'], firstRefByBook: {} },
+      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'] },
     ]);
     renderCard();
     expect(screen.getByText('This is the only chapter that names Melchizedek.')).toBeTruthy();

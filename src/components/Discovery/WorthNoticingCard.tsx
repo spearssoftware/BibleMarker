@@ -2,7 +2,7 @@
  * WorthNoticingCard — up to 4 verifiable facts about this chapter.
  *
  * Facts come from `selectWorthNoticing` (first mention of a place, a name used
- * only here, heavily cross-referenced, a person named across many books). Each
+ * only here, heavily cross-referenced). Each
  * kind depends only on its own inputs: an unsupported or failed query drops
  * that kind, not the card. Hidden while any input it needs is still loading,
  * and when no fact qualifies. A plain list — nothing to tap.
@@ -15,7 +15,6 @@ import {
   useGnosisCapabilities,
   useHeavilyLinkedChapters,
   useNameSpread,
-  usePeopleSpread,
   usePlacesSpread,
 } from '@/hooks/useGnosis';
 import { DEITY_SLUGS, FORETOLD_SLUGS, selectWorthNoticing } from '@/lib/chapterAnalysis';
@@ -36,17 +35,8 @@ export function WorthNoticingCard({ book, chapter, translationId }: WorthNoticin
   const { people, isLoading: peopleLoading, error: peopleError } = useChapterPeople(book, chapter);
   const { entities, isLoading: entitiesLoading, error: entitiesError } = useChapterEntities(book, chapter);
 
-  // Same slugs as Who's here, so the people spread query is shared.
-  const namedPeople = useMemo(() => (people ?? []).filter(p => !DEITY_SLUGS.has(p.slug)), [people]);
-  const personSlugs = useMemo(() => namedPeople.map(p => p.slug), [namedPeople]);
   const placeSlugs = useMemo(() => entities?.places ?? [], [entities]);
 
-  const { spread: peopleSpread, isLoading: peopleSpreadLoading, error: peopleSpreadError } = usePeopleSpread(
-    book,
-    chapter,
-    personSlugs,
-    personSlugs.length > 0
-  );
   const { spread: placesSpread, isLoading: placesSpreadLoading, error: placesSpreadError } = usePlacesSpread(
     book,
     chapter,
@@ -62,9 +52,9 @@ export function WorthNoticingCard({ book, chapter, translationId }: WorthNoticin
     const placeSet = new Set(placeSlugs);
     const placeNames = (placesSpread ?? []).filter(s => placeSet.has(s.slug)).map(s => s.name);
     // Prophecy-tagged people never get name facts, so don't aggregate their (large) spreads.
-    const personNames = namedPeople.filter(p => !FORETOLD_SLUGS.has(p.slug)).map(p => p.name);
+    const personNames = (people ?? []).filter(p => !DEITY_SLUGS.has(p.slug) && !FORETOLD_SLUGS.has(p.slug)).map(p => p.name);
     return [...new Set([...placeNames, ...personNames].map(name => name.toLowerCase()))];
-  }, [placesSpreadSettled, placesSpread, placeSlugs, namedPeople]);
+  }, [placesSpreadSettled, placesSpread, placeSlugs, people]);
   const { spread: nameSpread, isLoading: nameSpreadLoading, error: nameSpreadError } = useNameSpread(
     book,
     chapter,
@@ -75,8 +65,6 @@ export function WorthNoticingCard({ book, chapter, translationId }: WorthNoticin
     useHeavilyLinkedChapters(crossRefMinVotes, capabilities.crossRefCounts);
 
   // `null` spreads mean "no slugs", "no such method" or "not loaded yet"; only the last is still pending.
-  const peopleSpreadPending =
-    personSlugs.length > 0 && capabilities.peopleSpread && peopleSpread === null && !peopleSpreadError;
   const placesSpreadPending =
     placeSlugs.length > 0 && capabilities.placesSpread && placesSpread === null && !placesSpreadError;
   const nameSpreadPending = names.length > 0 && capabilities.nameSpread && nameSpread === null && !nameSpreadError;
@@ -85,11 +73,9 @@ export function WorthNoticingCard({ book, chapter, translationId }: WorthNoticin
     !capabilities.ready ||
     peopleLoading ||
     entitiesLoading ||
-    peopleSpreadLoading ||
     placesSpreadLoading ||
     nameSpreadLoading ||
     heavilyLinkedLoading ||
-    peopleSpreadPending ||
     placesSpreadPending ||
     nameSpreadPending ||
     heavilyLinkedPending ||
@@ -100,8 +86,8 @@ export function WorthNoticingCard({ book, chapter, translationId }: WorthNoticin
     () =>
       pending
         ? []
-        : selectWorthNoticing({ book, chapter, people, peopleSpread, places: entities?.places ?? null, placesSpread, nameSpread, heavilyLinked }),
-    [pending, book, chapter, people, peopleSpread, entities, placesSpread, nameSpread, heavilyLinked]
+        : selectWorthNoticing({ book, chapter, people, places: entities?.places ?? null, placesSpread, nameSpread, heavilyLinked }),
+    [pending, book, chapter, people, entities, placesSpread, nameSpread, heavilyLinked]
   );
 
   const visible = facts.length > 0;
