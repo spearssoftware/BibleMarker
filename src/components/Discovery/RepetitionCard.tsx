@@ -13,13 +13,15 @@
  * never reaches the DOM (no title/aria/data attribute renders it) — the
  * hint ladder is deliberately Socratic. The card title stays "One word
  * appears …" even once found, so the found-state body doesn't have to
- * repeat "You found it" twice.
+ * repeat "You found it" twice. When an existing key word in scope for this
+ * chapter (and active study) already matches the word, the card skips the
+ * hunt and says so.
  */
 
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/shared';
 import { DiscoveryCard } from './DiscoveryCard';
-import { useDiscoveryStore, useMarkedPresetExists } from '@/stores/discoveryStore';
+import { useDiscoveryStore, useMarkedPresetExists, useRepetitionKeyword } from '@/stores/discoveryStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { toast } from '@/stores/toastStore';
@@ -54,6 +56,7 @@ export function RepetitionCard({
   const alreadyMarked = useMarkedPresetExists();
   const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
   const activeStudyId = useStudyStore(s => s.activeStudyId) ?? undefined;
+  const existingKeyword = useRepetitionKeyword(repetition?.token, book, chapter, translationId);
   const [marking, setMarking] = useState(false);
 
   const categoryHint = useMemo(
@@ -87,6 +90,17 @@ export function RepetitionCard({
 
   const suffix = translationCount > 1 && primaryTranslationAbbrev ? ` (${primaryTranslationAbbrev})` : '';
   const title = `One word appears ${repetition.count}× in this chapter${suffix}`;
+
+  if (existingKeyword && !isFound) {
+    return (
+      <DiscoveryCard title={title}>
+        <p className="text-sm text-scripture-text">
+          {"You've already marked it: "}
+          <strong>{existingKeyword.word}</strong>
+        </p>
+      </DiscoveryCard>
+    );
+  }
 
   if (isFound) {
     const buttonLabel = inductiveToolsEnabled ? 'Mark it as a key word' : 'Highlight it in this chapter';

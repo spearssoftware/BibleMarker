@@ -18,7 +18,7 @@ import { usePanelStore } from '@/stores/panelStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
 import { usePreferencesStore, useInductiveToolsVisible } from '@/stores/preferencesStore';
-import { useDiscoveryStore, useMarkedPresetExists } from '@/stores/discoveryStore';
+import { useDiscoveryStore, useMarkedPresetExists, useRepetitionKeyword } from '@/stores/discoveryStore';
 import { useDiscoveryEnabled } from '@/lib/discovery-config';
 import { track } from '@/lib/telemetry';
 import { deleteAnnotation } from '@/lib/database';
@@ -62,18 +62,25 @@ export function Toolbar() {
   const discoveryContext = useDiscoveryStore(s => s.context);
   const discoveryFound = useDiscoveryStore(s => s.found);
   const alreadyHighlighted = useMarkedPresetExists();
+  const repetitionKeyword = useRepetitionKeyword(
+    discoveryContext?.analysis.repetition?.token,
+    discoveryContext?.book ?? '',
+    discoveryContext?.chapter ?? 0,
+    discoveryContext?.translationId ?? ''
+  );
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
 
   // Discover badge: 'find' while the repetition word hasn't been found yet
   // for this exact chapter/translation, 'highlight' once it's found but not
   // yet marked (or the mark was since undone from Key Words), else no badge.
+  // No badge at all when an existing key word already marks the word.
   const foundMatchesContext =
     !!discoveryContext &&
     !!discoveryFound &&
     discoveryFound.book === discoveryContext.book &&
     discoveryFound.chapter === discoveryContext.chapter &&
     discoveryFound.translationId === discoveryContext.translationId;
-  const discoveryBadge: 'find' | 'highlight' | null = !discoveryContext?.analysis.repetition
+  const discoveryBadge: 'find' | 'highlight' | null = !discoveryContext?.analysis.repetition || repetitionKeyword
     ? null
     : !foundMatchesContext
       ? 'find'

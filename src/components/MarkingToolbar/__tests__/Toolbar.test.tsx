@@ -42,7 +42,7 @@ vi.mock('@/hooks/useKeyboardShortcuts', () => ({
 
 // Stores (return minimal state)
 const { markingPresetState } = vi.hoisted(() => ({
-  markingPresetState: { presets: [] as { id: string }[] },
+  markingPresetState: { presets: [] as { id: string; word?: string; variants: string[] }[] },
 }));
 vi.mock('@/stores/markingPresetStore', () => ({
   useMarkingPresetStore: (selector?: (s: { presets: { id: string }[] }) => unknown) => {
@@ -331,7 +331,7 @@ describe('Toolbar', () => {
 
     it('hides the badge once the marked preset still exists (already highlighted)', () => {
       const context = makeDiscoveryContext();
-      markingPresetState.presets = [{ id: 'preset-1' }];
+      markingPresetState.presets = [{ id: 'preset-1', variants: [] }];
       act(() => {
         useDiscoveryStore.setState({
           context,
@@ -341,6 +341,16 @@ describe('Toolbar', () => {
       });
       render(<Toolbar />);
       expect(screen.getByLabelText('Discover')).toBeTruthy();
+      expect(screen.queryByLabelText(/something to find/i)).toBeNull();
+      expect(screen.queryByLabelText(/highlight it/i)).toBeNull();
+    });
+
+    it('shows no badge when an existing key word already marks the repetition word', () => {
+      markingPresetState.presets = [{ id: 'kw', word: 'Love', variants: [] }];
+      act(() => {
+        useDiscoveryStore.setState({ context: makeDiscoveryContext(), found: null, markedPresetId: null });
+      });
+      render(<Toolbar />);
       expect(screen.queryByLabelText(/something to find/i)).toBeNull();
       expect(screen.queryByLabelText(/highlight it/i)).toBeNull();
     });
