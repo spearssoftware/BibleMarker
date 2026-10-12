@@ -107,7 +107,7 @@ export function MultiTranslationView() {
   // Cross-references are verse-level, so the lens lights the same verse in
   // every translation column (unlike connectors, which are primary-only).
   const crossRefKeyByVerse = useMemo(
-    () => buildCrossRefKeyByVerse(crossRefRows, laterCrossRefRows),
+    () => buildCrossRefKeyByVerse({ olderRows: crossRefRows, laterRows: laterCrossRefRows }),
     [crossRefRows, laterCrossRefRows]
   );
   const lensFor = (translationId: string, verseNum: number): VerseLens | undefined => {
@@ -118,7 +118,7 @@ export function MultiTranslationView() {
         onConnectorTap: handleConnectorTap,
       };
     }
-    if (lens === 'crossRefs' && (crossRefRows.length > 0 || laterCrossRefRows.length > 0)) {
+    if (lens === 'crossRefs' && crossRefKeyByVerse.size > 0) {
       return { kind: 'crossRefs', crossRefKey: crossRefKeyByVerse.get(verseNum) ?? null, onCrossRefTap: handleCrossRefTap };
     }
     return undefined;

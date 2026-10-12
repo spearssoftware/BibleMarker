@@ -20,7 +20,7 @@ import { normalizeForMatching, presetAppliesToChapter, variantAppliesToChapter }
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import type { MarkingPreset } from '@/types';
 import { track } from '@/lib/telemetry';
-import { trackChip } from '@/components/Discovery/discoveryTelemetry';
+import { trackChip } from '@/lib/discoveryTelemetry';
 
 /** Which reading-pane lens is on. Only one at a time — turning one on turns the other off. */
 export type DiscoveryLens = 'connectors' | 'crossRefs' | null;
@@ -148,8 +148,8 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
   activateCrossRef: (key) => {
     const { context, laterCrossRefPassages } = get();
     set({ activeCrossRefKey: key });
-    if (context && laterCrossRefPassages.rows.some(row => row.key === key)) {
-      trackChip('discovery_chip_tapped', 'crossref_later', context);
+    if (laterCrossRefPassages.rows.some(row => row.key === key)) {
+      if (context) trackChip('discovery_chip_tapped', 'crossref_later', context);
       return;
     }
     track('discovery_chip_tapped', { feature: 'crossref', dedupeKey: `crossref-tap:${key}` });

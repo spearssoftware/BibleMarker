@@ -77,12 +77,16 @@ export function isLaterTarget(sourceBookId: string, targetBookId: string): boole
 /**
  * Maps each source verse to the cross-reference row the lens should open.
  * Later rows are inserted first so an older row wins a verse that has both
- * (the card's "Earlier in Scripture" group leads).
+ * (the card's "Earlier in Scripture" group leads). An empty map means no
+ * row has a verse, so the cross-reference lens has nothing to show.
  */
-export function buildCrossRefKeyByVerse(
-  olderRows: { key: string; crossRef: { verse: number } }[],
-  laterRows: { key: string; crossRef: { verse: number } }[]
-): Map<number, string> {
+export function buildCrossRefKeyByVerse({
+  olderRows,
+  laterRows,
+}: {
+  olderRows: { key: string; crossRef: { verse: number } }[];
+  laterRows: { key: string; crossRef: { verse: number } }[];
+}): Map<number, string> {
   const keyByVerse = new Map<number, string>();
   for (const row of laterRows) keyByVerse.set(row.crossRef.verse, row.key);
   for (const row of olderRows) keyByVerse.set(row.crossRef.verse, row.key);

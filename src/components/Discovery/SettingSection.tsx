@@ -28,7 +28,7 @@ import { ChapterMapModal } from './ChapterMapModal';
 import { DiscoveryCard } from './DiscoveryCard';
 import { EraStrip } from './EraStrip';
 import { EventList } from './EventList';
-import { trackChip } from './discoveryTelemetry';
+import { trackChip } from '@/lib/discoveryTelemetry';
 
 export const SETTING_ANCHOR_ID = 'discovery-setting';
 export const SETTING_MAP_ANCHOR_ID = 'discovery-setting-map';

@@ -16,7 +16,7 @@ import { pluralize } from '@/lib/textUtils';
 import { formatVerseRef, getBookById, isOldTestament, parseOsisRef } from '@/types';
 import type { ChapterPerson, EntitySpread } from '@/types';
 import { DiscoveryCard } from './DiscoveryCard';
-import { trackChip } from './discoveryTelemetry';
+import { trackChip } from '@/lib/discoveryTelemetry';
 import { MoreInReference, VerseLinks } from './InlineDetail';
 import { useExpandableList } from './useExpandableList';
 

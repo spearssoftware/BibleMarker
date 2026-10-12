@@ -40,7 +40,7 @@ import { RepetitionCard } from './RepetitionCard';
 import { ConnectorsCard } from './ConnectorsCard';
 import { CrossRefsCard } from './CrossRefsCard';
 import { LookCloserSection } from './LookCloserSection';
-import { trackChip } from './discoveryTelemetry';
+import { trackChip } from '@/lib/discoveryTelemetry';
 import { SETTING_ANCHOR_ID, SETTING_MAP_ANCHOR_ID, SettingSection } from './SettingSection';
 import { WHOS_HERE_ANCHOR_ID, WhosHereCard } from './WhosHereCard';
 import { WorthNoticingCard } from './WorthNoticingCard';

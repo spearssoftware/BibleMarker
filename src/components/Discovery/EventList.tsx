@@ -10,7 +10,7 @@
 import { Button } from '@/components/shared';
 import { formatAboutYear, isPrimeval } from '@/lib/chapterAnalysis';
 import type { ChapterEvent } from '@/types';
-import { trackChip } from './discoveryTelemetry';
+import { trackChip } from '@/lib/discoveryTelemetry';
 import { MoreInReference, VerseLinks } from './InlineDetail';
 import { useExpandableList } from './useExpandableList';
 

@@ -109,4 +109,11 @@ describe('discoveryStore — activateCrossRef telemetry', () => {
     useDiscoveryStore.getState().activateCrossRef('older-key');
     expect(trackMock).toHaveBeenCalledWith('discovery_chip_tapped', { feature: 'crossref', dedupeKey: 'crossref-tap:older-key' });
   });
+
+  it('never records a later row as crossref, even without a chapter context', () => {
+    useDiscoveryStore.setState({ context: null });
+    useDiscoveryStore.getState().activateCrossRef('later-key');
+    expect(useDiscoveryStore.getState().activeCrossRefKey).toBe('later-key');
+    expect(trackMock).not.toHaveBeenCalled();
+  });
 });

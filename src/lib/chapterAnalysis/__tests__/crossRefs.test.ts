@@ -60,13 +60,29 @@ describe('isLaterTarget - the "later" rule', () => {
 
 describe('buildCrossRefKeyByVerse', () => {
   it('maps each verse to its row key', () => {
-    const map = buildCrossRefKeyByVerse([{ key: 'o1', crossRef: { verse: 1 } }], [{ key: 'l5', crossRef: { verse: 5 } }]);
+    const map = buildCrossRefKeyByVerse({
+      olderRows: [{ key: 'o1', crossRef: { verse: 1 } }],
+      laterRows: [{ key: 'l5', crossRef: { verse: 5 } }],
+    });
     expect(map.get(1)).toBe('o1');
     expect(map.get(5)).toBe('l5');
   });
 
   it('lets the older row win a verse that has both', () => {
-    const map = buildCrossRefKeyByVerse([{ key: 'older', crossRef: { verse: 3 } }], [{ key: 'later', crossRef: { verse: 3 } }]);
+    const map = buildCrossRefKeyByVerse({
+      olderRows: [{ key: 'older', crossRef: { verse: 3 } }],
+      laterRows: [{ key: 'later', crossRef: { verse: 3 } }],
+    });
     expect(map.get(3)).toBe('older');
+  });
+
+  it('is non-empty with only later rows, so the lens still activates', () => {
+    const map = buildCrossRefKeyByVerse({ olderRows: [], laterRows: [{ key: 'l2', crossRef: { verse: 2 } }] });
+    expect(map.size).toBe(1);
+    expect(map.get(2)).toBe('l2');
+  });
+
+  it('is empty when neither group has rows, so the lens stays off', () => {
+    expect(buildCrossRefKeyByVerse({ olderRows: [], laterRows: [] }).size).toBe(0);
   });
 });
