@@ -20,6 +20,8 @@ import type {
   ChapterPerson,
   ChapterPlace,
   EntitySpread,
+  PlaceSpread,
+  ChapterCrossRefCount,
   GnosisCrossReference,
   GnosisDictionaryEntry,
   GnosisDictionaryDefinition,
@@ -420,20 +422,19 @@ export class GnosisLocalDb implements GnosisDataProvider {
   }
 
   /**
-   * First appearance (canonical order) and books for each of the given people.
-   * Aggregated in SQL to one row per person and book (the earliest
-   * `chapter * 1000 + verse` in it) rather than every verse row: Matthew 1's
+   * First and last appearance (canonical order) and books for each of the
+   * given people. Aggregated in SQL to one row per person and book (the
+   * earliest and latest `chapter * 1000 + verse` in it) rather than every verse row: Matthew 1's
    * people alone would otherwise return thousands of rows.
    */
   async getPeopleSpread(slugs: string[]): Promise<EntitySpread[]> {
     if (slugs.length === 0) return [];
     const db = await this.db();
     const placeholders = slugs.map((_, i) => `?${i + 1}`).join(', ');
-    const rest = "substr(v.osis_ref, instr(v.osis_ref, '.') + 1)";
 
-    const rows: { slug: string; book: string; first_key: number }[] = await db.select(
+    const rows: EntitySpreadRow[] = await db.select(
       `SELECT p.slug, substr(v.osis_ref, 1, instr(v.osis_ref, '.') - 1) AS book,
-              MIN(CAST(${rest} AS INTEGER) * 1000 + CAST(substr(${rest}, instr(${rest}, '.') + 1) AS INTEGER)) AS first_key
+              MIN(${CHAPTER_VERSE_KEY}) AS first_key, MAX(${CHAPTER_VERSE_KEY}) AS last_key
          FROM person p
          JOIN person_verse pv ON p.id = pv.person_id
          JOIN verse v ON pv.verse_id = v.id
@@ -442,7 +443,52 @@ export class GnosisLocalDb implements GnosisDataProvider {
       slugs
     );
 
-    return mapPeopleSpreadRows(rows);
+    return mapEntitySpreadRows(rows);
+  }
+
+  /**
+   * `getPeopleSpread` for places. No coordinate filter: "first mention" and
+   * "only here" facts must see places the map cannot plot.
+   */
+  async getPlacesSpread(slugs: string[]): Promise<PlaceSpread[]> {
+    if (slugs.length === 0) return [];
+    const db = await this.db();
+    const placeholders = slugs.map((_, i) => `?${i + 1}`).join(', ');
+
+    const rows: (EntitySpreadRow & { name: string })[] = await db.select(
+      `SELECT pl.slug, pl.name, substr(v.osis_ref, 1, instr(v.osis_ref, '.') - 1) AS book,
+              MIN(${CHAPTER_VERSE_KEY}) AS first_key, MAX(${CHAPTER_VERSE_KEY}) AS last_key
+         FROM place pl
+         JOIN place_verse plv ON pl.id = plv.place_id
+         JOIN verse v ON plv.verse_id = v.id
+       WHERE pl.slug IN (${placeholders})
+       GROUP BY pl.id, book`,
+      slugs
+    );
+
+    const nameBySlug = new Map(rows.map((r) => [r.slug, r.name]));
+    return mapEntitySpreadRows(rows).map((spread) => ({ ...spread, name: nameBySlug.get(spread.slug) ?? spread.slug }));
+  }
+
+  /**
+   * Cross-references leaving each chapter, Bible-wide, with at least
+   * `minVotes` votes. Grouped in SQL on the from verse (~624 rows at 20 votes).
+   */
+  async getCrossRefCountsByChapter(minVotes: number): Promise<ChapterCrossRefCount[]> {
+    const db = await this.db();
+    const rest = "substr(vf.osis_ref, instr(vf.osis_ref, '.') + 1)";
+
+    const rows: ChapterCrossRefCount[] = await db.select(
+      `SELECT substr(vf.osis_ref, 1, instr(vf.osis_ref, '.') - 1) AS book,
+              CAST(${rest} AS INTEGER) AS chapter, COUNT(*) AS count
+         FROM cross_reference cr
+         JOIN verse vf ON cr.from_verse_id = vf.id
+       WHERE cr.votes >= ?1
+       GROUP BY book, chapter`,
+      [minVotes]
+    );
+
+    return rows.map(({ book, chapter, count }) => ({ book, chapter, count }));
   }
 
   // --- People ---
@@ -1180,34 +1226,49 @@ export function mapChapterEventRows(
 const BOOK_ORDER = new Map(BIBLE_BOOKS.map((b) => [b.id, b.order]));
 const NT_BOOKS = new Set(getNTBooks().map((b) => b.id));
 
+/** SQL for `chapter * 1000 + verse` from an `osis_ref` column aliased `v`. */
+const OSIS_REST = "substr(v.osis_ref, instr(v.osis_ref, '.') + 1)";
+const CHAPTER_VERSE_KEY = `CAST(${OSIS_REST} AS INTEGER) * 1000 + CAST(substr(${OSIS_REST}, instr(${OSIS_REST}, '.') + 1) AS INTEGER)`;
+
+/** One person's (or place's) per-book first and last `chapter * 1000 + verse` key. */
+interface EntitySpreadRow {
+  slug: string;
+  book: string;
+  first_key: number;
+  last_key: number;
+}
+
 /**
- * Per-person first appearance and books, by canonical order (book order, then
- * numeric chapter, then numeric verse — never string order, which would put
- * 1Chr before Gen). Rows are `getPeopleSpread`'s per-book minimums, where
- * `first_key` is `chapter * 1000 + verse`; the canonically-earliest book
- * gives `firstRef`, the earliest NT book `firstNtRef`. `person.first_mention`
+ * Per-entity first and last appearance and books, by canonical order (book
+ * order, then numeric chapter, then numeric verse — never string order, which
+ * would put 1Chr before Gen). Rows are the spread queries' per-book minimums
+ * and maximums, where each key is `chapter * 1000 + verse`; the
+ * canonically-earliest book gives `firstRef`, the earliest NT book
+ * `firstNtRef`, the canonically-latest book `lastRef`. `person.first_mention`
  * is not used: it is wrong for some people (jesus-son-of-joseph reads
  * 1Chr.17.13 though Gen.49.10 is earlier). Rows for unknown books are dropped.
  */
-export function mapPeopleSpreadRows(rows: { slug: string; book: string; first_key: number }[]): EntitySpread[] {
-  type Hit = { book: string; order: number; key: number };
+export function mapEntitySpreadRows(rows: EntitySpreadRow[]): EntitySpread[] {
+  type Hit = { book: string; order: number; first: number; last: number };
   const bySlug = new Map<string, Hit[]>();
   for (const r of rows) {
     const order = BOOK_ORDER.get(r.book);
-    if (order === undefined || !Number.isFinite(r.first_key)) continue;
+    if (order === undefined || !Number.isFinite(r.first_key) || !Number.isFinite(r.last_key)) continue;
     const hits = bySlug.get(r.slug) ?? [];
-    hits.push({ book: r.book, order, key: r.first_key });
+    hits.push({ book: r.book, order, first: r.first_key, last: r.last_key });
     bySlug.set(r.slug, hits);
   }
 
-  const refOf = ({ book, key }: Hit) => `${book}.${Math.floor(key / 1000)}.${key % 1000}`;
+  const refOf = (book: string, key: number) => `${book}.${Math.floor(key / 1000)}.${key % 1000}`;
   return Array.from(bySlug, ([slug, hits]) => {
     hits.sort((a, b) => a.order - b.order);
     const firstNt = hits.find((h) => NT_BOOKS.has(h.book));
+    const last = hits[hits.length - 1];
     return {
       slug,
-      firstRef: refOf(hits[0]),
-      firstNtRef: firstNt ? refOf(firstNt) : null,
+      firstRef: refOf(hits[0].book, hits[0].first),
+      firstNtRef: firstNt ? refOf(firstNt.book, firstNt.first) : null,
+      lastRef: refOf(last.book, last.last),
       books: hits.map((h) => h.book),
     };
   });

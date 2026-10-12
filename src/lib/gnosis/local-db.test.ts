@@ -47,7 +47,9 @@ const state = vi.hoisted(() => ({
     osis_ref: string;
   }[],
   participantRows: [] as { event_slug: string; slug: string; name: string }[],
-  spreadRows: [] as { slug: string; book: string; first_key: number }[],
+  spreadRows: [] as { slug: string; book: string; first_key: number; last_key: number }[],
+  placeSpreadRows: [] as { slug: string; name: string; book: string; first_key: number; last_key: number }[],
+  crossRefCountRows: [] as { book: string; chapter: number; count: number }[],
 }));
 
 const NOT_A_DB = 'error returned from database: (code: 26) file is not a database';
@@ -88,6 +90,8 @@ vi.mock('@tauri-apps/plugin-sql', () => {
       if (sql.includes('e.sort_key')) return state.eventRows;
       if (sql.includes('FROM event_participant')) return state.participantRows;
       if (sql.includes('p.slug IN')) return state.spreadRows;
+      if (sql.includes('pl.slug IN')) return state.placeSpreadRows;
+      if (sql.includes('GROUP BY book, chapter')) return state.crossRefCountRows;
       if (sql.includes('person_verse')) return state.entityVerseRows;
       if (sql.includes('cross_reference')) {
         // Actually filter by the params the caller passed, rather than
@@ -143,6 +147,8 @@ beforeEach(() => {
   state.eventRows = [];
   state.participantRows = [];
   state.spreadRows = [];
+  state.placeSpreadRows = [];
+  state.crossRefCountRows = [];
 });
 
 describe('mapChapterEntityVerseIndexRows', () => {
@@ -393,38 +399,46 @@ describe('mapChapterEventRows', () => {
   });
 });
 
-describe('mapPeopleSpreadRows', () => {
-  it('computes firstRef by canonical order, not string order, and books in canonical order', async () => {
-    const { mapPeopleSpreadRows } = await import('./local-db');
-    const result = mapPeopleSpreadRows([
-      { slug: 'jesus-son-of-joseph', book: '1Chr', first_key: 17013 },
-      { slug: 'jesus-son-of-joseph', book: 'Matt', first_key: 1001 },
-      { slug: 'jesus-son-of-joseph', book: 'Gen', first_key: 9003 },
-      { slug: 'other', book: 'Gen', first_key: 9020 },
+describe('mapEntitySpreadRows', () => {
+  it('computes firstRef and lastRef by canonical order, not string order, and books in canonical order', async () => {
+    const { mapEntitySpreadRows } = await import('./local-db');
+    const result = mapEntitySpreadRows([
+      { slug: 'jesus-son-of-joseph', book: '1Chr', first_key: 17013, last_key: 17013 },
+      { slug: 'jesus-son-of-joseph', book: 'Matt', first_key: 1001, last_key: 28020 },
+      { slug: 'jesus-son-of-joseph', book: 'Gen', first_key: 9003, last_key: 49010 },
+      { slug: 'other', book: 'Gen', first_key: 9020, last_key: 9020 },
     ]);
     expect(result).toEqual([
-      { slug: 'jesus-son-of-joseph', firstRef: 'Gen.9.3', firstNtRef: 'Matt.1.1', books: ['Gen', '1Chr', 'Matt'] },
-      { slug: 'other', firstRef: 'Gen.9.20', firstNtRef: null, books: ['Gen'] },
+      { slug: 'jesus-son-of-joseph', firstRef: 'Gen.9.3', firstNtRef: 'Matt.1.1', lastRef: 'Matt.28.20', books: ['Gen', '1Chr', 'Matt'] },
+      { slug: 'other', firstRef: 'Gen.9.20', firstNtRef: null, lastRef: 'Gen.9.20', books: ['Gen'] },
     ]);
   });
 
-  it('picks Gen.49.10 over 1Chr.17.13', async () => {
-    const { mapPeopleSpreadRows } = await import('./local-db');
-    const [jesus] = mapPeopleSpreadRows([
-      { slug: 'jesus-son-of-joseph', book: '1Chr', first_key: 17013 },
-      { slug: 'jesus-son-of-joseph', book: 'Gen', first_key: 49010 },
+  it('picks Gen.49.10 over 1Chr.17.13 for firstRef', async () => {
+    const { mapEntitySpreadRows } = await import('./local-db');
+    const [jesus] = mapEntitySpreadRows([
+      { slug: 'jesus-son-of-joseph', book: '1Chr', first_key: 17013, last_key: 17013 },
+      { slug: 'jesus-son-of-joseph', book: 'Gen', first_key: 49010, last_key: 49010 },
     ]);
     expect(jesus.firstRef).toBe('Gen.49.10');
+    expect(jesus.lastRef).toBe('1Chr.17.13');
   });
 
-  it('picks the earliest NT book for firstNtRef and drops unknown books', async () => {
-    const { mapPeopleSpreadRows } = await import('./local-db');
-    const [jesus] = mapPeopleSpreadRows([
-      { slug: 'jesus-son-of-joseph', book: 'John', first_key: 1001 },
-      { slug: 'jesus-son-of-joseph', book: 'Matt', first_key: 1001 },
-      { slug: 'jesus-son-of-joseph', book: 'Nope', first_key: 1001 },
+  it('picks the earliest NT book for firstNtRef and drops unknown books and non-finite keys', async () => {
+    const { mapEntitySpreadRows } = await import('./local-db');
+    const [jesus] = mapEntitySpreadRows([
+      { slug: 'jesus-son-of-joseph', book: 'John', first_key: 1001, last_key: 1001 },
+      { slug: 'jesus-son-of-joseph', book: 'Matt', first_key: 1001, last_key: 1001 },
+      { slug: 'jesus-son-of-joseph', book: 'Nope', first_key: 1001, last_key: 1001 },
+      { slug: 'jesus-son-of-joseph', book: 'Rev', first_key: 1001, last_key: NaN },
     ]);
-    expect(jesus).toEqual({ slug: 'jesus-son-of-joseph', firstRef: 'Matt.1.1', firstNtRef: 'Matt.1.1', books: ['Matt', 'John'] });
+    expect(jesus).toEqual({
+      slug: 'jesus-son-of-joseph',
+      firstRef: 'Matt.1.1',
+      firstNtRef: 'Matt.1.1',
+      lastRef: 'John.1.1',
+      books: ['Matt', 'John'],
+    });
   });
 });
 
@@ -477,15 +491,47 @@ describe('chapter data queries', () => {
     await expect(db.getPeopleSpread([])).resolves.toEqual([]);
     expect(state.selectCalls.some((c) => c.sql.includes('p.slug IN'))).toBe(false);
 
-    state.spreadRows = [{ slug: 'abram', book: 'Gen', first_key: 12001 }];
+    state.spreadRows = [{ slug: 'abram', book: 'Gen', first_key: 12001, last_key: 25010 }];
     await expect(db.getPeopleSpread(['abram', 'sarai'])).resolves.toEqual([
-      { slug: 'abram', firstRef: 'Gen.12.1', firstNtRef: null, books: ['Gen'] },
+      { slug: 'abram', firstRef: 'Gen.12.1', firstNtRef: null, lastRef: 'Gen.25.10', books: ['Gen'] },
     ]);
 
     const call = state.selectCalls.find((c) => c.sql.includes('p.slug IN'));
     expect(call!.sql).toContain('p.slug IN (?1, ?2)');
     expect(call!.params).toEqual(['abram', 'sarai']);
     expect(call!.sql).toContain('GROUP BY p.id, book');
+    expect(call!.sql).toContain('MAX(');
+  });
+
+  it('getPlacesSpread binds one param per slug, has no coordinate filter, and carries the name', async () => {
+    const db = await freshDb();
+    await expect(db.getPlacesSpread([])).resolves.toEqual([]);
+    expect(state.selectCalls.some((c) => c.sql.includes('pl.slug IN'))).toBe(false);
+
+    state.placeSpreadRows = [
+      { slug: 'bethel', name: 'Bethel', book: 'Gen', first_key: 12008, last_key: 35015 },
+      { slug: 'bethel', name: 'Bethel', book: 'Judg', first_key: 1022, last_key: 20031 },
+    ];
+    await expect(db.getPlacesSpread(['bethel', 'ai'])).resolves.toEqual([
+      { slug: 'bethel', name: 'Bethel', firstRef: 'Gen.12.8', firstNtRef: null, lastRef: 'Judg.20.31', books: ['Gen', 'Judg'] },
+    ]);
+
+    const call = state.selectCalls.find((c) => c.sql.includes('pl.slug IN'));
+    expect(call!.sql).toContain('pl.slug IN (?1, ?2)');
+    expect(call!.sql).not.toContain('latitude');
+    expect(call!.params).toEqual(['bethel', 'ai']);
+    expect(call!.sql).toContain('GROUP BY pl.id, book');
+  });
+
+  it('getCrossRefCountsByChapter groups by chapter with the vote minimum bound', async () => {
+    state.crossRefCountRows = [{ book: 'Ps', chapter: 119, count: 40 }];
+    const db = await freshDb();
+
+    await expect(db.getCrossRefCountsByChapter(20)).resolves.toEqual([{ book: 'Ps', chapter: 119, count: 40 }]);
+
+    const call = state.selectCalls.find((c) => c.sql.includes('GROUP BY book, chapter'));
+    expect(call!.sql).toContain('cr.votes >= ?1');
+    expect(call!.params).toEqual([20]);
   });
 });
 

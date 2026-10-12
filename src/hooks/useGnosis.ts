@@ -12,7 +12,9 @@ import type {
   EntitySpread,
   PaginatedResponse,
   PaginationOpts,
+  PlaceSpread,
 } from '@/types';
+import { heavilyLinkedChapters } from '@/lib/chapterAnalysis';
 
 /** Get or lazily initialize the gnosis provider */
 async function ensureProvider(): Promise<GnosisDataProvider> {
@@ -314,6 +316,107 @@ export function usePeopleSpread(
     `:${[...slugs].sort().join(',')}`
   );
   return { spread: data, isLoading, error };
+}
+
+/** Same as `peopleSpreadCache`, for places. */
+const placesSpreadCache = new LRUCache();
+
+/**
+ * First and last appearance and books for the given places (`usePeopleSpread`
+ * for places). Resolves to `null` when the provider lacks `getPlacesSpread`.
+ */
+export function usePlacesSpread(
+  book: string | undefined,
+  chapter: number | undefined,
+  slugs: string[],
+  enabled = true
+): { spread: PlaceSpread[] | null; isLoading: boolean; error: string | null } {
+  const { data, isLoading, error } = useCachedChapterQuery(
+    book,
+    chapter,
+    enabled && slugs.length > 0,
+    placesSpreadCache,
+    async () => {
+      const provider = await ensureProvider();
+      if (!provider.getPlacesSpread) return null;
+      return provider.getPlacesSpread(slugs);
+    },
+    `:${[...slugs].sort().join(',')}`
+  );
+  return { spread: data, isLoading, error };
+}
+
+/**
+ * Which optional provider methods exist. `usePeopleSpread` / `usePlacesSpread`
+ * return `spread: null` for both "no slugs" and "no such method", so callers
+ * use this to tell a missing capability from an empty result.
+ */
+export function useGnosisCapabilities(): { peopleSpread: boolean; placesSpread: boolean; crossRefCounts: boolean } {
+  const { provider } = useGnosis();
+  return {
+    peopleSpread: typeof provider?.getPeopleSpread === 'function',
+    placesSpread: typeof provider?.getPlacesSpread === 'function',
+    crossRefCounts: typeof provider?.getCrossRefCountsByChapter === 'function',
+  };
+}
+
+/** Bible-wide, so one query per vote threshold per session; evicted on failure so a retry can succeed. */
+const heavilyLinkedByMinVotes = new Map<number, Promise<ReadonlySet<string>>>();
+
+function loadHeavilyLinkedChapters(minVotes: number): Promise<ReadonlySet<string>> {
+  const existing = heavilyLinkedByMinVotes.get(minVotes);
+  if (existing) return existing;
+  const promise = (async () => {
+    const provider = await ensureProvider();
+    if (!provider.getCrossRefCountsByChapter) throw new Error('Cross-reference counts are not available.');
+    return heavilyLinkedChapters(await provider.getCrossRefCountsByChapter(minVotes));
+  })();
+  promise.catch(() => {
+    if (heavilyLinkedByMinVotes.get(minVotes) === promise) heavilyLinkedByMinVotes.delete(minVotes);
+  });
+  heavilyLinkedByMinVotes.set(minVotes, promise);
+  return promise;
+}
+
+/** Test-only escape hatch — clears the session-wide heavily-linked cache between tests. */
+export function __resetHeavilyLinkedChaptersCache(): void {
+  heavilyLinkedByMinVotes.clear();
+}
+
+/**
+ * The chapters ("Book.ch") whose cross-reference density is in the top 5% of
+ * the Bible. Fetched lazily on first use, once per session, never blocking
+ * other sections.
+ */
+export function useHeavilyLinkedChapters(
+  minVotes: number,
+  enabled = true
+): { chapters: ReadonlySet<string> | null; isLoading: boolean; error: string | null } {
+  const [chapters, setChapters] = useState<ReadonlySet<string> | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await loadHeavilyLinkedChapters(minVotes);
+        if (!cancelled) setChapters(result);
+      } catch (e) {
+        console.error('[Gnosis] Heavily linked chapters query error:', e);
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [minVotes, enabled]);
+
+  if (!enabled) return { chapters: null, isLoading: false, error: null };
+  return { chapters, isLoading, error };
 }
 
 /** Repeat mounts for the same chapter+threshold shouldn't re-query SQLite. */

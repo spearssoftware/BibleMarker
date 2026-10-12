@@ -41,8 +41,8 @@ describe('WhosHereCard', () => {
     };
     spreadResult = {
       spread: [
-        { slug: 'abram', firstRef: 'Gen.11.26', firstNtRef: null, books: ['Gen'] },
-        { slug: 'lot', firstRef: 'Gen.12.4', firstNtRef: null, books: ['Gen', 'Exod'] },
+        { slug: 'abram', firstRef: 'Gen.11.26', firstNtRef: null, lastRef: 'Gen.11.26', books: ['Gen'] },
+        { slug: 'lot', firstRef: 'Gen.12.4', firstNtRef: null, lastRef: 'Exod.1.1', books: ['Gen', 'Exod'] },
       ],
       isLoading: false,
       error: null,
@@ -102,7 +102,7 @@ describe('WhosHereCard', () => {
       [6, 'Named in Genesis, Exodus, Leviticus, and 3 other books'],
     ];
     for (const [n, text] of cases) {
-      spreadResult = { spread: [{ slug: 'abram', firstRef: 'Gen.11.26', firstNtRef: null, books: books(n) }], isLoading: false, error: null };
+      spreadResult = { spread: [{ slug: 'abram', firstRef: 'Gen.11.26', firstNtRef: null, lastRef: 'Gen.11.26', books: books(n) }], isLoading: false, error: null };
       render(<WhosHereCard book="Gen" chapter={12} translationId="nasb" />);
       fireEvent.click(screen.getByRole('button', { name: /Abram/ }));
       expect(screen.getByText(text)).toBeTruthy();
@@ -148,6 +148,7 @@ describe('WhosHereCard', () => {
       slug: 'jesus-son-of-joseph',
       firstRef: 'Gen.49.10',
       firstNtRef: 'Matt.1.1',
+      lastRef: 'Rev.22.21',
       books: ['Gen', 'Matt'],
     };
     const setJesus = (verses: number[]) => {

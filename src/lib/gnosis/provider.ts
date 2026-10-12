@@ -6,6 +6,8 @@ import type {
   ChapterPerson,
   ChapterPlace,
   EntitySpread,
+  PlaceSpread,
+  ChapterCrossRefCount,
   GnosisCrossReference,
   GnosisDictionaryEntry,
   GnosisEvent,
@@ -56,6 +58,10 @@ export interface GnosisDataProvider {
   getChapterPlaces?(book: string, chapter: number): Promise<ChapterPlace[]>;
   getChapterEvents?(book: string, chapter: number): Promise<ChapterEvent[]>;
   getPeopleSpread?(slugs: string[]): Promise<EntitySpread[]>;
+  /** Like `getPeopleSpread` for places, with no coordinate requirement. */
+  getPlacesSpread?(slugs: string[]): Promise<PlaceSpread[]>;
+  /** Cross-references leaving each chapter that has any with at least `minVotes` votes, Bible-wide. */
+  getCrossRefCountsByChapter?(minVotes: number): Promise<ChapterCrossRefCount[]>;
 
   // People
   searchPeople(query: string, opts?: PaginationOpts & { gender?: string }): Promise<PaginatedResponse<GnosisPerson>>;

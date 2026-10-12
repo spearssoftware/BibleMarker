@@ -198,15 +198,27 @@ export interface ChapterEvent {
   verses: number[];
 }
 
-/** Where a person appears across the canon. */
+/** Where a person or place appears across the canon. */
 export interface EntitySpread {
   slug: string;
   /** Earliest OSIS ref in canonical order. */
   firstRef: string;
   /** Earliest New Testament OSIS ref in canonical order; null when none. */
   firstNtRef: string | null;
+  /** Latest OSIS ref in canonical order. */
+  lastRef: string;
   /** Distinct OSIS book ids, in canonical order. */
   books: string[];
+}
+
+/** Where a place appears across the canon, with its name. */
+export type PlaceSpread = EntitySpread & { name: string };
+
+/** How many cross-references leave a chapter. */
+export interface ChapterCrossRefCount {
+  book: string;
+  chapter: number;
+  count: number;
 }
 
 // --- Language / Lexicon ---

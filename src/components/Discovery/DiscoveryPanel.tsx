@@ -6,11 +6,11 @@
  * `useDiscoveryHost`, plus entity counts from Gnosis. No props — everything
  * it needs is either already-mounted host state or store reads.
  *
- * Section order: Setting → Cross-References → Who's here → Look closer
+ * Section order: Setting → Worth noticing → Cross-References → Who's here → Look closer
  * (Repetition, Connectors, Look-Again). Setting's intro and genre lines need
  * neither analysis extras nor Gnosis, so the loading gate is `!context` only
- * (S5) — a Gnosis hiccup must not blank the whole panel. Setting and Who's
- * here are each keyed per chapter, so their local state (expanded rows, the
+ * (S5) — a Gnosis hiccup must not blank the whole panel. Setting, Worth
+ * noticing and Who's here are each keyed per chapter, so their local state (expanded rows, the
  * intro toggle, the map selection and full-map modal) resets on navigation.
  * Remounting Setting costs nothing extra: the map unmounts anyway while an
  * uncached chapter's places load, and MapLibre's `remove()` releases its
@@ -21,7 +21,7 @@
  * `discovery_chip_shown` telemetry for repetition, connector and cross-references
  * lives here (not in `useDiscoveryHost`, which is always-mounted) so it fires
  * only when the card is actually rendered — repetition and connector only while
- * Look closer is open. Setting and Who's here fire their own events. The
+ * Look closer is open. Setting, Worth noticing and Who's here fire their own events. The
  * cross-reference rows themselves are loaded by `useDiscoveryHost` (the
  * cross-reference lens needs them while the panel is closed) and read from
  * the store here; later-Scripture rows fire their own `crossref_later` event.
@@ -43,6 +43,7 @@ import { LookCloserSection } from './LookCloserSection';
 import { trackChip } from './discoveryTelemetry';
 import { SETTING_ANCHOR_ID, SETTING_MAP_ANCHOR_ID, SettingSection } from './SettingSection';
 import { WHOS_HERE_ANCHOR_ID, WhosHereCard } from './WhosHereCard';
+import { WorthNoticingCard } from './WorthNoticingCard';
 
 const REPETITION_ANCHOR_ID = 'discovery-card-repetition';
 const CONNECTOR_ANCHOR_ID = 'discovery-card-connectors';
@@ -102,6 +103,7 @@ export function DiscoveryPanel() {
   return (
     <DiscoveryDialog>
       <SettingSection key={`setting:${book}:${chapter}`} book={book} chapter={chapter} translationId={translationId} />
+      <WorthNoticingCard key={`worth-noticing:${book}:${chapter}`} book={book} chapter={chapter} translationId={translationId} />
       {(hasCrossRefs || hasLaterCrossRefs) && (
         <div id={CROSS_REFS_ANCHOR_ID} className={ANCHOR_CLASS}>
           <CrossRefsCard
