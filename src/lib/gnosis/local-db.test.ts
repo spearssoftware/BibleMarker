@@ -540,8 +540,8 @@ describe('chapter data queries', () => {
     ]);
 
     const call = state.selectCalls.find((c) => c.sql.includes('name_key'));
-    expect(call!.sql).toContain('lower(p.name) IN (?1, ?2)');
-    expect(call!.sql).toContain('lower(pl.name) IN (?1, ?2)');
+    expect(call!.sql).toContain('FROM person WHERE lower(name) IN (?1, ?2)');
+    expect(call!.sql).toContain('FROM place WHERE lower(name) IN (?1, ?2)');
     expect(call!.sql).toContain('UNION ALL');
     expect(call!.sql).toContain('FROM person p');
     expect(call!.sql).toContain('FROM place pl');

@@ -9,7 +9,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BIBLE_BOOKS } from '@/types';
 import { renderHook, waitFor } from '@testing-library/react';
 import {
-  __resetHeavilyLinkedChaptersCache,
   useGnosisCapabilities,
   useHeavilyLinkedChapters,
   useNameSpread,
@@ -98,7 +97,6 @@ describe('useHeavilyLinkedChapters', () => {
   beforeEach(() => {
     getCrossRefCountsByChapterMock.mockReset();
     mockProvider.getCrossRefCountsByChapter = getCrossRefCountsByChapterMock;
-    __resetHeavilyLinkedChaptersCache();
   });
 
   it('queries once per vote threshold per session and does nothing while disabled', async () => {
@@ -120,11 +118,11 @@ describe('useHeavilyLinkedChapters', () => {
 
   it('reports an error and retries on the next mount after a failure', async () => {
     getCrossRefCountsByChapterMock.mockRejectedValueOnce(new Error('db down'));
-    const failed = renderHook(() => useHeavilyLinkedChapters(20, true));
+    const failed = renderHook(() => useHeavilyLinkedChapters(30, true));
     await waitFor(() => expect(failed.result.current.error).toBe('db down'));
 
     getCrossRefCountsByChapterMock.mockResolvedValue(COUNTS);
-    const retry = renderHook(() => useHeavilyLinkedChapters(20, true));
+    const retry = renderHook(() => useHeavilyLinkedChapters(30, true));
     await waitFor(() => expect(retry.result.current.chapters).not.toBeNull());
     expect(getCrossRefCountsByChapterMock).toHaveBeenCalledTimes(2);
   });

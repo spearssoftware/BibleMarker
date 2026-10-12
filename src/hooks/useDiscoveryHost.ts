@@ -115,7 +115,7 @@ export function useDiscoveryHost({
   // cross-reference lens can light the right verses while the panel is
   // closed, and so a row's fetched passage survives the panel closing.
   const { crossRefMinVotes } = useDiscoveryConfig();
-  // Only do the work (index query + up to 6 chapter fetches) while something
+  // Only do the work (index query + up to 6 chapter fetches per direction) while something
   // can show it: the Discover panel is open, or the lens is already on.
   const discoverOpen = usePanelStore(s => s.activePanel === 'discovery');
   const lens = useDiscoveryStore(s => s.lens);

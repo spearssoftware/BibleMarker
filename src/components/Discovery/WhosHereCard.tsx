@@ -11,7 +11,7 @@
 import { useEffect, useMemo } from 'react';
 import { Button } from '@/components/shared';
 import { useChapterPeople, usePeopleSpread } from '@/hooks/useGnosis';
-import { DEITY_SLUGS, FORETOLD_SLUGS, isForetoldIn, isInChapter } from '@/lib/chapterAnalysis';
+import { DEITY_SLUGS, FORETOLD_SLUGS, isForetoldIn, isInChapter, namedInBooks } from '@/lib/chapterAnalysis';
 import { pluralize } from '@/lib/textUtils';
 import { formatVerseRef, getBookById, isOldTestament, parseOsisRef } from '@/types';
 import type { ChapterPerson, EntitySpread } from '@/types';
@@ -93,11 +93,7 @@ export function WhosHereCard({ book, chapter, translationId }: WhosHereCardProps
           const firstLines = personSpread ? firstAppearsLines(person, personSpread, book, chapter) : [];
           const verseCount = pluralize(person.verses.length, 'verse');
           const countText = isForetoldIn(person.slug, book) ? `Foretold in ${verseCount}` : verseCount;
-          // Prophecy-tagged OT books aren't places the person is named.
-          const namedBooks = personSpread && FORETOLD_SLUGS.has(person.slug)
-            ? personSpread.books.filter(id => getBookById(id)?.testament === 'NT')
-            : personSpread?.books;
-          const books = namedBooks ? namedInBooksText(namedBooks) : null;
+          const books = personSpread ? namedInBooksText(namedInBooks(person.slug, personSpread.books)) : null;
           const expanded = expandedSlug === person.slug;
           const detailId = `person-detail-${person.slug}`;
           return (

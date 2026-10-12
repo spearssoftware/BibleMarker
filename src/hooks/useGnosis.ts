@@ -394,63 +394,33 @@ export function useGnosisCapabilities(): {
   };
 }
 
-/** Bible-wide, so one query per vote threshold per session; evicted on failure so a retry can succeed. */
-const heavilyLinkedByMinVotes = new Map<number, Promise<ReadonlySet<string>>>();
-
-function loadHeavilyLinkedChapters(minVotes: number): Promise<ReadonlySet<string>> {
-  const existing = heavilyLinkedByMinVotes.get(minVotes);
-  if (existing) return existing;
-  const promise = (async () => {
-    const provider = await ensureProvider();
-    if (!provider.getCrossRefCountsByChapter) throw new Error('Cross-reference counts are not available.');
-    return heavilyLinkedChapters(await provider.getCrossRefCountsByChapter(minVotes));
-  })();
-  promise.catch(() => {
-    if (heavilyLinkedByMinVotes.get(minVotes) === promise) heavilyLinkedByMinVotes.delete(minVotes);
-  });
-  heavilyLinkedByMinVotes.set(minVotes, promise);
-  return promise;
-}
-
-/** Test-only escape hatch — clears the session-wide heavily-linked cache between tests. */
-export function __resetHeavilyLinkedChaptersCache(): void {
-  heavilyLinkedByMinVotes.clear();
-}
+/** Bible-wide, so one query per vote threshold per session; failures are not cached, so a retry can succeed. */
+const heavilyLinkedCache = new LRUCache();
 
 /**
  * The chapters ("Book.ch") whose cross-reference density is in the top 5% of
- * the Bible. Fetched lazily on first use, once per session, never blocking
- * other sections.
+ * the Bible. Fetched lazily on first use, once per vote threshold, never
+ * blocking other sections. Resolves to `null` when the provider lacks
+ * `getCrossRefCountsByChapter`.
  */
 export function useHeavilyLinkedChapters(
   minVotes: number,
   enabled = true
 ): { chapters: ReadonlySet<string> | null; isLoading: boolean; error: string | null } {
-  const [chapters, setChapters] = useState<ReadonlySet<string> | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!enabled) return;
-    let cancelled = false;
-    (async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const result = await loadHeavilyLinkedChapters(minVotes);
-        if (!cancelled) setChapters(result);
-      } catch (e) {
-        console.error('[Gnosis] Heavily linked chapters query error:', e);
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [minVotes, enabled]);
-
-  if (!enabled) return { chapters: null, isLoading: false, error: null };
-  return { chapters, isLoading, error };
+  // Not chapter-scoped: a fixed key, with the threshold in the suffix.
+  const { data, isLoading, error } = useCachedChapterQuery<ReadonlySet<string> | null>(
+    'Bible',
+    0,
+    enabled,
+    heavilyLinkedCache,
+    async () => {
+      const provider = await ensureProvider();
+      if (!provider.getCrossRefCountsByChapter) return null;
+      return heavilyLinkedChapters(await provider.getCrossRefCountsByChapter(minVotes));
+    },
+    `:${minVotes}`
+  );
+  return { chapters: data, isLoading, error };
 }
 
 /** Repeat mounts for the same chapter+threshold shouldn't re-query SQLite. */

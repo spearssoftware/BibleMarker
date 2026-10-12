@@ -37,7 +37,8 @@ export function WorthNoticingCard({ book, chapter, translationId }: WorthNoticin
   const { entities, isLoading: entitiesLoading, error: entitiesError } = useChapterEntities(book, chapter);
 
   // Same slugs as Who's here, so the people spread query is shared.
-  const personSlugs = useMemo(() => (people ?? []).filter(p => !DEITY_SLUGS.has(p.slug)).map(p => p.slug), [people]);
+  const namedPeople = useMemo(() => (people ?? []).filter(p => !DEITY_SLUGS.has(p.slug)), [people]);
+  const personSlugs = useMemo(() => namedPeople.map(p => p.slug), [namedPeople]);
   const placeSlugs = useMemo(() => entities?.places ?? [], [entities]);
 
   const { spread: peopleSpread, isLoading: peopleSpreadLoading, error: peopleSpreadError } = usePeopleSpread(
@@ -59,9 +60,9 @@ export function WorthNoticingCard({ book, chapter, translationId }: WorthNoticin
     if (!placesSpreadSettled) return [];
     const placeSet = new Set(placeSlugs);
     const placeNames = (placesSpread ?? []).filter(s => placeSet.has(s.slug)).map(s => s.name);
-    const personNames = (people ?? []).filter(p => !DEITY_SLUGS.has(p.slug)).map(p => p.name);
+    const personNames = namedPeople.map(p => p.name);
     return [...new Set([...placeNames, ...personNames].map(name => name.toLowerCase()))];
-  }, [placesSpreadSettled, placesSpread, placeSlugs, people]);
+  }, [placesSpreadSettled, placesSpread, placeSlugs, namedPeople]);
   const { spread: nameSpread, isLoading: nameSpreadLoading, error: nameSpreadError } = useNameSpread(
     book,
     chapter,

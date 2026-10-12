@@ -29,7 +29,7 @@ import type { Chapter, ChapterCrossRef } from '@/types';
 const LOCAL_CANDIDATE_COUNT = 6;
 const MAX_SHOWN_ROWS = 3;
 const MAX_TARGET_VERSES = 3;
-const MAX_CACHE_ENTRIES = 20;
+const MAX_CACHE_ENTRIES = 40;
 
 export interface CrossRefPassageRow {
   key: string;

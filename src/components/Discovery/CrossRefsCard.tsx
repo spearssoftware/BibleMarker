@@ -120,12 +120,13 @@ function renderPassageWords(text: string, litStems: ReadonlySet<string>, onTap?:
 
 interface CrossRefRowProps {
   row: CrossRefPassageRow;
+  feature: 'crossref' | 'crossref_later';
   active: boolean;
   onToggle: () => void;
   expand: (key: string) => void;
 }
 
-function CrossRefRow({ row, active, onToggle, expand }: CrossRefRowProps) {
+function CrossRefRow({ row, feature, active, onToggle, expand }: CrossRefRowProps) {
   const progress = useDiscoveryStore(s => s.crossRefProgress[row.key]) ?? EMPTY_CROSS_REF_PROGRESS;
   const setCrossRefHunting = useDiscoveryStore(s => s.setCrossRefHunting);
   const findCrossRefWord = useDiscoveryStore(s => s.findCrossRefWord);
@@ -147,9 +148,9 @@ function CrossRefRow({ row, active, onToggle, expand }: CrossRefRowProps) {
 
   useEffect(() => {
     if (progress.hunting && foundAll) {
-      track('discovery_find_confirmed', { feature: 'crossref', dedupeKey: `crossref-found:${row.key}` });
+      track('discovery_find_confirmed', { feature, dedupeKey: `${feature}-found:${row.key}` });
     }
-  }, [progress.hunting, foundAll, row.key]);
+  }, [progress.hunting, foundAll, feature, row.key]);
 
   const handleTap = (stem: string) => {
     if (shared.includes(stem)) {
@@ -298,7 +299,12 @@ export function CrossRefsCard({ rows, expand, laterRows, laterExpand, book, chap
       ? `${pluralize(rows.length, 'verse')} to read alongside older Scripture`
       : `${pluralize(laterRows.length, 'verse')} to read alongside later Scripture`;
 
-  const renderGroup = (heading: string, groupRows: CrossRefPassageRow[], groupExpand: (key: string) => void) =>
+  const renderGroup = (
+    heading: string,
+    feature: CrossRefRowProps['feature'],
+    groupRows: CrossRefPassageRow[],
+    groupExpand: (key: string) => void
+  ) =>
     groupRows.length > 0 && (
       <div className="space-y-1">
         <h4 className="text-xs font-ui font-semibold text-scripture-muted px-2">{heading}</h4>
@@ -306,6 +312,7 @@ export function CrossRefsCard({ rows, expand, laterRows, laterExpand, book, chap
           <CrossRefRow
             key={row.key}
             row={row}
+            feature={feature}
             active={activeCrossRefKey === row.key}
             onToggle={() => handleRowToggle(row)}
             expand={groupExpand}
@@ -322,8 +329,8 @@ export function CrossRefsCard({ rows, expand, laterRows, laterExpand, book, chap
       </div>
       <p className="text-sm text-scripture-text">Read them together — what do they share?</p>
       <div ref={containerRef} className="space-y-3">
-        {renderGroup('Earlier in Scripture', rows, expand)}
-        {renderGroup('Later in Scripture', laterRows, laterExpand)}
+        {renderGroup('Earlier in Scripture', 'crossref', rows, expand)}
+        {renderGroup('Later in Scripture', 'crossref_later', laterRows, laterExpand)}
       </div>
     </DiscoveryCard>
   );

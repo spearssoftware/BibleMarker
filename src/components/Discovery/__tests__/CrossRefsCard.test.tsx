@@ -318,6 +318,22 @@ describe('CrossRefsCard', () => {
       expect(screen.queryByText('Earlier in Scripture')).toBeNull();
     });
 
+    it('logs a confirmed later find under the crossref_later feature', () => {
+      useDiscoveryStore.setState({
+        activeCrossRefKey: LATER_KEY,
+        crossRefProgress: { [LATER_KEY]: { hunting: true, found: [] } },
+      });
+      renderCard([], [laterRow()]);
+      trackMock.mockClear();
+
+      fireEvent.click(screen.getAllByRole('button', { name: /light/i })[0]);
+
+      expect(trackMock).toHaveBeenCalledWith('discovery_find_confirmed', {
+        feature: 'crossref_later',
+        dedupeKey: `crossref_later-found:${LATER_KEY}`,
+      });
+    });
+
     it('expands a later row through laterExpand and activates it through the store', () => {
       renderCard([makeCrossRefPassageRow()], [laterRow()]);
       fireEvent.click(screen.getByRole('button', { name: /John 1:5/ }));

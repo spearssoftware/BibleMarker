@@ -430,16 +430,16 @@ export class GnosisLocalDb implements GnosisDataProvider {
   async getPeopleSpread(slugs: string[]): Promise<EntitySpread[]> {
     if (slugs.length === 0) return [];
     const db = await this.db();
-    const placeholders = slugs.map((_, i) => `?${i + 1}`).join(', ');
 
     const rows: EntitySpreadRow[] = await db.select(
-      `SELECT p.slug, substr(v.osis_ref, 1, instr(v.osis_ref, '.') - 1) AS book,
-              MIN(${CHAPTER_VERSE_KEY}) AS first_key, MAX(${CHAPTER_VERSE_KEY}) AS last_key
-         FROM person p
+      spreadSql(
+        'p.slug',
+        `person p
          JOIN person_verse pv ON p.id = pv.person_id
-         JOIN verse v ON pv.verse_id = v.id
-       WHERE p.slug IN (${placeholders})
-       GROUP BY p.id, book`,
+         JOIN verse v ON pv.verse_id = v.id`,
+        `WHERE p.slug IN (${placeholdersFor(slugs)})`,
+        'p.id'
+      ),
       slugs
     );
 
@@ -453,16 +453,16 @@ export class GnosisLocalDb implements GnosisDataProvider {
   async getPlacesSpread(slugs: string[]): Promise<PlaceSpread[]> {
     if (slugs.length === 0) return [];
     const db = await this.db();
-    const placeholders = slugs.map((_, i) => `?${i + 1}`).join(', ');
 
     const rows: (EntitySpreadRow & { name: string })[] = await db.select(
-      `SELECT pl.slug, pl.name, substr(v.osis_ref, 1, instr(v.osis_ref, '.') - 1) AS book,
-              MIN(${CHAPTER_VERSE_KEY}) AS first_key, MAX(${CHAPTER_VERSE_KEY}) AS last_key
-         FROM place pl
+      spreadSql(
+        'pl.slug, pl.name',
+        `place pl
          JOIN place_verse plv ON pl.id = plv.place_id
-         JOIN verse v ON plv.verse_id = v.id
-       WHERE pl.slug IN (${placeholders})
-       GROUP BY pl.id, book`,
+         JOIN verse v ON plv.verse_id = v.id`,
+        `WHERE pl.slug IN (${placeholdersFor(slugs)})`,
+        'pl.id'
+      ),
       slugs
     );
 
@@ -480,22 +480,27 @@ export class GnosisLocalDb implements GnosisDataProvider {
   async getNameSpread(names: string[]): Promise<EntitySpread[]> {
     if (names.length === 0) return [];
     const db = await this.db();
-    const placeholders = names.map((_, i) => `?${i + 1}`).join(', ');
+    const placeholders = placeholdersFor(names);
 
+    // Entity ids are resolved first (`lower(name)` cannot use the name index
+    // for lookup, but the entity tables are small) so the verse-link tables
+    // are searched by id instead of scanned.
     const rows: EntitySpreadRow[] = await db.select(
-      `SELECT n.name_key AS slug, substr(v.osis_ref, 1, instr(v.osis_ref, '.') - 1) AS book,
-              MIN(${CHAPTER_VERSE_KEY}) AS first_key, MAX(${CHAPTER_VERSE_KEY}) AS last_key
-         FROM (
+      spreadSql(
+        'n.name_key AS slug',
+        `(
            SELECT lower(p.name) AS name_key, pv.verse_id FROM person p
              JOIN person_verse pv ON p.id = pv.person_id
-            WHERE lower(p.name) IN (${placeholders})
+            WHERE p.id IN (SELECT id FROM person WHERE lower(name) IN (${placeholders}))
            UNION ALL
            SELECT lower(pl.name) AS name_key, plv.verse_id FROM place pl
              JOIN place_verse plv ON pl.id = plv.place_id
-            WHERE lower(pl.name) IN (${placeholders})
+            WHERE pl.id IN (SELECT id FROM place WHERE lower(name) IN (${placeholders}))
          ) n
-         JOIN verse v ON n.verse_id = v.id
-       GROUP BY n.name_key, book`,
+         JOIN verse v ON n.verse_id = v.id`,
+        '',
+        'n.name_key'
+      ),
       names
     );
 
@@ -510,19 +515,16 @@ export class GnosisLocalDb implements GnosisDataProvider {
    */
   async getCrossRefCountsByChapter(minVotes: number): Promise<ChapterCrossRefCount[]> {
     const db = await this.db();
-    const rest = "substr(vf.osis_ref, instr(vf.osis_ref, '.') + 1)";
 
-    const rows: ChapterCrossRefCount[] = await db.select(
-      `SELECT substr(vf.osis_ref, 1, instr(vf.osis_ref, '.') - 1) AS book,
-              CAST(${rest} AS INTEGER) AS chapter, COUNT(*) AS count
+    return db.select(
+      `SELECT substr(v.osis_ref, 1, instr(v.osis_ref, '.') - 1) AS book,
+              CAST(${OSIS_REST} AS INTEGER) AS chapter, COUNT(*) AS count
          FROM cross_reference cr
-         JOIN verse vf ON cr.from_verse_id = vf.id
+         JOIN verse v ON cr.from_verse_id = v.id
        WHERE cr.votes >= ?1
        GROUP BY book, chapter`,
       [minVotes]
     );
-
-    return rows.map(({ book, chapter, count }) => ({ book, chapter, count }));
   }
 
   // --- People ---
@@ -1263,6 +1265,20 @@ const NT_BOOKS = new Set(getNTBooks().map((b) => b.id));
 /** SQL for `chapter * 1000 + verse` from an `osis_ref` column aliased `v`. */
 const OSIS_REST = "substr(v.osis_ref, instr(v.osis_ref, '.') + 1)";
 const CHAPTER_VERSE_KEY = `CAST(${OSIS_REST} AS INTEGER) * 1000 + CAST(substr(${OSIS_REST}, instr(${OSIS_REST}, '.') + 1) AS INTEGER)`;
+
+const placeholdersFor = (values: unknown[]) => values.map((_, i) => `?${i + 1}`).join(', ');
+
+/**
+ * Per-entity, per-book first and last `chapter * 1000 + verse` key query.
+ * `from` must join `verse v`; `where` is empty or a full WHERE clause.
+ */
+function spreadSql(columns: string, from: string, where: string, groupKey: string): string {
+  return `SELECT ${columns}, substr(v.osis_ref, 1, instr(v.osis_ref, '.') - 1) AS book,
+              MIN(${CHAPTER_VERSE_KEY}) AS first_key, MAX(${CHAPTER_VERSE_KEY}) AS last_key
+         FROM ${from}
+       ${where}
+       GROUP BY ${groupKey}, book`;
+}
 
 /** One person's (or place's) per-book first and last `chapter * 1000 + verse` key. */
 interface EntitySpreadRow {

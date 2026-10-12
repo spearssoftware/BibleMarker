@@ -7,9 +7,10 @@
  * that kind and leaves the rest.
  */
 
-import { BIBLE_BOOKS, getBookById, getVerseCount, parseOsisRef } from '@/types';
+import { BIBLE_BOOKS, getVerseCount, parseOsisRef } from '@/types';
 import type { ChapterCrossRefCount, ChapterPerson, EntitySpread, PlaceSpread } from '@/types';
-import { DEITY_SLUGS, FORETOLD_SLUGS, isForetoldIn, isInChapter } from './setting';
+import { capitalize } from '@/lib/textUtils';
+import { DEITY_SLUGS, FORETOLD_SLUGS, isForetoldIn, isInChapter, namedInBooks } from './setting';
 
 const MAX_FACTS = 4;
 const REACH_MIN_BOOKS = 10;
@@ -62,7 +63,7 @@ export interface WorthNoticingInput {
 }
 
 interface Candidate {
-  /** Slug for entity candidates; lowercased name for name candidates. */
+  /** Person slug. */
   slug: string;
   name: string;
   /** First verse in this chapter naming the entity. */
@@ -80,9 +81,7 @@ interface NameCandidate {
   isPlace: boolean;
 }
 
-const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
-
-const byVerseThenName = (a: Candidate, b: Candidate): number => a.verse - b.verse || a.name.localeCompare(b.name);
+const byVerseThenName = (a: { verse: number; name: string }, b: { verse: number; name: string }): number => a.verse - b.verse || a.name.localeCompare(b.name);
 
 const verseOf = (osisRef: string): number => parseOsisRef(osisRef)?.verse ?? 0;
 
@@ -93,12 +92,6 @@ function isOnlyHere(spread: EntitySpread, book: string, chapter: number): boolea
     isInChapter(spread.firstRef, book, chapter) &&
     isInChapter(spread.lastRef, book, chapter)
   );
-}
-
-/** Books a person is named in; prophecy-tagged people count their New Testament books only (as in Who's here). */
-function namedBookCount(slug: string, spread: EntitySpread): number {
-  if (!FORETOLD_SLUGS.has(slug)) return spread.books.length;
-  return spread.books.filter(id => getBookById(id)?.testament === 'NT').length;
 }
 
 /**
@@ -130,7 +123,7 @@ export function selectWorthNoticing({
       name: person.name,
       verse: person.verses[0] ?? 0,
       spread,
-      namedBooks: namedBookCount(spread.slug, spread),
+      namedBooks: namedInBooks(spread.slug, spread.books).length,
     });
   }
 
@@ -161,16 +154,14 @@ export function selectWorthNoticing({
     existing.verse = Math.min(existing.verse, verse);
   }
 
-  const byVerseThenNameCandidate = (a: NameCandidate, b: NameCandidate): number =>
-    a.verse - b.verse || a.name.localeCompare(b.name);
   const all = [...nameCandidates.entries()];
   const onlyHere = all
     .filter(([, c]) => isOnlyHere(c.spread, book, chapter))
-    .sort(([, a], [, b]) => byVerseThenNameCandidate(a, b));
+    .sort(([, a], [, b]) => byVerseThenName(a, b));
   const onlyHereKeys = new Set(onlyHere.map(([key]) => key));
   const firstMentions = all
     .filter(([key, c]) => c.isPlace && isInChapter(c.spread.firstRef, book, chapter) && !onlyHereKeys.has(key))
-    .sort(([, a], [, b]) => byVerseThenNameCandidate(a, b));
+    .sort(([, a], [, b]) => byVerseThenName(a, b));
   const reach = personCandidates
     .filter(c => !isForetoldIn(c.slug, book) && c.namedBooks >= REACH_MIN_BOOKS)
     .sort(byVerseThenName);

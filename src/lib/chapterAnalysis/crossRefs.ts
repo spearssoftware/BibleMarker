@@ -62,14 +62,7 @@ export function isOlderTarget(sourceBookId: string, targetBookId: string): boole
   return false;
 }
 
-/**
- * The strict "later" rule, the exact mirror of `isOlderTarget`
- * (`isLaterTarget(a, b) === isOlderTarget(b, a)`): a target counts as later
- * only in a **different book**, and either the source is OT and the target
- * is NT, or both are OT and the target's canonical order is later. NT→NT is
- * excluded for the same reason as in `isOlderTarget` — epistle order isn't
- * chronology — so NT chapters never have later targets.
- */
+/** The exact mirror of `isOlderTarget` (`isLaterTarget(a, b) === isOlderTarget(b, a)`); see there for the rule. */
 export function isLaterTarget(sourceBookId: string, targetBookId: string): boolean {
   return isOlderTarget(targetBookId, sourceBookId);
 }
