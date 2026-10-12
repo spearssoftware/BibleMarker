@@ -62,8 +62,8 @@ describe('WhosHereCard', () => {
     render(<WhosHereCard book="Gen" chapter={12} translationId="nasb" />);
     expect(screen.getByText('First appears in Genesis 11:26')).toBeTruthy();
     expect(screen.getByText('First time in Scripture')).toBeTruthy();
-    expect(screen.getByText('Named in 3 verses here')).toBeTruthy();
-    expect(screen.getByText('Named in 1 verse here')).toBeTruthy();
+    expect(screen.getByText('3 verses')).toBeTruthy();
+    expect(screen.getByText('1 verse')).toBeTruthy();
   });
 
   it('caps at 5 with +N more', () => {
@@ -155,17 +155,17 @@ describe('WhosHereCard', () => {
       spreadResult = { spread: [jesusSpread], isLoading: false, error: null };
     };
 
-    it('reads "Foretold in N verses here" with no first-appears line in an OT chapter', () => {
+    it('reads "Foretold in N verses" with no first-appears line in an OT chapter', () => {
       setJesus([1, 2]);
       render(<WhosHereCard book="Ps" chapter={2} translationId="nasb" />);
-      expect(screen.getByText('Foretold in 2 verses here')).toBeTruthy();
+      expect(screen.getByText('Foretold in 2 verses')).toBeTruthy();
       expect(screen.queryByText(/Named in/)).toBeNull();
       expect(screen.queryByText(/First/)).toBeNull();
       cleanup();
 
       setJesus([1]);
       render(<WhosHereCard book="Ps" chapter={2} translationId="nasb" />);
-      expect(screen.getByText('Foretold in 1 verse here')).toBeTruthy();
+      expect(screen.getByText('Foretold in 1 verse')).toBeTruthy();
     });
 
     it('says First named here plus Foretold from in the first NT chapter', () => {
@@ -173,7 +173,7 @@ describe('WhosHereCard', () => {
       render(<WhosHereCard book="Matt" chapter={1} translationId="nasb" />);
       expect(screen.getByText('First named here')).toBeTruthy();
       expect(screen.getByText('Foretold from Genesis 49:10')).toBeTruthy();
-      expect(screen.getByText('Named in 2 verses here')).toBeTruthy();
+      expect(screen.getByText('2 verses')).toBeTruthy();
     });
 
     it('says First named in <ref> in a later NT chapter', () => {

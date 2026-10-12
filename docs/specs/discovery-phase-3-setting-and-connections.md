@@ -89,8 +89,8 @@ Replaces `PeoplePlacesCard`.
 - Each row shows:
   - the person's name
   - `First appears in <reference>`, the person's canonically first verse computed from `person_verse` (not `person.first_mention`, which is wrong for some people), formatted with `formatVerseRef`; or `First time in Scripture` when that verse falls in this chapter
-  - `Named in N verses here` (`Named in 1 verse here` when N is 1)
-- **Prophecy-tagged people:** Gnosis tags `jesus-son-of-joseph` in Old Testament verses read as prophecy, where the text does not name him. In an OT chapter his row reads `Foretold in N verses here` with no first-appears line, and he is left out of the chapter line's people count. In an NT chapter he shows `First named here` / `First named in <reference>` from his first NT verse, plus `Foretold from <OT reference>`, and his book list counts NT books only.
+  - the verse count, right-aligned on the name line: `N verses` (`1 verse` when N is 1); the first-appears lines share one line under the name, joined with ` · `
+- **Prophecy-tagged people:** Gnosis tags `jesus-son-of-joseph` in Old Testament verses read as prophecy, where the text does not name him. In an OT chapter his row reads `Foretold in N verses` with no first-appears line, and he is left out of the chapter line's people count. In an NT chapter he shows `First named here` / `First named in <reference>` from his first NT verse, plus `Foretold from <OT reference>`, and his book list counts NT books only.
 - When two people in the chapter share a name, each row is still listed separately. The first-appears reference tells them apart.
 - Tapping a row expands it inline (see Inline detail).
 - Hidden when the chapter names no people after the exclusion.
@@ -126,6 +126,7 @@ Phase 3b adds a `Later in Scripture` group below:
 ### Look closer
 
 A collapsible section containing, in order: Repetition (`RepetitionCard`), Connectors (`ConnectorsCard`), Look-Again (`LookAgainCard`).
+- Connectors shows only its count title and the `Show connecting words in the text` toggle until the toggle is on; turning it on lights the words in the text and drops down the per-verse list.
 - Default state: collapsed when `inductiveToolsEnabled` is false, expanded when true. Until `preferencesStore` is hydrated, it renders collapsed and does not animate when hydration flips it open.
 - When the reader toggles it, the state persists on this device only (Zustand `persist`, not the synced SQLite `preferences` row) and survives an app restart. Once the reader has toggled it, their choice wins over the mode default.
 - Look-Again's person and place rows today scroll to the `peoplePlaces` anchor. In Phase 3a person rows scroll to Who's here (or Setting when Who's here is hidden) and place rows scroll to the Setting map (or Setting when there is no map); Who's here lists people only. Repetition and connector rows keep scrolling to their cards, which are inside Look closer and so already visible.
@@ -259,7 +260,7 @@ All events are deduped per `{book, chapter, translation}`, matching `DiscoveryPa
    - Verified by unit tests (band lookup, position, formatting) and a component test.
 7. Who's here:
    - It shows at most 5 people (excluding `god` and `holy-spirit`), ordered by verses in this chapter, with `+N more` when there are more.
-   - Each row shows `First appears in <reference>` or `First time in Scripture`, and `Named in N verses here`.
+   - Each row shows `First appears in <reference>` or `First time in Scripture`, and `N verses`.
    - Tapping a row expands inline detail without leaving Discover.
    - `More in Reference` opens that person's `PersonDetail`, not `No detail view for type: search`.
    - Verified by a component test and a manual check on Genesis 11.

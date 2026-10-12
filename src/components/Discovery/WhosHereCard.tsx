@@ -87,11 +87,12 @@ export function WhosHereCard({ book, chapter, translationId }: WhosHereCardProps
 
   return (
     <DiscoveryCard id={WHOS_HERE_ANCHOR_ID} title="Who's here">
-      <ul className="space-y-1">
+      <ul className="space-y-0.5">
         {shown.map(person => {
           const personSpread = spreadBySlug.get(person.slug);
           const firstLines = personSpread ? firstAppearsLines(person, personSpread, book, chapter) : [];
-          const verb = isForetoldIn(person.slug, book) ? 'Foretold' : 'Named';
+          const verseCount = pluralize(person.verses.length, 'verse');
+          const countText = isForetoldIn(person.slug, book) ? `Foretold in ${verseCount}` : verseCount;
           // Prophecy-tagged OT books aren't places the person is named.
           const namedBooks = personSpread && FORETOLD_SLUGS.has(person.slug)
             ? personSpread.books.filter(id => getBookById(id)?.testament === 'NT')
@@ -106,15 +107,22 @@ export function WhosHereCard({ book, chapter, translationId }: WhosHereCardProps
                 aria-expanded={expanded}
                 aria-controls={detailId}
                 onClick={() => toggle(person.slug)}
-                className="w-full text-left px-2 py-1.5 rounded hover:bg-scripture-elevated"
+                className="w-full text-left px-2 py-1 rounded hover:bg-scripture-elevated"
               >
-                <span className="block text-sm text-scripture-text font-medium">{person.name}</span>
-                {firstLines.map(line => (
-                  <span key={line} className="block text-xs text-scripture-muted">{line}</span>
-                ))}
-                <span className="block text-xs text-scripture-muted">
-                  {`${verb} in ${pluralize(person.verses.length, 'verse')} here`}
+                <span className="flex items-baseline justify-between gap-2">
+                  <span className="text-sm text-scripture-text font-medium">{person.name}</span>
+                  <span className="shrink-0 text-xs text-scripture-muted">{countText}</span>
                 </span>
+                {firstLines.length > 0 && (
+                  <span className="block text-xs text-scripture-muted">
+                    {firstLines.map((line, i) => (
+                      <span key={line}>
+                        {i > 0 && ' · '}
+                        <span>{line}</span>
+                      </span>
+                    ))}
+                  </span>
+                )}
               </button>
               {expanded && (
                 <div id={detailId} className="px-2 pb-2 space-y-1">
