@@ -380,6 +380,8 @@ export function useNameSpread(
  * use this to tell a missing capability from an empty result.
  */
 export function useGnosisCapabilities(): {
+  /** False until the provider initializes; the other flags are meaningless until then. */
+  ready: boolean;
   peopleSpread: boolean;
   placesSpread: boolean;
   nameSpread: boolean;
@@ -387,6 +389,7 @@ export function useGnosisCapabilities(): {
 } {
   const { provider } = useGnosis();
   return {
+    ready: provider !== null,
     peopleSpread: typeof provider?.getPeopleSpread === 'function',
     placesSpread: typeof provider?.getPlacesSpread === 'function',
     nameSpread: typeof provider?.getNameSpread === 'function',

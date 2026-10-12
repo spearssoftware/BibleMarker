@@ -157,6 +157,14 @@ describe('selectWorthNoticing', () => {
     expect(facts).toEqual([{ kind: 'reach', text: 'Abraham is named in 15 books of the Bible.', key: 'reach:abraham' }]);
   });
 
+  it('makes one reach claim per name, keeping the wider spread', () => {
+    const facts = select({
+      people: [person('john', 'John', [1]), person('john-2', 'John', [2])],
+      peopleSpread: [spread('john', 'Gen.11.26', 'Rev.1.1', manyBooks(11)), spread('john-2', 'Gen.11.27', 'Rev.1.1', manyBooks(14))],
+    });
+    expect(facts).toEqual([{ kind: 'reach', text: 'John is named in 14 books of the Bible.', key: 'reach:john-2' }]);
+  });
+
   it('skips Jesus reach in an OT chapter, and counts only NT books for him in an NT chapter', () => {
     const jesus = spread('jesus-son-of-joseph', 'Gen.49.10', 'Rev.22.21', [...manyBooks(5), 'Matt', 'Mark', 'Luke', 'John', 'Acts', 'Rom', 'Heb'], 'Matt.1.1');
     expect(

@@ -18,7 +18,7 @@ import {
   usePeopleSpread,
   usePlacesSpread,
 } from '@/hooks/useGnosis';
-import { DEITY_SLUGS, selectWorthNoticing } from '@/lib/chapterAnalysis';
+import { DEITY_SLUGS, FORETOLD_SLUGS, selectWorthNoticing } from '@/lib/chapterAnalysis';
 import { useDiscoveryConfig } from '@/lib/discovery-config';
 import { DiscoveryCard } from './DiscoveryCard';
 import { trackChip } from '@/lib/discoveryTelemetry';
@@ -55,12 +55,14 @@ export function WorthNoticingCard({ book, chapter, translationId }: WorthNoticin
   );
   // First mention and only here are claims about a name, so ask about every person and place bearing it.
   const placesSpreadSettled =
-    !placesSpreadLoading && (placesSpread !== null || !!placesSpreadError || !capabilities.placesSpread);
+    placeSlugs.length === 0 ||
+    (!placesSpreadLoading && (placesSpread !== null || !!placesSpreadError || !capabilities.placesSpread));
   const names = useMemo(() => {
     if (!placesSpreadSettled) return [];
     const placeSet = new Set(placeSlugs);
     const placeNames = (placesSpread ?? []).filter(s => placeSet.has(s.slug)).map(s => s.name);
-    const personNames = namedPeople.map(p => p.name);
+    // Prophecy-tagged people never get name facts, so don't aggregate their (large) spreads.
+    const personNames = namedPeople.filter(p => !FORETOLD_SLUGS.has(p.slug)).map(p => p.name);
     return [...new Set([...placeNames, ...personNames].map(name => name.toLowerCase()))];
   }, [placesSpreadSettled, placesSpread, placeSlugs, namedPeople]);
   const { spread: nameSpread, isLoading: nameSpreadLoading, error: nameSpreadError } = useNameSpread(
@@ -80,6 +82,7 @@ export function WorthNoticingCard({ book, chapter, translationId }: WorthNoticin
   const nameSpreadPending = names.length > 0 && capabilities.nameSpread && nameSpread === null && !nameSpreadError;
   const heavilyLinkedPending = capabilities.crossRefCounts && heavilyLinked === null && !heavilyLinkedError;
   const pending =
+    !capabilities.ready ||
     peopleLoading ||
     entitiesLoading ||
     peopleSpreadLoading ||

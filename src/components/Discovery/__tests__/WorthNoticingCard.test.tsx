@@ -13,6 +13,7 @@ vi.mock('@/lib/telemetry', () => ({ track: vi.fn() }));
 vi.mock('@/lib/discovery-config', () => ({ useDiscoveryConfig: () => ({ crossRefMinVotes: 20 }) }));
 
 interface Query<T> { isLoading: boolean; error: string | null; data: T | null }
+const DISABLED = { spread: null, isLoading: false, error: null };
 const ok = <T,>(data: T | null): Query<T> => ({ isLoading: false, error: null, data });
 
 let people: Query<ChapterPerson[]>;
@@ -21,14 +22,17 @@ let peopleSpread: Query<EntitySpread[]>;
 let placesSpread: Query<PlaceSpread[]>;
 let nameSpread: Query<EntitySpread[]>;
 let heavilyLinked: Query<ReadonlySet<string>>;
-let capabilities: { peopleSpread: boolean; placesSpread: boolean; nameSpread: boolean; crossRefCounts: boolean };
+let capabilities: { ready: boolean; peopleSpread: boolean; placesSpread: boolean; nameSpread: boolean; crossRefCounts: boolean };
 
 vi.mock('@/hooks/useGnosis', () => ({
   useChapterPeople: () => ({ people: people.data, isLoading: people.isLoading, error: people.error }),
   useChapterEntities: () => ({ entities: entities.data, isLoading: entities.isLoading, error: entities.error }),
   usePeopleSpread: () => ({ spread: peopleSpread.data, isLoading: peopleSpread.isLoading, error: peopleSpread.error }),
-  usePlacesSpread: () => ({ spread: placesSpread.data, isLoading: placesSpread.isLoading, error: placesSpread.error }),
-  useNameSpread: () => ({ spread: nameSpread.data, isLoading: nameSpread.isLoading, error: nameSpread.error }),
+  // Disabled queries return null data, like the real hooks, so gating bugs surface here.
+  usePlacesSpread: (_b: string, _c: number, _s: string[], enabled: boolean) =>
+    enabled ? { spread: placesSpread.data, isLoading: placesSpread.isLoading, error: placesSpread.error } : DISABLED,
+  useNameSpread: (_b: string, _c: number, _n: string[], enabled: boolean) =>
+    enabled ? { spread: nameSpread.data, isLoading: nameSpread.isLoading, error: nameSpread.error } : DISABLED,
   useHeavilyLinkedChapters: () => ({
     chapters: heavilyLinked.data,
     isLoading: heavilyLinked.isLoading,
@@ -67,7 +71,7 @@ describe('WorthNoticingCard', () => {
     placesSpread = ok<PlaceSpread[]>([BETHEL]);
     nameSpread = ok<EntitySpread[]>([BETHEL_NAME]);
     heavilyLinked = ok<ReadonlySet<string>>(new Set(['Gen.12']));
-    capabilities = { peopleSpread: true, placesSpread: true, nameSpread: true, crossRefCounts: true };
+    capabilities = { ready: true, peopleSpread: true, placesSpread: true, nameSpread: true, crossRefCounts: true };
   });
 
   afterEach(() => {
@@ -132,7 +136,7 @@ describe('WorthNoticingCard', () => {
   });
 
   it('treats missing capabilities as no facts of that kind, not as loading', () => {
-    capabilities = { peopleSpread: false, placesSpread: false, nameSpread: false, crossRefCounts: true };
+    capabilities = { ready: true, peopleSpread: false, placesSpread: false, nameSpread: false, crossRefCounts: true };
     placesSpread = ok<PlaceSpread[]>(null);
     renderCard();
     expect(screen.getAllByRole('listitem').map(li => li.textContent)).toEqual([
@@ -167,5 +171,25 @@ describe('WorthNoticingCard', () => {
       'This chapter is one of the most cross-referenced in Scripture.',
       'Abraham is named in 12 books of the Bible.',
     ]);
+  });
+
+  it('still finds only-here people when the chapter names no places', () => {
+    entities = ok<ChapterEntities>({ book: 'Gen', chapter: 12, people: [], places: [], events: [], topics: [] });
+    placesSpread = ok<PlaceSpread[]>(null);
+    people = ok<ChapterPerson[]>([MELCHIZEDEK]);
+    peopleSpread = ok<EntitySpread[]>([
+      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'] },
+    ]);
+    nameSpread = ok<EntitySpread[]>([
+      { slug: 'melchizedek', firstRef: 'Gen.12.18', firstNtRef: null, lastRef: 'Gen.12.18', books: ['Gen'] },
+    ]);
+    renderCard();
+    expect(screen.getByText('This is the only chapter that names Melchizedek.')).toBeTruthy();
+  });
+
+  it('stays hidden until the Gnosis provider is ready', () => {
+    capabilities = { ...capabilities, ready: false };
+    renderCard();
+    expect(screen.queryByRole('listitem')).toBeNull();
   });
 });

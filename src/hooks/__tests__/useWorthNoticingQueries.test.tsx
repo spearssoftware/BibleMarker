@@ -133,6 +133,6 @@ describe('useGnosisCapabilities', () => {
     mockProvider.getPlacesSpread = getPlacesSpreadMock;
     mockProvider.getCrossRefCountsByChapter = undefined;
     const { result } = renderHook(() => useGnosisCapabilities());
-    expect(result.current).toEqual({ peopleSpread: false, placesSpread: true, nameSpread: false, crossRefCounts: false });
+    expect(result.current).toEqual({ ready: true, peopleSpread: false, placesSpread: true, nameSpread: false, crossRefCounts: false });
   });
 });

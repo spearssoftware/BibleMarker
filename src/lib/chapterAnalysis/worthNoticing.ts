@@ -162,9 +162,15 @@ export function selectWorthNoticing({
   const firstMentions = all
     .filter(([key, c]) => c.isPlace && isInChapter(c.spread.firstRef, book, chapter) && !onlyHereKeys.has(key))
     .sort(([, a], [, b]) => byVerseThenName(a, b));
-  const reach = personCandidates
-    .filter(c => !isForetoldIn(c.slug, book) && c.namedBooks >= REACH_MIN_BOOKS)
-    .sort(byVerseThenName);
+  // One reach claim per name: with two people sharing a name, keep the wider spread.
+  const reachByName = new Map<string, Candidate>();
+  for (const c of personCandidates) {
+    if (isForetoldIn(c.slug, book) || c.namedBooks < REACH_MIN_BOOKS) continue;
+    const key = c.name.toLowerCase();
+    const existing = reachByName.get(key);
+    if (!existing || c.namedBooks > existing.namedBooks) reachByName.set(key, c);
+  }
+  const reach = [...reachByName.values()].sort(byVerseThenName);
 
   const facts: WorthNoticingFact[] = [
     ...firstMentions.map(([key, c]) => ({
