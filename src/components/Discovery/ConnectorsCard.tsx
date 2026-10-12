@@ -2,7 +2,8 @@
  * ConnectorsCard — Connector Lens (replaces the old `ConnectorChip` + `ConnectorPrompt`)
  *
  * "{n} connecting words in this chapter" with a toggle that lights the connectors in
- * the text, plus a list of every connecting word grouped by verse. Tapping a row jumps
+ * the text and drops down a list of every connecting word grouped by verse; the
+ * list stays hidden while the toggle is off. Tapping a row jumps
  * the reader there and expands the row's Socratic prompt; tapping a lit
  * connector in the text (lens on) sets the same `activePrompt` and opens
  * this panel, so the effect below scrolls the matching row into view. The
@@ -100,44 +101,46 @@ export function ConnectorsCard({ connectorRangesByVerse, connectorCount, book, c
         <span className="text-sm text-scripture-text">Show connecting words in the text</span>
         <ToggleSwitch checked={lensActive} onChange={handleToggleLens} label="Show connecting words in the text" />
       </div>
-      <div ref={containerRef} className="space-y-1">
-        {verses.map(verseNum =>
-          (connectorRangesByVerse.get(verseNum) ?? []).map(hit => {
-            const active = isRowActive(hit);
-            const promptId = `connector-prompt-${rowKey(hit)}`;
-            return (
-              <div key={rowKey(hit)} data-connector-row={rowKey(hit)}>
-                <button
-                  type="button"
-                  onClick={() => handleRowTap(hit)}
-                  aria-expanded={active}
-                  aria-controls={promptId}
-                  className="w-full flex items-center gap-2 text-left px-2 py-1.5 rounded hover:bg-scripture-elevated text-sm"
-                >
-                  <span className="text-scripture-muted">v.{hit.verse}</span>
-                  <span className="text-scripture-text font-medium">&ldquo;{hit.phrase}&rdquo;</span>
-                  <span className="text-xs text-scripture-muted capitalize">{hit.category}</span>
-                </button>
-                {active && (
-                  <div id={promptId} className="px-2 pb-2 space-y-2">
-                    <p className="text-sm text-scripture-text">{promptFor(hit)}</p>
-                    {inductiveToolsEnabled && (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => handleAddToFlow(hit)}
-                        disabled={pendingKey === pendingKeyFor(hit)}
-                      >
-                        Add to Flow
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
+      {lensActive && (
+        <div ref={containerRef} className="space-y-1">
+          {verses.map(verseNum =>
+            (connectorRangesByVerse.get(verseNum) ?? []).map(hit => {
+              const active = isRowActive(hit);
+              const promptId = `connector-prompt-${rowKey(hit)}`;
+              return (
+                <div key={rowKey(hit)} data-connector-row={rowKey(hit)}>
+                  <button
+                    type="button"
+                    onClick={() => handleRowTap(hit)}
+                    aria-expanded={active}
+                    aria-controls={promptId}
+                    className="w-full flex items-center gap-2 text-left px-2 py-1.5 rounded hover:bg-scripture-elevated text-sm"
+                  >
+                    <span className="text-scripture-muted">v.{hit.verse}</span>
+                    <span className="text-scripture-text font-medium">&ldquo;{hit.phrase}&rdquo;</span>
+                    <span className="text-xs text-scripture-muted capitalize">{hit.category}</span>
+                  </button>
+                  {active && (
+                    <div id={promptId} className="px-2 pb-2 space-y-2">
+                      <p className="text-sm text-scripture-text">{promptFor(hit)}</p>
+                      {inductiveToolsEnabled && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleAddToFlow(hit)}
+                          disabled={pendingKey === pendingKeyFor(hit)}
+                        >
+                          Add to Flow
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
     </DiscoveryCard>
   );
 }

@@ -73,4 +73,16 @@ describe('useChapterEntities', () => {
     });
     expect(getChapterEntitiesMock).not.toHaveBeenCalled();
   });
+
+  it('shares one provider query between concurrent mounts of the same chapter', async () => {
+    getChapterEntitiesMock.mockResolvedValue(makeEntities('DedupeTest', 1));
+    const first = renderHook(() => useChapterEntities('DedupeTest', 1));
+    const second = renderHook(() => useChapterEntities('DedupeTest', 1));
+
+    await waitFor(() => expect(first.result.current.isLoading).toBe(false));
+    await waitFor(() => expect(second.result.current.isLoading).toBe(false));
+    expect(first.result.current.entities).toEqual(makeEntities('DedupeTest', 1));
+    expect(second.result.current.entities).toEqual(makeEntities('DedupeTest', 1));
+    expect(getChapterEntitiesMock).toHaveBeenCalledTimes(1);
+  });
 });

@@ -33,6 +33,7 @@ export function PanelContainer() {
     analyzeThemeSearchTerm,
     referenceInitialTab,
     referenceEntitySlug,
+    referenceEntityType,
     referenceSearchQuery,
     referenceStrongsNumber,
     referenceVerse,
@@ -169,6 +170,7 @@ export function PanelContainer() {
             onClose={handleClose}
             initialTab={referenceInitialTab}
             entitySlug={referenceEntitySlug}
+            entityType={referenceEntityType}
             searchQuery={referenceSearchQuery}
             strongsNumber={referenceStrongsNumber}
             verse={referenceVerse}

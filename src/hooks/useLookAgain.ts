@@ -28,10 +28,10 @@ import { usePreferencesStore } from '@/stores/preferencesStore';
 import { usePeopleStore } from '@/stores/peopleStore';
 import { usePlaceStore } from '@/stores/placeStore';
 import { useChapterEntityVerseIndex } from '@/hooks/useGnosis';
-import { useMarkedPresetExists, type DiscoveryContext } from '@/stores/discoveryStore';
+import { presetMarksToken, useMarkedPresetExists, useRepetitionKeyword, type DiscoveryContext } from '@/stores/discoveryStore';
 import { useDiscoveryConfig } from '@/lib/discovery-config';
 import { filterPresetsByStudy, filterAnnotationsByStudy } from '@/lib/studyFilter';
-import { findKeywordMatches, normalizeForMatching, presetAppliesToChapter, variantAppliesToChapter } from '@/lib/keywordMatching';
+import { findKeywordMatches, normalizeForMatching } from '@/lib/keywordMatching';
 import { createBookScopedKeywordPreset } from '@/lib/discoveryActions';
 import { track } from '@/lib/telemetry';
 import { pluralize, agree } from '@/lib/textUtils';
@@ -158,24 +158,6 @@ function coverageIntersectsHit(cov: MarkCoverage, hit: ConnectorHit): boolean {
   if (cov.verse !== hit.verse) return false;
   if (cov.charStart === undefined || cov.charEnd === undefined) return true;
   return hit.start < cov.charEnd && hit.end > cov.charStart;
-}
-
-/**
- * Durable repetition check: a (study-filtered) preset counts as "the
- * repetition word is marked" when its scope covers this book+chapter, it
- * applies to this translation, and its word — or any variant applicable
- * here — singularizes to the analysis token. `useMarkedPresetExists` only
- * survives within a chapter visit (`markedPresetId` is cleared by
- * `resetForChapter`), so without this a revisited chapter would show the
- * repetition item unchecked even though the reader already marked the word.
- */
-function presetMarksToken(preset: MarkingPreset, token: string, book: string, chapter: number, translationId: string): boolean {
-  if (preset.moduleScope && preset.moduleScope !== translationId) return false;
-  if (!presetAppliesToChapter(preset, book, chapter)) return false;
-  const matchesToken = (text: string | undefined): boolean =>
-    text !== undefined && singularize(normalizeForMatching(text)) === token;
-  if (matchesToken(preset.word)) return true;
-  return preset.variants.some(v => variantAppliesToChapter(v, book, chapter) && matchesToken(v.text));
 }
 
 /**
@@ -324,7 +306,8 @@ export function useLookAgain(
   context: DiscoveryContext | null,
   entities: ChapterEntities | null,
   entitiesLoading: boolean,
-  discoveryEnabled: boolean
+  discoveryEnabled: boolean,
+  upsellTelemetryEnabled: boolean
 ): LookAgainResult {
   const activeStudyId = useStudyStore(s => s.activeStudyId);
   const presets = useMarkingPresetStore(s => s.presets);
@@ -334,6 +317,12 @@ export function useLookAgain(
   const activeChapterTranslationId = useActiveChapterStore(s => s.translationId);
   const activeChapterVerses = useActiveChapterStore(s => s.verses);
   const markedPresetExists = useMarkedPresetExists();
+  const repetitionKeyword = useRepetitionKeyword(
+    context?.analysis.repetition?.token,
+    context?.book ?? '',
+    context?.chapter ?? 0,
+    context?.translationId ?? ''
+  );
   const thresholds = useDiscoveryConfig();
 
   // Kill-switch (S3): when Discover is off, skip the per-verse entity query
@@ -566,16 +555,8 @@ export function useLookAgain(
   }, [context, coverage]);
 
   // Durable across revisits (unlike `markedPresetExists`, which only lives
-  // for the current chapter visit): any applicable preset whose word/variant
-  // singularizes to the repetition token keeps the item checked.
-  const repetitionDone = useMemo(() => {
-    if (markedPresetExists) return true;
-    const token = context?.analysis.repetition?.token;
-    if (!context || !token) return false;
-    return filteredPresets.some(p =>
-      presetMarksToken(p, token, context.book, context.chapter, context.translationId)
-    );
-  }, [markedPresetExists, context, filteredPresets]);
+  // for the current chapter visit).
+  const repetitionDone = markedPresetExists || !!repetitionKeyword;
 
   const items = useMemo<LookAgainItem[]>(() => {
     if (!context) return [];
@@ -684,9 +665,10 @@ export function useLookAgain(
   // Telemetry (item 8): fire once per {item, chapter, translation} the first
   // time a follow-up actually shows — `track`'s own `dedupeKey` dedupe makes
   // this safe to call on every items recompute rather than needing our own
-  // "first time" bookkeeping.
+  // "first time" bookkeeping. Gated by `upsellTelemetryEnabled`: the panel
+  // only renders Look-Again while Look closer is open.
   useEffect(() => {
-    if (!context) return;
+    if (!context || !upsellTelemetryEnabled) return;
     for (const item of items) {
       if (!item.followUp) continue;
       track('discovery_chip_shown', {
@@ -694,7 +676,7 @@ export function useLookAgain(
         dedupeKey: `upsell:${item.id}:${context.book}:${context.chapter}:${context.translationId}`,
       });
     }
-  }, [context, items]);
+  }, [context, items, upsellTelemetryEnabled]);
 
   // S4: fire completion telemetry only on an in-session *transition* — this
   // chapter visit's checklist had ≥1 undone item at some point and now has

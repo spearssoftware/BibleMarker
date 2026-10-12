@@ -101,6 +101,11 @@ export function getBookByName(name: string): BookInfo | undefined {
   );
 }
 
+/** True when the OSIS book id is an Old Testament book. */
+export function isOldTestament(bookId: string): boolean {
+  return getBookById(bookId)?.testament === 'OT';
+}
+
 /** Get all Old Testament books */
 export function getOTBooks(): BookInfo[] {
   return BIBLE_BOOKS.filter(b => b.testament === 'OT');

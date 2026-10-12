@@ -14,6 +14,11 @@ import type { ChapterAnalysis, ConnectorHit, RepetitionRung } from '@/lib/chapte
 import type { CrossRefPassageRow } from '@/hooks/useCrossRefPassages';
 import type { TextSelection } from '@/stores/annotationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
+import { useStudyStore } from '@/stores/studyStore';
+import { singularize } from '@/lib/chapterAnalysis';
+import { normalizeForMatching, presetAppliesToChapter, variantAppliesToChapter } from '@/lib/keywordMatching';
+import { filterPresetsByStudy } from '@/lib/studyFilter';
+import type { MarkingPreset } from '@/types';
 import { track } from '@/lib/telemetry';
 
 /** Which reading-pane lens is on. Only one at a time — turning one on turns the other off. */
@@ -182,4 +187,41 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
 export function useMarkedPresetExists(): boolean {
   const markedPresetId = useDiscoveryStore(s => s.markedPresetId);
   return useMarkingPresetStore(s => markedPresetId !== null && s.presets.some(p => p.id === markedPresetId));
+}
+
+/**
+ * Durable repetition check: a (study-filtered) preset counts as "the
+ * repetition word is marked" when its scope covers this book+chapter, it
+ * applies to this translation, and its word — or any variant applicable
+ * here — singularizes to the analysis token. `useMarkedPresetExists` only
+ * survives within a chapter visit (`markedPresetId` is cleared by
+ * `resetForChapter`), so without this a revisited chapter, or a word the
+ * reader marked as a key word on their own, would still read as unfound.
+ */
+export function presetMarksToken(preset: MarkingPreset, token: string, book: string, chapter: number, translationId: string): boolean {
+  if (preset.moduleScope && preset.moduleScope !== translationId) return false;
+  if (!presetAppliesToChapter(preset, book, chapter)) return false;
+  const matchesToken = (text: string | undefined): boolean =>
+    text !== undefined && singularize(normalizeForMatching(text)) === token;
+  if (matchesToken(preset.word)) return true;
+  return preset.variants.some(v => variantAppliesToChapter(v, book, chapter) && matchesToken(v.text));
+}
+
+/**
+ * The reader's existing key word that already marks the current chapter's
+ * repetition word, if any. Shared by `RepetitionCard`, the `Toolbar` badge,
+ * and Look-Again so all three agree the word is already marked.
+ */
+export function useRepetitionKeyword(
+  token: string | undefined,
+  book: string,
+  chapter: number,
+  translationId: string
+): MarkingPreset | undefined {
+  const presets = useMarkingPresetStore(s => s.presets);
+  const activeStudyId = useStudyStore(s => s.activeStudyId);
+  if (!token) return undefined;
+  return filterPresetsByStudy(presets, activeStudyId).find(p =>
+    presetMarksToken(p, token, book, chapter, translationId)
+  );
 }

@@ -30,6 +30,24 @@ const state = vi.hoisted(() => ({
   installFailures: 0,
   /** Rows returned for the chapter cross-reference-index query. */
   crossRefRows: [] as { from_ref: string; to_start: string; to_end: string | null; votes: number }[],
+  /** Rows returned for the chapter people / places / events / spread queries. */
+  peopleRows: [] as { slug: string; name: string; osis_ref: string }[],
+  placeRows: [] as {
+    slug: string;
+    name: string;
+    latitude: number | null;
+    longitude: number | null;
+    osis_ref: string;
+  }[],
+  eventRows: [] as {
+    slug: string;
+    title: string;
+    start_year_display: string | null;
+    sort_key: number | null;
+    osis_ref: string;
+  }[],
+  participantRows: [] as { event_slug: string; slug: string; name: string }[],
+  spreadRows: [] as { slug: string; book: string; first_key: number }[],
 }));
 
 const NOT_A_DB = 'error returned from database: (code: 26) file is not a database';
@@ -63,6 +81,13 @@ vi.mock('@tauri-apps/plugin-sql', () => {
       if (sql.includes('sqlite_master')) return [{ tables: state.tableCount }];
       if (sql.includes('gnosis_meta')) return [];
       if (sql.includes('chapter_timeline')) return [{ year: -4, year_display: '4 BC' }];
+      // The chapter-data queries also touch person_verse / place_verse, so
+      // each is matched on a fragment unique to it, above the generic branch.
+      if (sql.includes('SELECT p.slug, p.name, v.osis_ref')) return state.peopleRows;
+      if (sql.includes('pl.latitude')) return state.placeRows;
+      if (sql.includes('e.sort_key')) return state.eventRows;
+      if (sql.includes('FROM event_participant')) return state.participantRows;
+      if (sql.includes('p.slug IN')) return state.spreadRows;
       if (sql.includes('person_verse')) return state.entityVerseRows;
       if (sql.includes('cross_reference')) {
         // Actually filter by the params the caller passed, rather than
@@ -113,6 +138,11 @@ beforeEach(() => {
   state.entityVerseRows = [];
   state.installFailures = 0;
   state.crossRefRows = [];
+  state.peopleRows = [];
+  state.placeRows = [];
+  state.eventRows = [];
+  state.participantRows = [];
+  state.spreadRows = [];
 });
 
 describe('mapChapterEntityVerseIndexRows', () => {
@@ -250,6 +280,186 @@ describe('getChapterCrossRefIndex', () => {
     expect(call!.sql).toContain('ORDER BY cr.votes DESC, vs.osis_ref');
     expect(call!.sql).not.toMatch(/LIMIT/i);
     expect(call!.params).toEqual(['John.1.%', 20]);
+  });
+});
+
+describe('chapterRange', () => {
+  it('bounds osis_ref between "Book.N." and "Book.N/" so only that chapter matches', async () => {
+    const { chapterRange } = await import('./local-db');
+    const { params } = chapterRange('Gen', 12);
+    expect(params).toEqual(['Gen.12.', 'Gen.12/']);
+    expect('Gen.12.1' >= params[0] && 'Gen.12.1' < params[1]).toBe(true);
+    expect('Gen.12.20' >= params[0] && 'Gen.12.20' < params[1]).toBe(true);
+    expect('Gen.120.1' >= params[0] && 'Gen.120.1' < params[1]).toBe(false);
+    expect('Gen.1.12' >= params[0] && 'Gen.1.12' < params[1]).toBe(false);
+  });
+});
+
+describe('mapChapterPeopleRows', () => {
+  it('groups verses per person and sorts by verse count, name, slug', async () => {
+    const { mapChapterPeopleRows } = await import('./local-db');
+    const result = mapChapterPeopleRows([
+      { slug: 'sarai', name: 'Sarai', osis_ref: 'Gen.12.5' },
+      { slug: 'abram', name: 'Abram', osis_ref: 'Gen.12.4' },
+      { slug: 'abram', name: 'Abram', osis_ref: 'Gen.12.1' },
+      { slug: 'pharaoh-2', name: 'Pharaoh', osis_ref: 'Gen.12.15' },
+      { slug: 'pharaoh-1', name: 'Pharaoh', osis_ref: 'Gen.12.18' },
+      { slug: 'bad', name: 'Bad', osis_ref: 'Gen.12.NOPE' },
+    ]);
+    expect(result).toEqual([
+      { slug: 'abram', name: 'Abram', verses: [1, 4] },
+      { slug: 'pharaoh-1', name: 'Pharaoh', verses: [18] },
+      { slug: 'pharaoh-2', name: 'Pharaoh', verses: [15] },
+      { slug: 'sarai', name: 'Sarai', verses: [5] },
+    ]);
+  });
+});
+
+describe('mapChapterPlaceRows', () => {
+  it('excludes places without coordinates and groups verses', async () => {
+    const { mapChapterPlaceRows } = await import('./local-db');
+    const result = mapChapterPlaceRows([
+      { slug: 'shechem', name: 'Shechem', latitude: 32.2, longitude: 35.3, osis_ref: 'Gen.12.7' },
+      { slug: 'shechem', name: 'Shechem', latitude: 32.2, longitude: 35.3, osis_ref: 'Gen.12.6' },
+      { slug: 'nowhere', name: 'Nowhere', latitude: null, longitude: null, osis_ref: 'Gen.12.1' },
+      { slug: 'half', name: 'Half', latitude: 1, longitude: null, osis_ref: 'Gen.12.2' },
+    ]);
+    expect(result).toEqual([
+      { slug: 'shechem', name: 'Shechem', latitude: 32.2, longitude: 35.3, verses: [6, 7] },
+    ]);
+  });
+});
+
+describe('mapChapterEventRows', () => {
+  it('breaks the Genesis 12 sort_key tie by slug, puts null keys last, and attaches participants', async () => {
+    const { mapChapterEventRows } = await import('./local-db');
+    const result = mapChapterEventRows(
+      [
+        { slug: 'undated', title: 'Undated', start_year_display: null, sort_key: null, osis_ref: 'Gen.12.2' },
+        { slug: 'abrahamic-covenant', title: 'Abrahamic Covenant', start_year_display: '2091 BC', sort_key: 5, osis_ref: 'Gen.12.3' },
+        { slug: 'abraham-enters-canaan', title: 'Abraham Enters Canaan', start_year_display: '2091 BC', sort_key: 5, osis_ref: 'Gen.12.5' },
+        { slug: 'abraham-enters-canaan', title: 'Abraham Enters Canaan', start_year_display: '2091 BC', sort_key: 5, osis_ref: 'Gen.12.4' },
+        { slug: 'earlier', title: 'Earlier', start_year_display: null, sort_key: 1, osis_ref: 'Gen.12.1' },
+      ],
+      [
+        { event_slug: 'abraham-enters-canaan', slug: 'sarai', name: 'Sarai' },
+        { event_slug: 'abraham-enters-canaan', slug: 'abram', name: 'Abram' },
+      ]
+    );
+    expect(result.map((e) => e.slug)).toEqual([
+      'earlier',
+      'abraham-enters-canaan',
+      'abrahamic-covenant',
+      'undated',
+    ]);
+    expect(result[1]).toEqual({
+      slug: 'abraham-enters-canaan',
+      title: 'Abraham Enters Canaan',
+      startYearDisplay: '2091 BC',
+      sortKey: 5,
+      participants: [
+        { slug: 'abram', name: 'Abram' },
+        { slug: 'sarai', name: 'Sarai' },
+      ],
+      verses: [4, 5],
+    });
+    expect(result[3].sortKey).toBeNull();
+  });
+});
+
+describe('mapPeopleSpreadRows', () => {
+  it('computes firstRef by canonical order, not string order, and books in canonical order', async () => {
+    const { mapPeopleSpreadRows } = await import('./local-db');
+    const result = mapPeopleSpreadRows([
+      { slug: 'jesus-son-of-joseph', book: '1Chr', first_key: 17013 },
+      { slug: 'jesus-son-of-joseph', book: 'Matt', first_key: 1001 },
+      { slug: 'jesus-son-of-joseph', book: 'Gen', first_key: 9003 },
+      { slug: 'other', book: 'Gen', first_key: 9020 },
+    ]);
+    expect(result).toEqual([
+      { slug: 'jesus-son-of-joseph', firstRef: 'Gen.9.3', firstNtRef: 'Matt.1.1', books: ['Gen', '1Chr', 'Matt'] },
+      { slug: 'other', firstRef: 'Gen.9.20', firstNtRef: null, books: ['Gen'] },
+    ]);
+  });
+
+  it('picks Gen.49.10 over 1Chr.17.13', async () => {
+    const { mapPeopleSpreadRows } = await import('./local-db');
+    const [jesus] = mapPeopleSpreadRows([
+      { slug: 'jesus-son-of-joseph', book: '1Chr', first_key: 17013 },
+      { slug: 'jesus-son-of-joseph', book: 'Gen', first_key: 49010 },
+    ]);
+    expect(jesus.firstRef).toBe('Gen.49.10');
+  });
+
+  it('picks the earliest NT book for firstNtRef and drops unknown books', async () => {
+    const { mapPeopleSpreadRows } = await import('./local-db');
+    const [jesus] = mapPeopleSpreadRows([
+      { slug: 'jesus-son-of-joseph', book: 'John', first_key: 1001 },
+      { slug: 'jesus-son-of-joseph', book: 'Matt', first_key: 1001 },
+      { slug: 'jesus-son-of-joseph', book: 'Nope', first_key: 1001 },
+    ]);
+    expect(jesus).toEqual({ slug: 'jesus-son-of-joseph', firstRef: 'Matt.1.1', firstNtRef: 'Matt.1.1', books: ['Matt', 'John'] });
+  });
+});
+
+describe('chapter data queries', () => {
+  it('getChapterPeople uses the range filter and maps rows', async () => {
+    state.peopleRows = [{ slug: 'abram', name: 'Abram', osis_ref: 'Gen.12.1' }];
+    const db = await freshDb();
+
+    await expect(db.getChapterPeople('Gen', 12)).resolves.toEqual([{ slug: 'abram', name: 'Abram', verses: [1] }]);
+
+    const call = state.selectCalls.find((c) => c.sql.includes('SELECT p.slug, p.name, v.osis_ref'));
+    expect(call!.sql).toContain('v.osis_ref >= ?1 AND v.osis_ref < ?2');
+    expect(call!.params).toEqual(['Gen.12.', 'Gen.12/']);
+  });
+
+  it('getChapterPlaces filters to places with coordinates', async () => {
+    state.placeRows = [{ slug: 'haran', name: 'Haran', latitude: 36.8, longitude: 39.0, osis_ref: 'Gen.12.4' }];
+    const db = await freshDb();
+
+    await expect(db.getChapterPlaces('Gen', 12)).resolves.toEqual([
+      { slug: 'haran', name: 'Haran', latitude: 36.8, longitude: 39.0, verses: [4] },
+    ]);
+
+    const call = state.selectCalls.find((c) => c.sql.includes('pl.latitude'));
+    expect(call!.sql).toContain('pl.latitude IS NOT NULL');
+    expect(call!.sql).toContain('v.osis_ref >= ?1 AND v.osis_ref < ?2');
+    expect(call!.params).toEqual(['Gen.12.', 'Gen.12/']);
+  });
+
+  it('getChapterEvents runs the participants query with the same range and returns nothing when there are no events', async () => {
+    const db = await freshDb();
+    await expect(db.getChapterEvents('Gen', 12)).resolves.toEqual([]);
+
+    state.eventRows = [
+      { slug: 'abraham-enters-canaan', title: 'Abraham Enters Canaan', start_year_display: null, sort_key: 5, osis_ref: 'Gen.12.5' },
+    ];
+    state.participantRows = [{ event_slug: 'abraham-enters-canaan', slug: 'abram', name: 'Abram' }];
+
+    const events = await db.getChapterEvents('Gen', 12);
+    expect(events).toHaveLength(1);
+    expect(events[0].participants).toEqual([{ slug: 'abram', name: 'Abram' }]);
+
+    const call = state.selectCalls.find((c) => c.sql.includes('FROM event_participant'));
+    expect(call!.sql).toContain('v.osis_ref >= ?1 AND v.osis_ref < ?2');
+    expect(call!.params).toEqual(['Gen.12.', 'Gen.12/']);
+  });
+
+  it('getPeopleSpread binds one param per slug and returns early for none', async () => {
+    const db = await freshDb();
+    await expect(db.getPeopleSpread([])).resolves.toEqual([]);
+    expect(state.selectCalls.some((c) => c.sql.includes('p.slug IN'))).toBe(false);
+
+    state.spreadRows = [{ slug: 'abram', book: 'Gen', first_key: 12001 }];
+    await expect(db.getPeopleSpread(['abram', 'sarai'])).resolves.toEqual([
+      { slug: 'abram', firstRef: 'Gen.12.1', firstNtRef: null, books: ['Gen'] },
+    ]);
+
+    const call = state.selectCalls.find((c) => c.sql.includes('p.slug IN'));
+    expect(call!.sql).toContain('p.slug IN (?1, ?2)');
+    expect(call!.params).toEqual(['abram', 'sarai']);
+    expect(call!.sql).toContain('GROUP BY p.id, book');
   });
 });
 

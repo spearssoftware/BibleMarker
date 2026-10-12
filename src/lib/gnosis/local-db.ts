@@ -10,11 +10,16 @@ import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import type { GnosisDataProvider } from './provider';
 import { isOlderTarget } from '@/lib/chapterAnalysis/crossRefs';
+import { BIBLE_BOOKS, getNTBooks } from '@/types';
 import type {
   ChapterCrossRef,
   ChapterCrossRefIndex,
   ChapterEntities,
   ChapterEntityVerseIndex,
+  ChapterEvent,
+  ChapterPerson,
+  ChapterPlace,
+  EntitySpread,
   GnosisCrossReference,
   GnosisDictionaryEntry,
   GnosisDictionaryDefinition,
@@ -331,6 +336,112 @@ export class GnosisLocalDb implements GnosisDataProvider {
     );
 
     return mapChapterCrossRefIndexRows(book, chapter, rows);
+  }
+
+  /** People named in the chapter, with the verses naming each. */
+  async getChapterPeople(book: string, chapter: number): Promise<ChapterPerson[]> {
+    const db = await this.db();
+    const range = chapterRange(book, chapter);
+
+    const rows: { slug: string; name: string; osis_ref: string }[] = await db.select(
+      `SELECT p.slug, p.name, v.osis_ref FROM person p
+         JOIN person_verse pv ON p.id = pv.person_id
+         JOIN verse v ON pv.verse_id = v.id
+       WHERE ${range.where}`,
+      range.params
+    );
+
+    return mapChapterPeopleRows(rows);
+  }
+
+  /** Places that have coordinates and are named in the chapter. */
+  async getChapterPlaces(book: string, chapter: number): Promise<ChapterPlace[]> {
+    const db = await this.db();
+    const range = chapterRange(book, chapter);
+
+    const rows: {
+      slug: string;
+      name: string;
+      latitude: number | null;
+      longitude: number | null;
+      osis_ref: string;
+    }[] = await db.select(
+      `SELECT pl.slug, pl.name, pl.latitude, pl.longitude, v.osis_ref FROM place pl
+         JOIN place_verse plv ON pl.id = plv.place_id
+         JOIN verse v ON plv.verse_id = v.id
+       WHERE pl.latitude IS NOT NULL AND pl.longitude IS NOT NULL AND ${range.where}`,
+      range.params
+    );
+
+    return mapChapterPlaceRows(rows);
+  }
+
+  /**
+   * Events tied to verses in the chapter, with their participants. Two
+   * concurrent queries: the events with their verses, and participants
+   * selected through a subquery on the same chapter range so no id list has to
+   * be bound.
+   */
+  async getChapterEvents(book: string, chapter: number): Promise<ChapterEvent[]> {
+    const db = await this.db();
+    const range = chapterRange(book, chapter);
+
+    const [eventRows, participantRows] = await Promise.all([
+      db.select<
+        {
+          slug: string;
+          title: string;
+          start_year_display: string | null;
+          sort_key: number | null;
+          osis_ref: string;
+        }[]
+      >(
+        `SELECT e.slug, e.title, e.start_year_display, e.sort_key, v.osis_ref FROM event e
+           JOIN event_verse ev ON e.id = ev.event_id
+           JOIN verse v ON ev.verse_id = v.id
+         WHERE ${range.where}`,
+        range.params
+      ),
+      db.select<{ event_slug: string; slug: string; name: string }[]>(
+        `SELECT e.slug as event_slug, p.slug, p.name FROM event_participant ep
+           JOIN event e ON ep.event_id = e.id
+           JOIN person p ON ep.person_id = p.id
+         WHERE ep.event_id IN (
+           SELECT ev.event_id FROM event_verse ev
+           WHERE ev.verse_id IN (SELECT v.id FROM verse v WHERE ${range.where})
+         )`,
+        range.params
+      ),
+    ]);
+    if (eventRows.length === 0) return [];
+
+    return mapChapterEventRows(eventRows, participantRows);
+  }
+
+  /**
+   * First appearance (canonical order) and books for each of the given people.
+   * Aggregated in SQL to one row per person and book (the earliest
+   * `chapter * 1000 + verse` in it) rather than every verse row: Matthew 1's
+   * people alone would otherwise return thousands of rows.
+   */
+  async getPeopleSpread(slugs: string[]): Promise<EntitySpread[]> {
+    if (slugs.length === 0) return [];
+    const db = await this.db();
+    const placeholders = slugs.map((_, i) => `?${i + 1}`).join(', ');
+    const rest = "substr(v.osis_ref, instr(v.osis_ref, '.') + 1)";
+
+    const rows: { slug: string; book: string; first_key: number }[] = await db.select(
+      `SELECT p.slug, substr(v.osis_ref, 1, instr(v.osis_ref, '.') - 1) AS book,
+              MIN(CAST(${rest} AS INTEGER) * 1000 + CAST(substr(${rest}, instr(${rest}, '.') + 1) AS INTEGER)) AS first_key
+         FROM person p
+         JOIN person_verse pv ON p.id = pv.person_id
+         JOIN verse v ON pv.verse_id = v.id
+       WHERE p.slug IN (${placeholders})
+       GROUP BY p.id, book`,
+      slugs
+    );
+
+    return mapPeopleSpreadRows(rows);
   }
 
   // --- People ---
@@ -961,6 +1072,144 @@ export function mapChapterEntityVerseIndexRows(
     peopleVerses: Array.from(peopleVerses).sort((a, b) => a - b),
     placesVerses: Array.from(placesVerses).sort((a, b) => a - b),
   };
+}
+
+/**
+ * Index-friendly chapter filter on `verse` aliased `v`: `osis_ref` sorts
+ * between `Gen.12.` and `Gen.12/` ('/' is the character after '.'), so SQLite
+ * can range-scan `idx_verse_osis_ref` where `LIKE` would not.
+ */
+export function chapterRange(book: string, chapter: number): { where: string; params: [string, string] } {
+  return {
+    where: 'v.osis_ref >= ?1 AND v.osis_ref < ?2',
+    params: [`${book}.${chapter}.`, `${book}.${chapter}/`],
+  };
+}
+
+/** Adds each valid verse number from `rows` to a per-slug set, keeping first-seen names. */
+function groupVerses<T extends { slug: string; osis_ref: string }>(
+  rows: T[]
+): Map<string, { row: T; verses: Set<number> }> {
+  const bySlug = new Map<string, { row: T; verses: Set<number> }>();
+  for (const r of rows) {
+    const verse = parseOsisVerse(r.osis_ref);
+    if (isNaN(verse)) continue;
+    const entry = bySlug.get(r.slug);
+    if (entry) entry.verses.add(verse);
+    else bySlug.set(r.slug, { row: r, verses: new Set([verse]) });
+  }
+  return bySlug;
+}
+
+const sortedVerses = (verses: Set<number>): number[] => Array.from(verses).sort((a, b) => a - b);
+
+/** Groups `{slug, name, osis_ref}` rows by person; most verses first, then name, then slug. */
+export function mapChapterPeopleRows(rows: { slug: string; name: string; osis_ref: string }[]): ChapterPerson[] {
+  return Array.from(groupVerses(rows).values())
+    .map(({ row, verses }) => ({ slug: row.slug, name: row.name, verses: sortedVerses(verses) }))
+    .sort(
+      (a, b) =>
+        b.verses.length - a.verses.length ||
+        a.name.localeCompare(b.name) ||
+        a.slug.localeCompare(b.slug)
+    );
+}
+
+type PlaceRow = { slug: string; name: string; latitude: number | null; longitude: number | null; osis_ref: string };
+type PlaceRowWithCoords = PlaceRow & { latitude: number; longitude: number };
+
+/** Groups place rows by slug, dropping places without coordinates; ordered by first verse, then name, then slug. */
+export function mapChapterPlaceRows(rows: PlaceRow[]): ChapterPlace[] {
+  const withCoords = rows.filter((r): r is PlaceRowWithCoords => r.latitude !== null && r.longitude !== null);
+  return Array.from(groupVerses(withCoords).values())
+    .map(({ row, verses }) => ({
+      slug: row.slug,
+      name: row.name,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      verses: sortedVerses(verses),
+    }))
+    .sort((a, b) => a.verses[0] - b.verses[0] || a.name.localeCompare(b.name) || a.slug.localeCompare(b.slug));
+}
+
+/**
+ * Groups event rows by slug and attaches participants (name, then slug).
+ * Sorted by `sortKey` ascending with nulls last, then slug — several events
+ * can share a `sort_key` (Genesis 12's abraham-enters-canaan and
+ * abrahamic-covenant do), so the slug tiebreak keeps the order stable.
+ */
+export function mapChapterEventRows(
+  eventRows: {
+    slug: string;
+    title: string;
+    start_year_display: string | null;
+    sort_key: number | null;
+    osis_ref: string;
+  }[],
+  participantRows: { event_slug: string; slug: string; name: string }[]
+): ChapterEvent[] {
+  const participantsByEvent = new Map<string, { slug: string; name: string }[]>();
+  for (const p of participantRows) {
+    const list = participantsByEvent.get(p.event_slug) ?? [];
+    list.push({ slug: p.slug, name: p.name });
+    participantsByEvent.set(p.event_slug, list);
+  }
+
+  return Array.from(groupVerses(eventRows).values())
+    .map(({ row, verses }) => ({
+      slug: row.slug,
+      title: row.title,
+      startYearDisplay: row.start_year_display ?? null,
+      sortKey: row.sort_key ?? null,
+      participants: (participantsByEvent.get(row.slug) ?? []).sort(
+        (a, b) => a.name.localeCompare(b.name) || a.slug.localeCompare(b.slug)
+      ),
+      verses: sortedVerses(verses),
+    }))
+    .sort((a, b) => {
+      if (a.sortKey !== b.sortKey) {
+        if (a.sortKey === null) return 1;
+        if (b.sortKey === null) return -1;
+        return a.sortKey - b.sortKey;
+      }
+      return a.slug.localeCompare(b.slug);
+    });
+}
+
+const BOOK_ORDER = new Map(BIBLE_BOOKS.map((b) => [b.id, b.order]));
+const NT_BOOKS = new Set(getNTBooks().map((b) => b.id));
+
+/**
+ * Per-person first appearance and books, by canonical order (book order, then
+ * numeric chapter, then numeric verse — never string order, which would put
+ * 1Chr before Gen). Rows are `getPeopleSpread`'s per-book minimums, where
+ * `first_key` is `chapter * 1000 + verse`; the canonically-earliest book
+ * gives `firstRef`, the earliest NT book `firstNtRef`. `person.first_mention`
+ * is not used: it is wrong for some people (jesus-son-of-joseph reads
+ * 1Chr.17.13 though Gen.49.10 is earlier). Rows for unknown books are dropped.
+ */
+export function mapPeopleSpreadRows(rows: { slug: string; book: string; first_key: number }[]): EntitySpread[] {
+  type Hit = { book: string; order: number; key: number };
+  const bySlug = new Map<string, Hit[]>();
+  for (const r of rows) {
+    const order = BOOK_ORDER.get(r.book);
+    if (order === undefined || !Number.isFinite(r.first_key)) continue;
+    const hits = bySlug.get(r.slug) ?? [];
+    hits.push({ book: r.book, order, key: r.first_key });
+    bySlug.set(r.slug, hits);
+  }
+
+  const refOf = ({ book, key }: Hit) => `${book}.${Math.floor(key / 1000)}.${key % 1000}`;
+  return Array.from(bySlug, ([slug, hits]) => {
+    hits.sort((a, b) => a.order - b.order);
+    const firstNt = hits.find((h) => NT_BOOKS.has(h.book));
+    return {
+      slug,
+      firstRef: refOf(hits[0]),
+      firstNtRef: firstNt ? refOf(firstNt) : null,
+      books: hits.map((h) => h.book),
+    };
+  });
 }
 
 /**

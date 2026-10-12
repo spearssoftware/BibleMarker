@@ -162,6 +162,50 @@ export interface ChapterCrossRefIndex {
   crossRefs: ChapterCrossRef[];
 }
 
+/**
+ * A person named in a chapter, with the verses that name them. Providers
+ * return lists ordered by verses named (most first), then name, then slug;
+ * consumers rely on that order.
+ */
+export interface ChapterPerson {
+  slug: string;
+  name: string;
+  /** Sorted, distinct verse numbers. */
+  verses: number[];
+}
+
+/** A place with coordinates named in a chapter, with the verses that name it. */
+export interface ChapterPlace {
+  slug: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  /** Sorted, distinct verse numbers. */
+  verses: number[];
+}
+
+/** An event tied to verses in a chapter. */
+export interface ChapterEvent {
+  slug: string;
+  title: string;
+  startYearDisplay: string | null;
+  sortKey: number | null;
+  participants: { slug: string; name: string }[];
+  /** Sorted, distinct verse numbers. */
+  verses: number[];
+}
+
+/** Where a person appears across the canon. */
+export interface EntitySpread {
+  slug: string;
+  /** Earliest OSIS ref in canonical order. */
+  firstRef: string;
+  /** Earliest New Testament OSIS ref in canonical order; null when none. */
+  firstNtRef: string | null;
+  /** Distinct OSIS book ids, in canonical order. */
+  books: string[];
+}
+
 // --- Language / Lexicon ---
 
 export interface GnosisStrongsEntry {

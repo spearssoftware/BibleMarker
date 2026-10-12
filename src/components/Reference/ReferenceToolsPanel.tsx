@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useInductiveToolsVisible } from '@/stores/preferencesStore';
-import type { ReferenceTab } from '@/stores/panelStore';
+import type { ReferenceEntityType, ReferenceTab } from '@/stores/panelStore';
 import { ChapterEntitiesTab } from './ChapterEntitiesTab';
 import { PersonDetail } from './PersonDetail';
 import { PlaceDetail } from './PlaceDetail';
@@ -15,6 +15,7 @@ interface ReferenceToolsPanelProps {
   onClose: () => void;
   initialTab?: ReferenceTab;
   entitySlug?: string;
+  entityType?: ReferenceEntityType;
   searchQuery?: string;
   strongsNumber?: string;
   verse?: number;
@@ -44,7 +45,7 @@ interface DetailView {
   slug: string;
 }
 
-export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter', entitySlug, searchQuery, strongsNumber, verse }: ReferenceToolsPanelProps) {
+export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter', entitySlug, entityType, searchQuery, strongsNumber, verse }: ReferenceToolsPanelProps) {
   const inductiveToolsVisible = useInductiveToolsVisible();
 
   const [activeTab, setActiveTab] = useState<ReferenceTab>(initialTab);
@@ -77,16 +78,19 @@ export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter',
   // noUncheckedIndexedAccess, so guard the empty-array case explicitly.
   const effectiveTab = visibleTabs.some(t => t.id === activeTab) ? activeTab : (visibleTabs[0]?.id ?? 'chapter');
 
-  // Seed the detail view from entitySlug so mounting with a slug works on mount;
-  // the prevEntitySlug tracker below handles subsequent changes.
+  // Seed the detail view from entitySlug + entityType so mounting with a deep
+  // link works on mount; the prev* trackers below handle subsequent changes.
+  // A slug without a type has no detail view to open, so it is ignored.
   const [detailView, setDetailView] = useState<DetailView | null>(
-    entitySlug ? { type: 'search', slug: entitySlug } : null
+    entitySlug && entityType ? { type: entityType, slug: entitySlug } : null
   );
   const [prevEntitySlug, setPrevEntitySlug] = useState(entitySlug);
-  if (entitySlug !== prevEntitySlug) {
+  const [prevEntityType, setPrevEntityType] = useState(entityType);
+  if (entitySlug !== prevEntitySlug || entityType !== prevEntityType) {
     setPrevEntitySlug(entitySlug);
-    if (entitySlug) {
-      setDetailView({ type: 'search', slug: entitySlug });
+    setPrevEntityType(entityType);
+    if (entitySlug && entityType) {
+      setDetailView({ type: entityType, slug: entitySlug });
     }
   }
 

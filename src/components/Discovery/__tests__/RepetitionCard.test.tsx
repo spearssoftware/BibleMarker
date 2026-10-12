@@ -205,4 +205,28 @@ describe('RepetitionCard', () => {
 
     consoleErrorSpy.mockRestore();
   });
+
+  describe('when a key word already matches', () => {
+    it('says it is already marked instead of prompting the hunt', () => {
+      useMarkingPresetStore.setState({ presets: [makeMarkingPreset({ id: 'kw', word: 'Zephyrs' })] });
+      renderCard();
+      expect(screen.getByText('Zephyrs')).toBeTruthy();
+      expect(screen.queryByText(/Can you find it/)).toBeNull();
+      expect(screen.queryByText('Need a hint?')).toBeNull();
+    });
+
+    it('still prompts when the key word is scoped to another chapter', () => {
+      useMarkingPresetStore.setState({
+        presets: [makeMarkingPreset({ id: 'kw', word: 'zephyr', scopes: [{ book: 'John', chapter: 2 }] })],
+      });
+      renderCard();
+      expect(screen.getByText(/Can you find it/)).toBeTruthy();
+    });
+
+    it('still prompts when the key word belongs to another study', () => {
+      useMarkingPresetStore.setState({ presets: [makeMarkingPreset({ id: 'kw', word: 'zephyr', studyId: 'other' })] });
+      renderCard();
+      expect(screen.getByText(/Can you find it/)).toBeTruthy();
+    });
+  });
 });

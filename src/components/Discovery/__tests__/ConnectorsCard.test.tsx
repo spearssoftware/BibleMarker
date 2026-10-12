@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  *
  * ConnectorsCard replaces the old ConnectorChip + ConnectorPrompt: a list of
- * every connecting word grouped by verse, a lens toggle, and per-row "Add to Flow"
+ * every connecting word grouped by verse (shown while the lens toggle is on), a lens toggle, and per-row "Add to Flow"
  * gated behind the inductive toolkit.
  */
 
@@ -38,7 +38,7 @@ const connectorRangesByVerse = groupConnectorsByVerse(hits);
 
 describe('ConnectorsCard', () => {
   beforeEach(() => {
-    useDiscoveryStore.setState({ lens: null, activePrompt: null });
+    useDiscoveryStore.setState({ lens: 'connectors', activePrompt: null });
     usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
     useToastStore.setState({ toasts: [] });
     navigateToVerse.mockClear();
@@ -117,11 +117,14 @@ describe('ConnectorsCard', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it('toggles the connectors lens via the toggle switch', () => {
+  it('hides the list until the toggle turns the lens on', () => {
+    useDiscoveryStore.setState({ lens: null });
     render(<ConnectorsCard connectorRangesByVerse={connectorRangesByVerse} connectorCount={hits.length} book="Rom" chapter={5} />);
     const toggle = screen.getByRole('switch', { name: 'Show connecting words in the text' });
     expect(toggle.getAttribute('aria-checked')).toBe('false');
+    expect(screen.queryByText(/But/)).toBeNull();
     fireEvent.click(toggle);
     expect(useDiscoveryStore.getState().lens).toBe('connectors');
+    expect(screen.getByText(/But/)).toBeTruthy();
   });
 });
