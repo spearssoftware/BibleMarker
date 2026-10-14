@@ -253,16 +253,18 @@ None.
 |---|---|
 | `src/components/Discovery/DiscoveryPanel.tsx` | Extended: renders the commentary card last inside `LookCloserSection` |
 | `src/components/Discovery/LookCloserSection.tsx` | Left alone |
-| `src/components/Discovery/DiscoveryCard.tsx` | Reused for card chrome (extended only if the attribution line needs a slot) |
+| `src/components/Discovery/DiscoveryCard.tsx` | Reused for card chrome |
 | `src/components/Discovery/InlineDetail.tsx` | Left alone; its link style is the pattern to follow |
-| `src/components/Discovery/index.ts` | Extended if the new card is exported |
-| `src/components/Discovery/__tests__/` | Extended: card tests |
-| `src/lib/bible-api/sword-ztext.ts` | Extended: heading-slot reads and linked-run grouping (or new functions alongside it) |
-| `src/lib/bible-api/sword.ts` | Extended: bundled install and load for a non-registry module; `MODULE_REGISTRY` unchanged |
+| `src/components/Discovery/index.ts` | Left alone (it exports only `DiscoveryPanel`) |
+| `src/components/Discovery/__tests__/` | Extended: card tests; panel test asserts Look closer order |
+| `src/lib/bible-api/sword-ztext.ts` | Extended: exports `getSlotIndex`, `readSlot` and `bzvPreambleOffset`; `getVerseRaw` shares the indexed read |
+| `src/lib/bible-api/sword.ts` | Extended: `loadBundledModule` and a private bundled non-translation table; `MODULE_REGISTRY` unchanged |
 | `src/lib/chapterAnalysis/crossRefs.ts` | Reused: `formatCrossRefTarget` for `Go to` labels |
 | `src/lib/commentary/` | New: MHCC block derivation |
 | `src/hooks/useChapterCommentary.ts` | New: loads a chapter's blocks |
-| `src/hooks/useCrossRefPassages.ts` | Left alone; its cache and stale-result pattern is mirrored for inline passages |
+| `src/hooks/useCommentaryPassage.ts` | New: loads an inline passage after a tap |
+| `src/components/Discovery/CommentaryCard.tsx` | New: the card |
+| `src/hooks/useCrossRefPassages.ts` | Extended: exports `getCachedChapter` so inline passages share its chapter cache |
 | `src/lib/telemetry.ts` | Extended: three `TelemetryFeature` values |
 | `src/lib/discoveryTelemetry.ts` | Reused |
 | `src-tauri/resources/sword-MHCC.zip` | New |

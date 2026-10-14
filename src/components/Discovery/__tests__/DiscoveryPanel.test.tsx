@@ -90,6 +90,10 @@ vi.mock('../CrossRefsCard', () => ({
   CrossRefsCard: () => <div data-testid="cross-refs-card">cross-refs</div>,
 }));
 
+vi.mock('../CommentaryCard', () => ({
+  CommentaryCard: () => <div data-testid="commentary-card">commentary</div>,
+}));
+
 const PEOPLE: ChapterPerson[] = [{ slug: 'jesus-son-of-joseph', name: 'Jesus', verses: [1, 2] }];
 const PLACES: ChapterPlace[] = [{ slug: 'bethany', name: 'Bethany', latitude: 31.7, longitude: 35.2, verses: [28] }];
 const LOOK_CLOSER = { name: /Look closer/ };
@@ -190,9 +194,10 @@ describe('DiscoveryPanel', () => {
       if (el.querySelector('ul[aria-label="Look-again checklist"]')) return 'look-again';
       if (el.textContent?.includes('One word appears')) return 'repetition';
       if (el.querySelector('[data-testid="connectors-card"]')) return 'connectors';
+      if (el.getAttribute('data-testid') === 'commentary-card') return 'commentary';
       return 'unknown';
     });
-    expect(inner).toEqual(['repetition', 'connectors', 'look-again']);
+    expect(inner).toEqual(['repetition', 'connectors', 'look-again', 'commentary']);
   });
 
   it('resets Setting\'s local state when the chapter changes', () => {

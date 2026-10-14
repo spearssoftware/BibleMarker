@@ -66,7 +66,7 @@ function cacheKey(translationId: string, book: string, chapter: number): string 
   return `${translationId}:${book}.${chapter}`;
 }
 
-function getCachedChapter(translationId: string, book: string, chapter: number): Promise<Chapter> {
+export function getCachedChapter(translationId: string, book: string, chapter: number): Promise<Chapter> {
   const key = cacheKey(translationId, book, chapter);
   const existing = chapterCache.get(key);
   if (existing) return existing;

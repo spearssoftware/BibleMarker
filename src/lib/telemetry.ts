@@ -32,7 +32,10 @@ export type TelemetryFeature =
   | 'setting_map'
   | 'setting_timeline'
   | 'worth_noticing'
-  | 'look_closer';
+  | 'look_closer'
+  | 'commentary'
+  | 'commentary_range'
+  | 'commentary_reference';
 
 export interface TelemetryProps {
   feature?: TelemetryFeature;
