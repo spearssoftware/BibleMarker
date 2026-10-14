@@ -72,7 +72,7 @@ Look closer's order becomes: Repetition (`RepetitionCard`), Connectors (`Connect
 ### Source and bundling
 
 - The CrossWire SWORD module `MHCC`, downloaded once by the implementer from `https://crosswire.org/ftpmirror/pub/sword/packages/rawzip/MHCC.zip`. Version 2.0 (SwordVersionDate 2021-02-14), `DistributionLicense=Public Domain`.
-- The upstream zip is bundled unmodified as `src-tauri/resources/sword-MHCC.zip`. Its SHA-256 must be `8fa571b0c0556c09966fc8b64edb856f5c1714cc5ac36ae06907a318ec61074f` (the hash open-commentaries recorded in its `SOURCES.md` on 2026-10-12). If CrossWire now serves a different file, stop and ask the product owner.
+- The upstream zip is bundled unmodified as `src-tauri/resources/sword-MHCC.zip`. Its SHA-256 is `7d2f6365ca95e7086911431dabef5d874acb4f03bf659f808ae18171b8d8e149` (retrieved 2026-10-14). CrossWire regenerates the zip, so its hash drifts from the `8fa571b0…61074f` that open-commentaries recorded on 2026-10-12. The six module data files (`{ot,nt}.{bzs,bzv,bzz}`) match the per-file hashes in open-commentaries' `sources/manifest.json` exactly; only the computed `InstallSize` line in `mods.d/mhcc.conf` differs. If a future refresh changes any data file hash, stop and ask the product owner.
 - The zip must be committed: add `!src-tauri/resources/sword-MHCC.zip` next to the existing ASV exception in `.gitignore` (line 63 ignores `src-tauri/resources/sword-*.zip`).
 - Add it to `bundle.resources` in `src-tauri/tauri.conf.json` and to the resource installs in `flatpak/app.biblemarker.BibleMarker.yml` (beside the ASV and gnosis entries, around lines 112–113).
 - It installs into `{appDataDir}/sword/` through the existing `install_bundled_module` Tauri command, with the same delete-and-reinstall-once retry the bundled ASV gets on a failed load.
@@ -196,7 +196,7 @@ Uses the existing opt-in counters through `trackChip` (`src/lib/discoveryTelemet
 
 Verifiable by the implementing agent:
 
-1. `shasum -a 256 src-tauri/resources/sword-MHCC.zip` prints `8fa571b0c0556c09966fc8b64edb856f5c1714cc5ac36ae06907a318ec61074f`.
+1. `shasum -a 256 src-tauri/resources/sword-MHCC.zip` prints `7d2f6365ca95e7086911431dabef5d874acb4f03bf659f808ae18171b8d8e149`.
 2. `git check-ignore src-tauri/resources/sword-MHCC.zip` prints nothing and exits 1, and the file is tracked.
 3. `src-tauri/tauri.conf.json` and `flatpak/app.biblemarker.BibleMarker.yml` both list `sword-MHCC.zip`.
 4. Unit tests show MHCC is absent from `getAllTranslations()` and `getAvailableModules()`.

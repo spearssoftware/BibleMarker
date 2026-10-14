@@ -103,7 +103,7 @@ modules:
       - install -Dm644 src-tauri/icons/128x128@2x.png
         /app/share/icons/hicolor/256x256/apps/app.biblemarker.BibleMarker.png
 
-      # Install bundled resources (Gnosis DB, ASV SWORD module).
+      # Install bundled resources (Gnosis DB, ASV and MHCC SWORD modules).
       # Tauri's resource_dir() resolves to /app/share/BibleMarker/resources/ at runtime
       # when the binary is installed at /app/bin/BibleMarker. This may need to be
       # verified during local flatpak-builder testing.
@@ -111,3 +111,5 @@ modules:
         /app/share/BibleMarker/resources/gnosis-lite.db
       - install -Dm644 src-tauri/resources/sword-ASV.zip
         /app/share/BibleMarker/resources/sword-ASV.zip
+      - install -Dm644 src-tauri/resources/sword-MHCC.zip
+        /app/share/BibleMarker/resources/sword-MHCC.zip
