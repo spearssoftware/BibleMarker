@@ -104,7 +104,7 @@ Blocks for chapter C of book B:
 1. **Book introduction** (C = 1 only):
    - Books other than Obadiah, Philemon, 2 John, 3 John, and Jude: the prose inside `<div type="introduction">` that appears in the preverse part of the book's first entry, before the first `<title type="x-s2">` (`Chapter N`) element.
    - Obadiah, Philemon, 2 John, 3 John, and Jude: the prose of the chapter-1 heading slot. (Their book heading slot holds only a `<title type="main">` element.)
-2. **Chapter introduction**: the prose of the chapter's first entry that sits after its preverse part and before its label, plus, for any book except the five above, the prose of chapter C's heading slot. Examples: Psalm 119 has one; Leviticus 19 and Psalm 108 have no verse entries at all, so their whole commentary is the chapter heading slot's prose. About 208 chapters have a chapter introduction; John 3 does not.
+2. **Chapter introduction**: the prose of the chapter's first entry that sits after its preverse part and before its label, plus, for any book except the five above, the prose of chapter C's heading slot. Examples: Psalm 119 has one; Leviticus 19 and Psalm 108 have no verse entries at all, so their whole commentary is the chapter heading slot's prose. About 21 chapters have a chapter introduction once outlines are removed; John 3 does not.
 3. **Whole-chapter commentary**: an entry in chapter C with no label. About 119 chapters have one, linked to verse 1 only, for example Genesis 36 and Exodus 22. Its prose (minus anything already taken by rule 2) is one block with no heading.
 4. **Sections**: every other entry whose range is in chapter C, ordered by first verse. Its range is the linked range, regardless of what its label says.
 
@@ -115,13 +115,14 @@ The card is not rendered when all four produce nothing.
 A chapter's outline gives a title to each section. It comes in two forms, both in the first entry's text for the chapter:
 - **Table**: `<row><cell>{title}</cell><cell>({range})</cell></row>`, where `{range}` is `N-M` or `N`.
 - **Plain text** (about 110 chapters, for example Genesis 21 and Exodus 12): consecutive `x-p` paragraphs, each paragraph matching `^\(\d+(-\d+)?\)$`, together with the paragraph immediately before it as the title. A plain-text `Chapter Outline` paragraph comes before them.
+- **One paragraph** (about 190 chapters, mostly the prophets, Ecclesiastes and Song of Solomon, for example Isaiah 2 and Ecclesiastes 1): a single paragraph made up only of `{title} ({book abbreviation} {chapter}:{range})` segments, all in the same chapter, with or without reference markup, for example `The conversion of the Gentiles, Description of the sinfulness of Israel. (Is. 2:1-9) The awful punishment of unbelievers. (Is. 2:10-22)`. Each segment is a row keyed by the first verse of its range. Added during implementation under the plain-text outline decision; without it these paragraphs showed as chapter introductions.
 
-A section's title is the outline row whose range starts at the section's first verse; `null` when no row starts there (about 131 sections, for example Exodus 1:15–22 and Genesis 28:16–19). The title is trimmed and loses a trailing `.` or `--`. Run-together titles from the source (for example "The baptism of John of Christ John's testimony") are shown as they are.
+A section's title is the outline row whose range starts at the section's first verse; `null` when no row starts there (about 635 sections, most of them in Proverbs, for example the sections of Proverbs 10 and the section starting at John 5:30). The title is trimmed and loses a trailing `.`, `--`, `;` or `,`. Run-together titles from the source (for example "The baptism of John of Christ John's testimony") are shown as they are.
 
 ### Markup rules
 
 - `<reference osisRef="…">text</reference>` becomes a reference run: display text and `osisRef`. Adjacent references stay separate runs (in Luke 1, `Ac 16:10` and `11` are two runs).
-- These are removed together with their text: every `<title>` element (types `x-ms`, `main`, `x-s2`, `x-IS`), every label, every outline table, and every plain-text outline paragraph including the `Chapter Outline` paragraph.
+- These are removed together with their text: every `<title>` element (types `x-ms`, `main`, `x-s2`, `x-IS`), every label, every outline table, and every plain-text outline paragraph including the `Chapter Outline` paragraph. A label's verse list that the source left outside the bold element (17 entries, for example `Verse 7` followed by `,8`, or `Verses 24-30` followed by `, 36-43` in Matthew 13) is part of the label and is removed with it.
 - Every other tag is removed and its text kept, including `div` (`introduction`, `x-p`, milestones), `milestone`, `hi`, and `chapter`.
 - Paragraph breaks come from `x-p` divs. Whitespace inside a paragraph collapses to single spaces.
 - XML entities (`&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`) are decoded.
