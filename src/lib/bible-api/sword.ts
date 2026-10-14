@@ -151,6 +151,19 @@ const MODULE_REGISTRY: SwordModuleInfo[] = [
   pdModule('Vulgate', 'Latin Vulgate', 'la'),
 ];
 
+/**
+ * Bundled modules that are not Bible translations (e.g. commentaries). They share the install and
+ * load path but stay out of MODULE_REGISTRY so they never appear in translation lists.
+ */
+const BUNDLED_NON_TRANSLATIONS: Record<string, { name: string; bundledResource: string }> = {
+  'sword-MHCC': { name: "Matthew Henry's Concise Commentary", bundledResource: 'sword-MHCC.zip' },
+};
+
+/** Registry entry or bundled non-translation, for the install and load path only. */
+function findBundled(moduleId: string): { name: string; bundledResource?: string } | undefined {
+  return MODULE_REGISTRY.find((m) => m.id === moduleId) ?? BUNDLED_NON_TRANSLATIONS[moduleId];
+}
+
 /** In-memory loaded module files, keyed by module ID */
 const loadedModules = new Map<string, SwordModuleFiles>();
 
@@ -241,7 +254,7 @@ async function installBundledIfNeeded(moduleId: string): Promise<void> {
   const existing = inFlightInstalls.get(moduleId);
   if (existing) return existing;
 
-  const info = MODULE_REGISTRY.find((m) => m.id === moduleId);
+  const info = findBundled(moduleId);
   if (!info?.bundledResource) return;
 
   const promise = (async () => {
@@ -405,7 +418,7 @@ async function ensureLoaded(moduleId: string): Promise<SwordModuleFiles> {
   } catch (firstErr) {
     // If load failed (e.g. corrupt on-disk file from AGP wrapping), delete
     // the file, force re-install from bundled resources, and retry once.
-    const info = MODULE_REGISTRY.find((m) => m.id === moduleId);
+    const info = findBundled(moduleId);
     if (info?.bundledResource) {
       console.warn(
         `[SWORD] First load of ${moduleId} failed, deleting and re-installing:`,
@@ -442,6 +455,18 @@ function getBufferCache(moduleId: string): Map<string, Uint8Array> {
     bufferCaches.set(moduleId, cache);
   }
   return cache;
+}
+
+/**
+ * Install (if needed) and load a bundled module, returning its files and shared buffer cache.
+ * Used for bundled non-translation modules such as the MHCC commentary.
+ */
+export async function loadBundledModule(
+  moduleId: string
+): Promise<{ files: SwordModuleFiles; cache: Map<string, Uint8Array> }> {
+  await installBundledIfNeeded(moduleId);
+  const files = await ensureLoaded(moduleId);
+  return { files, cache: getBufferCache(moduleId) };
 }
 
 /** Check if a module is bundled with the app (not removable) */
