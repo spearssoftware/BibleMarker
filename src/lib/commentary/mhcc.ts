@@ -9,8 +9,6 @@ import type { CommentaryBlock, CommentaryBlockKind } from './types';
 /** Reads one module slot (verse 0 = chapter heading, chapter 0 = book heading); null when empty. */
 export type SlotReader = (book: string, chapter: number, verse: number) => { pointer: string; text: string } | null;
 
-/** Books whose chapter-1 heading slot holds the book introduction. */
-const ONE_CHAPTER_BOOKS = new Set(['Obad', 'Phlm', '2John', '3John', 'Jude']);
 
 interface Run {
   pointer: string;
@@ -65,7 +63,8 @@ export function deriveChapterBlocks(read: SlotReader, book: string, chapter: num
   const runs = dropChapterCrossing(linkedRuns(read, book, chapter), read, book, chapter);
   const entries: { run: Run; parsed: ParsedEntry }[] = runs.map((run) => ({ run, parsed: parseEntry(run.text) }));
   const first = entries[0]?.parsed;
-  const oneChapterBook = ONE_CHAPTER_BOOKS.has(book);
+  // One-chapter books keep the book introduction in the chapter-1 heading slot.
+  const oneChapterBook = BIBLE_BOOKS.find((b) => b.id === book)?.chapters === 1;
   const chapterHeading = read(book, chapter, 0)?.text ?? '';
 
   const blocks: CommentaryBlock[] = [];

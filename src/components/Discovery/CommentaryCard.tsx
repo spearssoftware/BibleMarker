@@ -67,6 +67,7 @@ function CommentaryBody({ book, chapter, translationId, translationAbbrev }: Com
 interface OpenRef {
   paragraph: number;
   run: number;
+  osisRef: string;
 }
 
 interface CommentaryBlockViewProps {
@@ -118,34 +119,33 @@ function CommentaryBlockView({ block, scope, translationAbbrev }: CommentaryBloc
     navigateToVerse(book, chapter, block.startVerse, true);
   };
 
-  const handleReference = (paragraph: number, run: number) => {
+  const handleReference = (paragraph: number, run: number, osisRef: string) => {
     if (openRef?.paragraph === paragraph && openRef.run === run) {
       setOpenRef(null);
       return;
     }
     trackChip('discovery_chip_tapped', 'commentary_reference', scope);
-    setOpenRef({ paragraph, run });
+    setOpenRef({ paragraph, run, osisRef });
     setExpanded(true);
   };
 
   const renderRuns = (paragraph: number): ReactNode =>
-    block.paragraphs[paragraph].map((run, i) =>
-      run.osisRef ? (
+    block.paragraphs[paragraph].map(({ text, osisRef }, i) =>
+      osisRef ? (
         <button
           key={i}
           type="button"
           tabIndex={expanded || !overflows ? undefined : -1}
-          onClick={() => handleReference(paragraph, i)}
+          onClick={() => handleReference(paragraph, i, osisRef)}
           className={`inline bg-transparent border-0 p-0 m-0 ${LINK_CLASS}`}
         >
-          {run.text}
+          {text}
         </button>
       ) : (
-        <span key={i}>{run.text}</span>
+        <span key={i}>{text}</span>
       )
     );
 
-  const openOsisRef = openRef ? block.paragraphs[openRef.paragraph]?.[openRef.run]?.osisRef ?? null : null;
   const showToggle = expanded || overflows;
 
   return (
@@ -165,9 +165,9 @@ function CommentaryBlockView({ block, scope, translationAbbrev }: CommentaryBloc
         block.paragraphs.map((_, p) => (
           <div key={p} className="space-y-2">
             <p className="text-sm text-scripture-text">{renderRuns(p)}</p>
-            {openRef?.paragraph === p && openOsisRef && (
+            {openRef?.paragraph === p && (
               <InlinePassage
-                osisRef={openOsisRef}
+                osisRef={openRef.osisRef}
                 translationId={translationId}
                 translationAbbrev={translationAbbrev}
               />

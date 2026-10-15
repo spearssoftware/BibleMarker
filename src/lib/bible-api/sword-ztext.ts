@@ -102,7 +102,10 @@ export function getTestamentIndex(
  * So preamble = 2 + numBooksUpToAndIncluding + numChaptersUpToAndIncluding.
  */
 export function bzvPreambleOffset(verseIndexKey: string, book: string, chapter: number): number {
-  if (!verseIndexKey.toLowerCase().endsWith('.bzv')) return 0;
+  return verseIndexKey.toLowerCase().endsWith('.bzv') ? bzvPreamble(book, chapter) : 0;
+}
+
+function bzvPreamble(book: string, chapter: number): number {
   const bookInfo = BIBLE_BOOKS.find((b) => b.id === book);
   if (!bookInfo) return 2;
   const testament = bookInfo.order <= 39 ? 'OT' : 'NT';
@@ -291,7 +294,7 @@ export function getSlotIndex(
     return { testament: first.testament, index: first.index - 1 };
   }
   const { testament, index } = getTestamentIndex(book, chapter, verse);
-  return { testament, index: index + bzvPreambleOffset('.bzv', book, chapter) };
+  return { testament, index: index + bzvPreamble(book, chapter) };
 }
 
 /** Read the bytes of one verse-index slot, reusing decompressed buffers from the cache. */

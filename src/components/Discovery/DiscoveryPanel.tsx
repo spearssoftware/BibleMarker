@@ -153,7 +153,6 @@ export function DiscoveryPanel() {
           }}
         />
         <CommentaryCard
-          key={`commentary:${book}:${chapter}`}
           book={book}
           chapter={chapter}
           translationId={translationId}
