@@ -114,6 +114,12 @@ describe('parseEntry', () => {
     expect(parsed.preLabel).toEqual([[{ text: 'See Tob 1:1 here.' }]]);
   });
 
+  it('keeps bold text that is not a verse label', () => {
+    const parsed = parseEntry(P('a', '<hi type="bold">Observe</hi>, the Lord.'));
+    expect(parsed.preLabel).toEqual([[{ text: 'Observe, the Lord.' }]]);
+    expect(parsed.hasLabel).toBe(false);
+  });
+
   it('renders a chapter-only reference as plain text', () => {
     const parsed = parseEntry(P('a', 'See <reference osisRef="Ps.23">Ps 23</reference> here.'));
     expect(parsed.preLabel).toEqual([[{ text: 'See Ps 23 here.' }]]);

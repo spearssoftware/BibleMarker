@@ -188,9 +188,13 @@ function scan(raw: string, zoned: boolean): Scan {
           skip = null;
         }
       } else if (closing && ((skip === 'title' && name === 'title') || (skip === 'hi' && name === 'hi'))) {
-        if (skip === 'hi' && zoned && !hasLabel && LABEL.test(skipped.trim())) {
-          hasLabel = true;
-          moveTo('body');
+        if (skip === 'hi') {
+          // Bold marks the verse label; any other bold text is ordinary prose.
+          if (!LABEL.test(skipped.trim())) current.push({ text: skipped });
+          else if (zoned && !hasLabel) {
+            hasLabel = true;
+            moveTo('body');
+          }
         }
         skip = null;
       }
