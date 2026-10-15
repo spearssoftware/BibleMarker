@@ -213,8 +213,10 @@ function scan(raw: string, zoned: boolean): Scan {
       if (!closing) {
         ref = { osisRef: attr(token, 'osisRef') ?? '', text: '' };
       } else if (ref) {
-        const book = parseOsisRef(ref.osisRef)?.book;
-        current.push(book && VALID_BOOKS.has(book) ? { text: ref.text, osisRef: ref.osisRef } : { text: ref.text });
+        // Only a verse reference can open inline; a chapter-only or unknown-book reference stays plain text.
+        const target = parseOsisRef(ref.osisRef.split('-')[0]);
+        const linkable = target?.verse !== undefined && VALID_BOOKS.has(target.book);
+        current.push(linkable ? { text: ref.text, osisRef: ref.osisRef } : { text: ref.text });
         ref = null;
       }
     } else if (name === 'div' && attr(token, 'type') === 'x-p') {

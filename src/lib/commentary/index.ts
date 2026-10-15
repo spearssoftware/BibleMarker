@@ -11,9 +11,13 @@ export type { CommentaryBlock, CommentaryBlockKind, CommentaryRun } from './type
 
 const MHCC_MODULE_ID = 'sword-MHCC';
 
+/** One load per session; a failure is remembered so each chapter change doesn't reinstall the module. */
+let mhccModule: ReturnType<typeof loadBundledModule> | null = null;
+
 /** Load MHCC's blocks for one chapter from the bundled module. */
 export async function getChapterCommentary(book: string, chapter: number): Promise<CommentaryBlock[]> {
-  const { files, cache } = await loadBundledModule(MHCC_MODULE_ID);
+  mhccModule ??= loadBundledModule(MHCC_MODULE_ID);
+  const { files, cache } = await mhccModule;
   return deriveChapterBlocks((b, c, v) => readSlot(files, b, c, v, cache), book, chapter);
 }
 
@@ -67,4 +71,9 @@ export function classifyPassageResult(
     .filter((v) => v.ref.verse >= startVerse && v.ref.verse <= endVerse)
     .map((v) => ({ verse: v.ref.verse, text: v.text }));
   return { status: verses.length ? 'ready' : 'missing', verses };
+}
+
+/** Test-only escape hatch — forgets the loaded module between tests. */
+export function __resetCommentaryModule(): void {
+  mhccModule = null;
 }

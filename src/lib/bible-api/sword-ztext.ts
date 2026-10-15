@@ -350,6 +350,9 @@ export function readSlot(
 ): { pointer: string; text: string } | null {
   const discovered = discoverFiles(files);
   if (!discovered) throw new Error('SWORD module has no OT/NT data files');
+  if (!discovered.ot.verseIndex.toLowerCase().endsWith('.bzv')) {
+    throw new Error(`readSlot supports .bzv commentary modules only; found ${discovered.ot.verseIndex}`);
+  }
   const { testament, index } = getSlotIndex(book, chapter, verse);
   const testamentFiles = testament === 1 ? discovered.ot : discovered.nt;
   const slot = readIndexed(files, testamentFiles, testament, index, bufferCache);

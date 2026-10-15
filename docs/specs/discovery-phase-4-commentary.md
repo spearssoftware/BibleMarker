@@ -127,6 +127,8 @@ A section's title is the outline row whose range starts at the section's first v
 - Paragraph breaks come from `x-p` divs. Whitespace inside a paragraph collapses to single spaces.
 - XML entities (`&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`) are decoded.
 - An `osisRef` whose book id is not in the app's `BIBLE_BOOKS` renders as plain text. (All references in the current module use valid ids; this is covered by a synthetic fixture.)
+- An `osisRef` without a verse (chapter-only) renders as plain text, because it cannot open inline. (None exist in the current module.)
+- Two typographic cleanups apply to all text: `--` becomes `—`, and the source artifact `#(` becomes `(` (35 occurrences, for example "ver. #(2)").
 
 ### Block shape
 

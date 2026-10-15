@@ -12,7 +12,8 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
 }));
 vi.mock('@/lib/database', () => ({}));
 
-import { getAvailableModules, isModuleBundled, swordClient } from './sword';
+import { invoke } from '@tauri-apps/api/core';
+import { getAvailableModules, isModuleBundled, loadBundledModule, swordClient } from './sword';
 import { getAllTranslations } from './index';
 
 describe('bundled MHCC commentary stays out of translation lists', () => {
@@ -26,5 +27,17 @@ describe('bundled MHCC commentary stays out of translation lists', () => {
     expect(swordIds).toContain('sword-ASV');
     expect(swordIds).not.toContain('sword-MHCC');
     expect((await getAllTranslations()).map((t) => t.id)).not.toContain('sword-MHCC');
+  });
+});
+
+describe('loadBundledModule', () => {
+  it('installs MHCC from its bundled resource', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    // The mocked readFile returns an empty file, so the load itself fails after installing.
+    await expect(loadBundledModule('sword-MHCC')).rejects.toThrow();
+    expect(invoke).toHaveBeenCalledWith('install_bundled_module', {
+      resourceName: 'sword-MHCC.zip',
+      destPath: expect.stringContaining('sword-MHCC.zip'),
+    });
   });
 });

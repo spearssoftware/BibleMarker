@@ -321,6 +321,11 @@ describe('readSlot', () => {
     expect(v3).toEqual({ pointer: '1:1:0:4', text: 'Next' });
   });
 
+  it('rejects a module whose verse index is not .bzv', () => {
+    const vzv = Object.fromEntries(Object.entries(files).map(([k, v]) => [k.replace(/\.bz/, '.vz'), v]));
+    expect(() => readSlot(vzv, 'Gen', 1, 1)).toThrow('.bzv commentary modules only');
+  });
+
   it('reuses decompressed buffers from the cache', () => {
     const cache = new Map<string, Uint8Array>();
     readSlot(files, 'Gen', 1, 1, cache);

@@ -134,7 +134,7 @@ function CommentaryBlockView({ block, scope, translationAbbrev }: CommentaryBloc
         <button
           key={i}
           type="button"
-          tabIndex={expanded ? undefined : -1}
+          tabIndex={expanded || !overflows ? undefined : -1}
           onClick={() => handleReference(paragraph, i)}
           className={`inline bg-transparent border-0 p-0 m-0 ${LINK_CLASS}`}
         >

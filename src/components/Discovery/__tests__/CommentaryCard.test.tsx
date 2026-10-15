@@ -199,6 +199,12 @@ describe('CommentaryCard', () => {
       expect(screen.getByRole('button', { name: 'Ac 16:10' }).getAttribute('tabindex')).toBe('-1');
     });
 
+    it('keeps references in the tab order when the block fits without clamping', () => {
+      mockOverflow(false);
+      renderCard();
+      expect(screen.getByRole('button', { name: 'Ac 16:10' }).getAttribute('tabindex')).toBeNull();
+    });
+
     it('fetches nothing until a reference is tapped', () => {
       renderCard();
       expect(passageCalls).toEqual([]);
@@ -302,6 +308,15 @@ describe('CommentaryCard', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Ac 16:10' }));
       commentary = { ...commentary, blocks: [{ ...BOOK_INTRO, chapter: 2 }] };
       rerender(<CommentaryCard book="Luke" chapter={2} translationId="sword-NASB" translationAbbrev="NASB" />);
+      expect(screen.queryByText('Loading…')).toBeNull();
+    });
+
+    it('discards the open passage when the translation changes', () => {
+      passageState = { status: 'loading', verses: [], passage: null };
+      const { rerender } = renderCard();
+      fireEvent.click(screen.getByRole('button', { name: 'Ac 16:10' }));
+      expect(screen.getByText('Loading…')).toBeTruthy();
+      rerender(<CommentaryCard book="Luke" chapter={1} translationId="esv" translationAbbrev="ESV" />);
       expect(screen.queryByText('Loading…')).toBeNull();
     });
   });

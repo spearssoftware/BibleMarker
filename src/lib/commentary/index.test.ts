@@ -3,8 +3,21 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('@/lib/bible-api/sword', () => ({ loadBundledModule: vi.fn() }));
 
 import { BibleApiError } from '@/lib/bible-api/types';
+import { loadBundledModule } from '@/lib/bible-api/sword';
 import type { Chapter } from '@/types';
-import { classifyPassageResult, resolveCommentaryPassage } from './index';
+import { __resetCommentaryModule, classifyPassageResult, getChapterCommentary, resolveCommentaryPassage } from './index';
+
+describe('getChapterCommentary', () => {
+  it('loads the bundled MHCC module once and remembers a failure', async () => {
+    __resetCommentaryModule();
+    const load = vi.mocked(loadBundledModule);
+    load.mockRejectedValue(new Error('install failed'));
+    await expect(getChapterCommentary('John', 3)).rejects.toThrow('install failed');
+    await expect(getChapterCommentary('John', 4)).rejects.toThrow('install failed');
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(load).toHaveBeenCalledWith('sword-MHCC');
+  });
+});
 
 describe('resolveCommentaryPassage', () => {
   it('resolves a single verse', () => {
