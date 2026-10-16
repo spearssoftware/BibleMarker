@@ -101,8 +101,11 @@ export function getTestamentIndex(
  *
  * So preamble = 2 + numBooksUpToAndIncluding + numChaptersUpToAndIncluding.
  */
-function bzvPreambleOffset(verseIndexKey: string, book: string, chapter: number): number {
-  if (!verseIndexKey.toLowerCase().endsWith('.bzv')) return 0;
+export function bzvPreambleOffset(verseIndexKey: string, book: string, chapter: number): number {
+  return verseIndexKey.toLowerCase().endsWith('.bzv') ? bzvPreamble(book, chapter) : 0;
+}
+
+function bzvPreamble(book: string, chapter: number): number {
   const bookInfo = BIBLE_BOOKS.find((b) => b.id === book);
   if (!bookInfo) return 2;
   const testament = bookInfo.order <= 39 ? 'OT' : 'NT';
@@ -265,6 +268,59 @@ export function decompressBuffer(
 }
 
 /**
+ * Slot index in a .bzv (BlockType=BOOK) verse index. Verse 0 is the chapter heading slot and
+ * chapter 0 is the book heading slot; commentaries such as MHCC keep book and chapter intros there.
+ */
+export function getSlotIndex(
+  book: string,
+  chapter: number,
+  verse: number
+): { testament: Testament; index: number } {
+  const bookInfo = BIBLE_BOOKS.find((b) => b.id === book);
+  if (!bookInfo) throw new Error(`Unknown book "${book}"`);
+  if (!Number.isInteger(chapter) || chapter < 0 || chapter > bookInfo.chapters) {
+    throw new Error(`${book} has no chapter ${chapter}`);
+  }
+  if (chapter === 0) {
+    if (verse !== 0) throw new Error(`${book} book heading slot takes verse 0, got ${verse}`);
+    const first = getSlotIndex(book, 1, 1);
+    return { testament: first.testament, index: first.index - 2 };
+  }
+  if (!Number.isInteger(verse) || verse < 0 || verse > getVerseCount(book, chapter)) {
+    throw new Error(`${book} ${chapter} has no verse ${verse}`);
+  }
+  if (verse === 0) {
+    const first = getSlotIndex(book, chapter, 1);
+    return { testament: first.testament, index: first.index - 1 };
+  }
+  const { testament, index } = getTestamentIndex(book, chapter, verse);
+  return { testament, index: index + bzvPreamble(book, chapter) };
+}
+
+/** Read the bytes of one verse-index slot, reusing decompressed buffers from the cache. */
+function readIndexed(
+  files: SwordModuleFiles,
+  testamentFiles: TestamentFiles,
+  testament: Testament,
+  index: number,
+  bufferCache?: Map<string, Uint8Array>
+): { bufferNum: number; verseStart: number; verseLen: number; text: string } | null {
+  const { bufferNum, verseStart, verseLen } = readVerseIndex(files, testamentFiles, index);
+  if (verseLen === 0) return null;
+  const cacheKey = `${testament}:${bufferNum}`;
+  let uncompressed = bufferCache?.get(cacheKey);
+  if (uncompressed === undefined) {
+    const { offset, compSize } = readBufferSizes(files, testamentFiles, bufferNum);
+    const dataBuf = getFileByKey(files, testamentFiles.data);
+    if (!dataBuf) return null;
+    uncompressed = decompressBuffer(dataBuf, offset, compSize);
+    bufferCache?.set(cacheKey, uncompressed);
+  }
+  const text = new TextDecoder('utf-8').decode(uncompressed.subarray(verseStart, verseStart + verseLen));
+  return { bufferNum, verseStart, verseLen, text };
+}
+
+/**
  * Get raw OSIS verse text for (book, chapter, verse). Uses optional cache per (testament, bufferNum).
  * verseStart/verseLen in .bzv are byte offsets into the uncompressed buffer; we slice by bytes then decode.
  */
@@ -280,26 +336,31 @@ export function getVerseRaw(
   const { testament, index: linearIndex } = getTestamentIndex(book, chapter, verse);
   const testamentFiles = testament === 1 ? discovered.ot : discovered.nt;
   const preambleOffset = bzvPreambleOffset(testamentFiles.verseIndex, book, chapter);
-  const index = linearIndex + preambleOffset;
-  const { bufferNum, verseStart, verseLen } = readVerseIndex(files, testamentFiles, index);
-  if (verseLen === 0) return '';
-  const cacheKey = bufferCache ? `${testament}:${bufferNum}` : null;
-  if (bufferCache && cacheKey) {
-    const cached = bufferCache.get(cacheKey);
-    if (cached !== undefined) {
-      const verseBytes = cached.subarray(verseStart, verseStart + verseLen);
-      return new TextDecoder('utf-8').decode(verseBytes);
-    }
+  return readIndexed(files, testamentFiles, testament, linearIndex + preambleOffset, bufferCache)?.text ?? '';
+}
+
+/**
+ * Read one .bzv slot (see getSlotIndex) with a pointer identifying the stored entry. Commentary
+ * modules link consecutive verses to one entry, so equal pointers mean the same entry. Returns
+ * null for an empty slot.
+ */
+export function readSlot(
+  files: SwordModuleFiles,
+  book: string,
+  chapter: number,
+  verse: number,
+  bufferCache?: Map<string, Uint8Array>
+): { pointer: string; text: string } | null {
+  const discovered = discoverFiles(files);
+  if (!discovered) throw new Error('SWORD module has no OT/NT data files');
+  if (!discovered.ot.verseIndex.toLowerCase().endsWith('.bzv')) {
+    throw new Error(`readSlot supports .bzv commentary modules only; found ${discovered.ot.verseIndex}`);
   }
-  const { offset, compSize } = readBufferSizes(files, testamentFiles, bufferNum);
-  const dataBuf = getFileByKey(files, testamentFiles.data);
-  if (!dataBuf) return '';
-  const uncompressed = decompressBuffer(dataBuf, offset, compSize);
-  if (bufferCache && cacheKey) {
-    bufferCache.set(cacheKey, uncompressed);
-  }
-  const verseBytes = uncompressed.subarray(verseStart, verseStart + verseLen);
-  return new TextDecoder('utf-8').decode(verseBytes);
+  const { testament, index } = getSlotIndex(book, chapter, verse);
+  const testamentFiles = testament === 1 ? discovered.ot : discovered.nt;
+  const slot = readIndexed(files, testamentFiles, testament, index, bufferCache);
+  if (!slot) return null;
+  return { pointer: `${testament}:${slot.bufferNum}:${slot.verseStart}:${slot.verseLen}`, text: slot.text };
 }
 
 /**

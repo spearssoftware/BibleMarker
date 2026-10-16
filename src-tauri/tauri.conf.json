@@ -29,6 +29,7 @@
     "active": true,
     "resources": [
       "resources/sword-ASV.zip",
+      "resources/sword-MHCC.zip",
       "resources/gnosis-lite.db"
     ],
     "createUpdaterArtifacts": true,

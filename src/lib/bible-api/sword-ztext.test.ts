@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import JSZip from 'jszip';
+import * as pako from 'pako';
 import {
   getTestamentIndex,
+  getSlotIndex,
+  bzvPreambleOffset,
+  readSlot,
   parseConf,
   discoverFiles,
   readVerseIndex,
@@ -226,6 +230,108 @@ describe('readBufferSizes', () => {
     const tf: TestamentFiles = { verseIndex: 'ot.bzv', bufferIndex: 'ot.bzs', data: 'ot.bzz' };
     const result = readBufferSizes(files, tf, 0);
     expect(result).toEqual({ offset: 0, compSize: 0, uncompSize: 0 });
+  });
+});
+
+describe('getSlotIndex', () => {
+  it('places the Genesis book heading, chapter 1 heading and 1:1 in slots 2, 3 and 4', () => {
+    expect(getSlotIndex('Gen', 0, 0)).toEqual({ testament: 1, index: 2 });
+    expect(getSlotIndex('Gen', 1, 0)).toEqual({ testament: 1, index: 3 });
+    expect(getSlotIndex('Gen', 1, 1)).toEqual({ testament: 1, index: 4 });
+  });
+
+  it('matches the verse index plus the .bzv preamble across both testaments', () => {
+    const samples: [string, number, number][] = [
+      ['Gen', 50, 26], ['Exod', 1, 1], ['Ps', 119, 176], ['Mal', 4, 6],
+      ['Matt', 1, 1], ['John', 3, 16], ['Jude', 1, 25], ['Rev', 22, 21],
+    ];
+    for (const [book, chapter, verse] of samples) {
+      const { testament, index } = getTestamentIndex(book, chapter, verse);
+      expect(getSlotIndex(book, chapter, verse)).toEqual({
+        testament,
+        index: index + bzvPreambleOffset('ot.bzv', book, chapter),
+      });
+    }
+  });
+
+  it('puts a chapter heading directly before its first verse and after the previous chapter', () => {
+    expect(getSlotIndex('John', 3, 0).index).toBe(getSlotIndex('John', 3, 1).index - 1);
+    expect(getSlotIndex('John', 3, 0).index).toBe(getSlotIndex('John', 2, 25).index + 1);
+    expect(getSlotIndex('Exod', 0, 0).index).toBe(getSlotIndex('Gen', 50, 26).index + 1);
+  });
+
+  it('throws on an unknown book or an out-of-range chapter or verse', () => {
+    expect(() => getSlotIndex('Nope', 1, 1)).toThrow('Unknown book');
+    expect(() => getSlotIndex('Gen', 51, 1)).toThrow('no chapter 51');
+    expect(() => getSlotIndex('Gen', 1, 32)).toThrow('no verse 32');
+    expect(() => getSlotIndex('Gen', 0, 1)).toThrow('verse 0');
+  });
+});
+
+describe('readSlot', () => {
+  /** Synthetic .bzv module: OT slots map to [bufferNum, start, len]; one compressed buffer per entry in buffers. */
+  function makeModule(slots: Record<number, [number, number, number]>, buffers: string[]): SwordModuleFiles {
+    const slotCount = Math.max(...Object.keys(slots).map(Number)) + 1;
+    const bzv = new ArrayBuffer(slotCount * 10);
+    const bzvView = new DataView(bzv);
+    for (const [index, [bufferNum, start, len]] of Object.entries(slots)) {
+      const base = Number(index) * 10;
+      bzvView.setUint32(base, bufferNum, true);
+      bzvView.setUint32(base + 4, start, true);
+      bzvView.setUint16(base + 8, len, true);
+    }
+    const compressed = buffers.map((b) => pako.deflate(new TextEncoder().encode(b)));
+    const bzs = new ArrayBuffer(buffers.length * 12);
+    const bzsView = new DataView(bzs);
+    const bzz = new Uint8Array(compressed.reduce((n, c) => n + c.length, 0));
+    let offset = 0;
+    compressed.forEach((c, i) => {
+      bzsView.setUint32(i * 12, offset, true);
+      bzsView.setUint32(i * 12 + 4, c.length, true);
+      bzsView.setUint32(i * 12 + 8, buffers[i].length, true);
+      bzz.set(c, offset);
+      offset += c.length;
+    });
+    return {
+      'ot.bzv': bzv, 'ot.bzs': bzs, 'ot.bzz': bzz.buffer,
+      'nt.bzv': new ArrayBuffer(0), 'nt.bzs': new ArrayBuffer(0), 'nt.bzz': new ArrayBuffer(0),
+    };
+  }
+
+  // Slot 2 = Gen book heading, 3 = Gen 1 heading, 4.. = Gen 1:1..
+  const files = makeModule(
+    { 2: [0, 0, 5], 3: [0, 0, 0], 4: [0, 5, 5], 5: [0, 5, 5], 6: [1, 0, 4] },
+    ['IntroFirst', 'Next'],
+  );
+
+  it('returns text and a pointer for a heading slot', () => {
+    expect(readSlot(files, 'Gen', 0, 0)).toEqual({ pointer: '1:0:0:5', text: 'Intro' });
+  });
+
+  it('returns null for an empty slot', () => {
+    expect(readSlot(files, 'Gen', 1, 0)).toBeNull();
+  });
+
+  it('gives linked verses the same pointer and distinct entries different pointers', () => {
+    const v1 = readSlot(files, 'Gen', 1, 1);
+    const v2 = readSlot(files, 'Gen', 1, 2);
+    const v3 = readSlot(files, 'Gen', 1, 3);
+    expect(v1).toEqual({ pointer: '1:0:5:5', text: 'First' });
+    expect(v2?.pointer).toBe(v1?.pointer);
+    expect(v3).toEqual({ pointer: '1:1:0:4', text: 'Next' });
+  });
+
+  it('rejects a module whose verse index is not .bzv', () => {
+    const vzv = Object.fromEntries(Object.entries(files).map(([k, v]) => [k.replace(/\.bz/, '.vz'), v]));
+    expect(() => readSlot(vzv, 'Gen', 1, 1)).toThrow('.bzv commentary modules only');
+  });
+
+  it('reuses decompressed buffers from the cache', () => {
+    const cache = new Map<string, Uint8Array>();
+    readSlot(files, 'Gen', 1, 1, cache);
+    expect([...cache.keys()]).toEqual(['1:0']);
+    cache.set('1:0', new TextEncoder().encode('xxxxxCached'));
+    expect(readSlot(files, 'Gen', 1, 1, cache)?.text).toBe('Cache');
   });
 });
 

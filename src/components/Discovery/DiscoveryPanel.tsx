@@ -7,7 +7,7 @@
  * it needs is either already-mounted host state or store reads.
  *
  * Section order: Setting → Worth noticing → Cross-References → Who's here → Look closer
- * (Repetition, Connectors, Look-Again). Setting's intro and genre lines need
+ * (Repetition, Connectors, Look-Again, Commentary). Setting's intro and genre lines need
  * neither analysis extras nor Gnosis, so the loading gate is `!context` only
  * (S5) — a Gnosis hiccup must not blank the whole panel. Setting, Worth
  * noticing and Who's here are each keyed per chapter, so their local state (expanded rows, the
@@ -38,6 +38,7 @@ import { shouldShowConnectors } from '@/lib/chapterAnalysis';
 import { LookAgainCard } from './LookAgainCard';
 import { RepetitionCard } from './RepetitionCard';
 import { ConnectorsCard } from './ConnectorsCard';
+import { CommentaryCard } from './CommentaryCard';
 import { CrossRefsCard } from './CrossRefsCard';
 import { LookCloserSection } from './LookCloserSection';
 import { trackChip } from '@/lib/discoveryTelemetry';
@@ -150,6 +151,12 @@ export function DiscoveryPanel() {
             people: [WHOS_HERE_ANCHOR_ID, SETTING_ANCHOR_ID],
             places: [SETTING_MAP_ANCHOR_ID, SETTING_ANCHOR_ID],
           }}
+        />
+        <CommentaryCard
+          book={book}
+          chapter={chapter}
+          translationId={translationId}
+          translationAbbrev={primaryTranslationAbbrev}
         />
       </LookCloserSection>
     </DiscoveryDialog>

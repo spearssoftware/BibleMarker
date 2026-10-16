@@ -63,6 +63,7 @@ src-tauri/gen/
 src-tauri/resources/sword-*.zip
 # Public-domain bundled modules — committed to the public repo
 !src-tauri/resources/sword-ASV.zip
+!src-tauri/resources/sword-MHCC.zip
 
 # Gnosis database (built from ~/code/gnosis with: uv run gnosis build --no-vectors)
 src-tauri/resources/gnosis-lite.db
