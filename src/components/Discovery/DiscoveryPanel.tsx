@@ -6,11 +6,11 @@
  * `useDiscoveryHost`, plus entity counts from Gnosis. No props — everything
  * it needs is either already-mounted host state or store reads.
  *
- * Section order: Setting → Cross-References → Who's here → Look closer
+ * Section order: Setting → Worth noticing → Cross-References → Who's here → Look closer
  * (Repetition, Connectors, Look-Again). Setting's intro and genre lines need
  * neither analysis extras nor Gnosis, so the loading gate is `!context` only
- * (S5) — a Gnosis hiccup must not blank the whole panel. Setting and Who's
- * here are each keyed per chapter, so their local state (expanded rows, the
+ * (S5) — a Gnosis hiccup must not blank the whole panel. Setting, Worth
+ * noticing and Who's here are each keyed per chapter, so their local state (expanded rows, the
  * intro toggle, the map selection and full-map modal) resets on navigation.
  * Remounting Setting costs nothing extra: the map unmounts anyway while an
  * uncached chapter's places load, and MapLibre's `remove()` releases its
@@ -21,10 +21,10 @@
  * `discovery_chip_shown` telemetry for repetition, connector and cross-references
  * lives here (not in `useDiscoveryHost`, which is always-mounted) so it fires
  * only when the card is actually rendered — repetition and connector only while
- * Look closer is open. Setting and Who's here fire their own events. The
+ * Look closer is open. Setting, Worth noticing and Who's here fire their own events. The
  * cross-reference rows themselves are loaded by `useDiscoveryHost` (the
  * cross-reference lens needs them while the panel is closed) and read from
- * the store here.
+ * the store here; later-Scripture rows fire their own `crossref_later` event.
  */
 
 import type { ReactNode } from 'react';
@@ -40,9 +40,10 @@ import { RepetitionCard } from './RepetitionCard';
 import { ConnectorsCard } from './ConnectorsCard';
 import { CrossRefsCard } from './CrossRefsCard';
 import { LookCloserSection } from './LookCloserSection';
-import { trackChip } from './discoveryTelemetry';
+import { trackChip } from '@/lib/discoveryTelemetry';
 import { SETTING_ANCHOR_ID, SETTING_MAP_ANCHOR_ID, SettingSection } from './SettingSection';
 import { WHOS_HERE_ANCHOR_ID, WhosHereCard } from './WhosHereCard';
+import { WorthNoticingCard } from './WorthNoticingCard';
 
 const REPETITION_ANCHOR_ID = 'discovery-card-repetition';
 const CONNECTOR_ANCHOR_ID = 'discovery-card-connectors';
@@ -71,11 +72,13 @@ export function DiscoveryPanel() {
   );
   const { items: lookAgainItems, ready: lookAgainReady } = useLookAgain(context, entities, entitiesLoading, discoveryEnabled, lookCloserOpen);
   const crossRefPassages = useDiscoveryStore(s => s.crossRefPassages);
+  const laterCrossRefPassages = useDiscoveryStore(s => s.laterCrossRefPassages);
 
   const hasRepetition = Boolean(context?.analysis.repetition);
   const connectorCount = context?.analysis.connectors.length ?? 0;
   const showConnectors = shouldShowConnectors(connectorCount, thresholds);
   const hasCrossRefs = crossRefPassages.rows.length > 0;
+  const hasLaterCrossRefs = laterCrossRefPassages.rows.length > 0;
 
   // Fire once per {book, chapter, translation} for each card actually shown.
   useEffect(() => {
@@ -84,7 +87,8 @@ export function DiscoveryPanel() {
     if (lookCloserOpen && hasRepetition) trackChip('discovery_chip_shown', 'repetition', scope);
     if (lookCloserOpen && showConnectors) trackChip('discovery_chip_shown', 'connector', scope);
     if (hasCrossRefs) trackChip('discovery_chip_shown', 'crossref', scope);
-  }, [discoveryEnabled, context, lookCloserOpen, hasRepetition, showConnectors, hasCrossRefs]);
+    if (hasLaterCrossRefs) trackChip('discovery_chip_shown', 'crossref_later', scope);
+  }, [discoveryEnabled, context, lookCloserOpen, hasRepetition, showConnectors, hasCrossRefs, hasLaterCrossRefs]);
 
   if (!discoveryEnabled) {
     return <DiscoveryDialog><p className="text-sm text-scripture-muted">Discover is turned off right now.</p></DiscoveryDialog>;
@@ -99,9 +103,17 @@ export function DiscoveryPanel() {
   return (
     <DiscoveryDialog>
       <SettingSection key={`setting:${book}:${chapter}`} book={book} chapter={chapter} translationId={translationId} />
-      {hasCrossRefs && (
+      <WorthNoticingCard key={`worth-noticing:${book}:${chapter}`} book={book} chapter={chapter} translationId={translationId} />
+      {(hasCrossRefs || hasLaterCrossRefs) && (
         <div id={CROSS_REFS_ANCHOR_ID} className={ANCHOR_CLASS}>
-          <CrossRefsCard rows={crossRefPassages.rows} expand={crossRefPassages.expand} book={book} chapter={chapter} />
+          <CrossRefsCard
+            rows={crossRefPassages.rows}
+            expand={crossRefPassages.expand}
+            laterRows={laterCrossRefPassages.rows}
+            laterExpand={laterCrossRefPassages.expand}
+            book={book}
+            chapter={chapter}
+          />
         </div>
       )}
       <WhosHereCard key={`whos-here:${book}:${chapter}`} book={book} chapter={chapter} translationId={translationId} />

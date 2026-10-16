@@ -24,6 +24,7 @@ import type { CrossRefPassageRow } from '@/hooks/useCrossRefPassages';
 import type { ChapterCrossRefIndex } from '@/types';
 import {
   makeChapterAnalysis,
+  makeChapterCrossRef,
   makeChapterCrossRefIndex,
   makeCrossRefPassageRow,
   makeDiscoveryContext,
@@ -259,7 +260,7 @@ describe('useDiscoveryHost', () => {
   });
 
   it('loads the cross-reference index for the chapter and publishes the passages to the store', () => {
-    mockCrossRefIndex = makeChapterCrossRefIndex();
+    mockCrossRefIndex = makeChapterCrossRefIndex({ laterCrossRefs: [makeChapterCrossRef({ verse: 3, targetRef: 'Rev.1.5' })] });
     const row = makeCrossRefPassageRow();
     mockRows = [row];
     usePanelStore.setState({ activePanel: 'discovery' });
@@ -268,7 +269,9 @@ describe('useDiscoveryHost', () => {
 
     expect(crossRefIndexMock).toHaveBeenCalledWith('John', 1, DEFAULT_DISCOVERY_THRESHOLDS.crossRefMinVotes, true);
     expect(crossRefPassagesMock).toHaveBeenCalledWith(mockCrossRefIndex.crossRefs, 'John', 1, 'sword-NASB');
+    expect(crossRefPassagesMock).toHaveBeenCalledWith(mockCrossRefIndex.laterCrossRefs, 'John', 1, 'sword-NASB', { order: 'votes' });
     expect(useDiscoveryStore.getState().crossRefPassages).toEqual({ rows: [row], expand: expandMock });
+    expect(useDiscoveryStore.getState().laterCrossRefPassages).toEqual({ rows: [row], expand: expandMock });
   });
 
   it('passes `enabled` through to the cross-reference index query', () => {
@@ -283,7 +286,8 @@ describe('useDiscoveryHost', () => {
       renderHost(baseProps);
 
       expect(crossRefIndexMock).toHaveBeenLastCalledWith('John', 1, DEFAULT_DISCOVERY_THRESHOLDS.crossRefMinVotes, false);
-      expect(crossRefPassagesMock).toHaveBeenLastCalledWith([], 'John', 1, 'sword-NASB');
+      expect(crossRefPassagesMock).toHaveBeenNthCalledWith(1, [], 'John', 1, 'sword-NASB');
+      expect(crossRefPassagesMock).toHaveBeenLastCalledWith([], 'John', 1, 'sword-NASB', { order: 'votes' });
     });
 
     it('starts loading when the Discover panel opens', () => {
@@ -295,7 +299,8 @@ describe('useDiscoveryHost', () => {
       });
 
       expect(crossRefIndexMock).toHaveBeenLastCalledWith('John', 1, DEFAULT_DISCOVERY_THRESHOLDS.crossRefMinVotes, true);
-      expect(crossRefPassagesMock).toHaveBeenLastCalledWith(mockCrossRefIndex.crossRefs, 'John', 1, 'sword-NASB');
+      expect(crossRefPassagesMock).toHaveBeenCalledWith(mockCrossRefIndex.crossRefs, 'John', 1, 'sword-NASB');
+      expect(crossRefPassagesMock).toHaveBeenLastCalledWith(mockCrossRefIndex.laterCrossRefs, 'John', 1, 'sword-NASB', { order: 'votes' });
     });
 
     it('keeps loading while the cross-reference lens is on and the panel is closed, including on the next chapter', () => {
@@ -313,7 +318,8 @@ describe('useDiscoveryHost', () => {
         useDiscoveryStore.setState({ lens: 'crossRefs' });
       });
       expect(crossRefIndexMock).toHaveBeenLastCalledWith('John', 2, DEFAULT_DISCOVERY_THRESHOLDS.crossRefMinVotes, true);
-      expect(crossRefPassagesMock).toHaveBeenLastCalledWith(mockCrossRefIndex.crossRefs, 'John', 2, 'sword-NASB');
+      expect(crossRefPassagesMock).toHaveBeenCalledWith(mockCrossRefIndex.crossRefs, 'John', 2, 'sword-NASB');
+      expect(crossRefPassagesMock).toHaveBeenLastCalledWith(mockCrossRefIndex.laterCrossRefs, 'John', 2, 'sword-NASB', { order: 'votes' });
     });
   });
 

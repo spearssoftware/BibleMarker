@@ -1,5 +1,5 @@
 /**
- * CrossRefsCard — read a verse together with the older passage it draws on.
+ * CrossRefsCard — read a verse together with the older or later passage it connects to.
  *
  * Mirrors ConnectorsCard: a toggle lights the connecting verses in the text
  * (the cross-reference lens), and a list of rows, one per verse. Tapping a
@@ -8,6 +8,9 @@
  * `activeCrossRefKey` and opens this panel, so the effect below scrolls the
  * matching row into view. The scroll is delayed to survive
  * MultiTranslationView's layout re-key after the panel opens.
+ *
+ * Rows are grouped under "Earlier in Scripture" and "Later in Scripture"
+ * (the latter votes-ordered, at most 3).
  *
  * The rows themselves come from `useDiscoveryHost` via the store (so the
  * lens works while the panel is closed). On a network translation nothing is
@@ -33,6 +36,8 @@ import { tokenizeVerse, wordStem } from '@/lib/chapterAnalysis';
 interface CrossRefsCardProps {
   rows: CrossRefPassageRow[];
   expand: (key: string) => void;
+  laterRows: CrossRefPassageRow[];
+  laterExpand: (key: string) => void;
   book: string;
   chapter: number;
 }
@@ -115,12 +120,13 @@ function renderPassageWords(text: string, litStems: ReadonlySet<string>, onTap?:
 
 interface CrossRefRowProps {
   row: CrossRefPassageRow;
+  feature: 'crossref' | 'crossref_later';
   active: boolean;
   onToggle: () => void;
   expand: (key: string) => void;
 }
 
-function CrossRefRow({ row, active, onToggle, expand }: CrossRefRowProps) {
+function CrossRefRow({ row, feature, active, onToggle, expand }: CrossRefRowProps) {
   const progress = useDiscoveryStore(s => s.crossRefProgress[row.key]) ?? EMPTY_CROSS_REF_PROGRESS;
   const setCrossRefHunting = useDiscoveryStore(s => s.setCrossRefHunting);
   const findCrossRefWord = useDiscoveryStore(s => s.findCrossRefWord);
@@ -142,9 +148,9 @@ function CrossRefRow({ row, active, onToggle, expand }: CrossRefRowProps) {
 
   useEffect(() => {
     if (progress.hunting && foundAll) {
-      track('discovery_find_confirmed', { feature: 'crossref', dedupeKey: `crossref-found:${row.key}` });
+      track('discovery_find_confirmed', { feature, dedupeKey: `${feature}-found:${row.key}` });
     }
-  }, [progress.hunting, foundAll, row.key]);
+  }, [progress.hunting, foundAll, feature, row.key]);
 
   const handleTap = (stem: string) => {
     if (shared.includes(stem)) {
@@ -253,7 +259,7 @@ function CrossRefRow({ row, active, onToggle, expand }: CrossRefRowProps) {
   );
 }
 
-export function CrossRefsCard({ rows, expand, book, chapter }: CrossRefsCardProps) {
+export function CrossRefsCard({ rows, expand, laterRows, laterExpand, book, chapter }: CrossRefsCardProps) {
   const lensActive = useDiscoveryStore(s => s.lens === 'crossRefs');
   const toggleLens = useDiscoveryStore(s => s.toggleLens);
   const activeCrossRefKey = useDiscoveryStore(s => s.activeCrossRefKey);
@@ -272,7 +278,7 @@ export function CrossRefsCard({ rows, expand, book, chapter }: CrossRefsCardProp
     return () => clearTimeout(timer);
   }, [activeCrossRefKey]);
 
-  if (rows.length === 0) return null;
+  if (rows.length === 0 && laterRows.length === 0) return null;
 
   const handleToggleLens = () => {
     track('lens_toggled', { feature: 'crossref' });
@@ -288,7 +294,32 @@ export function CrossRefsCard({ rows, expand, book, chapter }: CrossRefsCardProp
     activateCrossRef(row.key);
   };
 
-  const title = `${pluralize(rows.length, 'verse')} to read alongside older Scripture`;
+  const title =
+    rows.length > 0
+      ? `${pluralize(rows.length, 'verse')} to read alongside older Scripture`
+      : `${pluralize(laterRows.length, 'verse')} to read alongside later Scripture`;
+
+  const renderGroup = (
+    heading: string,
+    feature: CrossRefRowProps['feature'],
+    groupRows: CrossRefPassageRow[],
+    groupExpand: (key: string) => void
+  ) =>
+    groupRows.length > 0 && (
+      <div className="space-y-1">
+        <h4 className="text-xs font-ui font-semibold text-scripture-muted px-2">{heading}</h4>
+        {groupRows.map(row => (
+          <CrossRefRow
+            key={row.key}
+            row={row}
+            feature={feature}
+            active={activeCrossRefKey === row.key}
+            onToggle={() => handleRowToggle(row)}
+            expand={groupExpand}
+          />
+        ))}
+      </div>
+    );
 
   return (
     <DiscoveryCard title={title}>
@@ -297,16 +328,9 @@ export function CrossRefsCard({ rows, expand, book, chapter }: CrossRefsCardProp
         <ToggleSwitch checked={lensActive} onChange={handleToggleLens} label="Show connecting verses in the text" />
       </div>
       <p className="text-sm text-scripture-text">Read them together — what do they share?</p>
-      <div ref={containerRef} className="space-y-1">
-        {rows.map(row => (
-          <CrossRefRow
-            key={row.key}
-            row={row}
-            active={activeCrossRefKey === row.key}
-            onToggle={() => handleRowToggle(row)}
-            expand={expand}
-          />
-        ))}
+      <div ref={containerRef} className="space-y-3">
+        {renderGroup('Earlier in Scripture', 'crossref', rows, expand)}
+        {renderGroup('Later in Scripture', 'crossref_later', laterRows, laterExpand)}
       </div>
     </DiscoveryCard>
   );

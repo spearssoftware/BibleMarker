@@ -1,5 +1,5 @@
 import { pluralize } from '@/lib/textUtils';
-import { isOldTestament } from '@/types';
+import { getBookById, isOldTestament } from '@/types';
 
 /** Entities excluded from "who's here" counts: present everywhere, so they say nothing about the chapter. */
 export const DEITY_SLUGS: ReadonlySet<string> = new Set(['god', 'holy-spirit']);
@@ -13,6 +13,12 @@ export const FORETOLD_SLUGS: ReadonlySet<string> = new Set(['jesus-son-of-joseph
 /** True when `slug` is a prophecy-tagged person read in an Old Testament `book`: foretold there, not named. */
 export function isForetoldIn(slug: string, book: string): boolean {
   return FORETOLD_SLUGS.has(slug) && isOldTestament(book);
+}
+
+/** Books a person counts as named in: prophecy-tagged people count their New Testament books only. */
+export function namedInBooks(slug: string, books: string[]): string[] {
+  if (!FORETOLD_SLUGS.has(slug)) return books;
+  return books.filter(id => getBookById(id)?.testament === 'NT');
 }
 
 /** "about 1921 BC", or "About 1921 BC" at the start of a line. */

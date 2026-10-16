@@ -12,7 +12,9 @@ import type {
   EntitySpread,
   PaginatedResponse,
   PaginationOpts,
+  PlaceSpread,
 } from '@/types';
+import { heavilyLinkedChapters } from '@/lib/chapterAnalysis';
 
 /** Get or lazily initialize the gnosis provider */
 async function ensureProvider(): Promise<GnosisDataProvider> {
@@ -314,6 +316,114 @@ export function usePeopleSpread(
     `:${[...slugs].sort().join(',')}`
   );
   return { spread: data, isLoading, error };
+}
+
+/** Same as `peopleSpreadCache`, for places. */
+const placesSpreadCache = new LRUCache();
+
+/**
+ * First and last appearance and books for the given places (`usePeopleSpread`
+ * for places). Resolves to `null` when the provider lacks `getPlacesSpread`.
+ */
+export function usePlacesSpread(
+  book: string | undefined,
+  chapter: number | undefined,
+  slugs: string[],
+  enabled = true
+): { spread: PlaceSpread[] | null; isLoading: boolean; error: string | null } {
+  const { data, isLoading, error } = useCachedChapterQuery(
+    book,
+    chapter,
+    enabled && slugs.length > 0,
+    placesSpreadCache,
+    async () => {
+      const provider = await ensureProvider();
+      if (!provider.getPlacesSpread) return null;
+      return provider.getPlacesSpread(slugs);
+    },
+    `:${[...slugs].sort().join(',')}`
+  );
+  return { spread: data, isLoading, error };
+}
+
+/** Same as `peopleSpreadCache`, for names. */
+const nameSpreadCache = new LRUCache();
+
+/**
+ * Spread across all people and places sharing each lowercased name (rows keyed
+ * by that name in `slug`). Resolves to `null` when the provider lacks `getNameSpread`.
+ */
+export function useNameSpread(
+  book: string | undefined,
+  chapter: number | undefined,
+  names: string[],
+  enabled = true
+): { spread: EntitySpread[] | null; isLoading: boolean; error: string | null } {
+  const { data, isLoading, error } = useCachedChapterQuery(
+    book,
+    chapter,
+    enabled && names.length > 0,
+    nameSpreadCache,
+    async () => {
+      const provider = await ensureProvider();
+      if (!provider.getNameSpread) return null;
+      return provider.getNameSpread(names);
+    },
+    `:${[...names].sort().join(',')}`
+  );
+  return { spread: data, isLoading, error };
+}
+
+/**
+ * Which optional provider methods exist. `usePeopleSpread` / `usePlacesSpread` /
+ * `useNameSpread` return `spread: null` for both "no slugs" and "no such method", so callers
+ * use this to tell a missing capability from an empty result.
+ */
+export function useGnosisCapabilities(): {
+  /** False until the provider initializes; the other flags are meaningless until then. */
+  ready: boolean;
+  peopleSpread: boolean;
+  placesSpread: boolean;
+  nameSpread: boolean;
+  crossRefCounts: boolean;
+} {
+  const { provider } = useGnosis();
+  return {
+    ready: provider !== null,
+    peopleSpread: typeof provider?.getPeopleSpread === 'function',
+    placesSpread: typeof provider?.getPlacesSpread === 'function',
+    nameSpread: typeof provider?.getNameSpread === 'function',
+    crossRefCounts: typeof provider?.getCrossRefCountsByChapter === 'function',
+  };
+}
+
+/** Bible-wide, so one query per vote threshold per session; failures are not cached, so a retry can succeed. */
+const heavilyLinkedCache = new LRUCache();
+
+/**
+ * The chapters ("Book.ch") whose cross-reference density is in the top 5% of
+ * the Bible. Fetched lazily on first use, once per vote threshold, never
+ * blocking other sections. Resolves to `null` when the provider lacks
+ * `getCrossRefCountsByChapter`.
+ */
+export function useHeavilyLinkedChapters(
+  minVotes: number,
+  enabled = true
+): { chapters: ReadonlySet<string> | null; isLoading: boolean; error: string | null } {
+  // Not chapter-scoped: a fixed key, with the threshold in the suffix.
+  const { data, isLoading, error } = useCachedChapterQuery<ReadonlySet<string> | null>(
+    'Bible',
+    0,
+    enabled,
+    heavilyLinkedCache,
+    async () => {
+      const provider = await ensureProvider();
+      if (!provider.getCrossRefCountsByChapter) return null;
+      return heavilyLinkedChapters(await provider.getCrossRefCountsByChapter(minVotes));
+    },
+    `:${minVotes}`
+  );
+  return { chapters: data, isLoading, error };
 }
 
 /** Repeat mounts for the same chapter+threshold shouldn't re-query SQLite. */

@@ -36,6 +36,7 @@ import { useChapterAnalysis } from '@/hooks/useChapterAnalysis';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryHost } from '@/hooks/useDiscoveryHost';
 import { useDiscoveryEnabled } from '@/lib/discovery-config';
+import { buildCrossRefKeyByVerse } from '@/lib/chapterAnalysis';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import type { VerseLens } from './VerseText';
 import type { Annotation, Chapter, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
@@ -94,6 +95,7 @@ export function MultiTranslationView() {
   const setActivePrompt = useDiscoveryStore(s => s.setActivePrompt);
   const activateCrossRef = useDiscoveryStore(s => s.activateCrossRef);
   const crossRefRows = useDiscoveryStore(s => s.crossRefPassages.rows);
+  const laterCrossRefRows = useDiscoveryStore(s => s.laterCrossRefPassages.rows);
   const handleConnectorTap = useCallback((hit: ConnectorHit) => {
     setActivePrompt(hit);
     usePanelStore.getState().openPanel('discovery');
@@ -105,8 +107,8 @@ export function MultiTranslationView() {
   // Cross-references are verse-level, so the lens lights the same verse in
   // every translation column (unlike connectors, which are primary-only).
   const crossRefKeyByVerse = useMemo(
-    () => new Map(crossRefRows.map(row => [row.crossRef.verse, row.key])),
-    [crossRefRows]
+    () => buildCrossRefKeyByVerse({ olderRows: crossRefRows, laterRows: laterCrossRefRows }),
+    [crossRefRows, laterCrossRefRows]
   );
   const lensFor = (translationId: string, verseNum: number): VerseLens | undefined => {
     if (lens === 'connectors' && analysis) {
@@ -116,7 +118,7 @@ export function MultiTranslationView() {
         onConnectorTap: handleConnectorTap,
       };
     }
-    if (lens === 'crossRefs' && crossRefRows.length > 0) {
+    if (lens === 'crossRefs' && crossRefKeyByVerse.size > 0) {
       return { kind: 'crossRefs', crossRefKey: crossRefKeyByVerse.get(verseNum) ?? null, onCrossRefTap: handleCrossRefTap };
     }
     return undefined;

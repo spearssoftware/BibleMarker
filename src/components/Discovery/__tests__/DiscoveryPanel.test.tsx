@@ -83,6 +83,9 @@ vi.mock('../ChapterMap', () => ({
 vi.mock('../ChapterMapModal', () => ({
   ChapterMapModal: () => null,
 }));
+vi.mock('../WorthNoticingCard', () => ({
+  WorthNoticingCard: () => <div data-testid="worth-noticing-card">worth noticing</div>,
+}));
 vi.mock('../CrossRefsCard', () => ({
   CrossRefsCard: () => <div data-testid="cross-refs-card">cross-refs</div>,
 }));
@@ -100,6 +103,7 @@ function openLookCloser() {
 function sectionOrder(container: HTMLElement): string[] {
   const dialog = container.querySelector('[role="dialog"] > div');
   return Array.from(dialog?.children ?? []).map(el => {
+    if (el.getAttribute('data-testid') === 'worth-noticing-card') return 'worth-noticing';
     if (el.querySelector('[data-testid="cross-refs-card"]')) return 'cross-refs';
     if (el.querySelector('h3')?.textContent?.startsWith('John')) return 'setting';
     if (el.querySelector('h3')?.textContent === "Who's here") return 'whos-here';
@@ -134,6 +138,7 @@ describe('DiscoveryPanel', () => {
       activePrompt: null,
       activeCrossRefKey: null,
       crossRefPassages: NO_CROSS_REF_PASSAGES,
+      laterCrossRefPassages: NO_CROSS_REF_PASSAGES,
       found: null,
       markedPresetId: null,
       revealedRungs: [],
@@ -169,7 +174,7 @@ describe('DiscoveryPanel', () => {
     expect(await screen.findByText('Say this chapter in your own words — give it a title')).toBeTruthy();
   });
 
-  it('renders sections in Setting → Cross-References → Who\'s here → Look closer order, with the analytic cards inside Look closer', async () => {
+  it('renders sections in Setting → Worth noticing → Cross-References → Who\'s here → Look closer order, with the analytic cards inside Look closer', async () => {
     mockEntities = { book: 'John', chapter: 1, people: ['jesus-son-of-joseph'], places: [], events: [], topics: [] };
     peopleState = ready(PEOPLE);
     useDiscoveryStore.setState({
@@ -179,7 +184,7 @@ describe('DiscoveryPanel', () => {
     openLookCloser();
     const { container } = render(<DiscoveryPanel />);
     await screen.findByText('Say this chapter in your own words — give it a title');
-    expect(sectionOrder(container)).toEqual(['setting', 'cross-refs', 'whos-here', 'look-closer']);
+    expect(sectionOrder(container)).toEqual(['setting', 'worth-noticing', 'cross-refs', 'whos-here', 'look-closer']);
     const lookCloser = container.querySelector('section') as HTMLElement;
     const inner = Array.from(lookCloser.children).slice(1).map(el => {
       if (el.querySelector('ul[aria-label="Look-again checklist"]')) return 'look-again';
@@ -390,6 +395,17 @@ describe('DiscoveryPanel', () => {
       trackMock.mockClear();
       useDiscoveryStore.setState({ crossRefPassages: NO_CROSS_REF_PASSAGES });
       render(<DiscoveryPanel />);
+      expect(trackMock).not.toHaveBeenCalledWith('discovery_chip_shown', expect.objectContaining({ feature: 'crossref' }));
+    });
+
+    it('renders the cross-reference card and fires crossref_later when only later rows exist', () => {
+      useDiscoveryStore.setState({ context: makeDiscoveryContext(), laterCrossRefPassages: ONE_CROSS_REF_PASSAGE });
+      render(<DiscoveryPanel />);
+      expect(screen.getByTestId('cross-refs-card')).toBeTruthy();
+      expect(trackMock).toHaveBeenCalledWith('discovery_chip_shown', {
+        feature: 'crossref_later',
+        dedupeKey: 'discovery_chip_shown:crossref_later:John:1:sword-NASB',
+      });
       expect(trackMock).not.toHaveBeenCalledWith('discovery_chip_shown', expect.objectContaining({ feature: 'crossref' }));
     });
 

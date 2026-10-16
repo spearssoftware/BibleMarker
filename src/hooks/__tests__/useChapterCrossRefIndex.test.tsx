@@ -42,7 +42,7 @@ vi.mock('@/lib/gnosis', () => ({
 }));
 
 function makeIndex(book: string, chapter: number, votes: number): ChapterCrossRefIndex {
-  return { book, chapter, crossRefs: [{ verse: 1, targetRef: 'Gen.1.1', targetEndRef: null, votes }] };
+  return { book, chapter, crossRefs: [{ verse: 1, targetRef: 'Gen.1.1', targetEndRef: null, votes }], laterCrossRefs: [] };
 }
 
 describe('useChapterCrossRefIndex', () => {

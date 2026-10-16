@@ -109,7 +109,8 @@ Up to 4 facts, taken in this fixed priority order until 4 are shown. Within a ki
 1. **First mention (places only):** a place whose first mention in Scripture falls in this chapter. Example template: `Bethel is named for the first time here.` People's first mentions are shown in Who's here instead, so they are not repeated.
 2. **Only here:** a person (excluding deity slugs) or place whose every mention in Scripture falls within this chapter. Example: `This is the only chapter that names Salem.`
 3. **Heavily linked:** this chapter is in the top 5% of all chapters by cross-reference density. Text: `This chapter is one of the most cross-referenced in Scripture.`
-4. **Reach:** a person in this chapter (excluding deity slugs) named in 10 or more distinct books. Example: `Abraham is named in 15 books of the Bible.`
+
+A "reach" fact (`Abraham is named in 15 books of the Bible.`) was built and then dropped in 3b review: it repeated in every chapter naming a well-known person (all of John read `Jesus is named in 26 books`), and Who's here already shows the books a person is named in.
 
 The exact templates are drafted by the agent in this voice and reviewed in the 3b PR. The card is hidden when no fact qualifies.
 
@@ -142,12 +143,12 @@ Both are drafted by the agent and reviewed by the product owner.
 
 ### Deity exclusion
 
-Gnosis person slugs `god` and `holy-spirit` are excluded from Who's here, the people count, "only here", and "reach". Jesus is included (`jesus-son-of-joseph` in Gnosis; the `jesus` slug is Jesus Justus, Col 4:11).
+Gnosis person slugs `god` and `holy-spirit` are excluded from Who's here, the people count, and "only here". Jesus is included (`jesus-son-of-joseph` in Gnosis; the `jesus` slug is Jesus Justus, Col 4:11).
 
 ### Canonical order and the "later" rule
 
 - Canonical order is book order from `BIBLE_BOOKS`, then numeric chapter, then numeric verse, computed in TypeScript. It is never `ORDER BY verse.id` or `ORDER BY osis_ref`, because both sort by OSIS string.
-- A target is **later** when it is in a different book, and either the source is OT and the target is NT, or both are in the same testament and the target book comes later in canonical order. This is the mirror of `isOlderTarget` (`src/lib/chapterAnalysis/crossRefs.ts`), and like it, it excludes same-book references.
+- A target is **later** when it is in a different book, and either the source is OT and the target is NT, or both are OT and the target book comes later in canonical order. This is the exact mirror of `isOlderTarget` (`src/lib/chapterAnalysis/crossRefs.ts`), and like it, it excludes same-book references and NT→NT references (epistle order is not chronology), so NT chapters have no later rows.
 
 ### Existing Gnosis data used (no schema change)
 
@@ -167,7 +168,7 @@ Added as optional provider capabilities, following the existing pattern in `src/
 
 - **Chapter people with counts:** each person in a chapter with the count of verses in this chapter that name them, One query per chapter, not one `getPerson` per person.
 - **Chapter places with verses:** each place in a chapter with coordinates and the verse numbers in this chapter that name it.
-- **Entity book spread (3b and inline detail):** for a set of person or place ids, the distinct books and the canonical-first verse. Used for "only here", "reach", place first mention, and the inline person detail. One batched query per chapter.
+- **Entity book spread (3b and inline detail):** for a set of person or place ids, the distinct books and the canonical-first verse. Used for "only here", place first mention, and the inline person detail. One batched query per chapter.
 - **Forward cross-references (3b):** the chapter's cross-references with votes at or above `crossRefMinVotes`, filtered in TypeScript by the "later" rule, then deduped.
 - **Chapter cross-reference density ranking (3b):** for every chapter, the count of cross-references originating in it with votes at or above `crossRefMinVotes`, divided by the chapter's verse count. Computed lazily on the first Worth noticing render after Gnosis is ready, cached for the session, and never blocking other sections. A chapter is "top 5%" when its density is at or above the 95th-percentile value; ties at the cutoff are included.
 
@@ -197,7 +198,7 @@ All events are deduped per `{book, chapter, translation}`, matching `DiscoveryPa
 - **Gnosis API mode:** pieces that depend on the new local-provider queries, or on `getChapterYear` (which returns null in API mode), are hidden.
 - **Offline or map tiles unreachable:** when `isOnline()` is false, or the map style or tiles fail to load, or the map has not loaded within 10 seconds, the map is replaced by a plain list of the chapter's place names and the line `Map needs an internet connection.` The same applies inside the full-map modal. The 10-second timeout is an agent default.
 - **Crowded chapters** (for example Genesis 10, 1 Chronicles 1–9): Who's here is capped at 5 with `+N more`. The map shows every place with coordinates, with no cap; its view fits all markers. All counts come from per-chapter queries, not per-person lookups.
-- **Duplicate names:** listed as separate rows, and as separate facts in Worth noticing.
+- **Duplicate names:** listed as separate rows. Worth noticing facts (first mention, only here) are decided by name across all people and places sharing it, so a shared name yields one fact or none.
 - **Genesis 1–11:** no year anywhere; the era strip marker sits in `Beginnings`.
 - **Undated chapter outside Genesis 1–11:** the era strip is hidden and the chapter line omits the year.
 - **Book without a genre entry:** the intro still shows; the genre lines are omitted.
@@ -215,7 +216,7 @@ All events are deduped per `{book, chapter, translation}`, matching `DiscoveryPa
   - **Unit:**
     - Worth noticing fact selection: each kind, priority and in-kind order, cap of 4, deity exclusion, empty result.
     - Era band lookup and proportional marker position, including band edges and Genesis 1–11.
-    - The "later" rule: OT→NT, same testament with a later book, same book (excluded), earlier book (excluded).
+    - The "later" rule: OT→NT, later OT book, NT→NT (excluded), same book (excluded), earlier book (excluded).
     - Forward selection: vote minimum, per-verse dedupe, cap of 3, vote ordering.
     - Year formatting (`about <year_display>`).
     - Density ranking and the 95th-percentile cutoff, including ties.
@@ -276,7 +277,7 @@ All events are deduped per `{book, chapter, translation}`, matching `DiscoveryPa
 ### Phase 3b
 
 11. Worth noticing:
-    - It shows up to 4 facts in the order: first mention (places) → only here → heavily linked → reach (10 or more books).
+    - It shows up to 4 facts in the order: first mention (places) → only here → heavily linked.
     - It excludes the deity slugs.
     - It is absent when none qualify.
     - Verified by unit tests on fact selection and the density ranking, and a component test.
@@ -320,9 +321,8 @@ All events are deduped per `{book, chapter, translation}`, matching `DiscoveryPa
 | Jesus in OT verses | Keep, worded `Foretold` rather than `Named` | The OT points to Jesus, but the text doesn't name him there | User |
 | Deity exclusion | Exclude `god`, `holy-spirit`; keep Jesus | God tops every count otherwise | User |
 | Look closer default | Collapsed in discovery mode, expanded in inductive mode, reader's toggle persisted | Keep analysis out of the way unless wanted | User |
-| Worth noticing kinds | First mention (places), only here, heavily linked, reach; max 4 in that order | Deterministic from existing data | User |
+| Worth noticing kinds | First mention (places), only here, heavily linked; max 4 in that order (reach dropped in 3b review) | Deterministic from existing data; reach repeated down whole books | User |
 | Heavily linked | Top 5% by density (cross-references at or above vote minimum ÷ verses) | Normalizes chapter length | User |
-| Reach threshold | 10 or more books | Proposed by agent, accepted | User |
 | Forward cross-reference cap | 3, at or above `crossRefMinVotes` | Long lists in Genesis and Isaiah | User |
 | Delete replaced cards | Delete `GenreCard.tsx`, `PeoplePlacesCard.tsx` and their tests | Replaced by the new sections | User |
 | Intro and era storage | TypeScript module next to `genres.ts` | Ships with the app; editable in a PR | User |
@@ -334,7 +334,7 @@ All events are deduped per `{book, chapter, translation}`, matching `DiscoveryPa
 | Performance | No numeric target; intro never waits on Gnosis | Only hard rule needed | User |
 | Branching | 3a/3b off `discovery`; spec on its own branch | Same as earlier phases | User |
 | People first-mention placement | Who's here only; Worth noticing first mention covers places | Avoid saying the same thing twice | Agent default |
-| "Later" rule | Mirror of `isOlderTarget`; excludes same-book references | Keep forward and older symmetric | Agent default |
+| "Later" rule | Exact mirror of `isOlderTarget`; excludes same-book and NT→NT references | Keep forward and older symmetric | Owner (2026-10-12) |
 | Forward row pipeline | Same `useCrossRefPassages` filter and expand flow as older rows | One row behavior | Agent default |
 | Lens conflict | The earlier row wins when a verse has both | The lens holds one key per verse | Agent default |
 | Look closer persistence | Device-local Zustand `persist`, not synced | It's a UI convenience | Agent default |

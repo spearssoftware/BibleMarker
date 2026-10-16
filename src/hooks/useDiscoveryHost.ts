@@ -57,6 +57,7 @@ export function useDiscoveryHost({
   const setContext = useDiscoveryStore(s => s.setContext);
   const setLens = useDiscoveryStore(s => s.setLens);
   const setCrossRefPassages = useDiscoveryStore(s => s.setCrossRefPassages);
+  const setLaterCrossRefPassages = useDiscoveryStore(s => s.setLaterCrossRefPassages);
   const found = useDiscoveryStore(s => s.found);
   const setFound = useDiscoveryStore(s => s.setFound);
   const selection = useAnnotationStore(s => s.selection);
@@ -114,7 +115,7 @@ export function useDiscoveryHost({
   // cross-reference lens can light the right verses while the panel is
   // closed, and so a row's fetched passage survives the panel closing.
   const { crossRefMinVotes } = useDiscoveryConfig();
-  // Only do the work (index query + up to 6 chapter fetches) while something
+  // Only do the work (index query + up to 6 chapter fetches per direction) while something
   // can show it: the Discover panel is open, or the lens is already on.
   const discoverOpen = usePanelStore(s => s.activePanel === 'discovery');
   const lens = useDiscoveryStore(s => s.lens);
@@ -129,6 +130,16 @@ export function useDiscoveryHost({
   useEffect(() => {
     setCrossRefPassages({ rows, expand });
   }, [rows, expand, setCrossRefPassages]);
+  const { rows: laterRows, expand: laterExpand } = useCrossRefPassages(
+    crossRefsActive ? crossRefIndex?.laterCrossRefs ?? NO_CROSS_REFS : NO_CROSS_REFS,
+    currentBook,
+    currentChapter,
+    primaryTranslationId ?? '',
+    { order: 'votes' }
+  );
+  useEffect(() => {
+    setLaterCrossRefPassages({ rows: laterRows, expand: laterExpand });
+  }, [laterRows, laterExpand, setLaterCrossRefPassages]);
 
   // 5. Repetition confirm: once the reader selects the exact word themselves
   // in the primary translation column, mark it found. If the Discover panel

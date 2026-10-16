@@ -11,7 +11,7 @@
 import type { ReactNode } from 'react';
 import { useLookCloserState } from '@/hooks/useLookCloserState';
 import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
-import { trackChip } from './discoveryTelemetry';
+import { trackChip } from '@/lib/discoveryTelemetry';
 
 interface LookCloserSectionProps {
   book: string;

@@ -10,3 +10,4 @@ export * from './analyzeChapter';
 export * from './bookIntros';
 export * from './eras';
 export * from './setting';
+export * from './worthNoticing';

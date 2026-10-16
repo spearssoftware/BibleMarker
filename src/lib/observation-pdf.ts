@@ -25,6 +25,7 @@ import type {
 } from '@/types';
 import { BIBLE_BOOKS, formatVerseRef, getBookById, getHighlightColorHex, type HighlightColor } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
+import { capitalize } from '@/lib/textUtils';
 import {
   getAllApplications,
   getAllConclusions,
@@ -105,10 +106,6 @@ function passageLabel(start: VerseRef, end?: VerseRef): string {
     return `${refLabel(start)}–${end.verse}`;
   }
   return `${refLabel(start)}–${formatVerseRef(end.book, end.chapter, end.verse)}`;
-}
-
-function capitalize(s: string): string {
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
 const BOOK_ORDER = new Map(BIBLE_BOOKS.map((b, i) => [b.id, i]));

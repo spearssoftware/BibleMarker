@@ -29,7 +29,7 @@ import type { Chapter, ChapterCrossRef } from '@/types';
 const LOCAL_CANDIDATE_COUNT = 6;
 const MAX_SHOWN_ROWS = 3;
 const MAX_TARGET_VERSES = 3;
-const MAX_CACHE_ENTRIES = 20;
+const MAX_CACHE_ENTRIES = 40;
 
 export interface CrossRefPassageRow {
   key: string;
@@ -148,11 +148,17 @@ function toRow(candidate: CrossRefCandidate, sourceText: string | null, state: R
   };
 }
 
+export interface CrossRefPassagesOptions {
+  /** `'verse'` (default) sorts shown rows by source verse; `'votes'` keeps them votes-descending. */
+  order?: 'verse' | 'votes';
+}
+
 export function useCrossRefPassages(
   crossRefs: ChapterCrossRef[],
   book: string,
   chapter: number,
-  translationId: string
+  translationId: string,
+  { order = 'verse' }: CrossRefPassagesOptions = {}
 ): { rows: CrossRefPassageRow[]; expand: (key: string) => void } {
   const isLocal = translationId.startsWith('sword-');
 
@@ -222,8 +228,8 @@ export function useCrossRefPassages(
       const kept = results
         .filter((r): r is NonNullable<typeof r> => r !== null)
         .sort((a, b) => byVotesDesc(a.candidate, b.candidate))
-        .slice(0, MAX_SHOWN_ROWS)
-        .sort((a, b) => byVerse(a.candidate, b.candidate));
+        .slice(0, MAX_SHOWN_ROWS);
+      if (order === 'verse') kept.sort((a, b) => byVerse(a.candidate, b.candidate));
 
       setLocalRows(
         kept.map(({ candidate, sourceText, targetVerses, shared }) =>
@@ -236,7 +242,7 @@ export function useCrossRefPassages(
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- getSourceText already depends on matches/activeVerses
-  }, [isLocal, matches, candidates, translationId]);
+  }, [isLocal, matches, candidates, translationId, order]);
 
   const expand = useCallback(
     (key: string) => {
@@ -271,12 +277,10 @@ export function useCrossRefPassages(
     if (!matches) return [];
     if (isLocal) return candidates.length === 0 ? [] : localRows ?? [];
 
-    return [...candidates]
-      .sort(byVotesDesc)
-      .slice(0, MAX_SHOWN_ROWS)
-      .sort(byVerse)
-      .map(candidate => toRow(candidate, getSourceText(candidate.crossRef.verse), rowStates[candidate.key]));
-  }, [matches, isLocal, localRows, candidates, rowStates, getSourceText]);
+    const top = [...candidates].sort(byVotesDesc).slice(0, MAX_SHOWN_ROWS);
+    if (order === 'verse') top.sort(byVerse);
+    return top.map(candidate => toRow(candidate, getSourceText(candidate.crossRef.verse), rowStates[candidate.key]));
+  }, [matches, isLocal, localRows, candidates, rowStates, getSourceText, order]);
 
   return { rows, expand };
 }
