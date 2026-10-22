@@ -5,7 +5,9 @@ import type { CommentaryBlock } from './types';
  * through them; otherwise it falls back to the whole-chapter block, then the chapter intro.
  */
 export function selectBlockForVerse(blocks: CommentaryBlock[], verse: number | null): CommentaryBlock | null {
-  const sections = blocks.filter(b => b.kind === 'section' && b.startVerse !== null && b.endVerse !== null);
+  const sections = blocks
+    .filter(b => b.kind === 'section' && b.startVerse !== null && b.endVerse !== null)
+    .sort((a, b) => a.startVerse! - b.startVerse!);
   if (sections.length === 0) {
     return (
       blocks.find(b => b.kind === 'whole-chapter') ?? blocks.find(b => b.kind === 'chapter-intro') ?? null

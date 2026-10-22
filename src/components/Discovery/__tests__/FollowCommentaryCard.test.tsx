@@ -119,6 +119,25 @@ describe('FollowCommentaryCard', () => {
     expect(screen.getByRole('heading', { name: 'Commentary on 1:57–66' })).toBeTruthy();
   });
 
+  it('collapses and shows the new chapter first section after navigating while pinned', () => {
+    const view = renderCard();
+    fireEvent.click(screen.getByRole('button', { name: 'Read more' }));
+    expect(screen.getByRole('button', { name: 'Show less' })).toBeTruthy();
+    commentary = {
+      blocks: [
+        makeBlock({ id: 'c2-1', kind: 'section', chapter: 2, startVerse: 1, endVerse: 7, title: 'Christ born' }),
+        makeBlock({ id: 'c2-8', kind: 'section', chapter: 2, startVerse: 8, endVerse: 20 }),
+      ],
+      isLoading: false,
+      error: null,
+    };
+    view.rerender(<FollowCommentaryCard book="Luke" chapter={2} translationId="sword-NASB" translationAbbrev="NASB" />);
+    expect(screen.getByRole('heading', { name: 'Commentary on 2:1–7' })).toBeTruthy();
+    expect(screen.getByText('Christ born')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Read more' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Show less' })).toBeNull();
+  });
+
   it('titles a whole-chapter block by chapter', () => {
     commentary = { blocks: [makeBlock({ id: 'whole', kind: 'whole-chapter', chapter: 36 })], isLoading: false, error: null };
     renderCard(36);

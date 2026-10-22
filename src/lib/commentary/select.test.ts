@@ -44,6 +44,12 @@ describe('selectBlockForVerse', () => {
     expect(selectBlockForVerse([S1, S2], 40)).toBe(S2);
   });
 
+  it('does not depend on input order', () => {
+    expect(selectBlockForVerse([S2, S1], null)).toBe(S1);
+    expect(selectBlockForVerse([S2, S1], 16)).toBe(S1);
+    expect(selectBlockForVerse([S2, S1], 30)).toBe(S2);
+  });
+
   it('picks the first section for a verse before it', () => {
     const first = block('s3', 'section', 3, 6);
     expect(selectBlockForVerse([first, S2], 1)).toBe(first);

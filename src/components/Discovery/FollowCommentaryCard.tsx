@@ -46,7 +46,8 @@ function FollowCommentaryBody({ book, chapter, translationId, translationAbbrev 
   const { blocks, isLoading, error } = useChapterCommentary(book, chapter);
   const currentVerse = useReadingPositionStore(s => s.currentVerse);
   const [pinnedId, setPinnedId] = useState<string | null>(null);
-  const block = blocks.find(b => b.id === pinnedId) ?? selectBlockForVerse(blocks, currentVerse);
+  const pinned = pinnedId === null ? undefined : blocks.find(b => b.id === pinnedId);
+  const block = pinned ?? selectBlockForVerse(blocks, currentVerse);
   const hasBlock = !isLoading && !error && block !== null;
 
   useEffect(() => {
@@ -66,7 +67,7 @@ function FollowCommentaryBody({ book, chapter, translationId, translationAbbrev 
         scope={scope}
         translationAbbrev={translationAbbrev}
         showHeader={false}
-        expanded={pinnedId !== null}
+        expanded={pinned !== undefined}
         onExpandedChange={open => setPinnedId(open ? block.id : null)}
         features={FEATURES}
       />

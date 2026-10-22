@@ -42,7 +42,8 @@ function makeContainer(scroll: number) {
   });
   const decoy = document.createElement('span');
   decoy.dataset.verse = '99';
-  decoy.getBoundingClientRect = () => rect(100 - scroll, 10);
+  // Fixed at the container center (target 100), closer than any row once scrolled by 40.
+  decoy.getBoundingClientRect = () => rect(95, 10);
   content.appendChild(decoy);
   container.getBoundingClientRect = () => rect(0, 200);
   Object.defineProperty(container, 'scrollTop', { value: scroll, configurable: true });
@@ -87,7 +88,8 @@ afterEach(() => {
 describe('useCurrentVerseTracker', () => {
   it('debounces scroll: no update before 150ms, update after', () => {
     const { container, content } = makeContainer(50); // centers: 0, 100, 200 -> verse 2 at target 100
-    renderHook(() => useCurrentVerseTracker({ current: container }, content, baseOpts));
+    const ref = { current: container };
+    renderHook(() => useCurrentVerseTracker(ref, content, baseOpts));
     act(() => { flushFrames(); });
     useReadingPositionStore.setState({ currentVerse: null });
     act(() => container.dispatchEvent(new Event('scroll')));
@@ -99,15 +101,17 @@ describe('useCurrentVerseTracker', () => {
 
   it('does not measure while not ready', () => {
     const { container, content } = makeContainer(50);
-    renderHook(() => useCurrentVerseTracker({ current: container }, content, { ...baseOpts, ready: false }));
+    const ref = { current: container };
+    renderHook(() => useCurrentVerseTracker(ref, content, { ...baseOpts, ready: false }));
     act(() => { resizeCallback?.(); flushFrames(); });
     expect(useReadingPositionStore.getState().currentVerse).toBeNull();
   });
 
   it('does not measure while paused, and measures when unpaused', () => {
     const { container, content } = makeContainer(50);
+    const ref = { current: container };
     useReadingPositionStore.setState({ verseTrackingPaused: true });
-    renderHook(() => useCurrentVerseTracker({ current: container }, content, baseOpts));
+    renderHook(() => useCurrentVerseTracker(ref, content, baseOpts));
     act(() => { flushFrames(); });
     expect(useReadingPositionStore.getState().currentVerse).toBeNull();
     act(() => { useReadingPositionStore.getState().setVerseTrackingPaused(false); });
@@ -117,15 +121,17 @@ describe('useCurrentVerseTracker', () => {
 
   it('counts only .grid rows, ignoring inline span[data-verse]', () => {
     // The decoy (verse 99) sits exactly at the container center; it must be ignored.
-    const { container, content } = makeContainer(50);
-    renderHook(() => useCurrentVerseTracker({ current: container }, content, baseOpts));
+    const { container, content } = makeContainer(40); // verse 2 center 110, decoy center 100
+    const ref = { current: container };
+    renderHook(() => useCurrentVerseTracker(ref, content, baseOpts));
     act(() => { flushFrames(); });
     expect(useReadingPositionStore.getState().currentVerse).toBe(2);
   });
 
   it('measures when the container or content resizes', () => {
     const { container, content } = makeContainer(50);
-    renderHook(() => useCurrentVerseTracker({ current: container }, content, baseOpts));
+    const ref = { current: container };
+    renderHook(() => useCurrentVerseTracker(ref, content, baseOpts));
     act(() => { flushFrames(); });
     useReadingPositionStore.setState({ currentVerse: null });
     act(() => { resizeCallback?.(); flushFrames(); });
@@ -134,14 +140,51 @@ describe('useCurrentVerseTracker', () => {
 
   it('resets to null when the location changes', () => {
     const { container, content } = makeContainer(50);
+    const ref = { current: container };
     const { rerender } = renderHook(
       ({ locationKey, ready }) =>
-        useCurrentVerseTracker({ current: container }, content, { ...baseOpts, locationKey, ready }),
+        useCurrentVerseTracker(ref, content, { ...baseOpts, locationKey, ready }),
       { initialProps: { locationKey: 'JHN:3', ready: true } }
     );
     act(() => { flushFrames(); });
     expect(useReadingPositionStore.getState().currentVerse).toBe(2);
     rerender({ locationKey: 'JHN:4', ready: false });
     expect(useReadingPositionStore.getState().currentVerse).toBeNull();
+  });
+
+  it('re-measures when locationKey changes while ready stays true', () => {
+    const { container, content } = makeContainer(50);
+    const ref = { current: container };
+    const { rerender } = renderHook(
+      ({ locationKey }) => useCurrentVerseTracker(ref, content, { ...baseOpts, locationKey }),
+      { initialProps: { locationKey: 'JHN:3' } }
+    );
+    act(() => { flushFrames(); });
+    expect(useReadingPositionStore.getState().currentVerse).toBe(2);
+    rerender({ locationKey: 'JHN:4' });
+    expect(useReadingPositionStore.getState().currentVerse).toBeNull();
+    act(() => { flushFrames(); });
+    expect(useReadingPositionStore.getState().currentVerse).toBe(2);
+  });
+
+  it('keeps the post-navigation measure when a plain schedule fires between its rAFs', () => {
+    const { container, content } = makeContainer(50);
+    const ref = { current: container };
+    const { rerender } = renderHook(
+      ({ locationKey }) => useCurrentVerseTracker(ref, content, { ...baseOpts, locationKey }),
+      { initialProps: { locationKey: 'JHN:3' } }
+    );
+    act(() => { flushFrames(); });
+    rerender({ locationKey: 'JHN:4' });
+    // Run only the outer rAF so the nested one is pending, then let a plain schedule fire.
+    act(() => {
+      const [[id, cb]] = Array.from(frames.entries());
+      frames.delete(id);
+      cb(0);
+    });
+    expect(frames.size).toBe(1);
+    act(() => { resizeCallback?.(); });
+    act(() => { flushFrames(); });
+    expect(useReadingPositionStore.getState().currentVerse).toBe(2);
   });
 });

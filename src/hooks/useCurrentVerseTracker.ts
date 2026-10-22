@@ -3,7 +3,7 @@
  * it to useReadingPositionStore. Measurements are coalesced into one rAF.
  */
 
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
 import { pickCurrentVerse } from '@/lib/currentVerse';
 import { useReadingPositionStore } from '@/stores/readingPositionStore';
 
@@ -25,7 +25,7 @@ export function useCurrentVerseTracker(
   const optsRef = useRef(opts);
   const scheduleRef = useRef<(nested?: boolean) => void>(() => {});
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     optsRef.current = opts;
   });
 
@@ -107,6 +107,9 @@ export function useCurrentVerseTracker(
     const unsubscribe = useReadingPositionStore.subscribe((state, prev) => {
       if (prev.verseTrackingPaused && !state.verseTrackingPaused) schedule();
     });
+
+    // Cleanup cancels pending work, so a remount must re-measure on its own.
+    schedule();
 
     return () => {
       container?.removeEventListener('scroll', onScroll);
