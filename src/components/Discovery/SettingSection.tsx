@@ -19,7 +19,6 @@ import {
   introFor,
   isForetoldIn,
   isPrimeval,
-  orientationFor,
   questionFor,
 } from '@/lib/chapterAnalysis';
 import { getBookById } from '@/types';
@@ -78,7 +77,6 @@ export function SettingSection({ book, chapter, translationId }: SettingSectionP
   const bookName = getBookById(book)?.name ?? book;
   const genre = genreFor(book);
   const intro = introFor(book);
-  const orientation = orientationFor(book);
   const question = questionFor(book, chapter);
 
   const chapterLine = buildChapterLine({
@@ -110,8 +108,7 @@ export function SettingSection({ book, chapter, translationId }: SettingSectionP
           {introOpen && <p className="mt-1 text-sm text-scripture-text">{intro}</p>}
         </div>
       )}
-      {orientation && <p className="text-sm text-scripture-text">{orientation}</p>}
-      {question && <p className="text-sm text-scripture-muted italic">{question}</p>}
+      {question && <p className="rounded-r border-l-2 border-scripture-accent bg-scripture-accent/10 px-3 py-2 text-sm text-scripture-text">{question}</p>}
       {chapterLine && <p className="text-sm text-scripture-text">{chapterLine}</p>}
       {hasMap && (
         <>

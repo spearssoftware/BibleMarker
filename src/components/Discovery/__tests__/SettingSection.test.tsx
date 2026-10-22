@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { SettingSection } from '../SettingSection';
-import { introFor, orientationFor, questionFor } from '@/lib/chapterAnalysis';
+import { introFor, questionFor } from '@/lib/chapterAnalysis';
 import { track } from '@/lib/telemetry';
 import type { ChapterEntities, ChapterEvent, ChapterPlace } from '@/types';
 
@@ -79,10 +79,9 @@ describe('SettingSection', () => {
     });
   });
 
-  it('renders the genre label, orientation and question', () => {
+  it('renders the genre label and question', () => {
     renderSetting('Heb', 3);
     expect(screen.getByText('Hebrews — a letter')).toBeTruthy();
-    expect(screen.getByText(orientationFor('Heb')!)).toBeTruthy();
     expect(screen.getByText(questionFor('Heb', 3)!)).toBeTruthy();
   });
 

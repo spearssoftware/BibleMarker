@@ -2,12 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { BIBLE_BOOKS } from '@/types/bible'
 import {
   BOOK_GENRE,
-  GENRE_ORIENTATION,
   GENRE_QUESTIONS,
   GENRE_LABEL,
   CHAPTER_QUESTION_OVERRIDES,
   genreFor,
-  orientationFor,
   questionFor,
 } from '../genres'
 import type { Genre } from '../genres'
@@ -66,13 +64,7 @@ describe('BOOK_GENRE - full canon coverage', () => {
   })
 })
 
-describe('GENRE_ORIENTATION and GENRE_QUESTIONS - coverage', () => {
-  it('has an orientation for every genre', () => {
-    for (const genre of ALL_GENRES) {
-      expect(GENRE_ORIENTATION[genre], `missing orientation for ${genre}`).toBeTruthy()
-    }
-  })
-
+describe('GENRE_LABEL and GENRE_QUESTIONS - coverage', () => {
   it('has a label for every genre', () => {
     for (const genre of ALL_GENRES) {
       expect(GENRE_LABEL[genre], `missing label for ${genre}`).toBeTruthy()
@@ -91,12 +83,6 @@ describe('GENRE_ORIENTATION and GENRE_QUESTIONS - coverage', () => {
 })
 
 describe('answer-free guard', () => {
-  it('no orientation asserts an interpretation', () => {
-    for (const genre of ALL_GENRES) {
-      assertAnswerFree(GENRE_ORIENTATION[genre], `${genre} orientation`)
-    }
-  })
-
   it('no question asserts an interpretation', () => {
     for (const genre of ALL_GENRES) {
       GENRE_QUESTIONS[genre].forEach((question, i) => {
@@ -138,14 +124,6 @@ describe('neutrality - no contested critical claims or presumed content', () => 
       expect(question).not.toContain('reads differently across the four gospels')
     }
   })
-
-  it('does not claim prophecy is written "in verse" (Isaiah 36-39 is prose)', () => {
-    expect(GENRE_ORIENTATION.prophecy).not.toContain('in verse')
-  })
-
-  it('does not claim law books are "not a story" (Exodus contains narrative)', () => {
-    expect(GENRE_ORIENTATION.law.toLowerCase()).not.toContain('not a story')
-  })
 })
 
 describe('genre labels', () => {
@@ -158,7 +136,7 @@ describe('genre labels', () => {
   })
 })
 
-describe('genreFor / orientationFor', () => {
+describe('genreFor', () => {
   it('returns the assigned genre for a known book', () => {
     expect(genreFor('Heb')).toBe('epistle')
     expect(genreFor('Ps')).toBe('poetry')
@@ -166,14 +144,6 @@ describe('genreFor / orientationFor', () => {
 
   it('returns undefined for an unknown book id', () => {
     expect(genreFor('NotABook')).toBeUndefined()
-  })
-
-  it('returns the matching orientation line for a known book', () => {
-    expect(orientationFor('Heb')).toBe(GENRE_ORIENTATION.epistle)
-  })
-
-  it('returns undefined orientation for an unknown book id', () => {
-    expect(orientationFor('NotABook')).toBeUndefined()
   })
 })
 

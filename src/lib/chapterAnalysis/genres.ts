@@ -1,8 +1,8 @@
 /**
  * Genre Compass — hand-authored genre metadata for every book of the Bible.
  *
- * Pure data, no analysis. Orientation lines describe a book's *form* only —
- * never its meaning — and every question is answer-free: it points the
+ * Pure data, no analysis. Labels describe a book's *form* only — never its
+ * meaning — and every question is answer-free: it points the
  * reader at something to find or notice, it never asserts what a passage
  * says. Same register as `connectors.ts`'s article-free em-dash prompts.
  *
@@ -16,7 +16,7 @@
  *   chapters are famous enough exceptions that they get a dedicated,
  *   better-fitting question instead of a hedge — see
  *   `CHAPTER_QUESTION_OVERRIDES` below.
- * — Neutral: a question or orientation line may describe literary form
+ * — Neutral: a question may describe literary form
  *   (parallelism, refrain, audience, structure) but must never assert a
  *   reading, a contested critical claim, or a specific chapter's content.
  *
@@ -24,15 +24,14 @@
  * — Exodus: half the book is wilderness/exodus narrative (1-19, 32-34), half
  *   is covenant law and tabernacle instruction (20-31, 35-40). Classified
  *   `law` because the Sinai material is the book's structural hinge and its
- *   lasting identity ("the law of Moses" begins here). The `law` orientation
- *   is written to be true of this mix (law given inside a journey), not just
- *   the legal chapters.
+ *   lasting identity ("the law of Moses" begins here). The `law` questions
+ *   are hedged to hold for the narrative chapters too.
  * — Numbers: alternates census/legal material with wilderness narrative
  *   (the spies, Korah, Balaam). Classified `narrative` because the through-
  *   line readers actually follow is the journey, not the law lists.
- * — Daniel and Revelation: both `apocalyptic`, whose orientation deliberately
- *   names a *mixed* form ("part story, part vision") rather than picking one,
- *   since both books genuinely are half narrative, half vision.
+ * — Daniel and Revelation: both `apocalyptic`; one question asks which
+ *   form a chapter takes, since both books genuinely are half narrative,
+ *   half vision.
  */
 
 export type Genre =
@@ -129,18 +128,6 @@ export const GENRE_LABEL: Record<Genre, string> = {
   acts: 'a travel narrative',
   epistle: 'a letter',
   apocalyptic: 'a book of visions',
-};
-
-export const GENRE_ORIENTATION: Record<Genre, string> = {
-  law: 'Law and story woven together — rules and instructions given inside a larger journey.',
-  narrative: 'A story — people, places, and events move toward what happens next.',
-  poetry: 'Hebrew poetry — lines paired by parallel or contrasting thought, never by rhyme.',
-  wisdom: 'Sayings and long reflection, weighing how life actually plays out.',
-  prophecy: 'An oracle — warning and hope addressed to a specific audience, often in poetic lines.',
-  gospel: 'An account of Jesus — his words and actions, arranged for a particular audience.',
-  acts: 'A travel narrative — the story keeps moving, carried from place to place by different people.',
-  epistle: 'A letter, written to answer real problems on the other end.',
-  apocalyptic: 'Part story, part vision — symbol and scene mixed together.',
 };
 
 export const GENRE_QUESTIONS: Record<Genre, readonly string[]> = {
@@ -253,11 +240,6 @@ export const CHAPTER_QUESTION_OVERRIDES: Record<string /* OSIS book id */, Recor
 
 export function genreFor(bookId: string): Genre | undefined {
   return BOOK_GENRE[bookId];
-}
-
-export function orientationFor(bookId: string): string | undefined {
-  const genre = genreFor(bookId);
-  return genre ? GENRE_ORIENTATION[genre] : undefined;
 }
 
 export function questionFor(bookId: string, chapter: number): string | undefined {
