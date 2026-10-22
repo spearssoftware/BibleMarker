@@ -155,7 +155,7 @@ Props: `book`, `chapter`, `translationId`, `translationAbbrev`, as `CommentaryCa
 ## Acceptance criteria
 
 1. `just check` passes.
-2. `pnpm vitest run src/components/Discovery src/components/BibleReader src/lib/commentary` passes and includes the tests listed under Constraints.
+2. `pnpm vitest run src/components/Discovery src/components/BibleReader src/lib/commentary src/lib/currentVerse.test.ts src/hooks/__tests__/useCurrentVerseTracker.test.tsx` passes and includes the tests listed under Constraints.
 3. `grep -n -i -E "matthew henry|mhcc" <new card file>` prints nothing.
 4. Given Luke 1 open with Discover visible and the reader pane scrolled to the top, then a card titled `Commentary on 1:1–4` with the outline title `The Preface` appears directly below the Setting card, with the source line `Matthew Henry's Concise Commentary · public domain`.
 5. Given Luke 1, when the reader scrolls until verse 10 sits mid-pane and stops, then the card's title is `Commentary on 1:5–25` with the outline title `Zacharias and Elisabeth`.

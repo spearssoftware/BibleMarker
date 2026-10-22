@@ -90,6 +90,10 @@ vi.mock('../CrossRefsCard', () => ({
   CrossRefsCard: () => <div data-testid="cross-refs-card">cross-refs</div>,
 }));
 
+vi.mock('../FollowCommentaryCard', () => ({
+  FollowCommentaryCard: () => <div data-testid="follow-commentary-card" />,
+}));
+
 vi.mock('../CommentaryCard', () => ({
   CommentaryCard: () => <div data-testid="commentary-card">commentary</div>,
 }));
@@ -107,6 +111,7 @@ function openLookCloser() {
 function sectionOrder(container: HTMLElement): string[] {
   const dialog = container.querySelector('[role="dialog"] > div');
   return Array.from(dialog?.children ?? []).map(el => {
+    if (el.getAttribute('data-testid') === 'follow-commentary-card') return 'follow-commentary';
     if (el.getAttribute('data-testid') === 'worth-noticing-card') return 'worth-noticing';
     if (el.querySelector('[data-testid="cross-refs-card"]')) return 'cross-refs';
     if (el.querySelector('h3')?.textContent?.startsWith('John')) return 'setting';
@@ -178,7 +183,7 @@ describe('DiscoveryPanel', () => {
     expect(await screen.findByText('Say this chapter in your own words — give it a title')).toBeTruthy();
   });
 
-  it('renders sections in Setting → Worth noticing → Cross-References → Who\'s here → Look closer order, with the analytic cards inside Look closer', async () => {
+  it('renders sections in Setting → Follow-along commentary → Worth noticing → Cross-References → Who\'s here → Look closer order, with the analytic cards inside Look closer', async () => {
     mockEntities = { book: 'John', chapter: 1, people: ['jesus-son-of-joseph'], places: [], events: [], topics: [] };
     peopleState = ready(PEOPLE);
     useDiscoveryStore.setState({
@@ -188,7 +193,7 @@ describe('DiscoveryPanel', () => {
     openLookCloser();
     const { container } = render(<DiscoveryPanel />);
     await screen.findByText('Say this chapter in your own words — give it a title');
-    expect(sectionOrder(container)).toEqual(['setting', 'worth-noticing', 'cross-refs', 'whos-here', 'look-closer']);
+    expect(sectionOrder(container)).toEqual(['setting', 'follow-commentary', 'worth-noticing', 'cross-refs', 'whos-here', 'look-closer']);
     const lookCloser = container.querySelector('section') as HTMLElement;
     const inner = Array.from(lookCloser.children).slice(1).map(el => {
       if (el.querySelector('ul[aria-label="Look-again checklist"]')) return 'look-again';

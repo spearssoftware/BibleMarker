@@ -6,7 +6,7 @@
  * `useDiscoveryHost`, plus entity counts from Gnosis. No props — everything
  * it needs is either already-mounted host state or store reads.
  *
- * Section order: Setting → Worth noticing → Cross-References → Who's here → Look closer
+ * Section order: Setting → Follow-along commentary → Worth noticing → Cross-References → Who's here → Look closer
  * (Repetition, Connectors, Look-Again, Commentary). Setting's intro and genre lines need
  * neither analysis extras nor Gnosis, so the loading gate is `!context` only
  * (S5) — a Gnosis hiccup must not blank the whole panel. Setting, Worth
@@ -39,6 +39,7 @@ import { LookAgainCard } from './LookAgainCard';
 import { RepetitionCard } from './RepetitionCard';
 import { ConnectorsCard } from './ConnectorsCard';
 import { CommentaryCard } from './CommentaryCard';
+import { FollowCommentaryCard } from './FollowCommentaryCard';
 import { CrossRefsCard } from './CrossRefsCard';
 import { LookCloserSection } from './LookCloserSection';
 import { trackChip } from '@/lib/discoveryTelemetry';
@@ -104,6 +105,13 @@ export function DiscoveryPanel() {
   return (
     <DiscoveryDialog>
       <SettingSection key={`setting:${book}:${chapter}`} book={book} chapter={chapter} translationId={translationId} />
+      <FollowCommentaryCard
+        key={`follow-commentary:${book}:${chapter}`}
+        book={book}
+        chapter={chapter}
+        translationId={translationId}
+        translationAbbrev={primaryTranslationAbbrev}
+      />
       <WorthNoticingCard key={`worth-noticing:${book}:${chapter}`} book={book} chapter={chapter} translationId={translationId} />
       {(hasCrossRefs || hasLaterCrossRefs) && (
         <div id={CROSS_REFS_ANCHOR_ID} className={ANCHOR_CLASS}>
