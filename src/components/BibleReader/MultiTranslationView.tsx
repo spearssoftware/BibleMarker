@@ -29,6 +29,7 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { useListStore } from '@/stores/listStore';
 import { getBookById } from '@/types';
+import { useCurrentVerseTracker } from '@/hooks/useCurrentVerseTracker';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { usePanelStore } from '@/stores/panelStore';
 import { useTextSelection, type TranslationChapter } from '@/hooks/useTextSelection';
@@ -529,6 +530,32 @@ export function MultiTranslationView() {
     return () => cancelAnimationFrame(raf);
   }, [currentBook, currentChapter]);
 
+  // Publish the verse centered in the scroll container. Derived from this
+  // component's own loaded data (not bibleStore.chapter, which can lag a
+  // navigation) and false while skeleton rows are showing.
+  const [verseContentEl, setVerseContentEl] = useState<HTMLDivElement | null>(null);
+  const trackerRange = useMemo(() => {
+    let loading = false;
+    let matched = false;
+    let min = Infinity;
+    let max = -Infinity;
+    translationChapters.forEach(({ chapter, isLoading }) => {
+      if (isLoading) loading = true;
+      if (chapter?.book !== currentBook || chapter.chapter !== currentChapter) return;
+      matched = true;
+      chapter.verses.forEach((v) => {
+        min = Math.min(min, v.ref.verse);
+        max = Math.max(max, v.ref.verse);
+      });
+    });
+    const ready = !loading && matched && max >= min;
+    return { ready, minVerse: ready ? min : 1, maxVerse: ready ? max : 1 };
+  }, [translationChapters, currentBook, currentChapter]);
+  useCurrentVerseTracker(verseContainerRef, verseContentEl, {
+    locationKey: `${currentBook}:${currentChapter}`,
+    ...trackerRange,
+  });
+
   useEffect(() => {
     // Reset loading refs when book/chapter changes
     const key = `${currentBook}-${currentChapter}`;
@@ -728,7 +755,7 @@ export function MultiTranslationView() {
 
       {/* Verse rows - scrollable container */}
       <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0 [scrollbar-gutter:stable_both-edges]" onMouseUp={handleMouseUp} onTouchStart={(e) => { swipeTouchStart(e); cancelSelectionCapture(); }} onTouchMove={cancelSelectionCapture} onTouchEnd={(e) => { swipeTouchEnd(e); handleTouchEnd(); }}>
-          <div key={layoutKey} className={`px-6 py-4 space-y-1.5`}>
+          <div key={layoutKey} ref={setVerseContentEl} className={`px-6 py-4 space-y-1.5`}>
             {sortedVerseNumbers.map(verseNum => {
               const heading = getHeadingBefore(verseNum);
               const verseNotes = getVerseNotes(verseNum);
