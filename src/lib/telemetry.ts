@@ -35,7 +35,10 @@ export type TelemetryFeature =
   | 'look_closer'
   | 'commentary'
   | 'commentary_range'
-  | 'commentary_reference';
+  | 'commentary_reference'
+  | 'commentary_follow'
+  | 'commentary_follow_more'
+  | 'commentary_follow_reference';
 
 export interface TelemetryProps {
   feature?: TelemetryFeature;

@@ -8,6 +8,8 @@ import { deriveChapterBlocks } from './mhcc';
 import type { CommentaryBlock } from './types';
 
 export type { CommentaryBlock, CommentaryBlockKind, CommentaryRun } from './types';
+export { selectBlockForVerse } from './select';
+export { COMMENTARY_SOURCES } from './sources';
 
 const MHCC_MODULE_ID = 'sword-MHCC';
 
