@@ -328,8 +328,8 @@ AC 1–7 are checked by `just test-scripts` against canned responses. AC 8–12 
 | Notes content | Concise; only what users need to know changed | Owner instruction | user |
 | Platforms | One workflow, `platforms` input `both`/`ios`/`android`, default `both` | Lets a failed side be retried alone | user |
 | Partial failure | No rollback; red run names the platform to re-run | Store actions are not cleanly reversible | user |
-| iOS build choice | Newest processed build whose TestFlight notes header is `app-v<v> @` | The owner chose "newest processed". Same-version `testflight.yml` builds of other branches would otherwise win, so it is narrowed to builds from the release tag. | agent default (refines user answer; confirm) |
-| Android build choice | versionCode recorded on the GitHub release; fallback to internal release name, highest code | Play exposes no versionName, and internal drafts are replaced on each upload. The owner chose "highest versionCode"; that survives as the fallback rule. | agent default (refines user answer; confirm) |
+| iOS build choice | Newest processed build whose TestFlight notes header is `app-v<v> @` | The owner chose "newest processed". Same-version `testflight.yml` builds of other branches would otherwise win, so it is narrowed to builds from the release tag. | user (accepted agent refinement) |
+| Android build choice | versionCode recorded on the GitHub release; fallback to internal release name, highest code | Play exposes no versionName, and internal drafts are replaced on each upload. The owner chose "highest versionCode"; that survives as the fallback rule. | user (accepted agent refinement) |
 | Android draft on `internal` | Not needed; promote by versionCode | Bundle stays in the library regardless of track | agent default |
 | iOS existing state | Reuse editable `<v>`; skip in-review/approved; fail if another version is open | Avoids clobbering a review or renaming a version | user (skip-vs-fail: agent default) |
 | Re-run behavior | Already in review/live is a skip with success on both platforms | Re-running `both` after success stays green | agent default |
@@ -349,12 +349,7 @@ AC 1–7 are checked by `just test-scripts` against canned responses. AC 8–12 
 
 ## Open questions
 
-1. **Confirm the two refined build-selection rules** (owner). Both refine answers given during the interview:
-   - iOS: tag-header match.
-   - Android: versionCode asset, which requires the `release.yml` change.
-
-   If the owner rejects either, revert to the plain rule ("newest processed" / "highest internal versionCode") and accept the risk described in Decisions.
-2. **Play production access** (owner, before the first real run).
+1. **Play production access** (owner, before the first real run).
    - Confirm the service account has release rights on `production`.
    - Confirm the developer account has no closed-testing gate on production access.
 
