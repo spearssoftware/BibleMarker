@@ -12,14 +12,19 @@ ignore = [
     # `cargo tree -i rkyv --target all` and never compiled into the binary.
     "RUSTSEC-2026-0235",
 
-    # rustls-webpki — name constraint verification bugs. Transitive via quinn → reqwest.
-    # Waiting for upstream bump through tauri's networking stack.
-    "RUSTSEC-2026-0098",
-    "RUSTSEC-2026-0099",
-
-    # rand 0.9.x — unsound only when a custom logger calls `rand::rng()` on a panicking thread.
+    # rand — unsound only when a custom logger calls `rand::rng()` on a panicking thread.
     # We don't use rand directly; transitive via quinn → reqwest.
     "RUSTSEC-2026-0097",
+
+    # zip 4.x — `ZipArchive::extract` symlink escape, SUID/SGID preservation.
+    # Optional, Windows-only dependency of tauri-plugin-updater, which still requires
+    # zip ^4 as of 2.14.0 (zip 9 is on the unreleased v2 branch). All three advisories
+    # need extraction of an untrusted archive: the updater verifies the minisign
+    # signature against the pubkey in tauri.conf.json before extracting, and SUID/SGID
+    # bits do not exist on Windows. Remove once the plugin releases against zip 9.
+    "RUSTSEC-2026-0367",
+    "RUSTSEC-2026-0368",
+    "RUSTSEC-2026-0369",
 
     # glib VariantStrIter unsoundness — transitive via Tauri's GTK3 stack (Linux only).
     "RUSTSEC-2024-0429",
