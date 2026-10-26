@@ -45,6 +45,8 @@ jobs:
         run: pnpm install
       - name: Test
         run: pnpm test
+      - name: Script tests
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Build
         run: pnpm build
 

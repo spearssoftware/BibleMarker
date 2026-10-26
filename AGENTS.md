@@ -189,6 +189,7 @@ For a specific target: `CARGO_HOME="$(pwd)/.cargo-home" unset CI && pnpm tauri b
 | `promote-release` | manual | flips a prerelease to the stable/latest release |
 | `testflight` | manual | iOS build + TestFlight upload (writes "What to Test" notes) |
 | `testflight-notes` | manual | rewrites a build's "What to Test" notes without rebuilding |
+| `store-submit` | manual (`just store-push`) | submits a release to App Store review and promotes it to Google Play production |
 | `build-ci-images` | weekly / manual | rebuilds the CI container images |
 | `regenerate-flatpak-sources` | manual | regenerates vendored Flatpak sources (parked) |
 
@@ -242,6 +243,20 @@ Prefer `--notes` over editing the draft on GitHub after the fact. Pitfalls:
 - Every release publishes a single `latest.json` manifest consumed by the Tauri updater.
 
 The script creates a `release/vX.Y.Z` branch with the version bump, pushes it, and opens a PR. When the PR is merged, the `release-tag` workflow automatically creates the `app-vX.Y.Z` tag, which triggers the publish workflow and creates a draft GitHub Release.
+
+### Submitting to the stores
+
+Store submission is never automatic. Once a release is tagged and its builds are in TestFlight and the Play `internal` track:
+
+```bash
+just store-check 3.2.9          # dry run: every check, no changes
+just store-push 3.2.9           # App Store review + Play production (both)
+just store-push 3.2.9 android   # one store only, e.g. to retry after a failure
+```
+
+Or `/push-to-production 3.2.9` in Claude Code. iOS is set to release automatically once approved; Android goes to 100% immediately.
+
+The store "What's New" comes from `.github/release-notes/vX.Y.Z.md` on `main`, so the run fails without one. Keep it concise and limited to what users need to know changed; Google Play caps it at 500 characters. Releases cut without `--notes` need the file added on `main` before pushing.
 
 ### Prerelease gate (desktop)
 
