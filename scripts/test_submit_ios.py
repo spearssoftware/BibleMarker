@@ -405,7 +405,8 @@ class RunTest(unittest.TestCase):
         )
         submit = client.calls[-1]
         self.assertEqual(submit[3]["data"]["attributes"], {"submitted": True})
-        self.assertEqual(client.budgets, [submit_ios.WRITE_GRACE])
+        # Once per poll, then once more before the writes.
+        self.assertEqual(client.budgets, [submit_ios.WRITE_GRACE] * 2)
         self.assertTrue(out.endswith(f"iOS {V}: submitted build 300 for review\n"))
 
     def test_submit_reuses_version_and_open_submission(self):

@@ -4,6 +4,7 @@ Called by store_submit.py with an asc.Client. In check mode it makes only GET
 calls; in submit mode it creates or reuses the App Store version, attaches the
 build, sets "What's New" and automatic release, and submits for review.
 """
+import re
 import time
 
 import asc
@@ -14,7 +15,8 @@ BUNDLE_ID = "app.biblemarker"
 POLL_DEADLINE = 20 * 60
 POLL_INTERVAL = 30
 
-# Writes get their own retry window after polling has used up its deadline.
+# Retry window for each poll and for the writes. Client's own deadline is set
+# once, so without re-budgeting a long poll would leave later calls none.
 WRITE_GRACE = 120
 
 # Read from attributes.appStoreState; appVersionState uses different values.
@@ -49,7 +51,8 @@ RETRY_HINT = "re-run with platforms=ios."
 
 
 def version_tuple(s):
-    return tuple(int(p) for p in s.split("."))
+    # Tolerates historical version strings with suffixes, e.g. "1.0b2".
+    return tuple(int(p) for p in re.findall(r"\d+", s))
 
 
 def classify(versions, v):
@@ -197,6 +200,7 @@ def wait_for_release_build(client, app_id, v):
     """
     deadline = time.monotonic() + POLL_DEADLINE
     while True:
+        client.budget(WRITE_GRACE)
         builds = fetch_builds(client, app_id, v)
         matches = release_builds(builds, v)
         processing = any(

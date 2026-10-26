@@ -1,9 +1,11 @@
 import io
+import os
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 import store_submit
 from store_common import (
@@ -157,6 +159,25 @@ class ApiErrorTest(unittest.TestCase):
 
     def test_non_http(self):
         self.assertEqual(api_error(RuntimeError("deadline")), (None, "deadline"))
+
+
+class IosClientTest(unittest.TestCase):
+    def test_requires_credentials(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(StoreError) as ctx:
+                store_submit.ios_client()
+        self.assertIn("APP_STORE_CONNECT_KEY_ID", str(ctx.exception))
+
+    def test_requires_key_file(self):
+        env = {
+            "APP_STORE_CONNECT_KEY_ID": "K1",
+            "APP_STORE_CONNECT_ISSUER_ID": "I1",
+            "APP_STORE_CONNECT_KEY_PATH": "/nonexistent/AuthKey_K1.p8",
+        }
+        with mock.patch.dict(os.environ, env, clear=True):
+            with self.assertRaises(StoreError) as ctx:
+                store_submit.ios_client()
+        self.assertIn("/nonexistent/AuthKey_K1.p8", str(ctx.exception))
 
 
 class MainTest(unittest.TestCase):

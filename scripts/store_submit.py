@@ -95,6 +95,9 @@ def main(argv=None, runners=RUNNERS, tag_check=check_tag, root=ROOT):
     except StoreError as exc:
         log(f"error: {exc}")
         return 1
+    except (OSError, ValueError) as exc:
+        log(f"error: shared preconditions for {args.version} failed: {exc!r}")
+        return 1
 
     failed = []
     for platform in PLATFORMS[args.platforms]:
