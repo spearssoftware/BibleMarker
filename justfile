@@ -19,7 +19,7 @@ dev:
     pnpm run tauri:dev
 
 # The full gate CI runs, cheapest first: Rust format, lint, typecheck, tests, web build, clippy.
-check: fmt-check lint typecheck test web-build clippy
+check: fmt-check lint typecheck test test-scripts web-build clippy
 
 # Run ESLint.
 lint:
@@ -32,6 +32,10 @@ typecheck:
 # Run the Vitest suite once. Pass a path or pattern to narrow it.
 test *args:
     pnpm test "$@"
+
+# Run the Python unit tests for the release scripts.
+test-scripts:
+    python3 -m unittest discover -s scripts -p 'test_*.py'
 
 # Run Vitest in watch mode.
 test-watch:
@@ -63,6 +67,39 @@ build:
 # Cut a release PR: just release patch|minor|major [--notes "- Bullet"].
 release *args:
     pnpm run release -- "$@"
+
+# Submit a released version to the App Store and Google Play production (platforms: both, ios, android).
+store-push version platforms="both":
+    @just _store-dispatch "$1" "$2" false
+
+# Dry run of store-push: check every precondition for both stores without changing anything.
+store-check version:
+    @just _store-dispatch "$1" both true
+
+# Dispatch the store-submit workflow and print the URL of the run it started.
+[private]
+_store-dispatch version platforms dry_run:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # A minute of slack for local clock skew against GitHub's createdAt.
+    since=$(date -u -v-60S +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '-60 seconds' +%Y-%m-%dT%H:%M:%SZ)
+    if ! out=$(gh workflow run store-submit.yml -f version="$1" -f platforms="$2" -f dry_run="$3" 2>&1); then
+        echo "$out" >&2
+        exit 1
+    fi
+    echo "$out"
+    if grep -q '/actions/runs/' <<<"$out"; then
+        exit 0
+    fi
+    sleep 5
+    url=$(gh run list --workflow store-submit.yml --event workflow_dispatch \
+        --user "$(gh api user -q .login)" --limit 1 --json url,createdAt \
+        -q ".[] | select(.createdAt >= \"$since\") | .url")
+    if [ -n "$url" ]; then
+        echo "$url"
+    else
+        echo "Dispatched; run not visible yet — see: gh run list --workflow store-submit.yml"
+    fi
 
 # Run the app in the iOS simulator.
 ios-dev:
