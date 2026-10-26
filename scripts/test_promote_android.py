@@ -158,6 +158,13 @@ class RunTest(unittest.TestCase):
             go(c, gh=gh_fail("HTTP 401: Bad credentials"))
         self.assertEqual(c.calls, [])
 
+    def test_invisible_release_hints_at_draft(self):
+        c = FakeClient()
+        with self.assertRaises(StoreError) as ctx:
+            go(c, gh=gh_fail("release not found"))
+        self.assertTrue(str(ctx.exception).startswith("No Android versionCode recorded"))
+        self.assertIn("if it is still a draft, publish it", str(ctx.exception))
+
     def test_nothing_found(self):
         c = FakeClient()
         with self.assertRaises(StoreError) as ctx:

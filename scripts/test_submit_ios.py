@@ -148,6 +148,28 @@ class ClassifyTest(unittest.TestCase):
             expected,
         )
 
+    def test_other_version_in_unexpected_state_fails(self):
+        versions = [version("1", "3.2.8", "SOMETHING_NEW")]
+        self.assertEqual(
+            submit_ios.classify(versions, V),
+            (
+                "fail",
+                "App Store version 3.2.8 is in unexpected state SOMETHING_NEW; "
+                "handle it in App Store Connect.",
+            ),
+        )
+
+    def test_half_submitted_version_is_reused(self):
+        # Added to a review submission, but the submit itself never landed.
+        self.assertEqual(
+            submit_ios.classify([version("1", V, "READY_FOR_REVIEW")], V),
+            ("reuse", "1"),
+        )
+
+    def test_missing_state_fails_rather_than_crashing(self):
+        versions = [{"id": "1", "attributes": {"versionString": V}}]
+        self.assertEqual(submit_ios.classify(versions, V)[0], "fail")
+
     def test_create_when_none_and_newer(self):
         versions = [version("1", "3.2.8", "READY_FOR_SALE")]
         self.assertEqual(submit_ios.classify(versions, V), ("create", None))

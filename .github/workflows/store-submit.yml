@@ -41,8 +41,10 @@ on:
 permissions:
   contents: read
 
-# A second dispatch waits rather than double-submitting or opening a competing
-# Play edit (committing one edit invalidates any other open edit).
+# A dispatch made while one is running waits rather than double-submitting or
+# opening a competing Play edit (committing one edit invalidates any other open
+# edit). GitHub keeps one pending run per group, so a third dispatch replaces
+# the waiting one.
 concurrency:
   group: store-submit
   cancel-in-progress: false

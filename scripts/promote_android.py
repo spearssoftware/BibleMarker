@@ -34,11 +34,6 @@ TOKEN_REFRESH = 50 * 60
 # Sleeps between attempts: three retries after the first try.
 RETRY_DELAYS = (5, 15, 45)
 
-# gh's stderr when the release or the asset is absent, as opposed to an auth or
-# network failure that must not be mistaken for "no versionCode recorded".
-GH_MISSING = ("no assets match", "release not found")
-
-
 class Transient(Exception):
     """A failure worth retrying: rate limiting, a 5xx, or a dropped connection."""
 
@@ -176,7 +171,7 @@ class PlayClient:
 # --- Decisions --------------------------------------------------------------
 
 
-def pick_version_code(asset_text, internal_track, v):
+def pick_version_code(asset_text, internal_track, v, release_visible=True):
     """The release's versionCode: the recorded asset, else the internal track."""
     if asset_text is not None:
         text = asset_text.strip()
@@ -193,10 +188,18 @@ def pick_version_code(asset_text, internal_track, v):
         for code in release.get("versionCodes", [])
     ]
     if not codes:
-        raise StoreError(
+        message = (
             f"No Android versionCode recorded for {v}. Check the release "
             "workflow's build-android job uploaded it."
         )
+        if not release_visible:
+            # A contents:read token can't see draft releases, and the release
+            # stays a draft if any desktop build in the release run failed.
+            message += (
+                f" The app-v{v} GitHub release is not visible; if it is still a "
+                "draft, publish it and re-run."
+            )
+        raise StoreError(message)
     return max(codes)
 
 
@@ -219,7 +222,7 @@ def production_status(track, code):
 
 
 def read_asset(v, gh):
-    """Contents of android-version-code.txt on the release, or None if absent."""
+    """(contents of android-version-code.txt or None, whether the release exists)."""
     result = gh(
         [
             "gh", "release", "download", f"app-v{v}",
@@ -229,10 +232,12 @@ def read_asset(v, gh):
         text=True,
     )
     if result.returncode == 0:
-        return result.stdout
+        return result.stdout, True
     stderr = (result.stderr or "").lower()
-    if any(marker in stderr for marker in GH_MISSING):
-        return None
+    if "release not found" in stderr:
+        return None, False
+    if "no assets match" in stderr:
+        return None, True
     raise StoreError(
         f"Could not read the Android versionCode for {v} from the release: "
         f"{redact((result.stderr or '').strip())}"
@@ -243,7 +248,7 @@ def read_asset(v, gh):
 
 
 def run(client, v, notes, mode, dry_run, gh=subprocess.run):
-    asset = read_asset(v, gh)
+    asset, release_visible = read_asset(v, gh)
 
     edit_id = None
     committed = False
@@ -254,7 +259,7 @@ def run(client, v, notes, mode, dry_run, gh=subprocess.run):
         internal = None if asset is not None else client.request(
             "GET", f"{edit}/tracks/internal"
         )
-        code = pick_version_code(asset, internal, v)
+        code = pick_version_code(asset, internal, v, release_visible)
 
         production = client.request("GET", f"{edit}/tracks/production")
         state, live = production_status(production, code)

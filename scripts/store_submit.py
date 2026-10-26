@@ -110,9 +110,15 @@ def main(argv=None, runners=RUNNERS, tag_check=check_tag, root=None):
         log(f"--- {label} {v} ({args.mode}{', dry run' if args.dry_run else ''})")
         try:
             runners[platform](v, notes, args.mode, args.dry_run)
-        except RuntimeError as exc:
-            log(f"error: {redact(str(exc))}")
-            log(f"{label} {v} failed; re-run with platforms={platform}.")
+        # Anything at all, so an unexpected response shape on one store still
+        # lets the other run and never prints an unredacted traceback.
+        except Exception as exc:
+            message = str(exc) if isinstance(exc, RuntimeError) else repr(exc)
+            log(f"error: {redact(message)}")
+            if args.mode == "check":
+                log(f"{label} {v} check failed; nothing was changed. Fix it and re-run.")
+            else:
+                log(f"{label} {v} failed; re-run with platforms={platform}.")
             failed.append(platform)
 
     return 1 if failed else 0

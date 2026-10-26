@@ -99,8 +99,7 @@ Inputs:
 
 Jobs:
 - `preflight`
-- `ios` (needs `preflight`; `if: !inputs.dry_run && inputs.platforms != 'android'`)
-- `android` (needs `preflight`; `if: !inputs.dry_run && inputs.platforms != 'ios'`)
+- `submit` (needs `preflight`; `if: ${{ !inputs.dry_run }}`): a matrix over the selected platforms with `fail-fast: false`, shown as `submit (ios)` and `submit (android)`
 
 All jobs run on `ubuntu-latest`, check out the dispatch ref (the default branch), and run `actions/setup-python@v7` with `pip install cryptography`. No Xcode, Rust, or build.
 
@@ -141,12 +140,14 @@ Export compliance: a build whose `usesNonExemptEncryption` is null fails. It is 
 
 | Group | States | Behavior |
 |-------|--------|----------|
-| Editable | `PREPARE_FOR_SUBMISSION`, `DEVELOPER_REJECTED`, `REJECTED`, `METADATA_REJECTED`, `INVALID_BINARY` | Reuse the `<v>` version: attach the build, overwrite notes and release type, submit |
-| In review | `WAITING_FOR_REVIEW`, `IN_REVIEW`, `WAITING_FOR_EXPORT_COMPLIANCE`, `READY_FOR_REVIEW` | Skip with notice |
+| Editable | `PREPARE_FOR_SUBMISSION`, `READY_FOR_REVIEW`, `DEVELOPER_REJECTED`, `REJECTED`, `METADATA_REJECTED`, `INVALID_BINARY` | Reuse the `<v>` version: attach the build, overwrite notes and release type, submit |
+| In review | `WAITING_FOR_REVIEW`, `IN_REVIEW`, `WAITING_FOR_EXPORT_COMPLIANCE` | Skip with notice |
 | Approved / live | `PENDING_DEVELOPER_RELEASE`, `PENDING_APPLE_RELEASE`, `PROCESSING_FOR_APP_STORE`, `READY_FOR_SALE`, `ACCEPTED`, `REPLACED_WITH_NEW_VERSION`, `REMOVED_FROM_SALE`, `DEVELOPER_REMOVED_FROM_SALE` | Skip with notice |
 | Unlisted state | anything not above | Fail, naming the state |
 
-If a *different* version is in the Editable or In review group, fail. Apple allows only one open version. Never rename it.
+`READY_FOR_REVIEW` is Editable because a version shows it once it is added to a review submission but before the submission is sent; a run that failed between the two must finish on retry.
+
+If a *different* version is in the Editable or In review group, or in an unlisted state, fail. Apple allows only one open version. Never rename it.
 
 Submission uses the `reviewSubmissions` API: create a submission for platform `IOS`, add a `reviewSubmissionItems` entry for the App Store version, then PATCH `submitted: true`. Do not use the deprecated `appStoreVersionSubmissions` endpoint.
 

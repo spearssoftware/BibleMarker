@@ -81,13 +81,17 @@ store-check version:
 _store-dispatch version platforms dry_run:
     #!/usr/bin/env bash
     set -euo pipefail
-    since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-    out=$(gh workflow run store-submit.yml -f version="$1" -f platforms="$2" -f dry_run="$3" 2>&1)
+    # A minute of slack for local clock skew against GitHub's createdAt.
+    since=$(date -u -v-60S +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '-60 seconds' +%Y-%m-%dT%H:%M:%SZ)
+    if ! out=$(gh workflow run store-submit.yml -f version="$1" -f platforms="$2" -f dry_run="$3" 2>&1); then
+        echo "$out" >&2
+        exit 1
+    fi
     echo "$out"
     if grep -q '/actions/runs/' <<<"$out"; then
         exit 0
     fi
-    sleep 3
+    sleep 5
     url=$(gh run list --workflow store-submit.yml --event workflow_dispatch \
         --user "$(gh api user -q .login)" --limit 1 --json url,createdAt \
         -q ".[] | select(.createdAt >= \"$since\") | .url")

@@ -220,6 +220,25 @@ class MainTest(unittest.TestCase):
         self.assertEqual([c[0] for c in self.calls], ["ios", "android"])
         self.assertIn("iOS 3.2.9 failed; re-run with platforms=ios.", out)
 
+    def test_unexpected_exception_still_runs_the_other_platform(self):
+        status, out = self.main(
+            ["--version", "3.2.9", "--mode", "submit"],
+            ios=self.runner("ios", KeyError("appStoreState")),
+        )
+        self.assertEqual(status, 1)
+        self.assertEqual([c[0] for c in self.calls], ["ios", "android"])
+        self.assertIn("error: KeyError('appStoreState')", out)
+        self.assertIn("iOS 3.2.9 failed; re-run with platforms=ios.", out)
+
+    def test_check_failure_does_not_suggest_a_single_platform_retry(self):
+        status, out = self.main(
+            ["--version", "3.2.9", "--mode", "check"],
+            android=self.runner("android", StoreError("boom")),
+        )
+        self.assertEqual(status, 1)
+        self.assertIn("Android 3.2.9 check failed; nothing was changed.", out)
+        self.assertNotIn("platforms=android", out)
+
     def test_shared_precondition_stops_before_any_platform(self):
         status, out = self.main(["--version", "3.2.8", "--mode", "submit"])
         self.assertEqual(status, 1)

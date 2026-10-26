@@ -19,8 +19,12 @@ POLL_INTERVAL = 30
 WRITE_GRACE = 120
 
 # Read from attributes.appStoreState; appVersionState uses different values.
+# READY_FOR_REVIEW counts as editable: a version shows it once it is added to a
+# review submission but before that submission is sent, so a run that failed
+# between the two must be able to finish the job on retry.
 EDITABLE = {
     "PREPARE_FOR_SUBMISSION",
+    "READY_FOR_REVIEW",
     "DEVELOPER_REJECTED",
     "REJECTED",
     "METADATA_REJECTED",
@@ -30,7 +34,6 @@ IN_REVIEW = {
     "WAITING_FOR_REVIEW",
     "IN_REVIEW",
     "WAITING_FOR_EXPORT_COMPLIANCE",
-    "READY_FOR_REVIEW",
 }
 APPROVED = {
     "PENDING_DEVELOPER_RELEASE",
@@ -61,7 +64,7 @@ def classify(versions, v):
     )
 
     if ours:
-        state = ours["attributes"]["appStoreState"]
+        state = ours["attributes"].get("appStoreState")
         if state in IN_REVIEW:
             return "skip", f"iOS {v} is already in App Store review ({state}); skipping."
         if state in APPROVED:
@@ -81,12 +84,19 @@ def classify(versions, v):
         attrs = other["attributes"]
         if attrs["versionString"] == v:
             continue
-        if attrs["appStoreState"] in EDITABLE | IN_REVIEW:
+        state = attrs.get("appStoreState")
+        if state in EDITABLE | IN_REVIEW:
             return (
                 "fail",
                 f"App Store version {attrs['versionString']} is still open "
-                f"({attrs['appStoreState']}). Submit, withdraw, or delete it in "
+                f"({state}). Submit, withdraw, or delete it in "
                 f"App Store Connect, then {RETRY_HINT}",
+            )
+        if state not in APPROVED:
+            return (
+                "fail",
+                f"App Store version {attrs['versionString']} is in unexpected "
+                f"state {state}; handle it in App Store Connect.",
             )
 
     if ours:
@@ -95,7 +105,7 @@ def classify(versions, v):
     live = [
         x["attributes"]["versionString"]
         for x in versions
-        if x["attributes"]["appStoreState"] == "READY_FOR_SALE"
+        if x["attributes"].get("appStoreState") == "READY_FOR_SALE"
     ]
     if live:
         highest = max(live, key=version_tuple)
@@ -169,6 +179,7 @@ def fetch_builds(client, app_id, v):
         {
             "filter[app]": app_id,
             "filter[preReleaseVersion.version]": v,
+            "filter[preReleaseVersion.platform]": "IOS",
             "sort": "-uploadedDate",
             "limit": 50,
             "include": "betaBuildLocalizations",
