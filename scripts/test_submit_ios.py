@@ -1,7 +1,7 @@
 import io
 import unittest
+import unittest.mock as mock
 from contextlib import redirect_stdout
-from unittest import mock
 
 import submit_ios
 from store_common import StoreError

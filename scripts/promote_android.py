@@ -135,16 +135,18 @@ class PlayClient:
             raise Transient(f"{type(err).__name__} on {method} {label}") from None
 
     def _call(self, method, label, url, headers, data):
-        for delay in (*RETRY_DELAYS, None):
+        for delay in RETRY_DELAYS:
             try:
                 return self._send(method, label, url, headers, data)
             except Transient as err:
-                if delay is None:
-                    raise RuntimeError(
-                        f"{err} (giving up after {len(RETRY_DELAYS)} retries)"
-                    ) from None
                 log(f"  {err}; retrying in {delay}s")
                 time.sleep(delay)
+        try:
+            return self._send(method, label, url, headers, data)
+        except Transient as err:
+            raise RuntimeError(
+                f"{err} (giving up after {len(RETRY_DELAYS)} retries)"
+            ) from None
 
     def request(self, method, path, params=None, body=None):
         url = API + path

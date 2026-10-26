@@ -1,10 +1,10 @@
 import io
 import json
 import unittest
+import unittest.mock as mock
 import urllib.error
 from contextlib import redirect_stdout
 from types import SimpleNamespace
-from unittest import mock
 
 from promote_android import PlayClient, pick_version_code, production_status, run
 from store_common import StoreError, api_error
