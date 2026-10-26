@@ -4,7 +4,6 @@ Library module driven by store_submit.py. Talks to the Google Play Developer
 API through an edit: read the production track, write the new release,
 validate, and commit (or delete the edit when nothing should change).
 """
-import base64
 import http.client
 import json
 import os
@@ -17,8 +16,8 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from asc import log
-from store_common import StoreError, api_error, redact, would
+from asc import Transient, b64url
+from store_common import StoreError, api_error, log, would
 
 API = (
     "https://androidpublisher.googleapis.com/androidpublisher/v3"
@@ -34,15 +33,7 @@ TOKEN_REFRESH = 50 * 60
 # Sleeps between attempts: three retries after the first try.
 RETRY_DELAYS = (5, 15, 45)
 
-class Transient(Exception):
-    """A failure worth retrying: rate limiting, a 5xx, or a dropped connection."""
-
-
 # --- Auth -------------------------------------------------------------------
-
-
-def b64url(raw):
-    return base64.urlsafe_b64encode(raw).rstrip(b"=")
 
 
 def mint_assertion(info):
@@ -154,8 +145,6 @@ class PlayClient:
                     ) from None
                 log(f"  {err}; retrying in {delay}s")
                 time.sleep(delay)
-            except RuntimeError as err:
-                raise RuntimeError(redact(str(err))) from None
 
     def request(self, method, path, params=None, body=None):
         url = API + path
@@ -240,7 +229,7 @@ def read_asset(v, gh):
         return None, True
     raise StoreError(
         f"Could not read the Android versionCode for {v} from the release: "
-        f"{redact((result.stderr or '').strip())}"
+        f"{(result.stderr or '').strip()}"
     )
 
 

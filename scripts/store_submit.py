@@ -21,16 +21,14 @@ import os
 import sys
 from pathlib import Path
 
-from asc import log
-from store_common import (
-    StoreError,
-    check_tag,
-    load_notes,
-    normalize_version,
-    redact,
-)
+import promote_android
+import submit_ios
+from asc import Client
+from store_common import ROOT, StoreError, check_tag, load_notes, log, normalize_version
 
-PLATFORMS = {"both": ("ios", "android"), "ios": ("ios",), "android": ("android",)}
+# Android first: its checks take seconds, while iOS can poll build processing
+# for up to 20 minutes, so a doomed Android run is reported without that wait.
+PLATFORMS = {"both": ("android", "ios"), "ios": ("ios",), "android": ("android",)}
 LABELS = {"ios": "iOS", "android": "Android"}
 
 # Retry window for App Store Connect calls. submit_ios polls build processing
@@ -39,8 +37,6 @@ ASC_TIMEOUT = 1200
 
 
 def ios_client():
-    from asc import Client
-
     key_id = os.environ.get("APP_STORE_CONNECT_KEY_ID")
     issuer_id = os.environ.get("APP_STORE_CONNECT_ISSUER_ID")
     if not key_id or not issuer_id:
@@ -58,14 +54,10 @@ def ios_client():
 
 
 def run_ios(v, notes, mode, dry_run):
-    import submit_ios
-
     submit_ios.run(ios_client(), v, notes, mode=mode, dry_run=dry_run)
 
 
 def run_android(v, notes, mode, dry_run):
-    import promote_android
-
     client = promote_android.PlayClient.from_env()
     promote_android.run(client, v, notes, mode=mode, dry_run=dry_run)
 
@@ -88,7 +80,7 @@ def parse_args(argv=None):
     return parser.parse_args(argv)
 
 
-def main(argv=None, runners=RUNNERS, tag_check=check_tag, root=None):
+def main(argv=None, runners=RUNNERS, tag_check=check_tag, root=ROOT):
     """Run the selected platforms; return the process exit status.
 
     Platforms are independent: one failing does not stop the other, and the
@@ -99,7 +91,7 @@ def main(argv=None, runners=RUNNERS, tag_check=check_tag, root=None):
     try:
         v = normalize_version(args.version)
         tag_check(v)
-        notes = load_notes(v, root) if root else load_notes(v)
+        notes = load_notes(v, root)
     except StoreError as exc:
         log(f"error: {exc}")
         return 1
@@ -114,7 +106,7 @@ def main(argv=None, runners=RUNNERS, tag_check=check_tag, root=None):
         # lets the other run and never prints an unredacted traceback.
         except Exception as exc:
             message = str(exc) if isinstance(exc, RuntimeError) else repr(exc)
-            log(f"error: {redact(message)}")
+            log(f"error: {message}")
             if args.mode == "check":
                 log(f"{label} {v} check failed; nothing was changed. Fix it and re-run.")
             else:

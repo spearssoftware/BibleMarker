@@ -229,7 +229,8 @@ class RunTest(unittest.TestCase):
         with self.assertRaises(StoreError) as ctx:
             go(c)
         msg = str(ctx.exception)
-        self.assertNotIn("gserviceaccount", msg)
+        # Redaction happens at the log sink (store_common.log), not here.
+        self.assertTrue(msg.startswith(f"{EMAIL} cannot release"))
         self.assertTrue(
             msg.endswith(
                 "Android promotion for 3.2.9 failed; re-run with platforms=android."
@@ -294,7 +295,7 @@ class PlayClientTest(unittest.TestCase):
             c.request("GET", "/edits/e1")
         self.assertEqual(sleep.call_count, 1)
 
-    def test_http_error_format_parses_and_redacts(self):
+    def test_http_error_format_parses(self):
         c = self.client()
         body = json.dumps({"error": {"message": f"{EMAIL} has no access"}}).encode()
         with mock.patch(
@@ -306,8 +307,7 @@ class PlayClientTest(unittest.TestCase):
         self.assertTrue(
             str(ctx.exception).startswith("POST /edits failed with HTTP 403: ")
         )
-        self.assertNotIn("gserviceaccount", str(ctx.exception))
-        self.assertEqual(api_error(ctx.exception), (403, "[redacted] has no access"))
+        self.assertEqual(api_error(ctx.exception), (403, f"{EMAIL} has no access"))
 
     def test_from_env_requires_file(self):
         with mock.patch.dict("os.environ", {}, clear=True):

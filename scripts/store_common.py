@@ -6,7 +6,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from asc import log
+import asc
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -71,10 +71,6 @@ def check_tag(v, run=subprocess.run):
         )
 
 
-def would(action):
-    log(f"[dry run] would {action}")
-
-
 _SECRET_PATTERNS = [
     re.compile(r"[\w.+-]+@[\w.-]+\.iam\.gserviceaccount\.com"),
     re.compile(r"eyJ[\w.-]+"),
@@ -92,6 +88,15 @@ def redact(text):
     return text
 
 
+def log(msg):
+    """asc.log with redaction, so no store-script message can leak a secret."""
+    asc.log(redact(msg))
+
+
+def would(action):
+    log(f"[dry run] would {action}")
+
+
 def api_error(exc):
     """Split a client error into (HTTP status, human-readable detail).
 
@@ -102,13 +107,13 @@ def api_error(exc):
     """
     match = re.search(r"failed with HTTP (\d+): (.*)", str(exc), re.DOTALL)
     if not match:
-        return None, redact(str(exc))
+        return None, str(exc)
 
     code, body = int(match.group(1)), match.group(2)
     try:
         payload = json.loads(body)
     except ValueError:
-        return code, redact(body.strip())
+        return code, body.strip()
 
     detail = None
     if isinstance(payload, dict):
@@ -118,4 +123,4 @@ def api_error(exc):
             detail = first.get("detail") or first.get("title")
         elif isinstance(payload.get("error"), dict):
             detail = payload["error"].get("message")
-    return code, redact(detail or body.strip())
+    return code, detail or body.strip()

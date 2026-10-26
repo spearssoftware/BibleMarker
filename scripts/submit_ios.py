@@ -7,8 +7,7 @@ build, sets "What's New" and automatic release, and submits for review.
 import time
 
 import asc
-from asc import log
-from store_common import StoreError, api_error, would
+from store_common import StoreError, api_error, log, would
 
 BUNDLE_ID = "app.biblemarker"
 
@@ -223,9 +222,9 @@ def relationship(type_, id_):
     return {"data": {"type": type_, "id": id_}}
 
 
-def ensure_version(client, app_id, v, decision):
-    action, version_id = decision
-    if action == "reuse":
+def ensure_version(client, app_id, v, version_id):
+    """Reuse version_id, or create the version when it is None."""
+    if version_id:
         client.request(
             "PATCH",
             f"/v1/appStoreVersions/{version_id}",
@@ -362,8 +361,7 @@ def run(client, v, notes, mode, dry_run):
         {"filter[platform]": "IOS", "limit": 200},
     )["data"]
 
-    decision = classify(versions, v)
-    action, value = decision
+    action, value = classify(versions, v)
     if action == "skip":
         log(value)
         return
@@ -390,7 +388,9 @@ def run(client, v, notes, mode, dry_run):
         return
 
     try:
-        version_id = ensure_version(client, app_id, v, decision)
+        version_id = ensure_version(
+            client, app_id, v, value if action == "reuse" else None
+        )
         client.request(
             "PATCH",
             f"/v1/appStoreVersions/{version_id}/relationships/build",

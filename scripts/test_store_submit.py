@@ -11,6 +11,7 @@ from store_common import (
     api_error,
     check_tag,
     load_notes,
+    log,
     normalize_version,
     redact,
 )
@@ -129,6 +130,14 @@ class RedactTest(unittest.TestCase):
         self.assertNotIn("eyJ", out)
 
 
+class LogTest(unittest.TestCase):
+    def test_log_redacts(self):
+        out = io.StringIO()
+        with redirect_stdout(out):
+            log("denied for a@b.iam.gserviceaccount.com")
+        self.assertEqual(out.getvalue(), "denied for [redacted]\n")
+
+
 class ApiErrorTest(unittest.TestCase):
     def test_apple_detail(self):
         exc = RuntimeError(
@@ -142,7 +151,9 @@ class ApiErrorTest(unittest.TestCase):
             'POST /edits failed with HTTP 403: {"error":{"code":403,'
             '"message":"x@y.iam.gserviceaccount.com has no access"}}'
         )
-        self.assertEqual(api_error(exc), (403, "[redacted] has no access"))
+        self.assertEqual(
+            api_error(exc), (403, "x@y.iam.gserviceaccount.com has no access")
+        )
 
     def test_non_http(self):
         self.assertEqual(api_error(RuntimeError("deadline")), (None, "deadline"))
@@ -184,8 +195,8 @@ class MainTest(unittest.TestCase):
         self.assertEqual(
             self.calls,
             [
-                ("ios", "3.2.9", "- Fixed a thing", "check", True),
                 ("android", "3.2.9", "- Fixed a thing", "check", True),
+                ("ios", "3.2.9", "- Fixed a thing", "check", True),
             ],
         )
 
@@ -217,7 +228,7 @@ class MainTest(unittest.TestCase):
             ios=self.runner("ios", StoreError("boom")),
         )
         self.assertEqual(status, 1)
-        self.assertEqual([c[0] for c in self.calls], ["ios", "android"])
+        self.assertEqual([c[0] for c in self.calls], ["android", "ios"])
         self.assertIn("iOS 3.2.9 failed; re-run with platforms=ios.", out)
 
     def test_unexpected_exception_still_runs_the_other_platform(self):
@@ -226,7 +237,7 @@ class MainTest(unittest.TestCase):
             ios=self.runner("ios", KeyError("appStoreState")),
         )
         self.assertEqual(status, 1)
-        self.assertEqual([c[0] for c in self.calls], ["ios", "android"])
+        self.assertEqual([c[0] for c in self.calls], ["android", "ios"])
         self.assertIn("error: KeyError('appStoreState')", out)
         self.assertIn("iOS 3.2.9 failed; re-run with platforms=ios.", out)
 
