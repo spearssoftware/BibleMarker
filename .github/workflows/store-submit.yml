@@ -1,0 +1,145 @@
+# Submits a released version to App Store review and promotes it to Google Play
+# production. Never runs on its own: dispatch it with `just store-push <version>`
+# (or `just store-check <version>` for a dry run).
+#
+#   - iOS: creates or reuses the App Store version, attaches the build from the
+#     app-v<version> release, sets "What's New", sets the release to go live
+#     automatically once approved, and submits it for review.
+#   - Android: promotes the release's versionCode to the production track at
+#     100% with the same notes.
+#
+# Notes come from .github/release-notes/v<version>.md on the default branch.
+#
+# `preflight` runs every check for every selected platform before anything is
+# written, so a failed check leaves both stores untouched. The submit jobs are
+# independent: if one store fails, the other's result stands, and the log says
+# which platform to re-run.
+name: store-submit
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to submit (e.g. 3.2.9 — leading v / app-v optional)'
+        required: true
+        type: string
+      platforms:
+        description: 'Which stores to submit to'
+        required: false
+        type: choice
+        options:
+          - both
+          - ios
+          - android
+        default: both
+      dry_run:
+        description: 'Check everything and change nothing'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# A second dispatch waits rather than double-submitting or opening a competing
+# Play edit (committing one edit invalidates any other open edit).
+concurrency:
+  group: store-submit
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: python3 -m pip install --quiet --disable-pip-version-check cryptography
+
+      - name: Set up App Store Connect API key
+        if: ${{ inputs.platforms != 'android' }}
+        env:
+          API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$API_KEY" | base64 --decode > "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8"
+
+      - name: Set up Google Play service account
+        if: ${{ inputs.platforms != 'ios' }}
+        env:
+          PLAY_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          umask 077
+          printf '%s' "$PLAY_JSON" > "$RUNNER_TEMP/play.json"
+          echo "GOOGLE_PLAY_SERVICE_ACCOUNT_FILE=$RUNNER_TEMP/play.json" >> "$GITHUB_ENV"
+
+      - name: Check every precondition
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          VERSION: ${{ inputs.version }}
+          PLATFORMS: ${{ inputs.platforms }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          ARGS=(--version "$VERSION" --platforms "$PLATFORMS" --mode check)
+          if [ "$DRY_RUN" = "true" ]; then
+            ARGS+=(--dry-run)
+          fi
+          python3 scripts/store_submit.py "${ARGS[@]}"
+
+  submit:
+    needs: preflight
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    strategy:
+      # Each store stands alone: a failure on one must not cancel the other.
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJSON(inputs.platforms == 'both' && '["ios","android"]' || format('["{0}"]', inputs.platforms)) }}
+    name: submit (${{ matrix.platform }})
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: python3 -m pip install --quiet --disable-pip-version-check cryptography
+
+      - name: Set up App Store Connect API key
+        if: ${{ matrix.platform == 'ios' }}
+        env:
+          API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$API_KEY" | base64 --decode > "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8"
+
+      - name: Set up Google Play service account
+        if: ${{ matrix.platform == 'android' }}
+        env:
+          PLAY_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          umask 077
+          printf '%s' "$PLAY_JSON" > "$RUNNER_TEMP/play.json"
+          echo "GOOGLE_PLAY_SERVICE_ACCOUNT_FILE=$RUNNER_TEMP/play.json" >> "$GITHUB_ENV"
+
+      - name: Submit
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          VERSION: ${{ inputs.version }}
+          PLATFORM: ${{ matrix.platform }}
+        run: python3 scripts/store_submit.py --version "$VERSION" --platforms "$PLATFORM" --mode submit
