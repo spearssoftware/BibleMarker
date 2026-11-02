@@ -34,7 +34,7 @@
     "@tauri-apps/plugin-updater": "~2.14.0",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.2",
-    "maplibre-gl": "^6.8.0",
+    "maplibre-gl": "^6.16.0",
     "pako": "^3.0.1",
     "pmtiles": "^4.5.0",
     "react": "^19.2.8",
