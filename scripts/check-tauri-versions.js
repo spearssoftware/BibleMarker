@@ -21,22 +21,24 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 
+// The pair key is the crate name, so each direction is a single prefix swap.
+const CRATE_PLUGIN = 'tauri-plugin-';
+const JS_PLUGIN = '@tauri-apps/plugin-';
+
 /** Pair key for a crate name, or null when the crate has no JS counterpart. */
 function crateToPair(name) {
   if (name === 'tauri') return 'tauri';
-  const plugin = /^tauri-plugin-(.+)$/.exec(name);
-  return plugin ? `tauri-plugin-${plugin[1]}` : null;
+  return name.startsWith(CRATE_PLUGIN) ? name : null;
 }
 
 /** Pair key for an npm package name, or null when it has no crate counterpart. */
 function packageToPair(name) {
   if (name === '@tauri-apps/api') return 'tauri';
-  const plugin = /^@tauri-apps\/plugin-(.+)$/.exec(name);
-  return plugin ? `tauri-plugin-${plugin[1]}` : null;
+  return name.startsWith(JS_PLUGIN) ? CRATE_PLUGIN + name.slice(JS_PLUGIN.length) : null;
 }
 
 function jsNameFor(pair) {
-  return pair === 'tauri' ? '@tauri-apps/api' : pair.replace('tauri-plugin-', '@tauri-apps/plugin-');
+  return pair === 'tauri' ? '@tauri-apps/api' : JS_PLUGIN + pair.slice(CRATE_PLUGIN.length);
 }
 
 /** Resolved crate versions from Cargo.lock, keyed by pair. */
@@ -63,6 +65,8 @@ function readPackageVersions() {
   let pair = null;
 
   for (const line of lines) {
+    // Everything from here on is package metadata, not importer versions.
+    if (line === 'packages:') break;
     // Importers are keyed at two spaces; '.' is the app itself, and anything
     // else at that indent (e.g. 'worker:') ends its block.
     if (/^ {2}\S/.test(line)) {
@@ -99,6 +103,23 @@ function laterMinor(a, b) {
 
 const crates = readCrateVersions();
 const packages = readPackageVersions();
+
+// A parser that quietly finds nothing would report "0 pairs checked" and exit 0,
+// which is the one failure mode a guard must not have. `tauri` is always present
+// on both sides, so its absence means a lockfile layout this script can't read.
+for (const [side, versions, file] of [
+  ['crate', crates, 'src-tauri/Cargo.lock'],
+  ['npm', packages, 'pnpm-lock.yaml'],
+]) {
+  if (!versions.has('tauri')) {
+    console.error(
+      `Could not read the ${side} version of tauri from ${file}.\n` +
+        "The layout this script parses has changed; fix the parser rather than leaving the check blind."
+    );
+    process.exit(1);
+  }
+}
+
 const problems = [];
 
 for (const pair of [...new Set([...crates.keys(), ...packages.keys()])].sort()) {
