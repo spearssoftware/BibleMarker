@@ -661,6 +661,9 @@ jobs:
           VERSION_CODE=$(( $(date +%s) / 60 ))
           echo "Android versionCode: $VERSION_CODE"
           printf '{"bundle":{"android":{"versionCode":%s}}}' "$VERSION_CODE" > "$RUNNER_TEMP/version-code.json"
+          # store-submit reads this back to promote exactly this build: Play
+          # exposes no versionName, and the next internal upload replaces this one.
+          echo "$VERSION_CODE" > android-version-code.txt
           pnpm tauri android build --aab --target aarch64 --config "$RUNNER_TEMP/version-code.json"
         env:
           CI: true
@@ -690,7 +693,9 @@ jobs:
           tag_name: app-v${{ needs.prepare.outputs.version }}
           name: BibleMarker v${{ needs.prepare.outputs.version }}
           draft: true
-          files: BibleMarker-android.aab
+          files: |
+            BibleMarker-android.aab
+            android-version-code.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -700,6 +705,7 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: app.biblemarker
           releaseFiles: BibleMarker-android.aab
+          releaseName: ${{ needs.prepare.outputs.version }}
           track: internal
           status: draft
 
