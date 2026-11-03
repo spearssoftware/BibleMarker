@@ -104,17 +104,17 @@ function laterMinor(a, b) {
 const crates = readCrateVersions();
 const packages = readPackageVersions();
 
-// A parser that quietly finds nothing would report "0 pairs checked" and exit 0,
-// which is the one failure mode a guard must not have. `tauri` is always present
-// on both sides, so its absence means a lockfile layout this script can't read.
+// Finding nothing at all would otherwise report "0 pairs checked" and exit 0,
+// the one failure mode a guard must not have. A partial parse still fails loudly
+// below, as the unmatched side is reported rather than skipped.
 for (const [side, versions, file] of [
   ['crate', crates, 'src-tauri/Cargo.lock'],
   ['npm', packages, 'pnpm-lock.yaml'],
 ]) {
-  if (!versions.has('tauri')) {
+  if (versions.size === 0) {
     console.error(
-      `Could not read the ${side} version of tauri from ${file}.\n` +
-        "The layout this script parses has changed; fix the parser rather than leaving the check blind."
+      `Found no tauri ${side} versions in ${file}.\n` +
+        'The layout this script parses has changed; fix the parser rather than leaving the check blind.'
     );
     process.exit(1);
   }
