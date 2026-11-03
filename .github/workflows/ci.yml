@@ -28,6 +28,8 @@ jobs:
       image: ghcr.io/spearssoftware/biblemarker/ci-node:latest
     steps:
       - uses: actions/checkout@v7
+      - name: Check Tauri JS/Rust version pairing
+        run: node scripts/check-tauri-versions.js
       - name: Install dependencies
         run: pnpm install
       - name: Lint
