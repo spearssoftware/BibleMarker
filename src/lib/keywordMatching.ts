@@ -7,7 +7,7 @@
 import type { MarkingPreset, KeywordExclusion } from '@/types';
 import type { TextAnnotation, SymbolAnnotation } from '@/types';
 import type { VerseRef } from '@/types';
-import { presetHasDecoration } from '@/types';
+import { presetHasDecoration, isCommonPronoun, matchesPreset } from '@/types';
 import { getDebugFlagsSync } from '@/lib/debug';
 
 /**
@@ -516,4 +516,75 @@ export function findKeywordMatches(
   }
   
   return annotations;
+}
+
+/**
+ * Plural and possessive spellings of a single word, used as preset variants
+ * so marking "Jesus" or "word" in a chapter also catches "Jesus's" and
+ * "words". Both straight and curly apostrophes are listed because matching
+ * compares interior characters exactly. A trailing-apostrophe possessive
+ * ("Jesus'") needs no variant: boundary punctuation is already stripped.
+ */
+export function wordFormVariants(word: string): string[] {
+  const forms: string[] = [];
+  const lower = word.toLowerCase();
+  if (!lower.endsWith('s')) {
+    forms.push(`${word}'s`, `${word}\u2019s`);
+  }
+  if (/(?:s|x|z|ch|sh)$/.test(lower)) {
+    if (!lower.endsWith('s')) forms.push(`${word}es`);
+  } else if (/[^aeiou]y$/.test(lower)) {
+    forms.push(`${word.slice(0, -1)}ies`);
+  } else {
+    forms.push(`${word}s`);
+  }
+  return forms;
+}
+
+export interface ChapterWordMatch {
+  /** The selected word with boundary punctuation removed, casing intact. */
+  word: string;
+  /** Plural and possessive spellings to store as preset variants. */
+  variants: string[];
+  /** Occurrences of the word and its variants in the chapter. */
+  count: number;
+}
+
+/**
+ * Resolve a selection to a single markable word and count how often it (or
+ * a plural/possessive form) appears in the chapter. Returns null for
+ * multi-word selections, common pronouns, and words that only appear once,
+ * where "mark every one in this chapter" has nothing to offer.
+ */
+export function getChapterWordMatch(
+  selectionText: string,
+  verses: ReadonlyArray<{ text: string }>
+): ChapterWordMatch | null {
+  const word = selectionText.trim().replace(/^[^\w]+|[^\w]+$/g, '');
+  if (!word || /\s/.test(word) || !/[a-z]/i.test(word) || isCommonPronoun(word)) return null;
+
+  const variants = wordFormVariants(word);
+  const forms = new Set([word, ...variants].map(f => normalizeForMatching(f)));
+  let count = 0;
+  for (const verse of verses) {
+    for (const { word: token } of splitIntoWords(verse.text)) {
+      if (forms.has(normalizeForMatching(token))) count += 1;
+    }
+  }
+  return count >= 2 ? { word, variants, count } : null;
+}
+
+/** The first preset that already marks `word` in this book and chapter. */
+export function findPresetMarkingWord(
+  presets: MarkingPreset[],
+  word: string,
+  book: string,
+  chapter: number
+): MarkingPreset | undefined {
+  return presets.find(p => presetAppliesToChapter(p, book, chapter) && matchesPreset(word, p, { book, chapter }));
+}
+
+/** True when the preset is pinned to exactly this one chapter, so removing it affects nothing else. */
+export function isChapterOnlyPreset(preset: MarkingPreset, book: string, chapter: number): boolean {
+  return preset.scopes?.length === 1 && preset.scopes[0].book === book && preset.scopes[0].chapter === chapter;
 }

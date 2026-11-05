@@ -103,11 +103,16 @@ describe('LookCloserSection', () => {
     }
   });
 
-  it('persists only lookCloserOpen and mapLayer', () => {
+  it('persists only lookCloserOpen, mapLayer, and markingStyle', () => {
     useDiscoveryPrefsStore.getState().setLookCloserOpen(true);
     useDiscoveryPrefsStore.getState().setMapLayer('satellite');
+    useDiscoveryPrefsStore.getState().setMarkingStyle('underline');
     const options = useDiscoveryPrefsStore.persist.getOptions();
     expect(options.name).toBe('discovery-prefs');
-    expect(options.partialize?.(useDiscoveryPrefsStore.getState())).toEqual({ lookCloserOpen: true, mapLayer: 'satellite' });
+    expect(options.partialize?.(useDiscoveryPrefsStore.getState())).toEqual({
+      lookCloserOpen: true,
+      mapLayer: 'satellite',
+      markingStyle: 'underline',
+    });
   });
 });

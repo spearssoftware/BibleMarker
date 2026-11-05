@@ -493,9 +493,12 @@ export function useAnnotations() {
   /**
    * Quick highlight with a specific color (no tool selection needed)
    */
-  const quickHighlight = useCallback(async (color: HighlightColor) => {
+  const quickHighlight = useCallback(async (
+    color: HighlightColor,
+    style: TextAnnotation['type'] = 'highlight'
+  ) => {
     if (!selection) return;
-    await createTextAnnotation('highlight', color);
+    await createTextAnnotation(style, color);
   }, [selection, createTextAnnotation]);
 
   /**

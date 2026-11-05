@@ -5,7 +5,7 @@
  * Panels render in the SplitLayout via PanelContainer — not here.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
@@ -16,14 +16,17 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { usePanelStore } from '@/stores/panelStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
+import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
 import { usePreferencesStore, useInductiveToolsVisible } from '@/stores/preferencesStore';
 import { useDiscoveryEnabled } from '@/lib/discovery-config';
 import { track } from '@/lib/telemetry';
 import { deleteAnnotation } from '@/lib/database';
 import { getAllTranslations } from '@/lib/bible-api';
-import type { MarkingPreset, Verse } from '@/types';
-import { getRandomHighlightColor, presetHasDecoration } from '@/types';
+import type { MarkingPreset, Verse, HighlightColor } from '@/types';
+import { getChapterWordMatch, type ChapterWordMatch } from '@/lib/keywordMatching';
+import type { MarkingStyleChoice } from '@/stores/discoveryPrefsStore';
+import { getRandomHighlightColor, presetHasDecoration, normalizeVariants } from '@/types';
 import { createBookScopedKeywordPreset } from '@/lib/discoveryActions';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { stripSymbols } from '@/lib/textUtils';
@@ -50,11 +53,12 @@ export function Toolbar() {
 
   const { previousChapter, nextChapter, canGoNext, canGoPrevious } = useBibleStore();
   const { createTextAnnotation, createSymbolAnnotation, createAnnotationsAcrossTranslations, loadAnnotations, quickHighlight } = useAnnotations();
-  const { presets, loadPresets, markPresetUsed, updatePreset } = useMarkingPresetStore();
+  const { presets, loadPresets, markPresetUsed, updatePreset, removePreset } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
   const { getOrCreateListForKeyword } = useListStore();
   const { activePanel, togglePanel, openPanel, isCollapsed } = usePanelStore();
   const chaptersByTranslation = useMultiTranslationStore(s => s.chaptersByTranslation);
+  const activeChapter = useActiveChapterStore();
   const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
   const inductiveToolsVisible = useInductiveToolsVisible();
   const discoveryEnabled = useDiscoveryEnabled();
@@ -70,6 +74,23 @@ export function Toolbar() {
   // with the toolkit on would be worse than just starting with Study
   // Tools/Settings-only and filling in the rest once hydration lands.
   const visibleTools = inductiveToolsVisible ? TOOLS : TOOLS.filter(t => t.type === 'reference');
+
+  // The selected word's chapter count for the tools-off "every one in this
+  // chapter" option. Reads the selection's own translation: the primary
+  // column's published text when it matches, else the multi-translation
+  // view's loaded chapter.
+  const chapterWord = useMemo(() => {
+    if (!selection || inductiveToolsEnabled) return null;
+    const { moduleId, book, chapter, text } = selection;
+    const loaded = chaptersByTranslation[moduleId];
+    const verses =
+      activeChapter.translationId === moduleId && activeChapter.book === book && activeChapter.chapter === chapter
+        ? activeChapter.verses
+        : loaded && loaded.book === book && loaded.chapter === chapter
+          ? loaded.verses
+          : [];
+    return getChapterWordMatch(text, verses);
+  }, [selection, inductiveToolsEnabled, chaptersByTranslation, activeChapter]);
 
   // Load marking presets on mount
   useEffect(() => {
@@ -289,6 +310,28 @@ export function Toolbar() {
     }
   };
 
+  // Tools-off "every one in this chapter": a chapter-pinned custom preset.
+  // The ripple comes from VerseText's keyword matching, not from explicit
+  // annotations, so removing the preset removes every mark at once.
+  const markWordInChapter = async (
+    match: ChapterWordMatch,
+    style: MarkingStyleChoice,
+    color: HighlightColor
+  ) => {
+    if (!selection) return;
+    const { book, chapter } = selection;
+    await createBookScopedKeywordPreset({
+      word: match.word,
+      variants: normalizeVariants(match.variants),
+      book,
+      chapter,
+      studyId: activeStudyId || undefined,
+      category: 'custom',
+      highlight: { style, color },
+    });
+    await useAnnotationStore.getState().addRecentColor(color);
+  };
+
   const handleToolClick = (toolType: 'keywords' | 'observe' | 'analyze' | 'reference') => {
     togglePanel(toolType);
     setActiveTool(null);
@@ -372,6 +415,9 @@ export function Toolbar() {
             onApplyPreset={applyPresetToSelection}
             onAddAsVariant={addToVariantsAndApply}
             onQuickHighlight={quickHighlight}
+            chapterWord={chapterWord}
+            onMarkChapter={markWordInChapter}
+            onRemoveChapterMark={(preset) => void removePreset(preset.id)}
             onOpenKeyWordManager={() => {
               openPanel('keywords', {
                 keywordInitialWord: selection?.text?.trim() || undefined,
