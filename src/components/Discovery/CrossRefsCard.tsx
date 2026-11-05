@@ -15,17 +15,13 @@
  * The rows themselves come from `useDiscoveryHost` via the store (so the
  * lens works while the panel is closed). On a network translation nothing is
  * fetched until a row is expanded — that tap is the reader's consent.
- *
- * The shared-word hunt is opt-in: "Find them yourself" hides the highlights
- * and turns every word into a tap target until the reader finds them all or
- * presses "Show me". Progress lives in `discoveryStore.crossRefProgress`.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Button, ToggleSwitch } from '@/components/shared';
 import { DiscoveryCard } from './DiscoveryCard';
-import { EMPTY_CROSS_REF_PROGRESS, useDiscoveryStore } from '@/stores/discoveryStore';
+import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { LAYOUT_REKEY_MS } from '@/components/BibleReader/layoutConstants';
 import type { CrossRefPassageRow } from '@/hooks/useCrossRefPassages';
@@ -54,30 +50,8 @@ function splitPunctuation(surface: string): { before: string; word: string; afte
   return { before: match[1], word: match[2], after: match[3] };
 }
 
-/** Surface form (original casing, no punctuation) of the first token in `text` whose stem matches — e.g. "God" not "god". */
-function surfaceForm(text: string, stem: string): string {
-  for (const token of tokenizeVerse(text)) {
-    if (wordStem(token.normalized) === stem) return splitPunctuation(text.slice(token.startIndex, token.endIndex)).word;
-  }
-  return stem;
-}
-
-/** Joins nodes the way people talk: "a", "a and b", "a, b and c" — no Oxford comma. */
-function joinWords(words: ReactNode[]): ReactNode {
-  return words.map((word, i) => (
-    <span key={i}>
-      {i > 0 && (i === words.length - 1 ? ' and ' : ', ')}
-      {word}
-    </span>
-  ));
-}
-
-/**
- * Render a passage's words with every token whose stem is in `litStems`
- * highlighted. With `onTap`, every non-stopword token becomes a tap target
- * that reports its stem (the hunt); without it, lit words are plain marks.
- */
-function renderPassageWords(text: string, litStems: ReadonlySet<string>, onTap?: (stem: string) => void): ReactNode {
+/** Render a passage's words with every token whose stem is in `litStems` marked. */
+function renderPassageWords(text: string, litStems: ReadonlySet<string>): ReactNode {
   const tokens = tokenizeVerse(text);
   const nodes: ReactNode[] = [];
   let cursor = 0;
@@ -85,31 +59,16 @@ function renderPassageWords(text: string, litStems: ReadonlySet<string>, onTap?:
     if (token.startIndex > cursor) nodes.push(text.slice(cursor, token.startIndex));
     const surface = text.slice(token.startIndex, token.endIndex);
     const stem = wordStem(token.normalized);
-    const isLit = stem !== null && litStems.has(stem);
-    if (stem === null || (!onTap && !isLit)) {
+    if (stem === null || !litStems.has(stem)) {
       nodes.push(surface);
     } else {
       const { before, word, after } = splitPunctuation(surface);
       nodes.push(before);
-      if (!onTap) {
-        nodes.push(
-          <mark key={i} className={LIT_WORD_CLASSES}>
-            {word}
-          </mark>
-        );
-      } else {
-        nodes.push(
-          <button
-            key={i}
-            type="button"
-            className={`inline bg-transparent border-0 p-0 m-0 hover:text-scripture-accent ${isLit ? LIT_WORD_CLASSES : ''}`}
-            aria-pressed={isLit ? 'true' : undefined}
-            onClick={() => onTap(stem)}
-          >
-            {word}
-          </button>
-        );
-      }
+      nodes.push(
+        <mark key={i} className={LIT_WORD_CLASSES}>
+          {word}
+        </mark>
+      );
       nodes.push(after);
     }
     cursor = token.endIndex;
@@ -120,18 +79,13 @@ function renderPassageWords(text: string, litStems: ReadonlySet<string>, onTap?:
 
 interface CrossRefRowProps {
   row: CrossRefPassageRow;
-  feature: 'crossref' | 'crossref_later';
   active: boolean;
   onToggle: () => void;
   expand: (key: string) => void;
 }
 
-function CrossRefRow({ row, feature, active, onToggle, expand }: CrossRefRowProps) {
-  const progress = useDiscoveryStore(s => s.crossRefProgress[row.key]) ?? EMPTY_CROSS_REF_PROGRESS;
-  const setCrossRefHunting = useDiscoveryStore(s => s.setCrossRefHunting);
-  const findCrossRefWord = useDiscoveryStore(s => s.findCrossRefWord);
+function CrossRefRow({ row, active, onToggle, expand }: CrossRefRowProps) {
   const navigateToVerse = useBibleStore(s => s.navigateToVerse);
-  const [missMessage, setMissMessage] = useState<string | null>(null);
 
   // A network row fetches only once it is expanded — whether from the row
   // tap here or from a lens tap in the text, which only sets the active key.
@@ -141,29 +95,7 @@ function CrossRefRow({ row, feature, active, onToggle, expand }: CrossRefRowProp
     if (active) expand(row.key);
   }, [active, row.key, expand]);
 
-  const shared = row.shared;
-  const hasShared = shared.length > 0;
-  const foundAll = hasShared && shared.every(s => progress.found.includes(s));
-  const hunting = progress.hunting && !foundAll;
-
-  useEffect(() => {
-    if (progress.hunting && foundAll) {
-      track('discovery_find_confirmed', { feature, dedupeKey: `${feature}-found:${row.key}` });
-    }
-  }, [progress.hunting, foundAll, feature, row.key]);
-
-  const handleTap = (stem: string) => {
-    if (shared.includes(stem)) {
-      setMissMessage(null);
-      findCrossRefWord(row.key, stem);
-    } else {
-      setMissMessage('Not that one — it has to appear in both.');
-    }
-  };
-
-  const litStems = new Set(hunting ? progress.found : shared);
-  const canTap = row.sourceText !== null;
-  const onWordTap = hunting && canTap ? handleTap : undefined;
+  const litStems = new Set(row.shared);
   const passagesId = `crossref-passages-${row.key}`;
 
   const { book: jumpBook, chapter: jumpChapter, verse: jumpVerse } = row.jumpTarget;
@@ -200,22 +132,10 @@ function CrossRefRow({ row, feature, active, onToggle, expand }: CrossRefRowProp
 
           {row.status === 'ready' && (
             <>
-              {hunting && (
-                <div aria-live="polite" className="space-y-1">
-                  <p className="text-sm text-scripture-text">
-                    {`These share ${pluralize(shared.length, 'word')} — tap ${shared.length === 1 ? 'it' : 'them'}.`}
-                  </p>
-                  <p className="text-xs text-scripture-muted">{'Little words like "the" and "in" don\'t count.'}</p>
-                  {progress.found.length > 0 && (
-                    <p className="text-xs text-scripture-muted">{`${progress.found.length} of ${shared.length} found`}</p>
-                  )}
-                </div>
-              )}
-
               <div>
                 <p className="text-xs font-ui font-semibold text-scripture-muted">{row.sourceRefLabel}</p>
                 <p className="text-sm text-scripture-text">
-                  {row.sourceText === null ? null : renderPassageWords(row.sourceText, litStems, onWordTap)}
+                  {row.sourceText === null ? null : renderPassageWords(row.sourceText, litStems)}
                 </p>
               </div>
               <div>
@@ -223,34 +143,14 @@ function CrossRefRow({ row, feature, active, onToggle, expand }: CrossRefRowProp
                 {row.targetVerses.map(tv => (
                   <p key={tv.verse} className="text-sm text-scripture-text">
                     {row.targetVerses.length > 1 && <span className="text-xs text-scripture-muted mr-1">{tv.verse}</span>}
-                    {renderPassageWords(tv.text, litStems, onWordTap)}
+                    {renderPassageWords(tv.text, litStems)}
                   </p>
                 ))}
               </div>
 
-              <div aria-live="polite">{hunting && missMessage && <p className="text-xs text-scripture-error">{missMessage}</p>}</div>
+              {row.shared.length === 0 && <p className="text-sm text-scripture-text">What idea connects these?</p>}
 
-              {!hasShared && <p className="text-sm text-scripture-text">What idea connects these?</p>}
-
-              {progress.hunting && foundAll && (
-                <p className="text-sm text-scripture-text">
-                  Both say {joinWords(shared.map(s => <strong key={s}>{surfaceForm(row.sourceText ?? '', s)}</strong>))}.
-                </p>
-              )}
-
-              <div className="flex flex-wrap gap-2">
-                {jumpButton}
-                {hunting && (
-                  <Button variant="ghost" size="sm" onClick={() => setCrossRefHunting(row.key, false)}>
-                    Show me
-                  </Button>
-                )}
-                {hasShared && canTap && !progress.hunting && (
-                  <Button variant="ghost" size="sm" onClick={() => setCrossRefHunting(row.key, true)}>
-                    Find them yourself
-                  </Button>
-                )}
-              </div>
+              {jumpButton}
             </>
           )}
         </div>
@@ -299,12 +199,7 @@ export function CrossRefsCard({ rows, expand, laterRows, laterExpand, book, chap
       ? `${pluralize(rows.length, 'verse')} to read alongside older Scripture`
       : `${pluralize(laterRows.length, 'verse')} to read alongside later Scripture`;
 
-  const renderGroup = (
-    heading: string,
-    feature: CrossRefRowProps['feature'],
-    groupRows: CrossRefPassageRow[],
-    groupExpand: (key: string) => void
-  ) =>
+  const renderGroup = (heading: string, groupRows: CrossRefPassageRow[], groupExpand: (key: string) => void) =>
     groupRows.length > 0 && (
       <div className="space-y-1">
         <h4 className="text-xs font-ui font-semibold text-scripture-muted px-2">{heading}</h4>
@@ -312,7 +207,6 @@ export function CrossRefsCard({ rows, expand, laterRows, laterExpand, book, chap
           <CrossRefRow
             key={row.key}
             row={row}
-            feature={feature}
             active={activeCrossRefKey === row.key}
             onToggle={() => handleRowToggle(row)}
             expand={groupExpand}
@@ -327,10 +221,10 @@ export function CrossRefsCard({ rows, expand, laterRows, laterExpand, book, chap
         <span className="text-sm text-scripture-text">Show them in the text</span>
         <ToggleSwitch checked={lensActive} onChange={handleToggleLens} label="Show connecting verses in the text" />
       </div>
-      <p className="text-sm text-scripture-text">Read them together — what do they share?</p>
+      <p className="text-sm text-scripture-text">Read them together, with the words they share lit.</p>
       <div ref={containerRef} className="space-y-3">
-        {renderGroup('Earlier in Scripture', 'crossref', rows, expand)}
-        {renderGroup('Later in Scripture', 'crossref_later', laterRows, laterExpand)}
+        {renderGroup('Earlier in Scripture', rows, expand)}
+        {renderGroup('Later in Scripture', laterRows, laterExpand)}
       </div>
     </DiscoveryCard>
   );

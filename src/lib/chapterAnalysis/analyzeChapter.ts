@@ -1,5 +1,5 @@
 /**
- * Chapter analysis - runs Repetition Radar and Connector Lens once over a
+ * Chapter analysis - runs repetition and Connector Lens once over a
  * chapter's raw verse text. Pure and deterministic; no store imports.
  */
 

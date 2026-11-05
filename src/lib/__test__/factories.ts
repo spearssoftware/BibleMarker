@@ -182,7 +182,7 @@ export function makeTextSelection(overrides?: Partial<TextSelection>): TextSelec
 export function makeChapterAnalysis(overrides?: Partial<ChapterAnalysis>): ChapterAnalysis {
   const hit: ConnectorHit = { phrase: 'therefore', category: 'conclusion', verse: 1, start: 0, end: 9 };
   return {
-    repetition: { token: 'word', count: 11, firstVerse: 1, lastVerse: 14, occurrences: [], forms: ['word', 'words'] },
+    repetition: { token: 'word', display: 'Word', count: 11, firstVerse: 1, lastVerse: 14, occurrences: [], forms: ['word', 'words'] },
     connectors: [hit],
     connectorRangesByVerse: new Map([[1, [hit]]]),
     ...overrides,

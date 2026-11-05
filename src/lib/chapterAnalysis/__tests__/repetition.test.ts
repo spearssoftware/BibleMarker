@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { findRepetition, verseRangeLabel, deriveCategoryHint } from '../repetition'
+import { findRepetition } from '../repetition'
 import { STOPWORDS } from '../stopwords'
 import { DEFAULT_DISCOVERY_THRESHOLDS } from '../types'
 import type { AnalysisVerse } from '../types'
@@ -60,7 +60,7 @@ describe('findRepetition', () => {
     expect(result!.count).toBe(6)
     expect(result!.firstVerse).toBe(1)
     expect(result!.lastVerse).toBe(18)
-    expect(verseRangeLabel(result!)).toBe('between v.1 and v.18')
+    expect(result!.display).toBe('Word')
   })
 
   it('never chooses a stopword even when it is the most frequent token', () => {
@@ -120,6 +120,36 @@ describe('findRepetition', () => {
     expect(result!.forms).toEqual(['word', 'words'])
   })
 
+  it('keeps the first occurrence as the display form, with its casing and without punctuation', () => {
+    const verses: AnalysisVerse[] = [
+      verse('Test', 1, 1, 'In the beginning was the Word, and the Word was with God.'),
+      verse('Test', 1, 2, 'The word, the words, the word.'),
+    ]
+    const result = findRepetition(verses, DEFAULT_DISCOVERY_THRESHOLDS)
+    expect(result!.token).toBe('word')
+    expect(result!.display).toBe('Word')
+  })
+
+  it('prefers the base form for display even when a possessive or plural comes first', () => {
+    const verses: AnalysisVerse[] = [
+      verse('Test', 1, 1, "God's people, and the sons of God."),
+      verse('Test', 1, 2, 'God saw that God is good; God, God.'),
+    ]
+    const result = findRepetition(verses, DEFAULT_DISCOVERY_THRESHOLDS)
+    expect(result!.token).toBe('god')
+    expect(result!.display).toBe('God')
+  })
+
+  it('falls back to the first form when the chapter never uses the base form', () => {
+    const verses: AnalysisVerse[] = [
+      verse('Test', 1, 1, 'Lions, lions, lions.'),
+      verse('Test', 1, 2, 'The lions and more lions.'),
+    ]
+    const result = findRepetition(verses, DEFAULT_DISCOVERY_THRESHOLDS)
+    expect(result!.token).toBe('lion')
+    expect(result!.display).toBe('Lions')
+  })
+
   it('records occurrence offsets that line up with splitIntoWords on raw text with a curly apostrophe and an em dash', () => {
     const text = 'light—light—light—light—light and the LORD’s glory shone.'
     const verses: AnalysisVerse[] = [verse('Test', 1, 1, text)]
@@ -135,45 +165,5 @@ describe('findRepetition', () => {
       expect(occ.start).toBe(lightWords[i].startIndex)
       expect(occ.end).toBe(lightWords[i].endIndex)
     })
-  })
-})
-
-describe('verseRangeLabel', () => {
-  it('formats a single-verse range', () => {
-    expect(verseRangeLabel({ token: 'word', count: 5, firstVerse: 7, lastVerse: 7, occurrences: [], forms: ['word'] })).toBe('in v.7')
-  })
-
-  it('formats a multi-verse range', () => {
-    expect(verseRangeLabel({ token: 'word', count: 5, firstVerse: 1, lastVerse: 18, occurrences: [], forms: ['word', 'words'] })).toBe('between v.1 and v.18')
-  })
-})
-
-describe('deriveCategoryHint', () => {
-  const base = { token: 'moses', count: 5, firstVerse: 1, lastVerse: 5, occurrences: [], forms: ['moses'] }
-
-  it('returns undefined when there are no entities', () => {
-    expect(deriveCategoryHint(base, null)).toBeUndefined()
-  })
-
-  it('matches a single-word person slug', () => {
-    const entities = { book: 'Exod', chapter: 2, people: ['moses'], places: [], events: [], topics: [] }
-    expect(deriveCategoryHint(base, entities)).toBe('people')
-  })
-
-  it('matches a hyphenated person slug by its first segment', () => {
-    const johnResult = { ...base, token: 'john' }
-    const entities = { book: 'Matt', chapter: 3, people: ['john-the-baptist'], places: [], events: [], topics: [] }
-    expect(deriveCategoryHint(johnResult, entities)).toBe('people')
-  })
-
-  it('matches a place slug', () => {
-    const jerusalemResult = { ...base, token: 'jerusalem' }
-    const entities = { book: 'Luke', chapter: 2, people: [], places: ['jerusalem'], events: [], topics: [] }
-    expect(deriveCategoryHint(jerusalemResult, entities)).toBe('places')
-  })
-
-  it('returns undefined when nothing matches', () => {
-    const entities = { book: 'Exod', chapter: 2, people: ['aaron'], places: ['egypt'], events: [], topics: [] }
-    expect(deriveCategoryHint(base, entities)).toBeUndefined()
   })
 })

@@ -20,7 +20,6 @@ import { trackChip } from '@/lib/discoveryTelemetry';
 import { MoreInReference, VerseLinks } from './InlineDetail';
 import { useExpandableList } from './useExpandableList';
 
-export const WHOS_HERE_ANCHOR_ID = 'discovery-whos-here';
 const MAX_LISTED_BOOKS = 4;
 const LISTED_BOOKS = 3;
 
@@ -86,7 +85,7 @@ export function WhosHereCard({ book, chapter, translationId }: WhosHereCardProps
   if (!visible) return null;
 
   return (
-    <DiscoveryCard id={WHOS_HERE_ANCHOR_ID} title="Who's here">
+    <DiscoveryCard title="Who's here">
       <ul className="space-y-0.5">
         {shown.map(person => {
           const personSpread = spreadBySlug.get(person.slug);

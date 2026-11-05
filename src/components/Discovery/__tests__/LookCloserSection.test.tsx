@@ -23,8 +23,7 @@ function renderSection() {
   );
 }
 
-const resetPrefs = () =>
-  useDiscoveryPrefsStore.setState({ lookCloserOpen: undefined, lookCloserForcedFor: null });
+const resetPrefs = () => useDiscoveryPrefsStore.setState({ lookCloserOpen: undefined });
 
 describe('LookCloserSection', () => {
   beforeEach(() => {
@@ -76,7 +75,7 @@ describe('LookCloserSection', () => {
     expect(useDiscoveryPrefsStore.getState().lookCloserOpen).toBe(false);
   });
 
-  it('is forced open by the connectors lens, an active prompt, or the session flag', () => {
+  it('is forced open by the connectors lens or an active prompt', () => {
     useDiscoveryPrefsStore.setState({ lookCloserOpen: false });
 
     useDiscoveryStore.setState({ lens: 'connectors' });
@@ -87,19 +86,6 @@ describe('LookCloserSection', () => {
     useDiscoveryStore.setState({ lens: null, activePrompt: {} as ConnectorHit });
     renderSection();
     expect(screen.getByText('cards')).toBeTruthy();
-    cleanup();
-
-    useDiscoveryStore.setState({ activePrompt: null });
-    useDiscoveryPrefsStore.getState().forceLookCloserOpen('Gen', 12);
-    renderSection();
-    expect(screen.getByText('cards')).toBeTruthy();
-  });
-
-  it('lets the reader close a session-forced section', () => {
-    useDiscoveryPrefsStore.getState().forceLookCloserOpen('Gen', 12);
-    renderSection();
-    fireEvent.click(screen.getByRole('button', { name: /Look closer/ }));
-    expect(screen.queryByText('cards')).toBeNull();
   });
 
   it('disables the toggle while an active prompt or lens forces it open', () => {
@@ -117,16 +103,7 @@ describe('LookCloserSection', () => {
     }
   });
 
-  it('stops forcing open once the reader moves to another chapter', () => {
-    useDiscoveryPrefsStore.getState().forceLookCloserOpen('Gen', 12);
-    renderSection();
-    expect(screen.getByText('cards')).toBeTruthy();
-    act(() => useDiscoveryStore.setState({ context: makeDiscoveryContext({ book: 'Gen', chapter: 13 }) }));
-    expect(screen.queryByText('cards')).toBeNull();
-  });
-
   it('persists only lookCloserOpen', () => {
-    useDiscoveryPrefsStore.getState().forceLookCloserOpen('Gen', 12);
     useDiscoveryPrefsStore.getState().setLookCloserOpen(true);
     const options = useDiscoveryPrefsStore.persist.getOptions();
     expect(options.name).toBe('discovery-prefs');

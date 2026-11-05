@@ -39,8 +39,3 @@ export function pluralize(count: number, singular: string, plural = `${singular}
 export function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
-
-/** Pick the singular/plural verb form for a count, e.g. `agree(1, 'is', 'are')` -> "is". */
-export function agree(count: number, singular: string, plural = `${singular}s`): string {
-  return count === 1 ? singular : plural;
-}

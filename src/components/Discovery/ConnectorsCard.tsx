@@ -4,7 +4,7 @@
  * "{n} connecting words in this chapter" with a toggle that lights the connectors in
  * the text and drops down a list of every connecting word grouped by verse; the
  * list stays hidden while the toggle is off. Tapping a row jumps
- * the reader there and expands the row's Socratic prompt; tapping a lit
+ * the reader there and expands the row's prompt; tapping a lit
  * connector in the text (lens on) sets the same `activePrompt` and opens
  * this panel, so the effect below scrolls the matching row into view. The
  * scroll is delayed to survive MultiTranslationView's layout re-key after

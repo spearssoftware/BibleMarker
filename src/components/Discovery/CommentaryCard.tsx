@@ -2,7 +2,7 @@
  * CommentaryCard — Matthew Henry's Concise Commentary on the current chapter.
  *
  * The one Discover card that interprets rather than observes, so it is always
- * attributed and sits last in Look closer. Each block is clamped to three
+ * attributed by name. Each block is clamped to three
  * lines with a Read more link. A section's verse range jumps the reader to
  * that section; a marked-up reference opens its passage inline below the
  * paragraph that holds it. The card renders nothing while loading, on a load

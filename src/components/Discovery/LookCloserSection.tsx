@@ -1,8 +1,7 @@
 /**
  * LookCloserSection — collapsible home for the analytic cards.
  *
- * Children (Repetition, Connectors, Look-Again, with their scroll-anchor
- * divs) render only while open, with no transition so a hydration flip
+ * Children (Repetition, Connectors) render only while open, with no transition so a hydration flip
  * doesn't animate. Open state comes from `useLookCloserState`; a toggle
  * stores the reader's choice on this device, and is disabled while an active
  * prompt or lens holds the section open.

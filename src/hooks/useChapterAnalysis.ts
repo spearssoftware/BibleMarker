@@ -1,7 +1,7 @@
 /**
  * useChapterAnalysis
  *
- * Runs the Discover-layer chapter analysis (Repetition Radar + Connector
+ * Runs the Discover-layer chapter analysis (repetition + Connector
  * Lens) against the primary translation's currently-loaded chapter text.
  *
  * Reads `useActiveChapterStore` rather than re-fetching — that store already

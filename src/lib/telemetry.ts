@@ -25,7 +25,6 @@ export type TelemetryFeature =
   | 'repetition'
   | 'connector'
   | 'entity'
-  | 'upsell'
   | 'crossref'
   | 'crossref_later'
   | 'setting'
