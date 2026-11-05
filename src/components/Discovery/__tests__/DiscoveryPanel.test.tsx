@@ -6,19 +6,15 @@
  * always-mounted `useDiscoveryHost`) so it only fires when a card is
  * actually rendered. ConnectorsCard, CrossRefsCard and the map are
  * shallow-mocked so this file mostly exercises DiscoveryPanel's own
- * branching. Setting, Who's here, Look closer, RepetitionCard and
- * Look-Again are left un-mocked (only the Gnosis hooks beneath them are
- * stubbed) so section order, Look closer gating and Look-Again scroll
- * targets are verified end-to-end — `useLookAgain`'s own DB queries are
- * covered by its own test file, so `@/lib/database` is stubbed here only
- * enough to keep it quiet.
+ * branching. Setting, Who's here, Look closer and RepetitionCard are left
+ * un-mocked (only the Gnosis hooks beneath them are stubbed) so section
+ * order and Look closer gating are verified end-to-end.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { DiscoveryPanel } from '../DiscoveryPanel';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
-import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import type { ChapterEvent, ChapterPerson, ChapterPlace } from '@/types';
@@ -31,9 +27,6 @@ const ONE_CROSS_REF_PASSAGE = { rows: [makeCrossRefPassageRow()], expand: () => 
 vi.mock('@/lib/database', () => ({
   updatePreferences: vi.fn(async () => {}),
   getPreferences: vi.fn(async () => ({})),
-  getChapterAnnotations: vi.fn(async () => []),
-  getChapterTitle: vi.fn(async () => undefined),
-  getChapterHeadings: vi.fn(async () => []),
 }));
 
 vi.mock('@/stores/studyStore', () => ({
@@ -42,20 +35,17 @@ vi.mock('@/stores/studyStore', () => ({
 }));
 
 type MockEntities = { book: string; chapter: number; people: string[]; places: string[]; events: string[]; topics: string[] } | null;
-type MockEntityVerseIndex = { book: string; chapter: number; peopleVerses: number[]; placesVerses: number[] } | null;
 interface GnosisState<T> { data: T | null; isLoading: boolean; error: string | null }
 const ready = <T,>(data: T | null = null): GnosisState<T> => ({ data, isLoading: false, error: null });
 let mockEntities: MockEntities = null;
 let mockEntitiesLoading = false;
 let mockEntitiesError: string | null = null;
-let mockEntityVerseIndex: MockEntityVerseIndex = null;
 let peopleState: GnosisState<ChapterPerson[]>;
 let placesState: GnosisState<ChapterPlace[]>;
 let eventsState: GnosisState<ChapterEvent[]>;
 let yearState: GnosisState<{ year: number; yearDisplay: string }>;
 vi.mock('@/hooks/useGnosis', () => ({
   useChapterEntities: () => ({ entities: mockEntities, isLoading: mockEntitiesLoading, error: mockEntitiesError }),
-  useChapterEntityVerseIndex: () => ({ index: mockEntityVerseIndex, isLoading: false, error: null }),
   useChapterPeople: () => ({ people: peopleState.data, isLoading: peopleState.isLoading, error: peopleState.error }),
   useChapterPlaces: () => ({ places: placesState.data, isLoading: placesState.isLoading, error: placesState.error }),
   useChapterEvents: () => ({ events: eventsState.data, isLoading: eventsState.isLoading, error: eventsState.error }),
@@ -95,10 +85,7 @@ vi.mock('../CommentaryCard', () => ({
 }));
 
 const PEOPLE: ChapterPerson[] = [{ slug: 'jesus-son-of-joseph', name: 'Jesus', verses: [1, 2] }];
-const PLACES: ChapterPlace[] = [{ slug: 'bethany', name: 'Bethany', latitude: 31.7, longitude: 35.2, verses: [28] }];
 const LOOK_CLOSER = { name: /Look closer/ };
-const PERSON_ROW = '1 person is named — mark one where a person appears';
-const PLACE_ROW = '1 place is named — mark one where a place appears';
 
 function openLookCloser() {
   useDiscoveryPrefsStore.setState({ lookCloserOpen: true });
@@ -108,7 +95,8 @@ function sectionOrder(container: HTMLElement): string[] {
   const dialog = container.querySelector('[role="dialog"] > div');
   return Array.from(dialog?.children ?? []).map(el => {
     if (el.getAttribute('data-testid') === 'worth-noticing-card') return 'worth-noticing';
-    if (el.querySelector('[data-testid="cross-refs-card"]')) return 'cross-refs';
+    if (el.getAttribute('data-testid') === 'cross-refs-card') return 'cross-refs';
+    if (el.getAttribute('data-testid') === 'commentary-card') return 'commentary';
     if (el.querySelector('h3')?.textContent?.startsWith('John')) return 'setting';
     if (el.querySelector('h3')?.textContent === "Who's here") return 'whos-here';
     if (el.querySelector('button[aria-expanded]')?.textContent?.includes('Look closer')) return 'look-closer';
@@ -121,21 +109,14 @@ describe('DiscoveryPanel', () => {
     mockEntities = null;
     mockEntitiesLoading = false;
     mockEntitiesError = null;
-    mockEntityVerseIndex = null;
     peopleState = ready();
     placesState = ready();
     eventsState = ready();
     yearState = ready();
     discoveryEnabled = true;
     trackMock.mockClear();
-    useDiscoveryPrefsStore.setState({ lookCloserOpen: undefined, lookCloserForcedFor: null });
+    useDiscoveryPrefsStore.setState({ lookCloserOpen: undefined });
     usePreferencesStore.setState({ isHydrated: true, inductiveToolsEnabled: false });
-    // useLookAgain (real, un-mocked here) requires this to match `context`'s
-    // identity before it reports ready — see `activeChapterVersesReady` in
-    // useLookAgain.ts. In production this always matches by the time
-    // `context` exists at all; this test file sets `context` directly rather
-    // than going through `useChapterAnalysis`, so it must be set explicitly.
-    useActiveChapterStore.setState({ book: 'John', chapter: 1, translationId: 'sword-NASB', verses: [] });
     useDiscoveryStore.setState({
       context: null,
       lens: null,
@@ -143,10 +124,6 @@ describe('DiscoveryPanel', () => {
       activeCrossRefKey: null,
       crossRefPassages: NO_CROSS_REF_PASSAGES,
       laterCrossRefPassages: NO_CROSS_REF_PASSAGES,
-      found: null,
-      markedPresetId: null,
-      revealedRungs: [],
-      crossRefProgress: {},
     });
   });
 
@@ -167,18 +144,16 @@ describe('DiscoveryPanel', () => {
     expect(screen.queryByText('Reading the chapter…')).toBeNull();
   });
 
-  it('shows Setting immediately and the Look-Again title item once its DB data loads, even when Gnosis never resolves', async () => {
+  it('shows Setting immediately, even when Gnosis never resolves', () => {
     useDiscoveryStore.setState({
       context: makeDiscoveryContext({ analysis: { repetition: null, connectors: [], connectorRangesByVerse: new Map() } }),
     });
-    openLookCloser();
     render(<DiscoveryPanel />);
     expect(screen.queryByText('Reading the chapter…')).toBeNull();
     expect(screen.getByText('John — a gospel')).toBeTruthy();
-    expect(await screen.findByText('Say this chapter in your own words — give it a title')).toBeTruthy();
   });
 
-  it('renders sections in Setting → Worth noticing → Cross-References → Who\'s here → Look closer order, with the analytic cards inside Look closer', async () => {
+  it('renders sections in Setting → Who\'s here → Worth noticing → Cross-References → Commentary → Look closer order, with the analytic cards inside Look closer', () => {
     mockEntities = { book: 'John', chapter: 1, people: ['jesus-son-of-joseph'], places: [], events: [], topics: [] };
     peopleState = ready(PEOPLE);
     useDiscoveryStore.setState({
@@ -187,17 +162,14 @@ describe('DiscoveryPanel', () => {
     });
     openLookCloser();
     const { container } = render(<DiscoveryPanel />);
-    await screen.findByText('Say this chapter in your own words — give it a title');
-    expect(sectionOrder(container)).toEqual(['setting', 'worth-noticing', 'cross-refs', 'whos-here', 'look-closer']);
+    expect(sectionOrder(container)).toEqual(['setting', 'whos-here', 'worth-noticing', 'cross-refs', 'commentary', 'look-closer']);
     const lookCloser = container.querySelector('section') as HTMLElement;
     const inner = Array.from(lookCloser.children).slice(1).map(el => {
-      if (el.querySelector('ul[aria-label="Look-again checklist"]')) return 'look-again';
-      if (el.textContent?.includes('One word appears')) return 'repetition';
-      if (el.querySelector('[data-testid="connectors-card"]')) return 'connectors';
-      if (el.getAttribute('data-testid') === 'commentary-card') return 'commentary';
+      if (el.textContent?.includes('appears 11×')) return 'repetition';
+      if (el.getAttribute('data-testid') === 'connectors-card') return 'connectors';
       return 'unknown';
     });
-    expect(inner).toEqual(['repetition', 'connectors', 'look-again', 'commentary']);
+    expect(inner).toEqual(['repetition', 'connectors']);
   });
 
   it('resets Setting\'s local state when the chapter changes', () => {
@@ -229,7 +201,7 @@ describe('DiscoveryPanel', () => {
     it('is collapsed in discovery mode', () => {
       render(<DiscoveryPanel />);
       expect(screen.getByRole('button', LOOK_CLOSER).getAttribute('aria-expanded')).toBe('false');
-      expect(screen.queryByText(/One word appears/)).toBeNull();
+      expect(screen.queryByText(/appears 11×/)).toBeNull();
       expect(screen.queryByTestId('connectors-card')).toBeNull();
     });
 
@@ -237,7 +209,7 @@ describe('DiscoveryPanel', () => {
       usePreferencesStore.setState({ inductiveToolsEnabled: true });
       render(<DiscoveryPanel />);
       expect(screen.getByRole('button', LOOK_CLOSER).getAttribute('aria-expanded')).toBe('true');
-      expect(screen.getByText('One word appears 11× in this chapter (NASB)')).toBeTruthy();
+      expect(screen.getByText('“Word” appears 11× in this chapter (NASB)')).toBeTruthy();
       expect(screen.getByTestId('connectors-card')).toBeTruthy();
     });
 
@@ -262,13 +234,21 @@ describe('DiscoveryPanel', () => {
       expect(screen.getByTestId('connectors-card')).toBeTruthy();
     });
 
+    it('is omitted entirely when the chapter has neither a repetition nor enough connectors', () => {
+      useDiscoveryStore.setState({
+        context: makeDiscoveryContext({ analysis: { repetition: null, connectors: [], connectorRangesByVerse: new Map() } }),
+      });
+      render(<DiscoveryPanel />);
+      expect(screen.queryByRole('button', LOOK_CLOSER)).toBeNull();
+    });
+
     it('hides the connectors card below the connector threshold', () => {
       openLookCloser();
       useDiscoveryStore.setState({
         context: makeDiscoveryContext({ analysis: makeChapterAnalysis({ connectors: [], connectorRangesByVerse: new Map() }) }),
       });
       render(<DiscoveryPanel />);
-      expect(screen.getByText('One word appears 11× in this chapter')).toBeTruthy();
+      expect(screen.getByText('“Word” appears 11× in this chapter')).toBeTruthy();
       expect(screen.queryByTestId('connectors-card')).toBeNull();
     });
   });
@@ -295,51 +275,6 @@ describe('DiscoveryPanel', () => {
     });
   });
 
-  describe('Look-Again scroll targets', () => {
-    beforeEach(() => {
-      mockEntities = { book: 'John', chapter: 1, people: ['jesus-son-of-joseph'], places: ['bethany'], events: [], topics: [] };
-      mockEntityVerseIndex = { book: 'John', chapter: 1, peopleVerses: [1], placesVerses: [28] };
-      useDiscoveryStore.setState({ context: makeDiscoveryContext({ analysis: makeChapterAnalysis({ repetition: null, connectors: [], connectorRangesByVerse: new Map() }) }) });
-      openLookCloser();
-    });
-
-    async function tapRow(name: string): Promise<void> {
-      fireEvent.click(await screen.findByRole('button', { name }));
-    }
-
-    function spyOn(selector: string): ReturnType<typeof vi.fn> {
-      const spy = vi.fn();
-      (document.querySelector(selector) as HTMLElement).scrollIntoView = spy;
-      return spy;
-    }
-
-    it('place → the Setting map, person → Who\'s here, when both render', async () => {
-      peopleState = ready(PEOPLE);
-      placesState = ready(PLACES);
-      render(<DiscoveryPanel />);
-      const map = spyOn('#discovery-setting-map');
-      const whosHere = spyOn('#discovery-whos-here');
-      const setting = spyOn('#discovery-setting');
-      await tapRow(PLACE_ROW);
-      expect(map).toHaveBeenCalledTimes(1);
-      await tapRow(PERSON_ROW);
-      expect(whosHere).toHaveBeenCalledTimes(1);
-      expect(setting).not.toHaveBeenCalled();
-    });
-
-    it('falls back to Setting for the place row with no map and for the person row when Who\'s here is hidden', async () => {
-      peopleState = ready([{ slug: 'god', name: 'God', verses: [1] }]);
-      placesState = ready([]);
-      render(<DiscoveryPanel />);
-      expect(document.getElementById('discovery-setting-map')).toBeNull();
-      expect(document.getElementById('discovery-whos-here')).toBeNull();
-      const setting = spyOn('#discovery-setting');
-      await tapRow(PLACE_ROW);
-      await tapRow(PERSON_ROW);
-      expect(setting).toHaveBeenCalledTimes(2);
-    });
-  });
-
   describe('telemetry', () => {
     it('fires repetition and connector shown events, deduped per chapter, while Look closer is open', () => {
       useDiscoveryStore.setState({ context: makeDiscoveryContext() });
@@ -355,13 +290,12 @@ describe('DiscoveryPanel', () => {
       });
     });
 
-    it('does not fire repetition, connector or upsell shown events while Look closer is collapsed', () => {
+    it('does not fire repetition or connector shown events while Look closer is collapsed', () => {
       useDiscoveryStore.setState({ context: makeDiscoveryContext() });
       render(<DiscoveryPanel />);
       const features = trackMock.mock.calls.filter(c => c[0] === 'discovery_chip_shown').map(c => (c[1] as { feature: string }).feature);
       expect(features).not.toContain('repetition');
       expect(features).not.toContain('connector');
-      expect(features).not.toContain('upsell');
     });
 
     it('fires the repetition shown event once the reader opens Look closer', () => {

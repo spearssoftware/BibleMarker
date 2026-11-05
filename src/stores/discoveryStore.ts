@@ -1,18 +1,18 @@
 /**
  * Discovery Store
  *
- * Chapter-level state for the Discover panel — repetition challenge, the
- * connector and cross-reference lenses, and the entity teaser. Owned by the always-mounted
- * `useDiscoveryHost` (called once from `MultiTranslationView`) so it keeps
- * working while the reader reads even when the panel itself is unmounted.
- * Plain Zustand, not persisted — a fresh reader should never boot up with
- * the lens left on or a stale "found" confirmation from a previous chapter.
+ * Chapter-level state for the Discover panel — the connector and
+ * cross-reference lenses and their active rows. Owned by
+ * the always-mounted `useDiscoveryHost` (called once from
+ * `MultiTranslationView`) so it keeps working while the reader reads even
+ * when the panel itself is unmounted. Plain Zustand, not persisted — a fresh
+ * reader should never boot up with the lens left on from a previous chapter.
  */
 
+import { useMemo } from 'react';
 import { create } from 'zustand';
-import type { ChapterAnalysis, ConnectorHit, RepetitionRung } from '@/lib/chapterAnalysis';
+import type { ChapterAnalysis, ConnectorHit } from '@/lib/chapterAnalysis';
 import type { CrossRefPassageRow } from '@/hooks/useCrossRefPassages';
-import type { TextSelection } from '@/stores/annotationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { singularize } from '@/lib/chapterAnalysis';
@@ -25,32 +25,11 @@ import { trackChip } from '@/lib/discoveryTelemetry';
 /** Which reading-pane lens is on. Only one at a time — turning one on turns the other off. */
 export type DiscoveryLens = 'connectors' | 'crossRefs' | null;
 
-/**
- * Progress on one cross-reference's optional shared-word hunt, keyed by the
- * caller's row key. By default a row shows its shared words already lit;
- * `hunting` is set when the reader chooses to find them unaided and cleared
- * by "Show me". `found` accumulates the stems the reader has tapped
- * correctly (idempotent — tapping an already-found stem again is a no-op)
- * and survives the hunt being switched off and on.
- */
-export interface CrossRefProgress {
-  hunting: boolean;
-  found: string[];
-}
-
 /** Cross-reference passages published by the host hook so the lens and the card share one source. */
 export interface CrossRefPassages {
   rows: CrossRefPassageRow[];
   /** Fetches a network translation's target passage for one row; a no-op for local translations. */
   expand: (key: string) => void;
-}
-
-export interface DiscoveryFound {
-  book: string;
-  chapter: number;
-  translationId: string;
-  /** The reader's own selection that confirmed the repetition word. */
-  selection: TextSelection;
 }
 
 export interface DiscoveryContext {
@@ -86,24 +65,6 @@ interface DiscoveryState {
   crossRefPassages: CrossRefPassages;
   /** Same, for cross-references to later passages (votes-ordered). */
   laterCrossRefPassages: CrossRefPassages;
-  /** Set once the reader's own selection confirms the Repetition Radar word. */
-  found: DiscoveryFound | null;
-  /** Preset id after "Highlight it…" / "Mark it as a key word" succeeds. */
-  markedPresetId: string | null;
-  /**
-   * Which hint-ladder rungs have been revealed so far, in reveal order.
-   * Stored as the rung identifiers themselves (not a count) so a
-   * late-arriving category hint — which changes rung order — can't
-   * rewind or relabel a rung the reader already earned.
-   */
-  revealedRungs: RepetitionRung[];
-  /**
-   * Cross-reference shared-word hunt progress, per row — keyed
-   * `${book}.${chapter}:${verse}:${targetRef}` (the caller's concern;
-   * book/chapter ride along in the key so a stale entry can't collide across
-   * chapters even if the reset ever moves).
-   */
-  crossRefProgress: Record<string, CrossRefProgress>;
 
   setContext: (context: DiscoveryContext | null) => void;
   setLens: (lens: DiscoveryLens) => void;
@@ -115,17 +76,10 @@ interface DiscoveryState {
   activateCrossRef: (key: string) => void;
   setCrossRefPassages: (passages: CrossRefPassages) => void;
   setLaterCrossRefPassages: (passages: CrossRefPassages) => void;
-  setFound: (found: DiscoveryFound | null) => void;
-  setMarkedPresetId: (id: string | null) => void;
-  revealRung: (rung: RepetitionRung) => void;
-  setCrossRefHunting: (key: string, hunting: boolean) => void;
-  /** Idempotent per stem: tapping a stem already found for `key` is a no-op. */
-  findCrossRefWord: (key: string, stem: string) => void;
   /** Clears all Discover-layer UI state except context — called when the chapter changes. */
   resetForChapter: () => void;
 }
 
-export const EMPTY_CROSS_REF_PROGRESS: CrossRefProgress = { hunting: false, found: [] };
 const NO_CROSS_REF_PASSAGES: CrossRefPassages = { rows: [], expand: () => {} };
 
 export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
@@ -135,10 +89,6 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
   activeCrossRefKey: null,
   crossRefPassages: NO_CROSS_REF_PASSAGES,
   laterCrossRefPassages: NO_CROSS_REF_PASSAGES,
-  found: null,
-  markedPresetId: null,
-  revealedRungs: [],
-  crossRefProgress: {},
 
   setContext: (context) => set({ context }),
   setLens: (lens) => set({ lens }),
@@ -156,58 +106,20 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
   },
   setCrossRefPassages: (passages) => set({ crossRefPassages: passages }),
   setLaterCrossRefPassages: (passages) => set({ laterCrossRefPassages: passages }),
-  setFound: (found) => set({ found }),
-  setMarkedPresetId: (id) => set({ markedPresetId: id }),
-  revealRung: (rung) => {
-    const { revealedRungs } = get();
-    if (revealedRungs.includes(rung)) return;
-    set({ revealedRungs: [...revealedRungs, rung] });
-  },
-  setCrossRefHunting: (key, hunting) => {
-    const { crossRefProgress } = get();
-    const current = crossRefProgress[key] ?? EMPTY_CROSS_REF_PROGRESS;
-    if (current.hunting === hunting) return;
-    set({ crossRefProgress: { ...crossRefProgress, [key]: { ...current, hunting } } });
-  },
-  findCrossRefWord: (key, stem) => {
-    const { crossRefProgress } = get();
-    const current = crossRefProgress[key] ?? EMPTY_CROSS_REF_PROGRESS;
-    if (current.found.includes(stem)) return;
-    set({ crossRefProgress: { ...crossRefProgress, [key]: { ...current, found: [...current.found, stem] } } });
-  },
   resetForChapter: () =>
     set({
       lens: null,
       activePrompt: null,
       activeCrossRefKey: null,
-      found: null,
-      markedPresetId: null,
-      revealedRungs: [],
-      crossRefProgress: {},
     }),
 }));
 
 /**
- * Whether the Repetition Radar "found" state's marked preset is still real —
- * i.e. `markedPresetId` is set AND that preset hasn't since been deleted.
- * Used to decide whether "Highlight it…" should stay disabled (already
- * marked) or re-enable itself (the mark was undone from Key Words). Shared
- * between `RepetitionCard` and the `Toolbar` badge so both reach the same
- * conclusion about whether the mark is still live.
- */
-export function useMarkedPresetExists(): boolean {
-  const markedPresetId = useDiscoveryStore(s => s.markedPresetId);
-  return useMarkingPresetStore(s => markedPresetId !== null && s.presets.some(p => p.id === markedPresetId));
-}
-
-/**
- * Durable repetition check: a (study-filtered) preset counts as "the
- * repetition word is marked" when its scope covers this book+chapter, it
- * applies to this translation, and its word — or any variant applicable
- * here — singularizes to the analysis token. `useMarkedPresetExists` only
- * survives within a chapter visit (`markedPresetId` is cleared by
- * `resetForChapter`), so without this a revisited chapter, or a word the
- * reader marked as a key word on their own, would still read as unfound.
+ * A (study-filtered) preset counts as "the repetition word is marked" when
+ * its scope covers this book+chapter, it applies to this translation, and
+ * its word — or any variant applicable here — singularizes to the analysis
+ * token. This is how the card knows the word is marked, whether by its own
+ * button, by a revisit, or by a key word the reader made on their own.
  */
 export function presetMarksToken(preset: MarkingPreset, token: string, book: string, chapter: number, translationId: string): boolean {
   if (preset.moduleScope && preset.moduleScope !== translationId) return false;
@@ -218,21 +130,17 @@ export function presetMarksToken(preset: MarkingPreset, token: string, book: str
   return preset.variants.some(v => variantAppliesToChapter(v, book, chapter) && matchesToken(v.text));
 }
 
-/**
- * The reader's existing key word that already marks the current chapter's
- * repetition word, if any. Shared by `RepetitionCard`, the `Toolbar` badge,
- * and Look-Again so all three agree the word is already marked.
- */
+/** The reader's existing key word that already marks the current chapter's repetition word, if any. */
 export function useRepetitionKeyword(
-  token: string | undefined,
+  token: string,
   book: string,
   chapter: number,
   translationId: string
 ): MarkingPreset | undefined {
   const presets = useMarkingPresetStore(s => s.presets);
   const activeStudyId = useStudyStore(s => s.activeStudyId);
-  if (!token) return undefined;
-  return filterPresetsByStudy(presets, activeStudyId).find(p =>
-    presetMarksToken(p, token, book, chapter, translationId)
+  return useMemo(
+    () => filterPresetsByStudy(presets, activeStudyId).find(p => presetMarksToken(p, token, book, chapter, translationId)),
+    [presets, activeStudyId, token, book, chapter, translationId]
   );
 }

@@ -11,7 +11,6 @@ import userEvent from '@testing-library/user-event';
 import { useAnnotationStore, type TextSelection } from '@/stores/annotationStore';
 import { usePanelStore } from '@/stores/panelStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
-import { useDiscoveryStore, type DiscoveryContext } from '@/stores/discoveryStore';
 import { DEFAULT_MARKING_PREFERENCES } from '@/types';
 
 // --- Mock all heavy dependencies ---
@@ -78,21 +77,6 @@ let discoveryEnabled = true;
 vi.mock('@/lib/discovery-config', () => ({
   useDiscoveryEnabled: () => discoveryEnabled,
 }));
-
-function makeDiscoveryContext(): DiscoveryContext {
-  return {
-    book: 'John',
-    chapter: 3,
-    translationId: 'sword-nasb2020',
-    analysis: {
-      repetition: { token: 'love', count: 5, firstVerse: 1, lastVerse: 10, occurrences: [], forms: ['love'] },
-      connectors: [],
-      connectorRangesByVerse: new Map(),
-    },
-    translationCount: 1,
-    primaryTranslationAbbrev: null,
-  };
-}
 
 const trackMock = vi.fn();
 vi.mock('@/lib/telemetry', () => ({
@@ -171,7 +155,6 @@ describe('Toolbar', () => {
     // keep working; gating itself is covered by the "tool tabs" suite below.
     usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
     discoveryEnabled = true;
-    useDiscoveryStore.setState({ context: null, found: null, markedPresetId: null });
     markingPresetState.presets = [];
     trackMock.mockClear();
   });
@@ -302,71 +285,6 @@ describe('Toolbar', () => {
       discoveryEnabled = false;
       render(<Toolbar />);
       expect(screen.queryByLabelText('Discover')).toBeNull();
-    });
-
-    it('shows the badge dot only when there is an open challenge, reflected in the accessible name', () => {
-      const { rerender } = render(<Toolbar />);
-      expect(screen.getByLabelText('Discover')).toBeTruthy();
-      expect(screen.queryByLabelText(/something to find/i)).toBeNull();
-
-      act(() => {
-        useDiscoveryStore.setState({ context: makeDiscoveryContext(), markedPresetId: null });
-      });
-      rerender(<Toolbar />);
-      expect(screen.getByLabelText(/discover.*something to find/i)).toBeTruthy();
-    });
-
-    it('shows the "highlight it" badge once the word is found but not yet marked', () => {
-      const context = makeDiscoveryContext();
-      act(() => {
-        useDiscoveryStore.setState({
-          context,
-          found: { book: context.book, chapter: context.chapter, translationId: context.translationId, selection: makeSelection('love') },
-          markedPresetId: null,
-        });
-      });
-      render(<Toolbar />);
-      expect(screen.getByLabelText(/discover.*you found it — highlight it/i)).toBeTruthy();
-    });
-
-    it('hides the badge once the marked preset still exists (already highlighted)', () => {
-      const context = makeDiscoveryContext();
-      markingPresetState.presets = [{ id: 'preset-1', variants: [] }];
-      act(() => {
-        useDiscoveryStore.setState({
-          context,
-          found: { book: context.book, chapter: context.chapter, translationId: context.translationId, selection: makeSelection('love') },
-          markedPresetId: 'preset-1',
-        });
-      });
-      render(<Toolbar />);
-      expect(screen.getByLabelText('Discover')).toBeTruthy();
-      expect(screen.queryByLabelText(/something to find/i)).toBeNull();
-      expect(screen.queryByLabelText(/highlight it/i)).toBeNull();
-    });
-
-    it('shows no badge when an existing key word already marks the repetition word', () => {
-      markingPresetState.presets = [{ id: 'kw', word: 'Love', variants: [] }];
-      act(() => {
-        useDiscoveryStore.setState({ context: makeDiscoveryContext(), found: null, markedPresetId: null });
-      });
-      render(<Toolbar />);
-      expect(screen.queryByLabelText(/something to find/i)).toBeNull();
-      expect(screen.queryByLabelText(/highlight it/i)).toBeNull();
-    });
-
-    it('shows the "highlight it" badge again once a previously-marked preset is deleted', () => {
-      const context = makeDiscoveryContext();
-      markingPresetState.presets = [];
-      act(() => {
-        useDiscoveryStore.setState({
-          context,
-          found: { book: context.book, chapter: context.chapter, translationId: context.translationId, selection: makeSelection('love') },
-          markedPresetId: 'preset-1',
-        });
-      });
-      render(<Toolbar />);
-      expect(screen.getByLabelText(/discover.*you found it — highlight it/i)).toBeTruthy();
     });
 
     it('toggles the discovery panel and tracks a tap only when the click opens it', async () => {

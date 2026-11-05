@@ -2,9 +2,9 @@
  * Discovery Actions
  *
  * The "every discovery resolves into a mark" plumbing for the Discover
- * layer's chips — Repetition Radar's "mark it" action and Connector Lens'
- * "Add to Flow" action. Kept out of the components so the chips stay pure
- * presentation.
+ * layer's cards — the repetition card's "mark it" action and Connector
+ * Lens' "Add to Flow" action. Kept out of the components so the cards stay
+ * pure presentation.
  *
  * `markRepetitionAsKeyword` deliberately does *only* `createMarkingPreset` +
  * `useMarkingPresetStore.getState().addPreset` — the visible ripple across
@@ -17,11 +17,11 @@
  */
 
 import type { VerseRef, MarkingPreset, KeyWordCategory, HighlightColor, SymbolKey, Variant } from '@/types';
+import { normalizeForMatching } from '@/lib/keywordMatching';
 import { createMarkingPreset, getRandomHighlightColor, normalizeVariants } from '@/types';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useConclusionStore } from '@/stores/conclusionStore';
 import { usePanelStore } from '@/stores/panelStore';
-import type { TextSelection } from '@/stores/annotationStore';
 import type { ConnectorHit, RepetitionResult } from '@/lib/chapterAnalysis';
 
 /**
@@ -55,34 +55,35 @@ export async function createBookScopedKeywordPreset(options: {
 }
 
 /**
- * Repetition Radar's "Highlight it in this chapter" / "Mark it as a key word"
- * action — a highlight-only preset (never `style: 'none'`, which would
+ * The repetition card's "Highlight it in this chapter" / "Mark it as a key
+ * word" action — a highlight-only preset (never `style: 'none'`, which would
  * produce no visible decoration at all per `presetHasDecoration`), no
- * symbol, `category: 'custom'`, scoped to the book the reader found it in.
+ * symbol, `category: 'custom'`, pinned to the chapter it was found in.
  *
  * `repetition.forms` (the distinct raw surface forms that tallied into the
- * token - e.g. "word"/"words") seed the preset's variants, minus whichever
- * form matches the reader's own selected text, so the ripple also catches
- * sibling forms without the reader having to add them by hand.
+ * token - e.g. "word"/"words") seed the preset's variants, minus the display
+ * form itself, so the ripple also catches sibling forms without the reader
+ * having to add them by hand.
  */
 export async function markRepetitionAsKeyword(
-  selection: TextSelection,
-  activeStudyId?: string,
-  repetition?: RepetitionResult | null
+  repetition: RepetitionResult,
+  book: string,
+  chapter: number,
+  activeStudyId?: string
 ): Promise<MarkingPreset> {
-  const word = selection.text.trim();
-  const color = getRandomHighlightColor();
-  const normalizedWord = word.toLowerCase();
-  const otherForms = (repetition?.forms ?? []).filter(form => form.toLowerCase() !== normalizedWord);
+  const word = repetition.display;
+  // `forms` are normalized the same way the tokenizer did, so compare like with like.
+  const normalizedWord = normalizeForMatching(word);
+  const otherForms = repetition.forms.filter(form => form !== normalizedWord);
 
   return createBookScopedKeywordPreset({
     word,
     variants: normalizeVariants(otherForms),
-    book: selection.book,
-    chapter: selection.chapter,
+    book,
+    chapter,
     studyId: activeStudyId,
     category: 'custom',
-    highlight: { style: 'highlight', color },
+    highlight: { style: 'highlight', color: getRandomHighlightColor() },
   });
 }
 

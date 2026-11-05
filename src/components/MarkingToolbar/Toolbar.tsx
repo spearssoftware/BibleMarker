@@ -18,7 +18,6 @@ import { usePanelStore } from '@/stores/panelStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
 import { usePreferencesStore, useInductiveToolsVisible } from '@/stores/preferencesStore';
-import { useDiscoveryStore, useMarkedPresetExists, useRepetitionKeyword } from '@/stores/discoveryStore';
 import { useDiscoveryEnabled } from '@/lib/discovery-config';
 import { track } from '@/lib/telemetry';
 import { deleteAnnotation } from '@/lib/database';
@@ -59,34 +58,7 @@ export function Toolbar() {
   const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
   const inductiveToolsVisible = useInductiveToolsVisible();
   const discoveryEnabled = useDiscoveryEnabled();
-  const discoveryContext = useDiscoveryStore(s => s.context);
-  const discoveryFound = useDiscoveryStore(s => s.found);
-  const alreadyHighlighted = useMarkedPresetExists();
-  const repetitionKeyword = useRepetitionKeyword(
-    discoveryContext?.analysis.repetition?.token,
-    discoveryContext?.book ?? '',
-    discoveryContext?.chapter ?? 0,
-    discoveryContext?.translationId ?? ''
-  );
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
-
-  // Discover badge: 'find' while the repetition word hasn't been found yet
-  // for this exact chapter/translation, 'highlight' once it's found but not
-  // yet marked (or the mark was since undone from Key Words), else no badge.
-  // No badge at all when an existing key word already marks the word.
-  const foundMatchesContext =
-    !!discoveryContext &&
-    !!discoveryFound &&
-    discoveryFound.book === discoveryContext.book &&
-    discoveryFound.chapter === discoveryContext.chapter &&
-    discoveryFound.translationId === discoveryContext.translationId;
-  const discoveryBadge: 'find' | 'highlight' | null = !discoveryContext?.analysis.repetition || repetitionKeyword
-    ? null
-    : !foundMatchesContext
-      ? 'find'
-      : alreadyHighlighted
-        ? null
-        : 'highlight';
 
   // "Enable inductive tools" gates Key Words/Observe/Analyze and the advanced
   // selection-menu items. Study Tools and Settings stay visible either way:
@@ -478,28 +450,14 @@ export function Toolbar() {
                   togglePanel('discovery');
                   if (willOpen) track('discovery_chip_tapped');
                 }}
-                className={`relative flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg
+                className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg
                            transition-all duration-200 touch-target
                            border border-scripture-border/30 hover:border-scripture-border/50
                            ${discoveryActive
                              ? 'bg-scripture-accent text-scripture-bg shadow-md'
                              : 'hover:bg-scripture-elevated'}`}
-                aria-label={
-                  discoveryBadge === 'find'
-                    ? 'Discover, something to find'
-                    : discoveryBadge === 'highlight'
-                      ? 'Discover, you found it — highlight it'
-                      : 'Discover'
-                }
+                aria-label="Discover"
               >
-                {discoveryBadge && (
-                  <span
-                    className={`absolute top-0.5 right-0.5 w-2 h-2 rounded-full ${
-                      discoveryActive ? 'bg-scripture-onAccent' : 'bg-scripture-accent'
-                    }`}
-                    aria-hidden="true"
-                  />
-                )}
                 <span className="text-lg">🧭</span>
                 <span className="text-[10px] font-ui font-medium leading-tight">Discover</span>
               </button>

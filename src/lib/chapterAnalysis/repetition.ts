@@ -1,9 +1,9 @@
 /**
- * Repetition Radar - find the chapter's most-repeated meaningful word.
+ * Repetition - find the chapter's most-repeated meaningful word.
  */
 
-import type { ChapterEntities } from '@/types/gnosis';
 import { isCommonPronoun } from '@/types';
+import { splitPunctuation } from '@/lib/textUtils';
 import { tokenizeVerse, singularize } from './tokenize';
 import { STOPWORDS, DEPRIORITIZED } from './stopwords';
 import type { AnalysisVerse, RepetitionResult, DiscoveryThresholds, TokenOccurrence } from './types';
@@ -13,6 +13,10 @@ interface Tally {
   occurrences: TokenOccurrence[];
   forms: string[];
   formsSeen: Set<string>;
+  /** Surface text of the first occurrence, casing intact. */
+  firstSurface: string;
+  /** Surface text of the first occurrence whose normalized form is the token itself (not a plural or possessive). */
+  baseSurface: string | null;
 }
 
 export function findRepetition(verses: AnalysisVerse[], thresholds: DiscoveryThresholds): RepetitionResult | null {
@@ -24,11 +28,13 @@ export function findRepetition(verses: AnalysisVerse[], thresholds: DiscoveryThr
       if (token.normalized.length < thresholds.repetitionMinWordLength) continue;
 
       const key = singularize(token.normalized);
+      const surface = splitPunctuation(verse.text.slice(token.startIndex, token.endIndex)).word;
       let entry = tally.get(key);
       if (!entry) {
-        entry = { count: 0, occurrences: [], forms: [], formsSeen: new Set() };
+        entry = { count: 0, occurrences: [], forms: [], formsSeen: new Set(), firstSurface: surface, baseSurface: null };
         tally.set(key, entry);
       }
+      if (entry.baseSurface === null && token.normalized === key) entry.baseSurface = surface;
       entry.count += 1;
       entry.occurrences.push({ verse: verse.ref.verse, start: token.startIndex, end: token.endIndex });
       if (!entry.formsSeen.has(token.normalized)) {
@@ -38,11 +44,17 @@ export function findRepetition(verses: AnalysisVerse[], thresholds: DiscoveryThr
     }
   }
 
-  const candidates: Array<{ token: string; count: number; occurrences: TokenOccurrence[]; forms: string[] }> = [];
+  const candidates: Array<Omit<RepetitionResult, 'firstVerse' | 'lastVerse'>> = [];
   for (const [token, entry] of tally) {
     if (entry.count < thresholds.repetitionMinCount) continue;
     entry.occurrences.sort((a, b) => a.verse - b.verse || a.start - b.start);
-    candidates.push({ token, count: entry.count, occurrences: entry.occurrences, forms: entry.forms });
+    candidates.push({
+      token,
+      display: entry.baseSurface ?? entry.firstSurface,
+      count: entry.count,
+      occurrences: entry.occurrences,
+      forms: entry.forms,
+    });
   }
 
   if (candidates.length === 0) return null;
@@ -64,34 +76,11 @@ export function findRepetition(verses: AnalysisVerse[], thresholds: DiscoveryThr
 
   return {
     token: winner.token,
+    display: winner.display,
     count: winner.count,
     firstVerse: Math.min(...verseNumbers),
     lastVerse: Math.max(...verseNumbers),
     occurrences: winner.occurrences,
     forms: winner.forms,
   };
-}
-
-export function verseRangeLabel(result: RepetitionResult): string {
-  if (result.firstVerse === result.lastVerse) return `in v.${result.firstVerse}`;
-  return `between v.${result.firstVerse} and v.${result.lastVerse}`;
-}
-
-/**
- * A token matches a Gnosis slug when it equals the slug's first hyphen-delimited
- * segment (e.g. "john" for "john-the-baptist") or the whole slug read as
- * space-separated words (e.g. "sea of galilee" for "sea-of-galilee"). A
- * single-word slug satisfies both forms identically.
- */
-export function slugMatches(token: string, slug: string): boolean {
-  const firstSegment = slug.split('-')[0];
-  const spaced = slug.replace(/-/g, ' ');
-  return token === firstSegment || token === spaced;
-}
-
-export function deriveCategoryHint(result: RepetitionResult, entities: ChapterEntities | null): 'people' | 'places' | undefined {
-  if (!entities) return undefined;
-  if (entities.people.some(slug => slugMatches(result.token, slug))) return 'people';
-  if (entities.places.some(slug => slugMatches(result.token, slug))) return 'places';
-  return undefined;
 }
