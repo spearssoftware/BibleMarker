@@ -21,7 +21,7 @@ import { Button } from '@/components/shared';
 import { DiscoveryCard } from './DiscoveryCard';
 
 interface RepetitionCardProps {
-  repetition: RepetitionResult | null;
+  repetition: RepetitionResult;
   translationCount: number;
   primaryTranslationAbbrev: string | null;
   book: string;
@@ -39,10 +39,8 @@ export function RepetitionCard({
 }: RepetitionCardProps) {
   const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
   const activeStudyId = useStudyStore(s => s.activeStudyId) ?? undefined;
-  const existingKeyword = useRepetitionKeyword(repetition?.token, book, chapter, translationId);
+  const existingKeyword = useRepetitionKeyword(repetition.token, book, chapter, translationId);
   const [marking, setMarking] = useState(false);
-
-  if (!repetition) return null;
 
   const suffix = translationCount > 1 && primaryTranslationAbbrev ? ` (${primaryTranslationAbbrev})` : '';
   const title = `“${repetition.display}” appears ${repetition.count}× in this chapter${suffix}`;

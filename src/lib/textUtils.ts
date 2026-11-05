@@ -39,3 +39,13 @@ export function pluralize(count: number, singular: string, plural = `${singular}
 export function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
+
+/**
+ * Split a token's surface text into the word itself and the punctuation
+ * around it, so "glory," becomes `{ before: '', word: 'glory', after: ',' }`.
+ */
+export function splitPunctuation(surface: string): { before: string; word: string; after: string } {
+  const match = /^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/su.exec(surface);
+  if (!match) return { before: '', word: surface, after: '' };
+  return { before: match[1], word: match[2], after: match[3] };
+}

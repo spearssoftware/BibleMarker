@@ -26,7 +26,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { LAYOUT_REKEY_MS } from '@/components/BibleReader/layoutConstants';
 import type { CrossRefPassageRow } from '@/hooks/useCrossRefPassages';
 import { track } from '@/lib/telemetry';
-import { pluralize } from '@/lib/textUtils';
+import { pluralize, splitPunctuation } from '@/lib/textUtils';
 import { tokenizeVerse, wordStem } from '@/lib/chapterAnalysis';
 
 interface CrossRefsCardProps {
@@ -39,16 +39,6 @@ interface CrossRefsCardProps {
 }
 
 const LIT_WORD_CLASSES = 'bg-scripture-accent/20 text-scripture-accent rounded';
-
-/**
- * Split a token's surface text into the word itself and the punctuation
- * around it, so a highlight covers "glory" rather than "glory,".
- */
-function splitPunctuation(surface: string): { before: string; word: string; after: string } {
-  const match = /^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/su.exec(surface);
-  if (!match) return { before: '', word: surface, after: '' };
-  return { before: match[1], word: match[2], after: match[3] };
-}
 
 /** Render a passage's words with every token whose stem is in `litStems` marked. */
 function renderPassageWords(text: string, litStems: ReadonlySet<string>): ReactNode {

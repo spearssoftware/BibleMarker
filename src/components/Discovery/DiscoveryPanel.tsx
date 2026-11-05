@@ -107,7 +107,7 @@ export function DiscoveryPanel() {
       />
       {(hasRepetition || showConnectors) && (
         <LookCloserSection book={book} chapter={chapter} translationId={translationId}>
-          {hasRepetition && (
+          {analysis.repetition && (
             <RepetitionCard
               repetition={analysis.repetition}
               translationCount={translationCount}

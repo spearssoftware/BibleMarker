@@ -131,14 +131,13 @@ export function presetMarksToken(preset: MarkingPreset, token: string, book: str
 
 /** The reader's existing key word that already marks the current chapter's repetition word, if any. */
 export function useRepetitionKeyword(
-  token: string | undefined,
+  token: string,
   book: string,
   chapter: number,
   translationId: string
 ): MarkingPreset | undefined {
   const presets = useMarkingPresetStore(s => s.presets);
   const activeStudyId = useStudyStore(s => s.activeStudyId);
-  if (!token) return undefined;
   return filterPresetsByStudy(presets, activeStudyId).find(p =>
     presetMarksToken(p, token, book, chapter, translationId)
   );

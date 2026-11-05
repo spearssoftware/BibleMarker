@@ -72,9 +72,11 @@ function buildSatelliteStyle(): StyleSpecification {
   };
 }
 
-let cachedStyles: { map: StyleSpecification; satellite: StyleSpecification } | null = null;
+export type MapLayer = 'map' | 'satellite';
 
-export function getStyles() {
+let cachedStyles: Record<MapLayer, StyleSpecification> | null = null;
+
+export function getStyles(): Record<MapLayer, StyleSpecification> {
   if (!cachedStyles) {
     cachedStyles = { map: buildMapStyle(), satellite: buildSatelliteStyle() };
   }

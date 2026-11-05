@@ -88,11 +88,6 @@ describe('RepetitionCard', () => {
     expect(screen.getByText('Highlight it in this chapter')).toBeTruthy();
   });
 
-  it('renders nothing without a repetition result', () => {
-    const { container } = renderCard({ repetition: null });
-    expect(container.innerHTML).toBe('');
-  });
-
   it('shows the translation suffix when there is more than one translation column', () => {
     renderCard({ translationCount: 2, primaryTranslationAbbrev: 'NASB' });
     expect(screen.getByText('“Zephyr” appears 7× in this chapter (NASB)')).toBeTruthy();

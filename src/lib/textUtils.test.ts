@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stripSymbols, pluralize } from './textUtils';
+import { stripSymbols, pluralize, splitPunctuation } from './textUtils';
 
 describe('stripSymbols', () => {
   it('returns empty string for empty input', () => {
@@ -42,5 +42,15 @@ describe('pluralize', () => {
 
   it('defaults the plural form to singular + "s" when omitted', () => {
     expect(pluralize(3, 'connector')).toBe('3 connectors');
+  });
+});
+
+describe('splitPunctuation', () => {
+  it('separates surrounding punctuation from the word', () => {
+    expect(splitPunctuation('“glory,”')).toEqual({ before: '“', word: 'glory', after: ',”' });
+  });
+
+  it('keeps inner apostrophes and returns an empty before/after when there is none', () => {
+    expect(splitPunctuation("LORD’s")).toEqual({ before: '', word: "LORD’s", after: '' });
   });
 });

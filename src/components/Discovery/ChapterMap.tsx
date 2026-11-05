@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import MapGL, { Marker, type MapRef } from 'react-map-gl/maplibre';
-import { Button } from '@/components/shared';
+import { Button, MapLayerToggle } from '@/components/shared';
 import { useMapAvailability } from '@/hooks/useMapAvailability';
 import { ensureMapLibreSetup, fitToCoords, getStyles } from '@/lib/map/mapStyle';
 import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
@@ -65,13 +65,7 @@ export function ChapterMapCanvas({ places, interactive, selectedSlug, onSelect, 
 
   return (
     <div className={`${className} relative overflow-hidden rounded-lg border border-scripture-border/50`}>
-      <button
-        type="button"
-        onClick={() => setMapLayer(mapLayer === 'map' ? 'satellite' : 'map')}
-        className="absolute top-2 right-2 z-10 px-2 py-1 text-xs font-medium bg-scripture-surface/95 hover:bg-scripture-surface text-scripture-text rounded shadow transition-colors"
-      >
-        {mapLayer === 'map' ? 'Satellite' : 'Map'}
-      </button>
+      <MapLayerToggle layer={mapLayer} onToggle={setMapLayer} />
       <MapGL
         ref={mapRef}
         initialViewState={{ longitude: 35.2342, latitude: 31.7767, zoom: 7 }}

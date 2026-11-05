@@ -10,8 +10,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-export type MapLayer = 'map' | 'satellite';
+import type { MapLayer } from '@/lib/map/mapStyle';
 
 interface DiscoveryPrefsState {
   lookCloserOpen: boolean | undefined;

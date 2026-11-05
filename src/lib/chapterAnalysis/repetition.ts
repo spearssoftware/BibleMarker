@@ -3,6 +3,7 @@
  */
 
 import { isCommonPronoun } from '@/types';
+import { splitPunctuation } from '@/lib/textUtils';
 import { tokenizeVerse, singularize } from './tokenize';
 import { STOPWORDS, DEPRIORITIZED } from './stopwords';
 import type { AnalysisVerse, RepetitionResult, DiscoveryThresholds, TokenOccurrence } from './types';
@@ -18,11 +19,6 @@ interface Tally {
   baseSurface: string | null;
 }
 
-/** Strip leading/trailing punctuation so "Word," displays as "Word". */
-function trimPunctuation(surface: string): string {
-  return surface.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
-}
-
 export function findRepetition(verses: AnalysisVerse[], thresholds: DiscoveryThresholds): RepetitionResult | null {
   const tally = new Map<string, Tally>();
 
@@ -32,7 +28,7 @@ export function findRepetition(verses: AnalysisVerse[], thresholds: DiscoveryThr
       if (token.normalized.length < thresholds.repetitionMinWordLength) continue;
 
       const key = singularize(token.normalized);
-      const surface = trimPunctuation(verse.text.slice(token.startIndex, token.endIndex));
+      const surface = splitPunctuation(verse.text.slice(token.startIndex, token.endIndex)).word;
       let entry = tally.get(key);
       if (!entry) {
         entry = { count: 0, occurrences: [], forms: [], formsSeen: new Set(), firstSurface: surface, baseSurface: null };
