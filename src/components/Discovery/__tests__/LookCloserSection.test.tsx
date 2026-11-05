@@ -103,10 +103,11 @@ describe('LookCloserSection', () => {
     }
   });
 
-  it('persists only lookCloserOpen', () => {
+  it('persists only lookCloserOpen and mapLayer', () => {
     useDiscoveryPrefsStore.getState().setLookCloserOpen(true);
+    useDiscoveryPrefsStore.getState().setMapLayer('satellite');
     const options = useDiscoveryPrefsStore.persist.getOptions();
     expect(options.name).toBe('discovery-prefs');
-    expect(options.partialize?.(useDiscoveryPrefsStore.getState())).toEqual({ lookCloserOpen: true });
+    expect(options.partialize?.(useDiscoveryPrefsStore.getState())).toEqual({ lookCloserOpen: true, mapLayer: 'satellite' });
   });
 });
