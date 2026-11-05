@@ -17,6 +17,7 @@
  */
 
 import type { VerseRef, MarkingPreset, KeyWordCategory, HighlightColor, SymbolKey, Variant } from '@/types';
+import { normalizeForMatching } from '@/lib/keywordMatching';
 import { createMarkingPreset, getRandomHighlightColor, normalizeVariants } from '@/types';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useConclusionStore } from '@/stores/conclusionStore';
@@ -71,7 +72,8 @@ export async function markRepetitionAsKeyword(
   activeStudyId?: string
 ): Promise<MarkingPreset> {
   const word = repetition.display;
-  const normalizedWord = word.toLowerCase();
+  // `forms` are normalized the same way the tokenizer did, so compare like with like.
+  const normalizedWord = normalizeForMatching(word);
   const otherForms = repetition.forms.filter(form => form !== normalizedWord);
 
   return createBookScopedKeywordPreset({

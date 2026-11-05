@@ -9,6 +9,7 @@
  * reader should never boot up with the lens left on from a previous chapter.
  */
 
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import type { ChapterAnalysis, ConnectorHit } from '@/lib/chapterAnalysis';
 import type { CrossRefPassageRow } from '@/hooks/useCrossRefPassages';
@@ -138,7 +139,8 @@ export function useRepetitionKeyword(
 ): MarkingPreset | undefined {
   const presets = useMarkingPresetStore(s => s.presets);
   const activeStudyId = useStudyStore(s => s.activeStudyId);
-  return filterPresetsByStudy(presets, activeStudyId).find(p =>
-    presetMarksToken(p, token, book, chapter, translationId)
+  return useMemo(
+    () => filterPresetsByStudy(presets, activeStudyId).find(p => presetMarksToken(p, token, book, chapter, translationId)),
+    [presets, activeStudyId, token, book, chapter, translationId]
   );
 }
