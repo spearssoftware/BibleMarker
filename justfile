@@ -18,8 +18,8 @@ setup:
 dev:
     pnpm run tauri:dev
 
-# The full gate CI runs, cheapest first: Tauri version pairing, Rust format, lint, typecheck, tests, web build, clippy.
-check: tauri-version-check fmt-check lint typecheck test web-build clippy
+# The full gate CI runs, cheapest first: Tauri version pairing, Rust format, lint, typecheck, tests, worker checks, web build, clippy.
+check: tauri-version-check fmt-check lint typecheck test worker-check web-build clippy
 
 # Fail if any @tauri-apps npm package and its Rust crate disagree on major.minor.
 tauri-version-check:
