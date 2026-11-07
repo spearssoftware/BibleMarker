@@ -221,32 +221,3 @@ describe('VerseText — cross-reference lens', () => {
     expect(onCrossRefTap).not.toHaveBeenCalled();
   });
 });
-
-describe('VerseText — keyword tap with inductive tools off', () => {
-  it('leaves a tap on a marked word as a plain-text tap when there is no keyword handler', () => {
-    const presetId = '11111111-1111-1111-1111-111111111111';
-    const text = 'Jesus answered him.';
-    const kwVerse: Verse = { ref: { book: 'John', chapter: 9, verse: 3 }, text };
-    const annotation: TextAnnotation = {
-      id: `virtual-${presetId}-3-0`,
-      moduleId: 'sword-NASB',
-      type: 'underline',
-      presetId,
-      startRef: kwVerse.ref,
-      endRef: kwVerse.ref,
-      startOffset: 0,
-      endOffset: 'Jesus'.length,
-      color: 'blue',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    const { container } = render(
-      <VerseText verse={kwVerse} annotations={[annotation]} moduleId="sword-NASB" />
-    );
-
-    const mark = container.querySelector('.annotation-group .annotation-text');
-    expect(mark).toBeTruthy();
-    // fireEvent returns false when a handler called preventDefault.
-    expect(fireEvent.click(mark!)).toBe(true);
-  });
-});

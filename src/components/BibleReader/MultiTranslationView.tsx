@@ -347,7 +347,7 @@ export function MultiTranslationView() {
     setAnnotationsByTranslation(newAnnotations);
   }, [activeView, currentBook, currentChapter]);
 
-  // Tools off: no keyword tap, so a marked word never opens an inductive panel or creates a list.
+  // Tools off: a tap opens the mark in Key Words, never an inductive panel or a new list.
   const handleKeywordTap = getKeywordTapHandler(inductiveToolsEnabled);
 
   // Helper functions

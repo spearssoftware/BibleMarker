@@ -198,14 +198,15 @@ describe('Toolbar', () => {
   });
 
   describe('tool tabs', () => {
-    it('leaves only Study Tools when inductive tools are disabled', () => {
+    it('leaves Key Words and Study Tools when inductive tools are disabled', () => {
       act(() => {
         usePreferencesStore.setState({ inductiveToolsEnabled: false });
       });
 
       render(<Toolbar />);
 
-      expect(screen.queryByLabelText('Key Words')).toBeNull();
+      // Key Words opens in its simplified mode for editing marks.
+      expect(screen.getByLabelText('Key Words')).toBeTruthy();
       expect(screen.queryByLabelText('Observe')).toBeNull();
       expect(screen.queryByLabelText('Analyze')).toBeNull();
       // Study Tools is pull-based lookup and the Discover panel links into it,
@@ -235,10 +236,10 @@ describe('Toolbar', () => {
 
       render(<Toolbar />);
 
-      expect(screen.queryByLabelText('Key Words')).toBeNull();
       expect(screen.queryByLabelText('Observe')).toBeNull();
       expect(screen.queryByLabelText('Analyze')).toBeNull();
-      // Study Tools shows in both modes, so it never flashes in or out.
+      // Key Words and Study Tools show in both modes, so they never flash in or out.
+      expect(screen.getByLabelText('Key Words')).toBeTruthy();
       expect(screen.getByLabelText('Study Tools')).toBeTruthy();
       expect(screen.getByLabelText('Settings')).toBeTruthy();
     });
@@ -250,16 +251,20 @@ describe('Toolbar', () => {
 
       render(<Toolbar />);
 
-      // Index 0 ("1") would be Key Words on-screen only if it were keyed by
-      // visible position — with tools off, Study Tools is the sole visible
-      // tab, so index 0 must stay inert rather than opening it.
+      // Index 1 ("2") is Observe in the fixed TOOLS order and hidden with
+      // tools off. Keyed by visible position it would open Study Tools (the
+      // second visible tab), so it must stay inert.
       act(() => {
-        keyboardShortcutsOptions.current?.onToolbarTool?.(0);
+        keyboardShortcutsOptions.current?.onToolbarTool?.(1);
       });
       expect(usePanelStore.getState().activePanel).toBeNull();
 
-      // Index 3 ("4") is Study Tools in the fixed TOOLS order and is visible
-      // in both modes, so it should open.
+      // Index 0 ("1") is Key Words and index 3 ("4") is Study Tools; both are
+      // visible in both modes, so they open.
+      act(() => {
+        keyboardShortcutsOptions.current?.onToolbarTool?.(0);
+      });
+      expect(usePanelStore.getState().activePanel).toBe('keywords');
       act(() => {
         keyboardShortcutsOptions.current?.onToolbarTool?.(3);
       });

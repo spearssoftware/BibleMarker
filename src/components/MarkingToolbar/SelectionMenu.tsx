@@ -59,6 +59,8 @@ interface SelectionMenuProps {
   chapterWord?: ChapterWordMatch | null;
   onMarkChapter?: (match: ChapterWordMatch, style: MarkingStyleChoice, color: HighlightColor) => void;
   onRemoveChapterMark?: (preset: MarkingPreset) => void;
+  /** Open the Key Words panel on the preset that already marks the word. */
+  onEditChapterMark?: (preset: MarkingPreset) => void;
   onCancel: () => void;
   onClose: () => void;
 }
@@ -78,6 +80,7 @@ export function SelectionMenu({
   chapterWord = null,
   onMarkChapter,
   onRemoveChapterMark,
+  onEditChapterMark,
   onCancel,
   onClose,
 }: SelectionMenuProps) {
@@ -343,6 +346,20 @@ export function SelectionMenu({
                     ? <>Every &ldquo;{chapterWord.word}&rdquo; in this chapter is marked.</>
                     : <>&ldquo;{chapterWord.word}&rdquo; is already marked by a key word in this chapter.</>}
                 </p>
+                <div className="flex gap-2 flex-shrink-0">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onEditChapterMark?.(existingChapterPreset);
+                    onClose();
+                  }}
+                  aria-label={`Edit the mark on \u201c${chapterWord.word}\u201d in Key Words`}
+                >
+                  Edit
+                </Button>
                 {chapterPresetRemovable && (
                   <Button
                     variant="secondary"
@@ -358,6 +375,7 @@ export function SelectionMenu({
                     Remove
                   </Button>
                 )}
+                </div>
               </div>
             ) : (
               <SegmentedControl

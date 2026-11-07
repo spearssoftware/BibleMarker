@@ -64,16 +64,20 @@ export function Toolbar() {
   const discoveryEnabled = useDiscoveryEnabled();
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
 
-  // "Enable inductive tools" gates Key Words/Observe/Analyze and the advanced
-  // selection-menu items. Study Tools and Settings stay visible either way:
+  // "Enable inductive tools" gates Observe/Analyze and the advanced
+  // selection-menu items. Key Words stays visible either way (with tools off
+  // it opens in a simplified mode for editing marks), as do Study Tools and
+  // Settings:
   // Study Tools is pull-based (the reader goes and asks) and the Discover
   // panel links into it — the panel itself just trims its deeper tabs
   // (Strong's, Hebrew/Greek, Cross-Refs) when the toolkit is off. Before
   // prefs finish hydrating, treat the toolkit as off rather than trusting the
   // in-memory default — a gutted-then-restored flash for an existing user
-  // with the toolkit on would be worse than just starting with Study
+  // with the toolkit on would be worse than just starting with Key Words/Study
   // Tools/Settings-only and filling in the rest once hydration lands.
-  const visibleTools = inductiveToolsVisible ? TOOLS : TOOLS.filter(t => t.type === 'reference');
+  const visibleTools = inductiveToolsVisible
+    ? TOOLS
+    : TOOLS.filter(t => t.type === 'keywords' || t.type === 'reference');
 
   // The selected word's chapter count for the tools-off "every one in this
   // chapter" option. Reads the selection's own translation: the primary
@@ -418,6 +422,10 @@ export function Toolbar() {
             chapterWord={chapterWord}
             onMarkChapter={markWordInChapter}
             onRemoveChapterMark={(preset) => void removePreset(preset.id)}
+            onEditChapterMark={(preset) => {
+              openPanel('keywords', { keywordInitialPresetId: preset.id });
+              setActiveTool(null);
+            }}
             onOpenKeyWordManager={() => {
               openPanel('keywords', {
                 keywordInitialWord: selection?.text?.trim() || undefined,

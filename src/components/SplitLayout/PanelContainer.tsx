@@ -1,6 +1,7 @@
 import { usePanelStore, type PanelType } from '@/stores/panelStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useBibleStore } from '@/stores/bibleStore';
+import { usePreferencesStore } from '@/stores/preferencesStore';
 import { KeyWordManager } from '@/components/KeyWords';
 import { ObservationToolsPanel } from '@/components/Observation';
 import { AnalyzeToolsPanel } from '@/components/Analyze';
@@ -25,6 +26,8 @@ export function PanelContainer() {
     isCollapsed,
     orientation,
     keywordInitialWord,
+    keywordInitialPresetId,
+    keywordRequestId,
     observeInitialTab,
     observeInitialListId,
     observeVerseRef,
@@ -47,6 +50,7 @@ export function PanelContainer() {
   } = usePanelStore();
 
   const { selection, clearSelection } = useAnnotationStore();
+  const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
 
   if (!activePanel) return null;
 
@@ -141,7 +145,10 @@ export function PanelContainer() {
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {activePanel === 'keywords' && (
           <KeyWordManager
+            key={keywordRequestId}
             onClose={handleClose}
+            simple={!inductiveToolsEnabled}
+            initialPresetId={keywordInitialPresetId}
             initialWord={keywordInitialWord}
             onPresetCreated={handleKeywordPresetCreated}
           />

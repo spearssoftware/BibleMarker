@@ -37,6 +37,7 @@ function renderMenu(overrides: Partial<ComponentProps<typeof SelectionMenu>> = {
     onQuickHighlight: vi.fn(),
     onMarkChapter: vi.fn(),
     onRemoveChapterMark: vi.fn(),
+    onEditChapterMark: vi.fn(),
     onCancel: vi.fn(),
     onClose: vi.fn(),
     ...overrides,
@@ -191,6 +192,21 @@ describe('SelectionMenu', () => {
       expect(props.onClose).toHaveBeenCalled();
     });
 
+    it('offers Edit next to Remove, opening the mark in Key Words', async () => {
+      const user = userEvent.setup();
+      const preset = createMarkingPreset({
+        word: 'Jesus',
+        highlight: { style: 'underline', color: 'blue' },
+        scopes: [{ book: 'John', chapter: 11 }],
+      });
+      const props = renderMenu({ advanced: false, selection: jesusSelection, presets: [preset], chapterWord: jesus });
+
+      await user.click(screen.getByRole('button', { name: 'Edit the mark on \u201cJesus\u201d in Key Words' }));
+      expect(props.onEditChapterMark).toHaveBeenCalledWith(preset);
+      expect(props.onRemoveChapterMark).not.toHaveBeenCalled();
+      expect(props.onClose).toHaveBeenCalled();
+    });
+
     it('says a broader key word already marks the word, without offering removal', () => {
       const preset = createMarkingPreset({
         word: 'Jesus',
@@ -200,6 +216,7 @@ describe('SelectionMenu', () => {
 
       expect(screen.getByText(/already marked by a key word/)).toBeTruthy();
       expect(screen.queryByRole('button', { name: /Remove the mark/ })).toBeNull();
+      expect(screen.getByRole('button', { name: /Edit the mark/ })).toBeTruthy();
     });
   });
 });

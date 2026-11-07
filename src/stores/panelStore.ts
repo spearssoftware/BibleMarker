@@ -13,6 +13,8 @@ export type ReferenceTab = 'chapter' | 'search' | 'cross-refs' | 'original-lang'
 interface PanelOpenOptions {
   // Keywords
   keywordInitialWord?: string;
+  /** Open the Key Words panel straight to editing this preset. */
+  keywordInitialPresetId?: string;
   // Observe
   observeInitialTab?: ObservationTab;
   observeInitialListId?: string;
@@ -46,6 +48,9 @@ interface PanelState {
 
   // Panel-specific init props
   keywordInitialWord: string | undefined;
+  keywordInitialPresetId: string | undefined;
+  /** Bumped on every openPanel so the Key Words panel re-reads its initial props, even for the same preset. */
+  keywordRequestId: number;
   observeInitialTab: ObservationTab;
   observeInitialListId: string | undefined;
   observeVerseRef: VerseRef | undefined;
@@ -90,6 +95,8 @@ export const usePanelStore = create<PanelState>()(
       isDragging: false,
 
       keywordInitialWord: undefined,
+      keywordInitialPresetId: undefined,
+      keywordRequestId: 0,
       observeInitialTab: DEFAULT_OBSERVE_TAB,
       observeInitialListId: undefined,
       observeVerseRef: undefined,
@@ -111,6 +118,8 @@ export const usePanelStore = create<PanelState>()(
           activePanel: panel,
           isCollapsed: false,
           keywordInitialWord: opts?.keywordInitialWord,
+          keywordInitialPresetId: opts?.keywordInitialPresetId,
+          keywordRequestId: get().keywordRequestId + 1,
           observeInitialTab: opts?.observeInitialTab ?? DEFAULT_OBSERVE_TAB,
           observeInitialListId: opts?.observeInitialListId,
           observeVerseRef: opts?.observeVerseRef,
@@ -133,6 +142,7 @@ export const usePanelStore = create<PanelState>()(
         set({
           activePanel: null,
           keywordInitialWord: undefined,
+          keywordInitialPresetId: undefined,
           observeInitialTab: DEFAULT_OBSERVE_TAB,
           observeInitialListId: undefined,
           observeVerseRef: undefined,

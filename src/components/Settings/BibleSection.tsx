@@ -180,10 +180,11 @@ export function BibleSection() {
           <div className="flex-1 pr-4">
             <div className="font-ui font-medium text-scripture-text mb-1">Inductive study tools</div>
             <p className="text-xs text-scripture-muted">
-              Adds Observe, Analyze, and the Key Words manager to the bottom bar, key word, person,
-              place, and observation options to the selection menu, and Study Tools&rsquo; deeper
-              tabs: Strong&rsquo;s, Hebrew/Greek, and cross-references. Highlighting, underlining,
-              and marking every use of a word in a chapter work either way.
+              Adds Observe and Analyze to the bottom bar, symbols, categories, and scopes to Key
+              Words, key word, person, place, and observation options to the selection menu, and
+              Study Tools&rsquo; deeper tabs: Strong&rsquo;s, Hebrew/Greek, and cross-references.
+              Highlighting, underlining, marking every use of a word in a chapter, and editing those
+              marks in Key Words work either way.
             </p>
           </div>
           <ToggleSwitch
