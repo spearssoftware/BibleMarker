@@ -52,6 +52,24 @@ jobs:
       - name: Build
         run: pnpm build
 
+  worker-checks:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/spearssoftware/biblemarker/ci-node:latest
+    steps:
+      - uses: actions/checkout@v7
+      # worker/ has its own lockfile and its own node_modules tree, so the
+      # root install the other jobs run does not populate it.
+      - name: Install dependencies
+        run: pnpm install
+        working-directory: worker
+      - name: Type check
+        run: pnpm run typecheck
+        working-directory: worker
+      - name: Test
+        run: pnpm test
+        working-directory: worker
+
   rust-format:
     runs-on: ubuntu-latest
     container:
