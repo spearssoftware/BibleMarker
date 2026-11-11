@@ -55,6 +55,7 @@ interface AnnotationState {
   annotations: Annotation[];
   sectionHeadings: SectionHeading[];
   chapterTitle: ChapterTitle | null;
+  /** Unused: the reader and export popover each load notes into local state. */
   notes: Note[];
   
   // Preferences

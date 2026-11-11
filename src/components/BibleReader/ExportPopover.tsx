@@ -85,7 +85,7 @@ export function ExportPopover({ translation, book, chapter, verses, onClose, tri
       const [ann, hd, nt, ct] = await Promise.allSettled([
         getChapterAnnotations(translation.id, book, chapter),
         getChapterHeadings(translation.id, book, chapter, activeStudyId),
-        getChapterNotes(translation.id, book, chapter),
+        getChapterNotes(book, chapter),
         getChapterTitle(translation.id, book, chapter, activeStudyId),
       ]);
       if (cancelled) return;

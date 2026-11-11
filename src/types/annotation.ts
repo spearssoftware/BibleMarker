@@ -478,8 +478,13 @@ export interface ChapterTitle {
 /** Note attached to a verse or range */
 export interface Note {
   id: string;
+  /**
+   * @deprecated moduleId is no longer used for lookup - notes are
+   * translation-agnostic. Still stamped with the translation the note was
+   * written under, for provenance and backup compatibility.
+   */
   moduleId: string;
-  
+
   // Location
   ref: VerseRef;
   range?: VerseRange;        // Optional range if note covers multiple verses
