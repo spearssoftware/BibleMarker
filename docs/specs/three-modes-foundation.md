@@ -255,7 +255,7 @@ Today every mark is tied to whichever study is active when it is made, and Read 
 | Default study name | "My Bible" | Needs a name in the Studies list | Agent default |
 | Default study implementation | A reserved study id in the existing `studyId` fields | No schema change, no migration, same on every device | Agent default (reviewer finding) |
 | Existing no-study key words and marks | Behave exactly as today; "Use in all studies" is the same state, made visible | Existing users lose nothing inside their studies | Agent default |
-| Titles and headings written inside a real study | Stay in that study; not shown in Read | Consistent with the clean slate | Agent default, needs Kevin's confirmation |
+| Titles and headings written inside a real study | Stay in that study; not shown in Read | Consistent with the clean slate | User |
 | Notes | Show in every mode and study | They have no study today | Agent default |
 | `mode_chosen` payload | Mode encoded in `feature`; no source | Wire format has one string | Agent default (reviewer finding) |
 | Welcome screen flow | Mode required; "Get Started" and "Take Tour" kept; no backdrop dismiss | A mode must be chosen | Agent default |
@@ -270,9 +270,8 @@ Today every mark is tied to whichever study is active when it is made, and Read 
 ## Open questions
 
 1. Is "My Bible" the right name for the default study? (Kevin)
-2. Titles and section headings written inside a real study are not shown in Read or Discover. Is that right, or should Read show every title you have written? (Kevin)
-3. Is "Use in all studies" wanted as a visible checkbox? Without it, new key words can no longer be made to span studies. (Kevin)
-4. Welcome and tour wording marked "Agent default" above needs Kevin's read. (Kevin)
+2. Is "Use in all studies" wanted as a visible checkbox? Without it, new key words can no longer be made to span studies. (Kevin)
+3. Welcome and tour wording marked "Agent default" above needs Kevin's read. (Kevin)
 
 ## Existing code touched
 
