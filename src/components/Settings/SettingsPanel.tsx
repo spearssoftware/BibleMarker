@@ -15,6 +15,7 @@ import { BibleSection } from './BibleSection';
 import { DataSection } from './DataSection';
 import { StudiesSection } from './StudiesSection';
 import { GettingStartedSection } from './GettingStartedSection';
+import { useIsStudyMode } from '@/lib/appMode';
 import { Button } from '@/components/shared';
 import { LOCKMAN_URL } from '@/lib/bible-api';
 
@@ -26,6 +27,7 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPanelProps) {
+  const isStudyMode = useIsStudyMode();
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const [theme, setTheme] = useState<'dark' | 'light' | 'auto'>('dark');
   const [highContrast, setHighContrast] = useState(false);
@@ -72,13 +74,15 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
     loadPrefs();
   }, []);
 
-  const tabs: { id: SettingsTab; label: string; icon: string }[] = [
+  const allTabs: { id: SettingsTab; label: string; icon: string }[] = [
     { id: 'appearance', label: 'Appearance', icon: '🎨' },
     { id: 'bible', label: 'Bible', icon: '📖' },
     { id: 'data', label: 'Backup & Sync', icon: '💾' },
     { id: 'studies', label: 'Studies', icon: '📝' },
     { id: 'help', label: 'Help', icon: '❓' },
   ];
+  const tabs = isStudyMode ? allTabs : allTabs.filter(t => t.id !== 'studies');
+  const effectiveTab = tabs.some(t => t.id === activeTab) ? activeTab : 'appearance';
 
   const handleThemeChange = async (newTheme: 'dark' | 'light' | 'auto') => {
     setTheme(newTheme);
@@ -126,20 +130,20 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                 onClick={() => setActiveTab(tab.id)}
                 role="tab"
                 id={`settings-tab-${tab.id}`}
-                aria-selected={activeTab === tab.id}
+                aria-selected={effectiveTab === tab.id}
                 aria-controls={`settings-tabpanel-${tab.id}`}
                 title={tab.label}
                 className={`
                   px-2 sm:px-3 py-1.5 rounded-lg text-sm font-ui font-medium transition-all
                   flex items-center justify-center gap-1
-                  ${activeTab === tab.id
+                  ${effectiveTab === tab.id
                     ? 'bg-scripture-accent text-scripture-bg shadow-md'
                     : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'
                   }
                 `}
               >
                 <span className="text-base" aria-hidden="true">{tab.icon}</span>
-                <span className={`text-xs ${activeTab === tab.id ? 'inline' : 'hidden'}`}>{tab.label}</span>
+                <span className={`text-xs ${effectiveTab === tab.id ? 'inline' : 'hidden'}`}>{tab.label}</span>
               </button>
             ))}
           </div>
@@ -157,7 +161,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
           ) : (
             <>
           {/* Appearance Tab */}
-          {activeTab === 'appearance' && (
+          {effectiveTab === 'appearance' && (
             <AppearanceSection
               theme={theme}
               highContrast={highContrast}
@@ -167,16 +171,16 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
           )}
 
           {/* Bible Tab */}
-          {activeTab === 'bible' && <BibleSection />}
+          {effectiveTab === 'bible' && <BibleSection />}
 
           {/* Data Tab */}
-          {activeTab === 'data' && <DataSection />}
+          {effectiveTab === 'data' && <DataSection />}
 
           {/* Studies Tab */}
-          {activeTab === 'studies' && <StudiesSection />}
+          {effectiveTab === 'studies' && <StudiesSection />}
 
           {/* Help Tab */}
-          {activeTab === 'help' && (
+          {effectiveTab === 'help' && (
             <div role="tabpanel" id="settings-tabpanel-help" aria-labelledby="settings-tab-help">
             <div className="space-y-0">
               <div className="p-4">
