@@ -44,7 +44,8 @@ import { isCapacitor } from '@/lib/platform';
 import { UpdateBanner, WhatsNewModal, ModesBanner } from '@/components/shared';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { seedAppMode } from '@/lib/modeSeed';
-import { useAppModeStore } from '@/stores/appModeStore';
+import { useAppModeStore, type AppMode } from '@/stores/appModeStore';
+import { switchMode } from '@/lib/appMode';
 import { initTelemetry, shutdownTelemetry } from '@/lib/telemetry';
 
 // Re-hydrate preferences from the DB and seed the app mode on a device that
@@ -57,6 +58,8 @@ async function hydratePreferences() {
   await seedAppMode(prefs);
   return prefs;
 }
+
+const MODE_SHORTCUTS: readonly AppMode[] = ['read', 'discover', 'study'];
 
 function GlobalUndoToast() {
   const { message, onUndo, dismiss } = useUndoToastStore();
@@ -106,6 +109,10 @@ export default function App() {
   // Set up keyboard shortcuts for navigation (arrow keys, J/K)
   useKeyboardShortcuts({
     enabled: true,
+    onModeShortcut: (index) => {
+      const mode = MODE_SHORTCUTS[index];
+      if (mode) switchMode(mode);
+    },
   });
 
   // Handle iOS virtual keyboard avoidance

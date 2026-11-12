@@ -10,7 +10,10 @@ import { render, screen, act, cleanup, fireEvent } from '@testing-library/react'
 import { NavigationBar } from '../NavigationBar';
 import { useReadingPositionStore } from '@/stores/readingPositionStore';
 import { useBibleStore } from '@/stores/bibleStore';
+import { useAppModeStore } from '@/stores/appModeStore';
+import { usePanelStore } from '@/stores/panelStore';
 
+vi.mock('@/lib/telemetry', () => ({ track: vi.fn() }));
 vi.mock('@/lib/bible-api', () => ({
   getAllTranslations: vi.fn().mockResolvedValue([]),
 }));
@@ -54,6 +57,8 @@ const locationButton = () => screen.getByRole('button', { name: /Current locatio
 beforeEach(() => {
   useBibleStore.setState({ currentBook: 'JHN', currentChapter: 3 });
   useReadingPositionStore.setState({ currentVerse: null, verseTrackingPaused: false });
+  useAppModeStore.setState({ mode: 'read' });
+  usePanelStore.setState({ orientation: 'horizontal', activePanel: null });
 });
 
 afterEach(cleanup);
@@ -107,5 +112,15 @@ describe('NavigationBar', () => {
     expect(useReadingPositionStore.getState().verseTrackingPaused).toBe(true);
     view.unmount();
     expect(useReadingPositionStore.getState().verseTrackingPaused).toBe(false);
+  });
+
+  it('marks the overflow button and offers Settings in its menu', async () => {
+    await act(async () => { render(<NavigationBar />); });
+    const more = screen.getByRole('button', { name: 'More actions' });
+    expect(more.hasAttribute('data-nav-more')).toBe(true);
+    fireEvent.click(more);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Settings' }));
+    expect(usePanelStore.getState().activePanel).toBe('settings');
+    expect(screen.queryByRole('menu')).toBeNull();
   });
 });

@@ -14,6 +14,8 @@ import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { Search } from '@/components/Search';
 import { TranslationPicker, UnifiedPicker } from './pickers';
 import { ExportPopover } from './ExportPopover';
+import { ModeSwitch } from './ModeSwitch';
+import { usePanelStore } from '@/stores/panelStore';
 import { ToolbarPopover } from '@/components/shared';
 import { SyncDetailsPanel } from '@/components/shared/SyncStatusIndicator';
 import { useSyncStatus, getStatusColorClass } from '@/hooks/useSyncStatus';
@@ -37,6 +39,7 @@ export function NavigationBar() {
   const [showUnifiedPicker, setShowUnifiedPicker] = useState(false);
   const [showExportPopover, setShowExportPopover] = useState(false);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
+  const [showModeMenu, setShowModeMenu] = useState(false);
   const [showSyncPanel, setShowSyncPanel] = useState(false);
 
   // Sync status now lives in the overflow menu (keeps the top bar uncluttered).
@@ -49,7 +52,7 @@ export function NavigationBar() {
   const overflowButtonRef = useRef<HTMLButtonElement>(null);
 
   // Lock scroll when any picker is open (but not for dropdowns - they use lockScroll: false in useModal)
-  const anyPickerOpen = showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker || showUnifiedPicker || showExportPopover || showOverflowMenu || showSyncPanel;
+  const anyPickerOpen = showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker || showUnifiedPicker || showExportPopover || showOverflowMenu || showModeMenu || showSyncPanel;
   // Note: Individual pickers use useModal with lockScroll: false, so scroll locking here is optional
   // Keeping this commented for now as dropdowns shouldn't lock scroll
   // useScrollLock(anyPickerOpen);
@@ -139,6 +142,7 @@ export function NavigationBar() {
       setShowVersePicker(false);
       setShowUnifiedPicker(false);
       setShowOverflowMenu(false);
+      setShowModeMenu(false);
     };
 
     // Keyboard shortcut for search (Cmd/Ctrl+F)
@@ -170,6 +174,7 @@ export function NavigationBar() {
     setShowVersePicker(false);
     setShowUnifiedPicker(false);
     setShowOverflowMenu(false);
+    setShowModeMenu(false);
     setShowExportPopover(false);
     setShowSyncPanel(false);
     setShowSearch(false);
@@ -261,7 +266,7 @@ export function NavigationBar() {
             }}
             className={`px-2 sm:px-3 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
                        border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center gap-1.5
-                       select-none flex-shrink-0 max-w-[40vw] sm:max-w-[10rem]
+                       select-none min-w-0 max-w-[24vw] sm:max-w-[10rem]
                        ${showTranslationPicker
                          ? 'bg-scripture-accent text-scripture-bg shadow-md'
                          : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
@@ -305,9 +310,18 @@ export function NavigationBar() {
 
         {/* Right: overflow menu and next chapter (sync moved into the overflow menu) */}
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <ModeSwitch
+            menuOpen={showModeMenu}
+            onMenuOpenChange={(open) => {
+              closeAllPanels();
+              setShowModeMenu(open);
+            }}
+          />
+
           {/* Overflow menu — secondary actions (sync, export, future items) */}
           <button
             ref={overflowButtonRef}
+            data-nav-more
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -473,6 +487,18 @@ export function NavigationBar() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4" />
               </svg>
               Export page…
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => { setShowOverflowMenu(false); usePanelStore.getState().openPanel('settings'); }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left
+                         text-scripture-text hover:bg-scripture-elevated transition-colors min-h-[44px]"
+            >
+              <svg className="w-5 h-5 flex-shrink-0 text-scripture-muted" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Settings
             </button>
           </div>
         </ToolbarPopover>

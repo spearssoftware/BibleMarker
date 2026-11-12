@@ -10,6 +10,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 
 interface KeyboardShortcutsOptions {
   onToolbarTool?: (toolIndex: number) => void;
+  onModeShortcut?: (index: number) => void;
   enabled?: boolean;
 }
 
@@ -22,6 +23,7 @@ const TOOLBAR_TOOLS = [
 
 export function useKeyboardShortcuts({
   onToolbarTool,
+  onModeShortcut,
   enabled = true,
 }: KeyboardShortcutsOptions = {}) {
   const { nextChapter, previousChapter, canGoNext, canGoPrevious } = useBibleStore();
@@ -46,6 +48,19 @@ export function useKeyboardShortcuts({
 
       // Allow Escape key even when input is focused (for closing modals)
       if (isInputFocused && e.key !== 'Escape') {
+        return;
+      }
+
+      // Mode shortcuts (Cmd/Ctrl+1-3)
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        !e.altKey &&
+        !e.shiftKey &&
+        e.key >= '1' &&
+        e.key <= '3'
+      ) {
+        e.preventDefault();
+        onModeShortcut?.(parseInt(e.key, 10) - 1);
         return;
       }
 
@@ -116,6 +131,7 @@ export function useKeyboardShortcuts({
     canGoNext,
     canGoPrevious,
     onToolbarTool,
+    onModeShortcut,
   ]);
 }
 
@@ -131,6 +147,9 @@ export function getKeyboardShortcutsHelp(): Array<{ keys: string[]; description:
     { keys: ['2'], description: 'Observe' },
     { keys: ['3'], description: 'Analyze' },
     { keys: ['4'], description: 'Study' },
+    { keys: ['Cmd/Ctrl', '1'], description: 'Read mode' },
+    { keys: ['Cmd/Ctrl', '2'], description: 'Discover mode' },
+    { keys: ['Cmd/Ctrl', '3'], description: 'Study mode' },
     { keys: ['Esc'], description: 'Close modals/overlays' },
   ];
 }
