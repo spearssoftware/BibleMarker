@@ -397,6 +397,24 @@ export function MultiTranslationView() {
       );
     };
 
+    // Auto-populate places, people and time expressions for keywords found in
+    // this chapter: once per chapter and study, from the primary translation.
+    // The study is part of the key because it decides which keywords apply.
+    const autoPopulatePrimary = (translationId: string) => {
+      if (translationId !== primaryTranslationId) return;
+      const autoPopulateKey = `${currentBook}:${currentChapter}:${translationId}:${activeStudyId ?? ''}`;
+      if (autoPopulatedRef.current.has(autoPopulateKey)) return;
+      autoPopulatedRef.current.add(autoPopulateKey);
+      // Run in background - don't block UI
+      Promise.all([
+        autoPopulatePlacesFromChapter(currentBook, currentChapter, translationId),
+        autoPopulateTimeFromChapter(currentBook, currentChapter, translationId),
+        autoPopulatePeopleFromChapter(currentBook, currentChapter, translationId),
+      ]).catch(error => {
+        console.error('[MultiTranslationView] Auto-populate failed:', error);
+      });
+    };
+
     const newChapters = new Map<string, TranslationChapter>();
 
     // Initialize all translations with loading state
@@ -416,6 +434,9 @@ export function MultiTranslationView() {
         // activeChapterStore would keep showing the *previous* primary's verses. setActiveChapterVerses
         // itself no-ops when nothing actually changed, so no need to check here.
         publishPrimaryVerses(translationId, existing.chapter);
+        // A study or mode change re-runs this loader without a fetch; the
+        // newly applicable keywords still need populating.
+        autoPopulatePrimary(translationId);
         continue;
       }
 
@@ -451,22 +472,7 @@ export function MultiTranslationView() {
 
         publishPrimaryVerses(translationId, chapter);
 
-        // Auto-populate places and time expressions for keywords found in this chapter
-        // Only do this once per chapter (use primary translation)
-        if (translationId === primaryTranslationId) {
-          const autoPopulateKey = `${currentBook}:${currentChapter}:${translationId}:${activeStudyId ?? ''}`;
-          if (!autoPopulatedRef.current.has(autoPopulateKey)) {
-            autoPopulatedRef.current.add(autoPopulateKey);
-            // Run in background - don't block UI
-            Promise.all([
-              autoPopulatePlacesFromChapter(currentBook, currentChapter, translationId),
-              autoPopulateTimeFromChapter(currentBook, currentChapter, translationId),
-              autoPopulatePeopleFromChapter(currentBook, currentChapter, translationId),
-            ]).catch(error => {
-              console.error('[MultiTranslationView] Auto-populate failed:', error);
-            });
-          }
-        }
+        autoPopulatePrimary(translationId);
       } catch (error) {
         // Try KJV as fallback (free, no API key required)
         const FALLBACK_TRANSLATION = 'kjv';

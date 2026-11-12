@@ -110,7 +110,7 @@ export function switchMode(mode: AppMode): void {
   const crossesStudy = (previous === 'study') !== (mode === 'study');
   if (
     activePanel &&
-    (!PANELS_OFFERED[mode].includes(activePanel) || (crossesStudy && activePanel === 'keywords'))
+    (!panelOffered(mode, getDiscoveryEnabled(), activePanel) || (crossesStudy && activePanel === 'keywords'))
   ) {
     closePanel();
   }

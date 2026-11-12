@@ -241,6 +241,15 @@ describe('switchMode', () => {
     expect(usePanelStore.getState().activePanel).toBe('discovery');
   });
 
+  it('closes the Discover panel when the kill switch is off, even entering Study', () => {
+    setDiscoveryFlag(false);
+    usePanelStore.setState({ activePanel: 'discovery' });
+
+    switchMode('study');
+
+    expect(usePanelStore.getState().activePanel).toBeNull();
+  });
+
   it('clears the Discover lens and the text selection', () => {
     useDiscoveryStore.setState({ lens: 'connectors' });
     useAnnotationStore.setState({

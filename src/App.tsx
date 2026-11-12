@@ -121,7 +121,7 @@ export default function App() {
 
   // Set up keyboard shortcuts for navigation (arrow keys, J/K)
   useKeyboardShortcuts({
-    enabled: !showWelcome && !showTranslationLibrary && !showTour,
+    enabled: !isCheckingOnboarding && !showWelcome && !showTranslationLibrary && !showTour,
     onModeShortcut: handleModeShortcut,
   });
 

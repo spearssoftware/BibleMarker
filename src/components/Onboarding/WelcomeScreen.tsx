@@ -23,15 +23,15 @@ interface WelcomeScreenProps {
 export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
   const discoveryEnabled = useDiscoveryEnabled();
   const offeredModes = availableModes(discoveryEnabled);
-  const [selected, setSelected] = useState<AppMode | null>(() => {
-    const stored = useAppModeStore.getState().mode;
-    return stored !== null && offeredModes.includes(stored) ? stored : null;
-  });
+  const [picked, setSelected] = useState<AppMode | null>(() => useAppModeStore.getState().mode);
+  // A pick only counts while its mode is offered: the kill switch can remove
+  // Discover while this screen is showing.
+  const selected = picked !== null && offeredModes.includes(picked) ? picked : null;
   const [isDismissing, setIsDismissing] = useState(false);
   const cardRefs = useRef<Partial<Record<AppMode, HTMLButtonElement | null>>>({});
   const tabStopRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
-  const tabStop = selected !== null && offeredModes.includes(selected) ? selected : offeredModes[0];
+  const tabStop = selected ?? offeredModes[0];
 
   // Focus handling and scroll lock come from the shared modal hook; the Welcome
   // screen is not dismissable, so Escape is left alone.

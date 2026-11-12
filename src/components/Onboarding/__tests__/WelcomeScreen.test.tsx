@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor, act } from '@testing-library/react';
 import { WelcomeScreen } from '../WelcomeScreen';
 import { getPreferences, updatePreferences } from '@/lib/database';
 import { DEFAULT_FLAGS, FLAG_KEYS } from '@/lib/feature-flags';
@@ -224,5 +224,17 @@ describe('WelcomeScreen', () => {
     renderWelcome();
 
     expect(screen.getAllByRole('radio').every(r => r.getAttribute('aria-checked') === 'false')).toBe(true);
+  });
+
+  it('drops a picked Discover when the kill switch turns off while the screen is showing', () => {
+    renderWelcome();
+    fireEvent.click(screen.getByRole('radio', { name: /^Discover/ }));
+    expect((screen.getByRole('button', { name: 'Get Started' }) as HTMLButtonElement).disabled).toBe(false);
+
+    act(() => setDiscoveryFlag(false));
+
+    expect(screen.getAllByRole('radio').every(r => r.getAttribute('aria-checked') === 'false')).toBe(true);
+    expect((screen.getByRole('button', { name: 'Get Started' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Take Tour' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
