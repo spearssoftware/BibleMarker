@@ -131,18 +131,24 @@ On the first launch of this version on a device that has already seen the Welcom
 
 ### Marks and studies
 
-Today every mark is tied to whichever study is active when it is made, and Read and Discover have no study controls. The rule from now on:
+Today every mark is tied to whichever study is selected when it is made, and Read and Discover have no study controls. The rule from now on:
 
-- There is a built-in study named "My Bible". It is always first in Settings › Studies, is selected by default, and offers only "select": no rename, delete, export or PDF controls. The existing "Clear Active Study" button is removed; selecting "My Bible" replaces it.
+- "My Bible" is the existing "no study selected" state, given a name. It is the first row in Settings › Studies and is active whenever no study is selected. Its row offers only "Set Active": no rename, delete, export or PDF controls. The "Clear Active Study" button is removed; choosing "My Bible" does the same thing.
 - Read and Discover always work in "My Bible", whatever study is selected in Study mode.
-- Study mode works in the study selected in Settings › Studies. That selection is remembered per device, as `study-state` is today, and is not changed by visiting Read or Discover.
-- Everything created while "My Bible" is in effect belongs to "My Bible": highlights, chapter marks, key words, and in Study mode also chapter titles, section headings, lists, people, places and time expressions.
-- "My Bible" content shows in Read, in Discover, and in Study while "My Bible" is selected. It is hidden while another study is selected. A real study is a clean slate.
-- Content created inside a real study shows only in Study mode with that study selected. This includes chapter titles and section headings: a title written inside "Romans" does not show in Read.
-- Key words and marks that exist before this update and belong to no study keep today's behavior exactly: key words show in every study, plain highlights show only when no real study is selected. Chapter titles and section headings with no study keep showing everywhere.
-- In the full Key Words manager (Study only) a key word has a checkbox "Use in all studies". On means it belongs to no study and shows in every study, like the pre-update key words. Off, while "My Bible" is selected, means it belongs to "My Bible". Marks created in Read or Discover always start with it off.
+- Study mode works in the study selected in Settings › Studies. The selection keeps today's behavior: it is stored on the study rows and follows the account. Visiting Read or Discover does not change it.
+- Marks made in Read and Discover are filed under no study, so they never carry a real study's id.
+- What shows inside a real study, compared with "My Bible":
+
+| Made under "My Bible" | Inside a real study |
+|---|---|
+| Plain highlights, underlines, text colors | Hidden (clean slate) |
+| Word marks ("every one in this chapter") and key words | Still shown, as no-study key words are today |
+| Chapter titles and section headings | Still shown, as no-study titles are today |
+
+- A chapter title or section heading written inside "Romans" is not shown in Read or Discover.
 - Notes have no study today and keep showing in every mode and every study.
-- A chapter mark made in Read appears in the full Key Words manager in Study (with "My Bible" selected), where its scope can be widened and a symbol and category added.
+- A chapter mark made in Read appears in the full Key Words manager in Study, where its scope can be changed and a symbol and category added.
+- Known and left as it is: in Study with "My Bible" selected, the People, Places, Time, Analyze and Timeline views list entries from every study, as "no study selected" does today.
 
 ## Data and interfaces
 
@@ -160,14 +166,16 @@ Today every mark is tied to whichever study is active when it is made, and Read 
 
 ### Marks and studies
 
-- "My Bible" is a reserved, fixed study id (a constant, the same on every device), written to the existing `studyId` / `study_id` fields. No column is added and no existing row is rewritten, so there is no data migration and nothing that could run differently on two devices.
-- `studyId` now has three meanings: absent = all studies (every pre-update row, and key words with "Use in all studies" on); the reserved id = "My Bible"; any other id = that study.
-- One selector, the effective study, replaces every direct read of `studyStore.activeStudyId`: in Read and Discover it is always "My Bible"; in Study it is the selected study, with "no study selected" treated as "My Bible". Every reader and writer of the active study uses it. Known consumers on this branch: `Toolbar.tsx` (`applyPresetToSelection`, `markWordInChapter`, person and place creation, `filterPresetsByStudy` call), `useAnnotations.ts`, `discoveryActions.ts`, `RepetitionCard.tsx`, `VerseText.tsx`, `MultiTranslationView.tsx`, `discoveryStore.ts`, `ExportPopover.tsx`, `EntityNotes.tsx`, `KeyWordManager.tsx`, and the heading and title queries in `sqlite-db.ts` (`study_id IS NULL OR = ?`).
-- Visibility under the effective study E:
-  - Presets (`filterPresetsByStudy`): shown when `studyId` is absent or equals E. This is today's rule once E is never null.
-  - Annotations (`filterAnnotationsByStudy`): an annotation with a preset follows its preset's study, as today. A preset-less annotation with a `studyId` shows when it equals E. A preset-less annotation with no `studyId` (pre-update) shows only when E is "My Bible", which is today's "no study selected" rule.
-  - Chapter titles and section headings: shown when `study_id` is null or equals E, as the existing queries do.
-- "Export page" in Read and Discover exports "My Bible" content.
+- Nothing in the data model changes: no reserved study id, no new column, no migration. "My Bible" is a study id of `null`, which is what "no study selected" already is.
+- The reserved-id design was dropped because the startup cleanup `sqliteCleanupOrphanedStudyRecords` deletes every row whose study id is not in the `studies` table, on this version and on older ones that cannot be patched.
+- One selector, the effective study, replaces every direct read of `studyStore.activeStudyId` in rendered code: in Study it is the selected study; in Read and Discover it is `null`. Because it is `null` outside Study, every existing "no study" code path keeps working. Known consumers: `Toolbar.tsx`, `useAnnotations.ts`, `RepetitionCard.tsx`, `VerseText.tsx`, `MultiTranslationView.tsx`, `discoveryStore.ts`, `ExportPopover.tsx`, `EntityNotes.tsx`, `KeyWordManager.tsx`, `keywordTap.ts`, `observationAutoAdd.ts`, the place, people and time stores, and the Observe, Analyze and Timeline views. The Settings › Studies list and the onboarding tour read the raw selection, because they select the study.
+- Visibility, unchanged from today (`studyFilter.ts` and the heading and title queries are not touched):
+  - Presets (`filterPresetsByStudy`): shown when `studyId` is absent or equals the effective study.
+  - Annotations (`filterAnnotationsByStudy`): an annotation with a preset follows its preset's study. A preset-less annotation with a `studyId` shows when it equals the effective study. A preset-less annotation with no `studyId` shows only when no study is in effect.
+  - Chapter titles and section headings: shown when `study_id` is null or equals the effective study.
+- Entity notes: with no study in effect, only notes with no study show; with a study in effect, notes with no study plus that study's.
+- Auto-populating places, people and time from a chapter uses only the key words visible under the effective study, so a key word that belongs to one study creates nothing while reading in Read.
+- "Export page" in Read and Discover exports "My Bible" content, and the export leaves out annotations hidden by the effective study.
 
 ### Telemetry
 
@@ -184,7 +192,7 @@ Today every mark is tied to whichever study is active when it is made, and Read 
 - **Mode store fails to load or holds an unknown value**: treat as no stored mode and run the seeding rule (Welcome choice, or the upgrade rule).
 - **Existing user with no data** lands in Discover and sees the Discover banner. If they later sign in and sync down marks, the mode does not change by itself.
 - **Second device, same account**: it is a fresh install, so the Welcome screen asks. Its mode is independent.
-- **An older app version on another device** does not know the reserved "My Bible" id and treats it as an unknown study, so "My Bible" marks made on the new version are hidden there (not deleted) until that device updates. Accepted.
+- **An older app version on another device**: unaffected, because nothing new is stored.
 - **Mode store lost after seeding**: the banner can show once more and `mode_chosen` can be sent once more. Accepted.
 - **Switching out of Study while a chapter-title or section-heading editor is open**: the editor saves what was typed, as it does whenever it loses focus, and closes. An empty editor just closes. There is no "discard" prompt, because nothing is discarded. A note editor is available in every mode and stays open.
 - **Switching out of Study while typing in an Observe-panel form** (observation, time expression): the Observe panel closes and the unsaved text is lost, the same as closing that panel today. Known limitation.
@@ -202,14 +210,14 @@ Today every mark is tied to whichever study is active when it is made, and Read 
 ## Constraints
 
 - Stack and conventions per `CLAUDE.md`: Zustand store named `useXxxStore`, shared components (`Button`, `SegmentedControl`), `scripture-*` colors only, no new npm dependencies.
-- No database schema change and no `SCHEMA_VERSION` bump. `marking_presets` has fixed columns, so nothing new is stored on a preset; "My Bible" uses the existing `study_id` columns.
+- No database schema change and no `SCHEMA_VERSION` bump. `marking_presets` has fixed columns, and "My Bible" stores nothing new.
 - Delivered as four PRs into `discovery`, in this order. `discovery` is not released between them, but each PR leaves the app usable and the onboarding tour working:
   - 2a: mode store, selectors, upgrade rule and banner, every existing gate moved to the mode, the switch, shortcuts, `mode_chosen` (worker first), the bottom bar per mode, "Settings" in ⋯, removal of the "Inductive study tools" row. Tour steps whose targets move (`settings`, `discovery`) are retargeted here.
   - 2b: Discover default panel and narrow "Discover" button, panel return rule, verse menu, marked-word tap, read-only titles and headings, Study-only Settings rows and tab.
   - 2c: Welcome screen and per-mode tours.
-  - 2d: "My Bible", the effective study, and "Use in all studies". Until 2d lands, Read and Discover marks attach to the selected study as they do today; criteria 14–16 apply from 2d.
+  - 2d: "My Bible" and the effective study. Until 2d lands, Read and Discover marks attach to the selected study as they do today; criteria 14–16 apply from 2d.
 - Tests required:
-  - Unit: the selectors (including the kill switch), the upgrade rule (the five rows of the table above), the effective study per mode, `filterPresetsByStudy` and `filterAnnotationsByStudy` for all three `studyId` meanings.
+  - Unit: the selectors (including the kill switch), the upgrade rule (the five rows of the table above), the effective study per mode, `filterPresetsByStudy` and `filterAnnotationsByStudy` for a study in effect and for none.
   - Component: `NavigationBar` switch (wide and narrow), `Toolbar` per mode, `VerseNumberMenu` per mode, `WelcomeScreen`, `OnboardingTour` per mode. Existing tests that mock `{ inductiveToolsEnabled }` are moved to the mode.
   - `just check` passes on every PR.
 - Manual passes before each PR is called done: iOS Simulator phone portrait, iPad landscape, desktop dev build (`pnpm run tauri:dev`).
@@ -229,9 +237,9 @@ Today every mark is tied to whichever study is active when it is made, and Read 
 11. With telemetry on, each mode change sends one `mode_chosen` event whose `feature` is `mode_read`, `mode_discover` or `mode_study`; with telemetry off, none is sent (unit test on `track`). The worker test suite accepts a batch containing `mode_chosen`.
 12. "Settings" is in the ⋯ menu in every mode and opens the Settings panel. Settings › Bible has no "Inductive study tools" row.
 13. `rg -l "inductiveToolsEnabled" src -g '!*.test.*' -g '!**/__tests__/**'` lists only `src/types/preferences.ts`, `src/stores/preferencesStore.ts` and the module that seeds the mode.
-14. Given a real study "Romans" is selected in Study mode and the user switches to Read, highlights a verse and marks a word "every one in this chapter", and switches back to Study, then both marks are hidden while "Romans" is selected and visible when "My Bible" is selected.
-15. Given a key word with no study that existed before the update, then it still marks text while "Romans" is selected, and its "Use in all studies" checkbox is on. Turning the checkbox off while "My Bible" is selected hides it in "Romans".
-16. "My Bible" is first in Settings › Studies, is selected on a fresh install, and has no rename, delete, export or PDF control. There is no "Clear Active Study" button.
+14. Given a real study "Romans" is selected in Study mode and the user switches to Read, highlights a verse and marks a word "every one in this chapter", and switches back to Study, then under "Romans" the highlight is hidden and the word mark is shown; under "My Bible" both are shown. Neither carries Romans' study id.
+15. Given a key word with no study that existed before the update, then it still marks text while "Romans" is selected (unchanged behavior).
+16. "My Bible" is the first row in Settings › Studies, is active when no study is selected, and has no Edit, Delete or "Export PDF". There is no "Clear Active Study" button.
 17. `just check` exits 0.
 
 ## Decisions
@@ -252,15 +260,15 @@ Today every mark is tied to whichever study is active when it is made, and Read 
 | Mode labels and one-liners | As quoted | "Roll with this for now" | User |
 | Tour for Read | A quick one | | User |
 | Telemetry | `mode_chosen`, opt-in | "Do people actually use this stuff" | User |
-| Marks made in Read and Discover | Go to a default study; real studies stay a clean slate | | User |
+| Marks made in Read and Discover | Filed under "My Bible"; plain highlights are hidden inside a real study | | User |
 | Default study name | "My Bible" | Needs a name in the Studies list | Agent default |
-| Default study implementation | A reserved study id in the existing `studyId` fields | No schema change, no migration, same on every device | Agent default (reviewer finding) |
-| Existing no-study key words and marks | Behave exactly as today; "Use in all studies" is the same state, made visible | Existing users lose nothing inside their studies | Agent default |
-| Titles and headings written inside a real study | Stay in that study; not shown in Read | Consistent with the clean slate | User |
+| Default study design | My Bible is the existing no-study state; no data change | A reserved study id would be deleted by the startup orphan cleanup on this and older versions | User (2026-11-12) |
+| Existing no-study key words and marks | Behave exactly as today | Existing users lose nothing inside their studies | Agent default |
+| Titles and headings written inside a real study | Stay in that study; not shown in Read | They carry that study's id | User |
 | Notes | Show in every mode and study | They have no study today | Agent default |
 | `mode_chosen` payload | Mode encoded in `feature`; no source | Wire format has one string | Agent default (reviewer finding) |
 | Welcome screen flow | Mode required; "Get Started" and "Take Tour" kept; no backdrop dismiss | A mode must be chosen | Agent default |
-| "My Bible" row in Studies | Select only | Export of everything is out of scope | Agent default |
+| "My Bible" row in Studies | First row; "Active" badge or "Set Active"; no Edit, Delete or "Export PDF" | It is not a stored study; export of everything is out of scope | Agent default |
 | Welcome heading and helper line, tour step copy | As quoted | Needed verbatim | Agent default |
 | Reopening a closed Discover panel on wide screens | Select the "Discover" segment again | No bottom bar to hold a button | Agent default |
 | Kill switch off | Discover behaves as Read; switch shows two options | | Agent default |
@@ -271,8 +279,7 @@ Today every mark is tied to whichever study is active when it is made, and Read 
 ## Open questions
 
 1. Is "My Bible" the right name for the default study? (Kevin)
-2. Is "Use in all studies" wanted as a visible checkbox? Without it, new key words can no longer be made to span studies. (Kevin)
-3. Welcome and tour wording marked "Agent default" above needs Kevin's read. (Kevin)
+2. Welcome and tour wording marked "Agent default" above needs Kevin's read. (Kevin)
 
 ## Existing code touched
 
@@ -294,7 +301,10 @@ Today every mark is tied to whichever study is active when it is made, and Read 
 | `src/components/Onboarding/WelcomeScreen.tsx`, `OnboardingTour.tsx` | Replaced content: mode choice, per-mode tours |
 | `src/hooks/useKeyboardShortcuts.ts` | Extended |
 | `src/lib/telemetry.ts`, `worker/src/events.ts` | Extended: `mode_chosen` |
-| `src/lib/studyFilter.ts`, `src/stores/studyStore.ts`, `src/components/KeyWords/KeyWordManager.tsx` | Extended: "My Bible", effective study, "Use in all studies" |
+| New `src/lib/effectiveMode.ts`, `src/lib/effectiveStudy.ts` | New: the effective mode moved out of `appMode.ts`; the effective study |
+| `src/lib/studyFilter.ts`, `src/stores/studyStore.ts` | Left alone |
+| `src/components/KeyWords/KeyWordManager.tsx`, `src/lib/keywordTap.ts`, `src/lib/observationAutoAdd.ts`, place, people, time and entity-note stores, Observe, Analyze and Timeline views | Extended: read the effective study |
+| `src/lib/passage-pdf.ts` | Extended: export leaves out annotations hidden by the study |
 | `src/hooks/useAnnotations.ts`, `src/lib/discoveryActions.ts`, `src/components/BibleReader/VerseText.tsx`, `ExportPopover.tsx`, `src/stores/discoveryStore.ts`, `src/components/Reference/EntityNotes.tsx` | Extended: read the effective study instead of `activeStudyId` |
 | `src/lib/sqlite-db.ts` | Left alone: no schema change; heading and title queries are called with the effective study |
 | `docs/specs/discovery-phase-3-setting-and-connections.md` | Left alone; its "discovery-mode / inductive-mode" wording is superseded by this spec |
