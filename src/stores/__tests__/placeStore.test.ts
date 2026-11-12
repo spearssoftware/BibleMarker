@@ -60,10 +60,21 @@ describe('placeStore.autoPopulateFromChapter', () => {
     expect(db.places[0].studyId).toBeUndefined();
   });
 
-  it('rewrites a stale study in Study, as before', async () => {
+  it('leaves a no-study place with no study when the chapter loads in Study', async () => {
     useAppModeStore.setState({ mode: 'study' });
     presetState.presets = [eden()];
     db.places = [makePlace({ id: 'place-eden', name: 'Eden', presetId: 'preset-eden', verseRef: makeVerseRef({ verse: 1 }) })];
+
+    await usePlaceStore.getState().autoPopulateFromChapter('Gen', 1);
+
+    expect(db.places).toHaveLength(1);
+    expect(db.places[0].studyId).toBeUndefined();
+  });
+
+  it('rewrites a place that belongs to another study when loaded under the selected study', async () => {
+    useAppModeStore.setState({ mode: 'study' });
+    presetState.presets = [eden()];
+    db.places = [makePlace({ id: 'place-eden', name: 'Eden', presetId: 'preset-eden', studyId: 'study-0', verseRef: makeVerseRef({ verse: 1 }) })];
 
     await usePlaceStore.getState().autoPopulateFromChapter('Gen', 1);
 

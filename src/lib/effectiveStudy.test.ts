@@ -62,6 +62,12 @@ describe('useEffectiveStudyId and getEffectiveStudyId', () => {
     expect(getEffectiveStudyId()).toBeNull();
   });
 
+  it('returns null from the hook when no mode is stored, even with a study selected', () => {
+    useAppModeStore.setState({ mode: null });
+    const { result } = renderHook(() => useEffectiveStudyId());
+    expect(result.current).toBeNull();
+  });
+
   it('yields null before a mode is stored', () => {
     useAppModeStore.setState({ mode: null });
     expect(getEffectiveStudyId()).toBeNull();

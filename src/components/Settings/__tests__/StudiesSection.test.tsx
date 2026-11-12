@@ -47,7 +47,7 @@ describe('StudiesSection', () => {
     const row = within(myBibleRow());
     expect(row.getByText('Marks you make in Read and Discover go here.')).toBeTruthy();
     expect(row.getByText('Active')).toBeTruthy();
-    expect(row.queryByRole('button', { name: 'Set Active' })).toBeNull();
+    expect(row.queryByRole('button', { name: 'Set My Bible active' })).toBeNull();
     expect(row.queryByRole('button', { name: 'Edit' })).toBeNull();
     expect(row.queryByRole('button', { name: 'Delete' })).toBeNull();
     expect(row.queryByRole('button', { name: 'Export PDF' })).toBeNull();
@@ -66,12 +66,12 @@ describe('StudiesSection', () => {
     render(<StudiesSection />);
     await screen.findByText('Romans');
 
-    await user.click(screen.getByRole('button', { name: 'Set Active' }));
+    await user.click(screen.getByRole('button', { name: 'Set Romans active' }));
     await waitFor(() => expect(useStudyStore.getState().activeStudyId).toBe('study-1'));
 
     const row = within(myBibleRow());
     expect(row.queryByText('Active')).toBeNull();
-    await user.click(row.getByRole('button', { name: 'Set Active' }));
+    await user.click(row.getByRole('button', { name: 'Set My Bible active' }));
     await waitFor(() => expect(useStudyStore.getState().activeStudyId).toBeNull());
     expect(within(myBibleRow()).getByText('Active')).toBeTruthy();
   });

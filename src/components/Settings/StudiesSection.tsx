@@ -149,7 +149,7 @@ export function StudiesSection() {
             </div>
             {activeStudyId !== null && (
               <div className="flex items-center gap-2 flex-wrap sm:flex-shrink-0">
-                <Button onClick={() => setActiveStudy(null)}>Set Active</Button>
+                <Button aria-label="Set My Bible active" onClick={() => setActiveStudy(null)}>Set Active</Button>
               </div>
             )}
           </div>
@@ -207,6 +207,7 @@ export function StudiesSection() {
                         {activeStudyId !== study.id && (
                           <button
                             onClick={() => setActiveStudy(study.id)}
+                            aria-label={`Set ${study.name} active`}
                             className="px-3 py-2 text-sm font-ui bg-scripture-accent text-scripture-bg rounded-lg
                                      hover:bg-scripture-accent/90 transition-all duration-200 shadow-md"
                           >

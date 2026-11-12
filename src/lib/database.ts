@@ -716,7 +716,7 @@ export async function getEntityNotes(entitySlug: string, studyId?: string): Prom
   const all = await getAllEntityNotes();
   return all.filter(n =>
     n.entitySlug === entitySlug &&
-    (!studyId || n.studyId === studyId)
+    (!n.studyId || n.studyId === studyId)
   );
 }
 

@@ -40,6 +40,7 @@ import { KeyWordManager } from '../KeyWordManager';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
+import { useAppModeStore } from '@/stores/appModeStore';
 
 function renderManager(props: Partial<ComponentProps<typeof KeyWordManager>> = {}) {
   return render(<KeyWordManager simple {...props} />);
@@ -79,6 +80,7 @@ describe('KeyWordManager simple mode', () => {
   });
 
   it('hides a study\'s key word in the simple list while that study is selected', async () => {
+    useAppModeStore.setState({ mode: 'read' });
     db.presets = [
       createMarkingPreset({
         word: 'Jesus',

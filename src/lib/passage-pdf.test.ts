@@ -14,6 +14,7 @@ const { renderedAnnotations } = vi.hoisted(() => ({ renderedAnnotations: { curre
 
 vi.mock('@/lib/pdf/symbol-cache', () => ({
   iconCacheKey: () => '',
+  // The mock receives every annotation that survives the study filter, which is what the test inspects.
   buildIconCache: async (perVerse: Annotation[][]) => {
     renderedAnnotations.current = perVerse.flat();
     throw new Error('stop after the annotation pass');

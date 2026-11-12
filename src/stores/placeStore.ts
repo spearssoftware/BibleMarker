@@ -292,7 +292,7 @@ export const usePlaceStore = create<PlaceState>()(
             if (existing) {
               // Place already exists for this name+verse. Fix stale presetId or studyId if needed.
               const stalePreset = existing.presetId && !validPresetIds.has(existing.presetId);
-              const staleStudy = activeStudyId && existing.studyId !== activeStudyId;
+              const staleStudy = activeStudyId && existing.studyId && existing.studyId !== activeStudyId;
               if (stalePreset || staleStudy) {
                 const patched = {
                   ...existing,

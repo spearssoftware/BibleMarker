@@ -1,8 +1,9 @@
 /**
  * App mode helpers
  *
- * Labels, effective-mode resolution and the `switchMode` action. The stored
- * mode (`useAppModeStore`) is what the user chose; the effective mode applies
+ * Labels and the `switchMode` action; effective-mode resolution lives in
+ * `effectiveMode.ts` (re-exported here). The stored mode (`useAppModeStore`) is
+ * what the user chose; the effective mode applies
  * the `discovery-enabled` kill switch (a stored 'discover' behaves as Read
  * while it is off) and treats an unseeded mode as Read.
  */

@@ -454,7 +454,7 @@ export function MultiTranslationView() {
         // Auto-populate places and time expressions for keywords found in this chapter
         // Only do this once per chapter (use primary translation)
         if (translationId === primaryTranslationId) {
-          const autoPopulateKey = `${currentBook}:${currentChapter}:${translationId}`;
+          const autoPopulateKey = `${currentBook}:${currentChapter}:${translationId}:${activeStudyId ?? ''}`;
           if (!autoPopulatedRef.current.has(autoPopulateKey)) {
             autoPopulatedRef.current.add(autoPopulateKey);
             // Run in background - don't block UI

@@ -135,6 +135,7 @@ Today every mark is tied to whichever study is selected when it is made, and Rea
 
 - "My Bible" is the existing "no study selected" state, given a name. It is the first row in Settings › Studies and is active whenever no study is selected. Its row offers only "Set Active": no rename, delete, export or PDF controls. The "Clear Active Study" button is removed; choosing "My Bible" does the same thing.
 - Read and Discover always work in "My Bible", whatever study is selected in Study mode.
+- Reading a chapter never assigns a "My Bible" place, person or time entry to a study; an entry that already belongs to one study can still be re-assigned when its chapter is loaded under another, as today.
 - Study mode works in the study selected in Settings › Studies. The selection keeps today's behavior: it is stored on the study rows and follows the account. Visiting Read or Discover does not change it.
 - Marks made in Read and Discover are filed under no study, so they never carry a real study's id.
 - What shows inside a real study, compared with "My Bible":
@@ -261,8 +262,8 @@ Today every mark is tied to whichever study is selected when it is made, and Rea
 | Tour for Read | A quick one | | User |
 | Telemetry | `mode_chosen`, opt-in | "Do people actually use this stuff" | User |
 | Marks made in Read and Discover | Filed under "My Bible"; plain highlights are hidden inside a real study | | User |
-| Default study name | "My Bible" | Needs a name in the Studies list | Agent default |
-| Default study design | My Bible is the existing no-study state; no data change | A reserved study id would be deleted by the startup orphan cleanup on this and older versions | User (2026-11-12) |
+| My Bible name | "My Bible" | Needs a name in the Studies list | Agent default |
+| My Bible design | My Bible is the existing no-study state; no data change | A reserved study id would be deleted by the startup orphan cleanup on this and older versions | User (2026-11-12) |
 | Existing no-study key words and marks | Behave exactly as today | Existing users lose nothing inside their studies | Agent default |
 | Titles and headings written inside a real study | Stay in that study; not shown in Read | They carry that study's id | User |
 | Notes | Show in every mode and study | They have no study today | Agent default |
@@ -305,6 +306,6 @@ Today every mark is tied to whichever study is selected when it is made, and Rea
 | `src/lib/studyFilter.ts`, `src/stores/studyStore.ts` | Left alone |
 | `src/components/KeyWords/KeyWordManager.tsx`, `src/lib/keywordTap.ts`, `src/lib/observationAutoAdd.ts`, place, people, time and entity-note stores, Observe, Analyze and Timeline views | Extended: read the effective study |
 | `src/lib/passage-pdf.ts` | Extended: export leaves out annotations hidden by the study |
-| `src/hooks/useAnnotations.ts`, `src/lib/discoveryActions.ts`, `src/components/BibleReader/VerseText.tsx`, `ExportPopover.tsx`, `src/stores/discoveryStore.ts`, `src/components/Reference/EntityNotes.tsx` | Extended: read the effective study instead of `activeStudyId` |
+| `src/hooks/useAnnotations.ts`, `src/components/BibleReader/VerseText.tsx`, `ExportPopover.tsx`, `src/stores/discoveryStore.ts`, `src/components/Reference/EntityNotes.tsx` | Extended: read the effective study instead of `activeStudyId` |
 | `src/lib/sqlite-db.ts` | Left alone: no schema change; heading and title queries are called with the effective study |
 | `docs/specs/discovery-phase-3-setting-and-connections.md` | Left alone; its "discovery-mode / inductive-mode" wording is superseded by this spec |
