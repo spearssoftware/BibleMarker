@@ -13,7 +13,7 @@ export { Input, Textarea, Select, Label, FormField, ReadOnlyField, Checkbox, Rad
 export { DropdownSelect } from './DropdownSelect';
 export { SyncStatusIndicator } from './SyncStatusIndicator';
 export { UpdateBanner } from './UpdateBanner';
-export { ToolkitRestoredBanner } from './ToolkitRestoredBanner';
+export { ModesBanner } from './ModesBanner';
 export { WhatsNewModal } from './WhatsNewModal';
 export { UndoToast } from './UndoToast';
 export { ToastHost } from './Toast';

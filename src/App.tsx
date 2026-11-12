@@ -41,21 +41,20 @@ import { initializeSync, shutdownSync } from '@/lib/sync';
 import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
 import { checkForUpdateIfDue, fetchWhatsNew, fetchWhatsNewForced } from '@/lib/updateCheck';
 import { isCapacitor } from '@/lib/platform';
-import { UpdateBanner, WhatsNewModal, ToolkitRestoredBanner } from '@/components/shared';
+import { UpdateBanner, WhatsNewModal, ModesBanner } from '@/components/shared';
 import { usePreferencesStore } from '@/stores/preferencesStore';
-import { maybeEnableInductiveTools } from '@/lib/toolkitMigration';
+import { seedAppMode } from '@/lib/modeSeed';
+import { useAppModeStore } from '@/stores/appModeStore';
 import { initTelemetry, shutdownTelemetry } from '@/lib/telemetry';
 
-// Re-hydrate preferences from the DB and apply the "upgrade nicety" toolkit
-// auto-enable. Shared by the initial mount load and the post-sync refresh
+// Re-hydrate preferences from the DB and seed the app mode on a device that
+// has none. Shared by the initial mount load and the post-sync refresh
 // (`syncDataChanged`), which both need the same sequence. Returns the loaded
 // prefs since the mount site also reads fields off them afterward.
-async function hydratePreferences(setToolkitRestored: (value: boolean) => void) {
+async function hydratePreferences() {
   const prefs = await getPreferences();
   usePreferencesStore.getState().hydrate(prefs);
-  if (await maybeEnableInductiveTools(prefs)) {
-    setToolkitRestored(true);
-  }
+  await seedAppMode(prefs);
   return prefs;
 }
 
@@ -95,9 +94,9 @@ export default function App() {
   // What's New popup: shown once after updating to a new version
   const [whatsNew, setWhatsNew] = useState<{ version: string; notes: string[] } | null>(null);
 
-  // Toolkit-restored banner: shown once after the "upgrade nicety" auto-enables
-  // inductive tools for an existing user with prior data.
-  const [toolkitRestored, setToolkitRestored] = useState(false);
+  // Modes banner: shown once after an existing user is assigned a mode.
+  const modesBannerPending = useAppModeStore(state => state.modesBannerPending);
+  const dismissModesBanner = useAppModeStore(state => state.dismissModesBanner);
 
   // Initialize theme on mount (before other initialization)
   useEffect(() => {
@@ -121,7 +120,7 @@ export default function App() {
       try {
         // Ensure database is initialized (schema migrations) before any queries
         await initDatabase();
-        const prefs = await hydratePreferences(setToolkitRestored);
+        const prefs = await hydratePreferences();
         if (prefs.fontSize) {
           setFontSize(prefs.fontSize);
         }
@@ -248,10 +247,10 @@ export default function App() {
         useEntityNoteStore.getState().loadNotes(),
       ]);
       // A fresh install signing into an existing account picks up synced prefs
-      // (and, via the upgrade nicety, the toolkit) here rather than waiting for
+      // (and, via the mode seed, the app mode) here rather than waiting for
       // the next launch — re-read and re-hydrate since the pull may have
       // changed the preferences row.
-      await hydratePreferences(setToolkitRestored);
+      await hydratePreferences();
     };
     window.addEventListener('syncDataChanged', handleSyncDataChanged);
     return () => window.removeEventListener('syncDataChanged', handleSyncDataChanged);
@@ -359,9 +358,9 @@ export default function App() {
         />
       )}
 
-      {/* Toolkit-restored banner: one-shot, shown once onboarding overlays resolve */}
-      {toolkitRestored && !showWelcome && !showTranslationLibrary && !showTour && (
-        <ToolkitRestoredBanner onDismiss={() => setToolkitRestored(false)} />
+      {/* Modes banner: one-shot, shown once onboarding overlays resolve */}
+      {modesBannerPending && !showWelcome && !showTranslationLibrary && !showTour && (
+        <ModesBanner onDismiss={dismissModesBanner} />
       )}
 
       {/* Main reading area with split panel */}
