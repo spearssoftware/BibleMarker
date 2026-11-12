@@ -133,21 +133,26 @@ export function StudiesSection() {
         <div className="border-t border-scripture-border/30 my-4"></div>
 
         <div className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-ui font-semibold text-scripture-text">Your Studies</h3>
-            {activeStudyId && (
-              <button
-                onClick={() => setActiveStudy(null)}
-                className="px-3 py-2 text-sm font-ui bg-scripture-elevated hover:bg-scripture-border/50
-                         border border-scripture-border/50 text-scripture-text rounded-lg transition-all duration-200"
-              >
-                Clear Active Study
-              </button>
-            )}
-          </div>
+          <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Your Studies</h3>
           {studyPdfError && (
             <p className="text-sm text-scripture-error mb-3">{studyPdfError}</p>
           )}
+          <div className="mb-2 p-4 bg-scripture-surface rounded-xl border border-scripture-border/50 shadow-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <div className="font-medium text-scripture-text break-words">My Bible</div>
+                {activeStudyId === null && (
+                  <span className="px-2 py-0.5 text-xs bg-scripture-accent text-scripture-bg rounded">Active</span>
+                )}
+              </div>
+              <div className="text-sm text-scripture-muted">Marks you make in Read and Discover go here.</div>
+            </div>
+            {activeStudyId !== null && (
+              <div className="flex items-center gap-2 flex-wrap sm:flex-shrink-0">
+                <Button onClick={() => setActiveStudy(null)}>Set Active</Button>
+              </div>
+            )}
+          </div>
           {studies.length === 0 ? (
             <p className="text-scripture-muted text-sm">No studies yet. Create one above to get started.</p>
           ) : (

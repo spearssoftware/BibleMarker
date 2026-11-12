@@ -27,7 +27,7 @@ import type {
 import { getBookById, getHighlightColorHex, type HighlightColor } from '@/types';
 import { getModuleCopyright, ESV_COPYRIGHT, type ApiTranslation } from '@/lib/bible-api';
 import { findKeywordMatches } from '@/lib/keywordMatching';
-import { filterPresetsByStudy } from '@/lib/studyFilter';
+import { filterAnnotationsByStudy, filterPresetsByStudy } from '@/lib/studyFilter';
 import { PageWriter, hexToRgb, loadJsPDF, type JsPDFDoc } from '@/lib/pdf/page-writer';
 import { buildIconCache, iconCacheKey } from '@/lib/pdf/symbol-cache';
 import { openSavedPdf } from '@/lib/pdf/save';
@@ -290,12 +290,17 @@ class PassagePageWriter extends PageWriter {
  * a fresh single-page doc.
  */
 export async function renderPassageIntoDoc(doc: JsPDFDoc, input: BuildPassagePdfInput): Promise<void> {
-  const { translation, book, chapter, verses, annotations, notes, sectionHeadings, chapterTitle, verseRange } = input;
+  const { translation, book, chapter, verses, notes, sectionHeadings, chapterTitle, verseRange } = input;
   const writer = new PassagePageWriter(doc);
 
   const presets = input.presets ?? [];
   const exclusions = input.exclusions ?? [];
   const filteredPresets = filterPresetsByStudy(presets, input.activeStudyId ?? null);
+  const annotations = filterAnnotationsByStudy(
+    input.annotations,
+    new Map(presets.map((p) => [p.id, p])),
+    input.activeStudyId ?? null
+  );
 
   const range = verseRange ?? { start: verses[0]?.ref.verse ?? 1, end: verses[verses.length - 1]?.ref.verse ?? 0 };
   const inRange = verses.filter((v) => v.ref.verse >= range.start && v.ref.verse <= range.end);

@@ -21,6 +21,7 @@ import {
   getChapterTitle,
 } from '@/lib/database';
 import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
 import {
@@ -51,8 +52,8 @@ type ActionState =
   | { status: 'success'; message: string };
 
 export function ExportPopover({ translation, book, chapter, verses, onClose, triggerRef }: ExportPopoverProps) {
-  const { activeStudyId } = useStudyStore();
-  const activeStudy = useStudyStore((s) => s.studies.find((st) => st.id === s.activeStudyId) ?? null);
+  const activeStudyId = useEffectiveStudyId();
+  const activeStudy = useStudyStore((s) => s.studies.find((st) => st.id === activeStudyId) ?? null);
   const presets = useMarkingPresetStore((s) => s.presets);
   const exclusions = useKeywordExclusionStore((s) => s.exclusions);
 
