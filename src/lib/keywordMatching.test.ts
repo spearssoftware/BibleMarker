@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { splitIntoWords, findKeywordMatches } from './keywordMatching'
+import {
+  splitIntoWords,
+  findKeywordMatches,
+  wordFormVariants,
+  getChapterWordMatch,
+  findPresetMarkingWord,
+  isChapterOnlyPreset,
+} from './keywordMatching'
+import { createMarkingPreset } from '@/types'
 import type { MarkingPreset, KeywordExclusion } from '@/types'
 import type { VerseRef } from '@/types'
 
@@ -321,5 +329,81 @@ describe('findKeywordMatches', () => {
     // verse 1 should still match since exclusion is for verse 2
     const result = findKeywordMatches('In the beginning God created', verseRef, presets, undefined, exclusions)
     expect(result.length).toBeGreaterThanOrEqual(1)
+  })
+})
+
+describe('wordFormVariants', () => {
+  it('adds possessives (straight and curly) and a plain plural', () => {
+    expect(wordFormVariants('word')).toEqual(["word's", 'word\u2019s', 'words'])
+  })
+
+  it('skips the plural and possessive-s for words already ending in s', () => {
+    expect(wordFormVariants('Jesus')).toEqual([])
+  })
+
+  it('uses -es and -ies plurals where English does', () => {
+    expect(wordFormVariants('church')).toContain('churches')
+    expect(wordFormVariants('city')).toContain('cities')
+  })
+})
+
+describe('getChapterWordMatch', () => {
+  const verses = [
+    { text: 'In the beginning was the Word, and the Word was with God.' },
+    { text: "Jesus wept. The words of Jesus' disciples; the Word\u2019s light." },
+    { text: 'Jesus answered him.' },
+  ]
+
+  it('counts the word and its plural/possessive forms across the chapter, ignoring case and punctuation', () => {
+    expect(getChapterWordMatch('Word,', verses)).toEqual({
+      word: 'Word',
+      variants: ["Word's", 'Word\u2019s', 'Words'],
+      count: 4,
+    })
+  })
+
+  it("treats a trailing-apostrophe possessive as the base word", () => {
+    expect(getChapterWordMatch('Jesus', verses)?.count).toBe(3)
+  })
+
+  it('returns null for multi-word selections', () => {
+    expect(getChapterWordMatch('the Word', verses)).toBeNull()
+  })
+
+  it('returns null for common pronouns', () => {
+    expect(getChapterWordMatch('him', [{ text: 'him him him' }])).toBeNull()
+  })
+
+  it('returns null when the word appears only once', () => {
+    expect(getChapterWordMatch('beginning', verses)).toBeNull()
+  })
+})
+
+describe('findPresetMarkingWord / isChapterOnlyPreset', () => {
+  const chapterPreset = createMarkingPreset({
+    word: 'Jesus',
+    highlight: { style: 'underline', color: 'blue' },
+    scopes: [{ book: 'John', chapter: 11 }],
+  })
+  const bookPreset = createMarkingPreset({
+    word: 'light',
+    variants: ['lights'],
+    highlight: { style: 'highlight', color: 'yellow' },
+    scopes: [{ book: 'John' }],
+  })
+
+  it('finds a preset scoped to this chapter by word or variant', () => {
+    expect(findPresetMarkingWord([bookPreset, chapterPreset], 'jesus', 'John', 11)).toBe(chapterPreset)
+    expect(findPresetMarkingWord([bookPreset], 'Lights', 'John', 3)).toBe(bookPreset)
+  })
+
+  it('ignores presets scoped elsewhere', () => {
+    expect(findPresetMarkingWord([chapterPreset], 'Jesus', 'John', 12)).toBeUndefined()
+  })
+
+  it('only calls a preset chapter-only when it is pinned to exactly this chapter', () => {
+    expect(isChapterOnlyPreset(chapterPreset, 'John', 11)).toBe(true)
+    expect(isChapterOnlyPreset(bookPreset, 'John', 11)).toBe(false)
+    expect(isChapterOnlyPreset(chapterPreset, 'John', 12)).toBe(false)
   })
 })

@@ -27,7 +27,6 @@ import { useTimeStore } from '@/stores/timeStore';
 import { usePeopleStore } from '@/stores/peopleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
-import { useListStore } from '@/stores/listStore';
 import { getBookById } from '@/types';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { usePanelStore } from '@/stores/panelStore';
@@ -36,10 +35,12 @@ import { useChapterAnalysis } from '@/hooks/useChapterAnalysis';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryHost } from '@/hooks/useDiscoveryHost';
 import { useDiscoveryEnabled } from '@/lib/discovery-config';
+import { getKeywordTapHandler } from '@/lib/keywordTap';
+import { usePreferencesStore } from '@/stores/preferencesStore';
 import { buildCrossRefKeyByVerse } from '@/lib/chapterAnalysis';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import type { VerseLens } from './VerseText';
-import type { Annotation, Chapter, SectionHeading, Note, ChapterTitle, VerseRef } from '@/types';
+import type { Annotation, Chapter, SectionHeading, Note, ChapterTitle } from '@/types';
 import { LAYOUT_REKEY_MS } from './layoutConstants';
 
 const KJV_FALLBACK_ERROR_PREFIX = 'Showing KJV';
@@ -81,6 +82,7 @@ export function MultiTranslationView() {
   } = useAnnotations();
   const { presets } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
+  const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
 
   // Discover layer: chapter analysis for the primary translation, the
   // connector / cross-reference lenses, and the tap handlers that open the
@@ -345,14 +347,8 @@ export function MultiTranslationView() {
     setAnnotationsByTranslation(newAnnotations);
   }, [activeView, currentBook, currentChapter]);
 
-  const handleKeywordTap = useCallback((presetId: string, verseRef: VerseRef) => {
-    const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
-    useListStore.getState().getOrCreateListForKeyword(presetId, activeStudyId, verseRef.book).then(list => {
-      window.dispatchEvent(new CustomEvent('openObservationTools', {
-        detail: { tab: 'lists', listId: list.id, verseRef }
-      }));
-    });
-  }, []);
+  // Tools off: a tap opens the mark in Key Words, never an inductive panel or a new list.
+  const handleKeywordTap = getKeywordTapHandler(inductiveToolsEnabled);
 
   // Helper functions
   function getHeadingBefore(verseNum: number): SectionHeading | undefined {

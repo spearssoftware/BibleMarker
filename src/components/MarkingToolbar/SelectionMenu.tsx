@@ -12,11 +12,28 @@ import { getHighlightColorHex, HIGHLIGHT_COLORS, QUICK_HIGHLIGHT_DEFAULTS } from
 import { SymbolIcon } from '@/lib/symbolDisplay';
 import { isCommonPronoun } from '@/types';
 import { scopeLabel } from '@/types';
+import { Button, SegmentedControl } from '@/components/shared';
+import { useDiscoveryPrefsStore, type MarkingStyleChoice } from '@/stores/discoveryPrefsStore';
+import { findPresetMarkingWord, isChapterOnlyPreset, type ChapterWordMatch } from '@/lib/keywordMatching';
 
 export type ApplyScope = 'here' | 'all';
 
 /** Total swatches shown in the quick-highlight row (recent colors + fill). */
 const QUICK_HIGHLIGHT_COUNT = 8;
+
+const STYLE_OPTIONS: { value: MarkingStyleChoice; label: string }[] = [
+  { value: 'highlight', label: 'Highlight' },
+  { value: 'underline', label: 'Underline' },
+  { value: 'textColor', label: 'Text color' },
+];
+
+const STYLE_LABELS: Record<MarkingStyleChoice, string> = {
+  highlight: 'Highlight',
+  underline: 'Underline',
+  textColor: 'Text color',
+};
+
+type MarkScope = 'here' | 'chapter';
 
 interface SelectionMenuProps {
   selection: TextSelection;
@@ -25,8 +42,9 @@ interface SelectionMenuProps {
    * one other installed translation exists). When false, the scope
    * toggle is hidden since there's nothing to propagate to. */
   canPropagate?: boolean;
-  /** When false (tools off), only the quick-highlight swatches + Cancel
-   * render — the inductive toolkit items (Key Word, Observe, etc.) are hidden. */
+  /** When false (tools off), the sheet is a plain marking sheet — style
+   * row, swatches, "just here" / "every one in this chapter", Cancel — and
+   * the inductive toolkit items (Key Word, Observe, etc.) are hidden. */
   advanced?: boolean;
   onApplyPreset: (preset: MarkingPreset, scope: ApplyScope) => void;
   onAddAsVariant: (preset: MarkingPreset) => void;
@@ -34,7 +52,15 @@ interface SelectionMenuProps {
   onQuickAddKeyword: (type: 'person' | 'place') => void;
   onAddToList: () => void;
   onReferenceLookup: () => void;
-  onQuickHighlight: (color: HighlightColor) => void;
+  onQuickHighlight: (color: HighlightColor, style: MarkingStyleChoice) => void;
+  /** The selected single word and its chapter count, when "every one in
+   * this chapter" is on offer (tools off only). Null for multi-word
+   * selections, pronouns, and words that appear only once. */
+  chapterWord?: ChapterWordMatch | null;
+  onMarkChapter?: (match: ChapterWordMatch, style: MarkingStyleChoice, color: HighlightColor) => void;
+  onRemoveChapterMark?: (preset: MarkingPreset) => void;
+  /** Open the Key Words panel on the preset that already marks the word. */
+  onEditChapterMark?: (preset: MarkingPreset) => void;
   onCancel: () => void;
   onClose: () => void;
 }
@@ -51,9 +77,19 @@ export function SelectionMenu({
   onAddToList,
   onReferenceLookup,
   onQuickHighlight,
+  chapterWord = null,
+  onMarkChapter,
+  onRemoveChapterMark,
+  onEditChapterMark,
   onCancel,
   onClose,
 }: SelectionMenuProps) {
+  const storedStyle = useDiscoveryPrefsStore(s => s.markingStyle);
+  const setMarkingStyle = useDiscoveryPrefsStore(s => s.setMarkingStyle);
+  // The style row is a tools-off control; the inductive sheet keeps its
+  // highlight-only swatches.
+  const markingStyle: MarkingStyleChoice = advanced ? 'highlight' : storedStyle;
+  const [markScope, setMarkScope] = useState<MarkScope>('here');
   const [showApplyKeyWordSubmenu, setShowApplyKeyWordSubmenu] = useState(false);
   const [showAddVariantSubmenu, setShowAddVariantSubmenu] = useState(false);
   const [keywordSearch, setKeywordSearch] = useState('');
@@ -135,6 +171,13 @@ export function SelectionMenu({
   }, [filteredPresets]);
 
 
+
+  const existingChapterPreset = !advanced && chapterWord
+    ? findPresetMarkingWord(presets, chapterWord.word, selection.book, selection.chapter)
+    : undefined;
+  const chapterPresetRemovable =
+    !!existingChapterPreset && isChapterOnlyPreset(existingChapterPreset, selection.book, selection.chapter);
+  const markEveryInChapter = !advanced && markScope === 'chapter' && !existingChapterPreset;
 
   const renderPresetButton = (p: MarkingPreset, action: 'apply' | 'variant') => (
     <button
@@ -259,26 +302,99 @@ export function SelectionMenu({
         <div className="flex flex-col min-w-0">
           {/* Main menu buttons */}
           <div className="p-2 space-y-1 overflow-y-auto custom-scrollbar flex-shrink-0 max-h-[70vh] px-4 pb-4">
-          {/* Quick highlight — the default-mode marking surface and the
-              stealth on-ramp into the toolkit. Shown in both modes. */}
-          <div className="flex flex-wrap gap-2 py-1" role="group" aria-label="Highlight color">
+          {!advanced && (
+            <SegmentedControl
+              options={STYLE_OPTIONS}
+              value={markingStyle}
+              onChange={setMarkingStyle}
+              size="sm"
+              columns={3}
+              ariaLabel="Marking style"
+              className="py-1"
+            />
+          )}
+
+          {/* Color swatches — the marking surface in both modes. */}
+          <div className="flex flex-wrap gap-2 py-1" role="group" aria-label={`${STYLE_LABELS[markingStyle]} color`}>
             {quickColors.map((color) => (
               <button
                 key={color}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  onQuickHighlight(color);
+                  if (markEveryInChapter && chapterWord) {
+                    onMarkChapter?.(chapterWord, markingStyle, color);
+                  } else {
+                    onQuickHighlight(color, markingStyle);
+                  }
                   onClose();
                 }}
                 className="w-9 h-9 rounded-full border border-scripture-border/30 shadow-sm
                          hover:scale-110 transition-transform duration-150 touch-target"
                 style={{ backgroundColor: HIGHLIGHT_COLORS[color] }}
-                aria-label={`Highlight ${color}`}
+                aria-label={`${STYLE_LABELS[markingStyle]} ${color}`}
                 title={color}
               />
             ))}
           </div>
+
+          {!advanced && chapterWord && (
+            existingChapterPreset ? (
+              <div className="flex items-center justify-between gap-3 py-1">
+                <p className="text-sm font-ui text-scripture-muted">
+                  {chapterPresetRemovable
+                    ? <>Every &ldquo;{chapterWord.word}&rdquo; in this chapter is marked.</>
+                    : <>&ldquo;{chapterWord.word}&rdquo; is already marked by a key word in this chapter.</>}
+                </p>
+                <div className="flex gap-2 flex-shrink-0">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onEditChapterMark?.(existingChapterPreset);
+                    onClose();
+                  }}
+                  aria-label={`Edit the mark on \u201c${chapterWord.word}\u201d in Key Words`}
+                >
+                  Edit
+                </Button>
+                {chapterPresetRemovable && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onRemoveChapterMark?.(existingChapterPreset);
+                      onClose();
+                    }}
+                    aria-label={`Remove the mark from every \u201c${chapterWord.word}\u201d in this chapter`}
+                  >
+                    Remove
+                  </Button>
+                )}
+                </div>
+              </div>
+            ) : (
+              <SegmentedControl
+                options={[
+                  { value: 'here', label: 'Just here' },
+                  {
+                    value: 'chapter',
+                    label: `Every \u201c${chapterWord.word}\u201d in this chapter (${chapterWord.count})`,
+                  },
+                ]}
+                value={markScope}
+                onChange={setMarkScope}
+                size="sm"
+                columns={2}
+                ariaLabel="Where to mark"
+                className="py-1"
+              />
+            )
+          )}
 
           {advanced && (
             <>

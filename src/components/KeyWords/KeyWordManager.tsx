@@ -18,6 +18,28 @@ import { Input, Textarea, Label, DropdownSelect, Checkbox, Button, SegmentedCont
 import { getBookById, BIBLE_BOOKS } from '@/types';
 import { useKeywordExclusionStore } from '@/stores/keywordExclusionStore';
 import { toast } from '@/stores/toastStore';
+import { createBookScopedKeywordPreset } from '@/lib/discoveryActions';
+import { wordFormVariants } from '@/lib/keywordMatching';
+
+type SimpleMarkingStyle = 'highlight' | 'underline' | 'textColor';
+
+const SIMPLE_STYLE_OPTIONS: readonly { value: SimpleMarkingStyle; label: string }[] = [
+  { value: 'highlight', label: 'Highlight' },
+  { value: 'underline', label: 'Underline' },
+  { value: 'textColor', label: 'Text color' },
+];
+
+/** Plural/possessive variants for a single word; none for a phrase. */
+function autoVariants(word: string): Variant[] {
+  return isMultiWordText(word) ? [] : wordFormVariants(word).map(text => ({ text }));
+}
+
+/** True when the variants are exactly the automatic forms of `word` (so a rename may regenerate them). */
+function hasOnlyAutoVariants(variants: MarkingPreset['variants'], word: string | undefined): boolean {
+  const texts = (variants ?? []).map(v => (typeof v === 'string' ? v : v.text));
+  const auto = word ? autoVariants(word).map(v => v.text) : [];
+  return texts.length === auto.length && texts.every((t, i) => t === auto[i]);
+}
 
 /** A word/phrase counts as multi-word when it has 2+ whitespace-separated tokens. */
 function isMultiWordText(text: string): boolean {
@@ -32,9 +54,14 @@ interface KeyWordManagerProps {
   initialColor?: HighlightColor;
   /** When creating from a selection (initialWord), call after save to apply the new preset to that selection */
   onPresetCreated?: (preset: MarkingPreset) => void | Promise<void>;
+  /** Inductive tools off: list, search, and a word / style / color editor only. New marks are custom,
+   * scoped to the current chapter, in the active study. */
+  simple?: boolean;
+  /** Open straight to editing this preset (e.g. from tapping a marked word). */
+  initialPresetId?: string;
 }
 
-export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, initialColor, onPresetCreated }: KeyWordManagerProps) {
+export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, initialColor, onPresetCreated, simple = false, initialPresetId }: KeyWordManagerProps) {
   const {
     presets,
     filterCategory,
@@ -55,8 +82,8 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
 
   // Seed create mode from initialWord so opening with a selection works on mount;
   // the prevInitialWord tracker below handles subsequent changes.
-  const [isCreating, setIsCreating] = useState(!!initialWord);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(!!initialWord && !initialPresetId);
+  const [editingId, setEditingId] = useState<string | null>(initialPresetId ?? null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [filterScope, setFilterScope] = useState<'all' | 'global' | 'book' | 'chapter'>('all');
@@ -77,10 +104,20 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
 
   // Filter presets by active study (null = global only; study = global + study) and scope, then sort
   const filteredPresets = useMemo(() => {
-    let filtered = filterPresetsByStudy(getFilteredPresets(), activeStudyId);
+    // Simple mode has no Filters bar, so a category filter left over from the
+    // full toolkit must not silently hide marks: apply only the search box.
+    const query = searchQuery.trim().toLowerCase();
+    const searched = simple
+      ? presets.filter(p =>
+          !query ||
+          p.word?.toLowerCase().includes(query) ||
+          (p.variants || []).some(v => (typeof v === 'string' ? v : v.text).toLowerCase().includes(query))
+        )
+      : getFilteredPresets();
+    let filtered = filterPresetsByStudy(searched, activeStudyId);
     
     // Filter by scope
-    if (filterScope !== 'all') {
+    if (!simple && filterScope !== 'all') {
       filtered = filtered.filter(preset => {
         if (filterScope === 'global') {
           return !preset.scopes || preset.scopes.length === 0;
@@ -113,7 +150,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
       return (a.word || '').localeCompare(b.word || '');
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- filterCategory, presets, searchQuery are for stability; getFilteredPresets already reflects them
-  }, [getFilteredPresets, activeStudyId, filterScope, presets, filterCategory, searchQuery]);
+  }, [getFilteredPresets, activeStudyId, filterScope, presets, filterCategory, searchQuery, simple]);
 
   function handleCreate() {
     setIsCreating(true);
@@ -204,6 +241,38 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
     }
   }
 
+  async function handleSimpleSave({ word, style, color }: { word: string; style: SimpleMarkingStyle; color: HighlightColor }) {
+    try {
+      const existing = editingId ? presets.find((p) => p.id === editingId) : undefined;
+      if (existing) {
+        // Only word and marking change; symbol, scopes, category and the rest stay as they were.
+        const variants = word !== existing.word && hasOnlyAutoVariants(existing.variants, existing.word)
+          ? autoVariants(word)
+          : existing.variants;
+        await updatePreset({ ...existing, word, variants, highlight: { style, color }, updatedAt: new Date() });
+      } else {
+        if (!currentBook) return;
+        const preset = await createBookScopedKeywordPreset({
+          word,
+          variants: autoVariants(word),
+          book: currentBook,
+          chapter: currentChapter,
+          studyId: activeStudyId || undefined,
+          category: 'custom',
+          highlight: { style, color },
+        });
+        if (initialWord && onPresetCreated) {
+          await onPresetCreated(preset);
+          return;
+        }
+      }
+      handleCancel();
+    } catch (error) {
+      console.error('Failed to save key word:', error);
+      toast.error('Failed to save key word. Please try again.');
+    }
+  }
+
   function handleDeleteClick(id: string, e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
@@ -263,7 +332,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
       )}
 
       {/* Collapsible Filters */}
-      {!(isCreating || editingId) && (
+      {!simple && !(isCreating || editingId) && (
         <details className="border-b border-scripture-border/30 flex-shrink-0">
           <summary className="px-4 py-2 text-xs font-ui font-medium cursor-pointer text-scripture-muted 
                              hover:text-scripture-text hover:bg-scripture-elevated/50 transition-colors
@@ -377,6 +446,13 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
           <div className="flex-1 flex items-center justify-center text-scripture-muted text-sm">
             Loading key words...
           </div>
+        ) : (isCreating || editingId) && simple ? (
+          <SimpleKeyWordEditor
+            preset={editingId ? presets.find((p) => p.id === editingId) : undefined}
+            initialWord={isCreating ? initialWord : undefined}
+            onSave={handleSimpleSave}
+            onCancel={handleCancel}
+          />
         ) : isCreating || editingId ? (
           <KeyWordEditor
             preset={editingId ? presets.find((p) => p.id === editingId) : undefined}
@@ -403,6 +479,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
             ) : (
               <KeywordListByScope 
                 presets={filteredPresets.filter((p) => p.word)}
+                simple={simple}
                 onEdit={handleEdit}
                 onDelete={handleDeleteClick}
                 deletingId={deletingId}
@@ -418,11 +495,13 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
 /** Keyword List Grouped by Scope Component */
 function KeywordListByScope({
   presets,
+  simple,
   onEdit,
   onDelete,
   deletingId,
 }: {
   presets: MarkingPreset[];
+  simple: boolean;
   onEdit: (preset: MarkingPreset) => void;
   onDelete: (id: string, e: React.MouseEvent) => void;
   deletingId: string | null;
@@ -476,6 +555,7 @@ function KeywordListByScope({
               <KeyWordCard
                 key={preset.id}
                 preset={preset}
+                simple={simple}
                 onEdit={() => onEdit(preset)}
                 onDelete={(e) => onDelete(preset.id, e)}
                 isDeleting={deletingId === preset.id}
@@ -510,6 +590,7 @@ function KeywordListByScope({
                   <KeyWordCard
                     key={preset.id}
                     preset={preset}
+                    simple={simple}
                     onEdit={() => onEdit(preset)}
                     onDelete={(e) => onDelete(preset.id, e)}
                     isDeleting={deletingId === preset.id}
@@ -551,6 +632,7 @@ function KeywordListByScope({
                   <KeyWordCard
                     key={preset.id}
                     preset={preset}
+                    simple={simple}
                     onEdit={() => onEdit(preset)}
                     onDelete={(e) => onDelete(preset.id, e)}
                     isDeleting={deletingId === preset.id}
@@ -567,11 +649,13 @@ function KeywordListByScope({
 /** Key Word Card Component */
 function KeyWordCard({
   preset,
+  simple,
   onEdit,
   onDelete,
   isDeleting,
 }: {
   preset: MarkingPreset;
+  simple: boolean;
   onEdit: () => void;
   onDelete: (e: React.MouseEvent) => void;
   isDeleting?: boolean;
@@ -592,9 +676,11 @@ function KeyWordCard({
                 <SymbolIcon symbol={preset.symbol} size={18} />
               </span>
             )}
-            <span className="text-xs px-2 py-0.5 bg-scripture-surface rounded">
-              {categoryInfo.label}
-            </span>
+            {!simple && (
+              <span className="text-xs px-2 py-0.5 bg-scripture-surface rounded">
+                {categoryInfo.label}
+              </span>
+            )}
             {preset.scopes && preset.scopes.length > 0 ? (
               <span className="text-xs px-2 py-0.5 bg-scripture-infoBg text-scripture-infoText rounded" title={scopeLabel(preset.scopes)}>
                 📖 {scopeLabel(preset.scopes)}
@@ -648,6 +734,68 @@ function KeyWordCard({
         </div>
       </div>
     </div>
+  );
+}
+
+/** Simple-mode editor: word, marking style and color only. */
+function SimpleKeyWordEditor({
+  preset,
+  initialWord,
+  onSave,
+  onCancel,
+}: {
+  preset?: MarkingPreset;
+  initialWord?: string;
+  onSave: (data: { word: string; style: SimpleMarkingStyle; color: HighlightColor }) => void;
+  onCancel: () => void;
+}) {
+  const [word, setWord] = useState(initialWord || preset?.word || '');
+  const [style, setStyle] = useState<SimpleMarkingStyle>(() => {
+    const current = preset?.highlight?.style;
+    return current === 'underline' || current === 'textColor' ? current : 'highlight';
+  });
+  const [color, setColor] = useState<HighlightColor>(() => preset?.highlight?.color ?? getRandomHighlightColor());
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!word.trim()) {
+      toast.error('Please enter a word or phrase');
+      return;
+    }
+    onSave({ word: word.trim(), style, color });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 custom-scrollbar pb-2">
+        <Input
+          type="text"
+          label="Word or Phrase"
+          value={word}
+          onChange={(e) => setWord(e.target.value)}
+          required
+        />
+        <div>
+          <Label helpText="across every match in the chapter">Marking</Label>
+          <SegmentedControl<SimpleMarkingStyle>
+            options={SIMPLE_STYLE_OPTIONS}
+            value={style}
+            onChange={setStyle}
+            columns={3}
+            ariaLabel="Word marking"
+          />
+        </div>
+        <ColorAccordion color={color} onSelect={(c) => c && setColor(c)} allowNone={false} />
+      </div>
+      <div className="flex-shrink-0 p-4 border-t border-scripture-border/50 flex justify-center sm:justify-end gap-3 bg-scripture-surface z-10">
+        <Button variant="ghost" onClick={onCancel} className="min-w-[120px]">
+          Cancel
+        </Button>
+        <Button variant="primary" type="submit" className="min-w-[120px]">
+          Save
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -1307,7 +1455,7 @@ function SymbolGrid({ symbol, previewColor, onSelect }: { symbol: SymbolKey | un
   );
 }
 
-function ColorAccordion({ color, onSelect }: { color: HighlightColor | undefined; onSelect: (c: HighlightColor | undefined) => void }) {
+function ColorAccordion({ color, onSelect, allowNone = true }: { color: HighlightColor | undefined; onSelect: (c: HighlightColor | undefined) => void; allowNone?: boolean }) {
   const [open, setOpen] = useState(true);
 
   return (
@@ -1327,6 +1475,7 @@ function ColorAccordion({ color, onSelect }: { color: HighlightColor | undefined
       </button>
       {open && (
         <div className="flex flex-wrap gap-2 mt-1.5">
+          {allowNone && (
           <button
             type="button"
             onClick={() => onSelect(undefined)}
@@ -1336,6 +1485,7 @@ function ColorAccordion({ color, onSelect }: { color: HighlightColor | undefined
           >
             —
           </button>
+          )}
           {HIGHLIGHT_COLORS_SORTED.map((key) => (
             <button
               key={key}
