@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, type ReactNode } from 'react';
 import { usePanelStore } from '@/stores/panelStore';
+import { useBottomBarVisible } from '@/lib/appMode';
 import { SplitDivider } from './SplitDivider';
 
 const TOOLBAR_FALLBACK_PX = 60;
@@ -22,6 +23,8 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState(0);
   const [toolbarHeight, setToolbarHeight] = useState(TOOLBAR_FALLBACK_PX);
+
+  const barVisible = useBottomBarVisible();
 
   const showPanel = activePanel && !isCollapsed && panel;
   const isHorizontal = orientation === 'horizontal';
@@ -89,7 +92,7 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
   return (
     <div
       className="flex-1 min-h-0 flex flex-col"
-      style={{ paddingBottom: toolbarHeight }}
+      style={{ paddingBottom: barVisible ? toolbarHeight : 'env(safe-area-inset-bottom, 0px)' }}
     >
       <div
         ref={containerRef}

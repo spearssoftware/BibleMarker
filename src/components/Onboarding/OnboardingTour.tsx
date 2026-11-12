@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react';
 import { updatePreferences, getPreferences } from '@/lib/database';
 import { useStudyStore } from '@/stores/studyStore';
-import { useIsStudyMode } from '@/lib/appMode';
+import { useIsStudyMode, useDiscoverAvailable } from '@/lib/appMode';
 
 interface TourStep {
   id: string;
@@ -16,8 +16,10 @@ interface TourStep {
   description: ReactNode;
   target?: string; // CSS selector for element to highlight
   action?: () => void; // Optional action to perform before showing step
-  /** Only shown when the "Enable inductive tools" preference is on. */
+  /** Only shown in Study mode. */
   toolkitOnly?: boolean;
+  /** Only shown while the Discover tab exists. */
+  discoverOnly?: boolean;
 }
 
 const TOUR_STEPS: TourStep[] = [
@@ -35,6 +37,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'discovery',
+    discoverOnly: true,
     title: 'Notice Something',
     description: 'Every chapter has something to find. Tap Discover for a challenge.',
     target: '[data-toolbar-discover]',
@@ -89,6 +92,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'reference',
+    toolkitOnly: true,
     title: 'Study Tools',
     description: 'Look up the people, places, and events tied to the current chapter, or search for a word or verse. With inductive tools on, you also get Strong’s entries, Hebrew/Greek words, and cross-references. Access from the toolbar (book icon).',
     target: '[data-toolbar-reference]',
@@ -102,8 +106,8 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'settings',
     title: 'Settings',
-    description: 'Configure translations, appearance, backup/restore, and more. Click the gear icon in the bottom toolbar.',
-    target: '[data-toolbar-settings]',
+    description: 'Configure translations, appearance, backup/restore, and more. Open the ⋯ menu in the top bar and choose Settings.',
+    target: '[data-nav-more]',
   },
   {
     id: 'studies',
@@ -125,12 +129,15 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   const [studyCreated, setStudyCreated] = useState(false);
   const { createStudy, setActiveStudy } = useStudyStore();
   const isStudyMode = useIsStudyMode();
+  const discoverAvailable = useDiscoverAvailable();
   // Toolkit steps (Marking Toolbar/Key Words/Observe/Analyze) target elements
   // that don't render outside Study mode — filter them out rather than
   // let every one auto-skip after a 500ms timeout.
   const steps = useMemo(
-    () => TOUR_STEPS.filter(step => isStudyMode || !step.toolkitOnly),
-    [isStudyMode]
+    () => TOUR_STEPS.filter(step =>
+      (isStudyMode || !step.toolkitOnly) && (discoverAvailable || !step.discoverOnly)
+    ),
+    [isStudyMode, discoverAvailable]
   );
 
   async function handleComplete() {

@@ -37,7 +37,7 @@ const TOUR_TARGET_ATTRS = [
   'data-toolbar-analyze',
   'data-toolbar-reference',
   'data-nav-search',
-  'data-toolbar-settings',
+  'data-nav-more',
 ];
 
 function stubTargets() {
@@ -67,7 +67,7 @@ describe('OnboardingTour', () => {
     document.body.innerHTML = '';
   });
 
-  it('has no toolkit steps but still includes Study Tools when tools are off', async () => {
+  it('has no toolkit steps and no Study Tools in Discover mode', async () => {
     useAppModeStore.setState({ mode: 'discover' });
     usePreferencesStore.setState({ isHydrated: true });
     render(<OnboardingTour onComplete={vi.fn()} />);
@@ -81,14 +81,28 @@ describe('OnboardingTour', () => {
     await waitFor(() => expect(screen.getByText('Notice Something')).toBeTruthy());
     await clickNext();
 
-    // Toolkit steps (Marking Toolbar/Key Words/Observe/Analyze) are filtered
-    // out, so the very next step is Study Tools — it stays in both modes.
-    await waitFor(() => expect(screen.getByText('Study Tools')).toBeTruthy());
+    // Study-only steps (Marking Toolbar through Study Tools) are filtered out.
+    await waitFor(() => expect(screen.getByText('Search')).toBeTruthy());
     expect(screen.queryByText('Marking Toolbar')).toBeNull();
     expect(screen.queryByText('Key Words: Keyword, Match, Apply')).toBeNull();
+    expect(screen.queryByText('Study Tools')).toBeNull();
+    await clickNext();
+
+    await waitFor(() => expect(screen.getByText('Settings')).toBeTruthy());
+    expect(screen.getByText('Open the ⋯ menu in the top bar and choose Settings.', { exact: false })).toBeTruthy();
+  });
+
+  it('skips the Discover step in Read mode', async () => {
+    useAppModeStore.setState({ mode: 'read' });
+    usePreferencesStore.setState({ isHydrated: true });
+    render(<OnboardingTour onComplete={vi.fn()} />);
+
+    await clickNext();
+    await waitFor(() => expect(screen.getByText('Bible Reading')).toBeTruthy());
     await clickNext();
 
     await waitFor(() => expect(screen.getByText('Search')).toBeTruthy());
+    expect(screen.queryByText('Notice Something')).toBeNull();
   });
 
   it('includes the toolkit steps when tools are on', async () => {
@@ -106,5 +120,9 @@ describe('OnboardingTour', () => {
     await clickNext();
 
     await waitFor(() => expect(screen.getByText('Marking Toolbar')).toBeTruthy());
+    for (const title of ['Key Words: Keyword, Match, Apply', 'Observe', 'Analyze', 'Study Tools']) {
+      await clickNext();
+      await waitFor(() => expect(screen.getByText(title)).toBeTruthy());
+    }
   });
 });

@@ -1,7 +1,9 @@
 /**
  * Bottom Tab Bar + Selection Menu
  *
- * Fixed bottom bar with Mark | Observe | Analyze | Settings tabs.
+ * Fixed bottom bar whose tabs follow the app mode: none in Read, Discover only
+ * in Discover, all tools in Study. Stays mounted in every mode because it also
+ * owns the selection menu, chapter arrows and window event listeners.
  * Panels render in the SplitLayout via PanelContainer — not here.
  */
 
@@ -18,7 +20,7 @@ import { usePanelStore } from '@/stores/panelStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
-import { useIsStudyMode, useDiscoverAvailable } from '@/lib/appMode';
+import { useIsStudyMode, useDiscoverAvailable, useBottomBarVisible } from '@/lib/appMode';
 import { track } from '@/lib/telemetry';
 import { deleteAnnotation } from '@/lib/database';
 import { getAllTranslations } from '@/lib/bible-api';
@@ -60,17 +62,12 @@ export function Toolbar() {
   const activeChapter = useActiveChapterStore();
   const isStudyMode = useIsStudyMode();
   const discoverAvailable = useDiscoverAvailable();
+  const barVisible = useBottomBarVisible();
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
 
-  // Study mode gates Observe/Analyze and the advanced selection-menu items.
-  // Key Words stays visible either way (outside Study it opens in a
-  // simplified mode for editing marks), as do Study Tools and Settings:
-  // Study Tools is pull-based (the reader goes and asks) and the Discover
-  // panel links into it — the panel itself just trims its deeper tabs
-  // (Strong's, Hebrew/Greek, Cross-Refs) outside Study.
-  const visibleTools = isStudyMode
-    ? TOOLS
-    : TOOLS.filter(t => t.type === 'keywords' || t.type === 'reference');
+  // The tool tabs (and plain keys 1-4) exist only in Study; Read has no bar
+  // and Discover's bar holds just the Discover tab.
+  const visibleTools = isStudyMode ? TOOLS : [];
 
   // The selected word's chapter count for the tools-off "every one in this
   // chapter" option. Reads the selection's own translation: the primary
@@ -353,8 +350,8 @@ export function Toolbar() {
 
   if (!toolbarVisible) return null;
 
-  const settingsPanelActive = activePanel === 'settings';
   const discoveryActive = activePanel === 'discovery' && !isCollapsed;
+  const arrowBottom = `calc(env(safe-area-inset-bottom, 0px) + ${barVisible ? 84 : 24}px + var(--reader-inset-bottom, 0px))`;
 
   return (
     <>
@@ -366,7 +363,7 @@ export function Toolbar() {
         className="fixed left-0 z-20 pl-0.5 pr-2 py-3 text-scripture-muted/40 hover:text-scripture-text
                    disabled:opacity-0 transition-opacity touch-target"
         style={{
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px + var(--reader-inset-bottom, 0px))',
+          bottom: arrowBottom,
           left: 'env(safe-area-inset-left, 0px)',
           transition: 'bottom 300ms ease-out, opacity 150ms',
         }}
@@ -382,7 +379,7 @@ export function Toolbar() {
         className="fixed right-0 z-20 pr-0.5 pl-2 py-3 text-scripture-muted/40 hover:text-scripture-text
                    disabled:opacity-0 transition-opacity touch-target"
         style={{
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 84px + var(--reader-inset-bottom, 0px))',
+          bottom: arrowBottom,
           right: 'calc(env(safe-area-inset-right, 0px) + var(--reader-inset-right, 0px))',
           transition: 'right 300ms ease-out, bottom 300ms ease-out, opacity 150ms',
         }}
@@ -485,7 +482,7 @@ export function Toolbar() {
           />
         )}
 
-        {/* Tab Bar: Mark | Observe | Analyze | Settings */}
+        {barVisible && (
         <div className="bg-scripture-surface/80 backdrop-blur-md border-t border-scripture-border/30"
              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
@@ -534,22 +531,9 @@ export function Toolbar() {
                 </button>
               );
             })}
-            <button
-              data-toolbar-settings
-              onClick={() => togglePanel('settings')}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg
-                         transition-all duration-200 touch-target
-                         border border-scripture-border/30 hover:border-scripture-border/50
-                         ${settingsPanelActive
-                           ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                           : 'hover:bg-scripture-elevated'}`}
-              aria-label="Settings"
-            >
-              <span className="text-lg">⚙️</span>
-              <span className="text-[10px] font-ui font-medium leading-tight">Settings</span>
-            </button>
           </div>
         </div>
+        )}
       </div>
     </>
   );

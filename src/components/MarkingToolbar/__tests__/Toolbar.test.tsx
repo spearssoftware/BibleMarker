@@ -199,64 +199,105 @@ describe('Toolbar', () => {
     });
   });
 
-  describe('tool tabs', () => {
-    it('leaves Key Words and Study Tools when inductive tools are disabled', () => {
+  describe('bottom bar by mode', () => {
+    const TOOL_LABELS = ['Key Words', 'Observe', 'Analyze', 'Study Tools'];
+    const tabLabels = () =>
+      screen.getAllByRole('button')
+        .map(b => b.getAttribute('aria-label'))
+        .filter(l => l !== null && l !== 'Previous chapter' && l !== 'Next chapter');
+
+    it('renders no tabs in Read but keeps the chapter arrows and selection menu', () => {
+      act(() => {
+        useAppModeStore.setState({ mode: 'read' });
+        useAnnotationStore.setState({ selection: makeSelection('God') });
+      });
+      render(<Toolbar />);
+
+      expect(tabLabels()).toEqual([]);
+      expect(screen.getByLabelText('Previous chapter')).toBeTruthy();
+      expect(screen.getByLabelText('Next chapter')).toBeTruthy();
+      expect(screen.getByTestId('selection-menu')).toBeTruthy();
+    });
+
+    it('renders only Discover in Discover mode', () => {
       act(() => {
         useAppModeStore.setState({ mode: 'discover' });
       });
-
       render(<Toolbar />);
 
-      // Key Words opens in its simplified mode for editing marks.
-      expect(screen.getByLabelText('Key Words')).toBeTruthy();
-      expect(screen.queryByLabelText('Observe')).toBeNull();
-      expect(screen.queryByLabelText('Analyze')).toBeNull();
-      // Study Tools is pull-based lookup and the Discover panel links into it,
-      // so it stays in both modes (the panel trims its own deeper tabs).
-      expect(screen.getByLabelText('Study Tools')).toBeTruthy();
-      // Settings stays reachable either way.
-      expect(screen.getByLabelText('Settings')).toBeTruthy();
+      expect(tabLabels()).toEqual(['Discover']);
     });
 
-    it('renders tool tabs when inductive tools are enabled', () => {
+    it('renders Discover and the four tools in Study', () => {
+      render(<Toolbar />);
+
+      expect(tabLabels()).toEqual(['Discover', ...TOOL_LABELS]);
+    });
+
+    it('renders the four tools without Discover in Study when the kill switch is off', () => {
+      discoveryEnabled = false;
+      render(<Toolbar />);
+
+      expect(tabLabels()).toEqual(TOOL_LABELS);
+    });
+
+    it('treats a stored Discover as Read when the kill switch is off', () => {
+      discoveryEnabled = false;
+      act(() => {
+        useAppModeStore.setState({ mode: 'discover' });
+      });
+      render(<Toolbar />);
+
+      expect(tabLabels()).toEqual([]);
+    });
+
+    it.each(['read', 'discover', 'study'] as const)('has no Settings tab in %s mode', mode => {
+      act(() => {
+        useAppModeStore.setState({ mode });
+      });
+      render(<Toolbar />);
+
+      expect(screen.queryByLabelText('Settings')).toBeNull();
+    });
+
+    it('lowers the chapter arrows when there is no bar', () => {
+      act(() => {
+        useAppModeStore.setState({ mode: 'read' });
+      });
+      const { rerender } = render(<Toolbar />);
+      expect(screen.getByLabelText('Next chapter').style.bottom).toContain('24px');
+
       act(() => {
         useAppModeStore.setState({ mode: 'study' });
-        usePreferencesStore.setState({ isHydrated: true });
       });
-
-      render(<Toolbar />);
-
-      expect(screen.getByLabelText('Key Words')).toBeTruthy();
-      expect(screen.getByLabelText('Observe')).toBeTruthy();
-      expect(screen.getByLabelText('Analyze')).toBeTruthy();
-      expect(screen.getByLabelText('Study Tools')).toBeTruthy();
+      rerender(<Toolbar />);
+      expect(screen.getByLabelText('Next chapter').style.bottom).toContain('84px');
     });
 
-    it('keys shortcuts to the fixed tool order, not on-screen position, so hidden tools stay inert', () => {
-      act(() => {
-        useAppModeStore.setState({ mode: 'discover' });
-        usePreferencesStore.setState({ isHydrated: true });
-      });
+    it('opens panels from keys 1-4 only in Study', () => {
+      const press = (index: number) => {
+        act(() => {
+          keyboardShortcutsOptions.current?.onToolbarTool?.(index);
+        });
+      };
 
+      for (const mode of ['read', 'discover'] as const) {
+        act(() => {
+          useAppModeStore.setState({ mode });
+        });
+        render(<Toolbar />);
+        for (const index of [0, 1, 2, 3]) press(index);
+        expect(usePanelStore.getState().activePanel).toBeNull();
+        cleanup();
+      }
+
+      act(() => {
+        useAppModeStore.setState({ mode: 'study' });
+      });
       render(<Toolbar />);
-
-      // Index 1 ("2") is Observe in the fixed TOOLS order and hidden with
-      // tools off. Keyed by visible position it would open Study Tools (the
-      // second visible tab), so it must stay inert.
-      act(() => {
-        keyboardShortcutsOptions.current?.onToolbarTool?.(1);
-      });
-      expect(usePanelStore.getState().activePanel).toBeNull();
-
-      // Index 0 ("1") is Key Words and index 3 ("4") is Study Tools; both are
-      // visible in both modes, so they open.
-      act(() => {
-        keyboardShortcutsOptions.current?.onToolbarTool?.(0);
-      });
+      press(0);
       expect(usePanelStore.getState().activePanel).toBe('keywords');
-      act(() => {
-        keyboardShortcutsOptions.current?.onToolbarTool?.(3);
-      });
+      press(3);
       expect(usePanelStore.getState().activePanel).toBe('reference');
     });
   });
