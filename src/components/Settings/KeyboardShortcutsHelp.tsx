@@ -5,9 +5,10 @@
  */
 
 import { getKeyboardShortcutsHelp } from '@/hooks/useKeyboardShortcuts';
+import { useIsStudyMode } from '@/lib/appMode';
 
 export function KeyboardShortcutsHelp() {
-  const shortcuts = getKeyboardShortcutsHelp();
+  const shortcuts = getKeyboardShortcutsHelp(useIsStudyMode());
 
   return (
     <div className="space-y-4">

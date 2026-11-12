@@ -26,7 +26,7 @@ const LIBRARY_MODULES: LibraryModule[] = [
   {
     id: 'sword-NASB',
     sizeApprox: '~12 MB',
-    tagline: 'Modern translation, popular for inductive study',
+    tagline: 'Modern translation, popular for close study',
   },
   {
     id: 'sword-NASB1995',

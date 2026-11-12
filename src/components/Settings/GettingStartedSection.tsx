@@ -1,18 +1,36 @@
 /**
  * Getting Started Section Component
  *
- * Provides an overview of key features and how to use them.
+ * Provides an overview of key features and how to use them. Study-only
+ * features are shown only in Study mode.
  */
 
+import { APP_MODES } from '@/stores/appModeStore';
+import { MODE_DESCRIPTIONS, MODE_LABELS, useEffectiveMode } from '@/lib/appMode';
+import { useDiscoveryEnabled } from '@/lib/discovery-config';
+
 export function GettingStartedSection() {
+  const mode = useEffectiveMode();
+  const discoveryEnabled = useDiscoveryEnabled();
+  const isStudy = mode === 'study';
+  const offeredModes = APP_MODES.filter(m => m !== 'discover' || discoveryEnabled);
+
   return (
     <div className="space-y-4">
       <div>
         <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Getting Started</h3>
-        <p className="text-xs text-scripture-muted mb-4">
-          This app supports the inductive Bible study method, emphasizing observation through consistent marking and keyword tracking.
-        </p>
         <div className="space-y-4 text-xs text-scripture-text">
+          <div>
+            <div className="font-medium text-scripture-text mb-2">Modes</div>
+            <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
+              {offeredModes.map(m => (
+                <li key={m}>
+                  <strong className="text-scripture-text">{MODE_LABELS[m]}.</strong> {MODE_DESCRIPTIONS[m]}
+                </li>
+              ))}
+            </ul>
+          </div>
+
           <div>
             <div className="font-medium text-scripture-text mb-2">📖 Reading the Bible</div>
             <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
@@ -20,9 +38,21 @@ export function GettingStartedSection() {
               <li>Choose a book and chapter to read</li>
               <li>View up to 3 translations side-by-side</li>
               <li>Use arrow keys or J/K to navigate between chapters</li>
+              <li>Click verse numbers to add inline notes (supports Markdown)</li>
             </ul>
           </div>
 
+          {!isStudy && (
+            <div>
+              <div className="font-medium text-scripture-text mb-2">✏️ Marking</div>
+              <p className="text-scripture-muted">
+                Select a word or phrase to highlight, underline or color it. Choose &quot;every one in this chapter&quot; to mark each place it appears.
+              </p>
+            </div>
+          )}
+
+          {isStudy && (
+          <>
           <div>
             <div className="font-medium text-scripture-text mb-2">✏️ Key Words: Keyword vs Match vs Apply</div>
             <p className="text-scripture-muted mb-2">
@@ -56,7 +86,6 @@ export function GettingStartedSection() {
               <li>Open Observe (🔍 or press 2) to capture structured study observations</li>
               <li>📝 Lists: free-form observation lists per chapter, plus people, places, and time entries</li>
               <li>💡 Conclusions: record what you learn from the chapter</li>
-              <li>Click verse numbers to add inline notes (supports Markdown)</li>
             </ul>
           </div>
 
@@ -71,10 +100,14 @@ export function GettingStartedSection() {
             </ul>
           </div>
 
+          </>
+          )}
+
+          {mode !== 'read' && (
           <div>
             <div className="font-medium text-scripture-text mb-2">📖 Study Tools</div>
             <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
-              <li>Open Study Tools (📖 from the toolbar) to look up information for what you&rsquo;re reading</li>
+              <li>Open Study Tools ({isStudy ? '📖 from the toolbar' : '📖 from links in Discover or a verse number'}) to look up information for what you&rsquo;re reading</li>
               <li>📖 Chapter: every person, place, topic, and event tied to the current chapter</li>
               <li>🔎 Search: find any person, place, or topic across the reference data</li>
               <li>🔤 Strong&rsquo;s: Hebrew and Greek lexicon entries (also accessible from the selection menu)</li>
@@ -82,6 +115,7 @@ export function GettingStartedSection() {
               <li>🔗 Cross-Refs: cross-references for the current verse</li>
             </ul>
           </div>
+          )}
 
           <div>
             <div className="font-medium text-scripture-text mb-2">🔎 Search</div>

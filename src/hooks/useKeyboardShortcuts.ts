@@ -139,17 +139,22 @@ export function useKeyboardShortcuts({
 }
 
 /**
- * Get keyboard shortcut help text
+ * Get keyboard shortcut help text. The 1-4 tool rows exist only in Study mode.
  */
-export function getKeyboardShortcutsHelp(): Array<{ keys: string[]; description: string }> {
+export function getKeyboardShortcutsHelp(isStudyMode: boolean): Array<{ keys: string[]; description: string }> {
+  const toolRows = isStudyMode
+    ? [
+        { keys: ['1'], description: 'Mark (Key Words)' },
+        { keys: ['2'], description: 'Observe' },
+        { keys: ['3'], description: 'Analyze' },
+        { keys: ['4'], description: 'Study Tools' },
+      ]
+    : [];
   return [
     { keys: ['←', '→'], description: 'Previous/Next chapter' },
     { keys: ['J', 'K'], description: 'Next/Previous chapter (vim-style)' },
     { keys: ['Cmd/Ctrl', 'F'], description: 'Search (handled by NavigationBar)' },
-    { keys: ['1'], description: 'Mark (Key Words)' },
-    { keys: ['2'], description: 'Observe' },
-    { keys: ['3'], description: 'Analyze' },
-    { keys: ['4'], description: 'Study' },
+    ...toolRows,
     { keys: ['Cmd/Ctrl', '1'], description: 'Read mode' },
     { keys: ['Cmd/Ctrl', '2'], description: 'Discover mode' },
     { keys: ['Cmd/Ctrl', '3'], description: 'Study mode' },

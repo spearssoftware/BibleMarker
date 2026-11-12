@@ -211,22 +211,21 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
                     variant="primary"
                     fullWidth
                     onClick={async () => {
-                      await getPreferences();
+                      const prefs = await getPreferences();
                       await updatePreferences({
                         onboarding: {
-                          hasSeenWelcome: false,
+                          ...prefs.onboarding!,
                           hasCompletedTour: false,
-                          dismissedTooltips: [],
                         },
                       });
                       window.dispatchEvent(new CustomEvent('restartOnboarding'));
                       onClose();
                     }}
                   >
-                    Restart Welcome & Tour
+                    Restart Tour
                   </Button>
                   <p className="text-xs text-scripture-muted mt-2">
-                    Show the welcome screen and guided tour again
+                    Show the guided tour again
                   </p>
                 </div>
               </div>

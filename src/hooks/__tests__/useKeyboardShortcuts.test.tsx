@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { renderHook, cleanup, fireEvent } from '@testing-library/react';
-import { useKeyboardShortcuts } from '../useKeyboardShortcuts';
+import { getKeyboardShortcutsHelp, useKeyboardShortcuts } from '../useKeyboardShortcuts';
 
 vi.mock('@/stores/bibleStore', () => ({
   useBibleStore: () => ({
@@ -63,5 +63,26 @@ describe('useKeyboardShortcuts mode shortcuts', () => {
     input.remove();
     expect(onModeShortcut).not.toHaveBeenCalled();
     expect(onToolbarTool).not.toHaveBeenCalled();
+  });
+});
+
+describe('getKeyboardShortcutsHelp', () => {
+  const toolKeys = ['1', '2', '3', '4'];
+  const toolRows = (isStudy: boolean) =>
+    getKeyboardShortcutsHelp(isStudy).filter(row => row.keys.length === 1 && toolKeys.includes(row.keys[0]));
+
+  it('lists the 1-4 tool rows in Study, with key 4 labelled Study Tools', () => {
+    expect(toolRows(true).map(row => row.description)).toEqual([
+      'Mark (Key Words)',
+      'Observe',
+      'Analyze',
+      'Study Tools',
+    ]);
+  });
+
+  it('omits the 1-4 tool rows outside Study but keeps the mode shortcuts', () => {
+    expect(toolRows(false)).toEqual([]);
+    const descriptions = getKeyboardShortcutsHelp(false).map(row => row.description);
+    expect(descriptions).toEqual(expect.arrayContaining(['Read mode', 'Discover mode', 'Study mode']));
   });
 });

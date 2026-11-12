@@ -216,9 +216,12 @@ export default function App() {
 
   // Listen for restart onboarding event
   useEffect(() => {
-    const handleRestartOnboarding = async () => {
-      setShowWelcome(true);
+    let tourTimer: ReturnType<typeof setTimeout> | undefined;
+    const handleRestartOnboarding = () => {
+      clearTimeout(tourTimer);
       setShowTour(false);
+      // Wait for the Settings panel to close before the tour measures its targets.
+      tourTimer = setTimeout(() => setShowTour(true), 300);
     };
 
     const handleShowWhatsNew = async () => {
@@ -229,6 +232,7 @@ export default function App() {
     window.addEventListener('restartOnboarding', handleRestartOnboarding);
     window.addEventListener('showWhatsNew', handleShowWhatsNew);
     return () => {
+      clearTimeout(tourTimer);
       window.removeEventListener('restartOnboarding', handleRestartOnboarding);
       window.removeEventListener('showWhatsNew', handleShowWhatsNew);
     };

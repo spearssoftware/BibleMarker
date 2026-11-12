@@ -1,8 +1,9 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, act } from '@testing-library/react';
+import { render, screen, cleanup, act, fireEvent, waitFor } from '@testing-library/react';
 import { SettingsPanel } from '../SettingsPanel';
 import { useAppModeStore } from '@/stores/appModeStore';
+import { getPreferences, updatePreferences } from '@/lib/database';
 
 vi.mock('@/lib/database', () => ({
   getPreferences: vi.fn().mockResolvedValue({}),
@@ -50,5 +51,38 @@ describe('SettingsPanel modes', () => {
     expect(await screen.findByText('Appearance content')).toBeTruthy();
     expect(screen.queryByText('Studies content')).toBeNull();
     expect(screen.getByRole('tab', { name: 'Appearance' }).getAttribute('aria-selected')).toBe('true');
+  });
+});
+
+describe('SettingsPanel restart tour', () => {
+  it('clears hasCompletedTour, keeps the other onboarding flags and dispatches restartOnboarding', async () => {
+    vi.mocked(getPreferences).mockResolvedValue({
+      onboarding: {
+        hasSeenWelcome: true,
+        hasSeenTranslationLibrary: true,
+        hasCompletedTour: true,
+        dismissedTooltips: ['a'],
+      },
+    } as Awaited<ReturnType<typeof getPreferences>>);
+    const onClose = vi.fn();
+    const restarted = vi.fn();
+    window.addEventListener('restartOnboarding', restarted);
+    useAppModeStore.setState({ mode: 'study' });
+    render(<SettingsPanel onClose={onClose} initialTab="help" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Restart Tour' }));
+
+    await waitFor(() => expect(restarted).toHaveBeenCalledTimes(1));
+    expect(updatePreferences).toHaveBeenCalledWith({
+      onboarding: {
+        hasSeenWelcome: true,
+        hasSeenTranslationLibrary: true,
+        hasCompletedTour: false,
+        dismissedTooltips: ['a'],
+      },
+    });
+    expect(onClose).toHaveBeenCalled();
+    expect(screen.getByText('Show the guided tour again')).toBeTruthy();
+    window.removeEventListener('restartOnboarding', restarted);
   });
 });
