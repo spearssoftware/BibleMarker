@@ -18,8 +18,7 @@ import { usePanelStore } from '@/stores/panelStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
-import { usePreferencesStore, useInductiveToolsVisible } from '@/stores/preferencesStore';
-import { useDiscoveryEnabled } from '@/lib/discovery-config';
+import { useIsStudyMode, useDiscoverAvailable } from '@/lib/appMode';
 import { track } from '@/lib/telemetry';
 import { deleteAnnotation } from '@/lib/database';
 import { getAllTranslations } from '@/lib/bible-api';
@@ -59,23 +58,17 @@ export function Toolbar() {
   const { activePanel, togglePanel, openPanel, isCollapsed } = usePanelStore();
   const chaptersByTranslation = useMultiTranslationStore(s => s.chaptersByTranslation);
   const activeChapter = useActiveChapterStore();
-  const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
-  const inductiveToolsVisible = useInductiveToolsVisible();
-  const discoveryEnabled = useDiscoveryEnabled();
+  const isStudyMode = useIsStudyMode();
+  const discoverAvailable = useDiscoverAvailable();
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
 
-  // "Enable inductive tools" gates Observe/Analyze and the advanced
-  // selection-menu items. Key Words stays visible either way (with tools off
-  // it opens in a simplified mode for editing marks), as do Study Tools and
-  // Settings:
+  // Study mode gates Observe/Analyze and the advanced selection-menu items.
+  // Key Words stays visible either way (outside Study it opens in a
+  // simplified mode for editing marks), as do Study Tools and Settings:
   // Study Tools is pull-based (the reader goes and asks) and the Discover
   // panel links into it — the panel itself just trims its deeper tabs
-  // (Strong's, Hebrew/Greek, Cross-Refs) when the toolkit is off. Before
-  // prefs finish hydrating, treat the toolkit as off rather than trusting the
-  // in-memory default — a gutted-then-restored flash for an existing user
-  // with the toolkit on would be worse than just starting with Key Words/Study
-  // Tools/Settings-only and filling in the rest once hydration lands.
-  const visibleTools = inductiveToolsVisible
+  // (Strong's, Hebrew/Greek, Cross-Refs) outside Study.
+  const visibleTools = isStudyMode
     ? TOOLS
     : TOOLS.filter(t => t.type === 'keywords' || t.type === 'reference');
 
@@ -84,7 +77,7 @@ export function Toolbar() {
   // column's published text when it matches, else the multi-translation
   // view's loaded chapter.
   const chapterWord = useMemo(() => {
-    if (!selection || inductiveToolsEnabled) return null;
+    if (!selection || isStudyMode) return null;
     const { moduleId, book, chapter, text } = selection;
     const loaded = chaptersByTranslation[moduleId];
     const verses =
@@ -94,7 +87,7 @@ export function Toolbar() {
           ? loaded.verses
           : [];
     return getChapterWordMatch(text, verses);
-  }, [selection, inductiveToolsEnabled, chaptersByTranslation, activeChapter]);
+  }, [selection, isStudyMode, chaptersByTranslation, activeChapter]);
 
   // Load marking presets on mount
   useEffect(() => {
@@ -124,7 +117,7 @@ export function Toolbar() {
   }, []);
 
   // Listen for custom events to open panels. openObservationTools/openAnalyzeTools
-  // stay unguarded by inductiveToolsEnabled — they're programmatic intents (e.g.
+  // stay unguarded by the mode — they're programmatic intents (e.g.
   // "Add to Flow"), not the tab-bar buttons, so they should still work even with
   // the toolkit hidden.
   useEffect(() => {
@@ -415,7 +408,7 @@ export function Toolbar() {
             selection={selection}
             presets={filterPresetsByStudy(presets, activeStudyId)}
             canPropagate={installedTranslationCount > 1}
-            advanced={inductiveToolsEnabled}
+            advanced={isStudyMode}
             onApplyPreset={applyPresetToSelection}
             onAddAsVariant={addToVariantsAndApply}
             onQuickHighlight={quickHighlight}
@@ -496,7 +489,7 @@ export function Toolbar() {
         <div className="bg-scripture-surface/80 backdrop-blur-md border-t border-scripture-border/30"
              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           <div className="max-w-lg mx-auto px-2 py-1.5 flex items-center justify-around">
-            {discoveryEnabled && (
+            {discoverAvailable && (
               <button
                 data-toolbar-discover
                 onClick={() => {

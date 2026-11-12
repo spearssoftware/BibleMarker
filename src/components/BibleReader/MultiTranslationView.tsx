@@ -35,9 +35,8 @@ import { useTextSelection, type TranslationChapter } from '@/hooks/useTextSelect
 import { useChapterAnalysis } from '@/hooks/useChapterAnalysis';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryHost } from '@/hooks/useDiscoveryHost';
-import { useDiscoveryEnabled } from '@/lib/discovery-config';
 import { getKeywordTapHandler } from '@/lib/keywordTap';
-import { usePreferencesStore } from '@/stores/preferencesStore';
+import { useIsStudyMode, useDiscoverAvailable } from '@/lib/appMode';
 import { buildCrossRefKeyByVerse } from '@/lib/chapterAnalysis';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import type { VerseLens } from './VerseText';
@@ -83,7 +82,7 @@ export function MultiTranslationView() {
   } = useAnnotations();
   const { presets } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
-  const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
+  const isStudyMode = useIsStudyMode();
 
   // Discover layer: chapter analysis for the primary translation, the
   // connector / cross-reference lenses, and the tap handlers that open the
@@ -93,7 +92,7 @@ export function MultiTranslationView() {
   // keeps working while the reader reads even though the panel is usually
   // unmounted.
   const analysis = useChapterAnalysis(currentBook, currentChapter, primaryTranslationId);
-  const discoveryEnabled = useDiscoveryEnabled();
+  const discoverAvailable = useDiscoverAvailable();
   const lens = useDiscoveryStore(s => s.lens);
   const setActivePrompt = useDiscoveryStore(s => s.setActivePrompt);
   const activateCrossRef = useDiscoveryStore(s => s.activateCrossRef);
@@ -138,7 +137,7 @@ export function MultiTranslationView() {
     analysis,
     translationCount,
     primaryTranslationAbbrev,
-    enabled: discoveryEnabled,
+    enabled: discoverAvailable,
   });
 
   // Build preset map for annotation filtering
@@ -349,7 +348,7 @@ export function MultiTranslationView() {
   }, [activeView, currentBook, currentChapter]);
 
   // Tools off: a tap opens the mark in Key Words, never an inductive panel or a new list.
-  const handleKeywordTap = getKeywordTapHandler(inductiveToolsEnabled);
+  const handleKeywordTap = getKeywordTapHandler(isStudyMode);
 
   // Helper functions
   function getHeadingBefore(verseNum: number): SectionHeading | undefined {

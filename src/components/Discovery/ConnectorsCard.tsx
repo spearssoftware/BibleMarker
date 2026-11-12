@@ -15,7 +15,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, ToggleSwitch } from '@/components/shared';
 import { DiscoveryCard } from './DiscoveryCard';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
-import { usePreferencesStore } from '@/stores/preferencesStore';
+import { useIsStudyMode } from '@/lib/appMode';
 import { useBibleStore } from '@/stores/bibleStore';
 import { LAYOUT_REKEY_MS } from '@/components/BibleReader/layoutConstants';
 import { toast } from '@/stores/toastStore';
@@ -44,7 +44,7 @@ export function ConnectorsCard({ connectorRangesByVerse, connectorCount, book, c
   const toggleLens = useDiscoveryStore(s => s.toggleLens);
   const activePrompt = useDiscoveryStore(s => s.activePrompt);
   const setActivePrompt = useDiscoveryStore(s => s.setActivePrompt);
-  const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
+  const isStudyMode = useIsStudyMode();
   const navigateToVerse = useBibleStore(s => s.navigateToVerse);
   const containerRef = useRef<HTMLDivElement>(null);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -123,7 +123,7 @@ export function ConnectorsCard({ connectorRangesByVerse, connectorCount, book, c
                   {active && (
                     <div id={promptId} className="px-2 pb-2 space-y-2">
                       <p className="text-sm text-scripture-text">{promptFor(hit)}</p>
-                      {inductiveToolsEnabled && (
+                      {isStudyMode && (
                         <Button
                           variant="primary"
                           size="sm"

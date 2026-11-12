@@ -11,6 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import { ReferenceToolsPanel } from '../ReferenceToolsPanel';
 import { usePreferencesStore } from '@/stores/preferencesStore';
+import { useAppModeStore } from '@/stores/appModeStore';
 
 vi.mock('@/lib/database');
 vi.mock('../ChapterEntitiesTab', () => ({ ChapterEntitiesTab: () => <div>chapter-tab</div> }));
@@ -32,7 +33,8 @@ describe('ReferenceToolsPanel tab gating', () => {
   });
 
   it('shows only Chapter and Search when inductive tools are off', () => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+    useAppModeStore.setState({ mode: 'discover' });
+    usePreferencesStore.setState({ isHydrated: true });
 
     render(<ReferenceToolsPanel onClose={() => {}} />);
 
@@ -44,7 +46,8 @@ describe('ReferenceToolsPanel tab gating', () => {
   });
 
   it('shows every tab when inductive tools are on', () => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
+    useAppModeStore.setState({ mode: 'study' });
+    usePreferencesStore.setState({ isHydrated: true });
 
     render(<ReferenceToolsPanel onClose={() => {}} />);
 
@@ -54,7 +57,8 @@ describe('ReferenceToolsPanel tab gating', () => {
   });
 
   it('falls back to a visible tab when the toolkit turns off after manually navigating there', () => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
+    useAppModeStore.setState({ mode: 'study' });
+    usePreferencesStore.setState({ isHydrated: true });
 
     render(<ReferenceToolsPanel onClose={() => {}} />);
 
@@ -63,7 +67,7 @@ describe('ReferenceToolsPanel tab gating', () => {
     expect(screen.getByText('strongs-tab')).toBeTruthy();
 
     act(() => {
-      usePreferencesStore.setState({ inductiveToolsEnabled: false });
+      useAppModeStore.setState({ mode: 'discover' });
     });
 
     expect(screen.queryByText('strongs-tab')).toBeNull();
@@ -71,7 +75,8 @@ describe('ReferenceToolsPanel tab gating', () => {
   });
 
   it('deep link: un-hides the requested tab and shows its content even with tools off', () => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+    useAppModeStore.setState({ mode: 'discover' });
+    usePreferencesStore.setState({ isHydrated: true });
 
     render(<ReferenceToolsPanel onClose={() => {}} initialTab="cross-refs" verse={5} />);
 
@@ -80,7 +85,8 @@ describe('ReferenceToolsPanel tab gating', () => {
   });
 
   it('deep link: wires aria-selected and the tabpanel id/aria-labelledby to the effective tab', () => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+    useAppModeStore.setState({ mode: 'discover' });
+    usePreferencesStore.setState({ isHydrated: true });
 
     render(<ReferenceToolsPanel onClose={() => {}} initialTab="cross-refs" verse={5} />);
 
@@ -94,7 +100,8 @@ describe('ReferenceToolsPanel tab gating', () => {
   });
 
   it('deep link: opens the typed entity detail view instead of "No detail view"', () => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+    useAppModeStore.setState({ mode: 'discover' });
+    usePreferencesStore.setState({ isHydrated: true });
 
     render(<ReferenceToolsPanel onClose={() => {}} entitySlug="moses" entityType="person" />);
 

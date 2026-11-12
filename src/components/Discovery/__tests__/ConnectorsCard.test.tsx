@@ -11,6 +11,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { ConnectorsCard } from '../ConnectorsCard';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
+import { useAppModeStore } from '@/stores/appModeStore';
 import { useToastStore } from '@/stores/toastStore';
 import { groupConnectorsByVerse, type ConnectorHit } from '@/lib/chapterAnalysis';
 
@@ -39,7 +40,8 @@ const connectorRangesByVerse = groupConnectorsByVerse(hits);
 describe('ConnectorsCard', () => {
   beforeEach(() => {
     useDiscoveryStore.setState({ lens: 'connectors', activePrompt: null });
-    usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+    useAppModeStore.setState({ mode: 'discover' });
+    usePreferencesStore.setState({ isHydrated: true });
     useToastStore.setState({ toasts: [] });
     navigateToVerse.mockClear();
     addConnectorToFlowMock.mockReset();
@@ -73,7 +75,8 @@ describe('ConnectorsCard', () => {
   });
 
   it('shows and calls "Add to Flow" when the inductive toolkit is on', async () => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
+    useAppModeStore.setState({ mode: 'study' });
+    usePreferencesStore.setState({ isHydrated: true });
     render(<ConnectorsCard connectorRangesByVerse={connectorRangesByVerse} connectorCount={hits.length} book="Rom" chapter={5} />);
     fireEvent.click(screen.getByText(/But/));
     const addButton = screen.getByText('Add to Flow');
@@ -84,7 +87,8 @@ describe('ConnectorsCard', () => {
   it('only disables the row whose "Add to Flow" request is in flight, not a row switched to afterward', async () => {
     let resolveAdd: () => void = () => {};
     addConnectorToFlowMock.mockImplementation(() => new Promise<void>(resolve => { resolveAdd = resolve; }));
-    usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
+    useAppModeStore.setState({ mode: 'study' });
+    usePreferencesStore.setState({ isHydrated: true });
     render(<ConnectorsCard connectorRangesByVerse={connectorRangesByVerse} connectorCount={hits.length} book="Rom" chapter={5} />);
 
     fireEvent.click(screen.getByText(/But/));
@@ -102,7 +106,8 @@ describe('ConnectorsCard', () => {
   it('shows a toast and logs when "Add to Flow" fails', async () => {
     addConnectorToFlowMock.mockRejectedValueOnce(new Error('db write failed'));
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
+    useAppModeStore.setState({ mode: 'study' });
+    usePreferencesStore.setState({ isHydrated: true });
     render(<ConnectorsCard connectorRangesByVerse={connectorRangesByVerse} connectorCount={hits.length} book="Rom" chapter={5} />);
 
     fireEvent.click(screen.getByText(/But/));

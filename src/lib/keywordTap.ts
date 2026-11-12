@@ -28,6 +28,6 @@ function openMarkInKeyWords(presetId: string): void {
   usePanelStore.getState().openPanel('keywords', { keywordInitialPresetId: presetId });
 }
 
-export function getKeywordTapHandler(inductiveToolsEnabled: boolean): KeywordTapHandler {
-  return inductiveToolsEnabled ? openKeywordList : openMarkInKeyWords;
+export function getKeywordTapHandler(isStudyMode: boolean): KeywordTapHandler {
+  return isStudyMode ? openKeywordList : openMarkInKeyWords;
 }

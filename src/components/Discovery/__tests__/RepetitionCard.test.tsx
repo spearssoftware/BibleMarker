@@ -11,6 +11,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { RepetitionCard } from '../RepetitionCard';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
+import { useAppModeStore } from '@/stores/appModeStore';
 import { useToastStore } from '@/stores/toastStore';
 import { makeMarkingPreset } from '@/lib/__test__/factories';
 import type { RepetitionResult } from '@/lib/chapterAnalysis';
@@ -63,7 +64,8 @@ function renderCard(overrides: Partial<Parameters<typeof RepetitionCard>[0]> = {
 
 describe('RepetitionCard', () => {
   beforeEach(() => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+    useAppModeStore.setState({ mode: 'discover' });
+    usePreferencesStore.setState({ isHydrated: true });
     useMarkingPresetStore.setState({ presets: [] });
     useToastStore.setState({ toasts: [] });
     trackMock.mockClear();
@@ -94,7 +96,8 @@ describe('RepetitionCard', () => {
   });
 
   it('marks the word, tracks the tap, and then reports it as marked', async () => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
+    useAppModeStore.setState({ mode: 'study' });
+    usePreferencesStore.setState({ isHydrated: true });
     renderCard();
     fireEvent.click(screen.getByText('Mark it as a key word'));
 

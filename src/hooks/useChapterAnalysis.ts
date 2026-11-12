@@ -16,7 +16,8 @@
 
 import { useMemo } from 'react';
 import { useActiveChapterStore } from '@/stores/activeChapterStore';
-import { useDiscoveryEnabled, useDiscoveryConfig } from '@/lib/discovery-config';
+import { useDiscoveryConfig } from '@/lib/discovery-config';
+import { useDiscoverAvailable } from '@/lib/appMode';
 import { analyzeChapter } from '@/lib/chapterAnalysis';
 import type { ChapterAnalysis } from '@/lib/chapterAnalysis';
 
@@ -25,7 +26,7 @@ export function useChapterAnalysis(
   currentChapter: number | null | undefined,
   primaryTranslationId: string | null | undefined
 ): ChapterAnalysis | null {
-  const enabled = useDiscoveryEnabled();
+  const enabled = useDiscoverAvailable();
   const thresholds = useDiscoveryConfig();
   const book = useActiveChapterStore(state => state.book);
   const chapter = useActiveChapterStore(state => state.chapter);

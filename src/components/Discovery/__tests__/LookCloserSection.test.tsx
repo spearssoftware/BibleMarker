@@ -3,11 +3,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { LookCloserSection } from '../LookCloserSection';
 import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
+import { useAppModeStore } from '@/stores/appModeStore';
 import { track } from '@/lib/telemetry';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import { makeDiscoveryContext } from '@/lib/__test__/factories';
@@ -30,7 +31,8 @@ describe('LookCloserSection', () => {
     vi.clearAllMocks();
     resetPrefs();
     useDiscoveryStore.setState({ lens: null, activePrompt: null, context: makeDiscoveryContext({ book: 'Gen', chapter: 12 }) });
-    usePreferencesStore.setState({ isHydrated: true, inductiveToolsEnabled: false });
+    useAppModeStore.setState({ mode: 'discover' });
+    usePreferencesStore.setState({ isHydrated: true });
   });
   afterEach(cleanup);
 
@@ -41,21 +43,13 @@ describe('LookCloserSection', () => {
   });
 
   it('is open by default in inductive mode', () => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: true });
+    useAppModeStore.setState({ mode: 'study' });
     renderSection();
-    expect(screen.getByText('cards')).toBeTruthy();
-  });
-
-  it('renders collapsed before preferences hydrate, then opens when they do', () => {
-    usePreferencesStore.setState({ isHydrated: false, inductiveToolsEnabled: true });
-    renderSection();
-    expect(screen.queryByText('cards')).toBeNull();
-    act(() => usePreferencesStore.setState({ isHydrated: true }));
     expect(screen.getByText('cards')).toBeTruthy();
   });
 
   it('lets the stored choice beat the mode default', () => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: true });
+    useAppModeStore.setState({ mode: 'study' });
     useDiscoveryPrefsStore.setState({ lookCloserOpen: false });
     renderSection();
     expect(screen.queryByText('cards')).toBeNull();

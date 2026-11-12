@@ -71,12 +71,9 @@ export interface UserPreferences {
     forceSyncEnabled?: boolean;
   };
   /**
-   * Shows Key Words, Observe, and Analyze in the bottom bar and selection
-   * menu, and gives Study Tools its deeper tabs (Strong's, Hebrew/Greek,
-   * cross-references) — Study Tools itself is always in the bottom bar.
-   * Absent == false. Deliberately not added to DEFAULT_PREFERENCES so
-   * `undefined` stays meaningful for the one-shot "upgrade nicety" check in
-   * `toolkitMigration.ts`.
+   * Legacy "Enable inductive tools" preference. No longer written or read by
+   * the UI; `src/lib/modeSeed.ts` reads it once to seed the app mode (true →
+   * Study, false → Discover). Absent means the user never chose.
    */
   inductiveToolsEnabled?: boolean;
   /** Opt-in anonymous usage telemetry (Analytics Engine). Absent == false. */

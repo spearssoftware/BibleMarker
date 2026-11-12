@@ -17,6 +17,7 @@ import { DiscoveryPanel } from '../DiscoveryPanel';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
+import { useAppModeStore } from '@/stores/appModeStore';
 import type { ChapterEvent, ChapterPerson, ChapterPlace } from '@/types';
 import { DEFAULT_DISCOVERY_THRESHOLDS } from '@/lib/chapterAnalysis';
 import { makeChapterAnalysis, makeCrossRefPassageRow, makeDiscoveryContext } from '@/lib/__test__/factories';
@@ -121,7 +122,8 @@ describe('DiscoveryPanel', () => {
     discoveryEnabled = true;
     trackMock.mockClear();
     useDiscoveryPrefsStore.setState({ lookCloserOpen: undefined });
-    usePreferencesStore.setState({ isHydrated: true, inductiveToolsEnabled: false });
+    useAppModeStore.setState({ mode: 'discover' });
+    usePreferencesStore.setState({ isHydrated: true });
     useDiscoveryStore.setState({
       context: null,
       lens: null,
@@ -211,22 +213,15 @@ describe('DiscoveryPanel', () => {
     });
 
     it('is expanded with inductive tools on, showing the real RepetitionCard suffix and connectors', () => {
-      usePreferencesStore.setState({ inductiveToolsEnabled: true });
+      useAppModeStore.setState({ mode: 'study' });
       render(<DiscoveryPanel />);
       expect(screen.getByRole('button', LOOK_CLOSER).getAttribute('aria-expanded')).toBe('true');
       expect(screen.getByText('“Word” appears 11× in this chapter (NASB)')).toBeTruthy();
       expect(screen.getByTestId('connectors-card')).toBeTruthy();
     });
 
-    it('stays collapsed before preferences hydrate, even with inductive tools on', () => {
-      usePreferencesStore.setState({ isHydrated: false, inductiveToolsEnabled: true });
-      render(<DiscoveryPanel />);
-      expect(screen.getByRole('button', LOOK_CLOSER).getAttribute('aria-expanded')).toBe('false');
-      expect(screen.queryByTestId('connectors-card')).toBeNull();
-    });
-
     it('honors a persisted override over the mode default', () => {
-      usePreferencesStore.setState({ inductiveToolsEnabled: true });
+      useAppModeStore.setState({ mode: 'study' });
       useDiscoveryPrefsStore.setState({ lookCloserOpen: false });
       render(<DiscoveryPanel />);
       expect(screen.getByRole('button', LOOK_CLOSER).getAttribute('aria-expanded')).toBe('false');

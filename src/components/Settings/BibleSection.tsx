@@ -9,8 +9,7 @@
 import { useState, useEffect } from 'react';
 import { confirmDialog } from '@/stores/confirmDialogStore';
 import { updatePreferences, getPreferences } from '@/lib/database';
-import { Input, DropdownSelect, Checkbox, ToggleSwitch } from '@/components/shared';
-import { usePreferencesStore } from '@/stores/preferencesStore';
+import { Input, DropdownSelect, Checkbox } from '@/components/shared';
 import {
   esvClient,
   saveApiConfig as saveApiConfigToDb,
@@ -27,9 +26,6 @@ import {
 } from '@/lib/bible-api';
 
 export function BibleSection() {
-  const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
-  const setInductiveToolsEnabled = usePreferencesStore(s => s.setInductiveToolsEnabled);
-
   // API Configuration state
   const [esvApiKey, setEsvApiKey] = useState('');
   const [savingApi, setSavingApi] = useState(false);
@@ -172,30 +168,6 @@ export function BibleSection() {
           {apiError}
         </div>
       )}
-
-      {/* Study Tools Section */}
-      <div className="p-4">
-        <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Study Tools</h3>
-        <div className="flex items-center justify-between">
-          <div className="flex-1 pr-4">
-            <div className="font-ui font-medium text-scripture-text mb-1">Inductive study tools</div>
-            <p className="text-xs text-scripture-muted">
-              Adds Observe and Analyze to the bottom bar, symbols, categories, and scopes to Key
-              Words, key word, person, place, and observation options to the selection menu, and
-              Study Tools&rsquo; deeper tabs: Strong&rsquo;s, Hebrew/Greek, and cross-references.
-              Highlighting, underlining, marking every use of a word in a chapter, and editing those
-              marks in Key Words work either way.
-            </p>
-          </div>
-          <ToggleSwitch
-            checked={inductiveToolsEnabled}
-            onChange={setInductiveToolsEnabled}
-            label="Toggle inductive study tools"
-          />
-        </div>
-      </div>
-
-      <div className="border-t border-scripture-border/30 my-4"></div>
 
       {/* Show translations in (language filter) */}
       <div className="p-4">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useInductiveToolsVisible } from '@/stores/preferencesStore';
+import { useIsStudyMode } from '@/lib/appMode';
 import type { ReferenceEntityType, ReferenceTab } from '@/stores/panelStore';
 import { ChapterEntitiesTab } from './ChapterEntitiesTab';
 import { PersonDetail } from './PersonDetail';
@@ -46,7 +46,7 @@ interface DetailView {
 }
 
 export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter', entitySlug, entityType, searchQuery, strongsNumber, verse }: ReferenceToolsPanelProps) {
-  const inductiveToolsVisible = useInductiveToolsVisible();
+  const isStudyMode = useIsStudyMode();
 
   const [activeTab, setActiveTab] = useState<ReferenceTab>(initialTab);
   const [prevInitialTab, setPrevInitialTab] = useState(initialTab);
@@ -67,7 +67,7 @@ export function ReferenceToolsPanel({ onClose: _onClose, initialTab = 'chapter',
     }
   }
 
-  const visibleTabIds = inductiveToolsVisible
+  const visibleTabIds = isStudyMode
     ? TABS.map(t => t.id)
     : [...DEFAULT_MODE_TABS, ...extraVisibleTabs];
   const visibleTabs = TABS.filter(t => visibleTabIds.includes(t.id));

@@ -7,6 +7,7 @@ import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { OnboardingTour } from '../OnboardingTour';
 import { usePreferencesStore } from '@/stores/preferencesStore';
+import { useAppModeStore } from '@/stores/appModeStore';
 
 vi.mock('@/lib/database', () => ({
   getPreferences: vi.fn().mockResolvedValue({
@@ -67,7 +68,8 @@ describe('OnboardingTour', () => {
   });
 
   it('has no toolkit steps but still includes Study Tools when tools are off', async () => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+    useAppModeStore.setState({ mode: 'discover' });
+    usePreferencesStore.setState({ isHydrated: true });
     render(<OnboardingTour onComplete={vi.fn()} />);
 
     expect(screen.getByText('Navigation Bar')).toBeTruthy();
@@ -90,7 +92,8 @@ describe('OnboardingTour', () => {
   });
 
   it('includes the toolkit steps when tools are on', async () => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
+    useAppModeStore.setState({ mode: 'study' });
+    usePreferencesStore.setState({ isHydrated: true });
     render(<OnboardingTour onComplete={vi.fn()} />);
 
     expect(screen.getByText('Navigation Bar')).toBeTruthy();
@@ -103,11 +106,5 @@ describe('OnboardingTour', () => {
     await clickNext();
 
     await waitFor(() => expect(screen.getByText('Marking Toolbar')).toBeTruthy());
-  });
-
-  it('renders nothing until preferences finish hydrating', () => {
-    usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: false });
-    const { container } = render(<OnboardingTour onComplete={vi.fn()} />);
-    expect(container.firstChild).toBeNull();
   });
 });

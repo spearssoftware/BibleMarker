@@ -11,6 +11,7 @@ import userEvent from '@testing-library/user-event';
 import { useAnnotationStore, type TextSelection } from '@/stores/annotationStore';
 import { usePanelStore } from '@/stores/panelStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
+import { useAppModeStore } from '@/stores/appModeStore';
 import { DEFAULT_MARKING_PREFERENCES } from '@/types';
 
 // --- Mock all heavy dependencies ---
@@ -153,7 +154,8 @@ describe('Toolbar', () => {
     });
     // Default to tools enabled (and hydrated) so existing keyword-flow tests
     // keep working; gating itself is covered by the "tool tabs" suite below.
-    usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
+    useAppModeStore.setState({ mode: 'study' });
+    usePreferencesStore.setState({ isHydrated: true });
     discoveryEnabled = true;
     markingPresetState.presets = [];
     trackMock.mockClear();
@@ -200,7 +202,7 @@ describe('Toolbar', () => {
   describe('tool tabs', () => {
     it('leaves Key Words and Study Tools when inductive tools are disabled', () => {
       act(() => {
-        usePreferencesStore.setState({ inductiveToolsEnabled: false });
+        useAppModeStore.setState({ mode: 'discover' });
       });
 
       render(<Toolbar />);
@@ -218,7 +220,8 @@ describe('Toolbar', () => {
 
     it('renders tool tabs when inductive tools are enabled', () => {
       act(() => {
-        usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: true });
+        useAppModeStore.setState({ mode: 'study' });
+        usePreferencesStore.setState({ isHydrated: true });
       });
 
       render(<Toolbar />);
@@ -229,24 +232,10 @@ describe('Toolbar', () => {
       expect(screen.getByLabelText('Study Tools')).toBeTruthy();
     });
 
-    it('renders no toolkit tabs before preferences finish hydrating, even for an existing user who will end up with tools on', () => {
-      act(() => {
-        usePreferencesStore.setState({ inductiveToolsEnabled: true, isHydrated: false });
-      });
-
-      render(<Toolbar />);
-
-      expect(screen.queryByLabelText('Observe')).toBeNull();
-      expect(screen.queryByLabelText('Analyze')).toBeNull();
-      // Key Words and Study Tools show in both modes, so they never flash in or out.
-      expect(screen.getByLabelText('Key Words')).toBeTruthy();
-      expect(screen.getByLabelText('Study Tools')).toBeTruthy();
-      expect(screen.getByLabelText('Settings')).toBeTruthy();
-    });
-
     it('keys shortcuts to the fixed tool order, not on-screen position, so hidden tools stay inert', () => {
       act(() => {
-        usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+        useAppModeStore.setState({ mode: 'discover' });
+        usePreferencesStore.setState({ isHydrated: true });
       });
 
       render(<Toolbar />);
@@ -275,7 +264,8 @@ describe('Toolbar', () => {
   describe('Discover button', () => {
     it('is present with tools off', () => {
       act(() => {
-        usePreferencesStore.setState({ inductiveToolsEnabled: false, isHydrated: true });
+        useAppModeStore.setState({ mode: 'discover' });
+        usePreferencesStore.setState({ isHydrated: true });
       });
       render(<Toolbar />);
       expect(screen.getByLabelText('Discover')).toBeTruthy();
@@ -288,6 +278,13 @@ describe('Toolbar', () => {
 
     it('is hidden when the Discover kill-switch is off', () => {
       discoveryEnabled = false;
+      useAppModeStore.setState({ mode: 'discover' });
+      render(<Toolbar />);
+      expect(screen.queryByLabelText('Discover')).toBeNull();
+    });
+
+    it('is hidden in Read mode', () => {
+      useAppModeStore.setState({ mode: 'read' });
       render(<Toolbar />);
       expect(screen.queryByLabelText('Discover')).toBeNull();
     });

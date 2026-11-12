@@ -32,7 +32,7 @@ describe('telemetry', () => {
     vi.stubGlobal('__APP_VERSION__', '9.9.9');
     fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
     vi.stubGlobal('fetch', fetchMock);
-    usePreferencesStore.setState({ telemetryEnabled: false, inductiveToolsEnabled: false, isHydrated: false });
+    usePreferencesStore.setState({ telemetryEnabled: false, isHydrated: false });
   });
 
   afterEach(async () => {

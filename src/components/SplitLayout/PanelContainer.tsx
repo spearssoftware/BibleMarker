@@ -1,7 +1,7 @@
 import { usePanelStore, type PanelType } from '@/stores/panelStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import { usePreferencesStore } from '@/stores/preferencesStore';
+import { useIsStudyMode } from '@/lib/appMode';
 import { KeyWordManager } from '@/components/KeyWords';
 import { ObservationToolsPanel } from '@/components/Observation';
 import { AnalyzeToolsPanel } from '@/components/Analyze';
@@ -50,7 +50,7 @@ export function PanelContainer() {
   } = usePanelStore();
 
   const { selection, clearSelection } = useAnnotationStore();
-  const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
+  const isStudyMode = useIsStudyMode();
 
   if (!activePanel) return null;
 
@@ -147,7 +147,7 @@ export function PanelContainer() {
           <KeyWordManager
             key={keywordRequestId}
             onClose={handleClose}
-            simple={!inductiveToolsEnabled}
+            simple={!isStudyMode}
             initialPresetId={keywordInitialPresetId}
             initialWord={keywordInitialWord}
             onPresetCreated={handleKeywordPresetCreated}

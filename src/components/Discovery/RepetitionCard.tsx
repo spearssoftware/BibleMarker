@@ -11,7 +11,7 @@
 
 import { useState } from 'react';
 import { useRepetitionKeyword } from '@/stores/discoveryStore';
-import { usePreferencesStore } from '@/stores/preferencesStore';
+import { useIsStudyMode } from '@/lib/appMode';
 import { useStudyStore } from '@/stores/studyStore';
 import { toast } from '@/stores/toastStore';
 import { track } from '@/lib/telemetry';
@@ -37,7 +37,7 @@ export function RepetitionCard({
   chapter,
   translationId,
 }: RepetitionCardProps) {
-  const inductiveToolsEnabled = usePreferencesStore(s => s.inductiveToolsEnabled);
+  const isStudyMode = useIsStudyMode();
   const activeStudyId = useStudyStore(s => s.activeStudyId) ?? undefined;
   const existingKeyword = useRepetitionKeyword(repetition.token, book, chapter, translationId);
   const [marking, setMarking] = useState(false);
@@ -72,7 +72,7 @@ export function RepetitionCard({
   return (
     <DiscoveryCard title={title}>
       <Button variant="primary" size="sm" onClick={handleMark} disabled={marking}>
-        {inductiveToolsEnabled ? 'Mark it as a key word' : 'Highlight it in this chapter'}
+        {isStudyMode ? 'Mark it as a key word' : 'Highlight it in this chapter'}
       </Button>
     </DiscoveryCard>
   );
