@@ -19,7 +19,7 @@ Goals for this phase:
 - The bottom tool bar appears only in Study. Settings moves to the ⋯ menu.
 - Discover mode opens the Discover panel by default on wide screens.
 - Marking (highlight, underline, text color, "every one in this chapter") works the same in all three modes. The app is called BibleMarker.
-- A mark made in any mode is never lost by changing mode. A real study still starts as a clean slate.
+- A mark made in any mode is never lost by changing mode. Plain highlights made outside a study stay out of a real study's view.
 - New users choose a mode on the Welcome screen. Existing users land in the mode that matches what they had.
 - One opt-in telemetry event records which mode is chosen.
 
