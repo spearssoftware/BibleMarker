@@ -112,6 +112,17 @@ describe('chooseInitialMode', () => {
     expect(useAppModeStore.getState().modesBannerPending).toBe(false);
     expect(await sentEvents()).toEqual([{ name: 'mode_chosen', feature: 'mode_read' }]);
   });
+
+  it('stores the chosen mode when it already matches the effective mode', async () => {
+    useAppModeStore.setState({ mode: 'discover' });
+    useFeatureFlagsStore.setState({ flags: { ...DEFAULT_FLAGS, [FLAG_KEYS.discoveryEnabled]: false } });
+
+    chooseInitialMode('read');
+
+    expect(useAppModeStore.getState().mode).toBe('read');
+    expect(useAppModeStore.getState().modesBannerPending).toBe(false);
+    expect(await sentEvents()).toEqual([{ name: 'mode_chosen', feature: 'mode_read' }]);
+  });
 });
 
 describe('switchMode', () => {

@@ -2,8 +2,8 @@
  * Mode seed
  *
  * Picks the starting app mode on a device that has none stored. A device that
- * has not seen the Welcome screen is left alone: the Welcome screen asks. An existing device lands in the mode matching what it had: the
- * old `inductiveToolsEnabled` preference wins, otherwise Study if the user
+ * has not seen the Welcome screen is left alone: the Welcome screen asks. An
+ * existing device lands in the mode matching what it had: the old `inductiveToolsEnabled` preference wins, otherwise Study if the user
  * has any marks or notes. Upgrade cases also raise the one-time banner.
  */
 

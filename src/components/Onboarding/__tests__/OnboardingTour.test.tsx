@@ -93,7 +93,7 @@ function setDiscoveryFlag(enabled: boolean) {
 const READ_TITLES = ['Navigation Bar', 'Bible Reading', 'Mark as you read', 'Switch modes'];
 const DISCOVER_TITLES = ['Navigation Bar', 'Bible Reading', 'Mark as you read', 'Discover', 'Switch modes'];
 const STUDY_TITLES = [
-  'Navigation Bar', 'Bible Reading', 'Mark as you read', 'Marking Toolbar',
+  'Navigation Bar', 'Bible Reading', 'Marking Toolbar',
   'Key Words: Keyword, Match, Apply', 'Observe', 'Analyze', 'Study Tools', 'Search', 'Settings',
   'Create a Study', 'Switch modes',
 ];
@@ -152,7 +152,7 @@ describe('OnboardingTour', () => {
     useAppModeStore.setState({ mode: 'study' });
     render(<OnboardingTour onComplete={vi.fn()} />);
 
-    for (let i = 0; i < 3; i++) await clickNext();
+    for (let i = 0; i < 2; i++) await clickNext();
 
     expect(screen.getByText('The toolbar opens Discover, Key Words,', { exact: false })).toBeTruthy();
   });
@@ -225,7 +225,7 @@ describe('OnboardingTour', () => {
     const onComplete = vi.fn();
     render(<OnboardingTour onComplete={onComplete} />);
 
-    for (const title of ['Bible Reading', 'Mark as you read', 'Marking Toolbar']) {
+    for (const title of ['Bible Reading', 'Marking Toolbar']) {
       await clickNext();
       await waitFor(() => expect(screen.getByText(title)).toBeTruthy());
     }
@@ -233,9 +233,9 @@ describe('OnboardingTour', () => {
     act(() => useAppModeStore.setState({ mode: 'read' }));
 
     expect(screen.getByText('Marking Toolbar')).toBeTruthy();
-    expect(screen.getByText('Step 4 of 12')).toBeTruthy();
+    expect(screen.getByText('Step 3 of 11')).toBeTruthy();
 
-    for (const title of STUDY_TITLES.slice(4)) {
+    for (const title of STUDY_TITLES.slice(3)) {
       await clickNext();
       await waitFor(() => expect(screen.getByText(title)).toBeTruthy());
     }

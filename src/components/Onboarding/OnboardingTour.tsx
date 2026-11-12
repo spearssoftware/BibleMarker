@@ -40,7 +40,7 @@ const MODE_STEP_IDS: Record<AppMode, readonly TourStepId[]> = {
   read: ['navigation', 'reading', 'marking', 'modes'],
   discover: ['navigation', 'reading', 'marking', 'discovery', 'modes'],
   study: [
-    'navigation', 'reading', 'marking', 'toolbar', 'keywords', 'observe', 'analyze',
+    'navigation', 'reading', 'toolbar', 'keywords', 'observe', 'analyze',
     'reference', 'search', 'settings', 'studies', 'modes',
   ],
 };

@@ -5,12 +5,15 @@
  * Study) before continuing to the translation library or the tour.
  */
 
-import { useState } from 'react';
+import { useRef, useState, type KeyboardEvent } from 'react';
 import { updatePreferences, getPreferences } from '@/lib/database';
 import { Button } from '@/components/shared';
 import { useDiscoveryEnabled } from '@/lib/discovery-config';
 import { MODE_DESCRIPTIONS, MODE_LABELS, chooseInitialMode } from '@/lib/appMode';
+import { useModal } from '@/hooks/useModal';
 import { APP_MODES, useAppModeStore, type AppMode } from '@/stores/appModeStore';
+
+function noop() {}
 
 interface WelcomeScreenProps {
   onComplete: () => void;
@@ -25,22 +28,66 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
     return stored !== null && offeredModes.includes(stored) ? stored : null;
   });
   const [isDismissing, setIsDismissing] = useState(false);
+  const cardRefs = useRef<Partial<Record<AppMode, HTMLButtonElement | null>>>({});
+  const tabStopRef = useRef<HTMLButtonElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const tabStop = selected !== null && offeredModes.includes(selected) ? selected : offeredModes[0];
+
+  // Focus handling and scroll lock come from the shared modal hook; the Welcome
+  // screen is not dismissable, so Escape is left alone.
+  useModal({ isOpen: true, onClose: noop, handleEscape: false, initialFocusRef: tabStopRef });
 
   async function finish(next: () => void) {
     if (!selected) return;
     setIsDismissing(true);
     chooseInitialMode(selected);
-    const prefs = await getPreferences();
-    await updatePreferences({
-      onboarding: {
-        ...prefs.onboarding!,
-        hasSeenWelcome: true,
-      },
-    });
-    next();
+    try {
+      const prefs = await getPreferences();
+      await updatePreferences({
+        onboarding: {
+          ...prefs.onboarding!,
+          hasSeenWelcome: true,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to save the welcome preference; continuing onboarding.', error);
+    } finally {
+      setIsDismissing(false);
+      next();
+    }
+  }
+
+  function handleCardKeyDown(event: KeyboardEvent<HTMLButtonElement>, mode: AppMode) {
+    const step = ['ArrowDown', 'ArrowRight'].includes(event.key) ? 1
+      : ['ArrowUp', 'ArrowLeft'].includes(event.key) ? -1
+      : 0;
+    if (step === 0) return;
+    event.preventDefault();
+    const index = offeredModes.indexOf(mode);
+    const nextMode = offeredModes[(index + step + offeredModes.length) % offeredModes.length];
+    setSelected(nextMode);
+    cardRefs.current[nextMode]?.focus();
+  }
+
+  function trapTab(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== 'Tab' || !dialogRef.current) return;
+    const focusable = Array.from(
+      dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]):not([tabindex="-1"])')
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   }
 
   const buttonsDisabled = selected === null || isDismissing;
+  const hintId = buttonsDisabled ? 'welcome-hint' : undefined;
 
   return (
     <>
@@ -52,6 +99,8 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                    pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right p-4 pointer-events-none"
       >
         <div
+          ref={dialogRef}
+          onKeyDown={trapTab}
           role="dialog"
           aria-modal="true"
           aria-labelledby="welcome-title"
@@ -80,7 +129,13 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                       type="button"
                       role="radio"
                       aria-checked={isSelected}
+                      tabIndex={mode === tabStop ? 0 : -1}
+                      ref={element => {
+                        cardRefs.current[mode] = element;
+                        if (mode === tabStop) tabStopRef.current = element;
+                      }}
                       onClick={() => setSelected(mode)}
+                      onKeyDown={event => handleCardKeyDown(event, mode)}
                       className={`w-full min-h-[44px] text-left rounded-lg border px-4 py-3 transition-colors ${
                         isSelected
                           ? 'border-scripture-accent bg-scripture-accent/10'
@@ -99,11 +154,13 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
             </div>
 
             <div className="p-6 border-t border-scripture-overlayBorder/50 flex gap-3">
+              <span id="welcome-hint" className="sr-only">Choose a mode to continue</span>
               <Button
                 variant="secondary"
                 className="flex-1"
                 onClick={() => finish(onComplete)}
                 disabled={buttonsDisabled}
+                aria-describedby={hintId}
               >
                 Get Started
               </Button>
@@ -112,6 +169,7 @@ export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
                 className="flex-1"
                 onClick={() => finish(onStartTour)}
                 disabled={buttonsDisabled}
+                aria-describedby={hintId}
               >
                 Take Tour
               </Button>

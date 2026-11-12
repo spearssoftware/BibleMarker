@@ -52,69 +52,69 @@ export function GettingStartedSection() {
           )}
 
           {isStudy && (
-          <>
-          <div>
-            <div className="font-medium text-scripture-text mb-2">✏️ Key Words: Keyword vs Match vs Apply</div>
-            <p className="text-scripture-muted mb-2">
-              Three different actions, often confused. Here&rsquo;s how they differ:
-            </p>
-            <div className="space-y-3 text-scripture-muted">
+            <>
               <div>
-                <div className="font-medium text-scripture-text">🔑 Keyword</div>
-                <p>A word or concept you track. Gets a color and symbol, auto-highlights every match in every translation.</p>
-                <p className="italic text-[11px] mt-0.5">Example: create a keyword <strong>&ldquo;God&rdquo;</strong> → every &ldquo;God&rdquo; lights up automatically wherever it appears.</p>
+                <div className="font-medium text-scripture-text mb-2">✏️ Key Words: Keyword vs Match vs Apply</div>
+                <p className="text-scripture-muted mb-2">
+                  Three different actions, often confused. Here&rsquo;s how they differ:
+                </p>
+                <div className="space-y-3 text-scripture-muted">
+                  <div>
+                    <div className="font-medium text-scripture-text">🔑 Keyword</div>
+                    <p>A word or concept you track. Gets a color and symbol, auto-highlights every match in every translation.</p>
+                    <p className="italic text-[11px] mt-0.5">Example: create a keyword <strong>&ldquo;God&rdquo;</strong> → every &ldquo;God&rdquo; lights up automatically wherever it appears.</p>
+                  </div>
+                  <div>
+                    <div className="font-medium text-scripture-text">➕ Add as a Match</div>
+                    <p>Expands an existing keyword so it also auto-matches another word.</p>
+                    <p className="italic text-[11px] mt-0.5">Example: add <strong>&ldquo;LORD&rdquo;</strong> as a match for &ldquo;God&rdquo; → from then on, both &ldquo;God&rdquo; and &ldquo;LORD&rdquo; highlight everywhere.</p>
+                  </div>
+                  <div>
+                    <div className="font-medium text-scripture-text">🎯 Apply</div>
+                    <p>Marks <em>just this one occurrence</em> with a keyword&rsquo;s color/symbol. Does <strong>not</strong> change what the keyword matches anywhere else.</p>
+                    <p className="italic text-[11px] mt-0.5">Example: in &ldquo;And <strong>He</strong> spoke…&rdquo; the &ldquo;He&rdquo; refers to Jesus. Apply the Jesus keyword just to this &ldquo;He&rdquo;. Not every &ldquo;He&rdquo; in the Bible refers to Jesus, so you don&rsquo;t want it as a match.</p>
+                  </div>
+                </div>
+                <p className="text-scripture-muted mt-3">
+                  Open Key Words from the toolbar (✏️ or press 1), or pick one from the selection menu after selecting text. Create a study to scope keywords to a specific book or topic.
+                </p>
               </div>
+
               <div>
-                <div className="font-medium text-scripture-text">➕ Add as a Match</div>
-                <p>Expands an existing keyword so it also auto-matches another word.</p>
-                <p className="italic text-[11px] mt-0.5">Example: add <strong>&ldquo;LORD&rdquo;</strong> as a match for &ldquo;God&rdquo; → from then on, both &ldquo;God&rdquo; and &ldquo;LORD&rdquo; highlight everywhere.</p>
+                <div className="font-medium text-scripture-text mb-2">🔍 Observe</div>
+                <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
+                  <li>Open Observe (🔍 or press 2) to capture structured study observations</li>
+                  <li>📝 Lists: free-form observation lists per chapter, plus people, places, and time entries</li>
+                  <li>💡 Conclusions: record what you learn from the chapter</li>
+                </ul>
               </div>
+
               <div>
-                <div className="font-medium text-scripture-text">🎯 Apply</div>
-                <p>Marks <em>just this one occurrence</em> with a keyword&rsquo;s color/symbol. Does <strong>not</strong> change what the keyword matches anywhere else.</p>
-                <p className="italic text-[11px] mt-0.5">Example: in &ldquo;And <strong>He</strong> spoke…&rdquo; the &ldquo;He&rdquo; refers to Jesus. Apply the Jesus keyword just to this &ldquo;He&rdquo;. Not every &ldquo;He&rdquo; in the Bible refers to Jesus, so you don&rsquo;t want it as a match.</p>
+                <div className="font-medium text-scripture-text mb-2">📊 Analyze</div>
+                <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
+                  <li>Open Analyze (📊 or press 3) for deeper study tools</li>
+                  <li>📄 Chapter: at-a-glance summary and structure</li>
+                  <li>📚 Overview: book-level themes and outlines</li>
+                  <li>📅 Timeline, 🗺️ Places, 🔍 Themes: contextual research</li>
+                  <li>💭 Interpret and ✍️ Apply: personal study notes</li>
+                </ul>
               </div>
-            </div>
-            <p className="text-scripture-muted mt-3">
-              Open Key Words from the toolbar (✏️ or press 1), or pick one from the selection menu after selecting text. Create a study to scope keywords to a specific book or topic.
-            </p>
-          </div>
 
-          <div>
-            <div className="font-medium text-scripture-text mb-2">🔍 Observe</div>
-            <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
-              <li>Open Observe (🔍 or press 2) to capture structured study observations</li>
-              <li>📝 Lists: free-form observation lists per chapter, plus people, places, and time entries</li>
-              <li>💡 Conclusions: record what you learn from the chapter</li>
-            </ul>
-          </div>
-
-          <div>
-            <div className="font-medium text-scripture-text mb-2">📊 Analyze</div>
-            <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
-              <li>Open Analyze (📊 or press 3) for deeper study tools</li>
-              <li>📄 Chapter: at-a-glance summary and structure</li>
-              <li>📚 Overview: book-level themes and outlines</li>
-              <li>📅 Timeline, 🗺️ Places, 🔍 Themes: contextual research</li>
-              <li>💭 Interpret and ✍️ Apply: personal study notes</li>
-            </ul>
-          </div>
-
-          </>
+            </>
           )}
 
           {mode !== 'read' && (
-          <div>
-            <div className="font-medium text-scripture-text mb-2">📖 Study Tools</div>
-            <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
-              <li>Open Study Tools ({isStudy ? '📖 from the toolbar' : '📖 from links in Discover or a verse number'}) to look up information for what you&rsquo;re reading</li>
-              <li>📖 Chapter: every person, place, topic, and event tied to the current chapter</li>
-              <li>🔎 Search: find any person, place, or topic across the reference data</li>
-              <li>🔤 Strong&rsquo;s: Hebrew and Greek lexicon entries (also accessible from the selection menu)</li>
-              <li>א Hebrew/Greek: original-language word breakdown for the current verse</li>
-              <li>🔗 Cross-Refs: cross-references for the current verse</li>
-            </ul>
-          </div>
+            <div>
+              <div className="font-medium text-scripture-text mb-2">📖 Study Tools</div>
+              <ul className="space-y-1.5 text-scripture-muted ml-4 list-disc">
+                <li>Open Study Tools ({isStudy ? '📖 from the toolbar' : '📖 from links in Discover or a verse number'}) to look up information for what you&rsquo;re reading</li>
+                <li>📖 Chapter: every person, place, topic, and event tied to the current chapter</li>
+                <li>🔎 Search: find any person, place, or topic across the reference data</li>
+                <li>🔤 Strong&rsquo;s: Hebrew and Greek lexicon entries (also accessible from the selection menu)</li>
+                <li>א Hebrew/Greek: original-language word breakdown for the current verse</li>
+                <li>🔗 Cross-Refs: cross-references for the current verse</li>
+              </ul>
+            </div>
           )}
 
           <div>

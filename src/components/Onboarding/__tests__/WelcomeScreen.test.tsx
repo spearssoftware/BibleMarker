@@ -103,8 +103,9 @@ describe('WelcomeScreen', () => {
     expect(onComplete).not.toHaveBeenCalled();
   });
 
-  it('does nothing when the backdrop is clicked', () => {
+  it('stays open when the backdrop is clicked with a mode selected', () => {
     const { container, onComplete, onStartTour } = renderWelcome();
+    fireEvent.click(screen.getByRole('radio', { name: /^Study/ }));
 
     const backdrop = container.querySelector('.backdrop-overlay');
     expect(backdrop).not.toBeNull();
@@ -112,8 +113,93 @@ describe('WelcomeScreen', () => {
 
     expect(onComplete).not.toHaveBeenCalled();
     expect(onStartTour).not.toHaveBeenCalled();
-    expect(updatePreferences).not.toHaveBeenCalled();
-    expect(useAppModeStore.getState().mode).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Welcome to BibleMarker' })).toBeTruthy();
+  });
+
+  it('still continues when saving the preference fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(updatePreferences).mockRejectedValueOnce(new Error('disk full'));
+    const { onComplete } = renderWelcome();
+
+    fireEvent.click(screen.getByRole('radio', { name: /^Read/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Get Started' }));
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
+    expect(console.error).toHaveBeenCalled();
+  });
+
+  it('moves focus to the first card on open and keeps one card in the tab order', () => {
+    renderWelcome();
+    const radios = screen.getAllByRole('radio');
+
+    expect(document.activeElement).toBe(radios[0]);
+    expect(radios.map(radio => radio.tabIndex)).toEqual([0, -1, -1]);
+  });
+
+  it('focuses the preselected card on open', () => {
+    useAppModeStore.setState({ mode: 'study' });
+    renderWelcome();
+    const radios = screen.getAllByRole('radio');
+
+    expect(document.activeElement).toBe(radios[2]);
+    expect(radios.map(radio => radio.tabIndex)).toEqual([-1, -1, 0]);
+  });
+
+  it('moves selection and focus with the arrow keys, wrapping at the ends', () => {
+    renderWelcome();
+    const [read, discover, study] = screen.getAllByRole('radio');
+
+    fireEvent.keyDown(read, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(discover);
+    expect(discover.getAttribute('aria-checked')).toBe('true');
+    expect(discover.tabIndex).toBe(0);
+    expect(read.tabIndex).toBe(-1);
+
+    fireEvent.keyDown(discover, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(study);
+
+    fireEvent.keyDown(study, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(read);
+    expect(read.getAttribute('aria-checked')).toBe('true');
+
+    fireEvent.keyDown(read, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(study);
+
+    fireEvent.keyDown(study, { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(discover);
+  });
+
+  it('keeps Tab inside the dialog', () => {
+    renderWelcome();
+    useAppModeStore.setState({ mode: 'study' });
+    fireEvent.click(screen.getAllByRole('radio')[0]);
+    const takeTour = screen.getByRole('button', { name: 'Take Tour' });
+    takeTour.focus();
+
+    fireEvent.keyDown(takeTour, { key: 'Tab' });
+    expect(document.activeElement).toBe(screen.getAllByRole('radio')[0]);
+
+    fireEvent.keyDown(document.activeElement!, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(takeTour);
+  });
+
+  it('does not dismiss on Escape', () => {
+    const { onComplete, onStartTour } = renderWelcome();
+    fireEvent.click(screen.getByRole('radio', { name: /^Read/ }));
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(onStartTour).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Welcome to BibleMarker' })).toBeTruthy();
+  });
+
+  it('ties the disabled buttons to a screen-reader hint', () => {
+    renderWelcome();
+    const getStarted = screen.getByRole('button', { name: 'Get Started' });
+
+    expect(getStarted.getAttribute('aria-describedby')).toBe('welcome-hint');
+    expect(document.getElementById('welcome-hint')?.textContent).toBe('Choose a mode to continue');
   });
 
   it('offers only Read and Study when the Discover kill switch is off', () => {

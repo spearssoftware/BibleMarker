@@ -132,6 +132,13 @@ export function chooseInitialMode(mode: AppMode): void {
     return;
   }
   switchMode(mode);
+  // switchMode returns early when the effective mode already matches (e.g. a
+  // stored Discover with the kill switch off is effectively Read), leaving the
+  // stored mode behind and sending nothing.
+  if (useAppModeStore.getState().mode !== mode) {
+    store.setMode(mode);
+    track('mode_chosen', { feature: `mode_${mode}` });
+  }
   store.setModesBannerPending(false);
 }
 
