@@ -21,7 +21,7 @@ import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
-import { useIsStudyMode, useDiscoverAvailable, useBottomBarVisible } from '@/lib/appMode';
+import { useIsStudyMode, useDiscoverAvailable, useBottomBarVisible, getEffectiveMode, toggleDiscoverPanel } from '@/lib/appMode';
 import { track } from '@/lib/telemetry';
 import { deleteAnnotation } from '@/lib/database';
 import { getAllTranslations } from '@/lib/bible-api';
@@ -127,11 +127,11 @@ export function Toolbar() {
   }, []);
 
   // Listen for custom events to open panels. openObservationTools/openAnalyzeTools
-  // stay unguarded by the mode — they're programmatic intents (e.g.
-  // "Add to Flow"), not the tab-bar buttons, so they should still work even with
-  // the toolkit hidden.
+  // are programmatic intents (e.g. "Add to Flow", a keyword search result) but
+  // their panels exist only in Study, so they are ignored elsewhere.
   useEffect(() => {
     const handleOpenObservationTools = (e: CustomEvent<{ tab?: ObservationTab; listId?: string; verseRef?: { book: string; chapter: number; verse: number }; autoCreate?: boolean }>) => {
+      if (getEffectiveMode() !== 'study') return;
       const { tab = 'lists', listId, verseRef: eventVerseRef, autoCreate } = e.detail || {};
       openPanel('observe', {
         observeInitialTab: tab,
@@ -143,6 +143,7 @@ export function Toolbar() {
     };
 
     const handleOpenAnalyzeTools = (e: CustomEvent<{ tab?: AnalyzeTab; themeSearchTerm?: string }>) => {
+      if (getEffectiveMode() !== 'study') return;
       const { tab = 'chapter', themeSearchTerm } = e.detail || {};
       openPanel('analyze', {
         analyzeInitialTab: tab,
@@ -504,7 +505,7 @@ export function Toolbar() {
                 data-toolbar-discover
                 onClick={() => {
                   const willOpen = !discoveryActive;
-                  togglePanel('discovery');
+                  toggleDiscoverPanel();
                   if (willOpen) track('discovery_chip_tapped');
                 }}
                 className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg

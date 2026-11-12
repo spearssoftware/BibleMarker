@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
 import { SplitLayout } from '../SplitLayout';
 import { useAppModeStore } from '@/stores/appModeStore';
+import { usePanelStore } from '@/stores/panelStore';
 
 let discoveryEnabled = true;
 vi.mock('@/lib/discovery-config', () => ({
@@ -27,6 +28,7 @@ function layoutPadding() {
 beforeEach(() => {
   vi.stubGlobal('ResizeObserver', StubResizeObserver);
   discoveryEnabled = true;
+  usePanelStore.setState({ orientation: 'horizontal' });
 });
 
 afterEach(() => {
@@ -40,6 +42,19 @@ describe('SplitLayout bottom padding', () => {
   it('reserves the toolbar height when the bottom bar is visible', () => {
     act(() => useAppModeStore.setState({ mode: 'study' }));
     expect(layoutPadding()).toBe('60px');
+  });
+
+  it('reserves the toolbar height in Discover on a narrow layout', () => {
+    act(() => {
+      useAppModeStore.setState({ mode: 'discover' });
+      usePanelStore.setState({ orientation: 'vertical' });
+    });
+    expect(layoutPadding()).toBe('60px');
+  });
+
+  it('reserves only the safe-area inset in Discover on a wide layout', () => {
+    act(() => useAppModeStore.setState({ mode: 'discover' }));
+    expect(layoutPadding()).not.toMatch(/\d+px/);
   });
 
   it('reserves only the safe-area inset in Read', () => {

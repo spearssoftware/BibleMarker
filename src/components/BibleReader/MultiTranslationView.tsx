@@ -36,7 +36,7 @@ import { useChapterAnalysis } from '@/hooks/useChapterAnalysis';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryHost } from '@/hooks/useDiscoveryHost';
 import { getKeywordTapHandler } from '@/lib/keywordTap';
-import { useIsStudyMode, useDiscoverAvailable } from '@/lib/appMode';
+import { useIsStudyMode, useDiscoverAvailable, openDiscoverPanel } from '@/lib/appMode';
 import { buildCrossRefKeyByVerse } from '@/lib/chapterAnalysis';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import type { VerseLens } from './VerseText';
@@ -100,11 +100,11 @@ export function MultiTranslationView() {
   const laterCrossRefRows = useDiscoveryStore(s => s.laterCrossRefPassages.rows);
   const handleConnectorTap = useCallback((hit: ConnectorHit) => {
     setActivePrompt(hit);
-    usePanelStore.getState().openPanel('discovery');
+    openDiscoverPanel();
   }, [setActivePrompt]);
   const handleCrossRefTap = useCallback((key: string) => {
     activateCrossRef(key);
-    usePanelStore.getState().openPanel('discovery');
+    openDiscoverPanel();
   }, [activateCrossRef]);
   // Cross-references are verse-level, so the lens lights the same verse in
   // every translation column (unlike connectors, which are primary-only).

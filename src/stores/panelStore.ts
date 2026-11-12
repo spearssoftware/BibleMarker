@@ -45,6 +45,8 @@ interface PanelState {
   splitRatio: number;
   orientation: 'horizontal' | 'vertical';
   isDragging: boolean;
+  /** Set when a panel replaces Discover, so closing it can return there. Not persisted. */
+  returnPanel: PanelType | null;
 
   // Panel-specific init props
   keywordInitialWord: string | undefined;
@@ -93,6 +95,7 @@ export const usePanelStore = create<PanelState>()(
       splitRatio: 0.6,
       orientation: 'horizontal',
       isDragging: false,
+      returnPanel: null,
 
       keywordInitialWord: undefined,
       keywordInitialPresetId: undefined,
@@ -114,7 +117,10 @@ export const usePanelStore = create<PanelState>()(
       panelVerseRef: undefined,
 
       openPanel: (panel, opts) => {
+        const { activePanel, returnPanel } = get();
         set({
+          returnPanel:
+            panel === 'discovery' ? null : activePanel === 'discovery' ? 'discovery' : returnPanel,
           activePanel: panel,
           isCollapsed: false,
           keywordInitialWord: opts?.keywordInitialWord,
@@ -141,6 +147,7 @@ export const usePanelStore = create<PanelState>()(
       closePanel: () => {
         set({
           activePanel: null,
+          returnPanel: null,
           keywordInitialWord: undefined,
           keywordInitialPresetId: undefined,
           observeInitialTab: DEFAULT_OBSERVE_TAB,

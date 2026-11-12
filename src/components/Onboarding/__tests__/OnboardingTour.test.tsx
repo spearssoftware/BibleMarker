@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { OnboardingTour } from '../OnboardingTour';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { useAppModeStore } from '@/stores/appModeStore';
+import { usePanelStore } from '@/stores/panelStore';
 
 vi.mock('@/lib/database', () => ({
   getPreferences: vi.fn().mockResolvedValue({
@@ -60,6 +61,7 @@ async function clickNext() {
 describe('OnboardingTour', () => {
   beforeEach(() => {
     stubTargets();
+    usePanelStore.setState({ orientation: 'vertical' });
   });
 
   afterEach(() => {
@@ -90,6 +92,24 @@ describe('OnboardingTour', () => {
 
     await waitFor(() => expect(screen.getByText('Settings')).toBeTruthy());
     expect(screen.getByText('Open the ⋯ menu in the top bar and choose Settings.', { exact: false })).toBeTruthy();
+
+    // The studies step is Study only, so Settings is the last step.
+    expect(screen.getByText('Finish')).toBeTruthy();
+    expect(screen.queryByText('Create a Study')).toBeNull();
+  });
+
+  it('skips the Discover step in Discover mode on a wide layout', async () => {
+    useAppModeStore.setState({ mode: 'discover' });
+    usePanelStore.setState({ orientation: 'horizontal' });
+    usePreferencesStore.setState({ isHydrated: true });
+    render(<OnboardingTour onComplete={vi.fn()} />);
+
+    await clickNext();
+    await waitFor(() => expect(screen.getByText('Bible Reading')).toBeTruthy());
+    await clickNext();
+
+    await waitFor(() => expect(screen.getByText('Search')).toBeTruthy());
+    expect(screen.queryByText('Notice Something')).toBeNull();
   });
 
   it('skips the Discover step in Read mode', async () => {

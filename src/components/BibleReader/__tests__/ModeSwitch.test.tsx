@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { ModeSwitch } from '../ModeSwitch';
 import { useAppModeStore } from '@/stores/appModeStore';
 import { usePanelStore } from '@/stores/panelStore';
+import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
 
 let discoveryEnabled = true;
 vi.mock('@/lib/discovery-config', () => ({
@@ -23,7 +24,8 @@ function Harness() {
 beforeEach(() => {
   discoveryEnabled = true;
   useAppModeStore.setState({ mode: 'read' });
-  usePanelStore.setState({ orientation: 'horizontal' });
+  usePanelStore.setState({ activePanel: null, returnPanel: null, isCollapsed: false, isPinned: false, orientation: 'horizontal' });
+  useDiscoveryPrefsStore.setState({ discoverPanelClosed: false });
 });
 
 afterEach(cleanup);
@@ -41,6 +43,21 @@ describe('ModeSwitch wide', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Study' }));
     expect(useAppModeStore.getState().mode).toBe('study');
     expect(screen.getByRole('radio', { name: 'Study' }).getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('toggles the Discover panel when the selected Discover segment is clicked again', () => {
+    useAppModeStore.setState({ mode: 'discover' });
+    usePanelStore.setState({ activePanel: 'discovery' });
+    render(<Harness />);
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Discover' }));
+    expect(usePanelStore.getState().activePanel).toBeNull();
+    expect(useDiscoveryPrefsStore.getState().discoverPanelClosed).toBe(true);
+    expect(useAppModeStore.getState().mode).toBe('discover');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Discover' }));
+    expect(usePanelStore.getState().activePanel).toBe('discovery');
+    expect(useDiscoveryPrefsStore.getState().discoverPanelClosed).toBe(false);
   });
 
   it('omits Discover when the kill switch is off', () => {

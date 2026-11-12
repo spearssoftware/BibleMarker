@@ -1,11 +1,19 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { discoverAvailable, effectiveMode, switchMode } from './appMode';
+import {
+  bottomBarVisible,
+  discoverAvailable,
+  effectiveMode,
+  selectMode,
+  switchMode,
+  toggleDiscoverPanel,
+} from './appMode';
 import { FLAG_KEYS, DEFAULT_FLAGS } from './feature-flags';
 import { initTelemetry, shutdownTelemetry } from './telemetry';
 import { useAppModeStore, type AppMode } from '@/stores/appModeStore';
 import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
 import { usePanelStore } from '@/stores/panelStore';
+import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
@@ -76,7 +84,8 @@ describe('switchMode', () => {
     initTelemetry();
     setDiscoveryFlag(true);
     useAppModeStore.setState({ mode: 'read', modesBannerPending: false });
-    usePanelStore.setState({ activePanel: null });
+    usePanelStore.setState({ activePanel: null, returnPanel: null, isCollapsed: false, orientation: 'vertical' });
+    useDiscoveryPrefsStore.setState({ discoverPanelClosed: false });
     useDiscoveryStore.setState({ lens: null });
     useAnnotationStore.setState({ selection: null, isSelecting: false });
   });
@@ -180,11 +189,161 @@ describe('switchMode', () => {
     expect(useAnnotationStore.getState().isSelecting).toBe(false);
   });
 
+  it('blurs the focused element', () => {
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    input.focus();
+    expect(document.activeElement).toBe(input);
+
+    switchMode('study');
+
+    expect(document.activeElement).not.toBe(input);
+    input.remove();
+  });
+
+  it('does not set the Discover flag or return when it closes a panel', () => {
+    useAppModeStore.setState({ mode: 'study' });
+    usePanelStore.setState({ activePanel: 'observe', returnPanel: 'discovery', orientation: 'horizontal' });
+
+    switchMode('discover');
+
+    expect(usePanelStore.getState().activePanel).toBeNull();
+    expect(useDiscoveryPrefsStore.getState().discoverPanelClosed).toBe(false);
+  });
+
   it('sends no event when telemetry is off', async () => {
     usePreferencesStore.setState({ telemetryEnabled: false });
 
     switchMode('study');
 
     expect(await sentEvents()).toEqual([]);
+  });
+});
+
+describe('bottomBarVisible', () => {
+  const cases: [AppMode, boolean, boolean][] = [
+    ['read', true, false],
+    ['read', false, false],
+    ['discover', true, false],
+    ['discover', false, true],
+    ['study', true, true],
+    ['study', false, true],
+  ];
+
+  it.each(cases)('mode %s with wide=%s is %s', (mode, wide, expected) => {
+    expect(bottomBarVisible(mode, wide)).toBe(expected);
+  });
+});
+
+describe('Discover panel actions', () => {
+  beforeEach(() => {
+    useFeatureFlagsStore.setState({
+      flags: { ...DEFAULT_FLAGS, [FLAG_KEYS.discoveryEnabled]: true },
+    });
+    useAppModeStore.setState({ mode: 'discover', modesBannerPending: false });
+    usePanelStore.setState({
+      activePanel: null,
+      returnPanel: null,
+      isCollapsed: false,
+      isPinned: false,
+      orientation: 'horizontal',
+    });
+    useDiscoveryPrefsStore.setState({ discoverPanelClosed: false });
+  });
+
+  const flag = () => useDiscoveryPrefsStore.getState().discoverPanelClosed;
+  const active = () => usePanelStore.getState().activePanel;
+
+  describe('toggleDiscoverPanel', () => {
+    it('opens the panel and clears the flag', () => {
+      useDiscoveryPrefsStore.setState({ discoverPanelClosed: true });
+
+      toggleDiscoverPanel();
+
+      expect(active()).toBe('discovery');
+      expect(flag()).toBe(false);
+    });
+
+    it('sets the flag when closing in wide Discover', () => {
+      usePanelStore.setState({ activePanel: 'discovery' });
+
+      toggleDiscoverPanel();
+
+      expect(active()).toBeNull();
+      expect(flag()).toBe(true);
+    });
+
+    it('does not set the flag when closing in Study', () => {
+      useAppModeStore.setState({ mode: 'study' });
+      usePanelStore.setState({ activePanel: 'discovery' });
+
+      toggleDiscoverPanel();
+
+      expect(active()).toBeNull();
+      expect(flag()).toBe(false);
+    });
+
+    it('does not set the flag when closing on a narrow layout', () => {
+      usePanelStore.setState({ activePanel: 'discovery', orientation: 'vertical' });
+
+      toggleDiscoverPanel();
+
+      expect(active()).toBeNull();
+      expect(flag()).toBe(false);
+    });
+
+    it('expands a collapsed panel without setting the flag', () => {
+      usePanelStore.setState({ activePanel: 'discovery', isCollapsed: true });
+
+      toggleDiscoverPanel();
+
+      expect(active()).toBe('discovery');
+      expect(usePanelStore.getState().isCollapsed).toBe(false);
+      expect(flag()).toBe(false);
+    });
+
+    it('replaces another panel with Discover', () => {
+      usePanelStore.setState({ activePanel: 'settings' });
+
+      toggleDiscoverPanel();
+
+      expect(active()).toBe('discovery');
+    });
+  });
+
+  describe('selectMode', () => {
+    it('toggles the panel when the effective mode is already Discover', () => {
+      usePanelStore.setState({ activePanel: 'discovery' });
+
+      selectMode('discover');
+
+      expect(active()).toBeNull();
+      expect(useAppModeStore.getState().mode).toBe('discover');
+      expect(flag()).toBe(true);
+    });
+
+    it('switches mode when selecting a different mode', () => {
+      selectMode('study');
+
+      expect(useAppModeStore.getState().mode).toBe('study');
+    });
+
+    it('switches into Discover from another mode without toggling the panel', () => {
+      useAppModeStore.setState({ mode: 'read' });
+      usePanelStore.setState({ activePanel: 'discovery' });
+
+      selectMode('discover');
+
+      expect(useAppModeStore.getState().mode).toBe('discover');
+      expect(active()).toBe('discovery');
+    });
+
+    it('re-selecting Read does nothing', () => {
+      useAppModeStore.setState({ mode: 'read' });
+
+      selectMode('read');
+
+      expect(useAppModeStore.getState().mode).toBe('read');
+    });
   });
 });

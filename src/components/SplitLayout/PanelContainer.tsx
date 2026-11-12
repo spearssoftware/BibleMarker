@@ -1,7 +1,8 @@
 import { usePanelStore, type PanelType } from '@/stores/panelStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import { useIsStudyMode } from '@/lib/appMode';
+import { getEffectiveMode, useIsStudyMode } from '@/lib/appMode';
+import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
 import { KeyWordManager } from '@/components/KeyWords';
 import { ObservationToolsPanel } from '@/components/Observation';
 import { AnalyzeToolsPanel } from '@/components/Analyze';
@@ -46,7 +47,6 @@ export function PanelContainer() {
     setPinned,
     setCollapsed,
     closePanel,
-    notifyActionComplete,
   } = usePanelStore();
 
   const { selection, clearSelection } = useAnnotationStore();
@@ -61,6 +61,22 @@ export function PanelContainer() {
 
   const isHorizontal = orientation === 'horizontal';
   const title = PANEL_TITLES[activePanel];
+
+  const closeFromUser = () => {
+    const { activePanel: closing, returnPanel, orientation: layout } = usePanelStore.getState();
+    const discoverMode = getEffectiveMode() === 'discover';
+    const wide = layout === 'horizontal';
+    const prefs = useDiscoveryPrefsStore.getState();
+    closePanel();
+    if (!discoverMode) return;
+    if (closing === 'discovery') {
+      if (wide) prefs.setDiscoverPanelClosed(true);
+      return;
+    }
+    if (returnPanel === 'discovery' || (wide && !prefs.discoverPanelClosed)) {
+      usePanelStore.getState().openPanel('discovery');
+    }
+  };
 
   const handleClose = () => {
     // When closing the Reference panel, jump back to original location
@@ -79,12 +95,13 @@ export function PanelContainer() {
       }
     }
     clearSelection();
-    closePanel();
+    closeFromUser();
   };
 
   const handleKeywordPresetCreated = async () => {
     clearSelection();
-    notifyActionComplete();
+    if (isPinned) return;
+    closeFromUser();
   };
 
   return (

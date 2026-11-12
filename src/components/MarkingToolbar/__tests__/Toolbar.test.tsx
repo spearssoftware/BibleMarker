@@ -13,6 +13,7 @@ import { usePanelStore } from '@/stores/panelStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { useAppModeStore } from '@/stores/appModeStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
+import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
 import { DEFAULT_MARKING_PREFERENCES } from '@/types';
 
 // --- Mock all heavy dependencies ---
@@ -150,9 +151,12 @@ describe('Toolbar', () => {
     // Reset panel store
     usePanelStore.setState({
       activePanel: null,
+      returnPanel: null,
       isPinned: false,
       isCollapsed: false,
+      orientation: 'vertical',
     });
+    useDiscoveryPrefsStore.setState({ discoverPanelClosed: false });
     // Default to tools enabled (and hydrated) so existing keyword-flow tests
     // keep working; gating itself is covered by the "tool tabs" suite below.
     useAppModeStore.setState({ mode: 'study' });
@@ -265,7 +269,18 @@ describe('Toolbar', () => {
       expect(tabLabels()).toEqual(['Discover']);
     });
 
-    it('renders Discover and the four tools in Study', () => {
+    it('renders no bar in Discover on a wide layout', () => {
+      act(() => {
+        useAppModeStore.setState({ mode: 'discover' });
+        usePanelStore.setState({ orientation: 'horizontal' });
+      });
+      render(<Toolbar />);
+
+      expect(tabLabels()).toEqual([]);
+    });
+
+    it.each(['horizontal', 'vertical'] as const)('renders Discover and the four tools in Study at %s orientation', orientation => {
+      act(() => usePanelStore.setState({ orientation }));
       render(<Toolbar />);
 
       expect(tabLabels()).toEqual(['Discover', ...TOOL_LABELS]);
@@ -336,6 +351,29 @@ describe('Toolbar', () => {
       expect(usePanelStore.getState().activePanel).toBe('keywords');
       press(3);
       expect(usePanelStore.getState().activePanel).toBe('reference');
+    });
+  });
+
+  describe('window events', () => {
+    it.each([
+      ['openObservationTools', 'observe'],
+      ['openAnalyzeTools', 'analyze'],
+    ] as const)('%s opens its panel only in Study', (eventName, panel) => {
+      render(<Toolbar />);
+
+      for (const mode of ['read', 'discover'] as const) {
+        act(() => {
+          useAppModeStore.setState({ mode });
+          window.dispatchEvent(new CustomEvent(eventName));
+        });
+        expect(usePanelStore.getState().activePanel).toBeNull();
+      }
+
+      act(() => {
+        useAppModeStore.setState({ mode: 'study' });
+        window.dispatchEvent(new CustomEvent(eventName));
+      });
+      expect(usePanelStore.getState().activePanel).toBe(panel);
     });
   });
 

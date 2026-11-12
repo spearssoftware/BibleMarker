@@ -25,6 +25,7 @@ import { MultiTranslationView } from '@/components/BibleReader/MultiTranslationV
 import { Toolbar } from '@/components/MarkingToolbar';
 import { SplitLayout, PanelContainer } from '@/components/SplitLayout';
 import { useLayoutOrientation } from '@/hooks/useLayoutOrientation';
+import { useDiscoverDefaultPanel } from '@/hooks/useDiscoverDefaultPanel';
 import { ErrorDisplay } from '@/components/ErrorDisplay';
 import { WelcomeScreen, TranslationLibrary, OnboardingTour } from '@/components/Onboarding';
 import { loadSampleData } from '@/lib/sampleData';
@@ -45,7 +46,7 @@ import { UpdateBanner, WhatsNewModal, ModesBanner } from '@/components/shared';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { seedAppMode } from '@/lib/modeSeed';
 import { useAppModeStore, APP_MODES } from '@/stores/appModeStore';
-import { switchMode } from '@/lib/appMode';
+import { selectMode } from '@/lib/appMode';
 import { initTelemetry, shutdownTelemetry } from '@/lib/telemetry';
 
 // Re-hydrate preferences from the DB and seed the app mode on a device that
@@ -109,7 +110,7 @@ export default function App() {
     enabled: true,
     onModeShortcut: (index) => {
       const mode = APP_MODES[index];
-      if (mode) switchMode(mode);
+      if (mode) selectMode(mode);
     },
   });
 
@@ -118,6 +119,7 @@ export default function App() {
 
   // Detect layout orientation for split-view panel
   useLayoutOrientation();
+  useDiscoverDefaultPanel();
 
   // Critical path: DB init + preferences + active view (needed for first render)
   useEffect(() => {

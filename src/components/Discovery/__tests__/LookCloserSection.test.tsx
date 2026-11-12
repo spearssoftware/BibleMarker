@@ -97,7 +97,7 @@ describe('LookCloserSection', () => {
     }
   });
 
-  it('persists only lookCloserOpen, mapLayer, and markingStyle', () => {
+  it('persists only lookCloserOpen, mapLayer, markingStyle, and discoverPanelClosed', () => {
     useDiscoveryPrefsStore.getState().setLookCloserOpen(true);
     useDiscoveryPrefsStore.getState().setMapLayer('satellite');
     useDiscoveryPrefsStore.getState().setMarkingStyle('underline');
@@ -107,6 +107,7 @@ describe('LookCloserSection', () => {
       lookCloserOpen: true,
       mapLayer: 'satellite',
       markingStyle: 'underline',
+      discoverPanelClosed: false,
     });
   });
 });

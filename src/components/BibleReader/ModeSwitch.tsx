@@ -10,7 +10,7 @@ import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { SegmentedControl, ToolbarPopover, type SegmentedOption } from '@/components/shared';
 import { useDiscoveryEnabled } from '@/lib/discovery-config';
-import { MODE_DESCRIPTIONS, MODE_LABELS, switchMode, useEffectiveMode } from '@/lib/appMode';
+import { MODE_DESCRIPTIONS, MODE_LABELS, selectMode, switchMode, useEffectiveMode } from '@/lib/appMode';
 import type { AppMode } from '@/stores/appModeStore';
 import { usePanelStore } from '@/stores/panelStore';
 
@@ -33,7 +33,7 @@ export function ModeSwitch({ menuOpen, onMenuOpenChange }: ModeSwitchProps) {
       label: MODE_LABELS[value],
     }));
     return (
-      <SegmentedControl options={options} value={mode} onChange={switchMode} size="sm" ariaLabel="Mode" />
+      <SegmentedControl options={options} value={mode} onChange={selectMode} size="sm" ariaLabel="Mode" />
     );
   }
 

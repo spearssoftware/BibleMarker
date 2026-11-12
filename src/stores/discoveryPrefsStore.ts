@@ -23,6 +23,9 @@ interface DiscoveryPrefsState {
   setMapLayer: (layer: MapLayer) => void;
   markingStyle: MarkingStyleChoice;
   setMarkingStyle: (style: MarkingStyleChoice) => void;
+  /** Set when the reader closes the Discover panel in Discover mode on a wide layout; stops it reopening by default. */
+  discoverPanelClosed: boolean;
+  setDiscoverPanelClosed: (closed: boolean) => void;
 }
 
 export const useDiscoveryPrefsStore = create<DiscoveryPrefsState>()(
@@ -34,6 +37,8 @@ export const useDiscoveryPrefsStore = create<DiscoveryPrefsState>()(
       setMapLayer: layer => set({ mapLayer: layer }),
       markingStyle: 'highlight',
       setMarkingStyle: style => set({ markingStyle: style }),
+      discoverPanelClosed: false,
+      setDiscoverPanelClosed: closed => set({ discoverPanelClosed: closed }),
     }),
     {
       name: 'discovery-prefs',
@@ -41,6 +46,7 @@ export const useDiscoveryPrefsStore = create<DiscoveryPrefsState>()(
         lookCloserOpen: state.lookCloserOpen,
         mapLayer: state.mapLayer,
         markingStyle: state.markingStyle,
+        discoverPanelClosed: state.discoverPanelClosed,
       }),
     }
   )

@@ -13,6 +13,7 @@ import { FLAG_KEYS } from '@/lib/feature-flags';
 import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
 import { usePanelStore, type PanelType } from '@/stores/panelStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
+import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { track } from '@/lib/telemetry';
 
@@ -61,8 +62,16 @@ export function useDiscoverAvailable(): boolean {
   return discoverAvailable(mode, discoveryEnabled);
 }
 
+/** `mode` is the effective mode. Discover's wide layout shows its panel instead of a bar. */
+export function bottomBarVisible(mode: AppMode, wide: boolean): boolean {
+  if (mode === 'study') return true;
+  return mode === 'discover' && !wide;
+}
+
 export function useBottomBarVisible(): boolean {
-  return useEffectiveMode() !== 'read';
+  const mode = useEffectiveMode();
+  const wide = usePanelStore(state => state.orientation === 'horizontal');
+  return bottomBarVisible(mode, wide);
 }
 
 export function getEffectiveMode(): AppMode {
@@ -78,6 +87,8 @@ export function switchMode(mode: AppMode): void {
   if (mode === 'discover' && !useFeatureFlagsStore.getState().isEnabled(FLAG_KEYS.discoveryEnabled)) {
     return;
   }
+
+  (document.activeElement as HTMLElement | null)?.blur();
 
   const { activePanel, closePanel } = usePanelStore.getState();
   // The Key Words panel renders a different editor in Study, so it must not
@@ -96,4 +107,34 @@ export function switchMode(mode: AppMode): void {
 
   useAppModeStore.getState().setMode(mode);
   track('mode_chosen', { feature: `mode_${mode}` });
+}
+
+export function openDiscoverPanel(): void {
+  usePanelStore.getState().openPanel('discovery');
+  useDiscoveryPrefsStore.getState().setDiscoverPanelClosed(false);
+}
+
+export function toggleDiscoverPanel(): void {
+  const { activePanel, isCollapsed, orientation, closePanel, setCollapsed } = usePanelStore.getState();
+  if (activePanel !== 'discovery') {
+    openDiscoverPanel();
+    return;
+  }
+  if (isCollapsed) {
+    setCollapsed(false);
+    return;
+  }
+  closePanel();
+  if (getEffectiveMode() === 'discover' && orientation === 'horizontal') {
+    useDiscoveryPrefsStore.getState().setDiscoverPanelClosed(true);
+  }
+}
+
+/** The wide segmented control: choosing the selected Discover segment toggles its panel. */
+export function selectMode(mode: AppMode): void {
+  if (mode === 'discover' && getEffectiveMode() === 'discover') {
+    toggleDiscoverPanel();
+    return;
+  }
+  switchMode(mode);
 }

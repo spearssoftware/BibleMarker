@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { updatePreferences, getPreferences } from '@/lib/database';
 import { useStudyStore } from '@/stores/studyStore';
-import { useIsStudyMode, useDiscoverAvailable } from '@/lib/appMode';
+import { useIsStudyMode, useDiscoverAvailable, useBottomBarVisible } from '@/lib/appMode';
 
 interface TourStep {
   id: string;
@@ -18,7 +18,7 @@ interface TourStep {
   action?: () => void; // Optional action to perform before showing step
   /** Only shown in Study mode. */
   toolkitOnly?: boolean;
-  /** Only shown while the Discover tab exists. */
+  /** Only shown while the Discover tab exists and the bottom bar renders. */
   discoverOnly?: boolean;
 }
 
@@ -111,6 +111,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'studies',
+    toolkitOnly: true,
     title: 'Create a Study',
     description: 'Studies let you organize your keywords, notes, and observations around a topic or book. Find them under Settings \u2192 Studies. You can create one now or skip and start reading.',
   },
@@ -130,13 +131,14 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   const { createStudy, setActiveStudy } = useStudyStore();
   const isStudyMode = useIsStudyMode();
   const discoverAvailable = useDiscoverAvailable();
+  const barVisible = useBottomBarVisible();
   // Toolkit steps (Marking Toolbar/Key Words/Observe/Analyze) target elements
   // that don't render outside Study mode — filter them out rather than
   // let every one auto-skip after a 500ms timeout. Computed once on mount so
   // a mode change mid-tour cannot shift the step list underneath the reader.
   const [steps] = useState(() =>
     TOUR_STEPS.filter(step =>
-      (isStudyMode || !step.toolkitOnly) && (discoverAvailable || !step.discoverOnly)
+      (isStudyMode || !step.toolkitOnly) && (!step.discoverOnly || (discoverAvailable && barVisible))
     )
   );
 
