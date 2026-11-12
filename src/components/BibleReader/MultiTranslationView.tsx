@@ -188,6 +188,17 @@ export function MultiTranslationView() {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingHeadingId, setEditingHeadingId] = useState<string | null>(null);
   const [verseMenuAt, setVerseMenuAt] = useState<{ verseNum: number; translationId: string } | null>(null);
+  // Titles and headings are only editable in Study, so abandon any open
+  // creator or editor when the mode leaves it.
+  const [prevIsStudyMode, setPrevIsStudyMode] = useState(isStudyMode);
+  if (isStudyMode !== prevIsStudyMode) {
+    setPrevIsStudyMode(isStudyMode);
+    if (!isStudyMode) {
+      setCreatingHeadingAt(null);
+      setCreatingChapterTitle(false);
+      setEditingHeadingId(null);
+    }
+  }
   // Bumped when API configs change (e.g. after sync) to retry failed chapters
   const [configGeneration, setConfigGeneration] = useState(0);
   
@@ -682,6 +693,7 @@ export function MultiTranslationView() {
               title={chapterTitle}
               onSave={updateChapterTitle}
               onDelete={removeChapterTitle}
+              readOnly={!isStudyMode}
             />
           ) : creatingChapterTitle ? (
             <ChapterTitleCreator
@@ -696,7 +708,7 @@ export function MultiTranslationView() {
       )}
       
       {/* Add chapter title button - show in nav area if no title exists */}
-      {!chapterTitle && !creatingChapterTitle && primaryTranslationId && (
+      {isStudyMode && !chapterTitle && !creatingChapterTitle && primaryTranslationId && (
         <div className="px-4 py-2 text-center flex-shrink-0">
           <button
             onClick={() => setCreatingChapterTitle(true)}
@@ -760,6 +772,7 @@ export function MultiTranslationView() {
                       }
                       onSave={updateSectionHeading}
                       onDelete={removeSectionHeading}
+                      readOnly={!isStudyMode}
                     />
                   </div>
                 )}

@@ -11,12 +11,14 @@ interface ChapterTitleEditorProps {
   title: ChapterTitle;
   onSave?: (title: ChapterTitle) => void;
   onDelete?: (id: string) => void;
+  readOnly?: boolean;
 }
 
 export function ChapterTitleEditor({ 
   title, 
   onSave, 
-  onDelete 
+  onDelete,
+  readOnly
 }: ChapterTitleEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(title.title);
@@ -70,7 +72,7 @@ export function ChapterTitleEditor({
     }
   };
 
-  if (isEditing) {
+  if (isEditing && !readOnly) {
     return (
       <div className="chapter-title-editor mb-4 flex items-center gap-2">
         <input
@@ -108,16 +110,18 @@ export function ChapterTitleEditor({
 
   return (
     <div 
-      className="chapter-title px-4 font-ui text-2xl font-bold text-scripture-accent cursor-pointer
+      className={`chapter-title px-4 font-ui text-2xl font-bold text-scripture-accent
                  transition-all duration-200 flex items-center justify-center group relative
-                 bg-transparent"
-      onClick={() => setIsEditing(true)}
-      title="Click to edit"
+                 bg-transparent${readOnly ? '' : ' cursor-pointer'}`}
+      onClick={readOnly ? undefined : () => setIsEditing(true)}
+      title={readOnly ? undefined : 'Click to edit'}
     >
       <span className="tracking-wide">{title.title}</span>
-      <span className="absolute right-4 text-xs text-scripture-muted opacity-0 group-hover:opacity-100 transition-opacity font-normal">
-        Edit
-      </span>
+      {!readOnly && (
+        <span className="absolute right-4 text-xs text-scripture-muted opacity-0 group-hover:opacity-100 transition-opacity font-normal">
+          Edit
+        </span>
+      )}
     </div>
   );
 }

@@ -19,6 +19,7 @@ interface SectionHeadingEditorProps {
   onEditingChange?: (editing: boolean) => void;
   onSave?: (heading: SectionHeading) => void;
   onDelete?: (id: string) => void;
+  readOnly?: boolean;
 }
 
 export function SectionHeadingEditor({
@@ -26,7 +27,8 @@ export function SectionHeadingEditor({
   isEditing: isEditingProp,
   onEditingChange,
   onSave,
-  onDelete
+  onDelete,
+  readOnly
 }: SectionHeadingEditorProps) {
   const [localEditing, setLocalEditing] = useState(false);
   const isEditing = isEditingProp ?? localEditing;
@@ -77,7 +79,7 @@ export function SectionHeadingEditor({
     }
   };
 
-  if (isEditing) {
+  if (isEditing && !readOnly) {
     return (
       <div className="section-heading my-4 flex items-center gap-2">
         <input
@@ -115,11 +117,12 @@ export function SectionHeadingEditor({
 
   return (
     <h3 
-      className="section-heading my-3 py-1.5 text-scripture-text/80 font-ui text-base font-medium
-                 border-b border-scripture-border/50 cursor-pointer hover:text-scripture-text
-                 hover:border-scripture-accent/50 transition-all duration-200 italic"
-      onClick={() => setIsEditing(true)}
-      title="Click to edit"
+      className={`section-heading my-3 py-1.5 text-scripture-text/80 font-ui text-base font-medium
+                 border-b border-scripture-border/50 transition-all duration-200 italic${
+                   readOnly ? '' : ' cursor-pointer hover:text-scripture-text hover:border-scripture-accent/50'
+                 }`}
+      onClick={readOnly ? undefined : () => setIsEditing(true)}
+      title={readOnly ? undefined : 'Click to edit'}
     >
       {heading.title}
     </h3>
