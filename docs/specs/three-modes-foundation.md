@@ -186,7 +186,8 @@ Today every mark is tied to whichever study is active when it is made, and Read 
 - **Second device, same account**: it is a fresh install, so the Welcome screen asks. Its mode is independent.
 - **An older app version on another device** does not know the reserved "My Bible" id and treats it as an unknown study, so "My Bible" marks made on the new version are hidden there (not deleted) until that device updates. Accepted.
 - **Mode store lost after seeding**: the banner can show once more and `mode_chosen` can be sent once more. Accepted.
-- **Switching out of Study while a Study-only inline editor is open** (section heading, chapter title, observation, time expression): if the editor holds text, the app asks "Discard your changes?" with "Discard" and "Keep editing"; "Keep editing" cancels the mode switch. An empty editor closes without asking. A note editor is available in every mode and stays open.
+- **Switching out of Study while a chapter-title or section-heading editor is open**: the editor saves what was typed, as it does whenever it loses focus, and closes. An empty editor just closes. There is no "discard" prompt, because nothing is discarded. A note editor is available in every mode and stays open.
+- **Switching out of Study while typing in an Observe-panel form** (observation, time expression): the Observe panel closes and the unsaved text is lost, the same as closing that panel today. Known limitation.
 - **Search** is not filtered by study or mode. A result can open a passage whose marks belong to a study that is not in effect; the passage opens and those marks stay hidden.
 - **Backup and restore** do not carry the mode. After a restore the device keeps the mode it had.
 - **Multi-translation**: the mode applies to every column alike.
