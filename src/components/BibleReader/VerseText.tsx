@@ -12,7 +12,7 @@ import { SymbolIcon, getSymbolMarkup } from '@/lib/symbolDisplay';
 import { CrossReferencePopup } from './CrossReferencePopup';
 import { VerseOverlay } from './VerseOverlay';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { findKeywordMatches } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { getDebugFlagsSync } from '@/lib/debug';
@@ -68,7 +68,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
   
   // Get all marking presets for cross-translation keyword highlighting
   const { presets } = useMarkingPresetStore();
-  const { activeStudyId } = useStudyStore();
+  const activeStudyId = useEffectiveStudyId();
   const { exclusions } = useKeywordExclusionStore();
 
   // Filter presets by active study (null = global only; study = global + study)

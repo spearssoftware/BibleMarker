@@ -3,7 +3,7 @@
  *
  * KeyWordManager simple mode (inductive tools off): list, search, and a
  * word / style / color editor. New marks default to a custom, chapter-scoped
- * preset in the active study; editing keeps the fields simple mode hides.
+ * preset under My Bible; editing keeps the fields simple mode hides.
  */
 
 import type { ComponentProps } from 'react';
@@ -78,6 +78,21 @@ describe('KeyWordManager simple mode', () => {
     expect(screen.getByPlaceholderText('Search key words...')).toBeTruthy();
   });
 
+  it('hides a study\'s key word in the simple list while that study is selected', async () => {
+    db.presets = [
+      createMarkingPreset({
+        word: 'Jesus',
+        category: 'custom',
+        highlight: { style: 'underline', color: 'blue' },
+        scopes: [{ book: 'John', chapter: 9 }],
+        studyId: 'study-1',
+      }),
+    ];
+    renderManager();
+
+    expect(await screen.findByText('No key words match your filters')).toBeTruthy();
+  });
+
   it('shows only word, marking style and color when creating', async () => {
     const user = userEvent.setup();
     renderManager();
@@ -93,7 +108,7 @@ describe('KeyWordManager simple mode', () => {
     expect(screen.queryByTitle('No color')).toBeNull();
   });
 
-  it('saves a new mark as a custom, chapter-scoped, case-insensitive preset in the active study', async () => {
+  it('files a new mark under My Bible as a custom, chapter-scoped, case-insensitive preset even with a study selected', async () => {
     const user = userEvent.setup();
     renderManager();
     await user.click(await screen.findByRole('button', { name: '+ New' }));
@@ -107,7 +122,7 @@ describe('KeyWordManager simple mode', () => {
     const preset = savedPreset('Jesus')!;
     expect(preset.category).toBe('custom');
     expect(preset.scopes).toEqual([{ book: 'John', chapter: 9 }]);
-    expect(preset.studyId).toBe('study-1');
+    expect(preset.studyId).toBeUndefined();
     expect(preset.highlight).toEqual({ style: 'underline', color: 'blue' });
     expect(preset.caseSensitive).toBeFalsy();
     expect(preset.symbol).toBeUndefined();

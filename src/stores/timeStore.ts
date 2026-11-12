@@ -13,6 +13,7 @@ import { getBookById, presetMatchesVerse } from '@/types';
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 import { getSymbolsForTracker } from '@/lib/observationSymbols';
 import { filterByExactVerse, filterByBook } from './entityStoreHelpers';
+import { filterPresetsByStudy } from '@/lib/studyFilter';
 
 interface TimeState {
   // Time expressions (cached)
@@ -202,8 +203,8 @@ export const useTimeStore = create<TimeState>()(
         const { timeExpressions, createTimeExpression } = get();
         
         // Get active study for scoping
-        const { useStudyStore } = await import('@/stores/studyStore');
-        const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
+        const { getEffectiveStudyId } = await import('@/lib/effectiveStudy');
+        const activeStudyId = getEffectiveStudyId() ?? undefined;
         
         const { fetchChapter } = await import('@/lib/bible-api');
         const chapterData = await fetchChapter(moduleId || '', book, chapter);
@@ -215,7 +216,7 @@ export const useTimeStore = create<TimeState>()(
         // Get all keyword presets with 'time' category
         const { useMarkingPresetStore } = await import('@/stores/markingPresetStore');
         const { presets } = useMarkingPresetStore.getState();
-        const timePresets = presets.filter(p => 
+        const timePresets = filterPresetsByStudy(presets, activeStudyId ?? null).filter(p => 
           p.word && 
           p.category === 'time' &&
           (p.highlight || p.symbol)

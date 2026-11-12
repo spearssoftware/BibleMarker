@@ -10,7 +10,7 @@ import type { VerseRef } from '@/types';
 import { usePlaceStore } from '@/stores/placeStore';
 import { useTimeStore } from '@/stores/timeStore';
 import { usePeopleStore } from '@/stores/peopleStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { getEffectiveStudyId } from '@/lib/effectiveStudy';
 import { getAnnotationText } from './annotationQueries';
 
 /**
@@ -26,7 +26,7 @@ export async function autoAddToPlaceTracker(
   if (preset.category !== 'places') return;
 
   const placeStore = usePlaceStore.getState();
-  const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
+  const activeStudyId = getEffectiveStudyId() ?? undefined;
   
   // Check for existing place with same presetId and verseRef to avoid duplicates
   const existingPlaces = placeStore.places.filter(
@@ -72,7 +72,7 @@ export async function autoAddToTimeTracker(
   if (preset.category !== 'time') return;
 
   const timeStore = useTimeStore.getState();
-  const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
+  const activeStudyId = getEffectiveStudyId() ?? undefined;
   
   // Check for existing time expression with same presetId and verseRef to avoid duplicates
   const existingTimeExpressions = timeStore.timeExpressions.filter(
@@ -118,7 +118,7 @@ export async function autoAddToPeopleTracker(
   if (preset.category !== 'people') return;
 
   const peopleStore = usePeopleStore.getState();
-  const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
+  const activeStudyId = getEffectiveStudyId() ?? undefined;
 
   const existing = peopleStore.people.filter(
     p => p.presetId === preset.id &&

@@ -15,6 +15,7 @@ import { saveValidated, filterByExactVerse, filterByBook } from './entityStoreHe
 import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVerseRef } from '@/lib/annotationQueries';
 import { getSymbolsForTracker } from '@/lib/observationSymbols';
 import { resolveCoordinates } from '@/lib/bible-geocoding';
+import { filterPresetsByStudy } from '@/lib/studyFilter';
 
 interface PlaceState {
   // Places (cached)
@@ -231,8 +232,8 @@ export const usePlaceStore = create<PlaceState>()(
       autoPopulateFromChapter: async (book, chapter, moduleId) => {
         const { createPlace, updatePlace } = get();
 
-        const { useStudyStore } = await import('@/stores/studyStore');
-        const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
+        const { getEffectiveStudyId } = await import('@/lib/effectiveStudy');
+        const activeStudyId = getEffectiveStudyId() ?? undefined;
 
         const { fetchChapter } = await import('@/lib/bible-api');
         const chapterData = await fetchChapter(moduleId || '', book, chapter);
@@ -245,7 +246,7 @@ export const usePlaceStore = create<PlaceState>()(
         const { useMarkingPresetStore } = await import('@/stores/markingPresetStore');
         const { presets } = useMarkingPresetStore.getState();
         const validPresetIds = new Set(presets.map(p => p.id));
-        const placePresets = presets.filter(p =>
+        const placePresets = filterPresetsByStudy(presets, activeStudyId ?? null).filter(p =>
           p.word &&
           p.category === 'places' &&
           (p.highlight || p.symbol)

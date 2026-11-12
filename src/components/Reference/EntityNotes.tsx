@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useEntityNoteStore } from '@/stores/entityNoteStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { Button, Textarea } from '@/components/shared';
 import type { EntityNoteType, EntityNote } from '@/types';
 
@@ -12,7 +12,7 @@ interface EntityNotesProps {
 
 export function EntityNotes({ entityType, entitySlug, entityName }: EntityNotesProps) {
   const { notes, loadNotes, getNotesForEntity, createNote, updateNote, deleteNote } = useEntityNoteStore();
-  const { activeStudyId } = useStudyStore();
+  const activeStudyId = useEffectiveStudyId();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [content, setContent] = useState('');

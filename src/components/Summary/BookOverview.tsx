@@ -7,7 +7,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import {
   getBookChapterTitles,
@@ -46,7 +46,7 @@ interface BookOverviewProps {
 export function BookOverview({ onChapterClick }: BookOverviewProps = {}) {
   const { currentBook, currentModuleId, setLocation } = useBibleStore();
   const { activeView } = useMultiTranslationStore();
-  const { activeStudyId } = useStudyStore();
+  const activeStudyId = useEffectiveStudyId();
   const { presets } = useMarkingPresetStore();
 
   const primaryTranslationId = activeView?.translationIds[0] || currentModuleId || null;

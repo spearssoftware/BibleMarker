@@ -12,7 +12,7 @@
 import { useState } from 'react';
 import { useRepetitionKeyword } from '@/stores/discoveryStore';
 import { useIsStudyMode } from '@/lib/appMode';
-import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { toast } from '@/stores/toastStore';
 import { track } from '@/lib/telemetry';
 import { markRepetitionAsKeyword } from '@/lib/discoveryActions';
@@ -38,7 +38,7 @@ export function RepetitionCard({
   translationId,
 }: RepetitionCardProps) {
   const isStudyMode = useIsStudyMode();
-  const activeStudyId = useStudyStore(s => s.activeStudyId) ?? undefined;
+  const activeStudyId = useEffectiveStudyId() ?? undefined;
   const existingKeyword = useRepetitionKeyword(repetition.token, book, chapter, translationId);
   const [marking, setMarking] = useState(false);
 

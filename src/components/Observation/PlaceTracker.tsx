@@ -7,7 +7,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { usePlaceStore } from '@/stores/placeStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { fetchChapter } from '@/lib/bible-api';
@@ -30,7 +30,7 @@ interface PlaceTrackerProps {
 export function PlaceTracker({ selectedText, verseRef: initialVerseRef, filterByChapter = true, isCreating, setIsCreating, onNavigate }: PlaceTrackerProps) {
   const { places, loadPlaces, createPlace, updatePlace, deletePlace, autoImportFromAnnotations, removeDuplicates, removeOrphaned, autoPopulateFromChapter } = usePlaceStore();
   const { currentBook, currentChapter } = useBibleStore();
-  const { activeStudyId } = useStudyStore();
+  const activeStudyId = useEffectiveStudyId();
   const { presets } = useMarkingPresetStore();
   const presetMap = useMemo(() => new Map(presets.map(p => [p.id, { word: p.word, category: p.category }])), [presets]);
   const [expandedKeywords, setExpandedKeywords] = useState<Set<string>>(new Set());

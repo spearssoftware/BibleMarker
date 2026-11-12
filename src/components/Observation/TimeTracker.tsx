@@ -7,7 +7,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTimeStore } from '@/stores/timeStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { fetchChapter } from '@/lib/bible-api';
@@ -85,7 +85,7 @@ function formatChapterYears(years: Array<{ year: number; era: 'BC' | 'AD' }>): s
 export function TimeTracker({ selectedText, verseRef: initialVerseRef, autoCreate, filterByChapter = true, isCreating, setIsCreating, onNavigate }: TimeTrackerProps) {
   const { timeExpressions, loadTimeExpressions, createTimeExpression, updateTimeExpression, deleteTimeExpression, autoImportFromAnnotations, removeDuplicates, autoPopulateFromChapter } = useTimeStore();
   const { currentBook, currentChapter } = useBibleStore();
-  const { activeStudyId } = useStudyStore();
+  const activeStudyId = useEffectiveStudyId();
   const { presets } = useMarkingPresetStore();
   const presetMap = useMemo(() => new Map(presets.map(p => [p.id, { word: p.word }])), [presets]);
   const [expandedKeywords, setExpandedKeywords] = useState<Set<string>>(new Set());

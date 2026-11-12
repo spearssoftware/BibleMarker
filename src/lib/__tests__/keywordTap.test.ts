@@ -20,6 +20,7 @@ vi.mock('@/stores/panelStore', () => ({
 }));
 
 import { getKeywordTapHandler } from '../keywordTap';
+import { useAppModeStore } from '@/stores/appModeStore';
 
 const verseRef = { book: 'John', chapter: 9, verse: 1 };
 
@@ -28,6 +29,7 @@ describe('getKeywordTapHandler', () => {
 
   beforeEach(() => {
     getOrCreateListForKeyword.mockReset();
+    useAppModeStore.setState({ mode: 'study' });
     openPanel.mockReset();
     getOrCreateListForKeyword.mockResolvedValue({ id: 'list-1' });
     window.addEventListener('openObservationTools', opened);

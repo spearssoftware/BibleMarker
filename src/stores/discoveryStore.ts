@@ -14,7 +14,7 @@ import { create } from 'zustand';
 import type { ChapterAnalysis, ConnectorHit } from '@/lib/chapterAnalysis';
 import type { CrossRefPassageRow } from '@/hooks/useCrossRefPassages';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { singularize } from '@/lib/chapterAnalysis';
 import { normalizeForMatching, presetAppliesToChapter, variantAppliesToChapter } from '@/lib/keywordMatching';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
@@ -138,7 +138,7 @@ export function useRepetitionKeyword(
   translationId: string
 ): MarkingPreset | undefined {
   const presets = useMarkingPresetStore(s => s.presets);
-  const activeStudyId = useStudyStore(s => s.activeStudyId);
+  const activeStudyId = useEffectiveStudyId();
   return useMemo(
     () => filterPresetsByStudy(presets, activeStudyId).find(p => presetMarksToken(p, token, book, chapter, translationId)),
     [presets, activeStudyId, token, book, chapter, translationId]

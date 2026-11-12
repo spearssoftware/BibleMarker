@@ -21,7 +21,7 @@ import { DEFAULT_MARKING_PREFERENCES } from '@/types';
 // --- Mock all heavy dependencies ---
 
 // Database and store reset
-vi.mock('@/lib/database', () => ({ clearDatabase: vi.fn() }));
+vi.mock('@/lib/database', () => ({ clearDatabase: vi.fn(), updatePreferences: vi.fn(async () => {}) }));
 vi.mock('@/lib/storeReset', () => ({ resetAllStores: vi.fn() }));
 vi.mock('@/lib/studyFilter', () => ({
   filterPresetsByStudy: (presets: unknown[]) => presets,
@@ -68,9 +68,17 @@ vi.mock('@/stores/bibleStore', () => ({
     canGoPrevious: () => false,
   }),
 }));
-vi.mock('@/stores/studyStore', () => ({
-  useStudyStore: () => ({ activeStudyId: null }),
+const { studyState, createBookScopedKeywordPreset } = vi.hoisted(() => ({
+  studyState: { activeStudyId: null as string | null, studies: [] as unknown[] },
+  createBookScopedKeywordPreset: vi.fn(async () => ({ id: 'preset-1' })),
 }));
+vi.mock('@/stores/studyStore', () => ({
+  useStudyStore: Object.assign(
+    (selector?: (s: typeof studyState) => unknown) => (selector ? selector(studyState) : studyState),
+    { getState: () => studyState }
+  ),
+}));
+vi.mock('@/lib/discoveryActions', () => ({ createBookScopedKeywordPreset }));
 vi.mock('@/stores/peopleStore', () => ({
   usePeopleStore: () => ({ people: [], loadPeople: vi.fn() }),
 }));
@@ -92,9 +100,16 @@ vi.mock('@/lib/telemetry', () => ({
 vi.mock('../SelectionMenu', () => ({
   SelectionMenu: (props: {
     onOpenKeyWordManager: () => void;
+    onMarkChapter?: (match: { word: string; variants: string[] }, style: 'highlight', color: 'yellow') => void;
     onClose: () => void;
   }) => (
     <div data-testid="selection-menu">
+      <button
+        data-testid="mark-chapter-button"
+        onClick={() => props.onMarkChapter?.({ word: 'God', variants: [] }, 'highlight', 'yellow')}
+      >
+        Mark chapter
+      </button>
       <button
         data-testid="keyword-button"
         onClick={() => {
@@ -166,6 +181,8 @@ describe('Toolbar', () => {
     discoveryEnabled = true;
     useFeatureFlagsStore.setState({ flags: { ...DEFAULT_FLAGS, [FLAG_KEYS.discoveryEnabled]: true } });
     markingPresetState.presets = [];
+    studyState.activeStudyId = null;
+    createBookScopedKeywordPreset.mockClear();
     trackMock.mockClear();
   });
 
@@ -267,6 +284,31 @@ describe('Toolbar', () => {
 
       const panelState = usePanelStore.getState();
       expect(panelState.keywordInitialWord).toBe('love');
+    });
+  });
+
+  describe('marking a word in the chapter', () => {
+    async function markChapterWord(): Promise<void> {
+      const user = userEvent.setup();
+      act(() => {
+        useAnnotationStore.setState({ selection: makeSelection('God') });
+      });
+      render(<Toolbar />);
+      await user.click(screen.getByTestId('mark-chapter-button'));
+    }
+
+    it('stamps no study in Read even when a study is selected', async () => {
+      studyState.activeStudyId = 'study-1';
+      useAppModeStore.setState({ mode: 'read' });
+      await markChapterWord();
+      expect(createBookScopedKeywordPreset).toHaveBeenCalledWith(expect.objectContaining({ studyId: undefined }));
+    });
+
+    it('stamps the selected study in Study', async () => {
+      studyState.activeStudyId = 'study-1';
+      useAppModeStore.setState({ mode: 'study' });
+      await markChapterWord();
+      expect(createBookScopedKeywordPreset).toHaveBeenCalledWith(expect.objectContaining({ studyId: 'study-1' }));
     });
   });
 

@@ -8,6 +8,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { createMarkingPreset, KEY_WORD_CATEGORIES, getCategoryForSymbol, scopeLabel, MARKING_STYLE_OPTIONS, type KeyWordCategory, type MarkingPreset, type MarkingStyle, type PresetScope, type Variant } from '@/types';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { SYMBOLS, SYMBOL_LABELS, SYMBOL_CATEGORIES, isLetterOrNumberSymbol, getHighlightColorHex, HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_SORTED, getRandomHighlightColor, type SymbolKey, type HighlightColor } from '@/types';
@@ -78,7 +79,7 @@ export function KeyWordManager({ onClose: _onClose, initialWord, initialSymbol, 
   } = useMarkingPresetStore();
   
   const { currentBook, currentChapter } = useBibleStore();
-  const { activeStudyId } = useStudyStore();
+  const activeStudyId = useEffectiveStudyId();
 
   // Seed create mode from initialWord so opening with a selection works on mount;
   // the prevInitialWord tracker below handles subsequent changes.
@@ -881,7 +882,8 @@ function KeyWordEditor({
   }, [initialSymbol, preset]);
 
   // Don't sync initialColor for new presets — we use a random color instead
-  const { studies, activeStudyId } = useStudyStore();
+  const studies = useStudyStore(s => s.studies);
+  const activeStudyId = useEffectiveStudyId();
   
   const [category, setCategory] = useState<KeyWordCategory>(preset?.category || 'custom');
   const [description, setDescription] = useState(preset?.description || '');

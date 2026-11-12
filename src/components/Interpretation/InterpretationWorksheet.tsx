@@ -9,6 +9,7 @@ import { useInterpretationStore } from '@/stores/interpretationStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { formatVerseRef } from '@/types';
 import type { InterpretationEntry } from '@/types';
 import type { VerseRef } from '@/types';
@@ -73,7 +74,8 @@ export function InterpretationWorksheet({ verseRef: initialVerseRef, isCreating,
     deleteInterpretation 
   } = useInterpretationStore();
   const { presets } = useMarkingPresetStore();
-  const { studies, activeStudyId } = useStudyStore();
+  const studies = useStudyStore(s => s.studies);
+  const activeStudyId = useEffectiveStudyId();
   
   const [editingId, setEditingIdInternal] = useState<string | null>(null);
   const setEditingId = (id: string | null) => {

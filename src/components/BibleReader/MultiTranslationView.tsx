@@ -26,7 +26,7 @@ import { usePlaceStore } from '@/stores/placeStore';
 import { useTimeStore } from '@/stores/timeStore';
 import { usePeopleStore } from '@/stores/peopleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { getBookById } from '@/types';
 import { useCurrentVerseTracker } from '@/hooks/useCurrentVerseTracker';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
@@ -81,7 +81,7 @@ export function MultiTranslationView() {
     removeNote,
   } = useAnnotations();
   const { presets } = useMarkingPresetStore();
-  const { activeStudyId } = useStudyStore();
+  const activeStudyId = useEffectiveStudyId();
   const isStudyMode = useIsStudyMode();
   const menuItems = verseMenuItems(useEffectiveMode());
 

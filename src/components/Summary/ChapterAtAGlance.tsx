@@ -8,7 +8,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import {
   getChapterTitle,
   getChapterHeadings,
@@ -53,7 +53,7 @@ export function ChapterAtAGlance({ onObservationClick, onOpenObservationTools }:
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
   const { activeView } = useMultiTranslationStore();
   const { presets, loadPresets } = useMarkingPresetStore();
-  const { activeStudyId } = useStudyStore();
+  const activeStudyId = useEffectiveStudyId();
   const { verses: activeVerses, translationId: activeTranslationId, book: activeBook, chapter: activeChapterNum } = useActiveChapterStore();
   
   // Get the primary translation ID (first valid one) for section headings, chapter titles

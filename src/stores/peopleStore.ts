@@ -16,6 +16,7 @@ import { getAnnotationsBySymbolsWithPreset, getAnnotationText, getAnnotationVers
 import { getSymbolsForTracker } from '@/lib/observationSymbols';
 import { resolvePersonDates } from '@/lib/gnosisPersonDates';
 import { getGnosisMode } from '@/lib/gnosis';
+import { filterPresetsByStudy } from '@/lib/studyFilter';
 
 interface PeopleState {
   people: Person[];
@@ -185,14 +186,14 @@ export const usePeopleStore = create<PeopleState>()(
 
       autoPopulateFromChapter: async (book, chapter, moduleId) => {
         const { people, createPerson } = get();
-        const { useStudyStore } = await import('@/stores/studyStore');
-        const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
+        const { getEffectiveStudyId } = await import('@/lib/effectiveStudy');
+        const activeStudyId = getEffectiveStudyId() ?? undefined;
         const { fetchChapter } = await import('@/lib/bible-api');
         const chapterData = await fetchChapter(moduleId || '', book, chapter);
         if (!chapterData?.verses.length) return 0;
         const { useMarkingPresetStore } = await import('@/stores/markingPresetStore');
         const { presets } = useMarkingPresetStore.getState();
-        const peoplePresets = presets.filter(p =>
+        const peoplePresets = filterPresetsByStudy(presets, activeStudyId ?? null).filter(p =>
           p.word &&
           p.category === 'people' &&
           (p.highlight || p.symbol)

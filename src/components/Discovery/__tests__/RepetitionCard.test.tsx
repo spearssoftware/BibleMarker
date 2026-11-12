@@ -21,9 +21,12 @@ vi.mock('@/lib/database', () => ({
   getPreferences: vi.fn(async () => ({})),
 }));
 
+const { studyState } = vi.hoisted(() => ({ studyState: { activeStudyId: null as string | null } }));
 vi.mock('@/stores/studyStore', () => ({
-  useStudyStore: (selector: (s: { activeStudyId: string | null }) => unknown) =>
-    selector({ activeStudyId: null }),
+  useStudyStore: Object.assign(
+    (selector: (s: typeof studyState) => unknown) => selector(studyState),
+    { getState: () => studyState }
+  ),
 }));
 
 const trackMock = vi.fn();
@@ -64,6 +67,7 @@ function renderCard(overrides: Partial<Parameters<typeof RepetitionCard>[0]> = {
 
 describe('RepetitionCard', () => {
   beforeEach(() => {
+    studyState.activeStudyId = null;
     useAppModeStore.setState({ mode: 'discover' });
     usePreferencesStore.setState({ isHydrated: true });
     useMarkingPresetStore.setState({ presets: [] });
@@ -105,6 +109,23 @@ describe('RepetitionCard', () => {
     await vi.waitFor(() => expect(markRepetitionAsKeywordMock).toHaveBeenCalledWith(repetition, 'John', 1, undefined));
     await vi.waitFor(() => expect(screen.getByText(/You've already marked it/)).toBeTruthy());
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('stamps no study in Discover even when a study is selected', async () => {
+    studyState.activeStudyId = 'study-1';
+    renderCard();
+    fireEvent.click(screen.getByText('Highlight it in this chapter'));
+
+    await vi.waitFor(() => expect(markRepetitionAsKeywordMock).toHaveBeenCalledWith(repetition, 'John', 1, undefined));
+  });
+
+  it('stamps the selected study in Study', async () => {
+    studyState.activeStudyId = 'study-1';
+    useAppModeStore.setState({ mode: 'study' });
+    renderCard();
+    fireEvent.click(screen.getByText('Mark it as a key word'));
+
+    await vi.waitFor(() => expect(markRepetitionAsKeywordMock).toHaveBeenCalledWith(repetition, 'John', 1, 'study-1'));
   });
 
   it('re-enables the button and shows a toast when marking fails', async () => {

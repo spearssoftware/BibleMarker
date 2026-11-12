@@ -7,7 +7,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { usePeopleStore } from '@/stores/peopleStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { fetchChapter } from '@/lib/bible-api';
@@ -37,7 +37,7 @@ export function PeopleTracker({
 }: PeopleTrackerProps) {
   const { people, loadPeople, createPerson, updatePerson, deletePerson, autoImportFromAnnotations, removeDuplicates, autoPopulateFromChapter } = usePeopleStore();
   const { currentBook, currentChapter } = useBibleStore();
-  const { activeStudyId } = useStudyStore();
+  const activeStudyId = useEffectiveStudyId();
   const { presets } = useMarkingPresetStore();
   const presetMap = useMemo(() => new Map(presets.map(p => [p.id, { word: p.word }])), [presets]);
   const [expandedKeywords, setExpandedKeywords] = useState<Set<string>>(new Set());

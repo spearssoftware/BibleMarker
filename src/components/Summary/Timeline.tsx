@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useEffect, useRef, useState } from 'react';
 import { useTimeStore } from '@/stores/timeStore';
 import { usePeopleStore } from '@/stores/peopleStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useChapterEntities, useGnosisEntity } from '@/hooks/useGnosis';
 import { formatVerseRef, parseOsisRef } from '@/types';
@@ -97,7 +97,7 @@ interface TimelineProps {
 export function Timeline({ filterByBook = true }: TimelineProps) {
   const { timeExpressions, loadTimeExpressions, autoPopulateFromChapter } = useTimeStore();
   const { people, loadPeople, autoPopulateFromChapter: autoPopulatePeople } = usePeopleStore();
-  const { activeStudyId } = useStudyStore();
+  const activeStudyId = useEffectiveStudyId();
   const { currentBook, currentChapter, currentModuleId, navigateToVerse } = useBibleStore();
   const lastPopulatedChapter = useRef('');
 

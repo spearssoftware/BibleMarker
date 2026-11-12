@@ -10,13 +10,13 @@
 
 import type { VerseRef } from '@/types';
 import { useListStore } from '@/stores/listStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { getEffectiveStudyId } from '@/lib/effectiveStudy';
 import { usePanelStore } from '@/stores/panelStore';
 
 export type KeywordTapHandler = (presetId: string, verseRef: VerseRef) => void;
 
 function openKeywordList(presetId: string, verseRef: VerseRef): void {
-  const activeStudyId = useStudyStore.getState().activeStudyId ?? undefined;
+  const activeStudyId = getEffectiveStudyId() ?? undefined;
   useListStore.getState().getOrCreateListForKeyword(presetId, activeStudyId, verseRef.book).then(list => {
     window.dispatchEvent(new CustomEvent('openObservationTools', {
       detail: { tab: 'lists', listId: list.id, verseRef },

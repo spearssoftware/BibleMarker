@@ -7,7 +7,7 @@
 import { useCallback } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { saveAnnotation, deleteAnnotation, findSisterAnnotations, getAnnotationById, getChapterAnnotations, getChapterHeadings, saveSectionHeading, deleteSectionHeading, getChapterTitle, saveChapterTitle, deleteChapterTitle, getChapterNotes, saveNote, deleteNote, getMarkingPreset } from '@/lib/database';
 import type { Annotation, TextAnnotation, SymbolAnnotation, HighlightColor, SymbolKey, SectionHeading, ChapterTitle, Note, MarkingPreset, Verse } from '@/types';
 import { presetHasDecoration } from '@/types';
@@ -18,7 +18,7 @@ import { findAlignedMatch } from '@/lib/translationAlignment';
 
 export function useAnnotations() {
   const { currentBook, currentChapter, currentModuleId } = useBibleStore();
-  const { activeStudyId } = useStudyStore();
+  const activeStudyId = useEffectiveStudyId();
   const { 
     selection, 
     setAnnotations,

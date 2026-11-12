@@ -14,7 +14,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useApplicationStore } from '@/stores/applicationStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { formatVerseRef } from '@/types';
 import type { ApplicationEntry } from '@/types';
 import type { VerseRef } from '@/types';
@@ -70,7 +70,7 @@ export function ApplicationWorksheet({ verseRef: initialVerseRef, isCreating, se
     deleteApplication,
   } = useApplicationStore();
   const { presets } = useMarkingPresetStore();
-  const { activeStudyId } = useStudyStore();
+  const activeStudyId = useEffectiveStudyId();
   
   const [editingId, setEditingIdInternal] = useState<string | null>(null);
   const setEditingId = (id: string | null) => {

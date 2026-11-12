@@ -15,7 +15,7 @@ import { InterpretationWorksheet } from '@/components/Interpretation';
 import { ApplicationWorksheet } from '@/components/Application';
 import { usePlaceStore } from '@/stores/placeStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { useChapterEntities, useGnosisEntity } from '@/hooks/useGnosis';
 import { Button, Checkbox } from '@/components/shared';
 import type { GnosisPlace, Place, VerseRef } from '@/types';
@@ -51,7 +51,7 @@ export function AnalyzeToolsPanel({
   const { currentBook, currentChapter, setLocation, setNavSelectedVerse, currentModuleId } = useBibleStore();
   const primaryModuleId = currentModuleId || '';
   const { places, loadPlaces, autoPopulateFromChapter } = usePlaceStore();
-  const { activeStudyId } = useStudyStore();
+  const activeStudyId = useEffectiveStudyId();
 
   const setActiveTab = (tab: AnalyzeTab) => {
     setIsCreating(false);

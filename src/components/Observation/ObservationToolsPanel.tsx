@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { useListStore } from '@/stores/listStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { fetchChapter } from '@/lib/bible-api';
@@ -109,7 +110,8 @@ export function ObservationToolsPanel({
   const [activeTab, setActiveTab] = useState<ObservationTab>(initialTab);
   const { lists, loadLists, deleteList, addItemToList, updateItem, deleteItem, toggleFavorite, favoriteListIds } = useListStore();
   const { presets } = useMarkingPresetStore();
-  const { studies, activeStudyId } = useStudyStore();
+  const studies = useStudyStore(s => s.studies);
+  const activeStudyId = useEffectiveStudyId();
   const { currentBook, currentChapter, navSelectedVerse, setLocation, setNavSelectedVerse } = useBibleStore();
   const [editingListId, setEditingListId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);

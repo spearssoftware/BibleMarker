@@ -37,7 +37,7 @@ export const useEntityNoteStore = create<EntityNoteState>()(
         return get().notes.filter(
           (n) =>
             n.entitySlug === entitySlug &&
-            (!studyId || n.studyId === studyId)
+            (!n.studyId || n.studyId === studyId)
         );
       },
 

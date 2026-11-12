@@ -8,7 +8,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { fetchChapter } from '@/lib/bible-api';
 import { getBookById, presetMatchesBook } from '@/types';
 import { findKeywordMatches } from '@/lib/keywordMatching';
@@ -37,7 +37,7 @@ export function ThemeTracker({ initialSearchTerm }: ThemeTrackerProps = {}) {
   const { currentBook, currentModuleId, setLocation } = useBibleStore();
   const { activeView } = useMultiTranslationStore();
   const { presets, loadPresets } = useMarkingPresetStore();
-  const { activeStudyId } = useStudyStore();
+  const activeStudyId = useEffectiveStudyId();
 
   // Get the primary translation ID
   const primaryTranslationId = activeView?.translationIds[0] || currentModuleId || null;

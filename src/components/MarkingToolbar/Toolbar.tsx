@@ -15,7 +15,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { SelectionMenu, type ApplyScope } from './SelectionMenu';
 import { useListStore } from '@/stores/listStore';
 import { useBibleStore } from '@/stores/bibleStore';
-import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { usePanelStore } from '@/stores/panelStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
@@ -56,7 +56,7 @@ export function Toolbar() {
   const { previousChapter, nextChapter, canGoNext, canGoPrevious } = useBibleStore();
   const { createTextAnnotation, createSymbolAnnotation, createAnnotationsAcrossTranslations, loadAnnotations, quickHighlight } = useAnnotations();
   const { presets, loadPresets, markPresetUsed, updatePreset, removePreset } = useMarkingPresetStore();
-  const { activeStudyId } = useStudyStore();
+  const activeStudyId = useEffectiveStudyId();
   const { getOrCreateListForKeyword } = useListStore();
   const { activePanel, togglePanel, openPanel, isCollapsed } = usePanelStore();
   const chaptersByTranslation = useMultiTranslationStore(s => s.chaptersByTranslation);

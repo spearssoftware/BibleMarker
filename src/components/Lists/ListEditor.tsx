@@ -8,6 +8,7 @@ import { useState, useMemo } from 'react';
 import { useListStore } from '@/stores/listStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useStudyStore } from '@/stores/studyStore';
+import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { useBibleStore } from '@/stores/bibleStore';
 import { filterPresetsByStudy } from '@/lib/studyFilter';
 import { pluralize } from '@/lib/textUtils';
@@ -26,7 +27,8 @@ interface ListEditorProps {
 export function ListEditor({ list, onClose, onSave, inline = false }: ListEditorProps) {
   const { createList, updateList, autoPopulateFromKeyword } = useListStore();
   const { presets } = useMarkingPresetStore();
-  const { studies, activeStudyId } = useStudyStore();
+  const studies = useStudyStore(s => s.studies);
+  const activeStudyId = useEffectiveStudyId();
   const { currentBook } = useBibleStore();
   const [title, setTitle] = useState(list?.title || '');
   const [titleManuallyEdited, setTitleManuallyEdited] = useState(!!list?.title);
