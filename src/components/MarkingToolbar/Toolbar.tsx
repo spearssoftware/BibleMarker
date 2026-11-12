@@ -21,7 +21,7 @@ import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
-import { useIsStudyMode, useDiscoverAvailable, useBottomBarVisible, getEffectiveMode, toggleDiscoverPanel } from '@/lib/appMode';
+import { useIsStudyMode, useDiscoverAvailable, useBottomBarVisible, getEffectiveMode, toggleDiscoverPanel, PANELS_OFFERED } from '@/lib/appMode';
 import { track } from '@/lib/telemetry';
 import { deleteAnnotation } from '@/lib/database';
 import { getAllTranslations } from '@/lib/bible-api';
@@ -66,13 +66,16 @@ export function Toolbar() {
   const barVisible = useBottomBarVisible();
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
 
-  // The kill switch can turn off mid-session: tear down the Discover panel
-  // and lens so nothing is left open for a tab that no longer exists.
+  // The kill switch can turn off mid-session: tear down the Discover panel,
+  // any panel the new effective mode does not offer, and the lens.
   const wasDiscoverAvailable = useRef(discoverAvailable);
   useEffect(() => {
     if (wasDiscoverAvailable.current && !discoverAvailable) {
-      const panels = usePanelStore.getState();
-      if (panels.activePanel === 'discovery') panels.closePanel();
+      const { activePanel, closePanel } = usePanelStore.getState();
+      // Study still lists 'discovery', but with the kill switch off the tab is gone.
+      if (activePanel && (activePanel === 'discovery' || !PANELS_OFFERED[getEffectiveMode()].includes(activePanel))) {
+        closePanel();
+      }
       useDiscoveryStore.getState().setLens(null);
     }
     wasDiscoverAvailable.current = discoverAvailable;

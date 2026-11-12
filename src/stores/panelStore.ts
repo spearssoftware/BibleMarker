@@ -78,7 +78,6 @@ interface PanelState {
   setSplitRatio: (ratio: number) => void;
   setOrientation: (orientation: 'horizontal' | 'vertical') => void;
   setDragging: (dragging: boolean) => void;
-  notifyActionComplete: () => void;
 }
 
 const DEFAULT_OBSERVE_TAB: ObservationTab = 'lists';
@@ -190,12 +189,6 @@ export const usePanelStore = create<PanelState>()(
       setOrientation: (orientation) => set({ orientation }),
 
       setDragging: (dragging) => set({ isDragging: dragging }),
-
-      notifyActionComplete: () => {
-        if (!get().isPinned) {
-          get().closePanel();
-        }
-      },
     }),
     {
       name: 'panel-state',

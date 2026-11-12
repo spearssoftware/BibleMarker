@@ -11,6 +11,7 @@ import { getBookById } from '@/types';
 import { useModal } from '@/hooks/useModal';
 import { ModalBackdrop } from '@/components/shared';
 import { Z_INDEX } from '@/lib/modalConstants';
+import { useIsStudyMode } from '@/lib/appMode';
 
 type DisplayScope = SearchScope;
 
@@ -24,7 +25,10 @@ export function Search({ onClose, onNavigate }: SearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [scope, setScope] = useState<DisplayScope>('all');
+  const isStudyMode = useIsStudyMode();
+  const [selectedScope, setScope] = useState<DisplayScope>('all');
+  // Keyword results open the Analyze panel, which exists only in Study.
+  const scope: DisplayScope = !isStudyMode && selectedScope === 'keywords' ? 'all' : selectedScope;
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -51,7 +55,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
             scope === 'chapter' ? currentBook : undefined,
             scope === 'chapter' ? currentChapter : undefined
           );
-          setResults(searchResults);
+          setResults(isStudyMode ? searchResults : searchResults.filter(r => r.type !== 'keyword'));
           setSelectedIndex(0);
         } catch (error) {
           console.error('Search error:', error);
@@ -65,7 +69,7 @@ export function Search({ onClose, onNavigate }: SearchProps) {
     }, 300); // Debounce search
 
     return () => clearTimeout(timeoutId);
-  }, [query, scope, currentModuleId, currentBook, currentChapter]);
+  }, [query, scope, isStudyMode, currentModuleId, currentBook, currentChapter]);
 
   const scrollToSelected = () => {
     const selectedElement = resultsRef.current?.querySelector(`[data-result-index="${selectedIndex}"]`);
@@ -218,7 +222,9 @@ export function Search({ onClose, onNavigate }: SearchProps) {
           {/* Scope selector */}
           <div className="flex items-baseline gap-2 mt-3 flex-wrap">
             <span className="text-xs text-scripture-muted font-ui leading-none py-1.5">Search in:</span>
-            {(['all', 'bible', 'keywords', 'headings', 'notes', 'observations', 'chapter'] as const).map((s) => (
+            {(['all', 'bible', 'keywords', 'headings', 'notes', 'observations', 'chapter'] as const)
+              .filter((s) => isStudyMode || s !== 'keywords')
+              .map((s) => (
               <button
                 key={s}
                 onClick={() => setScope(s)}

@@ -14,6 +14,8 @@ import { usePreferencesStore } from '@/stores/preferencesStore';
 import { useAppModeStore } from '@/stores/appModeStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
+import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
+import { FLAG_KEYS, DEFAULT_FLAGS } from '@/lib/feature-flags';
 import { DEFAULT_MARKING_PREFERENCES } from '@/types';
 
 // --- Mock all heavy dependencies ---
@@ -162,6 +164,7 @@ describe('Toolbar', () => {
     useAppModeStore.setState({ mode: 'study' });
     usePreferencesStore.setState({ isHydrated: true });
     discoveryEnabled = true;
+    useFeatureFlagsStore.setState({ flags: { ...DEFAULT_FLAGS, [FLAG_KEYS.discoveryEnabled]: true } });
     markingPresetState.presets = [];
     trackMock.mockClear();
   });
@@ -174,20 +177,47 @@ describe('Toolbar', () => {
       expect(usePanelStore.getState().activePanel).toBe('discovery');
 
       discoveryEnabled = false;
+      useFeatureFlagsStore.setState({ flags: { ...DEFAULT_FLAGS, [FLAG_KEYS.discoveryEnabled]: false } });
       rerender(<Toolbar />);
 
       expect(usePanelStore.getState().activePanel).toBeNull();
       expect(useDiscoveryStore.getState().lens).toBeNull();
     });
 
-    it('leaves other panels open', () => {
+    it('closes a panel the new effective mode does not offer, without setting the closed flag', () => {
+      useAppModeStore.setState({ mode: 'discover' });
+      usePanelStore.setState({ activePanel: 'reference' });
+      const { rerender } = render(<Toolbar />);
+
+      discoveryEnabled = false;
+      useFeatureFlagsStore.setState({ flags: { ...DEFAULT_FLAGS, [FLAG_KEYS.discoveryEnabled]: false } });
+      rerender(<Toolbar />);
+
+      expect(usePanelStore.getState().activePanel).toBeNull();
+      expect(useDiscoveryPrefsStore.getState().discoverPanelClosed).toBe(false);
+    });
+
+    it('keeps a panel Study offers', () => {
       usePanelStore.setState({ activePanel: 'observe' });
       const { rerender } = render(<Toolbar />);
 
       discoveryEnabled = false;
+      useFeatureFlagsStore.setState({ flags: { ...DEFAULT_FLAGS, [FLAG_KEYS.discoveryEnabled]: false } });
       rerender(<Toolbar />);
 
       expect(usePanelStore.getState().activePanel).toBe('observe');
+    });
+
+    it('keeps Settings when Discover mode falls back to Read', () => {
+      useAppModeStore.setState({ mode: 'discover' });
+      usePanelStore.setState({ activePanel: 'settings' });
+      const { rerender } = render(<Toolbar />);
+
+      discoveryEnabled = false;
+      useFeatureFlagsStore.setState({ flags: { ...DEFAULT_FLAGS, [FLAG_KEYS.discoveryEnabled]: false } });
+      rerender(<Toolbar />);
+
+      expect(usePanelStore.getState().activePanel).toBe('settings');
     });
 
     it('does nothing on mount when Discover is already unavailable', () => {

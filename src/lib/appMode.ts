@@ -29,7 +29,7 @@ export const MODE_DESCRIPTIONS: Record<AppMode, string> = {
   study: 'The full inductive toolset: key words, observation lists, chapter titles and analysis.',
 };
 
-const PANELS_OFFERED: Record<AppMode, readonly PanelType[]> = {
+export const PANELS_OFFERED: Record<AppMode, readonly PanelType[]> = {
   read: ['keywords', 'settings'],
   discover: ['keywords', 'settings', 'discovery', 'reference'],
   study: ['keywords', 'observe', 'analyze', 'reference', 'settings', 'discovery'],
@@ -124,7 +124,10 @@ export function switchMode(mode: AppMode): void {
 
 export function openDiscoverPanel(): void {
   usePanelStore.getState().openPanel('discovery');
-  useDiscoveryPrefsStore.getState().setDiscoverPanelClosed(false);
+  // Opening from Study (tool bar, lens) must not undo a choice made in Discover.
+  if (getEffectiveMode() === 'discover') {
+    useDiscoveryPrefsStore.getState().setDiscoverPanelClosed(false);
+  }
 }
 
 export function toggleDiscoverPanel(): void {

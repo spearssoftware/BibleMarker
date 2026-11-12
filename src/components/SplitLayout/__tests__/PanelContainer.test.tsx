@@ -94,7 +94,7 @@ describe('PanelContainer closing', () => {
     useBibleStore.setState({
       currentBook: 'Gen',
       currentChapter: 5,
-      locationHistory: [{ book: 'Exo', chapter: 2 }] as never,
+      locationHistory: [{ book: 'Exo', chapter: 2 }],
     });
     render(<PanelContainer />);
 

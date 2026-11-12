@@ -4,6 +4,7 @@ import {
   bottomBarVisible,
   discoverAvailable,
   effectiveMode,
+  openDiscoverPanel,
   selectMode,
   switchMode,
   toggleDiscoverPanel,
@@ -254,6 +255,27 @@ describe('Discover panel actions', () => {
 
   const flag = () => useDiscoveryPrefsStore.getState().discoverPanelClosed;
   const active = () => usePanelStore.getState().activePanel;
+
+  describe('openDiscoverPanel', () => {
+    it('clears the flag in Discover', () => {
+      useDiscoveryPrefsStore.setState({ discoverPanelClosed: true });
+
+      openDiscoverPanel();
+
+      expect(active()).toBe('discovery');
+      expect(flag()).toBe(false);
+    });
+
+    it('leaves the flag alone in Study', () => {
+      useAppModeStore.setState({ mode: 'study' });
+      useDiscoveryPrefsStore.setState({ discoverPanelClosed: true });
+
+      openDiscoverPanel();
+
+      expect(active()).toBe('discovery');
+      expect(flag()).toBe(true);
+    });
+  });
 
   describe('toggleDiscoverPanel', () => {
     it('opens the panel and clears the flag', () => {
