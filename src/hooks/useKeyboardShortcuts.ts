@@ -153,7 +153,7 @@ export function getKeyboardShortcutsHelp(isStudyMode: boolean): Array<{ keys: st
   return [
     { keys: ['←', '→'], description: 'Previous/Next chapter' },
     { keys: ['J', 'K'], description: 'Next/Previous chapter (vim-style)' },
-    { keys: ['Cmd/Ctrl', 'F'], description: 'Search (handled by NavigationBar)' },
+    { keys: ['Cmd/Ctrl', 'F'], description: 'Search' },
     ...toolRows,
     { keys: ['Cmd/Ctrl', '1'], description: 'Read mode' },
     { keys: ['Cmd/Ctrl', '2'], description: 'Discover mode' },

@@ -130,7 +130,7 @@ export function AboutSection({
             </div>
           </div>
           <p className="text-xs text-scripture-muted">
-            An inductive Bible study app with keyword marking, observation lists, and multi-translation support.
+            Read, discover and study the Bible, and mark it as you go.
           </p>
           {deviceId && (
             <div className="flex items-center gap-2 pt-1">
