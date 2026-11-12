@@ -16,6 +16,9 @@ import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { track } from '@/lib/telemetry';
+import { effectiveMode, getEffectiveMode, useEffectiveMode, useIsStudyMode } from '@/lib/effectiveMode';
+
+export { effectiveMode, getEffectiveMode, useEffectiveMode, useIsStudyMode };
 
 export const MODE_LABELS: Record<AppMode, string> = {
   read: 'Read',
@@ -48,22 +51,6 @@ export function verseMenuItems(mode: AppMode): ReadonlySet<VerseMenuItem> {
   return VERSE_MENU_ITEMS[mode];
 }
 
-export function effectiveMode(mode: AppMode | null, discoveryEnabled: boolean): AppMode {
-  if (mode === null) return 'read';
-  if (mode === 'discover' && !discoveryEnabled) return 'read';
-  return mode;
-}
-
-export function useEffectiveMode(): AppMode {
-  const mode = useAppModeStore(state => state.mode);
-  const discoveryEnabled = useDiscoveryEnabled();
-  return effectiveMode(mode, discoveryEnabled);
-}
-
-export function useIsStudyMode(): boolean {
-  return useEffectiveMode() === 'study';
-}
-
 /** Discover exists in Discover and Study, and only while the kill switch is on. */
 export function discoverAvailable(mode: AppMode | null, discoveryEnabled: boolean): boolean {
   return discoveryEnabled && effectiveMode(mode, discoveryEnabled) !== 'read';
@@ -85,13 +72,6 @@ export function useBottomBarVisible(): boolean {
   const mode = useEffectiveMode();
   const wide = usePanelStore(state => state.orientation === 'horizontal');
   return bottomBarVisible(mode, wide);
-}
-
-export function getEffectiveMode(): AppMode {
-  return effectiveMode(
-    useAppModeStore.getState().mode,
-    useFeatureFlagsStore.getState().isEnabled(FLAG_KEYS.discoveryEnabled)
-  );
 }
 
 export function switchMode(mode: AppMode): void {
