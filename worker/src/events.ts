@@ -28,6 +28,7 @@ const EVENT_NAMES = new Set([
   'discovery_find_confirmed',
   'lens_toggled',
   'discovery_checklist_completed',
+  'mode_chosen',
 ]);
 
 /** Mirrored from `src/lib/platform.ts` platform tags. */

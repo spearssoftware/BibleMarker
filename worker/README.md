@@ -210,7 +210,7 @@ id, or IP-derived location (`cf.country` is never read or written) —
 ```
 
 `name` is one of `discovery_chip_shown`, `discovery_chip_tapped`,
-`discovery_find_confirmed`, `lens_toggled`, `discovery_checklist_completed`.
+`discovery_find_confirmed`, `lens_toggled`, `discovery_checklist_completed`, `mode_chosen`.
 `sessionId`, when present, must be
 a UUID v4 (matches `crypto.randomUUID()`). 1–30 events per request; requests
 over 8 KB get a `413`. The request must carry `Content-Type: application/json`

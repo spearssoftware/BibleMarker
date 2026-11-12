@@ -1,5 +1,5 @@
 /**
- * Telemetry — opt-in, anonymous usage counters for the Discover layer.
+ * Telemetry — opt-in, anonymous usage counters for Discover and the app modes.
  *
  * Off by default; `track()` is a no-op unless the user has flipped "Share
  * anonymous usage data" on in Settings (`usePreferencesStore.telemetryEnabled`).
@@ -19,7 +19,8 @@ export type TelemetryEvent =
   | 'discovery_chip_tapped'
   | 'discovery_find_confirmed'
   | 'lens_toggled'
-  | 'discovery_checklist_completed';
+  | 'discovery_checklist_completed'
+  | 'mode_chosen';
 
 export type TelemetryFeature =
   | 'repetition'
@@ -37,7 +38,10 @@ export type TelemetryFeature =
   | 'commentary_reference'
   | 'commentary_follow'
   | 'commentary_follow_more'
-  | 'commentary_follow_reference';
+  | 'commentary_follow_reference'
+  | 'mode_read'
+  | 'mode_discover'
+  | 'mode_study';
 
 export interface TelemetryProps {
   feature?: TelemetryFeature;
