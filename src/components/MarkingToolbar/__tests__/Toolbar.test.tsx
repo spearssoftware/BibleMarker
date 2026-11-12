@@ -276,9 +276,9 @@ describe('Toolbar', () => {
       expect(screen.getByLabelText('Discover')).toBeTruthy();
     });
 
-    it('is hidden when the Discover kill-switch is off', () => {
+    it.each(['discover', 'study'] as const)('is hidden in %s mode when the Discover kill-switch is off', mode => {
       discoveryEnabled = false;
-      useAppModeStore.setState({ mode: 'discover' });
+      useAppModeStore.setState({ mode });
       render(<Toolbar />);
       expect(screen.queryByLabelText('Discover')).toBeNull();
     });

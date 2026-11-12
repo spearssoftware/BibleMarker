@@ -50,8 +50,15 @@ export function useIsStudyMode(): boolean {
   return useEffectiveMode() === 'study';
 }
 
+/** Discover exists in Discover and Study, and only while the kill switch is on. */
+export function discoverAvailable(mode: AppMode | null, discoveryEnabled: boolean): boolean {
+  return discoveryEnabled && effectiveMode(mode, discoveryEnabled) !== 'read';
+}
+
 export function useDiscoverAvailable(): boolean {
-  return useEffectiveMode() !== 'read';
+  const mode = useAppModeStore(state => state.mode);
+  const discoveryEnabled = useDiscoveryEnabled();
+  return discoverAvailable(mode, discoveryEnabled);
 }
 
 export function useBottomBarVisible(): boolean {

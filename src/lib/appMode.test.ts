@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { effectiveMode, switchMode } from './appMode';
+import { discoverAvailable, effectiveMode, switchMode } from './appMode';
 import { FLAG_KEYS, DEFAULT_FLAGS } from './feature-flags';
 import { initTelemetry, shutdownTelemetry } from './telemetry';
 import { useAppModeStore, type AppMode } from '@/stores/appModeStore';
@@ -33,6 +33,21 @@ describe('effectiveMode', () => {
 
   it.each(cases)('mode %s with discovery enabled=%s is %s', (mode, enabled, expected) => {
     expect(effectiveMode(mode, enabled)).toBe(expected);
+  });
+});
+
+describe('discoverAvailable', () => {
+  const cases: [AppMode | null, boolean, boolean][] = [
+    [null, true, false],
+    ['read', true, false],
+    ['discover', true, true],
+    ['discover', false, false],
+    ['study', true, true],
+    ['study', false, false],
+  ];
+
+  it.each(cases)('mode %s with discovery enabled=%s is %s', (mode, enabled, expected) => {
+    expect(discoverAvailable(mode, enabled)).toBe(expected);
   });
 });
 
