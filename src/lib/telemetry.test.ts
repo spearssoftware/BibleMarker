@@ -48,6 +48,17 @@ describe('telemetry', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('keeps events queued before initTelemetry runs', async () => {
+    usePreferencesStore.setState({ telemetryEnabled: true });
+    track('mode_chosen', { feature: 'mode_study' });
+
+    initTelemetry();
+    await shutdownTelemetry();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(lastRequestBody(fetchMock).events).toEqual([{ name: 'mode_chosen', feature: 'mode_study' }]);
+  });
+
   it('flushes once the queue reaches 20 events', async () => {
     usePreferencesStore.setState({ telemetryEnabled: true });
     initTelemetry();

@@ -7,7 +7,7 @@
  * Panels render in the SplitLayout via PanelContainer — not here.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useAnnotations } from '@/hooks/useAnnotations';
@@ -17,6 +17,7 @@ import { useListStore } from '@/stores/listStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useStudyStore } from '@/stores/studyStore';
 import { usePanelStore } from '@/stores/panelStore';
+import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
@@ -65,11 +66,23 @@ export function Toolbar() {
   const barVisible = useBottomBarVisible();
   const [installedTranslationCount, setInstalledTranslationCount] = useState(0);
 
+  // The kill switch can turn off mid-session: tear down the Discover panel
+  // and lens so nothing is left open for a tab that no longer exists.
+  const wasDiscoverAvailable = useRef(discoverAvailable);
+  useEffect(() => {
+    if (wasDiscoverAvailable.current && !discoverAvailable) {
+      const panels = usePanelStore.getState();
+      if (panels.activePanel === 'discovery') panels.closePanel();
+      useDiscoveryStore.getState().setLens(null);
+    }
+    wasDiscoverAvailable.current = discoverAvailable;
+  }, [discoverAvailable]);
+
   // The tool tabs (and plain keys 1-4) exist only in Study; Read has no bar
   // and Discover's bar holds just the Discover tab.
   const visibleTools = isStudyMode ? TOOLS : [];
 
-  // The selected word's chapter count for the tools-off "every one in this
+  // The selected word's chapter count for the non-Study "every one in this
   // chapter" option. Reads the selection's own translation: the primary
   // column's published text when it matches, else the multi-translation
   // view's loaded chapter.
@@ -304,7 +317,7 @@ export function Toolbar() {
     }
   };
 
-  // Tools-off "every one in this chapter": a chapter-pinned custom preset.
+  // Non-Study "every one in this chapter": a chapter-pinned custom preset.
   // The ripple comes from VerseText's keyword matching, not from explicit
   // annotations, so removing the preset removes every mark at once.
   const markWordInChapter = async (
@@ -334,10 +347,10 @@ export function Toolbar() {
   // Keyboard shortcuts for toolbar tools (number keys 1-4). Indexed against
   // the fixed TOOLS order (1=Key Words, 2=Observe, 3=Analyze, 4=Study Tools),
   // not visibleTools position — otherwise "1" would trigger whatever tool
-  // happens to be first among the currently-visible ones (Study Tools, with
-  // the toolkit off), contradicting the on-screen numbering and the
+  // happens to be first among the currently-visible ones (Study Tools, outside
+  // Study), contradicting the on-screen numbering and the
   // shortcuts help text. Only act if that fixed-position tool is currently
-  // visible, so 1-3 stay inert while the toolkit is off.
+  // visible, so 1-3 stay inert outside Study.
   useKeyboardShortcuts({
     onToolbarTool: (toolIndex: number) => {
       const tool = TOOLS[toolIndex];

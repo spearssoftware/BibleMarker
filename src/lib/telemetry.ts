@@ -179,13 +179,13 @@ async function flush(): Promise<void> {
 }
 
 /**
- * Start the per-launch session: resets in-memory state, starts the periodic
+ * Start the per-launch session: resets the session id, starts the periodic
  * flush timer, and (once) attaches the visibility-based flush. Call once at
  * app startup, next to `autoBackupService.start()`.
  */
 export function initTelemetry(): void {
   sessionId = crypto.randomUUID();
-  queue = [];
+  // Keep events queued before startup (e.g. by the mode seed).
   seenDedupeKeys.clear();
   flushScheduled = false;
 

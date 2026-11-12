@@ -21,6 +21,10 @@ const TOOLBAR_TOOLS = [
   'studyTools', // 4 - Study
 ] as const;
 
+// Matched on `e.code` so the shortcut works on non-QWERTY layouts, where the
+// digit row produces other characters (e.g. `&` on AZERTY).
+const MODE_SHORTCUT_CODES: readonly string[] = ['Digit1', 'Digit2', 'Digit3'];
+
 export function useKeyboardShortcuts({
   onToolbarTool,
   onModeShortcut,
@@ -56,11 +60,10 @@ export function useKeyboardShortcuts({
         (e.metaKey || e.ctrlKey) &&
         !e.altKey &&
         !e.shiftKey &&
-        e.key >= '1' &&
-        e.key <= '3'
+        MODE_SHORTCUT_CODES.includes(e.code)
       ) {
         e.preventDefault();
-        onModeShortcut?.(parseInt(e.key, 10) - 1);
+        onModeShortcut?.(MODE_SHORTCUT_CODES.indexOf(e.code));
         return;
       }
 

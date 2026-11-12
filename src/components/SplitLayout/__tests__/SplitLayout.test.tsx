@@ -44,12 +44,12 @@ describe('SplitLayout bottom padding', () => {
 
   it('reserves only the safe-area inset in Read', () => {
     act(() => useAppModeStore.setState({ mode: 'read' }));
-    expect(layoutPadding()).not.toBe('60px');
+    expect(layoutPadding()).not.toMatch(/\d+px/);
   });
 
   it('reserves only the safe-area inset for a stored Discover with the kill switch off', () => {
     discoveryEnabled = false;
     act(() => useAppModeStore.setState({ mode: 'discover' }));
-    expect(layoutPadding()).not.toBe('60px');
+    expect(layoutPadding()).not.toMatch(/\d+px/);
   });
 });

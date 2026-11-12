@@ -73,13 +73,22 @@ export function getEffectiveMode(): AppMode {
 }
 
 export function switchMode(mode: AppMode): void {
-  if (mode === useAppModeStore.getState().mode) return;
+  const previous = getEffectiveMode();
+  if (mode === previous) return;
   if (mode === 'discover' && !useFeatureFlagsStore.getState().isEnabled(FLAG_KEYS.discoveryEnabled)) {
     return;
   }
 
   const { activePanel, closePanel } = usePanelStore.getState();
-  if (activePanel && !PANELS_OFFERED[mode].includes(activePanel)) closePanel();
+  // The Key Words panel renders a different editor in Study, so it must not
+  // morph mid-edit when the switch crosses that boundary.
+  const crossesStudy = (previous === 'study') !== (mode === 'study');
+  if (
+    activePanel &&
+    (!PANELS_OFFERED[mode].includes(activePanel) || (crossesStudy && activePanel === 'keywords'))
+  ) {
+    closePanel();
+  }
 
   useDiscoveryStore.getState().setLens(null);
   useAnnotationStore.getState().clearSelection();

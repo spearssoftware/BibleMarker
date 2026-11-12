@@ -5,7 +5,7 @@
  * that's always visible regardless of screen size.
  */
 
-import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { updatePreferences, getPreferences } from '@/lib/database';
 import { useStudyStore } from '@/stores/studyStore';
 import { useIsStudyMode, useDiscoverAvailable } from '@/lib/appMode';
@@ -32,7 +32,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'reading',
     title: 'Bible Reading',
-    description: 'Read Scripture here. Select text to open the selection menu, where you can highlight it — with inductive tools on, the same menu also lets you apply key words, add to observation lists, or jump straight to Study Tools for the Strong’s entry or cross-references. Click verse numbers to add notes.',
+    description: 'Read Scripture here. Select text to open the selection menu, where you can highlight it or add a note. Click verse numbers to add notes.',
     target: '[data-bible-reader]',
   },
   {
@@ -94,7 +94,7 @@ const TOUR_STEPS: TourStep[] = [
     id: 'reference',
     toolkitOnly: true,
     title: 'Study Tools',
-    description: 'Look up the people, places, and events tied to the current chapter, or search for a word or verse. With inductive tools on, you also get Strong’s entries, Hebrew/Greek words, and cross-references. Access from the toolbar (book icon).',
+    description: 'Look up the people, places, and events tied to the current chapter, or search for a word or verse. You also get Strong’s entries, Hebrew/Greek words, and cross-references. Access from the toolbar (book icon).',
     target: '[data-toolbar-reference]',
   },
   {
@@ -132,12 +132,12 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   const discoverAvailable = useDiscoverAvailable();
   // Toolkit steps (Marking Toolbar/Key Words/Observe/Analyze) target elements
   // that don't render outside Study mode — filter them out rather than
-  // let every one auto-skip after a 500ms timeout.
-  const steps = useMemo(
-    () => TOUR_STEPS.filter(step =>
+  // let every one auto-skip after a 500ms timeout. Computed once on mount so
+  // a mode change mid-tour cannot shift the step list underneath the reader.
+  const [steps] = useState(() =>
+    TOUR_STEPS.filter(step =>
       (isStudyMode || !step.toolkitOnly) && (discoverAvailable || !step.discoverOnly)
-    ),
-    [isStudyMode, discoverAvailable]
+    )
   );
 
   async function handleComplete() {

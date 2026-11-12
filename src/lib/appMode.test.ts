@@ -101,6 +101,44 @@ describe('switchMode', () => {
     expect(await sentEvents()).toEqual([]);
   });
 
+  it('does nothing when the target is already the effective mode', async () => {
+    setDiscoveryFlag(false);
+    useAppModeStore.setState({ mode: 'discover' });
+    usePanelStore.setState({ activePanel: 'discovery' });
+
+    switchMode('read');
+
+    expect(useAppModeStore.getState().mode).toBe('discover');
+    expect(usePanelStore.getState().activePanel).toBe('discovery');
+    expect(await sentEvents()).toEqual([]);
+  });
+
+  it.each([
+    ['read', 'study'],
+    ['discover', 'study'],
+    ['study', 'read'],
+    ['study', 'discover'],
+  ] as const)('closes the Key Words panel when switching %s to %s', (from, to) => {
+    useAppModeStore.setState({ mode: from });
+    usePanelStore.setState({ activePanel: 'keywords' });
+
+    switchMode(to);
+
+    expect(usePanelStore.getState().activePanel).toBeNull();
+  });
+
+  it.each([
+    ['read', 'discover'],
+    ['discover', 'read'],
+  ] as const)('keeps the Key Words panel when switching %s to %s', (from, to) => {
+    useAppModeStore.setState({ mode: from });
+    usePanelStore.setState({ activePanel: 'keywords' });
+
+    switchMode(to);
+
+    expect(usePanelStore.getState().activePanel).toBe('keywords');
+  });
+
   it('does nothing when switching to Discover with the flag off', async () => {
     setDiscoveryFlag(false);
 

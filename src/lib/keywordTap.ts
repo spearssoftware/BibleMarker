@@ -1,9 +1,9 @@
 /**
  * Keyword Tap
  *
- * What tapping a marked word in the reader does. With inductive tools on, it
+ * What tapping a marked word in the reader does. In Study, it
  * opens the word's observation list (creating the list on first tap). With
- * them off it opens the Key Words panel, in its simplified mode, on that mark
+ * elsewhere it opens the Key Words panel, in its simplified mode, on that mark
  * so the reader can restyle or remove it: no inductive panel opens and no
  * list is created.
  */

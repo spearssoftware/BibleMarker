@@ -44,7 +44,7 @@ import { isCapacitor } from '@/lib/platform';
 import { UpdateBanner, WhatsNewModal, ModesBanner } from '@/components/shared';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { seedAppMode } from '@/lib/modeSeed';
-import { useAppModeStore, type AppMode } from '@/stores/appModeStore';
+import { useAppModeStore, APP_MODES } from '@/stores/appModeStore';
 import { switchMode } from '@/lib/appMode';
 import { initTelemetry, shutdownTelemetry } from '@/lib/telemetry';
 
@@ -58,8 +58,6 @@ async function hydratePreferences() {
   await seedAppMode(prefs);
   return prefs;
 }
-
-const MODE_SHORTCUTS: readonly AppMode[] = ['read', 'discover', 'study'];
 
 function GlobalUndoToast() {
   const { message, onUndo, dismiss } = useUndoToastStore();
@@ -110,7 +108,7 @@ export default function App() {
   useKeyboardShortcuts({
     enabled: true,
     onModeShortcut: (index) => {
-      const mode = MODE_SHORTCUTS[index];
+      const mode = APP_MODES[index];
       if (mode) switchMode(mode);
     },
   });
@@ -253,10 +251,9 @@ export default function App() {
         useApplicationStore.getState().loadApplications(),
         useEntityNoteStore.getState().loadNotes(),
       ]);
-      // A fresh install signing into an existing account picks up synced prefs
-      // (and, via the mode seed, the app mode) here rather than waiting for
-      // the next launch — re-read and re-hydrate since the pull may have
-      // changed the preferences row.
+      // A sync pull may have changed the preferences row, so re-read and
+      // re-hydrate it. The mode is seeded at startup; once one is stored the
+      // seed call inside this is a no-op for the mode.
       await hydratePreferences();
     };
     window.addEventListener('syncDataChanged', handleSyncDataChanged);

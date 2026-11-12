@@ -12,6 +12,7 @@ import { useAnnotationStore, type TextSelection } from '@/stores/annotationStore
 import { usePanelStore } from '@/stores/panelStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { useAppModeStore } from '@/stores/appModeStore';
+import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { DEFAULT_MARKING_PREFERENCES } from '@/types';
 
 // --- Mock all heavy dependencies ---
@@ -159,6 +160,42 @@ describe('Toolbar', () => {
     discoveryEnabled = true;
     markingPresetState.presets = [];
     trackMock.mockClear();
+  });
+
+  describe('kill switch turning off mid-session', () => {
+    it('closes the Discover panel and clears the lens', () => {
+      usePanelStore.setState({ activePanel: 'discovery' });
+      useDiscoveryStore.setState({ lens: 'connectors' });
+      const { rerender } = render(<Toolbar />);
+      expect(usePanelStore.getState().activePanel).toBe('discovery');
+
+      discoveryEnabled = false;
+      rerender(<Toolbar />);
+
+      expect(usePanelStore.getState().activePanel).toBeNull();
+      expect(useDiscoveryStore.getState().lens).toBeNull();
+    });
+
+    it('leaves other panels open', () => {
+      usePanelStore.setState({ activePanel: 'observe' });
+      const { rerender } = render(<Toolbar />);
+
+      discoveryEnabled = false;
+      rerender(<Toolbar />);
+
+      expect(usePanelStore.getState().activePanel).toBe('observe');
+    });
+
+    it('does nothing on mount when Discover is already unavailable', () => {
+      discoveryEnabled = false;
+      usePanelStore.setState({ activePanel: 'discovery' });
+      useDiscoveryStore.setState({ lens: 'connectors' });
+
+      render(<Toolbar />);
+
+      expect(usePanelStore.getState().activePanel).toBe('discovery');
+      expect(useDiscoveryStore.getState().lens).toBe('connectors');
+    });
   });
 
   describe('keyword creation from selection', () => {

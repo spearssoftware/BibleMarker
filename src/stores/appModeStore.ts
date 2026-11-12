@@ -12,7 +12,7 @@ import { persist } from 'zustand/middleware';
 
 export type AppMode = 'read' | 'discover' | 'study';
 
-const APP_MODES: readonly AppMode[] = ['read', 'discover', 'study'];
+export const APP_MODES: readonly AppMode[] = ['read', 'discover', 'study'];
 
 function isAppMode(value: unknown): value is AppMode {
   return APP_MODES.some(mode => mode === value);

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { OnboardingTour } from '../OnboardingTour';
 import { usePreferencesStore } from '@/stores/preferencesStore';
@@ -124,5 +124,29 @@ describe('OnboardingTour', () => {
       await clickNext();
       await waitFor(() => expect(screen.getByText(title)).toBeTruthy());
     }
+  });
+
+  it('keeps the same steps when the mode changes mid-tour', async () => {
+    useAppModeStore.setState({ mode: 'study' });
+    usePreferencesStore.setState({ isHydrated: true });
+    const onComplete = vi.fn();
+    render(<OnboardingTour onComplete={onComplete} />);
+
+    for (const title of ['Bible Reading', 'Notice Something', 'Marking Toolbar']) {
+      await clickNext();
+      await waitFor(() => expect(screen.getByText(title)).toBeTruthy());
+    }
+
+    act(() => useAppModeStore.setState({ mode: 'read' }));
+
+    expect(screen.getByText('Marking Toolbar')).toBeTruthy();
+    expect(screen.getByText('Step 4 of 11')).toBeTruthy();
+
+    for (const title of ['Key Words: Keyword, Match, Apply', 'Observe', 'Analyze', 'Study Tools', 'Search', 'Settings', 'Create a Study']) {
+      await clickNext();
+      await waitFor(() => expect(screen.getByText(title)).toBeTruthy());
+    }
+    await clickNext();
+    await waitFor(() => expect(onComplete).toHaveBeenCalled());
   });
 });

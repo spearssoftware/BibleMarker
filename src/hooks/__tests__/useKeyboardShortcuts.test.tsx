@@ -27,15 +27,23 @@ function setup() {
 describe('useKeyboardShortcuts mode shortcuts', () => {
   it.each(['metaKey', 'ctrlKey'] as const)('%s+1-3 call onModeShortcut with 0-2', (modifier) => {
     const { onModeShortcut, onToolbarTool } = setup();
-    for (const key of ['1', '2', '3']) fireEvent.keyDown(document.body, { key, [modifier]: true });
+    for (const key of ['1', '2', '3']) {
+      fireEvent.keyDown(document.body, { key, code: `Digit${key}`, [modifier]: true });
+    }
     expect(onModeShortcut.mock.calls).toEqual([[0], [1], [2]]);
     expect(onToolbarTool).not.toHaveBeenCalled();
   });
 
+  it('matches the physical digit key on layouts where it types another character', () => {
+    const { onModeShortcut } = setup();
+    fireEvent.keyDown(document.body, { key: '&', code: 'Digit1', metaKey: true });
+    expect(onModeShortcut.mock.calls).toEqual([[0]]);
+  });
+
   it('ignores the shortcut with Shift or Alt', () => {
     const { onModeShortcut } = setup();
-    fireEvent.keyDown(document.body, { key: '1', metaKey: true, shiftKey: true });
-    fireEvent.keyDown(document.body, { key: '2', ctrlKey: true, altKey: true });
+    fireEvent.keyDown(document.body, { key: '1', code: 'Digit1', metaKey: true, shiftKey: true });
+    fireEvent.keyDown(document.body, { key: '2', code: 'Digit2', ctrlKey: true, altKey: true });
     expect(onModeShortcut).not.toHaveBeenCalled();
   });
 
@@ -50,7 +58,7 @@ describe('useKeyboardShortcuts mode shortcuts', () => {
     const { onModeShortcut, onToolbarTool } = setup();
     const input = document.createElement('input');
     document.body.appendChild(input);
-    fireEvent.keyDown(input, { key: '1', metaKey: true });
+    fireEvent.keyDown(input, { key: '1', code: 'Digit1', metaKey: true });
     fireEvent.keyDown(input, { key: '1' });
     input.remove();
     expect(onModeShortcut).not.toHaveBeenCalled();
