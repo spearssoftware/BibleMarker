@@ -5,8 +5,9 @@
  * published by `useDiscoveryHost`. No props — everything it needs is either
  * already-mounted host state or store reads.
  *
- * Section order: Setting → Who's here → Worth noticing → Cross-References →
- * Commentary → Look closer (Repetition, Connectors). Setting's intro needs
+ * Section order: Setting → Follow-along commentary → Who's here → Worth
+ * noticing → Cross-References → Commentary → Look closer (Repetition,
+ * Connectors). Setting's intro needs
  * neither analysis extras nor Gnosis, so the loading gate is `!context` only
  * — a Gnosis hiccup must not blank the whole panel. Setting, Who's here and
  * Worth noticing are each keyed per chapter, so their local state (expanded
@@ -33,6 +34,7 @@ import { shouldShowConnectors } from '@/lib/chapterAnalysis';
 import { RepetitionCard } from './RepetitionCard';
 import { ConnectorsCard } from './ConnectorsCard';
 import { CommentaryCard } from './CommentaryCard';
+import { FollowCommentaryCard } from './FollowCommentaryCard';
 import { CrossRefsCard } from './CrossRefsCard';
 import { LookCloserSection } from './LookCloserSection';
 import { trackChip } from '@/lib/discoveryTelemetry';
@@ -87,6 +89,13 @@ export function DiscoveryPanel() {
   return (
     <DiscoveryDialog>
       <SettingSection key={`setting:${book}:${chapter}`} book={book} chapter={chapter} translationId={translationId} />
+      <FollowCommentaryCard
+        key={`follow-commentary:${book}:${chapter}`}
+        book={book}
+        chapter={chapter}
+        translationId={translationId}
+        translationAbbrev={primaryTranslationAbbrev}
+      />
       <WhosHereCard key={`whos-here:${book}:${chapter}`} book={book} chapter={chapter} translationId={translationId} />
       <WorthNoticingCard key={`worth-noticing:${book}:${chapter}`} book={book} chapter={chapter} translationId={translationId} />
       {(hasCrossRefs || hasLaterCrossRefs) && (

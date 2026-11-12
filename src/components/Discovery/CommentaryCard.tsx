@@ -21,6 +21,7 @@ import { useCommentaryPassage } from '@/hooks/useCommentaryPassage';
 import { trackChip } from '@/lib/discoveryTelemetry';
 import type { ChapterTelemetryScope } from '@/lib/discoveryTelemetry';
 import type { CommentaryBlock } from '@/lib/commentary';
+import type { TelemetryFeature } from '@/lib/telemetry';
 import { useBibleStore } from '@/stores/bibleStore';
 
 interface CommentaryCardProps {
@@ -70,16 +71,34 @@ interface OpenRef {
   osisRef: string;
 }
 
-interface CommentaryBlockViewProps {
+export interface CommentaryBlockViewProps {
   block: CommentaryBlock;
   scope: ChapterTelemetryScope;
   translationAbbrev: string | null;
+  /** Controlled when defined; otherwise the view keeps its own expanded state. */
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
+  /** Telemetry features for the Read more and reference taps. */
+  features?: { more: TelemetryFeature; reference: TelemetryFeature };
+  /** Set false to hide the section's outline title and range header. */
+  showHeader?: boolean;
 }
 
-function CommentaryBlockView({ block, scope, translationAbbrev }: CommentaryBlockViewProps) {
+const DEFAULT_FEATURES = { more: 'commentary', reference: 'commentary_reference' } as const;
+
+export function CommentaryBlockView({
+  block,
+  scope,
+  translationAbbrev,
+  expanded: expandedProp,
+  onExpandedChange,
+  features = DEFAULT_FEATURES,
+  showHeader = true,
+}: CommentaryBlockViewProps) {
   const { book, chapter, translationId } = scope;
   const navigateToVerse = useBibleStore(s => s.navigateToVerse);
-  const [expanded, setExpanded] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const expanded = expandedProp ?? internalExpanded;
   const [openRef, setOpenRef] = useState<OpenRef | null>(null);
   const [overflows, setOverflows] = useState(false);
   const clampRef = useRef<HTMLParagraphElement>(null);
@@ -103,8 +122,13 @@ function CommentaryBlockView({ block, scope, translationAbbrev }: CommentaryBloc
     return () => observer.disconnect();
   }, [expanded, block]);
 
+  const setExpanded = (next: boolean) => {
+    if (expandedProp === undefined) setInternalExpanded(next);
+    onExpandedChange?.(next);
+  };
+
   const handleReadMore = () => {
-    trackChip('discovery_chip_tapped', 'commentary', scope);
+    trackChip('discovery_chip_tapped', features.more, scope);
     setExpanded(true);
   };
 
@@ -124,7 +148,7 @@ function CommentaryBlockView({ block, scope, translationAbbrev }: CommentaryBloc
       setOpenRef(null);
       return;
     }
-    trackChip('discovery_chip_tapped', 'commentary_reference', scope);
+    trackChip('discovery_chip_tapped', features.reference, scope);
     setOpenRef({ paragraph, run, osisRef });
     setExpanded(true);
   };
@@ -150,7 +174,7 @@ function CommentaryBlockView({ block, scope, translationAbbrev }: CommentaryBloc
 
   return (
     <div className="space-y-1">
-      {block.kind === 'section' && block.startVerse !== null && block.endVerse !== null && (
+      {showHeader && block.kind === 'section' && block.startVerse !== null && block.endVerse !== null && (
         <h4 className="text-xs font-ui font-semibold text-scripture-muted">
           {block.title && `${block.title} · `}
           <button type="button" onClick={handleRange} className={LINK_CLASS}>

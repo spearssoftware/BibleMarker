@@ -80,6 +80,10 @@ vi.mock('../CrossRefsCard', () => ({
   CrossRefsCard: () => <div data-testid="cross-refs-card">cross-refs</div>,
 }));
 
+vi.mock('../FollowCommentaryCard', () => ({
+  FollowCommentaryCard: () => <div data-testid="follow-commentary-card" />,
+}));
+
 vi.mock('../CommentaryCard', () => ({
   CommentaryCard: () => <div data-testid="commentary-card">commentary</div>,
 }));
@@ -94,6 +98,7 @@ function openLookCloser() {
 function sectionOrder(container: HTMLElement): string[] {
   const dialog = container.querySelector('[role="dialog"] > div');
   return Array.from(dialog?.children ?? []).map(el => {
+    if (el.getAttribute('data-testid') === 'follow-commentary-card') return 'follow-commentary';
     if (el.getAttribute('data-testid') === 'worth-noticing-card') return 'worth-noticing';
     if (el.getAttribute('data-testid') === 'cross-refs-card') return 'cross-refs';
     if (el.getAttribute('data-testid') === 'commentary-card') return 'commentary';
@@ -153,7 +158,7 @@ describe('DiscoveryPanel', () => {
     expect(screen.getByText('John — a gospel')).toBeTruthy();
   });
 
-  it('renders sections in Setting → Who\'s here → Worth noticing → Cross-References → Commentary → Look closer order, with the analytic cards inside Look closer', () => {
+  it('renders sections in Setting → Follow-along commentary → Who\'s here → Worth noticing → Cross-References → Commentary → Look closer order, with the analytic cards inside Look closer', () => {
     mockEntities = { book: 'John', chapter: 1, people: ['jesus-son-of-joseph'], places: [], events: [], topics: [] };
     peopleState = ready(PEOPLE);
     useDiscoveryStore.setState({
@@ -162,7 +167,7 @@ describe('DiscoveryPanel', () => {
     });
     openLookCloser();
     const { container } = render(<DiscoveryPanel />);
-    expect(sectionOrder(container)).toEqual(['setting', 'whos-here', 'worth-noticing', 'cross-refs', 'commentary', 'look-closer']);
+    expect(sectionOrder(container)).toEqual(['setting', 'follow-commentary', 'whos-here', 'worth-noticing', 'cross-refs', 'commentary', 'look-closer']);
     const lookCloser = container.querySelector('section') as HTMLElement;
     const inner = Array.from(lookCloser.children).slice(1).map(el => {
       if (el.textContent?.includes('appears 11×')) return 'repetition';

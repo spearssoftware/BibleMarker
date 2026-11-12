@@ -9,6 +9,7 @@ import { useBibleStore } from '@/stores/bibleStore';
 import { getBookById } from '@/types';
 import { getAllTranslations, type ApiTranslation } from '@/lib/bible-api';
 import { getPreferences } from '@/lib/database';
+import { useReadingPositionStore } from '@/stores/readingPositionStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { Search } from '@/components/Search';
 import { TranslationPicker, UnifiedPicker } from './pickers';
@@ -55,7 +56,7 @@ export function NavigationBar() {
   const [showSearch, setShowSearch] = useState(false);
 
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
-  const [currentVerse, setCurrentVerse] = useState<number | null>(null);
+  const currentVerse = useReadingPositionStore((s) => s.currentVerse);
   
   const { activeView, loadActiveView, addTranslation, removeTranslation } = useMultiTranslationStore();
   const chaptersByTranslation = useMultiTranslationStore((s) => s.chaptersByTranslation);
@@ -99,89 +100,11 @@ export function NavigationBar() {
       .join('+');
   }, [activeView, translations]);
   
-  // Seed the displayed verse from loaded chapter data — but only when the
-  // loaded chapter actually matches the current location. On chapter change
-  // the new chapter is fetched async, so the store may still hold the previous
-  // chapter; using it here would show a stray (often out-of-range) verse like
-  // "John 15:43". Hold at verse 1 until the matching chapter is loaded.
-  const locationKey = `${currentBook}:${currentChapter}`;
-  const [prevLocationKey, setPrevLocationKey] = useState(locationKey);
-  if (locationKey !== prevLocationKey) {
-    setPrevLocationKey(locationKey);
-    const { chapter } = useBibleStore.getState();
-    if (
-      chapter &&
-      chapter.book === currentBook &&
-      chapter.chapter === currentChapter &&
-      chapter.verses.length > 0
-    ) {
-      setCurrentVerse(chapter.verses[0]?.ref.verse ?? 1);
-    } else {
-      setCurrentVerse(1);
-    }
-  }
-
-  // Track scroll position to update current verse
+  // Hold the displayed verse steady while a picker is open.
   useEffect(() => {
-    const handleScroll = () => {
-      // Don't update verse when pickers are open to prevent text jumping
-      if (showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker) {
-        return;
-      }
-
-      // Ignore the DOM while it still shows a stale chapter (async fetch in
-      // flight) — its verse elements can exceed the new chapter's range.
-      const { chapter } = useBibleStore.getState();
-      if (!chapter || chapter.book !== currentBook || chapter.chapter !== currentChapter) {
-        return;
-      }
-
-      // Find the verse element that's currently in view
-      const verseElements = document.querySelectorAll('[data-verse]');
-      const viewportCenter = window.scrollY + window.innerHeight / 2;
-
-      let closestVerse: number | null = null;
-      let closestDistance = Infinity;
-
-      verseElements.forEach((el) => {
-        const rect = el.getBoundingClientRect();
-        const elementCenter = rect.top + rect.height / 2 + window.scrollY;
-        const distance = Math.abs(elementCenter - viewportCenter);
-        
-        if (distance < closestDistance) {
-          const verseNum = parseInt(el.getAttribute('data-verse') || '0', 10);
-          if (verseNum > 0) {
-            closestVerse = verseNum;
-            closestDistance = distance;
-          }
-        }
-      });
-
-      if (closestVerse !== null) {
-        // Clamp to the loaded chapter's actual verse range as a final guard
-        // against any stray out-of-range verse element.
-        const maxVerse = chapter.verses.reduce((m, v) => Math.max(m, v.ref.verse), 0);
-        setCurrentVerse(maxVerse > 0 ? Math.min(closestVerse, maxVerse) : closestVerse);
-      }
-    };
-
-    // Throttle scroll events
-    let scrollTimeout: ReturnType<typeof setTimeout>;
-    const throttledScroll = () => {
-      clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(handleScroll, 100);
-    };
-
-    window.addEventListener('scroll', throttledScroll, { passive: true });
-
-    // Initial check
-    handleScroll();
-
-    return () => {
-      window.removeEventListener('scroll', throttledScroll);
-      clearTimeout(scrollTimeout);
-    };
-  }, [currentBook, currentChapter, showBookPicker, showChapterPicker, showVersePicker, showTranslationPicker]);
+    useReadingPositionStore.getState().setVerseTrackingPaused(showUnifiedPicker || showTranslationPicker);
+  }, [showUnifiedPicker, showTranslationPicker]);
+  useEffect(() => () => useReadingPositionStore.getState().setVerseTrackingPaused(false), []);
 
   // Load translations on mount and when translations are updated
   useEffect(() => {
