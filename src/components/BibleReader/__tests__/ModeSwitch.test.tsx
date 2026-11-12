@@ -60,6 +60,13 @@ describe('ModeSwitch wide', () => {
     expect(useDiscoveryPrefsStore.getState().discoverPanelClosed).toBe(false);
   });
 
+  it('wraps the control in the mode-switch tour target', () => {
+    const { container } = render(<Harness />);
+    const target = container.querySelector('[data-mode-switch]');
+    expect(target).not.toBeNull();
+    expect(within(target as HTMLElement).getByRole('radiogroup', { name: 'Mode' })).toBeTruthy();
+  });
+
   it('omits Discover when the kill switch is off', () => {
     discoveryEnabled = false;
     render(<Harness />);
@@ -79,6 +86,13 @@ describe('ModeSwitch narrow', () => {
     expect(button.getAttribute('aria-haspopup')).toBe('menu');
     expect(button.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByRole('radiogroup')).toBeNull();
+  });
+
+  it('puts the mode-switch tour target on the chip button', () => {
+    const { container } = render(<Harness />);
+    const targets = container.querySelectorAll('[data-mode-switch]');
+    expect(targets).toHaveLength(1);
+    expect(targets[0]).toBe(screen.getByRole('button', { name: 'Mode: Read' }));
   });
 
   it('opens a menu of options with one-liners and switches on choice', () => {

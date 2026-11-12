@@ -8,50 +8,75 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { updatePreferences, getPreferences } from '@/lib/database';
 import { useStudyStore } from '@/stores/studyStore';
-import { useIsStudyMode, useDiscoverAvailable, useBottomBarVisible } from '@/lib/appMode';
+import { useEffectiveMode, useBottomBarVisible } from '@/lib/appMode';
+import { useDiscoveryEnabled } from '@/lib/discovery-config';
+import type { AppMode } from '@/stores/appModeStore';
+import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
+
+type TourStepId =
+  | 'navigation'
+  | 'reading'
+  | 'marking'
+  | 'discovery'
+  | 'toolbar'
+  | 'keywords'
+  | 'observe'
+  | 'analyze'
+  | 'reference'
+  | 'search'
+  | 'settings'
+  | 'studies'
+  | 'modes';
 
 interface TourStep {
-  id: string;
+  id: TourStepId;
   title: string;
   description: ReactNode;
   target?: string; // CSS selector for element to highlight
   action?: () => void; // Optional action to perform before showing step
-  /** Only shown in Study mode. */
-  toolkitOnly?: boolean;
-  /** Only shown while the Discover tab exists and the bottom bar renders. */
-  discoverOnly?: boolean;
 }
 
-const TOUR_STEPS: TourStep[] = [
-  {
+const MODE_STEP_IDS: Record<AppMode, readonly TourStepId[]> = {
+  read: ['navigation', 'reading', 'marking', 'modes'],
+  discover: ['navigation', 'reading', 'marking', 'discovery', 'modes'],
+  study: [
+    'navigation', 'reading', 'marking', 'toolbar', 'keywords', 'observe', 'analyze',
+    'reference', 'search', 'settings', 'studies', 'modes',
+  ],
+};
+
+const TOUR_STEPS: Record<TourStepId, TourStep> = {
+  navigation: {
     id: 'navigation',
     title: 'Navigation Bar',
     description: 'Use the navigation bar to select translations, books, and chapters. You can view up to 3 translations side-by-side.',
     target: '[data-nav-bar]',
   },
-  {
+  reading: {
     id: 'reading',
     title: 'Bible Reading',
-    description: 'Read Scripture here. Select text to open the selection menu, where you can highlight it or add a note. Click verse numbers to add notes.',
+    description: 'Read Scripture here. Tap or click a verse number to add a note.',
     target: '[data-bible-reader]',
   },
-  {
-    id: 'discovery',
-    discoverOnly: true,
-    title: 'Notice Something',
-    description: 'Every chapter has something to find. Tap Discover for a challenge.',
-    target: '[data-toolbar-discover]',
+  marking: {
+    id: 'marking',
+    title: 'Mark as you read',
+    description: 'Select a word or phrase to highlight, underline or color it. Choose "every one in this chapter" to mark each place it appears.',
+    target: '[data-bible-reader]',
   },
-  {
+  discovery: {
+    id: 'discovery',
+    title: 'Discover',
+    description: 'Open Discover to see where and when this chapter happens, who is in it, and what others have written about it.',
+  },
+  toolbar: {
     id: 'toolbar',
-    toolkitOnly: true,
     title: 'Marking Toolbar',
-    description: 'The toolbar opens Key Words, Observe, Analyze, and Study Tools. All text marking flows through keywords for consistency across translations. Press 1–4 for quick access to Key Words, Observe, Analyze, and Study Tools.',
+    description: 'The toolbar opens Discover, Key Words, Observe, Analyze, and Study Tools. All text marking flows through keywords for consistency across translations. Press 1–4 for quick access to Key Words, Observe, Analyze, and Study Tools.',
     target: '[data-marking-toolbar]',
   },
-  {
+  keywords: {
     id: 'keywords',
-    toolkitOnly: true,
     title: 'Key Words: Keyword, Match, Apply',
     description: (
       <div className="space-y-2.5">
@@ -76,46 +101,73 @@ const TOUR_STEPS: TourStep[] = [
     ),
     target: '[data-toolbar-keywords]',
   },
-  {
+  observe: {
     id: 'observe',
-    toolkitOnly: true,
     title: 'Observe',
     description: 'Capture observations from the text. Free-form lists per chapter, plus people, places, and conclusions. Add entries from the selection menu or manage them here. Access from the toolbar (magnifying glass icon or press 2).',
     target: '[data-toolbar-observe]',
   },
-  {
+  analyze: {
     id: 'analyze',
-    toolkitOnly: true,
     title: 'Analyze',
     description: 'Step back and look at the bigger picture: chapter summaries, book overview, themes, timeline, places map, and your interpretation and application notes. Access from the toolbar (chart icon or press 3).',
     target: '[data-toolbar-analyze]',
   },
-  {
+  reference: {
     id: 'reference',
-    toolkitOnly: true,
     title: 'Study Tools',
     description: 'Look up the people, places, and events tied to the current chapter, or search for a word or verse. You also get Strong’s entries, Hebrew/Greek words, and cross-references. Access from the toolbar (book icon).',
     target: '[data-toolbar-reference]',
   },
-  {
+  search: {
     id: 'search',
     title: 'Search',
     description: 'Search Bible text, notes, and annotations. Press Cmd/Ctrl+F or click the search icon in the navigation bar.',
     target: '[data-nav-search]',
   },
-  {
+  settings: {
     id: 'settings',
     title: 'Settings',
     description: 'Configure translations, appearance, backup/restore, and more. Open the ⋯ menu in the top bar and choose Settings.',
     target: '[data-nav-more]',
   },
-  {
+  studies: {
     id: 'studies',
-    toolkitOnly: true,
     title: 'Create a Study',
     description: 'Studies let you organize your keywords, notes, and observations around a topic or book. Find them under Settings \u2192 Studies. You can create one now or skip and start reading.',
   },
-];
+  modes: {
+    id: 'modes',
+    title: 'Switch modes',
+    description: 'Read, Discover and Study are one tap apart in the top bar.',
+    target: '[data-mode-switch]',
+  },
+};
+
+interface TourLayout {
+  barVisible: boolean;
+  discoverPanelClosed: boolean;
+  discoveryEnabled: boolean;
+}
+
+/** Resolved once per tour: the step list and the `discovery` target follow the mode at launch. */
+function buildSteps(mode: AppMode, { barVisible, discoverPanelClosed, discoveryEnabled }: TourLayout): TourStep[] {
+  // On a wide Discover layout the panel is the target. It is open by default
+  // and restored a moment after a restart, so only the user's own close
+  // (`discoverPanelClosed`) removes the step.
+  const hasDiscoverTarget = barVisible || !discoverPanelClosed;
+  return MODE_STEP_IDS[mode]
+    .filter(id => id !== 'discovery' || hasDiscoverTarget)
+    .map(id => {
+      if (id === 'discovery') {
+        return { ...TOUR_STEPS.discovery, target: barVisible ? '[data-toolbar-discover]' : '[data-discover-panel]' };
+      }
+      if (id === 'modes' && !discoveryEnabled) {
+        return { ...TOUR_STEPS.modes, description: 'Read and Study are one tap apart in the top bar.' };
+      }
+      return TOUR_STEPS[id];
+    });
+}
 
 interface OnboardingTourProps {
   onComplete: () => void;
@@ -129,18 +181,13 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   const [newStudyName, setNewStudyName] = useState('');
   const [studyCreated, setStudyCreated] = useState(false);
   const { createStudy, setActiveStudy } = useStudyStore();
-  const isStudyMode = useIsStudyMode();
-  const discoverAvailable = useDiscoverAvailable();
+  const mode = useEffectiveMode();
   const barVisible = useBottomBarVisible();
-  // Toolkit steps (Marking Toolbar/Key Words/Observe/Analyze) target elements
-  // that don't render outside Study mode — filter them out rather than
-  // let every one auto-skip after a 500ms timeout. Computed once on mount so
-  // a mode change mid-tour cannot shift the step list underneath the reader.
-  const [steps] = useState(() =>
-    TOUR_STEPS.filter(step =>
-      (isStudyMode || !step.toolkitOnly) && (!step.discoverOnly || (discoverAvailable && barVisible))
-    )
-  );
+  const discoverPanelClosed = useDiscoveryPrefsStore(state => state.discoverPanelClosed);
+  const discoveryEnabled = useDiscoveryEnabled();
+  // Computed once on mount so a mode change mid-tour cannot shift the step
+  // list underneath the reader.
+  const [steps] = useState(() => buildSteps(mode, { barVisible, discoverPanelClosed, discoveryEnabled }));
 
   async function handleComplete() {
     setShowTour(false);

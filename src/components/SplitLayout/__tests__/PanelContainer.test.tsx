@@ -192,3 +192,18 @@ describe('PanelContainer closing', () => {
     expect(active()).toBe('discovery');
   });
 });
+
+describe('PanelContainer tour target', () => {
+  afterEach(cleanup);
+
+  it('marks the root with data-discover-panel only while Discover is showing', () => {
+    setup('discover', 'horizontal', 'discovery');
+    const { container, unmount } = render(<PanelContainer />);
+    expect(container.querySelector('[data-discover-panel]')).not.toBeNull();
+    unmount();
+
+    setup('discover', 'horizontal', 'settings');
+    const other = render(<PanelContainer />);
+    expect(other.container.querySelector('[data-discover-panel]')).toBeNull();
+  });
+});

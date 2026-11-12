@@ -33,7 +33,9 @@ export function ModeSwitch({ menuOpen, onMenuOpenChange }: ModeSwitchProps) {
       label: MODE_LABELS[value],
     }));
     return (
-      <SegmentedControl options={options} value={mode} onChange={selectMode} size="sm" ariaLabel="Mode" />
+      <div data-mode-switch>
+        <SegmentedControl options={options} value={mode} onChange={selectMode} size="sm" ariaLabel="Mode" />
+      </div>
     );
   }
 
@@ -42,6 +44,7 @@ export function ModeSwitch({ menuOpen, onMenuOpenChange }: ModeSwitchProps) {
     <>
       <button
         ref={buttonRef}
+        data-mode-switch
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();

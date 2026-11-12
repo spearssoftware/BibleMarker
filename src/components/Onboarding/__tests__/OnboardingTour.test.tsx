@@ -9,6 +9,9 @@ import { OnboardingTour } from '../OnboardingTour';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { useAppModeStore } from '@/stores/appModeStore';
 import { usePanelStore } from '@/stores/panelStore';
+import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
+import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
+import { DEFAULT_FLAGS, FLAG_KEYS } from '@/lib/feature-flags';
 
 vi.mock('@/lib/database', () => ({
   getPreferences: vi.fn().mockResolvedValue({
@@ -32,6 +35,8 @@ const TOUR_TARGET_ATTRS = [
   'data-nav-bar',
   'data-bible-reader',
   'data-toolbar-discover',
+  'data-discover-panel',
+  'data-mode-switch',
   'data-marking-toolbar',
   'data-toolbar-keywords',
   'data-toolbar-observe',
@@ -41,16 +46,18 @@ const TOUR_TARGET_ATTRS = [
   'data-nav-more',
 ];
 
-function stubTargets() {
-  for (const attr of TOUR_TARGET_ATTRS) {
-    const el = document.createElement('div');
-    el.setAttribute(attr, 'true');
-    el.getBoundingClientRect = () => ({
-      top: 0, left: 0, right: 100, bottom: 100, width: 100, height: 100, x: 0, y: 0,
-      toJSON: () => ({}),
-    });
-    document.body.appendChild(el);
-  }
+function stubTarget(attr: string, top = 0) {
+  const el = document.createElement('div');
+  el.setAttribute(attr, 'true');
+  el.getBoundingClientRect = () => ({
+    top, left: 0, right: 100, bottom: top + 100, width: 100, height: 100, x: 0, y: top,
+    toJSON: () => ({}),
+  });
+  document.body.appendChild(el);
+}
+
+function stubTargets(attrs: readonly string[] = TOUR_TARGET_ATTRS) {
+  for (const attr of attrs) stubTarget(attr);
 }
 
 async function clickNext() {
@@ -58,10 +65,46 @@ async function clickNext() {
   await user.click(screen.getByText(/^(Next|Finish)$/));
 }
 
+function currentTitle(): string | null {
+  return screen.getByRole('heading', { level: 3 }).textContent;
+}
+
+/** Walks the tour with "Next" and returns every step title, stopping on the last step. */
+async function walkTitles(): Promise<string[]> {
+  const titles = [currentTitle()];
+  while (screen.queryByText('Finish') === null) {
+    await clickNext();
+    titles.push(currentTitle());
+  }
+  return titles as string[];
+}
+
+function highlightTop(): number | null {
+  const el = document.querySelector<HTMLElement>('.animate-pulse');
+  return el ? Number.parseFloat(el.style.top) + 4 : null;
+}
+
+function setDiscoveryFlag(enabled: boolean) {
+  useFeatureFlagsStore.setState({
+    flags: { ...DEFAULT_FLAGS, [FLAG_KEYS.discoveryEnabled]: enabled },
+  });
+}
+
+const READ_TITLES = ['Navigation Bar', 'Bible Reading', 'Mark as you read', 'Switch modes'];
+const DISCOVER_TITLES = ['Navigation Bar', 'Bible Reading', 'Mark as you read', 'Discover', 'Switch modes'];
+const STUDY_TITLES = [
+  'Navigation Bar', 'Bible Reading', 'Mark as you read', 'Marking Toolbar',
+  'Key Words: Keyword, Match, Apply', 'Observe', 'Analyze', 'Study Tools', 'Search', 'Settings',
+  'Create a Study', 'Switch modes',
+];
+
 describe('OnboardingTour', () => {
   beforeEach(() => {
     stubTargets();
     usePanelStore.setState({ orientation: 'vertical' });
+    useDiscoveryPrefsStore.setState({ discoverPanelClosed: false });
+    setDiscoveryFlag(true);
+    usePreferencesStore.setState({ isHydrated: true });
   });
 
   afterEach(() => {
@@ -69,90 +112,120 @@ describe('OnboardingTour', () => {
     document.body.innerHTML = '';
   });
 
-  it('has no toolkit steps and no Study Tools in Discover mode', async () => {
-    useAppModeStore.setState({ mode: 'discover' });
-    usePreferencesStore.setState({ isHydrated: true });
+  it.each([
+    ['read', READ_TITLES],
+    ['discover', DISCOVER_TITLES],
+    ['study', STUDY_TITLES],
+  ] as const)('walks the %s tour in order', async (mode, titles) => {
+    useAppModeStore.setState({ mode });
     render(<OnboardingTour onComplete={vi.fn()} />);
 
-    expect(screen.getByText('Navigation Bar')).toBeTruthy();
-    await clickNext();
-
-    await waitFor(() => expect(screen.getByText('Bible Reading')).toBeTruthy());
-    await clickNext();
-
-    await waitFor(() => expect(screen.getByText('Notice Something')).toBeTruthy());
-    await clickNext();
-
-    // Study-only steps (Marking Toolbar through Study Tools) are filtered out.
-    await waitFor(() => expect(screen.getByText('Search')).toBeTruthy());
-    expect(screen.queryByText('Marking Toolbar')).toBeNull();
-    expect(screen.queryByText('Key Words: Keyword, Match, Apply')).toBeNull();
-    expect(screen.queryByText('Study Tools')).toBeNull();
-    await clickNext();
-
-    await waitFor(() => expect(screen.getByText('Settings')).toBeTruthy());
-    expect(screen.getByText('Open the ⋯ menu in the top bar and choose Settings.', { exact: false })).toBeTruthy();
-
-    // The studies step is Study only, so Settings is the last step.
-    expect(screen.getByText('Finish')).toBeTruthy();
-    expect(screen.queryByText('Create a Study')).toBeNull();
+    expect(await walkTitles()).toEqual(titles);
+    expect(screen.getByText(`Step ${titles.length} of ${titles.length}`)).toBeTruthy();
   });
 
-  it('skips the Discover step in Discover mode on a wide layout', async () => {
-    useAppModeStore.setState({ mode: 'discover' });
-    usePanelStore.setState({ orientation: 'horizontal' });
-    usePreferencesStore.setState({ isHydrated: true });
-    render(<OnboardingTour onComplete={vi.fn()} />);
-
-    await clickNext();
-    await waitFor(() => expect(screen.getByText('Bible Reading')).toBeTruthy());
-    await clickNext();
-
-    await waitFor(() => expect(screen.getByText('Search')).toBeTruthy());
-    expect(screen.queryByText('Notice Something')).toBeNull();
-  });
-
-  it('skips the Discover step in Read mode', async () => {
-    useAppModeStore.setState({ mode: 'read' });
-    usePreferencesStore.setState({ isHydrated: true });
-    render(<OnboardingTour onComplete={vi.fn()} />);
-
-    await clickNext();
-    await waitFor(() => expect(screen.getByText('Bible Reading')).toBeTruthy());
-    await clickNext();
-
-    await waitFor(() => expect(screen.getByText('Search')).toBeTruthy());
-    expect(screen.queryByText('Notice Something')).toBeNull();
-  });
-
-  it('includes the toolkit steps when tools are on', async () => {
-    useAppModeStore.setState({ mode: 'study' });
-    usePreferencesStore.setState({ isHydrated: true });
-    render(<OnboardingTour onComplete={vi.fn()} />);
-
-    expect(screen.getByText('Navigation Bar')).toBeTruthy();
-    await clickNext();
-
-    await waitFor(() => expect(screen.getByText('Bible Reading')).toBeTruthy());
-    await clickNext();
-
-    await waitFor(() => expect(screen.getByText('Notice Something')).toBeTruthy());
-    await clickNext();
-
-    await waitFor(() => expect(screen.getByText('Marking Toolbar')).toBeTruthy());
-    for (const title of ['Key Words: Keyword, Match, Apply', 'Observe', 'Analyze', 'Study Tools']) {
-      await clickNext();
-      await waitFor(() => expect(screen.getByText(title)).toBeTruthy());
+  it('ends every tour on "Switch modes"', async () => {
+    for (const mode of ['read', 'discover', 'study'] as const) {
+      useAppModeStore.setState({ mode });
+      const view = render(<OnboardingTour onComplete={vi.fn()} />);
+      const titles = await walkTitles();
+      expect(titles[titles.length - 1]).toBe('Switch modes');
+      view.unmount();
     }
+  });
+
+  it('uses the new reading and marking wording', async () => {
+    useAppModeStore.setState({ mode: 'read' });
+    render(<OnboardingTour onComplete={vi.fn()} />);
+
+    await clickNext();
+    expect(screen.getByText('Read Scripture here. Tap or click a verse number to add a note.')).toBeTruthy();
+    await clickNext();
+    expect(
+      screen.getByText(
+        'Select a word or phrase to highlight, underline or color it. Choose "every one in this chapter" to mark each place it appears.'
+      )
+    ).toBeTruthy();
+  });
+
+  it('mentions Discover in the Study toolbar step', async () => {
+    useAppModeStore.setState({ mode: 'study' });
+    render(<OnboardingTour onComplete={vi.fn()} />);
+
+    for (let i = 0; i < 3; i++) await clickNext();
+
+    expect(screen.getByText('The toolbar opens Discover, Key Words,', { exact: false })).toBeTruthy();
+  });
+
+  it('targets the Discover button on a narrow layout', async () => {
+    document.body.innerHTML = '';
+    stubTargets(TOUR_TARGET_ATTRS.filter(a => a !== 'data-toolbar-discover' && a !== 'data-discover-panel'));
+    stubTarget('data-toolbar-discover', 200);
+    stubTarget('data-discover-panel', 400);
+    useAppModeStore.setState({ mode: 'discover' });
+    render(<OnboardingTour onComplete={vi.fn()} />);
+
+    for (let i = 0; i < 3; i++) await clickNext();
+    expect(currentTitle()).toBe('Discover');
+
+    await waitFor(() => expect(highlightTop()).toBe(200));
+  });
+
+  it('targets the Discover panel on a wide layout', async () => {
+    document.body.innerHTML = '';
+    stubTargets(TOUR_TARGET_ATTRS.filter(a => a !== 'data-toolbar-discover' && a !== 'data-discover-panel'));
+    stubTarget('data-toolbar-discover', 200);
+    stubTarget('data-discover-panel', 400);
+    usePanelStore.setState({ orientation: 'horizontal' });
+    useAppModeStore.setState({ mode: 'discover' });
+    render(<OnboardingTour onComplete={vi.fn()} />);
+
+    for (let i = 0; i < 3; i++) await clickNext();
+    expect(currentTitle()).toBe('Discover');
+
+    await waitFor(() => expect(highlightTop()).toBe(400));
+  });
+
+  it('omits the Discover step on a wide layout when the user closed the panel', async () => {
+    usePanelStore.setState({ orientation: 'horizontal' });
+    useDiscoveryPrefsStore.setState({ discoverPanelClosed: true });
+    useAppModeStore.setState({ mode: 'discover' });
+    render(<OnboardingTour onComplete={vi.fn()} />);
+
+    expect(await walkTitles()).toEqual(READ_TITLES);
+  });
+
+  it('keeps the Discover step on a narrow layout even when the panel was closed', async () => {
+    useDiscoveryPrefsStore.setState({ discoverPanelClosed: true });
+    useAppModeStore.setState({ mode: 'discover' });
+    render(<OnboardingTour onComplete={vi.fn()} />);
+
+    expect(await walkTitles()).toEqual(DISCOVER_TITLES);
+  });
+
+  it('uses the two-mode wording when Discover is unavailable', async () => {
+    setDiscoveryFlag(false);
+    useAppModeStore.setState({ mode: 'discover' });
+    render(<OnboardingTour onComplete={vi.fn()} />);
+
+    expect(await walkTitles()).toEqual(READ_TITLES);
+    expect(screen.getByText('Read and Study are one tap apart in the top bar.')).toBeTruthy();
+  });
+
+  it('uses the three-mode wording when Discover is available', async () => {
+    useAppModeStore.setState({ mode: 'read' });
+    render(<OnboardingTour onComplete={vi.fn()} />);
+
+    await walkTitles();
+    expect(screen.getByText('Read, Discover and Study are one tap apart in the top bar.')).toBeTruthy();
   });
 
   it('keeps the same steps when the mode changes mid-tour', async () => {
     useAppModeStore.setState({ mode: 'study' });
-    usePreferencesStore.setState({ isHydrated: true });
     const onComplete = vi.fn();
     render(<OnboardingTour onComplete={onComplete} />);
 
-    for (const title of ['Bible Reading', 'Notice Something', 'Marking Toolbar']) {
+    for (const title of ['Bible Reading', 'Mark as you read', 'Marking Toolbar']) {
       await clickNext();
       await waitFor(() => expect(screen.getByText(title)).toBeTruthy());
     }
@@ -160,9 +233,9 @@ describe('OnboardingTour', () => {
     act(() => useAppModeStore.setState({ mode: 'read' }));
 
     expect(screen.getByText('Marking Toolbar')).toBeTruthy();
-    expect(screen.getByText('Step 4 of 11')).toBeTruthy();
+    expect(screen.getByText('Step 4 of 12')).toBeTruthy();
 
-    for (const title of ['Key Words: Keyword, Match, Apply', 'Observe', 'Analyze', 'Study Tools', 'Search', 'Settings', 'Create a Study']) {
+    for (const title of STUDY_TITLES.slice(4)) {
       await clickNext();
       await waitFor(() => expect(screen.getByText(title)).toBeTruthy());
     }
