@@ -10,7 +10,7 @@ import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { SegmentedControl, ToolbarPopover, type SegmentedOption } from '@/components/shared';
 import { useDiscoveryEnabled } from '@/lib/discovery-config';
-import { MODE_DESCRIPTIONS, MODE_LABELS, selectMode, switchMode, useEffectiveMode } from '@/lib/appMode';
+import { MODE_DESCRIPTIONS, MODE_LABELS, availableModes, selectMode, switchMode, useEffectiveMode } from '@/lib/appMode';
 import type { AppMode } from '@/stores/appModeStore';
 import { usePanelStore } from '@/stores/panelStore';
 
@@ -25,7 +25,7 @@ export function ModeSwitch({ menuOpen, onMenuOpenChange }: ModeSwitchProps) {
   const wide = usePanelStore(s => s.orientation === 'horizontal');
   const buttonRef = useRef<HTMLButtonElement>(null);
 
-  const modes: AppMode[] = discoveryEnabled ? ['read', 'discover', 'study'] : ['read', 'study'];
+  const modes = availableModes(discoveryEnabled);
 
   if (wide) {
     const options: SegmentedOption<AppMode>[] = modes.map(value => ({

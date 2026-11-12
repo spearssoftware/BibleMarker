@@ -13,6 +13,7 @@ import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
 let discoveryEnabled = true;
 vi.mock('@/lib/discovery-config', () => ({
   useDiscoveryEnabled: () => discoveryEnabled,
+  getDiscoveryEnabled: () => discoveryEnabled,
 }));
 vi.mock('@/lib/telemetry', () => ({ track: vi.fn() }));
 

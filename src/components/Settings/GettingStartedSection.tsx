@@ -5,15 +5,14 @@
  * features are shown only in Study mode.
  */
 
-import { APP_MODES } from '@/stores/appModeStore';
-import { MODE_DESCRIPTIONS, MODE_LABELS, useEffectiveMode } from '@/lib/appMode';
+import { MODE_DESCRIPTIONS, MODE_LABELS, availableModes, useEffectiveMode } from '@/lib/appMode';
 import { useDiscoveryEnabled } from '@/lib/discovery-config';
 
 export function GettingStartedSection() {
   const mode = useEffectiveMode();
   const discoveryEnabled = useDiscoveryEnabled();
   const isStudy = mode === 'study';
-  const offeredModes = APP_MODES.filter(m => m !== 'discover' || discoveryEnabled);
+  const offeredModes = availableModes(discoveryEnabled);
 
   return (
     <div className="space-y-4">

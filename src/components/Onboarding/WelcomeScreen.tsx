@@ -9,9 +9,9 @@ import { useRef, useState, type KeyboardEvent } from 'react';
 import { updatePreferences, getPreferences } from '@/lib/database';
 import { Button } from '@/components/shared';
 import { useDiscoveryEnabled } from '@/lib/discovery-config';
-import { MODE_DESCRIPTIONS, MODE_LABELS, chooseInitialMode } from '@/lib/appMode';
+import { MODE_DESCRIPTIONS, MODE_LABELS, availableModes, chooseInitialMode } from '@/lib/appMode';
 import { useModal } from '@/hooks/useModal';
-import { APP_MODES, useAppModeStore, type AppMode } from '@/stores/appModeStore';
+import { useAppModeStore, type AppMode } from '@/stores/appModeStore';
 
 function noop() {}
 
@@ -22,7 +22,7 @@ interface WelcomeScreenProps {
 
 export function WelcomeScreen({ onComplete, onStartTour }: WelcomeScreenProps) {
   const discoveryEnabled = useDiscoveryEnabled();
-  const offeredModes = APP_MODES.filter(mode => mode !== 'discover' || discoveryEnabled);
+  const offeredModes = availableModes(discoveryEnabled);
   const [selected, setSelected] = useState<AppMode | null>(() => {
     const stored = useAppModeStore.getState().mode;
     return stored !== null && offeredModes.includes(stored) ? stored : null;

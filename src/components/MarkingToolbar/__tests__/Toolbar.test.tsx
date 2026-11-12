@@ -89,6 +89,7 @@ vi.mock('@/stores/placeStore', () => ({
 let discoveryEnabled = true;
 vi.mock('@/lib/discovery-config', () => ({
   useDiscoveryEnabled: () => discoveryEnabled,
+  getDiscoveryEnabled: () => discoveryEnabled,
 }));
 
 const trackMock = vi.fn();

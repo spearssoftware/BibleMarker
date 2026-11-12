@@ -8,7 +8,7 @@
  */
 
 import { countRows, type UserPreferences } from '@/lib/database';
-import { track } from '@/lib/telemetry';
+import { commitMode } from '@/lib/appMode';
 import { useAppModeStore, type AppMode } from '@/stores/appModeStore';
 
 async function hasUserData(): Promise<boolean> {
@@ -36,7 +36,6 @@ export async function seedAppMode(prefs: UserPreferences): Promise<void> {
   }
 
   const store = useAppModeStore.getState();
-  store.setMode(mode);
+  commitMode(mode);
   store.setModesBannerPending(true);
-  track('mode_chosen', { feature: `mode_${mode}` });
 }

@@ -49,7 +49,7 @@ describe('appModeStore', () => {
     useAppModeStore.getState().setModesBannerPending(true);
     expect(useAppModeStore.getState().modesBannerPending).toBe(true);
 
-    useAppModeStore.getState().dismissModesBanner();
+    useAppModeStore.getState().setModesBannerPending(false);
     expect(useAppModeStore.getState().modesBannerPending).toBe(false);
   });
 });

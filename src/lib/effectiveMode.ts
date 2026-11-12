@@ -6,9 +6,7 @@
  */
 
 import { useAppModeStore, type AppMode } from '@/stores/appModeStore';
-import { useDiscoveryEnabled } from '@/lib/discovery-config';
-import { FLAG_KEYS } from '@/lib/feature-flags';
-import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
+import { getDiscoveryEnabled, useDiscoveryEnabled } from '@/lib/discovery-config';
 
 export function effectiveMode(mode: AppMode | null, discoveryEnabled: boolean): AppMode {
   if (mode === null) return 'read';
@@ -27,8 +25,5 @@ export function useIsStudyMode(): boolean {
 }
 
 export function getEffectiveMode(): AppMode {
-  return effectiveMode(
-    useAppModeStore.getState().mode,
-    useFeatureFlagsStore.getState().isEnabled(FLAG_KEYS.discoveryEnabled)
-  );
+  return effectiveMode(useAppModeStore.getState().mode, getDiscoveryEnabled());
 }

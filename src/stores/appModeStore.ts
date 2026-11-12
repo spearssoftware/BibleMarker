@@ -15,7 +15,7 @@ export type AppMode = 'read' | 'discover' | 'study';
 export const APP_MODES: readonly AppMode[] = ['read', 'discover', 'study'];
 
 function isAppMode(value: unknown): value is AppMode {
-  return APP_MODES.some(mode => mode === value);
+  return APP_MODES.includes(value as AppMode);
 }
 
 interface AppModeState {
@@ -23,7 +23,6 @@ interface AppModeState {
   modesBannerPending: boolean;
   setMode: (mode: AppMode) => void;
   setModesBannerPending: (value: boolean) => void;
-  dismissModesBanner: () => void;
 }
 
 export const useAppModeStore = create<AppModeState>()(
@@ -33,7 +32,6 @@ export const useAppModeStore = create<AppModeState>()(
       modesBannerPending: false,
       setMode: mode => set({ mode }),
       setModesBannerPending: value => set({ modesBannerPending: value }),
-      dismissModesBanner: () => set({ modesBannerPending: false }),
     }),
     {
       name: 'app-mode',

@@ -10,6 +10,7 @@ import { usePanelStore, type PanelType } from '@/stores/panelStore';
 
 vi.mock('@/lib/discovery-config', () => ({
   useDiscoveryEnabled: () => true,
+  getDiscoveryEnabled: () => true,
 }));
 vi.mock('@/lib/telemetry', () => ({ track: vi.fn() }));
 vi.mock('@/components/KeyWords', () => ({

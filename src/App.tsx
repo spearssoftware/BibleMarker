@@ -49,6 +49,15 @@ import { useAppModeStore, APP_MODES } from '@/stores/appModeStore';
 import { selectMode } from '@/lib/appMode';
 import { initTelemetry, shutdownTelemetry } from '@/lib/telemetry';
 
+function handleModeShortcut(index: number) {
+  const mode = APP_MODES[index];
+  if (mode) selectMode(mode);
+}
+
+function dismissModesBanner() {
+  useAppModeStore.getState().setModesBannerPending(false);
+}
+
 // Re-hydrate preferences from the DB and seed the app mode on a device that
 // has none. Shared by the initial mount load and the post-sync refresh
 // (`syncDataChanged`), which both need the same sequence. Returns the loaded
@@ -104,7 +113,6 @@ export default function App() {
 
   // Modes banner: shown once after an existing user is assigned a mode.
   const modesBannerPending = useAppModeStore(state => state.modesBannerPending);
-  const dismissModesBanner = useAppModeStore(state => state.dismissModesBanner);
 
   // Initialize theme on mount (before other initialization)
   useEffect(() => {
@@ -114,10 +122,7 @@ export default function App() {
   // Set up keyboard shortcuts for navigation (arrow keys, J/K)
   useKeyboardShortcuts({
     enabled: !showWelcome && !showTranslationLibrary && !showTour,
-    onModeShortcut: (index) => {
-      const mode = APP_MODES[index];
-      if (mode) selectMode(mode);
-    },
+    onModeShortcut: handleModeShortcut,
   });
 
   // Handle iOS virtual keyboard avoidance

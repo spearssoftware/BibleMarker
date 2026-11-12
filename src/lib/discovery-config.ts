@@ -9,6 +9,11 @@
 import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
 import { FLAG_KEYS, type DiscoveryThresholds } from '@/lib/feature-flags';
 
+/** Non-reactive read of the Discover-layer kill-switch, for handlers and helpers. */
+export function getDiscoveryEnabled(): boolean {
+  return useFeatureFlagsStore.getState().isEnabled(FLAG_KEYS.discoveryEnabled);
+}
+
 /** Reactive read of the Discover-layer kill-switch. */
 export function useDiscoveryEnabled(): boolean {
   return useFeatureFlagsStore((state) => state.isEnabled(FLAG_KEYS.discoveryEnabled));

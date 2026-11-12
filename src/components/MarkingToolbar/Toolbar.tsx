@@ -21,7 +21,7 @@ import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useActiveChapterStore } from '@/stores/activeChapterStore';
 import { useUndoToastStore } from '@/stores/undoToastStore';
-import { useIsStudyMode, useDiscoverAvailable, useBottomBarVisible, getEffectiveMode, toggleDiscoverPanel, PANELS_OFFERED } from '@/lib/appMode';
+import { useIsStudyMode, useDiscoverAvailable, useBottomBarVisible, getEffectiveMode, toggleDiscoverPanel, closeUnofferedPanel } from '@/lib/appMode';
 import { track } from '@/lib/telemetry';
 import { deleteAnnotation } from '@/lib/database';
 import { getAllTranslations } from '@/lib/bible-api';
@@ -71,11 +71,7 @@ export function Toolbar() {
   const wasDiscoverAvailable = useRef(discoverAvailable);
   useEffect(() => {
     if (wasDiscoverAvailable.current && !discoverAvailable) {
-      const { activePanel, closePanel } = usePanelStore.getState();
-      // Study still lists 'discovery', but with the kill switch off the tab is gone.
-      if (activePanel && (activePanel === 'discovery' || !PANELS_OFFERED[getEffectiveMode()].includes(activePanel))) {
-        closePanel();
-      }
+      closeUnofferedPanel(getEffectiveMode());
       useDiscoveryStore.getState().setLens(null);
     }
     wasDiscoverAvailable.current = discoverAvailable;
