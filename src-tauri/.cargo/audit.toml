@@ -12,14 +12,27 @@ ignore = [
     # `cargo tree -i rkyv --target all` and never compiled into the binary.
     "RUSTSEC-2026-0235",
 
-    # rustls-webpki — name constraint verification bugs. Transitive via quinn → reqwest.
-    # Waiting for upstream bump through tauri's networking stack.
-    "RUSTSEC-2026-0098",
-    "RUSTSEC-2026-0099",
+    # libsqlite3-sys < 0.39 — bundled SQLite < 3.54.0 can leak uninitialized page-cache
+    # memory when a database is opened with a crafted -wal file (local only). The fix
+    # needs libsqlite3-sys >= 0.39, but tauri-plugin-sql requires sqlx ^0.8 and even
+    # sqlx-sqlite 0.9 caps it below 0.38; rusqlite must share the same copy. The app
+    # opens only its own databases. Ignored 2026-11-09 — remove once sqlx and
+    # tauri-plugin-sql accept libsqlite3-sys 0.39, then bump rusqlite to 0.41.
+    "RUSTSEC-2026-0459",
 
-    # rand 0.9.x — unsound only when a custom logger calls `rand::rng()` on a panicking thread.
+    # rand — unsound only when a custom logger calls `rand::rng()` on a panicking thread.
     # We don't use rand directly; transitive via quinn → reqwest.
     "RUSTSEC-2026-0097",
+
+    # zip 4.x — `ZipArchive::extract` symlink escape, SUID/SGID preservation.
+    # Optional, Windows-only dependency of tauri-plugin-updater, which still requires
+    # zip ^4 as of 2.14.0 (zip 9 is on the unreleased v2 branch). All three advisories
+    # need extraction of an untrusted archive: the updater verifies the minisign
+    # signature against the pubkey in tauri.conf.json before extracting, and SUID/SGID
+    # bits do not exist on Windows. Remove once the plugin releases against zip 9.
+    "RUSTSEC-2026-0367",
+    "RUSTSEC-2026-0368",
+    "RUSTSEC-2026-0369",
 
     # glib VariantStrIter unsoundness — transitive via Tauri's GTK3 stack (Linux only).
     "RUSTSEC-2024-0429",

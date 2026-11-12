@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: echo "Skipped — docs-only change"
-  worker:
+  worker-checks:
     runs-on: ubuntu-latest
     steps:
       - run: echo "Skipped — docs-only change"

@@ -28,6 +28,8 @@ jobs:
       image: ghcr.io/spearssoftware/biblemarker/ci-node:latest
     steps:
       - uses: actions/checkout@v7
+      - name: Check Tauri JS/Rust version pairing
+        run: node scripts/check-tauri-versions.js
       - name: Install dependencies
         run: pnpm install
       - name: Lint
@@ -45,23 +47,27 @@ jobs:
         run: pnpm install
       - name: Test
         run: pnpm test
+      - name: Script tests
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Build
         run: pnpm build
 
-  worker:
+  worker-checks:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/spearssoftware/biblemarker/ci-node:latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+      # worker/ has its own lockfile and its own node_modules tree, so the
+      # root install the other jobs run does not populate it.
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: worker
-      - name: Test
-        run: pnpm test
+        run: pnpm install
         working-directory: worker
       - name: Type check
         run: pnpm run typecheck
+        working-directory: worker
+      - name: Test
+        run: pnpm test
         working-directory: worker
 
   rust-format:

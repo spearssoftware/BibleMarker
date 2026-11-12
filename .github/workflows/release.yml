@@ -327,7 +327,7 @@ jobs:
       # TODO: Pinned to v2.4.2 to avoid "Too many retries" in v2.5.0 (issue #704). Check for fixed version later.
       - name: Upload macOS artifact to release
         if: matrix.platform == 'macos-latest'
-        uses: softprops/action-gh-release@v3.0.3
+        uses: softprops/action-gh-release@v3.0.4
         with:
           tag_name: app-v${{ needs.prepare.outputs.version }}
           name: BibleMarker v${{ needs.prepare.outputs.version }}
@@ -340,7 +340,7 @@ jobs:
       # Same action pin as above (v2.5.0 retry bug)
       - name: Upload macOS updater artifacts to release
         if: matrix.platform == 'macos-latest' && steps.create-updater.outcome == 'success'
-        uses: softprops/action-gh-release@v3.0.3
+        uses: softprops/action-gh-release@v3.0.4
         with:
           tag_name: app-v${{ needs.prepare.outputs.version }}
           name: BibleMarker v${{ needs.prepare.outputs.version }}
@@ -595,7 +595,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -661,6 +661,9 @@ jobs:
           VERSION_CODE=$(( $(date +%s) / 60 ))
           echo "Android versionCode: $VERSION_CODE"
           printf '{"bundle":{"android":{"versionCode":%s}}}' "$VERSION_CODE" > "$RUNNER_TEMP/version-code.json"
+          # store-submit reads this back to promote exactly this build: Play
+          # exposes no versionName, and the next internal upload replaces this one.
+          echo "$VERSION_CODE" > android-version-code.txt
           pnpm tauri android build --aab --target aarch64 --config "$RUNNER_TEMP/version-code.json"
         env:
           CI: true
@@ -685,12 +688,14 @@ jobs:
         run: python3 scripts/verify-android-alignment.py BibleMarker-android.aab
 
       - name: Upload AAB to release
-        uses: softprops/action-gh-release@v3.0.3
+        uses: softprops/action-gh-release@v3.0.4
         with:
           tag_name: app-v${{ needs.prepare.outputs.version }}
           name: BibleMarker v${{ needs.prepare.outputs.version }}
           draft: true
-          files: BibleMarker-android.aab
+          files: |
+            BibleMarker-android.aab
+            android-version-code.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -700,6 +705,7 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: app.biblemarker
           releaseFiles: BibleMarker-android.aab
+          releaseName: ${{ needs.prepare.outputs.version }}
           track: internal
           status: draft
 

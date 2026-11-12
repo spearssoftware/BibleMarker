@@ -1,4 +1,7 @@
 version: 2
+
+# Every directory with its own lockfile needs an entry here. worker/ was missing
+# one until 2026-10, which left its dependency alerts with no PR to fix them.
 updates:
   - package-ecosystem: npm
     directory: /
@@ -7,6 +10,40 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - dependencies
+    groups:
+      # First match wins, so this must precede the broader groups below. The
+      # Tauri JS packages have to move in lockstep with their Rust crates, and
+      # reviewing them next to unrelated runtime bumps is how that gets missed.
+      npm-tauri:
+        patterns:
+          - "@tauri-apps/*"
+        update-types:
+          - minor
+          - patch
+      npm-development:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+      npm-production:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: npm
+    directory: /worker
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    groups:
+      worker-npm:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
   - package-ecosystem: cargo
     directory: /src-tauri
     schedule:
@@ -14,6 +51,21 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - dependencies
+    groups:
+      # Counterpart to npm-tauri above; keeps a crate bump reviewable against
+      # the npm bump it has to land with.
+      cargo-tauri:
+        patterns:
+          - "tauri*"
+        update-types:
+          - minor
+          - patch
+      cargo-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -21,3 +73,9 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - dependencies
+    groups:
+      # No update-types filter: action majors are routine and bundling them is
+      # what stops stragglers like the checkout@v6 this replaced.
+      github-actions:
+        patterns:
+          - "*"
