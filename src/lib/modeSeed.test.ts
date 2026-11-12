@@ -53,7 +53,7 @@ describe('seedAppMode', () => {
     usePreferencesStore.setState({ telemetryEnabled: false });
   });
 
-  it('puts a device that has not seen the Welcome screen in Discover, silently', async () => {
+  it('leaves a device that has not seen the Welcome screen without a mode, silently', async () => {
     await seedAppMode(
       makePrefs({
         inductiveToolsEnabled: true,
@@ -61,7 +61,7 @@ describe('seedAppMode', () => {
       })
     );
 
-    expect(useAppModeStore.getState().mode).toBe('discover');
+    expect(useAppModeStore.getState().mode).toBeNull();
     expect(useAppModeStore.getState().modesBannerPending).toBe(false);
     expect(countRows).not.toHaveBeenCalled();
     expect(await sentEvents()).toEqual([]);

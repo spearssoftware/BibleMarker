@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   bottomBarVisible,
+  chooseInitialMode,
   discoverAvailable,
   effectiveMode,
   openDiscoverPanel,
@@ -58,6 +59,58 @@ describe('discoverAvailable', () => {
 
   it.each(cases)('mode %s with discovery enabled=%s is %s', (mode, enabled, expected) => {
     expect(discoverAvailable(mode, enabled)).toBe(expected);
+  });
+});
+
+describe('chooseInitialMode', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  async function sentEvents(): Promise<{ name: string; feature?: string }[]> {
+    await shutdownTelemetry();
+    return fetchMock.mock.calls.flatMap(call => {
+      const init = call[1] as RequestInit;
+      return (JSON.parse(init.body as string) as EventsBody).events;
+    });
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal('__APP_VERSION__', '9.9.9');
+    fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
+    vi.stubGlobal('fetch', fetchMock);
+    usePreferencesStore.setState({ telemetryEnabled: true });
+    initTelemetry();
+    useFeatureFlagsStore.setState({ flags: { ...DEFAULT_FLAGS, [FLAG_KEYS.discoveryEnabled]: true } });
+    useAppModeStore.setState({ mode: null, modesBannerPending: true });
+    usePanelStore.setState({ activePanel: null, returnPanel: null, isCollapsed: false, orientation: 'vertical' });
+  });
+
+  afterEach(async () => {
+    await shutdownTelemetry();
+    vi.unstubAllGlobals();
+    usePreferencesStore.setState({ telemetryEnabled: false });
+  });
+
+  it.each(['read', 'discover', 'study'] as const)(
+    'sets %s from an unset mode, clears the banner and sends one event',
+    async mode => {
+      chooseInitialMode(mode);
+
+      expect(useAppModeStore.getState().mode).toBe(mode);
+      expect(useAppModeStore.getState().modesBannerPending).toBe(false);
+      expect(await sentEvents()).toEqual([{ name: 'mode_chosen', feature: `mode_${mode}` }]);
+    }
+  );
+
+  it('behaves as switchMode when a mode is stored, closing an unoffered panel', async () => {
+    useAppModeStore.setState({ mode: 'study' });
+    usePanelStore.setState({ activePanel: 'observe' });
+
+    chooseInitialMode('read');
+
+    expect(useAppModeStore.getState().mode).toBe('read');
+    expect(usePanelStore.getState().activePanel).toBeNull();
+    expect(useAppModeStore.getState().modesBannerPending).toBe(false);
+    expect(await sentEvents()).toEqual([{ name: 'mode_chosen', feature: 'mode_read' }]);
   });
 });
 

@@ -4,7 +4,7 @@
  * Main application component with SWORD modules and ESV API support.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useStudyStore } from '@/stores/studyStore';
@@ -52,11 +52,13 @@ import { initTelemetry, shutdownTelemetry } from '@/lib/telemetry';
 // Re-hydrate preferences from the DB and seed the app mode on a device that
 // has none. Shared by the initial mount load and the post-sync refresh
 // (`syncDataChanged`), which both need the same sequence. Returns the loaded
-// prefs since the mount site also reads fields off them afterward.
-async function hydratePreferences() {
+// prefs since the mount site also reads fields off them afterward. `seed` is
+// false while the Welcome screen is showing, so synced preferences cannot
+// assign a mode to a new user before they choose one.
+async function hydratePreferences(seed = true) {
   const prefs = await getPreferences();
   usePreferencesStore.getState().hydrate(prefs);
-  await seedAppMode(prefs);
+  if (seed) await seedAppMode(prefs);
   return prefs;
 }
 
@@ -88,6 +90,10 @@ export default function App() {
   const [showTour, setShowTour] = useState(false);
   const [pendingTour, setPendingTour] = useState(false);
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
+  const showWelcomeRef = useRef(showWelcome);
+  useEffect(() => {
+    showWelcomeRef.current = showWelcome;
+  }, [showWelcome]);
 
   // Update check: show banner when new version available (respects checkForUpdates pref, 24h throttle)
   const [updateAvailable, setUpdateAvailable] = useState<{ version: string; url: string } | null>(null);
@@ -107,7 +113,7 @@ export default function App() {
 
   // Set up keyboard shortcuts for navigation (arrow keys, J/K)
   useKeyboardShortcuts({
-    enabled: true,
+    enabled: !showWelcome,
     onModeShortcut: (index) => {
       const mode = APP_MODES[index];
       if (mode) selectMode(mode);
@@ -256,7 +262,7 @@ export default function App() {
       // A sync pull may have changed the preferences row, so re-read and
       // re-hydrate it. The mode is seeded at startup; once one is stored the
       // seed call inside this is a no-op for the mode.
-      await hydratePreferences();
+      await hydratePreferences(!showWelcomeRef.current);
     };
     window.addEventListener('syncDataChanged', handleSyncDataChanged);
     return () => window.removeEventListener('syncDataChanged', handleSyncDataChanged);

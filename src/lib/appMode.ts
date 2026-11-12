@@ -122,6 +122,19 @@ export function switchMode(mode: AppMode): void {
   track('mode_chosen', { feature: `mode_${mode}` });
 }
 
+/** The Welcome screen's choice. A device with no stored mode has Read as its effective mode, so `switchMode('read')` would return early. */
+export function chooseInitialMode(mode: AppMode): void {
+  const store = useAppModeStore.getState();
+  if (store.mode === null) {
+    store.setMode(mode);
+    store.setModesBannerPending(false);
+    track('mode_chosen', { feature: `mode_${mode}` });
+    return;
+  }
+  switchMode(mode);
+  store.setModesBannerPending(false);
+}
+
 export function openDiscoverPanel(): void {
   usePanelStore.getState().openPanel('discovery');
   // Opening from Study (tool bar, lens) must not undo a choice made in Discover.

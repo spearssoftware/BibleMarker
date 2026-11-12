@@ -2,8 +2,7 @@
  * Mode seed
  *
  * Picks the starting app mode on a device that has none stored. A device that
- * has not seen the Welcome screen starts in Discover (the Welcome screen will
- * ask later). An existing device lands in the mode matching what it had: the
+ * has not seen the Welcome screen is left alone: the Welcome screen asks. An existing device lands in the mode matching what it had: the
  * old `inductiveToolsEnabled` preference wins, otherwise Study if the user
  * has any marks or notes. Upgrade cases also raise the one-time banner.
  */
@@ -25,7 +24,6 @@ export async function seedAppMode(prefs: UserPreferences): Promise<void> {
   if (useAppModeStore.getState().mode !== null) return;
 
   if (!prefs.onboarding?.hasSeenWelcome) {
-    useAppModeStore.getState().setMode('discover');
     return;
   }
 
