@@ -7,6 +7,7 @@
  */
 
 import { useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { SegmentedControl, ToolbarPopover, type SegmentedOption } from '@/components/shared';
 import { useDiscoveryEnabled } from '@/lib/discovery-config';
 import { MODE_DESCRIPTIONS, MODE_LABELS, switchMode, useEffectiveMode } from '@/lib/appMode';
@@ -61,7 +62,9 @@ export function ModeSwitch({ menuOpen, onMenuOpenChange }: ModeSwitchProps) {
       >
         {label}
       </button>
-      {menuOpen && (
+      {/* Portaled out of the nav bar: its backdrop-filter makes it the containing
+          block for fixed descendants, which would confine the sheet's backdrop to the bar. */}
+      {menuOpen && createPortal(
         <ToolbarPopover
           triggerRef={buttonRef}
           alignment="right"
@@ -89,7 +92,8 @@ export function ModeSwitch({ menuOpen, onMenuOpenChange }: ModeSwitchProps) {
               </button>
             ))}
           </div>
-        </ToolbarPopover>
+        </ToolbarPopover>,
+        document.body
       )}
     </>
   );
