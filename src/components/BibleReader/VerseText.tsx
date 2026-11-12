@@ -1022,7 +1022,7 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
               onVerseNumberClick(verse.ref.verse);
             }
           }}
-          title={onVerseNumberClick ? "Click to add section heading or note" : undefined}
+          title={onVerseNumberClick ? "Verse options" : undefined}
         >
           {verse.ref.verse}
         </span>

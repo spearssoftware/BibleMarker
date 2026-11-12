@@ -11,10 +11,10 @@ interface VerseNumberMenuProps {
   verseNum: number;
   onAddHeading?: () => void;
   onAddNote: () => void;
-  onAddObservation: () => void;
-  onAddTimeExpression: () => void;
-  onCrossRefs: () => void;
-  onOriginalLanguage: () => void;
+  onAddObservation?: () => void;
+  onAddTimeExpression?: () => void;
+  onCrossRefs?: () => void;
+  onOriginalLanguage?: () => void;
   onClose: () => void;
 }
 
@@ -97,74 +97,82 @@ export function VerseNumberMenu({
               <span>Add Note</span>
             </button>
 
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onAddObservation();
-                onClose();
-              }}
-              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                       hover:shadow-sm text-scripture-text"
-              role="menuitem"
-              aria-label={`Add observation for verse ${verseNum}`}
-            >
-              <span className="text-lg" aria-hidden="true">🔍</span>
-              <span>Add Observation</span>
-            </button>
+            {onAddObservation && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onAddObservation();
+                  onClose();
+                }}
+                className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                         transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                         hover:shadow-sm text-scripture-text"
+                role="menuitem"
+                aria-label={`Add observation for verse ${verseNum}`}
+              >
+                <span className="text-lg" aria-hidden="true">🔍</span>
+                <span>Add Observation</span>
+              </button>
+            )}
 
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onAddTimeExpression();
-                onClose();
-              }}
-              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                       hover:shadow-sm text-scripture-text"
-              role="menuitem"
-              aria-label={`Add time expression for verse ${verseNum}`}
-            >
-              <span className="text-lg" aria-hidden="true">🕐</span>
-              <span>Add Time Expression</span>
-            </button>
+            {onAddTimeExpression && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onAddTimeExpression();
+                  onClose();
+                }}
+                className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                         transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                         hover:shadow-sm text-scripture-text"
+                role="menuitem"
+                aria-label={`Add time expression for verse ${verseNum}`}
+              >
+                <span className="text-lg" aria-hidden="true">🕐</span>
+                <span>Add Time Expression</span>
+              </button>
+            )}
 
             {/* Reference tools */}
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onCrossRefs();
-                onClose();
-              }}
-              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                       hover:shadow-sm text-scripture-text"
-              role="menuitem"
-              aria-label={`Cross-references for verse ${verseNum}`}
-            >
-              <span className="text-lg" aria-hidden="true">🔗</span>
-              <span>Cross-References</span>
-            </button>
+            {onCrossRefs && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onCrossRefs();
+                  onClose();
+                }}
+                className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                         transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                         hover:shadow-sm text-scripture-text"
+                role="menuitem"
+                aria-label={`Cross-references for verse ${verseNum}`}
+              >
+                <span className="text-lg" aria-hidden="true">🔗</span>
+                <span>Cross-References</span>
+              </button>
+            )}
 
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onOriginalLanguage();
-                onClose();
-              }}
-              className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
-                       transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
-                       hover:shadow-sm text-scripture-text"
-              role="menuitem"
-              aria-label={`Hebrew/Greek for verse ${verseNum}`}
-            >
-              <span className="text-lg" aria-hidden="true">א</span>
-              <span>Hebrew/Greek</span>
-            </button>
+            {onOriginalLanguage && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onOriginalLanguage();
+                  onClose();
+                }}
+                className="w-full px-4 py-2.5 text-left rounded-lg bg-scripture-elevated hover:bg-scripture-border
+                         transition-all duration-200 flex items-center gap-3 text-sm font-ui font-medium
+                         hover:shadow-sm text-scripture-text"
+                role="menuitem"
+                aria-label={`Hebrew/Greek for verse ${verseNum}`}
+              >
+                <span className="text-lg" aria-hidden="true">א</span>
+                <span>Hebrew/Greek</span>
+              </button>
+            )}
 
             {/* Divider */}
             <div className="border-t border-scripture-border/30 my-1" />

@@ -7,6 +7,7 @@ import {
   selectMode,
   switchMode,
   toggleDiscoverPanel,
+  verseMenuItems,
 } from './appMode';
 import { FLAG_KEYS, DEFAULT_FLAGS } from './feature-flags';
 import { initTelemetry, shutdownTelemetry } from './telemetry';
@@ -345,5 +346,15 @@ describe('Discover panel actions', () => {
 
       expect(useAppModeStore.getState().mode).toBe('read');
     });
+  });
+});
+
+describe('verseMenuItems', () => {
+  it.each<[AppMode, string[]]>([
+    ['read', ['note']],
+    ['discover', ['note', 'crossRefs', 'originalLanguage']],
+    ['study', ['heading', 'note', 'observation', 'time', 'crossRefs', 'originalLanguage']],
+  ])('lists the %s items', (mode, items) => {
+    expect([...verseMenuItems(mode)].sort()).toEqual([...items].sort());
   });
 });

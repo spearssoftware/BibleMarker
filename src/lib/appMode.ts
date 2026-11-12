@@ -35,6 +35,19 @@ const PANELS_OFFERED: Record<AppMode, readonly PanelType[]> = {
   study: ['keywords', 'observe', 'analyze', 'reference', 'settings', 'discovery'],
 };
 
+export type VerseMenuItem = 'heading' | 'note' | 'observation' | 'time' | 'crossRefs' | 'originalLanguage';
+
+const VERSE_MENU_ITEMS: Record<AppMode, ReadonlySet<VerseMenuItem>> = {
+  read: new Set(['note']),
+  discover: new Set(['note', 'crossRefs', 'originalLanguage']),
+  study: new Set(['heading', 'note', 'observation', 'time', 'crossRefs', 'originalLanguage']),
+};
+
+/** `mode` is the effective mode. */
+export function verseMenuItems(mode: AppMode): ReadonlySet<VerseMenuItem> {
+  return VERSE_MENU_ITEMS[mode];
+}
+
 export function effectiveMode(mode: AppMode | null, discoveryEnabled: boolean): AppMode {
   if (mode === null) return 'read';
   if (mode === 'discover' && !discoveryEnabled) return 'read';

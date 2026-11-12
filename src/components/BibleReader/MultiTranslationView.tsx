@@ -36,7 +36,7 @@ import { useChapterAnalysis } from '@/hooks/useChapterAnalysis';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryHost } from '@/hooks/useDiscoveryHost';
 import { getKeywordTapHandler } from '@/lib/keywordTap';
-import { useIsStudyMode, useDiscoverAvailable, openDiscoverPanel } from '@/lib/appMode';
+import { useIsStudyMode, useEffectiveMode, useDiscoverAvailable, openDiscoverPanel, verseMenuItems } from '@/lib/appMode';
 import { buildCrossRefKeyByVerse } from '@/lib/chapterAnalysis';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import type { VerseLens } from './VerseText';
@@ -83,6 +83,7 @@ export function MultiTranslationView() {
   const { presets } = useMarkingPresetStore();
   const { activeStudyId } = useStudyStore();
   const isStudyMode = useIsStudyMode();
+  const menuItems = verseMenuItems(useEffectiveMode());
 
   // Discover layer: chapter analysis for the primary translation, the
   // connector / cross-reference lenses, and the tap handlers that open the
@@ -824,7 +825,7 @@ export function MultiTranslationView() {
                                 verseMenuAt?.verseNum === verseNum && verseMenuAt?.translationId === translation.id ? (
                                   <VerseNumberMenu
                                     verseNum={verseNum}
-                                    onAddHeading={!getHeadingBefore(verseNum) ? () => {
+                                    onAddHeading={menuItems.has('heading') && !getHeadingBefore(verseNum) ? () => {
                                       setCreatingHeadingAt(verseNum);
                                       setVerseMenuAt(null);
                                     } : undefined}
@@ -832,7 +833,7 @@ export function MultiTranslationView() {
                                       setCreatingNoteAt(verseNum);
                                       setVerseMenuAt(null);
                                     }}
-                                    onAddObservation={() => {
+                                    onAddObservation={menuItems.has('observation') ? () => {
                                       setVerseMenuAt(null);
                                       window.dispatchEvent(new CustomEvent('openObservationTools', {
                                         detail: {
@@ -840,8 +841,8 @@ export function MultiTranslationView() {
                                           verseRef: { book: currentBook, chapter: currentChapter, verse: verseNum },
                                         },
                                       }));
-                                    }}
-                                    onAddTimeExpression={() => {
+                                    } : undefined}
+                                    onAddTimeExpression={menuItems.has('time') ? () => {
                                       setVerseMenuAt(null);
                                       window.dispatchEvent(new CustomEvent('openObservationTools', {
                                         detail: {
@@ -850,17 +851,17 @@ export function MultiTranslationView() {
                                           autoCreate: true,
                                         },
                                       }));
-                                    }}
-                                    onCrossRefs={() => {
+                                    } : undefined}
+                                    onCrossRefs={menuItems.has('crossRefs') ? () => {
                                       setVerseMenuAt(null);
                                       setNavSelectedVerse(verseNum);
                                       openPanel('reference', { referenceInitialTab: 'cross-refs' });
-                                    }}
-                                    onOriginalLanguage={() => {
+                                    } : undefined}
+                                    onOriginalLanguage={menuItems.has('originalLanguage') ? () => {
                                       setVerseMenuAt(null);
                                       setNavSelectedVerse(verseNum);
                                       openPanel('reference', { referenceInitialTab: 'original-lang' });
-                                    }}
+                                    } : undefined}
                                     onClose={() => setVerseMenuAt(null)}
                                   />
                                 ) : undefined
