@@ -8,7 +8,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MapGL, { Marker, Popup, type MapRef } from 'react-map-gl/maplibre';
-import { ensureMapLibreSetup, getStyles, isTileError, fitToCoords } from '@/lib/map/mapStyle';
+import { MapLayerToggle } from '@/components/shared';
+import { ensureMapLibreSetup, getStyles, isTileError, fitToCoords, type MapLayer } from '@/lib/map/mapStyle';
 import type { GnosisPlace, Place, VerseRef } from '@/types';
 import { formatVerseRef } from '@/types';
 
@@ -49,7 +50,7 @@ function groupPlaces(places: Place[]): PlaceGroup[] {
 
 export function PlaceMap({ places, gnosisPlaces = [], onNavigate }: PlaceMapProps) {
   const [selectedName, setSelectedName] = useState<string | null>(null);
-  const [tileLayer, setTileLayer] = useState<'map' | 'satellite'>('map');
+  const [tileLayer, setTileLayer] = useState<MapLayer>('map');
   const [tileError, setTileError] = useState(false);
   const mapRef = useRef<MapRef>(null);
 
@@ -228,12 +229,7 @@ export function PlaceMap({ places, gnosisPlaces = [], onNavigate }: PlaceMapProp
 
       {/* Map */}
       <div className="flex-1 rounded-xl overflow-hidden border border-scripture-border/50 relative">
-        <button
-          onClick={() => { setTileLayer(t => t === 'map' ? 'satellite' : 'map'); setTileError(false); }}
-          className="absolute top-2 right-2 z-10 px-2 py-1 text-xs font-medium bg-scripture-surface/95 hover:bg-scripture-surface text-scripture-text rounded shadow transition-colors"
-        >
-          {tileLayer === 'map' ? 'Satellite' : 'Map'}
-        </button>
+        <MapLayerToggle layer={tileLayer} onToggle={layer => { setTileLayer(layer); setTileError(false); }} />
         {mappableGroups.length === 0 && gnosisOnly.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6">
             <p className="text-scripture-muted text-sm">No places with coordinates to display.</p>

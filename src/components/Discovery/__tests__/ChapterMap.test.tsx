@@ -8,10 +8,13 @@ import type { ReactNode } from 'react';
 import { ChapterMap } from '../ChapterMap';
 import { ChapterMapModal } from '../ChapterMapModal';
 import { usePlaceStore } from '@/stores/placeStore';
+import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
 import type { ChapterPlace } from '@/types';
 
 vi.mock('react-map-gl/maplibre', () => ({
-  default: ({ children }: { children?: ReactNode }) => <div data-testid="map">{children}</div>,
+  default: ({ children, mapStyle }: { children?: ReactNode; mapStyle: { sources: Record<string, unknown> } }) => (
+    <div data-testid="map" data-sources={Object.keys(mapStyle.sources).join(',')}>{children}</div>
+  ),
   Marker: ({ children, onClick }: { children?: ReactNode; onClick?: (e: unknown) => void }) => (
     <div data-testid="marker" onClick={() => onClick?.({ originalEvent: { stopPropagation() {} } })}>
       {children}
@@ -47,6 +50,7 @@ const PLACES: ChapterPlace[] = [
 beforeEach(() => {
   online = true;
   navigateToVerse.mockReset();
+  useDiscoveryPrefsStore.setState({ mapLayer: 'map' });
 });
 
 afterEach(() => {
@@ -86,6 +90,18 @@ describe('ChapterMap', () => {
     expect(onOpenFullMap).toHaveBeenCalled();
   });
 
+  it('toggles between the map and satellite basemaps', () => {
+    render(<ChapterMap places={PLACES} book="Genesis" chapter={12} />);
+    expect(screen.getByTestId('map').getAttribute('data-sources')).toBe('protomaps');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Satellite' }));
+    expect(screen.getByTestId('map').getAttribute('data-sources')).toBe('protomaps,satellite');
+    expect(useDiscoveryPrefsStore.getState().mapLayer).toBe('satellite');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Map' }));
+    expect(screen.getByTestId('map').getAttribute('data-sources')).toBe('protomaps');
+  });
+
   it('falls back to a place list when offline', () => {
     online = false;
     render(<ChapterMap places={PLACES} book="Genesis" chapter={12} />);
@@ -119,6 +135,13 @@ describe('ChapterMapModal', () => {
     expect(screen.getByText('Haran')).toBeTruthy();
     expect(listener).not.toHaveBeenCalled();
     unsubscribe();
+  });
+
+  it('opens on the basemap the reader chose on the small map', () => {
+    useDiscoveryPrefsStore.setState({ mapLayer: 'satellite' });
+    render(<ChapterMapModal isOpen onClose={() => {}} places={PLACES} />);
+    expect(screen.getByTestId('map').getAttribute('data-sources')).toBe('protomaps,satellite');
+    expect(screen.getByRole('button', { name: 'Map' })).toBeTruthy();
   });
 
   it('shows the offline fallback', () => {

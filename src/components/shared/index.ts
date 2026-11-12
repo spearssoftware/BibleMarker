@@ -21,3 +21,4 @@ export { ConfirmDialogHost } from './ConfirmDialogHost';
 export { SegmentedControl } from './SegmentedControl';
 export type { SegmentedSize, SegmentedColumns, SegmentedOption } from './SegmentedControl';
 export { ToggleSwitch } from './ToggleSwitch';
+export { MapLayerToggle } from './MapLayerToggle';

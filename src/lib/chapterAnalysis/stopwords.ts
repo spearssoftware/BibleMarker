@@ -3,7 +3,7 @@
  *
  * Deliberately NOT stopworded even though they're common: god, lord, jesus,
  * christ, spirit, word, light, law, faith, love, sin, grace - these are the
- * words Repetition Radar exists to surface.
+ * words repetition exists to surface.
  */
 
 const STOPWORD_LIST: readonly string[] = [

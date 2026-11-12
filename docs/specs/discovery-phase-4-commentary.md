@@ -41,6 +41,8 @@ Users: every reader with Discover enabled (`useDiscoveryEnabled()`), in both dis
 
 Look closer's order becomes: Repetition (`RepetitionCard`), Connectors (`ConnectorsCard`), Look-Again (`LookAgainCard`), Commentary (new). The rest of the panel is unchanged.
 
+> **Superseded 2026-11-04.** The commentary card now sits at top level, after Cross-references and before Look closer, and the Look-Again card was removed. The product owner reframed Discover around context and marking; the commentary is part of the context layer, so it no longer waits behind the collapsed section. Everything else in this spec still applies.
+
 ### Main flow
 
 1. The reader opens Discover on a chapter and expands Look closer (or it is already open).

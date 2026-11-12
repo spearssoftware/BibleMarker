@@ -20,8 +20,14 @@ export interface TokenOccurrence {
 }
 
 export interface RepetitionResult {
-  /** Normalized token (singularized, lowercased). NEVER rendered to the DOM. */
+  /** Normalized token (singularized, lowercased) — the matching key, not display text. */
   token: string;
+  /**
+   * The word for display: the first occurrence of its base form (original
+   * casing, punctuation trimmed), or the first occurrence of any form when
+   * the chapter only uses plurals or possessives.
+   */
+  display: string;
   count: number;
   firstVerse: number;
   lastVerse: number;
@@ -35,9 +41,6 @@ export interface RepetitionResult {
 }
 
 export type ConnectorCategory = 'contrast' | 'conclusion' | 'condition' | 'purpose' | 'cause';
-
-/** A rung on the Repetition Radar hint ladder, in reveal order. */
-export type RepetitionRung = 'hint' | 'range' | 'first';
 
 export interface ConnectorHit {
   phrase: string;
@@ -57,7 +60,7 @@ export interface DiscoveryThresholds {
   repetitionMinCount: number;
   repetitionMinWordLength: number;
   connectorChipMinCount: number;
-  /** Minimum verse count for a chapter to earn the Look-Again heading challenge. */
+  /** Part of the remote-config shape (see `feature-flags.ts`); no longer read by the app. */
   headingMinVerses: number;
   /** Minimum cross-reference votes for a verse to surface a cross-reference hint. */
   crossRefMinVotes: number;

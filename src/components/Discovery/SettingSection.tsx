@@ -2,8 +2,8 @@
  * SettingSection — orients the reader in the chapter's world.
  *
  * Book intro (full on chapter 1, otherwise a collapsed `About <Book>` row),
- * genre lines, then Gnosis-backed pieces: chapter line, mini map, era strip
- * and event list. The intro and genre lines are local and never wait; every
+ * then Gnosis-backed pieces: chapter line, mini map, era strip and event
+ * list. The intro and the genre in the title are local and never wait; every
  * Gnosis piece is hidden while loading, on error, or when the provider
  * returns nothing.
  */
@@ -19,7 +19,6 @@ import {
   introFor,
   isForetoldIn,
   isPrimeval,
-  questionFor,
 } from '@/lib/chapterAnalysis';
 import { getBookById } from '@/types';
 import { ChapterMap } from './ChapterMap';
@@ -28,9 +27,6 @@ import { DiscoveryCard } from './DiscoveryCard';
 import { EraStrip } from './EraStrip';
 import { EventList } from './EventList';
 import { trackChip } from '@/lib/discoveryTelemetry';
-
-export const SETTING_ANCHOR_ID = 'discovery-setting';
-export const SETTING_MAP_ANCHOR_ID = 'discovery-setting-map';
 
 /** The query's data, or null while it loads or after it fails. */
 function readyData<T>(data: T, isLoading: boolean, error: string | null): T | null {
@@ -77,7 +73,6 @@ export function SettingSection({ book, chapter, translationId }: SettingSectionP
   const bookName = getBookById(book)?.name ?? book;
   const genre = genreFor(book);
   const intro = introFor(book);
-  const question = questionFor(book, chapter);
 
   const chapterLine = buildChapterLine({
     yearDisplay: readyYear?.yearDisplay,
@@ -93,7 +88,7 @@ export function SettingSection({ book, chapter, translationId }: SettingSectionP
   };
 
   return (
-    <DiscoveryCard id={SETTING_ANCHOR_ID} title={genre ? `${bookName} — ${GENRE_LABEL[genre]}` : bookName}>
+    <DiscoveryCard title={genre ? `${bookName} — ${GENRE_LABEL[genre]}` : bookName}>
       {intro && chapter === 1 && <p className="text-sm text-scripture-text">{intro}</p>}
       {intro && chapter !== 1 && (
         <div>
@@ -108,22 +103,19 @@ export function SettingSection({ book, chapter, translationId }: SettingSectionP
           {introOpen && <p className="mt-1 text-sm text-scripture-text">{intro}</p>}
         </div>
       )}
-      {question && <p className="rounded-r border-l-2 border-scripture-accent bg-scripture-accent/10 px-3 py-2 text-sm text-scripture-text">{question}</p>}
       {chapterLine && <p className="text-sm text-scripture-text">{chapterLine}</p>}
       {hasMap && (
         <>
-          <div id={SETTING_MAP_ANCHOR_ID} className="scroll-mt-4">
-            <ChapterMap
-              places={readyPlaces}
-              book={book}
-              chapter={chapter}
-              onMarkerTap={() => trackChip('discovery_chip_tapped', 'setting_map', scope)}
-              onOpenFullMap={() => {
-                trackChip('discovery_chip_tapped', 'setting_map', scope);
-                setMapOpen(true);
-              }}
-            />
-          </div>
+          <ChapterMap
+            places={readyPlaces}
+            book={book}
+            chapter={chapter}
+            onMarkerTap={() => trackChip('discovery_chip_tapped', 'setting_map', scope)}
+            onOpenFullMap={() => {
+              trackChip('discovery_chip_tapped', 'setting_map', scope);
+              setMapOpen(true);
+            }}
+          />
           <ChapterMapModal isOpen={mapOpen} onClose={() => setMapOpen(false)} places={readyPlaces} />
         </>
       )}

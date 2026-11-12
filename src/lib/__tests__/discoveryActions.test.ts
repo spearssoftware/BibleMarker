@@ -1,16 +1,16 @@
 /**
  * @vitest-environment jsdom
  *
- * `markRepetitionAsKeyword` seeds a highlight-only preset's variants from
- * `RepetitionResult.forms`, excluding whichever form matches the reader's own
- * selected text (case-insensitively) so the ripple picks up sibling forms
- * (e.g. "word"/"words") without duplicating the word itself as a variant.
+ * `markRepetitionAsKeyword` names the preset after the repetition's display
+ * form and seeds its variants from `RepetitionResult.forms`, excluding the
+ * display form itself (case-insensitively) so the ripple picks up sibling
+ * forms (e.g. "word"/"words") without duplicating the word as a variant.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { markRepetitionAsKeyword, createBookScopedKeywordPreset } from '../discoveryActions';
+import { presetMarksToken } from '@/stores/discoveryStore';
 import { useMarkingPresetStore } from '@/stores/markingPresetStore';
-import type { TextSelection } from '@/stores/annotationStore';
 import type { RepetitionResult } from '@/lib/chapterAnalysis';
 
 vi.mock('@/lib/database', () => ({
@@ -18,8 +18,8 @@ vi.mock('@/lib/database', () => ({
   getAllMarkingPresets: vi.fn(async () => []),
 }));
 
-function selection(text: string): TextSelection {
-  return { moduleId: 'sword-NASB', book: 'John', chapter: 1, startVerse: 9, endVerse: 9, text };
+function repetition(overrides: Partial<RepetitionResult>): RepetitionResult {
+  return { token: 'word', display: 'Word', count: 6, firstVerse: 1, lastVerse: 18, occurrences: [], forms: ['word', 'words'], ...overrides };
 }
 
 describe('markRepetitionAsKeyword', () => {
@@ -27,17 +27,8 @@ describe('markRepetitionAsKeyword', () => {
     useMarkingPresetStore.setState({ presets: [], isLoading: false });
   });
 
-  it('seeds variants from the other repetition.forms, excluding the selected word itself', async () => {
-    const repetition: RepetitionResult = {
-      token: 'word',
-      count: 6,
-      firstVerse: 1,
-      lastVerse: 18,
-      occurrences: [],
-      forms: ['word', 'words', 'Word'],
-    };
-
-    const preset = await markRepetitionAsKeyword(selection('Word'), 'study-1', repetition);
+  it('names the preset after the display form, pins it to the chapter, and seeds variants from the other forms', async () => {
+    const preset = await markRepetitionAsKeyword(repetition({}), 'John', 1, 'study-1');
 
     expect(preset.word).toBe('Word');
     expect(preset.variants.map(v => v.text)).toEqual(['words']);
@@ -48,36 +39,16 @@ describe('markRepetitionAsKeyword', () => {
     expect(preset.symbol).toBeUndefined();
   });
 
-  it('trims the selected text before using it as the preset word', async () => {
-    const repetition: RepetitionResult = {
-      token: 'light',
-      count: 5,
-      firstVerse: 3,
-      lastVerse: 7,
-      occurrences: [],
-      forms: ['light', 'lights'],
-    };
-
-    const preset = await markRepetitionAsKeyword(selection('  light  '), undefined, repetition);
-    expect(preset.word).toBe('light');
+  it('creates a preset that presetMarksToken recognizes for that chapter and translation', async () => {
+    const preset = await markRepetitionAsKeyword(repetition({ token: 'god', display: "God's", forms: ["god's", 'god'] }), 'Gen', 1);
+    expect(presetMarksToken(preset, 'god', 'Gen', 1, 'sword-NASB')).toBe(true);
+    expect(presetMarksToken(preset, 'god', 'Gen', 2, 'sword-NASB')).toBe(false);
   });
 
-  it('produces no variants when there is no repetition result', async () => {
-    const preset = await markRepetitionAsKeyword(selection('Grace'), 'study-1');
+  it('produces no variants when the only form is the word itself', async () => {
+    const preset = await markRepetitionAsKeyword(repetition({ token: 'grace', display: 'Grace', forms: ['grace'] }), 'John', 1);
     expect(preset.variants).toEqual([]);
-  });
-
-  it('produces no variants when every form matches the selected word', async () => {
-    const repetition: RepetitionResult = {
-      token: 'grace',
-      count: 5,
-      firstVerse: 1,
-      lastVerse: 5,
-      occurrences: [],
-      forms: ['grace', 'Grace'],
-    };
-    const preset = await markRepetitionAsKeyword(selection('grace'), undefined, repetition);
-    expect(preset.variants).toEqual([]);
+    expect(preset.studyId).toBeUndefined();
   });
 });
 

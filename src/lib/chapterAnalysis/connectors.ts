@@ -145,10 +145,9 @@ export function promptFor(hit: ConnectorHit): string {
 }
 
 /**
- * Shared connectors gate: whether a chapter's connector count clears the
- * configured threshold. Used by both `DiscoveryPanel` (to decide whether to
- * render `ConnectorsCard`) and `useLookAgain` (to decide whether the checklist's
- * connector row exists) so neither can disagree with the other.
+ * Connectors gate: whether a chapter's connector count clears the
+ * configured threshold, used by `DiscoveryPanel` to decide whether to
+ * render `ConnectorsCard`.
  */
 export function shouldShowConnectors(connectorCount: number, thresholds: DiscoveryThresholds): boolean {
   return connectorCount > 0 && connectorCount >= thresholds.connectorChipMinCount;

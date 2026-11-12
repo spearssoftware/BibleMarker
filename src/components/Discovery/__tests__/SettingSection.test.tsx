@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { SettingSection } from '../SettingSection';
-import { introFor, questionFor } from '@/lib/chapterAnalysis';
+import { introFor } from '@/lib/chapterAnalysis';
 import { track } from '@/lib/telemetry';
 import type { ChapterEntities, ChapterEvent, ChapterPlace } from '@/types';
 
@@ -79,10 +79,9 @@ describe('SettingSection', () => {
     });
   });
 
-  it('renders the genre label and question', () => {
+  it('renders the genre label in the title', () => {
     renderSetting('Heb', 3);
     expect(screen.getByText('Hebrews — a letter')).toBeTruthy();
-    expect(screen.getByText(questionFor('Heb', 3)!)).toBeTruthy();
   });
 
   it('builds the chapter line from year, people (minus deity), places and first event', () => {
