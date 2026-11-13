@@ -7,7 +7,7 @@
 export type Theme = 'light' | 'dark' | 'auto';
 export type ScriptureFont = 'crimson-pro' | 'lora' | 'merriweather' | 'literata';
 
-const SCRIPTURE_FONT_STACKS: Record<ScriptureFont, string> = {
+export const SCRIPTURE_FONT_STACKS: Record<ScriptureFont, string> = {
   'crimson-pro': "'Crimson Pro', Georgia, serif",
   'lora': "'Lora', Georgia, serif",
   'merriweather': "'Merriweather', Georgia, serif",

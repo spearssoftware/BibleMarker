@@ -12,8 +12,6 @@ vi.mock('@/lib/database', () => ({
 
 vi.mock('@/lib/textSettings', async importOriginal => ({
   ...(await importOriginal<typeof import('@/lib/textSettings')>()),
-  changeFontSize: vi.fn(),
-  changeScriptureFont: vi.fn(),
   changeTheme: vi.fn(),
   changeHighContrast: vi.fn(),
 }));

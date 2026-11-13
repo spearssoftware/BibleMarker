@@ -7,10 +7,10 @@
 
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { updatePreferences } from '@/lib/database';
-import { applyScriptureFont, applyTheme, type ScriptureFont, type Theme } from '@/lib/theme';
+import { SCRIPTURE_FONT_STACKS, applyScriptureFont, applyTheme, type ScriptureFont, type Theme } from '@/lib/theme';
 import type { UserPreferences } from '@/types';
 
-export type FontSizeValue = 'sm' | 'base' | 'lg' | 'xl';
+export type FontSizeValue = NonNullable<UserPreferences['fontSize']>;
 
 export const FONT_SIZE_OPTIONS: ReadonlyArray<{ value: FontSizeValue; label: string }> = [
   { value: 'sm', label: 'Small' },
@@ -25,12 +25,15 @@ export const THEME_OPTIONS: ReadonlyArray<{ value: Theme; label: string }> = [
   { value: 'auto', label: 'Auto' },
 ];
 
-export const SCRIPTURE_FONTS: ReadonlyArray<{ id: ScriptureFont; label: string; stack: string }> = [
-  { id: 'crimson-pro', label: 'Crimson Pro', stack: "'Crimson Pro', Georgia, serif" },
-  { id: 'lora', label: 'Lora', stack: "'Lora', Georgia, serif" },
-  { id: 'merriweather', label: 'Merriweather', stack: "'Merriweather', Georgia, serif" },
-  { id: 'literata', label: 'Literata', stack: "'Literata', Georgia, serif" },
+const SCRIPTURE_FONT_LABELS: ReadonlyArray<{ id: ScriptureFont; label: string }> = [
+  { id: 'crimson-pro', label: 'Crimson Pro' },
+  { id: 'lora', label: 'Lora' },
+  { id: 'merriweather', label: 'Merriweather' },
+  { id: 'literata', label: 'Literata' },
 ];
+
+export const SCRIPTURE_FONTS: ReadonlyArray<{ id: ScriptureFont; label: string; stack: string }> =
+  SCRIPTURE_FONT_LABELS.map(font => ({ ...font, stack: SCRIPTURE_FONT_STACKS[font.id] }));
 
 // updatePreferences reads, merges and writes the row with no queue, so two text
 // settings changed close together would overwrite each other. This orders the

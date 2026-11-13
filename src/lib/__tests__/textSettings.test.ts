@@ -14,7 +14,8 @@ import {
 vi.mock('@/lib/database', () => ({
   updatePreferences: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock('@/lib/theme', () => ({
+vi.mock('@/lib/theme', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/theme')>()),
   applyTheme: vi.fn(),
   applyScriptureFont: vi.fn(),
 }));

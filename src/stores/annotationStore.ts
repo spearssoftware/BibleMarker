@@ -18,7 +18,7 @@ import type {
 } from '@/types';
 import { DEFAULT_MARKING_PREFERENCES } from '@/types';
 import { updatePreferences } from '@/lib/database';
-import type { Theme } from '@/lib/theme';
+import type { ScriptureFont, Theme } from '@/lib/theme';
 
 export interface TextSelection {
   moduleId: string;
@@ -61,7 +61,7 @@ interface AnnotationState {
   // Preferences
   preferences: MarkingPreferences;
   fontSize: FontSize;
-  scriptureFont: 'crimson-pro' | 'lora' | 'merriweather' | 'literata';
+  scriptureFont: ScriptureFont;
   theme: Theme;
   highContrast: boolean;
   /** Read-only preference: Discover and Study always show verse numbers. */
@@ -88,7 +88,7 @@ interface AnnotationState {
   setNotes: (notes: Note[]) => void;
   setPreferences: (prefs: MarkingPreferences) => void;
   setFontSize: (size: FontSize) => void;
-  setScriptureFont: (font: 'crimson-pro' | 'lora' | 'merriweather' | 'literata') => void;
+  setScriptureFont: (font: ScriptureFont) => void;
   setTheme: (theme: Theme) => void;
   setHighContrast: (enabled: boolean) => void;
   setShowVerseNumbers: (show: boolean) => void;

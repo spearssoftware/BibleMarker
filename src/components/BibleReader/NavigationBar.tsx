@@ -319,7 +319,6 @@ export function NavigationBar() {
           {wide && (
             <button
               ref={textOptionsButtonRef}
-              data-text-options
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
