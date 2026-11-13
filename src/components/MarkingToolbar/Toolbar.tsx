@@ -17,6 +17,7 @@ import { useListStore } from '@/stores/listStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { usePanelStore } from '@/stores/panelStore';
+import { useChromeStore, useTopBarHidden } from '@/stores/chromeStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useMultiTranslationStore } from '@/stores/multiTranslationStore';
 import { useActiveChapterStore } from '@/stores/activeChapterStore';
@@ -54,6 +55,10 @@ export function Toolbar() {
   } = useAnnotationStore();
 
   const { previousChapter, nextChapter, canGoNext, canGoPrevious } = useBibleStore();
+  // The arrows hide with the top bar but stay tabbable; focusing one shows both.
+  const arrowsHidden = useTopBarHidden();
+  const reveal = useChromeStore(s => s.reveal);
+  const arrowHiddenClass = arrowsHidden ? 'opacity-0 pointer-events-none' : '';
   const { createTextAnnotation, createSymbolAnnotation, createAnnotationsAcrossTranslations, loadAnnotations, quickHighlight } = useAnnotations();
   const { presets, loadPresets, markPresetUsed, updatePreset, removePreset } = useMarkingPresetStore();
   const activeStudyId = useEffectiveStudyId();
@@ -373,8 +378,9 @@ export function Toolbar() {
       <button
         onClick={() => previousChapter()}
         disabled={!canGoPrevious()}
-        className="fixed left-0 z-20 pl-0.5 pr-2 py-3 text-scripture-muted/40 hover:text-scripture-text
-                   disabled:opacity-0 transition-opacity touch-target"
+        onFocus={reveal}
+        className={`fixed left-0 z-20 pl-0.5 pr-2 py-3 text-scripture-muted/40 hover:text-scripture-text
+                   disabled:opacity-0 transition-opacity motion-reduce:!transition-none touch-target ${arrowHiddenClass}`}
         style={{
           bottom: arrowBottom,
           left: 'env(safe-area-inset-left, 0px)',
@@ -389,8 +395,9 @@ export function Toolbar() {
       <button
         onClick={() => nextChapter()}
         disabled={!canGoNext()}
-        className="fixed right-0 z-20 pr-0.5 pl-2 py-3 text-scripture-muted/40 hover:text-scripture-text
-                   disabled:opacity-0 transition-opacity touch-target"
+        onFocus={reveal}
+        className={`fixed right-0 z-20 pr-0.5 pl-2 py-3 text-scripture-muted/40 hover:text-scripture-text
+                   disabled:opacity-0 transition-opacity motion-reduce:!transition-none touch-target ${arrowHiddenClass}`}
         style={{
           bottom: arrowBottom,
           right: 'calc(env(safe-area-inset-right, 0px) + var(--reader-inset-right, 0px))',

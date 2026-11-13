@@ -32,6 +32,7 @@ import { useCurrentVerseTracker } from '@/hooks/useCurrentVerseTracker';
 import { useRestoreReadingPosition } from '@/hooks/useRestoreReadingPosition';
 import { useHidingChrome } from '@/hooks/useHidingChrome';
 import { useChromeStore, useTopBarHidden } from '@/stores/chromeStore';
+import { isRevealTarget } from '@/lib/hidingChrome';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { usePanelStore } from '@/stores/panelStore';
 import { useTextSelection, type TranslationChapter } from '@/hooks/useTextSelection';
@@ -672,7 +673,15 @@ export function MultiTranslationView() {
     if (sel && !sel.isCollapsed && sel.toString().length > 0) {
       return;
     }
-    
+
+    // A tap on plain text that nothing else claimed brings the top bar back.
+    // Marks, cross-references, lens hits and verse numbers stop the event or
+    // are excluded by isRevealTarget; anything open holds the bar shown, so a
+    // tap that closes a menu never doubles as a reveal.
+    if (!e.defaultPrevented && isRevealTarget(e.target as Element)) {
+      useChromeStore.getState().reveal();
+    }
+
     // Only close if clicking directly on the content (not on buttons or interactive elements)
     const target = e.target as HTMLElement;
     if (target.tagName !== 'BUTTON' && !target.closest('button') && !target.closest('[role="button"]') && !target.closest('input') && !target.closest('.verse-content')) {

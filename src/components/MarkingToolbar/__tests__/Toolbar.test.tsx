@@ -6,12 +6,13 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act, cleanup } from '@testing-library/react';
+import { render, screen, act, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useAnnotationStore, type TextSelection } from '@/stores/annotationStore';
 import { usePanelStore } from '@/stores/panelStore';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { useAppModeStore } from '@/stores/appModeStore';
+import { useChromeStore } from '@/stores/chromeStore';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryPrefsStore } from '@/stores/discoveryPrefsStore';
 import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
@@ -491,6 +492,47 @@ describe('Toolbar', () => {
       expect(usePanelStore.getState().activePanel).toBeNull();
       // Closing the panel must not fire another tap event.
       expect(trackMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('chapter arrows and the hiding top bar', () => {
+    const arrows = () => [screen.getByLabelText('Previous chapter'), screen.getByLabelText('Next chapter')];
+
+    beforeEach(() => {
+      useAppModeStore.setState({ mode: 'read' });
+      useChromeStore.setState({ scrollHidden: false, topInset: 0, holds: {} });
+    });
+
+    it('hide with the bar and stop taking taps, but stay in the tab order', () => {
+      useChromeStore.setState({ scrollHidden: true });
+      render(<Toolbar />);
+      arrows().forEach(arrow => {
+        expect(arrow.className).toContain('opacity-0');
+        expect(arrow.className).toContain('pointer-events-none');
+        expect(arrow.getAttribute('tabindex')).not.toBe('-1');
+      });
+    });
+
+    it('show the bar again when one takes focus', () => {
+      useChromeStore.setState({ scrollHidden: true });
+      render(<Toolbar />);
+      fireEvent.focus(arrows()[1]);
+      expect(useChromeStore.getState().scrollHidden).toBe(false);
+    });
+
+    it('are shown while the bar is shown, and never hide in Study', () => {
+      render(<Toolbar />);
+      arrows().forEach(arrow => expect(arrow.className).not.toContain('pointer-events-none'));
+      cleanup();
+      useAppModeStore.setState({ mode: 'study' });
+      useChromeStore.setState({ scrollHidden: true });
+      render(<Toolbar />);
+      arrows().forEach(arrow => expect(arrow.className).not.toContain('pointer-events-none'));
+    });
+
+    it('drop their transitions under reduced motion', () => {
+      render(<Toolbar />);
+      arrows().forEach(arrow => expect(arrow.className).toContain('motion-reduce:!transition-none'));
     });
   });
 });
