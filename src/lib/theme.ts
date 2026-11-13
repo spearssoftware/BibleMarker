@@ -227,7 +227,8 @@ export function watchOSTheme(): () => void {
     const html = document.documentElement;
     const themeAttr = html.getAttribute('data-theme') as Theme;
     if (themeAttr === 'auto') {
-      applyTheme('auto');
+      // Carry High Contrast over: applyTheme defaults it to off.
+      applyTheme('auto', html.getAttribute('data-high-contrast') === 'true');
     }
   };
   

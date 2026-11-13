@@ -471,6 +471,7 @@ describe('verseNumbersVisible', () => {
 
 describe('translationBandVisible', () => {
   it.each<[AppMode, number, boolean, boolean]>([
+    ['read', 0, false, false],
     ['read', 1, false, false],
     ['read', 1, true, true],
     ['read', 2, false, true],

@@ -32,8 +32,9 @@ export const SCRIPTURE_FONTS: ReadonlyArray<{ id: ScriptureFont; label: string; 
   { id: 'literata', label: 'Literata', stack: "'Literata', Georgia, serif" },
 ];
 
-// updatePreferences reads, merges and writes the row with no queue, so saves
-// made close together must run one after another or one would overwrite the other.
+// updatePreferences reads, merges and writes the row with no queue, so two text
+// settings changed close together would overwrite each other. This orders the
+// saves made here only; other writers of the preferences row are not queued.
 let saveQueue: Promise<void> = Promise.resolve();
 
 function save(update: Partial<UserPreferences>, what: string): Promise<void> {
