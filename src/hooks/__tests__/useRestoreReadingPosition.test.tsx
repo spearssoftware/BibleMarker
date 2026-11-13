@@ -260,6 +260,41 @@ describe('useRestoreReadingPosition', () => {
     expect(useSavedPositionStore.getState().saved).toEqual(position(16));
   });
 
+  it('lets a named-verse jump during anchoring win, and saves where the reader ended up', () => {
+    setPending(16);
+    const { container, content } = makeContainer();
+    renderRestore(container, content);
+    flushFrames();
+    expect(container.scrollTop).toBe(1450);
+
+    useBibleStore.setState({ navSelectedVerse: 28 });
+    container.scrollTop = 2650;
+    useReadingPositionStore.getState().setCurrentVerse(28);
+    shift = 8;
+    resizeCallback?.();
+    expect(container.scrollTop).toBe(2650);
+    expect(useSavedPositionStore.getState().pendingRestore).toBeNull();
+
+    vi.advanceTimersByTime(2000);
+    expect(useSavedPositionStore.getState().saved).toEqual(position(28));
+  });
+
+  it('ends anchoring instead of resuming when the chapter goes back to loading', () => {
+    setPending(16);
+    const { container, content } = makeContainer();
+    const { rerender } = renderRestore(container, content);
+    flushFrames();
+    useReadingPositionStore.getState().setCurrentVerse(16);
+
+    rerender({ content, opts: { ...readyOpts, ready: false } });
+    expect(useSavedPositionStore.getState().pendingRestore).toBeNull();
+
+    container.scrollTop = 300;
+    rerender({ content, opts: readyOpts });
+    flushFrames();
+    expect(container.scrollTop).toBe(300);
+  });
+
   it('saves the restored verse when the anchoring window ends, then follows the reader', () => {
     setPending(16);
     const { container, content } = makeContainer();

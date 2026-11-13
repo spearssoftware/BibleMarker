@@ -61,17 +61,36 @@ export function useRestoreReadingPosition(
   useEffect(() => {
     const { pendingRestore, settleRestore } = useSavedPositionStore.getState();
     if (!pendingRestore) return;
-    if (pendingRestore.book !== book || pendingRestore.chapter !== chapter) {
+
+    // Opens the save gate and stores where the reader actually is. The
+    // tracker's reports were dropped while the gate was closed and it will not
+    // repeat an unchanged verse, so its current value is saved here.
+    const settleAndSave = (fallbackVerse?: number) => {
+      anchorDeadlineRef.current = null;
       settleRestore();
+      const current = useReadingPositionStore.getState().currentVerse ?? fallbackVerse;
+      if (current === undefined || current === null) return;
+      const { currentBook, currentChapter } = useBibleStore.getState();
+      useSavedPositionStore.getState().save(currentBook, currentChapter, current);
+    };
+
+    if (pendingRestore.book !== book || pendingRestore.chapter !== chapter) {
+      settleAndSave();
       return;
     }
 
     const container = containerRef.current;
-    if (!ready || !container || !contentEl) return;
+    if (!ready || !container || !contentEl) {
+      // Going back to "loading" mid-anchoring removes the listeners that tell
+      // us the reader took over, so anchoring ends here instead of resuming.
+      if (anchorDeadlineRef.current !== null) settleAndSave();
+      return;
+    }
 
     const { verse } = pendingRestore;
     const findRow = () => container.querySelector<HTMLElement>(`.grid[data-verse="${verse}"]`);
     if (verse < minVerse || verse > maxVerse || !findRow()) {
+      anchorDeadlineRef.current = null;
       settleRestore(true);
       return;
     }
@@ -79,7 +98,24 @@ export function useRestoreReadingPosition(
     let frame: number | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let observer: ResizeObserver | undefined;
+    let unsubscribeJump: (() => void) | undefined;
     const takeOverEvents = ['wheel', 'touchstart', 'mousedown'] as const;
+
+    const stopAnchoring = () => {
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
+      observer?.disconnect();
+      observer = undefined;
+      unsubscribeJump?.();
+      unsubscribeJump = undefined;
+      takeOverEvents.forEach((type) => container.removeEventListener(type, onTakeOver));
+      document.removeEventListener('keydown', onTakeOver);
+    };
+
+    function onTakeOver() {
+      stopAnchoring();
+      settleAndSave();
+    }
 
     const place = () => {
       const row = findRow();
@@ -92,21 +128,6 @@ export function useRestoreReadingPosition(
       );
     };
 
-    const stopAnchoring = () => {
-      if (timer !== null) clearTimeout(timer);
-      timer = null;
-      observer?.disconnect();
-      observer = undefined;
-      takeOverEvents.forEach((type) => container.removeEventListener(type, onTakeOver));
-      document.removeEventListener('keydown', onTakeOver);
-    };
-
-    function onTakeOver() {
-      anchorDeadlineRef.current = null;
-      stopAnchoring();
-      useSavedPositionStore.getState().settleRestore();
-    }
-
     frame = requestAnimationFrame(() => {
       frame = null;
       const stillPending = useSavedPositionStore.getState().pendingRestore !== null;
@@ -114,8 +135,7 @@ export function useRestoreReadingPosition(
       const scrolledAway = !resuming && container.scrollTop > UNSCROLLED_THRESHOLD;
       const jumpUnderWay = useBibleStore.getState().navSelectedVerse !== null;
       if (!stillPending || scrolledAway || jumpUnderWay) {
-        anchorDeadlineRef.current = null;
-        settleRestore();
+        settleAndSave();
         return;
       }
 
@@ -130,12 +150,15 @@ export function useRestoreReadingPosition(
         container.addEventListener(type, onTakeOver, { passive: true })
       );
       document.addEventListener('keydown', onTakeOver);
+      // A jump to a named verse (search, verse picker, cross-reference) wins:
+      // it tints its row, which resizes the content and would re-place ours.
+      unsubscribeJump = useBibleStore.subscribe((state) => {
+        if (state.navSelectedVerse !== null) onTakeOver();
+      });
       timer = setTimeout(() => {
-        anchorDeadlineRef.current = null;
         stopAnchoring();
-        // A reader who never scrolls produces no tracker report to save this verse.
-        settleRestore();
-        useSavedPositionStore.getState().save(book, chapter, verse);
+        // A reader who never scrolls may have produced no tracker report yet.
+        settleAndSave(verse);
       }, Math.max(0, anchorDeadlineRef.current - Date.now()));
     });
 

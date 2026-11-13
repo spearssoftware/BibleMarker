@@ -160,7 +160,7 @@ Applies in Read only, at every screen size.
 - Mode checks go through `src/lib/appMode.ts`; the wide/narrow rule is the existing `panelStore.orientation`.
 - Study and Discover behave exactly as before this phase, apart from gaining "Aa" and losing two rows from Settings › Appearance.
 - Tests, each shipped in the PR that changes the behavior:
-  - 3a: unit tests for saving, clearing on chapter change, ignoring bad stored values, and the "reader scrolled first" skip.
+  - 3a: unit tests for saving, ignoring bad stored values, the "reader scrolled first" skip, a named-verse jump winning, and the verse staying put when later content resizes the page.
   - 3b: component tests for the panel's controls per mode, the two entry points by layout, the Settings rows removed, the verse-number rule per mode, and the band rule (one translation, loading, error, two translations, other modes).
   - 3c: unit tests for the show/hide rules as a pure function or hook (scroll direction, top of chapter, the "stay shown" list, mode other than Read), plus a component test that focus inside the bar shows it.
   - `just check` passes on each PR.
