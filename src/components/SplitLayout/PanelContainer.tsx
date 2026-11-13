@@ -8,6 +8,7 @@ import { AnalyzeToolsPanel } from '@/components/Analyze';
 import { ReferenceToolsPanel } from '@/components/Reference';
 import { SettingsPanel } from '@/components/Settings';
 import { DiscoveryPanel } from '@/components/Discovery';
+import { ReadingPlansPanel } from '@/components/ReadingPlans';
 import type { VerseRef } from '@/types';
 
 const PANEL_TITLES: Record<PanelType, string> = {
@@ -17,6 +18,7 @@ const PANEL_TITLES: Record<PanelType, string> = {
   reference: 'Study Tools',
   settings: 'Settings',
   discovery: 'Discover',
+  plans: 'Reading plans',
 };
 
 export function PanelContainer() {
@@ -83,6 +85,13 @@ export function PanelContainer() {
   const handleKeywordPresetCreated = async () => {
     clearSelection();
     if (isPinned) return;
+    closePanelFromUser();
+  };
+
+  // On a phone the split covers the text, so "Read" closes the panel; a pinned or side-by-side panel stays.
+  const handlePlanNavigate = () => {
+    if (isPinned || isHorizontal) return;
+    clearSelection();
     closePanelFromUser();
   };
 
@@ -189,6 +198,7 @@ export function PanelContainer() {
           <SettingsPanel onClose={handleClose} initialTab={settingsInitialTab} />
         )}
         {activePanel === 'discovery' && <DiscoveryPanel />}
+        {activePanel === 'plans' && <ReadingPlansPanel onNavigate={handlePlanNavigate} />}
       </div>
     </div>
   );

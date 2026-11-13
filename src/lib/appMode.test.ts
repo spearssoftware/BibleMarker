@@ -6,6 +6,7 @@ import {
   discoverAvailable,
   effectiveMode,
   openDiscoverPanel,
+  panelOffered,
   selectMode,
   switchMode,
   toggleDiscoverPanel,
@@ -214,6 +215,27 @@ describe('switchMode', () => {
     switchMode(to);
 
     expect(usePanelStore.getState().activePanel).toBe('keywords');
+  });
+
+  it.each(['read', 'discover', 'study'] as const)('offers the Reading plans panel in %s', mode => {
+    expect(panelOffered(mode, true, 'plans')).toBe(true);
+    expect(panelOffered(mode, false, 'plans')).toBe(true);
+  });
+
+  it.each([
+    ['read', 'discover'],
+    ['read', 'study'],
+    ['discover', 'read'],
+    ['discover', 'study'],
+    ['study', 'read'],
+    ['study', 'discover'],
+  ] as const)('keeps the Reading plans panel when switching %s to %s', (from, to) => {
+    useAppModeStore.setState({ mode: from });
+    usePanelStore.setState({ activePanel: 'plans' });
+
+    switchMode(to);
+
+    expect(usePanelStore.getState().activePanel).toBe('plans');
   });
 
   it('does nothing when switching to Discover with the flag off', async () => {

@@ -132,6 +132,40 @@ describe('NavigationBar', () => {
   });
 });
 
+describe('NavigationBar Reading plans item', () => {
+  const menuItems = () =>
+    screen.getAllByRole('menuitem').map(item => item.textContent?.replace('Aa', '').trim());
+
+  it.each([
+    ['read', 'vertical', 'Text options'],
+    ['discover', 'vertical', 'Text options'],
+    ['study', 'vertical', 'Text options'],
+    ['read', 'horizontal', 'Settings'],
+    ['discover', 'horizontal', 'Settings'],
+    ['study', 'horizontal', 'Settings'],
+  ] as const)('sits directly after Export page in %s on a %s layout, before %s', async (mode, orientation, next) => {
+    useAppModeStore.setState({ mode });
+    usePanelStore.setState({ orientation });
+    await act(async () => { render(<NavigationBar />); });
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+
+    const items = menuItems();
+    const at = items.indexOf('Reading plans');
+    expect(at).toBeGreaterThan(0);
+    expect(items[at - 1]).toBe('Export page…');
+    expect(items[at + 1]).toBe(next);
+  });
+
+  it.each(['read', 'discover', 'study'] as const)('opens the panel from the menu in %s', async mode => {
+    useAppModeStore.setState({ mode });
+    await act(async () => { render(<NavigationBar />); });
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Reading plans' }));
+    expect(usePanelStore.getState().activePanel).toBe('plans');
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+});
+
 describe('NavigationBar text options', () => {
   it('has an "Aa" button and no menu item on a wide layout', async () => {
     await act(async () => { render(<NavigationBar />); });

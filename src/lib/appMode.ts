@@ -32,9 +32,9 @@ export const MODE_DESCRIPTIONS: Record<AppMode, string> = {
 };
 
 export const PANELS_OFFERED: Record<AppMode, readonly PanelType[]> = {
-  read: ['keywords', 'settings'],
-  discover: ['keywords', 'settings', 'discovery', 'reference'],
-  study: ['keywords', 'observe', 'analyze', 'reference', 'settings', 'discovery'],
+  read: ['keywords', 'settings', 'plans'],
+  discover: ['keywords', 'settings', 'discovery', 'reference', 'plans'],
+  study: ['keywords', 'observe', 'analyze', 'reference', 'settings', 'discovery', 'plans'],
 };
 
 /** Whether `mode` offers `panel`. Study lists 'discovery', but the kill switch removes it everywhere. */

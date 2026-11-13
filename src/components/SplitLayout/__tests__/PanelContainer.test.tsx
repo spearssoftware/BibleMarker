@@ -23,6 +23,9 @@ vi.mock('@/components/Analyze', () => ({ AnalyzeToolsPanel: () => <div>analyze</
 vi.mock('@/components/Reference', () => ({ ReferenceToolsPanel: () => <div>reference</div> }));
 vi.mock('@/components/Settings', () => ({ SettingsPanel: () => <div>settings</div> }));
 vi.mock('@/components/Discovery', () => ({ DiscoveryPanel: () => <div>discovery</div> }));
+vi.mock('@/components/ReadingPlans', () => ({
+  ReadingPlansPanel: ({ onNavigate }: { onNavigate: () => void }) => <button onClick={onNavigate}>plans</button>,
+}));
 
 const active = () => usePanelStore.getState().activePanel;
 const flag = () => useDiscoveryPrefsStore.getState().discoverPanelClosed;
@@ -206,5 +209,36 @@ describe('PanelContainer tour target', () => {
     setup('discover', 'horizontal', 'settings');
     const other = render(<PanelContainer />);
     expect(other.container.querySelector('[data-discover-panel]')).toBeNull();
+  });
+});
+
+describe('PanelContainer Reading plans', () => {
+  beforeEach(() => {
+    usePanelStore.setState({ activePanel: null, returnPanel: null, isCollapsed: false, isPinned: false });
+  });
+
+  afterEach(cleanup);
+
+  it('closes after a plan navigates on a narrow, unpinned layout', () => {
+    setup('read', 'vertical', 'plans');
+    render(<PanelContainer />);
+    expect(screen.getByText('Reading plans')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('plans'));
+
+    expect(active()).toBeNull();
+  });
+
+  it.each([
+    ['a wide layout', 'horizontal', false],
+    ['a pinned panel', 'vertical', true],
+  ] as const)('stays open after a plan navigates on %s', (_name, orientation, pinned) => {
+    setup('read', orientation, 'plans');
+    usePanelStore.setState({ isPinned: pinned });
+    render(<PanelContainer />);
+
+    fireEvent.click(screen.getByText('plans'));
+
+    expect(active()).toBe('plans');
   });
 });
