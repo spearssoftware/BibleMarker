@@ -37,7 +37,7 @@ import { useChapterAnalysis } from '@/hooks/useChapterAnalysis';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryHost } from '@/hooks/useDiscoveryHost';
 import { getKeywordTapHandler } from '@/lib/keywordTap';
-import { useIsStudyMode, useEffectiveMode, useDiscoverAvailable, openDiscoverPanel, verseMenuItems } from '@/lib/appMode';
+import { useIsStudyMode, useEffectiveMode, useDiscoverAvailable, openDiscoverPanel, verseMenuItems, verseNumbersVisible } from '@/lib/appMode';
 import { buildCrossRefKeyByVerse } from '@/lib/chapterAnalysis';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import type { VerseLens } from './VerseText';
@@ -50,7 +50,7 @@ export function MultiTranslationView() {
   const { activeView, loadActiveView, addTranslation, setChaptersByTranslation } = useMultiTranslationStore();
   const setActiveChapterVerses = useActiveChapterStore(state => state.setActiveChapterVerses);
   const { currentBook, currentChapter, currentModuleId, navSelectedVerse, setNavSelectedVerse, nextChapter, previousChapter } = useBibleStore();
-  const { fontSize, selection } = useAnnotationStore();
+  const { fontSize, selection, showVerseNumbers } = useAnnotationStore();
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const [translationChapters, setTranslationChapters] = useState<Map<string, TranslationChapter>>(new Map());
   const [annotationsByTranslation, setAnnotationsByTranslation] = useState<Map<string, Annotation[]>>(new Map());
@@ -84,7 +84,9 @@ export function MultiTranslationView() {
   const { presets } = useMarkingPresetStore();
   const activeStudyId = useEffectiveStudyId();
   const isStudyMode = useIsStudyMode();
-  const menuItems = verseMenuItems(useEffectiveMode());
+  const mode = useEffectiveMode();
+  const menuItems = verseMenuItems(mode);
+  const numbersVisible = verseNumbersVisible(mode, showVerseNumbers);
 
   // Discover layer: chapter analysis for the primary translation, the
   // connector / cross-reference lenses, and the tap handlers that open the
@@ -199,6 +201,12 @@ export function MultiTranslationView() {
       setCreatingChapterTitle(false);
       setEditingHeadingId(null);
     }
+  }
+  // The verse number is the only way into its menu, so hiding numbers closes an open menu.
+  const [prevNumbersVisible, setPrevNumbersVisible] = useState(numbersVisible);
+  if (numbersVisible !== prevNumbersVisible) {
+    setPrevNumbersVisible(numbersVisible);
+    if (!numbersVisible) setVerseMenuAt(null);
   }
   // Bumped when API configs change (e.g. after sync) to retry failed chapters
   const [configGeneration, setConfigGeneration] = useState(0);
@@ -835,6 +843,7 @@ export function MultiTranslationView() {
                               verse={verse}
                               annotations={filteredAnnotationsByTranslation.get(translation.id) || []}
                               moduleId={translation.id}
+                              showVerseNumber={numbersVisible}
                               onVerseNumberClick={
                                 primaryTranslationId
                                   ? (verseNum) => {

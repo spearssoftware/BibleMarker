@@ -10,6 +10,7 @@ import {
   switchMode,
   toggleDiscoverPanel,
   verseMenuItems,
+  verseNumbersVisible,
 } from './appMode';
 import { FLAG_KEYS, DEFAULT_FLAGS } from './feature-flags';
 import { initTelemetry, shutdownTelemetry } from './telemetry';
@@ -451,5 +452,18 @@ describe('verseMenuItems', () => {
     ['study', ['heading', 'note', 'observation', 'time', 'crossRefs', 'originalLanguage']],
   ])('lists the %s items', (mode, items) => {
     expect([...verseMenuItems(mode)].sort()).toEqual([...items].sort());
+  });
+});
+
+describe('verseNumbersVisible', () => {
+  it.each<[AppMode, boolean, boolean]>([
+    ['read', true, true],
+    ['read', false, false],
+    ['discover', false, true],
+    ['discover', true, true],
+    ['study', false, true],
+    ['study', true, true],
+  ])('mode %s with the preference %s is %s', (mode, preference, expected) => {
+    expect(verseNumbersVisible(mode, preference)).toBe(expected);
   });
 });

@@ -50,6 +50,8 @@ interface VerseTextProps {
   onRemoveAnnotations?: (ids: string[]) => void;
   onVerseNumberClick?: (verseNum: number) => void;
   verseMenu?: React.ReactNode;
+  /** False hides the verse number and its menu (Read with verse numbers off). */
+  showVerseNumber?: boolean;
   onNavigate?: (ref: VerseRef) => void;
   onShowVerse?: (ref: VerseRef) => void; // Show verse in overlay
   onKeywordTap?: (presetId: string, verseRef: VerseRef) => void;
@@ -58,7 +60,7 @@ interface VerseTextProps {
   lens?: VerseLens;
 }
 
-export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAnnotation, onRemoveAnnotations, onVerseNumberClick, verseMenu, onNavigate, onShowVerse, onKeywordTap, selectionRange, lens }: VerseTextProps) {
+export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAnnotation, onRemoveAnnotations, onVerseNumberClick, verseMenu, showVerseNumber = true, onNavigate, onShowVerse, onKeywordTap, selectionRange, lens }: VerseTextProps) {
   const [crossRefState, setCrossRefState] = useState<{ refs: string[]; position: { x: number; y: number } } | null>(null);
   const [overlayVerse, setOverlayVerse] = useState<VerseRef | null>(null);
   const verseContentRef = useRef<HTMLSpanElement>(null);
@@ -1012,22 +1014,24 @@ export function VerseText({ verse, annotations, moduleId, isSelected, onRemoveAn
       ))}
 
       {/* Verse number with menu */}
-      <span className="relative inline-block">
-        <span 
-          className="verse-number cursor-pointer hover:text-scripture-text transition-colors relative inline-block"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (onVerseNumberClick) {
-              onVerseNumberClick(verse.ref.verse);
-            }
-          }}
-          title={onVerseNumberClick ? "Verse options" : undefined}
-        >
-          {verse.ref.verse}
+      {showVerseNumber && (
+        <span className="relative inline-block">
+          <span 
+            className="verse-number cursor-pointer hover:text-scripture-text transition-colors relative inline-block"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (onVerseNumberClick) {
+                onVerseNumberClick(verse.ref.verse);
+              }
+            }}
+            title={onVerseNumberClick ? "Verse options" : undefined}
+          >
+            {verse.ref.verse}
+          </span>
+          {verseMenu}
         </span>
-        {verseMenu}
-      </span>
+      )}
 
       {/* Verse text with styling */}
       <span 

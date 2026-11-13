@@ -72,6 +72,11 @@ export function verseMenuItems(mode: AppMode): ReadonlySet<VerseMenuItem> {
   return VERSE_MENU_ITEMS[mode];
 }
 
+/** `mode` is the effective mode. Discover and Study always show verse numbers: their verse menu holds the cross-references and study actions. */
+export function verseNumbersVisible(mode: AppMode, showVerseNumbers: boolean): boolean {
+  return mode !== 'read' || showVerseNumbers;
+}
+
 /** Discover exists in Discover and Study, and only while the kill switch is on. */
 export function discoverAvailable(mode: AppMode | null, discoveryEnabled: boolean): boolean {
   return discoveryEnabled && effectiveMode(mode, discoveryEnabled) !== 'read';
