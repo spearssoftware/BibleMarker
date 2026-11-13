@@ -453,6 +453,7 @@ describe('catch-up on newly known synced tables', () => {
     rows: new Map<string, { updated_at: string; data: string }>(),
     applied: [] as string[],
     watermarkWrites: [] as string[],
+    maxSeq: 0,
   }
 
   const journal = (device: string, entries: object[]) => JSON.stringify({ version: 1, device, entries })
@@ -499,12 +500,12 @@ describe('catch-up on newly known synced tables', () => {
       isSyncError: vi.fn().mockReturnValue(false),
     }))
     vi.doMock('./sqlite-db', () => ({
-      getSqliteDb: vi.fn().mockResolvedValue({ select: vi.fn().mockResolvedValue([{ max_seq: 0 }]) }),
+      getSqliteDb: vi.fn().mockResolvedValue({ select: vi.fn(async () => [{ max_seq: local.maxSeq }]) }),
       getDeviceId: vi.fn().mockReturnValue(OWN),
       getUnflushedChanges: vi.fn().mockResolvedValue([]),
       markChangesFlushed: vi.fn(),
       pruneChangeLog: vi.fn(),
-      sqliteExportAll: vi.fn(),
+      sqliteExportAll: vi.fn().mockResolvedValue({}),
       getSyncWatermark: vi.fn(async (d: string) => local.watermarks.get(d) ?? 0),
       setSyncWatermark: vi.fn(async (d: string, seq: number) => {
         local.watermarkWrites.push(`${d}:${seq}`)
@@ -546,6 +547,7 @@ describe('catch-up on newly known synced tables', () => {
     local.rows.clear()
     local.applied = []
     local.watermarkWrites = []
+    local.maxSeq = 0
     local.config.set('caught_up_tables', JSON.stringify(LEGACY))
     vi.stubGlobal('window', { dispatchEvent: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn() })
     vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -648,5 +650,40 @@ describe('catch-up on newly known synced tables', () => {
     expect(caughtUp()).toEqual([...FULL].sort())
     expect(local.applied).toEqual([])
     expect(remote.reads.filter((key) => !key.endsWith('meta.json'))).toEqual([])
+  })
+
+  describe('snapshot choice by sequence', () => {
+    const snapshot = (device: string, atSeq: number, record: { id: string; updatedAt: string }) => JSON.stringify({
+      version: 1, device, atSeq, createdAt: '2026-11-14T00:00:00.000Z', tables: { annotations: [record] },
+    })
+
+    it('bootstraps a new peer from its highest-seq snapshot, not the last one in text order', async () => {
+      remote.files.set(`snapshots/${PEER}_95.json`, snapshot(PEER, 95, { id: 'older', updatedAt: ann.updatedAt }))
+      remote.files.set(`snapshots/${PEER}_120.json`, snapshot(PEER, 120, { id: 'newest', updatedAt: ann.updatedAt }))
+
+      const engine = await launch(LEGACY)
+      await engine.disableSync()
+
+      expect([...local.rows.keys()]).toEqual(['annotations:newest'])
+      expect(local.watermarks.get(PEER)).toBe(120)
+    })
+
+    it('keeps the highest-seq snapshot of a device when compaction cleans up', async () => {
+      for (let seq = 2; seq <= 101; seq++) {
+        remote.files.set(`${OWN}/${String(seq).padStart(10, '0')}.json`, journal(OWN, []))
+      }
+      remote.files.set(`snapshots/${OWN}_95.json`, snapshot(OWN, 95, { id: 'older', updatedAt: ann.updatedAt }))
+      remote.files.set(`snapshots/${OWN}_120.json`, snapshot(OWN, 120, { id: 'newest', updatedAt: ann.updatedAt }))
+      remote.files.set(`snapshots/${PEER}_7.json`, snapshot(PEER, 7, { id: 'peer', updatedAt: ann.updatedAt }))
+      local.maxSeq = 100
+
+      const engine = await launch(LEGACY)
+      await engine.disableSync()
+
+      expect([...remote.files.keys()].filter((key) => key.startsWith('snapshots/')).sort()).toEqual([
+        `snapshots/${PEER}_7.json`,
+        `snapshots/${OWN}_120.json`,
+      ])
+    })
   })
 })

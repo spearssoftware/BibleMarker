@@ -508,6 +508,28 @@ async function writeSnapshot(): Promise<void> {
   console.log(`[SyncEngine] Wrote snapshot at seq ${maxSeq}`);
 }
 
+/**
+ * Snapshots are named `<deviceId>_<seq>.json` with an unpadded seq, so text
+ * order is not seq order (`_95` sorts after `_120`). Always compare `seq`.
+ */
+function parseSnapshotName(name: string): { device: string; seq: number } | null {
+  const match = /^(.+)_(\d+)\.json$/.exec(name);
+  return match ? { device: match[1], seq: Number(match[2]) } : null;
+}
+
+/** The highest-seq snapshot per device, picked numerically. */
+function latestSnapshotsByDevice(names: readonly string[]): Map<string, { name: string; seq: number }> {
+  const latest = new Map<string, { name: string; seq: number }>();
+  for (const name of names) {
+    const parsed = parseSnapshotName(name);
+    if (!parsed) continue;
+    if (parsed.seq > (latest.get(parsed.device)?.seq ?? -1)) {
+      latest.set(parsed.device, { name, seq: parsed.seq });
+    }
+  }
+  return latest;
+}
+
 /** Apply one snapshot record as an upsert through the normal newest-wins path. */
 async function applySnapshotRecord(
   table: string,
@@ -536,15 +558,11 @@ async function bootstrapFromSnapshot(remoteDevice: string): Promise<PullResult> 
 
   // Find the latest snapshot from this device (missing dir lists as empty)
   const entries = await backend.list('snapshots');
-  const deviceSnapshots = entries
-    .filter(e => e.name.startsWith(`${remoteDevice}_`) && e.name.endsWith('.json'))
-    .map(e => e.name)
-    .sort()
-    .reverse();
+  const latest = latestSnapshotsByDevice(entries.map(e => e.name)).get(remoteDevice);
 
-  if (deviceSnapshots.length === 0) return { applied: 0, tables: new Set() };
+  if (!latest) return { applied: 0, tables: new Set() };
 
-  const latestSnapshot = deviceSnapshots[0];
+  const latestSnapshot = latest.name;
 
   try {
     const content = await backend.readText(`snapshots/${latestSnapshot}`);
@@ -646,16 +664,12 @@ async function replayTables(pending: ReadonlySet<string>, result: PullResult): P
   // A peer may have only a snapshot left (its folder gone after compaction), so
   // peers come from both the device folders and the snapshot names.
   const peers = new Set(await listDeviceFolders());
-  const latestSnapshot = new Map<string, { name: string; seq: number }>();
-  for (const { name } of await backend.list('snapshots')) {
-    const match = /^(.+)_(\d+)\.json$/.exec(name);
-    if (!match || !DEVICE_ID_RE.test(match[1])) continue;
-    const [, peer, seqText] = match;
-    const seq = Number(seqText);
-    peers.add(peer);
-    // Numeric, not lexical: seqs are not zero-padded in snapshot names.
-    if (seq > (latestSnapshot.get(peer)?.seq ?? -1)) latestSnapshot.set(peer, { name, seq });
-  }
+  const latestSnapshot = new Map(
+    [...latestSnapshotsByDevice((await backend.list('snapshots')).map((e) => e.name))].filter(([peer]) =>
+      DEVICE_ID_RE.test(peer)
+    )
+  );
+  for (const peer of latestSnapshot.keys()) peers.add(peer);
   peers.delete(deviceId);
 
   for (const peer of peers) {
@@ -799,25 +813,13 @@ async function compact(): Promise<void> {
 async function cleanOldSnapshots(): Promise<void> {
   if (!backend) return;
 
-  const entries = await backend.list('snapshots');
-  const byDevice = new Map<string, string[]>();
+  const names = (await backend.list('snapshots')).map(e => e.name);
+  const latest = latestSnapshotsByDevice(names);
 
-  for (const entry of entries) {
-    if (!entry.name.endsWith('.json')) continue;
-    const parts = entry.name.replace('.json', '').split('_');
-    if (parts.length < 2) continue;
-    const devId = parts.slice(0, -1).join('_');
-    if (!byDevice.has(devId)) byDevice.set(devId, []);
-    byDevice.get(devId)!.push(entry.name);
-  }
-
-  for (const [, files] of byDevice) {
-    if (files.length <= 1) continue;
-    files.sort();
-    // Delete all but the latest
-    for (let i = 0; i < files.length - 1; i++) {
-      await backend.remove(`snapshots/${files[i]}`);
-    }
+  for (const name of names) {
+    const parsed = parseSnapshotName(name);
+    if (!parsed || latest.get(parsed.device)?.name === name) continue;
+    await backend.remove(`snapshots/${name}`);
   }
 }
 
