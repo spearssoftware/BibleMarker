@@ -19,6 +19,7 @@ import { useConclusionStore } from '@/stores/conclusionStore';
 import { useInterpretationStore } from '@/stores/interpretationStore';
 import { useApplicationStore } from '@/stores/applicationStore';
 import { useEntityNoteStore } from '@/stores/entityNoteStore';
+import { useReadingPlanStore } from '@/stores/readingPlanStore';
 import { isMarkingStyle } from '@/types';
 import { NavigationBar } from '@/components/BibleReader';
 import { MultiTranslationView } from '@/components/BibleReader/MultiTranslationView';
@@ -178,6 +179,7 @@ export default function App() {
         setIsCheckingOnboarding(false);
         // Load exclusions after DB is ready (needs v6 schema)
         loadExclusions();
+        useReadingPlanStore.getState().loadPlans().catch((err) => console.error('Error loading reading plans:', err));
       } catch (err) {
         console.error('Error loading preferences:', err);
         setIsCheckingOnboarding(false);
@@ -279,6 +281,7 @@ export default function App() {
         useInterpretationStore.getState().loadInterpretations(),
         useApplicationStore.getState().loadApplications(),
         useEntityNoteStore.getState().loadNotes(),
+        useReadingPlanStore.getState().loadPlans(),
       ]);
       // A sync pull may have changed the preferences row, so re-read and
       // re-hydrate it. The mode is seeded at startup; once one is stored the
