@@ -48,6 +48,7 @@ import { usePreferencesStore } from '@/stores/preferencesStore';
 import { seedAppMode } from '@/lib/modeSeed';
 import { useAppModeStore, APP_MODES } from '@/stores/appModeStore';
 import { selectMode } from '@/lib/appMode';
+import { useChromeHold } from '@/stores/chromeStore';
 import { initTelemetry, shutdownTelemetry } from '@/lib/telemetry';
 
 function handleModeShortcut(index: number) {
@@ -114,6 +115,12 @@ export default function App() {
 
   // Modes banner: shown once after an existing user is assigned a mode.
   const modesBannerPending = useAppModeStore(state => state.modesBannerPending);
+
+  // The top bar stays shown while a banner or onboarding screen is up.
+  const updateBannerShowing = updateAvailable !== null && !updateBannerDismissed;
+  const modesBannerShowing = modesBannerPending && !showWelcome && !showTranslationLibrary && !showTour;
+  useChromeHold('banner', updateBannerShowing || modesBannerShowing);
+  useChromeHold('onboarding', showWelcome || showTranslationLibrary || showTour);
 
   // Initialize theme on mount (before other initialization)
   useEffect(() => {

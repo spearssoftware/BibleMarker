@@ -22,6 +22,8 @@ import { SyncDetailsPanel } from '@/components/shared/SyncStatusIndicator';
 import { useSyncStatus, getStatusColorClass } from '@/hooks/useSyncStatus';
 import { getSyncStatusIcon, getSyncStatusMessage } from '@/lib/sync';
 import { toast } from '@/stores/toastStore';
+import { useChromeHold } from '@/stores/chromeStore';
+
 export function NavigationBar() {
   const {
     currentBook,
@@ -61,6 +63,7 @@ export function NavigationBar() {
   // Keeping this commented for now as dropdowns shouldn't lock scroll
   // useScrollLock(anyPickerOpen);
   const [showSearch, setShowSearch] = useState(false);
+  useChromeHold('nav', anyPickerOpen || showSearch);
 
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const currentVerse = useReadingPositionStore((s) => s.currentVerse);

@@ -30,6 +30,7 @@ import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { getBookById } from '@/types';
 import { useCurrentVerseTracker } from '@/hooks/useCurrentVerseTracker';
 import { useRestoreReadingPosition } from '@/hooks/useRestoreReadingPosition';
+import { useHidingChrome } from '@/hooks/useHidingChrome';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { usePanelStore } from '@/stores/panelStore';
 import { useTextSelection, type TranslationChapter } from '@/hooks/useTextSelection';
@@ -582,6 +583,7 @@ export function MultiTranslationView() {
     book: currentBook,
     chapter: currentChapter,
   });
+  useHidingChrome(verseContainerRef, verseContentEl);
 
   useEffect(() => {
     // Reset loading refs when book/chapter changes
