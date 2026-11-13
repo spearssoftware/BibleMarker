@@ -6,7 +6,6 @@
 
 import { useState, useEffect } from 'react';
 import { updatePreferences, getPreferences } from '@/lib/database';
-import { applyTheme } from '@/lib/theme';
 import { clearDebugFlagsCache, getDebugFlags } from '@/lib/debug';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { AboutSection } from './AboutSection';
@@ -29,8 +28,6 @@ interface SettingsPanelProps {
 export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPanelProps) {
   const isStudyMode = useIsStudyMode();
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
-  const [theme, setTheme] = useState<'dark' | 'light' | 'auto'>('dark');
-  const [highContrast, setHighContrast] = useState(false);
   const [debugKeywordMatching, setDebugKeywordMatching] = useState(false);
   const [debugVerseText, setDebugVerseText] = useState(false);
   const [forceSyncEnabled, setForceSyncEnabled] = useState(false);
@@ -44,12 +41,6 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
       try {
         setIsLoadingPrefs(true);
         const prefs = await getPreferences();
-        if (prefs.theme) {
-          setTheme(prefs.theme);
-        }
-        if (prefs.highContrast !== undefined) {
-          setHighContrast(prefs.highContrast);
-        }
         if (prefs.debug?.keywordMatching !== undefined) {
           setDebugKeywordMatching(prefs.debug.keywordMatching);
         }
@@ -64,7 +55,6 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
         }
         // Initialize debug flags cache so getDebugFlagsSync() works
         await getDebugFlags();
-        applyTheme(prefs.theme || 'auto', prefs.highContrast || false);
       } catch (error) {
         console.error('Error loading preferences:', error);
       } finally {
@@ -83,26 +73,6 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
   ];
   const tabs = isStudyMode ? allTabs : allTabs.filter(t => t.id !== 'studies');
   const effectiveTab = tabs.some(t => t.id === activeTab) ? activeTab : 'appearance';
-
-  const handleThemeChange = async (newTheme: 'dark' | 'light' | 'auto') => {
-    setTheme(newTheme);
-    applyTheme(newTheme, highContrast);
-    try {
-      await updatePreferences({ theme: newTheme });
-    } catch (error) {
-      console.error('Error updating theme:', error);
-    }
-  };
-
-  const handleHighContrastChange = async (enabled: boolean) => {
-    setHighContrast(enabled);
-    applyTheme(theme, enabled);
-    try {
-      await updatePreferences({ highContrast: enabled });
-    } catch (error) {
-      console.error('Error updating high contrast:', error);
-    }
-  };
 
   const handleCheckForUpdatesChange = async (enabled: boolean) => {
     setCheckForUpdates(enabled);
@@ -162,12 +132,7 @@ export function SettingsPanel({ onClose, initialTab = 'appearance' }: SettingsPa
             <>
           {/* Appearance Tab */}
           {effectiveTab === 'appearance' && (
-            <AppearanceSection
-              theme={theme}
-              highContrast={highContrast}
-              onThemeChange={handleThemeChange}
-              onHighContrastChange={handleHighContrastChange}
-            />
+            <AppearanceSection />
           )}
 
           {/* Bible Tab */}

@@ -18,6 +18,7 @@ import type {
 } from '@/types';
 import { DEFAULT_MARKING_PREFERENCES } from '@/types';
 import { updatePreferences } from '@/lib/database';
+import type { Theme } from '@/lib/theme';
 
 export interface TextSelection {
   moduleId: string;
@@ -61,6 +62,10 @@ interface AnnotationState {
   preferences: MarkingPreferences;
   fontSize: FontSize;
   scriptureFont: 'crimson-pro' | 'lora' | 'merriweather' | 'literata';
+  theme: Theme;
+  highContrast: boolean;
+  /** Read-only preference: Discover and Study always show verse numbers. */
+  showVerseNumbers: boolean;
   symbolOpacity: number;
   symbolSize: number;
   symbolPosition: 'above' | 'behind';
@@ -84,6 +89,9 @@ interface AnnotationState {
   setPreferences: (prefs: MarkingPreferences) => void;
   setFontSize: (size: FontSize) => void;
   setScriptureFont: (font: 'crimson-pro' | 'lora' | 'merriweather' | 'literata') => void;
+  setTheme: (theme: Theme) => void;
+  setHighContrast: (enabled: boolean) => void;
+  setShowVerseNumbers: (show: boolean) => void;
   setSymbolOpacity: (opacity: number) => void;
   setSymbolSize: (size: number) => void;
   setSymbolPosition: (position: 'above' | 'behind') => void;
@@ -112,6 +120,9 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   preferences: DEFAULT_MARKING_PREFERENCES,
   fontSize: 'base',
   scriptureFont: 'crimson-pro',
+  theme: 'auto',
+  highContrast: false,
+  showVerseNumbers: true,
   symbolOpacity: 0.85,
   symbolSize: 1.8,
   symbolPosition: 'behind',
@@ -148,6 +159,12 @@ export const useAnnotationStore = create<AnnotationState>((set, get) => ({
   setFontSize: (fontSize) => set({ fontSize }),
 
   setScriptureFont: (scriptureFont) => set({ scriptureFont }),
+
+  setTheme: (theme) => set({ theme }),
+
+  setHighContrast: (highContrast) => set({ highContrast }),
+
+  setShowVerseNumbers: (showVerseNumbers) => set({ showVerseNumbers }),
 
   setSymbolOpacity: (symbolOpacity) => set({ symbolOpacity }),
 

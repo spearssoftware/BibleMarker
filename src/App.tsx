@@ -32,6 +32,7 @@ import { loadSampleData } from '@/lib/sampleData';
 import { getPreferences, initDatabase } from '@/lib/database';
 import { loadApiConfigs } from '@/lib/bible-api';
 import { initTheme } from '@/lib/theme';
+import { hydrateTextSettings } from '@/lib/textSettings';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useVirtualKeyboard } from '@/hooks/useVirtualKeyboard';
 import { autoBackupService } from '@/lib/autoBackup';
@@ -87,7 +88,7 @@ export default function App() {
   const { setChapter, currentBook, currentChapter, currentModuleId, setLoading, setError } = useBibleStore();
 
   const { setCurrentModule } = useBibleStore();
-  const { setFontSize, setSymbolOpacity, setSymbolSize, setSymbolPosition, setDefaultMultiWordMarking } = useAnnotationStore();
+  const { setSymbolOpacity, setSymbolSize, setSymbolPosition, setDefaultMultiWordMarking } = useAnnotationStore();
   const { loadStudies } = useStudyStore();
   const { loadActiveView } = useMultiTranslationStore();
   const { loadLists } = useListStore();
@@ -139,9 +140,7 @@ export default function App() {
         // Ensure database is initialized (schema migrations) before any queries
         await initDatabase();
         const prefs = await hydratePreferences();
-        if (prefs.fontSize) {
-          setFontSize(prefs.fontSize);
-        }
+        hydrateTextSettings(prefs);
         if (typeof prefs.symbolOpacity === 'number') {
           setSymbolOpacity(prefs.symbolOpacity);
         }
@@ -175,7 +174,7 @@ export default function App() {
     
     // Active view is needed for first render
     loadActiveView();
-  }, [setFontSize, setSymbolOpacity, setSymbolSize, setSymbolPosition, setDefaultMultiWordMarking, loadActiveView, loadExclusions]);
+  }, [setSymbolOpacity, setSymbolSize, setSymbolPosition, setDefaultMultiWordMarking, loadActiveView, loadExclusions]);
 
   // Deferred initialization: non-critical work after first render
   useEffect(() => {

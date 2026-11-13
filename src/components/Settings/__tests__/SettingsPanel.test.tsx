@@ -9,7 +9,6 @@ vi.mock('@/lib/database', () => ({
   getPreferences: vi.fn().mockResolvedValue({}),
   updatePreferences: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock('@/lib/theme', () => ({ applyTheme: vi.fn() }));
 vi.mock('@/lib/debug', () => ({
   clearDebugFlagsCache: vi.fn(),
   getDebugFlags: vi.fn().mockResolvedValue({}),

@@ -1,15 +1,13 @@
 /**
  * Appearance settings tab — font size, scripture font, symbol position/size/
- * visibility, multi-word marking, theme, and accessibility. Reads its own
- * appearance state from the annotation store and owns its persistence handlers.
- * `theme`/`highContrast` stay owned by SettingsPanel (loaded with the rest of
- * preferences) and are passed in.
+ * visibility, multi-word marking, theme, and accessibility. Reads appearance
+ * state from the annotation store; font, theme and High Contrast changes go
+ * through the shared handlers in `textSettings`.
  */
 
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { updatePreferences } from '@/lib/database';
 import {
-  applyScriptureFont,
   applySymbolOpacity,
   applySymbolSize,
   applySymbolPosition,
@@ -17,50 +15,30 @@ import {
   SYMBOL_OPACITY_MAX,
   SYMBOL_SIZE_MIN,
   SYMBOL_SIZE_MAX,
-  type ScriptureFont,
   type SymbolPosition,
+  type Theme,
 } from '@/lib/theme';
 import { SegmentedControl, ToggleSwitch } from '@/components/shared';
+import {
+  FONT_SIZE_OPTIONS,
+  SCRIPTURE_FONTS,
+  THEME_OPTIONS,
+  changeFontSize,
+  changeHighContrast,
+  changeScriptureFont,
+  changeTheme,
+  type FontSizeValue,
+} from '@/lib/textSettings';
 import { useIsStudyMode } from '@/lib/appMode';
 import { MARKING_STYLE_OPTIONS, type MarkingStyle } from '@/types';
 
-type FontSizeValue = 'sm' | 'base' | 'lg' | 'xl';
-type ThemeValue = 'dark' | 'light' | 'auto';
-
-const fontSizeOptions: ReadonlyArray<{ value: FontSizeValue; label: string }> = [
-  { value: 'sm', label: 'Small' },
-  { value: 'base', label: 'Medium' },
-  { value: 'lg', label: 'Large' },
-  { value: 'xl', label: 'Extra Large' },
-];
-
-const themeOptions: ReadonlyArray<{ value: ThemeValue; label: string }> = [
-  { value: 'dark', label: 'Dark' },
-  { value: 'light', label: 'Light' },
-  { value: 'auto', label: 'Auto' },
-];
-
-const SCRIPTURE_FONTS: Array<{ id: ScriptureFont; label: string; stack: string }> = [
-  { id: 'crimson-pro', label: 'Crimson Pro', stack: "'Crimson Pro', Georgia, serif" },
-  { id: 'lora', label: 'Lora', stack: "'Lora', Georgia, serif" },
-  { id: 'merriweather', label: 'Merriweather', stack: "'Merriweather', Georgia, serif" },
-  { id: 'literata', label: 'Literata', stack: "'Literata', Georgia, serif" },
-];
-
-interface AppearanceSectionProps {
-  theme: ThemeValue;
-  highContrast: boolean;
-  onThemeChange: (theme: ThemeValue) => void;
-  onHighContrastChange: (enabled: boolean) => void;
-}
-
-export function AppearanceSection({ theme, highContrast, onThemeChange, onHighContrastChange }: AppearanceSectionProps) {
+export function AppearanceSection() {
   const isStudyMode = useIsStudyMode();
   const {
     fontSize,
-    setFontSize,
     scriptureFont,
-    setScriptureFont,
+    theme,
+    highContrast,
     symbolPosition,
     setSymbolPosition,
     symbolOpacity,
@@ -70,25 +48,6 @@ export function AppearanceSection({ theme, highContrast, onThemeChange, onHighCo
     defaultMultiWordMarking,
     setDefaultMultiWordMarking,
   } = useAnnotationStore();
-
-  const handleFontSizeChange = async (newSize: FontSizeValue) => {
-    setFontSize(newSize);
-    try {
-      await updatePreferences({ fontSize: newSize });
-    } catch (error) {
-      console.error('Error updating font size:', error);
-    }
-  };
-
-  const handleFontChange = async (font: ScriptureFont) => {
-    setScriptureFont(font);
-    applyScriptureFont(font);
-    try {
-      await updatePreferences({ scriptureFont: font });
-    } catch (error) {
-      console.error('Error updating scripture font:', error);
-    }
-  };
 
   const handleSymbolOpacityChange = (next: number) => {
     setSymbolOpacity(next);
@@ -144,8 +103,8 @@ export function AppearanceSection({ theme, highContrast, onThemeChange, onHighCo
             columns={4}
             ariaLabel="Font size"
             value={fontSize}
-            onChange={handleFontSizeChange}
-            options={fontSizeOptions}
+            onChange={changeFontSize}
+            options={FONT_SIZE_OPTIONS}
           />
           <p className="text-xs text-scripture-muted mt-2">
             Adjust the text size for Bible reading
@@ -160,7 +119,7 @@ export function AppearanceSection({ theme, highContrast, onThemeChange, onHighCo
             {SCRIPTURE_FONTS.map((f) => (
               <button
                 key={f.id}
-                onClick={() => handleFontChange(f.id)}
+                onClick={() => changeScriptureFont(f.id)}
                 className={`px-3 py-3 rounded-lg text-sm transition-all duration-200 text-left
                           ${scriptureFont === f.id
                             ? 'bg-scripture-accent text-scripture-bg shadow-md'
@@ -275,12 +234,12 @@ export function AppearanceSection({ theme, highContrast, onThemeChange, onHighCo
 
         <div className="p-4">
           <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Theme</h3>
-          <SegmentedControl<ThemeValue>
+          <SegmentedControl<Theme>
             columns={3}
             ariaLabel="Theme"
             value={theme}
-            onChange={onThemeChange}
-            options={themeOptions}
+            onChange={changeTheme}
+            options={THEME_OPTIONS}
           />
           <p className="text-xs text-scripture-muted mt-2">
             Choose your preferred theme. Auto mode follows your system preference.
@@ -300,7 +259,7 @@ export function AppearanceSection({ theme, highContrast, onThemeChange, onHighCo
             </div>
             <ToggleSwitch
               checked={highContrast}
-              onChange={onHighContrastChange}
+              onChange={changeHighContrast}
               label="Toggle high contrast mode"
             />
           </div>

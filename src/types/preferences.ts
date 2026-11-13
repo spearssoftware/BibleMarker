@@ -51,6 +51,8 @@ export interface UserPreferences {
   defaultMultiWordMarking?: MarkingStyle;
   theme: 'dark' | 'light' | 'auto';
   highContrast?: boolean;
+  /** Read-mode verse numbers. Absent means on. Not in DEFAULT_PREFERENCES. */
+  showVerseNumbers?: boolean;
   apiConfigs?: ApiConfigRecord[];
   favoriteTranslations?: string[];
   recentTranslations?: string[];
