@@ -6,7 +6,6 @@
  */
 
 import { useAnnotationStore } from '@/stores/annotationStore';
-import { updatePreferences } from '@/lib/database';
 import {
   applySymbolOpacity,
   applySymbolSize,
@@ -23,6 +22,7 @@ import {
   THEME_OPTIONS,
   changeHighContrast,
   changeTheme,
+  savePreference,
 } from '@/lib/textSettings';
 import { useIsStudyMode } from '@/lib/appMode';
 import { MARKING_STYLE_OPTIONS, type MarkingStyle } from '@/types';
@@ -47,44 +47,24 @@ export function AppearanceSection() {
     applySymbolOpacity(next);
   };
 
-  const handleSymbolOpacityCommit = async (next: number) => {
-    try {
-      await updatePreferences({ symbolOpacity: next });
-    } catch (error) {
-      console.error('Error updating symbol opacity:', error);
-    }
-  };
+  const handleSymbolOpacityCommit = (next: number) => savePreference({ symbolOpacity: next }, 'symbol opacity');
 
   const handleSymbolSizeChange = (next: number) => {
     setSymbolSize(next);
     applySymbolSize(next);
   };
 
-  const handleSymbolSizeCommit = async (next: number) => {
-    try {
-      await updatePreferences({ symbolSize: next });
-    } catch (error) {
-      console.error('Error updating symbol size:', error);
-    }
-  };
+  const handleSymbolSizeCommit = (next: number) => savePreference({ symbolSize: next }, 'symbol size');
 
-  const handleDefaultMultiWordMarkingChange = async (next: MarkingStyle) => {
+  const handleDefaultMultiWordMarkingChange = (next: MarkingStyle) => {
     setDefaultMultiWordMarking(next);
-    try {
-      await updatePreferences({ defaultMultiWordMarking: next });
-    } catch (error) {
-      console.error('Error updating default multi-word marking:', error);
-    }
+    return savePreference({ defaultMultiWordMarking: next }, 'default multi-word marking');
   };
 
-  const handleSymbolPositionChange = async (next: SymbolPosition) => {
+  const handleSymbolPositionChange = (next: SymbolPosition) => {
     setSymbolPosition(next);
     applySymbolPosition(next);
-    try {
-      await updatePreferences({ symbolPosition: next });
-    } catch (error) {
-      console.error('Error updating symbol position:', error);
-    }
+    return savePreference({ symbolPosition: next }, 'symbol position');
   };
 
   return (

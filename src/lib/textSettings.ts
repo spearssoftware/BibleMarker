@@ -35,12 +35,13 @@ const SCRIPTURE_FONT_LABELS: ReadonlyArray<{ id: ScriptureFont; label: string }>
 export const SCRIPTURE_FONTS: ReadonlyArray<{ id: ScriptureFont; label: string; stack: string }> =
   SCRIPTURE_FONT_LABELS.map(font => ({ ...font, stack: SCRIPTURE_FONT_STACKS[font.id] }));
 
-// updatePreferences reads, merges and writes the row with no queue, so two text
+// updatePreferences reads, merges and writes the row with no queue, so two
 // settings changed close together would overwrite each other. This orders the
-// saves made here only; other writers of the preferences row are not queued.
+// saves made through it only; other writers of the preferences row are not queued.
 let saveQueue: Promise<void> = Promise.resolve();
 
-function save(update: Partial<UserPreferences>, what: string): Promise<void> {
+/** Saves a preference change after any earlier save made through this queue. `what` names it in the error log. */
+export function savePreference(update: Partial<UserPreferences>, what: string): Promise<void> {
   saveQueue = saveQueue.then(async () => {
     try {
       await updatePreferences(update);
@@ -53,32 +54,32 @@ function save(update: Partial<UserPreferences>, what: string): Promise<void> {
 
 export function changeFontSize(size: FontSizeValue): Promise<void> {
   useAnnotationStore.getState().setFontSize(size);
-  return save({ fontSize: size }, 'font size');
+  return savePreference({ fontSize: size }, 'font size');
 }
 
 export function changeScriptureFont(font: ScriptureFont): Promise<void> {
   useAnnotationStore.getState().setScriptureFont(font);
   applyScriptureFont(font);
-  return save({ scriptureFont: font }, 'scripture font');
+  return savePreference({ scriptureFont: font }, 'scripture font');
 }
 
 export function changeTheme(theme: Theme): Promise<void> {
   const store = useAnnotationStore.getState();
   store.setTheme(theme);
   applyTheme(theme, store.highContrast);
-  return save({ theme }, 'theme');
+  return savePreference({ theme }, 'theme');
 }
 
 export function changeHighContrast(enabled: boolean): Promise<void> {
   const store = useAnnotationStore.getState();
   store.setHighContrast(enabled);
   applyTheme(store.theme, enabled);
-  return save({ highContrast: enabled }, 'high contrast');
+  return savePreference({ highContrast: enabled }, 'high contrast');
 }
 
 export function changeShowVerseNumbers(show: boolean): Promise<void> {
   useAnnotationStore.getState().setShowVerseNumbers(show);
-  return save({ showVerseNumbers: show }, 'verse numbers');
+  return savePreference({ showVerseNumbers: show }, 'verse numbers');
 }
 
 /**
