@@ -83,19 +83,26 @@ export function useRestoreReadingPosition(
       return;
     }
 
-    const container = containerRef.current;
-    if (!ready || !container || !contentEl) {
+    if (!ready) {
       // Going back to "loading" mid-anchoring removes the listeners that tell
       // us the reader took over, so anchoring ends here instead of resuming.
       if (anchorDeadlineRef.current !== null) settleAndSave();
       return;
     }
+    const container = containerRef.current;
+    if (!container || !contentEl) return;
 
     const { verse } = pendingRestore;
-    const findRow = () => container.querySelector<HTMLElement>(`.grid[data-verse="${verse}"]`);
-    if (verse < minVerse || verse > maxVerse || !findRow()) {
+    if (verse < minVerse || verse > maxVerse) {
+      // The verse does not exist in what loaded: forget it.
       anchorDeadlineRef.current = null;
       settleRestore(true);
+      return;
+    }
+    const findRow = () => container.querySelector<HTMLElement>(`.grid[data-verse="${verse}"]`);
+    if (!findRow()) {
+      // In range but not in the page right now: skip this launch, keep the record.
+      settleAndSave();
       return;
     }
 

@@ -177,7 +177,7 @@ describe('useRestoreReadingPosition', () => {
     expect(useSavedPositionStore.getState().saved).toBeNull();
   });
 
-  it('forgets a verse whose row is missing', () => {
+  it('skips, but keeps, an in-range verse whose row is not in the page', () => {
     setPending(40);
     const { container, content } = makeContainer();
     renderRestore(container, content, { ...readyOpts, maxVerse: 50 });
@@ -185,7 +185,22 @@ describe('useRestoreReadingPosition', () => {
     flushFrames();
     expect(container.scrollTop).toBe(0);
     expect(useSavedPositionStore.getState().pendingRestore).toBeNull();
-    expect(useSavedPositionStore.getState().saved).toBeNull();
+    expect(useSavedPositionStore.getState().saved).toEqual(position(40));
+  });
+
+  it('keeps anchoring while the content element is momentarily missing', () => {
+    setPending(16);
+    const { container, content } = makeContainer();
+    const { rerender } = renderRestore(container, content);
+    flushFrames();
+
+    rerender({ content: null, opts: readyOpts });
+    expect(useSavedPositionStore.getState().pendingRestore).not.toBeNull();
+
+    shift = 50;
+    rerender({ content, opts: readyOpts });
+    flushFrames();
+    expect(container.scrollTop).toBe(1500);
   });
 
   it('settles without scrolling when the saved verse is in another chapter', () => {
