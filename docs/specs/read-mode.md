@@ -61,7 +61,8 @@ Ordering rules the implementation must hold, because the reader already scrolls 
 - The saved verse is read once at startup, before verse tracking can report anything. Tracking reports verse 1 (or nothing) while a chapter is loading at the top; that must not overwrite the saved verse. Nothing is saved until the restore has either happened or been skipped.
 - The restore happens after the chapter's verses are on screen and after the existing reset to the top that runs when a chapter opens.
 - The restore is skipped if, before it happens, the reader scrolls by touch, wheel, trackpad or keyboard, or anything navigates to a named verse (`bibleStore.navigateToVerse`, `highlightVerse`, a search result). Scrolling done by the app itself does not count as the reader scrolling.
-- Every way of changing book or chapter clears the saved verse: `setLocation`, `nextChapter`, `previousChapter`, `goBack` and `navigateToVerse` to another chapter.
+- The saved position records its book and chapter as well as the verse. It is replaced as the reader moves, so a position saved for one chapter is never applied to another, whichever way the chapter was changed.
+- Content that loads after the chapter text (notes, section headings, marks, the saved font size, web fonts) must not push the restored verse off screen.
 
 ### 3b. The "Aa" panel
 
@@ -128,7 +129,7 @@ Applies in Read only, at every screen size.
 
 ## Data and interfaces
 
-- **Saved verse (3a).** One number stored on the device next to the current book and chapter (`bibleStore`'s persisted state, localStorage key `bible-reading-state`). It is cleared when the book or chapter changes and filled again as the reader scrolls. It is not written to SQLite and not synced.
+- **Saved position (3a).** One record of book, chapter and verse, stored on the device under its own localStorage key `saved-reading-position` (a new store, `src/stores/savedPositionStore.ts`). It is replaced as the reader scrolls and moves between chapters. It is not written to SQLite and not synced. `bibleStore` and its key `bible-reading-state` are unchanged.
 - **Verse numbers (3b).** A new optional field `showVerseNumbers` on the preferences row (`src/types/preferences.ts`). Absent means on. It travels with the other text settings in the synced row. Like font and size today, a value that arrives by sync takes effect on the next launch, not live. It is not added to `DEFAULT_PREFERENCES`.
 - **Font size, font, theme.** No change to where they are stored.
 - **No schema change, no new table, no new synced table.**
@@ -139,7 +140,7 @@ Applies in Read only, at every screen size.
 - **Saved verse no longer exists** (the reader switched to a translation where the chapter has fewer verses): open at the top of the chapter.
 - **Saved verse is 1, or nothing is saved:** open at the top.
 - **Chapter fails to load or falls back to KJV:** restore the verse if that verse exists in what loaded; otherwise open at the top.
-- **Stored value is not a positive whole number** (hand-edited or corrupt): ignore it.
+- **Stored record is malformed** (hand-edited or corrupt: a verse or chapter that is not a positive whole number, a missing book): ignore it.
 - **The reader scrolls before the restore happens:** the restore is skipped. It never pulls the reader back.
 - **Welcome screen or tour on first launch:** nothing is saved yet, so nothing is restored.
 - **A sync changes the preferences row while the app is running:** text settings on screen do not change until the next launch; a change the reader makes afterwards is saved as usual.
@@ -172,7 +173,7 @@ Applies in Read only, at every screen size.
 1. Given John 3 scrolled so verse 16 is nearest the middle, when the app is quit and reopened, then John 3 is showing, all of verse 16 is on screen, verse 1 is not, and no verse is tinted.
 2. Given the app reopened as in 1, when the reader goes to John 4 and back to John 3, then John 3 opens at the top.
 3. Given a saved verse of 30 and a chapter that loads with 25 verses, when the app opens, then the chapter is at the top.
-4. Given localStorage `bible-reading-state` edited so the saved verse is `"abc"`, when the app opens, then the chapter is at the top and no error is logged.
+4. Given localStorage `saved-reading-position` edited so the saved verse is `"abc"`, when the app opens, then the chapter is at the top and no error is logged.
 5. Given John 3 open at the top on launch with a saved verse of 16, when the reader scrolls by hand before the text has moved, then the app does not move the text afterwards.
 
 3b
@@ -213,7 +214,7 @@ Applies in Read only, at every screen size.
 | Settings › Appearance | Loses "Font Size" and "Scripture Font"; keeps "Theme" | One home for text settings; theme also belongs with High Contrast | agent default |
 | Verse numbers scope | Read only; always shown in Discover and Study | Their verse menu needs the number as its handle | agent default |
 | Verse numbers storage | Synced preferences row, with the other text settings | Same kind of setting as font and size | agent default |
-| Saved verse storage | Device localStorage beside book and chapter | Matches where the chapter is saved; no sync cost | agent default |
+| Saved verse storage | Its own device localStorage record with book, chapter and verse | No sync cost; cannot go stale when the chapter changes by a path that skips the store | agent default |
 | Restore placement | Saved verse in the middle of the text area, no tint, no animation | Mirrors how the verse is measured | agent default |
 | Translation band in Read | Hidden for one loaded, error-free translation | The chip already names it; errors must stay visible | agent default |
 | Bar while hidden | Overlays the text; text never moves | A resizing text area makes the page jump | agent default |
@@ -231,7 +232,8 @@ Applies in Read only, at every screen size.
 
 | File | Change |
 |---|---|
-| `src/stores/bibleStore.ts` | Extended: saved verse in the persisted state |
+| New `src/stores/savedPositionStore.ts` | New: the saved position |
+| `src/stores/bibleStore.ts` | Left alone |
 | `src/stores/readingPositionStore.ts`, `src/hooks/useCurrentVerseTracker.ts` | Read from; extended only as needed to save and restore |
 | `src/components/BibleReader/MultiTranslationView.tsx` | Extended: restore on launch, band rule, verse-number rule, bar reveal tap |
 | `src/components/BibleReader/VerseText.tsx` | Extended: verse number can be hidden |
