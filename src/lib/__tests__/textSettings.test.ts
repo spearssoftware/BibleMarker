@@ -86,37 +86,6 @@ describe('text settings handlers', () => {
     expect(useAnnotationStore.getState().fontSize).toBe('xl');
     error.mockRestore();
   });
-
-  it('starts the second save only after the first finishes', async () => {
-    const events: string[] = [];
-    let releaseFirst: () => void = () => {};
-    vi.mocked(updatePreferences)
-      .mockImplementationOnce(
-        () =>
-          new Promise<void>(resolve => {
-            events.push('first start');
-            releaseFirst = () => {
-              events.push('first end');
-              resolve();
-            };
-          })
-      )
-      .mockImplementationOnce(async () => {
-        events.push('second start');
-      });
-
-    const first = changeFontSize('lg');
-    const second = changeScriptureFont('lora');
-    await Promise.resolve();
-    expect(events).toEqual(['first start']);
-
-    releaseFirst();
-    await Promise.all([first, second]);
-
-    expect(events).toEqual(['first start', 'first end', 'second start']);
-    expect(updatePreferences).toHaveBeenNthCalledWith(1, { fontSize: 'lg' });
-    expect(updatePreferences).toHaveBeenNthCalledWith(2, { scriptureFont: 'lora' });
-  });
 });
 
 describe('hydrateTextSettings', () => {

@@ -505,16 +505,26 @@ export async function getPreferences(): Promise<UserPreferences> {
   return DEFAULT_PREFERENCES;
 }
 
-export async function updatePreferences(
+// Each update reads the row, merges and writes it back. Updates run one after
+// another so two made close together cannot both merge onto the same old row
+// and lose one of the changes.
+let preferencesWrite: Promise<void> = Promise.resolve();
+
+export function updatePreferences(
   updates: Partial<Omit<UserPreferences, 'id'>>
 ): Promise<void> {
-  const mod = await sqlite();
-  const current = await mod.sqliteGetPreferences();
-  if (current) {
-    const merged = { ...current, ...updates };
-    await mod.sqliteSavePreferences(merged);
-    await logChange('preferences', 'upsert', 'main', merged);
-  }
+  const write = preferencesWrite.then(async () => {
+    const mod = await sqlite();
+    const current = await mod.sqliteGetPreferences();
+    if (current) {
+      const merged = { ...current, ...updates };
+      await mod.sqliteSavePreferences(merged);
+      await logChange('preferences', 'upsert', 'main', merged);
+    }
+  });
+  // A failed update rejects for its caller but must not block later ones.
+  preferencesWrite = write.catch(() => {});
+  return write;
 }
 
 // ============================================================================

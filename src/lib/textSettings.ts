@@ -35,21 +35,13 @@ const SCRIPTURE_FONT_LABELS: ReadonlyArray<{ id: ScriptureFont; label: string }>
 export const SCRIPTURE_FONTS: ReadonlyArray<{ id: ScriptureFont; label: string; stack: string }> =
   SCRIPTURE_FONT_LABELS.map(font => ({ ...font, stack: SCRIPTURE_FONT_STACKS[font.id] }));
 
-// updatePreferences reads, merges and writes the row with no queue, so two
-// settings changed close together would overwrite each other. This orders the
-// saves made through it only; other writers of the preferences row are not queued.
-let saveQueue: Promise<void> = Promise.resolve();
-
-/** Saves a preference change after any earlier save made through this queue. `what` names it in the error log. */
-export function savePreference(update: Partial<UserPreferences>, what: string): Promise<void> {
-  saveQueue = saveQueue.then(async () => {
-    try {
-      await updatePreferences(update);
-    } catch (error) {
-      console.error(`Error updating ${what}:`, error);
-    }
-  });
-  return saveQueue;
+/** Saves a preference change, logging a failure instead of throwing. `what` names it in the log. */
+export async function savePreference(update: Partial<UserPreferences>, what: string): Promise<void> {
+  try {
+    await updatePreferences(update);
+  } catch (error) {
+    console.error(`Error updating ${what}:`, error);
+  }
 }
 
 export function changeFontSize(size: FontSizeValue): Promise<void> {
