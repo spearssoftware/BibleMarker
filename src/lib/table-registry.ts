@@ -58,6 +58,8 @@ export const TABLE_REGISTRY: readonly TableSpec[] = [
   { table: 'applications', camelKey: 'applications', genericCrud: true, synced: true, studyColumn: true, studyDataTable: true, clearedOnReset: true },
   { table: 'entity_notes', camelKey: 'entityNotes', genericCrud: true, synced: true, studyColumn: true, studyDataTable: true, clearedOnReset: true },
   { table: 'keyword_exclusions', camelKey: 'keywordExclusions', genericCrud: true, synced: true, clearedOnReset: true },
+  { table: 'reading_plans', camelKey: 'readingPlans', genericCrud: true, synced: true, clearedOnReset: true },
+  { table: 'reading_plan_days', camelKey: 'readingPlanDays', genericCrud: true, synced: true, clearedOnReset: true },
   // Synced singleton, but intentionally preserved across a database clear.
   { table: 'preferences', camelKey: 'preferences', genericCrud: true, synced: true },
   // Caches / history: local-only, wiped on reset. chapter_cache is also exposed
@@ -111,3 +113,10 @@ const CAMEL_TO_SNAKE: Record<string, string> = Object.fromEntries(
 export function camelToSnakeTable(name: string): string {
   return CAMEL_TO_SNAKE[name] ?? name;
 }
+
+/**
+ * sync_config key holding the JSON array of synced tables this device has
+ * already caught up on (see catchUpNewTables in sync-engine.ts). It lives here,
+ * not in sqlite-db.ts, because sync-engine tests mock the latter.
+ */
+export const CAUGHT_UP_TABLES_CONFIG_KEY = 'caught_up_tables';

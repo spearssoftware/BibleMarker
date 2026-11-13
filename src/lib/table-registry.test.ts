@@ -28,8 +28,8 @@ describe('table registry', () => {
         'annotations', 'applications', 'chapter_cache', 'chapter_titles',
         'conclusions', 'entity_notes', 'interpretations', 'keyword_exclusions',
         'marking_presets', 'multi_translation_views', 'notes', 'observation_lists',
-        'people', 'places', 'preferences', 'section_headings', 'studies',
-        'time_expressions',
+        'people', 'places', 'preferences', 'reading_plan_days', 'reading_plans',
+        'section_headings', 'studies', 'time_expressions',
       ].sort()
     );
   });
@@ -40,7 +40,8 @@ describe('table registry', () => {
         'annotations', 'applications', 'chapter_titles', 'conclusions',
         'entity_notes', 'interpretations', 'keyword_exclusions', 'marking_presets',
         'multi_translation_views', 'notes', 'observation_lists', 'people',
-        'places', 'preferences', 'section_headings', 'studies', 'time_expressions',
+        'places', 'preferences', 'reading_plan_days', 'reading_plans',
+        'section_headings', 'studies', 'time_expressions',
       ].sort()
     );
   });

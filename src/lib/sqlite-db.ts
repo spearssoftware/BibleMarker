@@ -25,6 +25,7 @@ import type { InterpretationEntry } from '@/types';
 import type { ApplicationEntry } from '@/types';
 import type { EntityNote } from '@/types';
 import type { KeywordExclusion } from '@/types';
+import type { ReadingPlan, ReadingPlanDay } from '@/types';
 import type { UserPreferences } from '@/types';
 import {
   VALID_TABLE_NAMES,
@@ -32,6 +33,7 @@ import {
   STUDY_COLUMN_DATA_TABLES,
   STUDY_SCOPED_COLUMN_TABLES,
   CLEARED_TABLES,
+  CAUGHT_UP_TABLES_CONFIG_KEY,
 } from './table-registry';
 
 // Re-exported so existing importers (sync-engine, snapshot-coverage.test) keep
@@ -124,7 +126,54 @@ export async function closeSqliteDb(): Promise<void> {
 // Schema Initialization
 // ============================================================================
 
-const SCHEMA_VERSION = 11;
+const SCHEMA_VERSION = 12;
+
+/**
+ * The synced tables as of schema v11, frozen. An install upgrading from v11 or
+ * earlier has already synced these, so only tables added later need a catch-up.
+ * Never edit this list; new tables are caught up by omission from it.
+ */
+const TABLES_SYNCED_BEFORE_V12: readonly string[] = [
+  'annotations',
+  'applications',
+  'chapter_titles',
+  'conclusions',
+  'entity_notes',
+  'interpretations',
+  'keyword_exclusions',
+  'marking_presets',
+  'multi_translation_views',
+  'notes',
+  'observation_lists',
+  'people',
+  'places',
+  'preferences',
+  'section_headings',
+  'studies',
+  'time_expressions',
+];
+
+const READING_PLANS_TABLE_SQL = `
+    CREATE TABLE IF NOT EXISTS reading_plans (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      sync_status TEXT DEFAULT 'pending',
+      device_id TEXT
+    )
+  `;
+
+const READING_PLAN_DAYS_TABLE_SQL = `
+    CREATE TABLE IF NOT EXISTS reading_plan_days (
+      id TEXT PRIMARY KEY,
+      data TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      sync_status TEXT DEFAULT 'pending',
+      device_id TEXT
+    )
+  `;
 
 /**
  * Safety net: ensure all expected tables exist.
@@ -152,6 +201,8 @@ async function ensureTablesExist(db: Database): Promise<void> {
       device_id TEXT
     )
   `);
+  await db.execute(READING_PLANS_TABLE_SQL);
+  await db.execute(READING_PLAN_DAYS_TABLE_SQL);
   // Auto-backup metadata tables (v2). Some DBs are missing these — the v2
   // migration only runs when upgrading from < 2 — which silently broke all
   // auto-backup metadata persistence (files were written to disk but never
@@ -454,6 +505,21 @@ async function migrateSchema(
       `);
     }
     console.log('[SQLite] v11 migration: backfilled study_id columns from JSON data');
+  }
+
+  // Version 12: Add reading plan tables, and seed the set of synced tables this
+  // device has caught up on. A device that synced while it did not know these
+  // tables skipped their journal entries, so the sync engine replays any synced
+  // table missing from this set once. A brand-new install has nothing to catch up.
+  if (fromVersion < 12) {
+    await db.execute(READING_PLANS_TABLE_SQL);
+    await db.execute(READING_PLAN_DAYS_TABLE_SQL);
+    const caughtUp = fromVersion === 0 ? [...SYNCED_TABLES].sort() : TABLES_SYNCED_BEFORE_V12;
+    await db.execute(
+      `INSERT OR IGNORE INTO sync_config (key, value) VALUES (?, ?)`,
+      [CAUGHT_UP_TABLES_CONFIG_KEY, JSON.stringify(caughtUp)]
+    );
+    console.log('[SQLite] v12 migration: added reading_plans and reading_plan_days tables');
   }
 
   // Update schema version
@@ -1523,6 +1589,8 @@ export interface SqliteExportData {
   applications: ApplicationEntry[];
   entityNotes: EntityNote[];
   keywordExclusions: KeywordExclusion[];
+  readingPlans: ReadingPlan[];
+  readingPlanDays: ReadingPlanDay[];
   preferences: UserPreferences | null;
 }
 
@@ -1554,6 +1622,8 @@ export async function sqliteExportAll(): Promise<SqliteExportData> {
   const multiTranslationViews = await sqliteGetAllFromTable<MultiTranslationView>('multi_translation_views');
   const entityNotes = await sqliteGetAllFromTable<EntityNote>('entity_notes');
   const keywordExclusions = await sqliteGetAllFromTable<KeywordExclusion>('keyword_exclusions');
+  const readingPlans = await sqliteGetAllFromTable<ReadingPlan>('reading_plans');
+  const readingPlanDays = await sqliteGetAllFromTable<ReadingPlanDay>('reading_plan_days');
 
   // Get headings and titles
   const headingRows = await db.select<
@@ -1642,6 +1712,8 @@ export async function sqliteExportAll(): Promise<SqliteExportData> {
     applications,
     entityNotes,
     keywordExclusions,
+    readingPlans,
+    readingPlanDays,
     preferences,
   };
 }
@@ -1714,6 +1786,12 @@ export async function sqliteImportAll(data: SqliteExportData): Promise<void> {
   }
   for (const item of data.keywordExclusions) {
     await sqliteSaveToTable('keyword_exclusions', item);
+  }
+  for (const item of data.readingPlans ?? []) {
+    await sqliteSaveToTable('reading_plans', item);
+  }
+  for (const item of data.readingPlanDays ?? []) {
+    await sqliteSaveToTable('reading_plan_days', item);
   }
 
   // Import preferences

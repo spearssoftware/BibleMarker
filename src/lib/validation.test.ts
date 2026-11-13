@@ -13,6 +13,8 @@ import {
   validateApplication,
   validatePlace,
   validatePerson,
+  validateReadingPlan,
+  validateReadingPlanDay,
   sanitizeData,
   validateArray,
 } from './validation'
@@ -457,5 +459,52 @@ describe('validatePerson', () => {
     expect(() =>
       validatePerson({ ...valid, yearStartEra: 'BCE' })
     ).toThrow(ValidationError)
+  })
+})
+
+describe('validateReadingPlan', () => {
+  const valid = {
+    id: 'p1',
+    scope: { kind: 'book', bookId: 'John' },
+    days: 21,
+    startDate: '2026-11-13',
+    scheduleVersion: 1,
+    createdAt: iso,
+    updatedAt: iso,
+  }
+
+  it('accepts a valid plan and one written by a newer version', () => {
+    expect(validateReadingPlan(valid)).toEqual(valid)
+    const newer = { ...valid, scope: { kind: 'chronological' }, scheduleVersion: 2 }
+    expect(validateReadingPlan(newer)).toEqual(newer)
+  })
+
+  it.each([
+    ['a missing id', { id: '' }],
+    ['a scope without a kind', { scope: {} }],
+    ['zero days', { days: 0 }],
+    ['fractional days', { days: 2.5 }],
+    ['a malformed start date', { startDate: '2026-02-30' }],
+    ['a non-numeric schedule version', { scheduleVersion: '1' }],
+    ['a bad created date', { createdAt: 'nope' }],
+  ])('rejects %s', (_label, override) => {
+    expect(() => validateReadingPlan({ ...valid, ...override })).toThrow(ValidationError)
+  })
+})
+
+describe('validateReadingPlanDay', () => {
+  const valid = { id: 'p1:3', planId: 'p1', day: 3, completedAt: iso, updatedAt: iso }
+
+  it('accepts a valid day row', () => {
+    expect(validateReadingPlanDay(valid)).toEqual(valid)
+  })
+
+  it.each([
+    ['an id that is not planId:day', { id: 'p1:4' }],
+    ['a day below 1', { day: 0, id: 'p1:0' }],
+    ['a missing planId', { planId: '', id: ':3' }],
+    ['a bad completedAt', { completedAt: 'nope' }],
+  ])('rejects %s', (_label, override) => {
+    expect(() => validateReadingPlanDay({ ...valid, ...override })).toThrow(ValidationError)
   })
 })

@@ -18,6 +18,8 @@ import type { Conclusion } from '@/types';
 import type { TimeExpression } from '@/types';
 import type { EntityNote } from '@/types';
 import type { KeywordExclusion } from '@/types';
+import type { ReadingPlan, ReadingPlanDay } from '@/types';
+import { isValidDateString } from './readingPlans/dates';
 import type { VerseRef } from '@/types';
 import { HIGHLIGHT_COLORS, isKnownSymbolKey } from '@/types';
 
@@ -661,6 +663,54 @@ export function validateKeywordExclusion(exclusion: unknown): KeywordExclusion {
   validateDate(k.createdAt, 'createdAt');
   validateDate(k.updatedAt, 'updatedAt');
   return k;
+}
+
+/**
+ * Validate a reading plan. Unknown scope kinds and schedule versions are accepted:
+ * they are plans written by a newer version, kept so they sync and back up intact.
+ */
+export function validateReadingPlan(plan: unknown): ReadingPlan {
+  if (!plan || typeof plan !== 'object') {
+    throw new ValidationError('Reading plan must be an object', 'plan', plan);
+  }
+  const p = plan as ReadingPlan;
+  if (typeof p.id !== 'string' || p.id.trim() === '') {
+    throw new ValidationError('Reading plan must have a valid id', 'id', p.id);
+  }
+  if (!p.scope || typeof p.scope !== 'object' || typeof p.scope.kind !== 'string') {
+    throw new ValidationError('Reading plan must have a scope with a kind', 'scope', p.scope);
+  }
+  if (!Number.isInteger(p.days) || p.days < 1) {
+    throw new ValidationError('Reading plan days must be a whole number >= 1', 'days', p.days);
+  }
+  if (!isValidDateString(p.startDate)) {
+    throw new ValidationError('Reading plan startDate must be a YYYY-MM-DD date', 'startDate', p.startDate);
+  }
+  if (typeof p.scheduleVersion !== 'number') {
+    throw new ValidationError('Reading plan must have a numeric scheduleVersion', 'scheduleVersion', p.scheduleVersion);
+  }
+  validateDate(p.createdAt, 'createdAt');
+  validateDate(p.updatedAt, 'updatedAt');
+  return p;
+}
+
+export function validateReadingPlanDay(row: unknown): ReadingPlanDay {
+  if (!row || typeof row !== 'object') {
+    throw new ValidationError('Reading plan day must be an object', 'row', row);
+  }
+  const r = row as ReadingPlanDay;
+  if (typeof r.planId !== 'string' || r.planId.trim() === '') {
+    throw new ValidationError('Reading plan day must have a valid planId', 'planId', r.planId);
+  }
+  if (!Number.isInteger(r.day) || r.day < 1) {
+    throw new ValidationError('Reading plan day must have a day >= 1', 'day', r.day);
+  }
+  if (r.id !== `${r.planId}:${r.day}`) {
+    throw new ValidationError('Reading plan day id must be {planId}:{day}', 'id', r.id);
+  }
+  validateDate(r.completedAt, 'completedAt');
+  validateDate(r.updatedAt, 'updatedAt');
+  return r;
 }
 
 /**

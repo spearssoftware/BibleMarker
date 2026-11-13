@@ -114,6 +114,22 @@ function makeFullBackup(): BackupData {
       conclusions: [makeConclusion({ id: 'conclusion-1' })],
       interpretations: [makeInterpretation({ id: 'interp-1', meaning: 'God is creator' })],
       applications: [makeApplication({ id: 'app-1', teaching: 'God is sovereign' })],
+      readingPlans: [{
+        id: 'plan-1',
+        scope: { kind: 'book', bookId: 'John' },
+        days: 21,
+        startDate: '2026-11-13',
+        scheduleVersion: 1,
+        createdAt: now,
+        updatedAt: now,
+      }],
+      readingPlanDays: [1, 2].map((day) => ({
+        id: `plan-1:${day}`,
+        planId: 'plan-1',
+        day,
+        completedAt: now,
+        updatedAt: now,
+      })),
     },
   })) as BackupData
 }
@@ -253,7 +269,34 @@ describe('restoreBackup', () => {
     expect(importedData.conclusions).toHaveLength(1)
     expect(importedData.interpretations).toHaveLength(1)
     expect(importedData.applications).toHaveLength(1)
+    expect(importedData.readingPlans).toHaveLength(1)
+    expect(importedData.readingPlanDays).toHaveLength(2)
     expect(importedData.preferences).toEqual(backup.data.preferences)
+  })
+
+  it('restores a backup made before reading plans existed with no plans', async () => {
+    const backup = makeFullBackup()
+    delete backup.data.readingPlans
+    delete backup.data.readingPlanDays
+    await restoreBackup(backup)
+
+    const importedData = mockImportAllData.mock.calls[0][0]
+    expect(importedData.readingPlans).toEqual([])
+    expect(importedData.readingPlanDays).toEqual([])
+  })
+
+  it('skips invalid reading plan rows but keeps plans from a newer version', async () => {
+    const backup = makeFullBackup()
+    backup.data.readingPlans!.push(
+      { ...backup.data.readingPlans![0], id: 'future', scope: { kind: 'chronological' } as never, scheduleVersion: 2 },
+      { ...backup.data.readingPlans![0], id: 'bad', startDate: 'tomorrow' },
+    )
+    backup.data.readingPlanDays!.push({ ...backup.data.readingPlanDays![0], id: 'wrong-id' })
+    await restoreBackup(backup)
+
+    const importedData = mockImportAllData.mock.calls[0][0]
+    expect(importedData.readingPlans.map((p: { id: string }) => p.id)).toEqual(['plan-1', 'future'])
+    expect(importedData.readingPlanDays).toHaveLength(2)
   })
 
   it('throws when clearDatabase fails', async () => {

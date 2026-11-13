@@ -24,6 +24,7 @@ import type { InterpretationEntry } from '@/types';
 import type { ApplicationEntry } from '@/types';
 import type { EntityNote } from '@/types';
 import type { KeywordExclusion } from '@/types';
+import type { ReadingPlan, ReadingPlanDay } from '@/types';
 import {
   validateAnnotation,
   validateSectionHeading,
@@ -41,6 +42,8 @@ import {
   validateTimeExpression,
   validateEntityNote,
   validateKeywordExclusion,
+  validateReadingPlan,
+  validateReadingPlanDay,
   validateArray,
   ValidationError,
 } from './validation';
@@ -67,6 +70,8 @@ export interface BackupData {
     applications: ApplicationEntry[];
     entityNotes?: EntityNote[];
     keywordExclusions?: KeywordExclusion[];
+    readingPlans?: ReadingPlan[];
+    readingPlanDays?: ReadingPlanDay[];
     cachedChapters?: Array<{
       id: string;
       moduleId: string;
@@ -162,6 +167,8 @@ export async function assembleBackupData(): Promise<BackupData> {
       applications: allData.applications,
       entityNotes: allData.entityNotes,
       keywordExclusions: allData.keywordExclusions,
+      readingPlans: allData.readingPlans,
+      readingPlanDays: allData.readingPlanDays,
     },
   };
 }
@@ -357,6 +364,8 @@ export function validateBackup(data: unknown): { valid: boolean; errors: string[
     }},
     { label: 'Interpretations', data: d.data.interpretations as unknown[] ?? [], validator: validateInterpretation },
     { label: 'Applications', data: d.data.applications as unknown[] ?? [], validator: validateApplication },
+    { label: 'Reading plans', data: d.data.readingPlans as unknown[] ?? [], validator: validateReadingPlan },
+    { label: 'Reading plan days', data: d.data.readingPlanDays as unknown[] ?? [], validator: validateReadingPlanDay },
   ];
 
   for (const { label, data, validator } of recordValidations) {
@@ -631,6 +640,19 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
       validatedKeywordExclusions = valid;
     }
 
+    // Validate reading plans and completed days (absent in backups made before they existed)
+    let validatedReadingPlans: ReadingPlan[] = [];
+    if (backup.data.readingPlans && backup.data.readingPlans.length > 0) {
+      const { valid } = validateArray(backup.data.readingPlans, validateReadingPlan, 'reading plan');
+      validatedReadingPlans = valid;
+    }
+
+    let validatedReadingPlanDays: ReadingPlanDay[] = [];
+    if (backup.data.readingPlanDays && backup.data.readingPlanDays.length > 0) {
+      const { valid } = validateArray(backup.data.readingPlanDays, validateReadingPlanDay, 'reading plan day');
+      validatedReadingPlanDays = valid;
+    }
+
     // --- Create safety backup before clearing database ---
     try {
       const { performBackup } = await import('./autoBackup');
@@ -661,6 +683,8 @@ export async function restoreBackup(backup: BackupData): Promise<void> {
       applications: validatedApplications,
       entityNotes: validatedEntityNotes,
       keywordExclusions: validatedKeywordExclusions,
+      readingPlans: validatedReadingPlans,
+      readingPlanDays: validatedReadingPlanDays,
       preferences: backup.data.preferences || null,
     });
 

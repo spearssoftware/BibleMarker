@@ -16,7 +16,7 @@ interface ExecuteCall {
 
 const state = vi.hoisted(() => ({
   executeCalls: [] as { sql: string; params?: unknown[] }[],
-  schemaVersion: 11 as number | null,
+  schemaVersion: 12 as number | null,
   // Rows returned for "SELECT updated_at FROM <table> WHERE id = ?"
   existingRow: null as { updated_at: string } | null,
 }));
@@ -67,7 +67,7 @@ function findCalls(pattern: RegExp): ExecuteCall[] {
 
 beforeEach(() => {
   state.executeCalls = [];
-  state.schemaVersion = 11;
+  state.schemaVersion = 12;
   state.existingRow = null;
 });
 
@@ -251,7 +251,7 @@ describe('schema migration v11', () => {
 
     const versionWrites = findCalls(/INSERT OR REPLACE INTO schema_version/);
     expect(versionWrites).toHaveLength(1);
-    expect(versionWrites[0].params?.[0]).toBe(11);
+    expect(versionWrites[0].params?.[0]).toBe(12);
   });
 
   it('does not run the backfill when already at v11', async () => {
@@ -260,6 +260,56 @@ describe('schema migration v11', () => {
     await mod.getSqliteDb();
 
     expect(findCalls(/json_extract\(data, '\$\.studyId'\)/)).toHaveLength(0);
+  });
+});
+
+describe('schema migration v12', () => {
+  const caughtUpWrites = () => findCalls(/INSERT OR IGNORE INTO sync_config/);
+
+  it('creates both reading plan tables when upgrading from v11', async () => {
+    state.schemaVersion = 11;
+    const mod = await loadModule();
+    await mod.getSqliteDb();
+
+    for (const table of ['reading_plans', 'reading_plan_days']) {
+      // Once in the v12 migration and once in the ensureTablesExist safety net.
+      expect(findCalls(new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`)), table).toHaveLength(2);
+    }
+    expect(findCalls(/INSERT OR REPLACE INTO schema_version/)[0].params?.[0]).toBe(12);
+  });
+
+  it('seeds the caught-up set with the 17 tables synced before v12 when upgrading', async () => {
+    state.schemaVersion = 11;
+    const mod = await loadModule();
+    await mod.getSqliteDb();
+
+    const writes = caughtUpWrites();
+    expect(writes).toHaveLength(1);
+    expect(writes[0].params?.[0]).toBe('caught_up_tables');
+    const seeded = JSON.parse(writes[0].params?.[1] as string) as string[];
+    expect(seeded).toHaveLength(17);
+    expect(seeded).not.toContain('reading_plans');
+    expect(seeded).not.toContain('reading_plan_days');
+    expect(seeded).toContain('entity_notes');
+    expect(seeded).toContain('preferences');
+  });
+
+  it('seeds every synced table on a brand-new install', async () => {
+    state.schemaVersion = null;
+    const mod = await loadModule();
+    await mod.getSqliteDb();
+
+    const writes = caughtUpWrites();
+    expect(writes).toHaveLength(1);
+    expect(JSON.parse(writes[0].params?.[1] as string)).toEqual([...mod.SYNCED_TABLES].sort());
+  });
+
+  it('does not seed the set again when already at v12', async () => {
+    state.schemaVersion = 12;
+    const mod = await loadModule();
+    await mod.getSqliteDb();
+
+    expect(caughtUpWrites()).toHaveLength(0);
   });
 });
 
@@ -274,7 +324,7 @@ describe('sqliteClearDatabase', () => {
     for (const table of [
       'annotations', 'notes', 'marking_presets', 'studies',
       'observation_lists', 'interpretations', 'applications',
-      'entity_notes', 'keyword_exclusions',
+      'entity_notes', 'keyword_exclusions', 'reading_plans', 'reading_plan_days',
     ]) {
       expect(deletes, `expected DELETE FROM ${table}`).toContain(table);
     }

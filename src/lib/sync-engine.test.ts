@@ -247,6 +247,7 @@ describe('initSyncEngine', () => {
         observationLists: [], timeExpressions: [],
         places: [], people: [], conclusions: [], interpretations: [],
         applications: [], preferences: null, entityNotes: [], keywordExclusions: [],
+        readingPlans: [], readingPlanDays: [],
       }),
       SYNCED_TABLES: new Set(['annotations']),
     }))

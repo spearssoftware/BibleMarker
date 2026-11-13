@@ -24,6 +24,7 @@ import type { ApplicationEntry } from '@/types';
 import type { UserPreferences } from '@/types';
 import type { KeywordExclusion } from '@/types';
 import type { EntityNote } from '@/types';
+import type { ReadingPlan, ReadingPlanDay } from '@/types';
 
 export type { UserPreferences, ApiConfigRecord, OnboardingState, AutoBackupConfig } from '@/types';
 
@@ -744,6 +745,51 @@ export async function deleteEntityNote(id: string): Promise<void> {
 }
 
 // ============================================================================
+// Reading Plans
+// ============================================================================
+
+export async function getAllReadingPlans(): Promise<ReadingPlan[]> {
+  const mod = await sqlite();
+  return mod.sqliteGetAllFromTable<ReadingPlan>('reading_plans');
+}
+
+export async function saveReadingPlan(plan: ReadingPlan): Promise<string> {
+  const mod = await sqlite();
+  const result = await mod.sqliteSaveToTable('reading_plans', plan);
+  await logChange('reading_plans', 'upsert', plan.id, plan);
+  return result;
+}
+
+export async function getAllReadingPlanDays(): Promise<ReadingPlanDay[]> {
+  const mod = await sqlite();
+  return mod.sqliteGetAllFromTable<ReadingPlanDay>('reading_plan_days');
+}
+
+export async function saveReadingPlanDay(row: ReadingPlanDay): Promise<string> {
+  const mod = await sqlite();
+  const result = await mod.sqliteSaveToTable('reading_plan_days', row);
+  await logChange('reading_plan_days', 'upsert', row.id, row);
+  return result;
+}
+
+export async function deleteReadingPlanDay(id: string): Promise<void> {
+  const mod = await sqlite();
+  await mod.sqliteDeleteFromTable('reading_plan_days', id);
+  await logChange('reading_plan_days', 'delete', id);
+}
+
+/** Deletes the plan and the day rows this device has for it, each logged for sync. */
+export async function deleteReadingPlan(id: string): Promise<void> {
+  const days = await getAllReadingPlanDays();
+  for (const row of days) {
+    if (row.planId === id) await deleteReadingPlanDay(row.id);
+  }
+  const mod = await sqlite();
+  await mod.sqliteDeleteFromTable('reading_plans', id);
+  await logChange('reading_plans', 'delete', id);
+}
+
+// ============================================================================
 // Clear Database
 // ============================================================================
 
@@ -773,6 +819,8 @@ export interface DatabaseExportData {
   applications: ApplicationEntry[];
   entityNotes: EntityNote[];
   keywordExclusions: KeywordExclusion[];
+  readingPlans: ReadingPlan[];
+  readingPlanDays: ReadingPlanDay[];
   preferences: UserPreferences | null;
 }
 
