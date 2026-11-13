@@ -12,6 +12,7 @@ import { useReadingPositionStore } from '@/stores/readingPositionStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useAppModeStore } from '@/stores/appModeStore';
 import { usePanelStore } from '@/stores/panelStore';
+import { useChromeStore } from '@/stores/chromeStore';
 
 vi.mock('@/lib/telemetry', () => ({ track: vi.fn() }));
 vi.mock('@/lib/bible-api', () => ({
@@ -56,13 +57,18 @@ vi.mock('../pickers', () => ({
 const locationButton = () => screen.getByRole('button', { name: /Current location/ });
 
 beforeEach(() => {
+  vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
+  useChromeStore.setState({ scrollHidden: false, topInset: 0, holds: {} });
   useBibleStore.setState({ currentBook: 'JHN', currentChapter: 3 });
   useReadingPositionStore.setState({ currentVerse: null, verseTrackingPaused: false });
   useAppModeStore.setState({ mode: 'read' });
   usePanelStore.setState({ orientation: 'horizontal', activePanel: null });
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe('NavigationBar', () => {
   it('shows verse 1 when no verse is tracked', async () => {
@@ -172,5 +178,95 @@ describe('NavigationBar text options', () => {
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
     expect(screen.queryByRole('dialog', { name: 'Text options' })).toBeNull();
     expect(screen.getByRole('menu', { name: 'More actions' })).toBeTruthy();
+  });
+});
+
+describe('NavigationBar hiding', () => {
+  const chrome = () => document.querySelector('[data-top-chrome]') as HTMLElement;
+
+  it('is hidden when the reader has scrolled it away in Read', async () => {
+    useChromeStore.setState({ scrollHidden: true });
+    await act(async () => { render(<NavigationBar />); });
+    expect(chrome().hasAttribute('data-hidden')).toBe(true);
+    expect(chrome().style.transform).toBe('translateY(-100%)');
+  });
+
+  it('shows again when focus moves into a top-bar control', async () => {
+    useChromeStore.setState({ scrollHidden: true });
+    await act(async () => { render(<NavigationBar />); });
+    fireEvent.focus(screen.getByRole('button', { name: 'More actions' }));
+    expect(chrome().hasAttribute('data-hidden')).toBe(false);
+    expect(useChromeStore.getState().scrollHidden).toBe(false);
+  });
+
+  it('shows and opens search on Cmd+F, holding the bar while search is open', async () => {
+    useChromeStore.setState({ scrollHidden: true });
+    await act(async () => { render(<NavigationBar />); });
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', metaKey: true })); });
+    expect(chrome().hasAttribute('data-hidden')).toBe(false);
+    expect(chrome().querySelector('[data-nav-bar]')?.hasAttribute('data-modal-open')).toBe(true);
+    expect(Object.keys(useChromeStore.getState().holds)).toContain('nav');
+  });
+
+  it('shows and opens search on Ctrl+F', async () => {
+    useChromeStore.setState({ scrollHidden: true });
+    await act(async () => { render(<NavigationBar />); });
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', ctrlKey: true })); });
+    expect(chrome().hasAttribute('data-hidden')).toBe(false);
+    expect(chrome().querySelector('[data-nav-bar]')?.hasAttribute('data-modal-open')).toBe(true);
+  });
+
+  it('stays shown while a menu is open', async () => {
+    await act(async () => { render(<NavigationBar />); });
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    act(() => { useChromeStore.setState({ scrollHidden: true }); });
+    expect(chrome().hasAttribute('data-hidden')).toBe(false);
+  });
+
+  it.each(['study', 'discover'] as const)('never hides in %s and stays in the page flow', async (mode) => {
+    useAppModeStore.setState({ mode });
+    useChromeStore.setState({ scrollHidden: true });
+    await act(async () => { render(<NavigationBar />); });
+    expect(chrome().hasAttribute('data-hidden')).toBe(false);
+    expect(chrome().className).not.toContain('fixed');
+    expect(chrome().style.transform).toBe('');
+  });
+
+  it('turns the slide off for reduced motion', async () => {
+    await act(async () => { render(<NavigationBar />); });
+    expect(chrome().className).toContain('motion-reduce:transition-none');
+    expect(chrome().className).toContain('motion-safe:transition-transform');
+  });
+
+  it('renders banners inside the wrapper so they move with the bar', async () => {
+    await act(async () => { render(<NavigationBar banners={<div data-testid="banner" />} />); });
+    expect(chrome().contains(screen.getByTestId('banner'))).toBe(true);
+  });
+
+  it('reveals without changing the scroller or its spacer (criterion 15)', async () => {
+    const offsetHeight = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(64);
+    function Harness() {
+      const inset = useChromeStore(s => s.topInset);
+      return (
+        <>
+          <NavigationBar />
+          <div data-testid="scroller" style={{ scrollPaddingTop: inset }}>
+            <div data-testid="spacer" style={{ height: inset }} />
+          </div>
+        </>
+      );
+    }
+    await act(async () => { render(<Harness />); });
+    const scroller = screen.getByTestId('scroller');
+    scroller.scrollTop = 420;
+    act(() => { useChromeStore.setState({ scrollHidden: true }); });
+    expect(chrome().hasAttribute('data-hidden')).toBe(true);
+    const before = { html: scroller.outerHTML, top: scroller.scrollTop };
+    fireEvent.focus(screen.getByRole('button', { name: 'More actions' }));
+    expect(chrome().hasAttribute('data-hidden')).toBe(false);
+    expect(scroller.outerHTML).toBe(before.html);
+    expect(scroller.scrollTop).toBe(before.top);
+    expect(useChromeStore.getState().topInset).toBe(64);
+    offsetHeight.mockRestore();
   });
 });

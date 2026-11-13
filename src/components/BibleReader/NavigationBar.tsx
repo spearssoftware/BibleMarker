@@ -4,7 +4,7 @@
  * Translation, book and chapter selection, with prev/next navigation.
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { getBookById } from '@/types';
 import { getAllTranslations, type ApiTranslation } from '@/lib/bible-api';
@@ -22,9 +22,15 @@ import { SyncDetailsPanel } from '@/components/shared/SyncStatusIndicator';
 import { useSyncStatus, getStatusColorClass } from '@/hooks/useSyncStatus';
 import { getSyncStatusIcon, getSyncStatusMessage } from '@/lib/sync';
 import { toast } from '@/stores/toastStore';
-import { useChromeHold } from '@/stores/chromeStore';
+import { useChromeHold, useChromeStore, useTopBarHidden } from '@/stores/chromeStore';
+import { topBarCanHide, useEffectiveMode } from '@/lib/appMode';
 
-export function NavigationBar() {
+interface NavigationBarProps {
+  /** Strips shown directly under the bar (update, modes). They move with it. */
+  banners?: ReactNode;
+}
+
+export function NavigationBar({ banners }: NavigationBarProps) {
   const {
     currentBook,
     currentChapter,
@@ -64,6 +70,24 @@ export function NavigationBar() {
   // useScrollLock(anyPickerOpen);
   const [showSearch, setShowSearch] = useState(false);
   useChromeHold('nav', anyPickerOpen || showSearch);
+
+  // In Read the bar overlays the text and slides away; elsewhere it is an
+  // ordinary row. Popovers are siblings of the wrapper because a transform
+  // would make it their containing block; holds keep them closed while hidden.
+  const overlays = topBarCanHide(useEffectiveMode());
+  const hidden = useTopBarHidden();
+  const reveal = useChromeStore(s => s.reveal);
+  const chromeRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = chromeRef.current;
+    if (!overlays || !el) return;
+    const { setTopInset } = useChromeStore.getState();
+    // offsetHeight ignores the slide transform.
+    setTopInset(el.offsetHeight);
+    const observer = new ResizeObserver(() => setTopInset(el.offsetHeight));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [overlays]);
 
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const currentVerse = useReadingPositionStore((s) => s.currentVerse);
@@ -157,6 +181,7 @@ export function NavigationBar() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
         e.preventDefault();
+        useChromeStore.getState().reveal();
         setShowSearch(true);
       }
     };
@@ -199,6 +224,20 @@ export function NavigationBar() {
 
   return (
     <>
+      {overlays && (
+        <div aria-hidden className="fixed inset-x-0 top-0 h-safe-top bg-scripture-bg z-[44] pointer-events-none" />
+      )}
+      <div
+        ref={chromeRef}
+        data-top-chrome
+        data-hidden={hidden || undefined}
+        onFocus={reveal}
+        onClickCapture={reveal}
+        className={overlays
+          ? 'fixed inset-x-0 top-0 z-[45] motion-safe:transition-transform motion-safe:duration-200 motion-reduce:transition-none'
+          : undefined}
+        style={hidden ? { transform: 'translateY(-100%)' } : undefined}
+      >
       {/* Focus outlines on nav buttons are suppressed while a picker/search is
           open via the [data-modal-open] rule in index.css (kept out of a runtime
           <style> so it carries the CSP nonce). */}
@@ -384,6 +423,8 @@ export function NavigationBar() {
       </div>
 
       </nav>
+      {banners}
+      </div>
 
       {/* Search Modal - rendered outside nav to escape backdrop-blur stacking context */}
       {showSearch && (

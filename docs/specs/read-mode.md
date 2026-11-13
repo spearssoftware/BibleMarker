@@ -103,27 +103,28 @@ The translation band:
 
 - In Read, when exactly one translation is showing and it has no error or KJV fallback notice, the band naming it is not shown, including while it loads. The translation's short name is already on the top-bar chip. The band is hidden while loading because every uncached chapter sets "loading" on each chapter turn, so a band shown then would flash in and out and shift the text.
 - When that translation shows an error or the KJV fallback notice, the band is shown as today.
-- With two or three translations, and in Discover and Study, the band is unchanged.
+- With two or three translations, and in Discover and Study, the band shows as today. In Read with two or three translations the band moves inside the scrolling text and sticks just under the top bar (at the status bar while the bar is hidden), because a band above the text would leave a gap or sit under the overlay bar. In Read the chapter title also scrolls away with the text. Discover and Study keep the title and band above the text.
 
 ### 3c. Hiding top bar
 
 Applies in Read only, at every screen size.
 
-- The top bar and the two chapter arrows hide when the reader scrolls down through the text.
+- The top bar and the two chapter arrows hide when the reader scrolls down through the text: after 48 px of downward scrolling in one direction (a starting value, tuned in the simulator).
 - They return when the reader:
-  - scrolls up;
+  - scrolls up by 8 px or more;
   - reaches the top of the chapter;
   - taps the text somewhere that does nothing else (not a marked word, not a verse number, not a link, and not the end of a text selection);
   - moves keyboard or screen-reader focus into the top bar;
   - presses Cmd/Ctrl+F.
 - They stay shown while any of these is open or showing: a top-bar menu or picker (including "Aa"), search, a side panel, the marking sheet, the Welcome screen, the translation library, the tour, or a banner (update, three-modes).
-- They are shown after every chapter change and after every mode change.
-- Hiding and showing do not move the text. The bar overlays the text area instead of resizing it. The first verse of a chapter is never underneath the bar while the reader is at the top.
+- Only scrolling the reader does counts: a wheel, touch, pointer press or key press on the reader arms it. Scrolls made by the app (restoring the saved verse, opening a chapter at the top, search or the book picker jumping to a verse) never hide the bar.
+- They are shown after every chapter change, mode change, rotation or window resize.
+- Hiding and showing do not move the text. The bar overlays the text area instead of resizing it: the reader starts with a spacer as tall as the bar, so the first verse of a chapter is never underneath the bar while the reader is at the top. On a wide layout the side panel also starts below the bar in Read.
 - A tap that reveals the bar does nothing else. A tap that does something else (opens the mark editor for a marked word, opens the verse menu, closes a menu or sheet, clears a text selection) does not also reveal the bar.
 - A tap on the text never hides the bar.
 - Swiping left or right to change chapter works whether the bar is shown or hidden.
 - With "Reduce Motion" on, the bar appears and disappears without sliding or fading.
-- While hidden, the bar's controls stay reachable by keyboard and screen reader; focusing one shows the bar.
+- While hidden, the bar's controls stay reachable by keyboard and screen reader; focusing one, or activating one, shows the bar. A VoiceOver cursor move fires no focus event and three-finger scrolling does not arm the hiding, so for those readers the bar simply stays shown.
 - Banners (update, three-modes) look and behave as today; because the bar stays shown while one is showing, they never end up under it or detached from it.
 - While the bar is hidden, the area behind the iOS status bar is the page background color, so text never shows behind the clock.
 
@@ -152,6 +153,8 @@ Applies in Read only, at every screen size.
 - **Bar hidden when a side panel opens** (the mark editor from a tapped word, Settings from a shortcut): the bar is shown and stays shown while the panel is open.
 - **iOS rubber-band scroll at the top or bottom of a chapter:** does not flicker the bar.
 - **Text selection:** dragging to select does not hide or reveal the bar; the marking sheet opening keeps it shown.
+- **Dismissing the modes banner:** the banner is part of the bar, so the text moves up once when it is dismissed, as it does today.
+- **Verse tracking and the saved-position restore:** they measure the whole scrolling area, which now includes the part under the bar, so the verse they pick can sit slightly above the visible middle.
 
 ## Constraints
 
@@ -163,7 +166,7 @@ Applies in Read only, at every screen size.
 - Tests, each shipped in the PR that changes the behavior:
   - 3a: unit tests for saving, ignoring bad stored values, the "reader scrolled first" skip, a named-verse jump winning, and the verse staying put when later content resizes the page.
   - 3b: component tests for the panel's controls per mode, the two entry points by layout, the Settings rows removed, the verse-number rule per mode, and the band rule (one translation, loading, error, two translations, other modes).
-  - 3c: unit tests for the show/hide rules as a pure function or hook (scroll direction, top of chapter, the "stay shown" list, mode other than Read), plus a component test that focus inside the bar shows it.
+  - 3c: unit tests for the show/hide rules as pure functions (scroll direction, top of chapter, the "stay shown" list, mode other than Read), a hook test for arming and the reveal on chapter, mode and resize changes, and component tests that focus inside the bar shows it, that Cmd/Ctrl+F shows it and opens search, that a tap on plain text reveals it and a tap on a marked word does not, and that the scroller is unchanged by a reveal.
   - `just check` passes on each PR.
 - Each PR is checked in the iOS Simulator at phone portrait and iPad landscape before it is handed over.
 
@@ -191,9 +194,9 @@ Applies in Read only, at every screen size.
 
 3c
 
-13. In Read on a chapter longer than the screen, scrolling down hides the top bar and both chapter arrows; scrolling up shows them.
+13. In Read on a chapter longer than the screen, scrolling down 48 px or more hides the top bar and both chapter arrows; scrolling up 8 px or more shows them.
 14. With the bar hidden, tapping plain text shows the bar and opens nothing; tapping a marked word opens the mark editor and the bar is shown while it is open.
-15. With the bar hidden, the scroll position of the text (`scrollTop` of the verse container) and that container's height are the same immediately before and after the bar is revealed by a tap. Checked in a component test and by eye in the simulator.
+15. With the bar hidden, the scroll position of the text (`scrollTop` of the verse container) and that container's size are the same immediately before and after the bar is revealed. jsdom has no layout, so the component test asserts that the container's and spacer's styles and `scrollTop` are identical before and after a reveal; the pixel check is by eye in the simulator.
 16. In Discover and Study, scrolling never hides the top bar.
 17. With the bar hidden, pressing Tab until focus lands on a top-bar control shows the bar; pressing Cmd/Ctrl+F shows the bar and opens search.
 18. With `prefers-reduced-motion: reduce` matching (iOS "Reduce Motion" on), the bar hides and shows with no transition. The app has no reduced-motion handling today, so this is new.
@@ -219,12 +222,13 @@ Applies in Read only, at every screen size.
 | Restore placement | Saved verse in the middle of the text area, no tint, no animation | Mirrors how the verse is measured | agent default |
 | Translation band in Read | Hidden for one translation with no error or fallback notice, including while it loads | The chip already names it; errors must stay visible; showing it while loading would flash on every chapter turn | agent default, amended in 3b |
 | Bar while hidden | Overlays the text; text never moves | A resizing text area makes the page jump | agent default |
+| Band and title in Read | Inside the scrolling text; the band sticks under the bar | A band above an overlay bar leaves a gap or sits under it | agent default, amended in 3c |
 | Chapter arrows | Hide and show with the top bar | They are chrome too | agent default |
 
 ## Open questions
 
 1. **Adding a note with verse numbers off.** In Read, the verse number is the only way to add a note. With numbers off, notes cannot be added. Accept that, or add "Add note" to the marking sheet? (Kevin)
-2. **How far the reader scrolls before the bar hides.** No distance is specified, so criterion 13 has no threshold. The plan for 3c proposes one and it is tuned in the simulator. (Kevin, at 3c review)
+2. **How far the reader scrolls before the bar hides.** Resolved for now: 48 px of downward scrolling hides it and 8 px upward shows it. These are starting values, to be tuned in the simulator at 3c review. (Kevin)
 3. **One translation on phones in Read.** The roadmap lists it. Should Read on a phone show only the first translation while the others stay selected for Discover and Study, or should it be left as the reader's own choice? (Kevin)
 4. **Theme in two places.** Keep it in both "Aa" and Settings › Appearance, or only in "Aa"? Only in "Aa" is less work, since the two copies then need no shared state. (Kevin)
 5. **Help text.** Settings › Help says "Click verse numbers to add inline notes (supports Markdown)". Leave it, since numbers are on by default, or reword it for Read? (Kevin)

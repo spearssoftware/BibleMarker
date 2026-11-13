@@ -42,7 +42,7 @@ import { UndoToast, ToastHost, ConfirmDialogHost } from '@/components/shared';
 import { initializeSync, shutdownSync } from '@/lib/sync';
 import { useFeatureFlagsStore } from '@/stores/featureFlagsStore';
 import { checkForUpdateIfDue, fetchWhatsNew, fetchWhatsNewForced } from '@/lib/updateCheck';
-import { isCapacitor } from '@/lib/platform';
+import { isCapacitor, isTauri } from '@/lib/platform';
 import { UpdateBanner, WhatsNewModal, ModesBanner } from '@/components/shared';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import { seedAppMode } from '@/lib/modeSeed';
@@ -117,9 +117,15 @@ export default function App() {
   const modesBannerPending = useAppModeStore(state => state.modesBannerPending);
 
   // The top bar stays shown while a banner or onboarding screen is up.
-  const updateBannerShowing = updateAvailable !== null && !updateBannerDismissed;
+  const updateBanner = updateAvailable && !updateBannerDismissed ? (
+    <UpdateBanner
+      version={updateAvailable.version}
+      url={updateAvailable.url}
+      onDismiss={() => setUpdateBannerDismissed(true)}
+    />
+  ) : null;
   const modesBannerShowing = modesBannerPending && !showWelcome && !showTranslationLibrary && !showTour;
-  useChromeHold('banner', updateBannerShowing || modesBannerShowing);
+  useChromeHold('banner', updateBanner !== null || modesBannerShowing);
   useChromeHold('onboarding', showWelcome || showTranslationLibrary || showTour);
 
   // Initialize theme on mount (before other initialization)
@@ -373,22 +379,20 @@ export default function App() {
       {/* Global error display */}
       <ErrorDisplay />
 
-      {/* Top navigation */}
-      <NavigationBar />
+      {/* Top navigation. The banners ride with it so they never end up under it. */}
+      <NavigationBar
+        banners={
+          <>
+            {/* Below the nav to avoid the iOS status bar. On Tauri the update prompt is a modal, which must stay outside the bar. */}
+            {!isTauri() && updateBanner}
 
-      {/* Update available banner (below nav to avoid iOS status bar overlap) */}
-      {updateAvailable && !updateBannerDismissed && (
-        <UpdateBanner
-          version={updateAvailable.version}
-          url={updateAvailable.url}
-          onDismiss={() => setUpdateBannerDismissed(true)}
-        />
-      )}
+            {/* Modes banner: one-shot, shown once onboarding overlays resolve */}
+            {modesBannerShowing && <ModesBanner onDismiss={dismissModesBanner} />}
+          </>
+        }
+      />
 
-      {/* Modes banner: one-shot, shown once onboarding overlays resolve */}
-      {modesBannerPending && !showWelcome && !showTranslationLibrary && !showTour && (
-        <ModesBanner onDismiss={dismissModesBanner} />
-      )}
+      {isTauri() && updateBanner}
 
       {/* Main reading area with split panel */}
       <SplitLayout panel={<PanelContainer />}>

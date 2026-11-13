@@ -31,6 +31,7 @@ import { getBookById } from '@/types';
 import { useCurrentVerseTracker } from '@/hooks/useCurrentVerseTracker';
 import { useRestoreReadingPosition } from '@/hooks/useRestoreReadingPosition';
 import { useHidingChrome } from '@/hooks/useHidingChrome';
+import { useChromeStore, useTopBarHidden } from '@/stores/chromeStore';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { usePanelStore } from '@/stores/panelStore';
 import { useTextSelection, type TranslationChapter } from '@/hooks/useTextSelection';
@@ -38,7 +39,7 @@ import { useChapterAnalysis } from '@/hooks/useChapterAnalysis';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryHost } from '@/hooks/useDiscoveryHost';
 import { getKeywordTapHandler } from '@/lib/keywordTap';
-import { useIsStudyMode, useEffectiveMode, useDiscoverAvailable, openDiscoverPanel, verseMenuItems, verseNumbersVisible, translationBandVisible } from '@/lib/appMode';
+import { useIsStudyMode, useEffectiveMode, useDiscoverAvailable, openDiscoverPanel, verseMenuItems, verseNumbersVisible, translationBandVisible, topBarCanHide } from '@/lib/appMode';
 import { buildCrossRefKeyByVerse } from '@/lib/chapterAnalysis';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import type { VerseLens } from './VerseText';
@@ -584,6 +585,8 @@ export function MultiTranslationView() {
     chapter: currentChapter,
   });
   useHidingChrome(verseContainerRef, verseContentEl);
+  const topInset = useChromeStore(state => state.topInset);
+  const topBarIsHidden = useTopBarHidden();
 
   useEffect(() => {
     // Reset loading refs when book/chapter changes
@@ -705,30 +708,66 @@ export function MultiTranslationView() {
   const sortedVerseNumbers = Array.from(allVerseNumbers).sort((a, b) => a - b);
   const gridColsClass = translationList.length === 1 ? 'grid-cols-1' : translationList.length === 2 ? 'grid-cols-2' : 'grid-cols-3';
 
+  // In Read the top bar overlays the text, so the chapter title and the
+  // translation band live inside the scroller, under a spacer the height of
+  // the bar. The band sticks below the bar, or at the status bar while the
+  // bar is hidden. Nothing about the scroller's own size changes.
+  const readHides = topBarCanHide(mode);
+  const chapterTitleSection = (chapterTitle || creatingChapterTitle) ? (
+    <div className="px-4 py-3 text-center flex-shrink-0 bg-transparent" data-chapter-title={currentChapter} style={{ scrollMarginTop: '80px' }}>
+      {chapterTitle ? (
+        <ChapterTitleEditor
+          title={chapterTitle}
+          onSave={updateChapterTitle}
+          onDelete={removeChapterTitle}
+          readOnly={!isStudyMode}
+        />
+      ) : creatingChapterTitle ? (
+        <ChapterTitleCreator
+          onSave={async (title) => {
+            await createChapterTitle(title);
+            setCreatingChapterTitle(false);
+          }}
+          onCancel={() => setCreatingChapterTitle(false)}
+        />
+      ) : null}
+    </div>
+  ) : null;
+
+  const translationBand = translationBandVisible(mode, translationList.length, translationList.some(({ error }) => !!error)) ? (
+    <div
+      className={`grid gap-4 px-4 py-2 bg-scripture-elevated ${gridColsClass} ${
+        readHides
+          ? 'sticky z-10 motion-safe:transition-[top] motion-safe:duration-200 motion-reduce:transition-none'
+          : 'flex-shrink-0'
+      }`}
+      style={readHides ? { top: topBarIsHidden ? 'env(safe-area-inset-top, 0px)' : topInset } : undefined}
+    >
+      {translationList.map(({ translation, isLoading, error }) => {
+        const isFallback = error?.startsWith(KJV_FALLBACK_ERROR_PREFIX);
+        return (
+          <div key={translation.id} className="flex flex-col">
+            <div className="font-medium text-scripture-text flex items-center gap-2">
+              {translation.name}
+              {isLoading && (
+                <div className="w-4 h-4 border-2 border-scripture-border border-t-scripture-accent rounded-full animate-spin"></div>
+              )}
+            </div>
+            {error && (
+              <div className={`text-xs mt-0.5 ${isFallback ? 'text-scripture-warning' : 'text-scripture-error'}`}>
+                {error}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  ) : null;
+
   return (
     <div className="multi-translation-view flex-1 min-h-0 flex flex-col" onClick={handleClick} data-bible-reader>
-      {/* Chapter title section */}
-      {(chapterTitle || creatingChapterTitle) && (
-        <div className="px-4 py-3 text-center flex-shrink-0 bg-transparent" data-chapter-title={currentChapter} style={{ scrollMarginTop: '80px' }}>
-          {chapterTitle ? (
-            <ChapterTitleEditor
-              title={chapterTitle}
-              onSave={updateChapterTitle}
-              onDelete={removeChapterTitle}
-              readOnly={!isStudyMode}
-            />
-          ) : creatingChapterTitle ? (
-            <ChapterTitleCreator
-              onSave={async (title) => {
-                await createChapterTitle(title);
-                setCreatingChapterTitle(false);
-              }}
-              onCancel={() => setCreatingChapterTitle(false)}
-            />
-          ) : null}
-        </div>
-      )}
-      
+      {!readHides && chapterTitleSection}
+
       {/* Add chapter title button - show in nav area if no title exists */}
       {isStudyMode && !chapterTitle && !creatingChapterTitle && primaryTranslationId && (
         <div className="px-4 py-2 text-center flex-shrink-0">
@@ -744,34 +783,25 @@ export function MultiTranslationView() {
         </div>
       )}
 
-      {/* Translation headers - sticky */}
-      {translationBandVisible(mode, translationList.length, translationList.some(({ error }) => !!error)) && (
-      <div
-        className={`grid gap-4 px-4 py-2 bg-scripture-elevated flex-shrink-0 ${gridColsClass}`}
-      >
-        {translationList.map(({ translation, isLoading, error }) => {
-          const isFallback = error?.startsWith(KJV_FALLBACK_ERROR_PREFIX);
-          return (
-            <div key={translation.id} className="flex flex-col">
-              <div className="font-medium text-scripture-text flex items-center gap-2">
-                {translation.name}
-                {isLoading && (
-                  <div className="w-4 h-4 border-2 border-scripture-border border-t-scripture-accent rounded-full animate-spin"></div>
-                )}
-              </div>
-              {error && (
-                <div className={`text-xs mt-0.5 ${isFallback ? 'text-scripture-warning' : 'text-scripture-error'}`}>
-                  {error}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      )}
+      {!readHides && translationBand}
 
       {/* Verse rows - scrollable container */}
-      <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0 [scrollbar-gutter:stable_both-edges]" onMouseUp={handleMouseUp} onTouchStart={(e) => { swipeTouchStart(e); cancelSelectionCapture(); }} onTouchMove={cancelSelectionCapture} onTouchEnd={(e) => { swipeTouchEnd(e); handleTouchEnd(); }}>
+      <div
+        ref={verseContainerRef}
+        className="flex-1 overflow-y-auto custom-scrollbar min-h-0 [scrollbar-gutter:stable_both-edges]"
+        style={readHides ? { scrollPaddingTop: topInset } : undefined}
+        onMouseUp={handleMouseUp}
+        onTouchStart={(e) => { swipeTouchStart(e); cancelSelectionCapture(); }}
+        onTouchMove={cancelSelectionCapture}
+        onTouchEnd={(e) => { swipeTouchEnd(e); handleTouchEnd(); }}
+      >
+        {readHides && (
+          <>
+            <div aria-hidden style={{ height: topInset || 'calc(env(safe-area-inset-top, 0px) + 56px)' }} />
+            {chapterTitleSection}
+            {translationBand}
+          </>
+        )}
           <div key={layoutKey} ref={setVerseContentEl} className={`px-6 py-4 space-y-1.5`}>
             {sortedVerseNumbers.map(verseNum => {
               const heading = getHeadingBefore(verseNum);
