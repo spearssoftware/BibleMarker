@@ -120,3 +120,28 @@ export function camelToSnakeTable(name: string): string {
  * not in sqlite-db.ts, because sync-engine tests mock the latter.
  */
 export const CAUGHT_UP_TABLES_CONFIG_KEY = 'caught_up_tables';
+
+/**
+ * The synced tables as of schema v11, frozen. A device that synced before the
+ * caught-up record existed knew exactly these, so only tables added later need
+ * a catch-up. Never edit this list; new tables are caught up by omission.
+ */
+export const TABLES_SYNCED_BEFORE_V12: readonly string[] = [
+  'annotations',
+  'applications',
+  'chapter_titles',
+  'conclusions',
+  'entity_notes',
+  'interpretations',
+  'keyword_exclusions',
+  'marking_presets',
+  'multi_translation_views',
+  'notes',
+  'observation_lists',
+  'people',
+  'places',
+  'preferences',
+  'section_headings',
+  'studies',
+  'time_expressions',
+];

@@ -137,7 +137,9 @@ An older app version skips sync entries for tables it does not know and still ad
 
 Required: after upgrading, the device ends up with the plans and completed days written while it was old, without the user doing anything.
 
-Mechanism (chosen for safety over the alternative of clearing every sync watermark, which re-applies every table and can bring back rows this device deleted): the device records which synced tables it has already caught up on. When the set of synced tables contains one it has not recorded, the next successful sync reads each peer's latest snapshot and remaining journals from the beginning and applies only the rows of the new tables, through the normal newest-wins path, leaving watermarks alone. The table is recorded as caught up only after that succeeds, so an offline first launch retries later. This is generic: it also covers tables added in future versions.
+Mechanism (chosen for safety over the alternative of clearing every sync watermark, which re-applies every table and can bring back rows this device deleted): the device records which synced tables it has already caught up on. When the set of synced tables contains one it has not recorded, the next successful sync reads every peer's remaining journals and then its latest snapshot (journals first, so a peer compacting in between cannot hide rows), from the beginning. Changes are gathered across all devices and only the newest change per row is applied, through the normal newest-wins path (on a tie a delete wins), so a delete on one device is not undone by an older upsert from another. Only the rows of the new tables are touched and watermarks are left alone. The table is recorded as caught up only after that succeeds. A failed catch-up is retried with a growing delay (1 minute, doubling up to 1 hour; a manual "Sync now" still pulls normally). A device that has synced before but has no readable record is treated as having known only the tables that existed before reading plans. This is generic: it also covers tables added in future versions.
+
+Known limits: a row deleted on a device whose delete entry has since been compacted away can come back if another device's latest snapshot still contains it (the reader can delete it again). A device downgraded to an older version and upgraded again is not caught up a second time.
 
 ### Telemetry
 
@@ -153,6 +155,10 @@ Two opt-in events with no details: `plan_started` and `plan_day_completed`. Both
 - **Same day completed on two devices:** one row; the newer write wins, and either way the day is complete.
 - **Day completed on one device, unmarked on another while offline:** newest change wins, as for any row.
 - **Plan deleted on one device while another completes a day offline:** the plan stays deleted; the orphan day row is ignored and left in place.
+- **Plan created on one device and deleted on another, seen by a device catching up:** the newest change wins, whichever device is read first, so the plan stays deleted.
+- **A peer compacts while a device catches up:** journals are read before snapshots; if a listed journal vanishes, the catch-up fails and is retried later.
+- **Catch-up keeps failing (offline, server error):** it is retried after 1, 2, 4 minutes and so on, never more often than once an hour once it reaches the cap, and the delay resets after a success or sign-out.
+- **Plan deleted long ago, delete entry since compacted away:** it can come back from another device's snapshot during a catch-up; the reader can delete it again.
 - **Plan deleted on one device while another uses "Shift my dates" offline, later:** newest wins, so the shifted plan row comes back on every device, with whatever day rows survive. This is accepted; the reader can delete it again.
 - **Day rows that arrive before their plan row:** ignored until the plan row arrives, then shown.
 - **Clock set back, or travel across time zones:** "behind" is recomputed from the local date each time the panel or strip renders; no data changes.

@@ -18,6 +18,7 @@ import {
   markChangesFlushed,
   pruneChangeLog,
   getSyncWatermark,
+  hasSyncWatermarks,
   setSyncWatermark,
   getSyncConfig,
   setSyncConfig,
@@ -25,7 +26,12 @@ import {
   sqliteExportAll,
   SYNCED_TABLES,
 } from './sqlite-db';
-import { SNAPSHOT_TABLE_KEYS, CAUGHT_UP_TABLES_CONFIG_KEY, camelToSnakeTable } from './table-registry';
+import {
+  SNAPSHOT_TABLE_KEYS,
+  CAUGHT_UP_TABLES_CONFIG_KEY,
+  TABLES_SYNCED_BEFORE_V12,
+  camelToSnakeTable,
+} from './table-registry';
 
 // Re-exported so existing importers (snapshot-coverage.test) keep their
 // `from './sync-engine'` path. The single source of truth is table-registry.
@@ -99,11 +105,17 @@ const BACKOFF_INTERVALS_MS = [30_000, 60_000, 300_000];
 /** Compaction threshold: compact when journal files exceed this count per device */
 const COMPACTION_THRESHOLD = 100;
 
+/** A failed catch-up is retried after 1 minute, doubling per failure up to 1 hour. */
+const CATCH_UP_RETRY_BASE_MS = 60_000;
+const CATCH_UP_RETRY_MAX_MS = 3_600_000;
+
 let backend: StorageBackend | null = null;
 let deviceId: string = '';
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let inFlight = false;
 let consecutiveFailures = 0;
+let catchUpFailures = 0;
+let catchUpRetryAt = 0;
 let onlineListener: (() => void) | null = null;
 let currentStatus: SyncEngineStatus = {
   state: 'disabled',
@@ -174,6 +186,7 @@ async function activateHttpBackend({ snapshot }: { snapshot: boolean }): Promise
   stopOnlineListener();
   inFlight = false;
   consecutiveFailures = 0;
+  resetCatchUpBackoff();
   backend = new HttpStorageBackend();
   startFlushTimer();
   startOnlineListener();
@@ -199,6 +212,7 @@ export async function disableSync(): Promise<void> {
   stopOnlineListener();
   inFlight = false;
   consecutiveFailures = 0;
+  resetCatchUpBackoff();
   backend = null;
   notifyStatusChange({
     state: 'signed-out',
@@ -243,11 +257,13 @@ export async function sync(): Promise<void> {
     // 1. Flush local changes to journal files
     await flushChanges();
 
-    // 2. Pull and apply changes from other devices
+    // 2. Pull and apply changes from other devices. Whether this device had any
+    // sync history is read first: the pull itself creates watermarks.
+    const hadSyncHistory = await hasSyncWatermarks();
     const pulled = await pullChanges();
 
     // 3. Replay synced tables this device did not know when it last synced
-    const caughtUp = await catchUpNewTables();
+    const caughtUp = await catchUpNewTables(hadSyncHistory);
     const applied = pulled.applied + caughtUp.applied;
     const tables = new Set([...pulled.tables, ...caughtUp.tables]);
 
@@ -283,6 +299,7 @@ export async function sync(): Promise<void> {
       stopFlushTimer();
       stopOnlineListener();
       consecutiveFailures = 0;
+      resetCatchUpBackoff();
       // Await so a failed token-clear is logged rather than silently leaving a
       // stale token that would 401 again on next launch.
       try {
@@ -530,23 +547,51 @@ function latestSnapshotsByDevice(names: readonly string[]): Map<string, { name: 
   return latest;
 }
 
+/** One change to apply through applyRemoteChange. */
+interface PendingChange {
+  table: string;
+  id: string;
+  op: 'upsert' | 'delete';
+  data: unknown;
+  ts: string;
+  device: string;
+}
+
+/** A snapshot record as an upsert, with the id and timestamp bootstrap uses. */
+function snapshotRecordChange(
+  table: string,
+  record: Record<string, unknown>,
+  snapshot: SnapshotFile
+): PendingChange {
+  const updatedAt = (record.updatedAt as string) ?? snapshot.createdAt;
+  return {
+    table,
+    id: (record.id as string) ?? 'main',
+    op: 'upsert',
+    data: record,
+    ts: typeof updatedAt === 'string' ? updatedAt : new Date(updatedAt as number).toISOString(),
+    device: snapshot.device,
+  };
+}
+
+function applyPendingChange(change: PendingChange): Promise<boolean> {
+  return applyRemoteChange(
+    change.table,
+    change.op,
+    change.id,
+    change.data ? JSON.stringify(change.data) : null,
+    change.ts,
+    change.device
+  );
+}
+
 /** Apply one snapshot record as an upsert through the normal newest-wins path. */
-async function applySnapshotRecord(
+function applySnapshotRecord(
   table: string,
   record: Record<string, unknown>,
   snapshot: SnapshotFile
 ): Promise<boolean> {
-  const recordId = (record.id as string) ?? 'main';
-  const updatedAt = (record.updatedAt as string) ?? snapshot.createdAt;
-
-  return applyRemoteChange(
-    table,
-    'upsert',
-    recordId,
-    JSON.stringify(record),
-    typeof updatedAt === 'string' ? updatedAt : new Date(updatedAt as number).toISOString(),
-    snapshot.device
-  );
+  return applyPendingChange(snapshotRecordChange(table, record, snapshot));
 }
 
 /**
@@ -611,37 +656,54 @@ async function bootstrapFromSnapshot(remoteDevice: string): Promise<PullResult> 
  * still advances its watermark past them, and compaction may since have folded
  * them into a peer's snapshot. So the device records which synced tables it has
  * caught up on (seeded by the schema migration), and any synced table missing
- * from that set is replayed once from every peer's latest snapshot and
- * remaining journals, applying only that table's rows through applyRemoteChange.
- * Watermarks are never touched, so nothing else is re-applied. A table is
- * recorded only after the whole replay succeeded; a failure leaves it unrecorded
- * and the next sync retries.
+ * from that set is replayed once. The replay gathers every peer's latest
+ * snapshot and journal entries for those tables, keeps only the newest change
+ * per row across all peers, and applies that through applyRemoteChange, so a
+ * delete on one peer is not undone by an older upsert from another. Watermarks
+ * are never touched, so nothing else is re-applied. A table is recorded only
+ * after the whole replay succeeded; a failure leaves it unrecorded and the next
+ * sync after a growing delay retries.
  */
-async function catchUpNewTables(): Promise<PullResult> {
+async function catchUpNewTables(hadSyncHistory: boolean): Promise<PullResult> {
   const result: PullResult = { applied: 0, tables: new Set() };
 
-  const recorded = parseCaughtUpTables(await getSyncConfig(CAUGHT_UP_TABLES_CONFIG_KEY));
+  let recorded = parseCaughtUpTables(await getSyncConfig(CAUGHT_UP_TABLES_CONFIG_KEY));
   if (!recorded) {
-    // Not seeded by the migration: nothing is known to be missing, so start tracking.
-    await setSyncConfig(CAUGHT_UP_TABLES_CONFIG_KEY, JSON.stringify([...SYNCED_TABLES].sort()));
-    return result;
+    if (!hadSyncHistory) {
+      // No sync history: nothing can have been skipped, so start tracking.
+      await setSyncConfig(CAUGHT_UP_TABLES_CONFIG_KEY, JSON.stringify([...SYNCED_TABLES].sort()));
+      return result;
+    }
+    // This device has synced before, so it may have skipped tables added since
+    // the migration that seeds the record; assume it knew only the older ones.
+    recorded = new Set(TABLES_SYNCED_BEFORE_V12);
   }
 
   const pending = new Set([...SYNCED_TABLES].filter((table) => !recorded.has(table)));
   if (pending.size === 0) return result;
+  if (Date.now() < catchUpRetryAt) return result;
 
   try {
-    await replayTables(pending, result);
+    await applyNewestChanges(await collectPendingChanges(pending), result);
     await setSyncConfig(
       CAUGHT_UP_TABLES_CONFIG_KEY,
       JSON.stringify([...new Set([...recorded, ...pending])].sort())
     );
+    resetCatchUpBackoff();
     console.log(`[SyncEngine] Caught up on ${[...pending].join(', ')}`);
   } catch (error) {
     if (isSyncError(error) && error.kind === 'auth') throw error; // 401 → propagate to sync()
-    console.error('[SyncEngine] Catch-up on new synced tables failed, will retry:', error);
+    catchUpFailures++;
+    const delay = Math.min(CATCH_UP_RETRY_BASE_MS * 2 ** (catchUpFailures - 1), CATCH_UP_RETRY_MAX_MS);
+    catchUpRetryAt = Date.now() + delay;
+    console.error(`[SyncEngine] Catch-up on new synced tables failed, retrying in ${delay / 1000}s:`, error);
   }
   return result;
+}
+
+function resetCatchUpBackoff(): void {
+  catchUpFailures = 0;
+  catchUpRetryAt = 0;
 }
 
 function parseCaughtUpTables(raw: string | null): Set<string> | null {
@@ -657,32 +719,45 @@ function parseCaughtUpTables(raw: string | null): Set<string> | null {
   return null;
 }
 
-/** Replay `pending` tables from every peer, snapshot first and then its journals. */
-async function replayTables(pending: ReadonlySet<string>, result: PullResult): Promise<void> {
-  if (!backend) return;
+/**
+ * Gather every peer's change for the `pending` tables, keeping per (table, row)
+ * only the newest. Each peer's journals are read before the snapshots are
+ * listed: a peer compacting in between has then already written the snapshot
+ * that holds what its removed journals carried, whereas the other order could
+ * miss rows in both places.
+ */
+async function collectPendingChanges(pending: ReadonlySet<string>): Promise<Map<string, PendingChange>> {
+  const changes = new Map<string, PendingChange>();
+  if (!backend) return changes;
 
-  // A peer may have only a snapshot left (its folder gone after compaction), so
-  // peers come from both the device folders and the snapshot names.
-  const peers = new Set(await listDeviceFolders());
-  const latestSnapshot = new Map(
-    [...latestSnapshotsByDevice((await backend.list('snapshots')).map((e) => e.name))].filter(([peer]) =>
-      DEVICE_ID_RE.test(peer)
-    )
-  );
-  for (const peer of latestSnapshot.keys()) peers.add(peer);
-  peers.delete(deviceId);
+  const folders = (await listDeviceFolders()).filter((peer) => peer !== deviceId);
+  for (const peer of folders) await collectJournalChanges(peer, pending, changes);
 
-  for (const peer of peers) {
-    const snapshot = latestSnapshot.get(peer);
-    if (snapshot) await replaySnapshot(snapshot.name, pending, result);
-    await replayJournals(peer, pending, result);
+  // A peer may have only a snapshot left (its folder gone after compaction).
+  const latest = latestSnapshotsByDevice((await backend.list('snapshots')).map((e) => e.name));
+  for (const [peer, { name }] of latest) {
+    if (peer === deviceId || !DEVICE_ID_RE.test(peer)) continue;
+    await collectSnapshotChanges(name, pending, changes);
   }
+  return changes;
 }
 
-async function replaySnapshot(
+/** Keep `change` unless the row already has a newer one; on a tie a delete wins. */
+function keepNewest(changes: Map<string, PendingChange>, change: PendingChange): void {
+  // Table names hold no ':', so the key is unambiguous even for ids like "plan-1:1".
+  const key = `${change.table}:${change.id}`;
+  const current = changes.get(key);
+  const newer =
+    !current ||
+    change.ts > current.ts ||
+    (change.ts === current.ts && change.op === 'delete' && current.op !== 'delete');
+  if (newer) changes.set(key, change);
+}
+
+async function collectSnapshotChanges(
   name: string,
   pending: ReadonlySet<string>,
-  result: PullResult
+  changes: Map<string, PendingChange>
 ): Promise<void> {
   if (!backend) return;
 
@@ -702,26 +777,22 @@ async function replaySnapshot(
     const table = camelToSnakeTable(key);
     if (!pending.has(table) || !Array.isArray(records)) continue;
     for (const record of records as Array<Record<string, unknown>>) {
-      if (await applySnapshotRecord(table, record, snapshot)) {
-        result.applied++;
-        result.tables.add(table);
-      }
+      keepNewest(changes, snapshotRecordChange(table, record, snapshot));
     }
   }
 }
 
-/** Replay every journal file of `peer`, ignoring the watermark. */
-async function replayJournals(
+/** Gather every journal file of `peer`, ignoring the watermark. */
+async function collectJournalChanges(
   peer: string,
   pending: ReadonlySet<string>,
-  result: PullResult
+  changes: Map<string, PendingChange>
 ): Promise<void> {
   if (!backend) return;
 
   const files = (await backend.list(peer))
     .map((entry) => entry.name)
-    .filter((name) => name.endsWith('.json') && name !== 'meta.json')
-    .sort();
+    .filter((name) => name.endsWith('.json') && name !== 'meta.json');
 
   for (const fileName of files) {
     const content = await backend.readText(`${peer}/${fileName}`);
@@ -739,19 +810,23 @@ async function replayJournals(
     for (const entry of journal.entries) {
       if (!pending.has(entry.table)) continue;
       if (entry.op !== 'upsert' && entry.op !== 'delete') continue;
+      keepNewest(changes, {
+        table: entry.table,
+        id: entry.id,
+        op: entry.op,
+        data: entry.data,
+        ts: entry.ts,
+        device: entry.device,
+      });
+    }
+  }
+}
 
-      const wasApplied = await applyRemoteChange(
-        entry.table,
-        entry.op,
-        entry.id,
-        entry.data ? JSON.stringify(entry.data) : null,
-        entry.ts,
-        entry.device
-      );
-      if (wasApplied) {
-        result.applied++;
-        result.tables.add(entry.table);
-      }
+async function applyNewestChanges(changes: Map<string, PendingChange>, result: PullResult): Promise<void> {
+  for (const change of changes.values()) {
+    if (await applyPendingChange(change)) {
+      result.applied++;
+      result.tables.add(change.table);
     }
   }
 }

@@ -34,6 +34,7 @@ import {
   STUDY_SCOPED_COLUMN_TABLES,
   CLEARED_TABLES,
   CAUGHT_UP_TABLES_CONFIG_KEY,
+  TABLES_SYNCED_BEFORE_V12,
 } from './table-registry';
 
 // Re-exported so existing importers (sync-engine, snapshot-coverage.test) keep
@@ -127,31 +128,6 @@ export async function closeSqliteDb(): Promise<void> {
 // ============================================================================
 
 const SCHEMA_VERSION = 12;
-
-/**
- * The synced tables as of schema v11, frozen. An install upgrading from v11 or
- * earlier has already synced these, so only tables added later need a catch-up.
- * Never edit this list; new tables are caught up by omission from it.
- */
-const TABLES_SYNCED_BEFORE_V12: readonly string[] = [
-  'annotations',
-  'applications',
-  'chapter_titles',
-  'conclusions',
-  'entity_notes',
-  'interpretations',
-  'keyword_exclusions',
-  'marking_presets',
-  'multi_translation_views',
-  'notes',
-  'observation_lists',
-  'people',
-  'places',
-  'preferences',
-  'section_headings',
-  'studies',
-  'time_expressions',
-];
 
 const READING_PLANS_TABLE_SQL = `
     CREATE TABLE IF NOT EXISTS reading_plans (
@@ -1883,6 +1859,13 @@ export async function getSyncWatermark(remoteDeviceId: string): Promise<number> 
     [remoteDeviceId]
   );
   return rows[0]?.last_seq ?? 0;
+}
+
+/** Whether this device has ever pulled from a peer, i.e. has any sync history. */
+export async function hasSyncWatermarks(): Promise<boolean> {
+  const db = await getSqliteDb();
+  const rows = await db.select<{ n: number }[]>(`SELECT COUNT(*) AS n FROM sync_watermarks`);
+  return (rows[0]?.n ?? 0) > 0;
 }
 
 /**

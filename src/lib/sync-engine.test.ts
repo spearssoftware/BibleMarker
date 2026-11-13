@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { ChangeEntry, SyncEngineStatus } from './sync-engine'
+import { TABLES_SYNCED_BEFORE_V12 } from './table-registry'
 
 // Mock Tauri APIs before importing sync-engine
 vi.mock('@tauri-apps/plugin-fs', () => ({
@@ -21,6 +22,7 @@ vi.mock('./sqlite-db', () => ({
   pruneChangeLog: vi.fn().mockResolvedValue(undefined),
   getSyncWatermark: vi.fn().mockResolvedValue(0),
   setSyncWatermark: vi.fn().mockResolvedValue(undefined),
+  hasSyncWatermarks: vi.fn().mockResolvedValue(false),
   getSyncConfig: vi.fn().mockResolvedValue(null),
   setSyncConfig: vi.fn().mockResolvedValue(undefined),
   applyRemoteChange: vi.fn().mockResolvedValue(true),
@@ -119,6 +121,7 @@ describe('sync engine status listener', () => {
       pruneChangeLog: vi.fn().mockResolvedValue(undefined),
       getSyncWatermark: vi.fn().mockResolvedValue(0),
       setSyncWatermark: vi.fn().mockResolvedValue(undefined),
+      hasSyncWatermarks: vi.fn().mockResolvedValue(false),
       getSyncConfig: vi.fn().mockResolvedValue(null),
       setSyncConfig: vi.fn().mockResolvedValue(undefined),
       applyRemoteChange: vi.fn().mockResolvedValue(true),
@@ -196,6 +199,7 @@ describe('initSyncEngine', () => {
       pruneChangeLog: vi.fn().mockResolvedValue(undefined),
       getSyncWatermark: vi.fn().mockResolvedValue(0),
       setSyncWatermark: vi.fn().mockResolvedValue(undefined),
+      hasSyncWatermarks: vi.fn().mockResolvedValue(false),
       getSyncConfig: vi.fn().mockResolvedValue(null),
       setSyncConfig: vi.fn().mockResolvedValue(undefined),
       applyRemoteChange: vi.fn().mockResolvedValue(true),
@@ -238,6 +242,7 @@ describe('initSyncEngine', () => {
       pruneChangeLog: vi.fn().mockResolvedValue(undefined),
       getSyncWatermark: vi.fn().mockResolvedValue(0),
       setSyncWatermark: vi.fn().mockResolvedValue(undefined),
+      hasSyncWatermarks: vi.fn().mockResolvedValue(false),
       getSyncConfig: vi.fn().mockResolvedValue(null),
       setSyncConfig: vi.fn().mockResolvedValue(undefined),
       applyRemoteChange: vi.fn().mockResolvedValue(true),
@@ -291,6 +296,7 @@ describe('disableSync', () => {
       pruneChangeLog: vi.fn().mockResolvedValue(undefined),
       getSyncWatermark: vi.fn().mockResolvedValue(0),
       setSyncWatermark: vi.fn().mockResolvedValue(undefined),
+      hasSyncWatermarks: vi.fn().mockResolvedValue(false),
       getSyncConfig: vi.fn().mockResolvedValue(null),
       setSyncConfig: mockSetSyncConfig,
       applyRemoteChange: vi.fn().mockResolvedValue(true),
@@ -443,6 +449,8 @@ describe('catch-up on newly known synced tables', () => {
   const remote = {
     files: new Map<string, string>(),
     failReadOnce: null as string | null,
+    failAlways: null as string | null,
+    afterList: null as ((prefix: string) => void) | null,
     reads: [] as string[],
     listed: [] as string[],
   }
@@ -472,10 +480,13 @@ describe('catch-up on newly known synced tables', () => {
         const slash = rest.indexOf('/')
         seen.set(slash === -1 ? rest : rest.slice(0, slash), slash !== -1)
       }
-      return [...seen].map(([name, isDirectory]) => ({ name, isDirectory }))
+      const listing = [...seen].map(([name, isDirectory]) => ({ name, isDirectory }))
+      remote.afterList?.(args.prefix ?? '')
+      return listing
     }
     if (command === 'sync_read') {
       remote.reads.push(args.key!)
+      if (remote.failAlways === args.key) throw new Error('network down')
       if (remote.failReadOnce === args.key) {
         remote.failReadOnce = null
         throw new Error('network down')
@@ -511,6 +522,7 @@ describe('catch-up on newly known synced tables', () => {
         local.watermarkWrites.push(`${d}:${seq}`)
         local.watermarks.set(d, seq)
       }),
+      hasSyncWatermarks: vi.fn(async () => local.watermarks.size > 0),
       getSyncConfig: vi.fn(async (k: string) => local.config.get(k) ?? null),
       setSyncConfig: vi.fn(async (k: string, v: string) => { local.config.set(k, v) }),
       applyRemoteChange: vi.fn(async (table: string, op: string, id: string, data: string | null, ts: string) => {
@@ -540,6 +552,8 @@ describe('catch-up on newly known synced tables', () => {
   beforeEach(() => {
     remote.files.clear()
     remote.failReadOnce = null
+    remote.failAlways = null
+    remote.afterList = null
     remote.reads = []
     remote.listed = []
     local.watermarks.clear()
@@ -557,6 +571,7 @@ describe('catch-up on newly known synced tables', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -609,6 +624,7 @@ describe('catch-up on newly known synced tables', () => {
   })
 
   it('leaves the tables unrecorded after a failure and recovers on a later sync', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
     await syncPastThenUpgrade()
     remote.failReadOnce = `${PEER}/0000000003.json`
 
@@ -616,8 +632,10 @@ describe('catch-up on newly known synced tables', () => {
     expect(caughtUp()).toEqual(LEGACY)
     expect(local.applied).toEqual([])
 
+    vi.advanceTimersByTime(60_000)
     await engine.sync()
     await engine.disableSync()
+    vi.useRealTimers()
 
     expect([...local.rows.keys()].sort()).toEqual(['annotations:a1', 'reading_plan_days:plan-1:1', 'reading_plans:plan-1'])
     expect(caughtUp()).toEqual([...FULL].sort())
@@ -639,7 +657,7 @@ describe('catch-up on newly known synced tables', () => {
   it.each([
     ['missing', null],
     ['unreadable', 'not json'],
-  ])('records every synced table without reading anything when the record is %s', async (_label, value) => {
+  ])('treats a device with sync history and a %s record as knowing only the pre-v12 tables', async (_label, value) => {
     local.config.delete('caught_up_tables')
     if (value !== null) local.config.set('caught_up_tables', value)
     local.watermarks.set(PEER, 3)
@@ -647,9 +665,194 @@ describe('catch-up on newly known synced tables', () => {
     const engine = await launch(FULL)
     await engine.disableSync()
 
+    expect([...local.rows.keys()].sort()).toEqual(['reading_plan_days:plan-1:1', 'reading_plans:plan-1'])
+    expect(caughtUp()).toEqual([...TABLES_SYNCED_BEFORE_V12, 'reading_plan_days', 'reading_plans'].sort())
+    expect(local.watermarkWrites).toEqual([])
+  })
+
+  it.each([
+    ['missing', null],
+    ['unreadable', 'not json'],
+  ])('records every synced table without a replay when there is no sync history and the record is %s', async (_label, value) => {
+    local.config.delete('caught_up_tables')
+    if (value !== null) local.config.set('caught_up_tables', value)
+
+    const engine = await launch(FULL)
+    await engine.disableSync()
+
     expect(caughtUp()).toEqual([...FULL].sort())
-    expect(local.applied).toEqual([])
-    expect(remote.reads.filter((key) => !key.endsWith('meta.json'))).toEqual([])
+    // The ordinary first pull applied everything once; a catch-up would have applied it again.
+    expect(local.applied.sort()).toEqual(['annotations:a1', 'reading_plan_days:plan-1:1', 'reading_plans:plan-1'])
+  })
+
+  describe('newest change per row across peers', () => {
+    const PEER2 = '66666666-7777-8888-9999-000000000000'
+    const OLD = '2026-11-13T09:00:00.000Z'
+    const NEW = '2026-11-13T12:00:00.000Z'
+    const upsertAt = (device: string, ts: string) => journal(device, [entry(1, ts, 'reading_plans', { id: 'plan-1' })].map((e) => ({ ...e, device })))
+    const deleteAt = (device: string, ts: string) => journal(device, [
+      { seq: 1, ts, device, table: 'reading_plans', op: 'delete', id: 'plan-1' },
+    ])
+    const setPeers = (first: [string, string], second: [string, string]) => {
+      // Both peers were already pulled by the old version, which skipped these entries.
+      local.watermarks.set(PEER, 3)
+      local.watermarks.set(PEER2, 3)
+      remote.files.delete(`${PEER}/0000000003.json`)
+      remote.files.set(`${first[0]}/0000000001.json`, first[1])
+      remote.files.set(`${second[0]}/0000000001.json`, second[1])
+    }
+
+    it.each([
+      ['the upserting peer is listed first', true],
+      ['the deleting peer is listed first', false],
+    ])('does not bring back a row another peer deleted later when %s', async (_label, upsertFirst) => {
+      const up: [string, string] = [PEER, upsertAt(PEER, OLD)]
+      const del: [string, string] = [PEER2, deleteAt(PEER2, NEW)]
+      await syncPastThenUpgrade()
+      if (upsertFirst) setPeers(up, del)
+      else setPeers(del, up)
+
+      const engine = await launch(FULL)
+      await engine.disableSync()
+
+      expect(local.rows.has('reading_plans:plan-1')).toBe(false)
+      expect(caughtUp()).toEqual([...FULL].sort())
+    })
+
+    it('keeps a row whose upsert is newer than the other peer\'s delete', async () => {
+      await syncPastThenUpgrade()
+      setPeers([PEER2, deleteAt(PEER2, OLD)], [PEER, upsertAt(PEER, NEW)])
+
+      const engine = await launch(FULL)
+      await engine.disableSync()
+
+      expect(local.rows.has('reading_plans:plan-1')).toBe(true)
+    })
+
+    it('lets a delete win a tie against an upsert', async () => {
+      await syncPastThenUpgrade()
+      setPeers([PEER, upsertAt(PEER, NEW)], [PEER2, deleteAt(PEER2, NEW)])
+
+      const engine = await launch(FULL)
+      await engine.disableSync()
+
+      expect(local.rows.has('reading_plans:plan-1')).toBe(false)
+    })
+
+    it('applies a peer delete over an older upsert held in another peer\'s snapshot', async () => {
+      await syncPastThenUpgrade()
+      local.watermarks.set(PEER, 5)
+      local.watermarks.set(PEER2, 3)
+      remote.files.delete(`${PEER}/0000000003.json`)
+      remote.files.set(`${PEER2}/0000000001.json`, deleteAt(PEER2, NEW))
+      remote.files.set(`snapshots/${PEER}_5.json`, JSON.stringify({
+        version: 1, device: PEER, atSeq: 5, createdAt: NEW,
+        tables: { readingPlans: [{ id: 'plan-1', updatedAt: OLD }] },
+      }))
+
+      const engine = await launch(FULL)
+      await engine.disableSync()
+
+      expect(local.rows.has('reading_plans:plan-1')).toBe(false)
+      expect(local.applied).toEqual(['reading_plans:plan-1']) // the delete only
+    })
+
+    it('does not apply a superseded upsert at all', async () => {
+      await syncPastThenUpgrade()
+      setPeers([PEER, upsertAt(PEER, OLD)], [PEER2, upsertAt(PEER2, NEW)])
+      const engine = await launch(FULL)
+      await engine.disableSync()
+
+      expect(local.applied.filter((key) => key === 'reading_plans:plan-1')).toHaveLength(1)
+      expect(local.rows.get('reading_plans:plan-1')?.updated_at).toBe(NEW)
+    })
+  })
+
+  it('reads journals before snapshots, so a compaction in between loses nothing', async () => {
+    await syncPastThenUpgrade()
+    // Once the snapshots are listed, the peer compacts: its journal is replaced by a snapshot.
+    remote.afterList = (prefix) => {
+      if (prefix !== 'snapshots') return
+      remote.afterList = null
+      remote.files.delete(`${PEER}/0000000003.json`)
+      remote.files.set(`snapshots/${PEER}_3.json`, JSON.stringify({
+        version: 1, device: PEER, atSeq: 3, createdAt: '2026-11-14T00:00:00.000Z',
+        tables: { readingPlans: [plan], readingPlanDays: [day] },
+      }))
+    }
+
+    const engine = await launch(FULL)
+    await engine.disableSync()
+
+    expect([...local.rows.keys()].sort()).toEqual(['annotations:a1', 'reading_plan_days:plan-1:1', 'reading_plans:plan-1'])
+    expect(caughtUp()).toEqual([...FULL].sort())
+  })
+
+  describe('retry delay after a failed catch-up', () => {
+    const journalKey = `${PEER}/0000000003.json`
+    const journalReads = () => remote.reads.filter((key) => key === journalKey).length
+    const MINUTE = 60_000
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-11-13T12:00:00.000Z'))
+    })
+    afterEach(() => vi.useRealTimers())
+
+    it('skips the catch-up until the delay has passed, doubling it up to an hour', async () => {
+      await syncPastThenUpgrade()
+      remote.failAlways = journalKey
+      const engine = await launch(FULL)
+
+      let attempts = journalReads()
+      for (const minutes of [1, 2, 4, 8, 16, 32, 60, 60]) {
+        await engine.sync()
+        expect(journalReads()).toBe(attempts) // still waiting
+        vi.advanceTimersByTime(minutes * MINUTE - 1)
+        await engine.sync()
+        expect(journalReads()).toBe(attempts)
+        vi.advanceTimersByTime(1)
+        await engine.sync()
+        expect(journalReads()).toBe(attempts + 1)
+        attempts++
+      }
+      expect(caughtUp()).toEqual(LEGACY)
+
+      remote.failAlways = null
+      vi.advanceTimersByTime(60 * MINUTE)
+      await engine.sync()
+      await engine.disableSync()
+      expect(caughtUp()).toEqual([...FULL].sort())
+      expect(local.watermarkWrites).toEqual([])
+    })
+
+    it('still pulls ordinary changes while the catch-up waits', async () => {
+      await syncPastThenUpgrade()
+      remote.failAlways = journalKey
+      const engine = await launch(FULL)
+      const later = { id: 'a2', createdAt: '2026-11-13T09:00:00.000Z', updatedAt: '2026-11-13T09:00:00.000Z' }
+      remote.files.set(`${PEER}/0000000004.json`, journal(PEER, [{ ...entry(4, later.updatedAt, 'annotations', later) }]))
+
+      await engine.sync()
+      await engine.disableSync()
+
+      expect(local.rows.has('annotations:a2')).toBe(true)
+    })
+
+    it('starts over when the engine is initialised again', async () => {
+      await syncPastThenUpgrade()
+      remote.failAlways = journalKey
+      const engine = await launch(FULL)
+      const attempts = journalReads()
+
+      await engine.disableSync()
+      remote.failAlways = null
+      await engine.initSyncEngine()
+      await engine.disableSync()
+
+      expect(journalReads()).toBeGreaterThan(attempts)
+      expect(caughtUp()).toEqual([...FULL].sort())
+    })
   })
 
   describe('snapshot choice by sequence', () => {
