@@ -87,6 +87,11 @@ export function translationBandVisible(mode: AppMode, translationCount: number, 
   return mode !== 'read' || translationCount > 1 || hasError;
 }
 
+/** `mode` is the effective mode. Only Read hides its top bar: Discover and Study keep their tools in it. */
+export function topBarCanHide(mode: AppMode): boolean {
+  return mode === 'read';
+}
+
 /** Discover exists in Discover and Study, and only while the kill switch is on. */
 export function discoverAvailable(mode: AppMode | null, discoveryEnabled: boolean): boolean {
   return discoveryEnabled && effectiveMode(mode, discoveryEnabled) !== 'read';
