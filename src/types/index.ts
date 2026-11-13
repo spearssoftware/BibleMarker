@@ -14,3 +14,4 @@ export * from './study';
 export * from './timeExpression';
 export * from './entityNote';
 export * from './gnosis';
+export * from './readingPlan';
