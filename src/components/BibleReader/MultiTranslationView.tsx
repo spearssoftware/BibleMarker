@@ -29,6 +29,7 @@ import { useMarkingPresetStore } from '@/stores/markingPresetStore';
 import { useEffectiveStudyId } from '@/lib/effectiveStudy';
 import { getBookById } from '@/types';
 import { useCurrentVerseTracker } from '@/hooks/useCurrentVerseTracker';
+import { useRestoreReadingPosition } from '@/hooks/useRestoreReadingPosition';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { usePanelStore } from '@/stores/panelStore';
 import { useTextSelection, type TranslationChapter } from '@/hooks/useTextSelection';
@@ -567,6 +568,11 @@ export function MultiTranslationView() {
   useCurrentVerseTracker(verseContainerRef, verseContentEl, {
     locationKey: `${currentBook}:${currentChapter}`,
     ...trackerRange,
+  });
+  useRestoreReadingPosition(verseContainerRef, verseContentEl, {
+    ...trackerRange,
+    book: currentBook,
+    chapter: currentChapter,
   });
 
   useEffect(() => {
