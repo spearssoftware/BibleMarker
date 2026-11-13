@@ -25,7 +25,7 @@ import {
   sqliteExportAll,
   SYNCED_TABLES,
 } from './sqlite-db';
-import { SNAPSHOT_TABLE_KEYS, camelToSnakeTable } from './table-registry';
+import { SNAPSHOT_TABLE_KEYS, CAUGHT_UP_TABLES_CONFIG_KEY, camelToSnakeTable } from './table-registry';
 
 // Re-exported so existing importers (snapshot-coverage.test) keep their
 // `from './sync-engine'` path. The single source of truth is table-registry.
@@ -244,12 +244,17 @@ export async function sync(): Promise<void> {
     await flushChanges();
 
     // 2. Pull and apply changes from other devices
-    const { applied, tables } = await pullChanges();
+    const pulled = await pullChanges();
 
-    // 3. Check if compaction is needed
+    // 3. Replay synced tables this device did not know when it last synced
+    const caughtUp = await catchUpNewTables();
+    const applied = pulled.applied + caughtUp.applied;
+    const tables = new Set([...pulled.tables, ...caughtUp.tables]);
+
+    // 4. Check if compaction is needed
     await maybeCompact();
 
-    // 4. Update status
+    // 5. Update status
     consecutiveFailures = 0;
     const devices = await listConnectedDevices();
     notifyStatusChange({
@@ -503,6 +508,25 @@ async function writeSnapshot(): Promise<void> {
   console.log(`[SyncEngine] Wrote snapshot at seq ${maxSeq}`);
 }
 
+/** Apply one snapshot record as an upsert through the normal newest-wins path. */
+async function applySnapshotRecord(
+  table: string,
+  record: Record<string, unknown>,
+  snapshot: SnapshotFile
+): Promise<boolean> {
+  const recordId = (record.id as string) ?? 'main';
+  const updatedAt = (record.updatedAt as string) ?? snapshot.createdAt;
+
+  return applyRemoteChange(
+    table,
+    'upsert',
+    recordId,
+    JSON.stringify(record),
+    typeof updatedAt === 'string' ? updatedAt : new Date(updatedAt as number).toISOString(),
+    snapshot.device
+  );
+}
+
 /**
  * Bootstrap local database from a remote device's snapshot.
  * Returns the number of records applied and which tables were updated.
@@ -539,17 +563,7 @@ async function bootstrapFromSnapshot(remoteDevice: string): Promise<PullResult> 
       if (!SYNCED_TABLES.has(dbTableName)) continue;
 
       for (const record of records as Array<Record<string, unknown>>) {
-        const recordId = (record.id as string) ?? 'main';
-        const updatedAt = (record.updatedAt as string) ?? snapshot.createdAt;
-
-        const wasApplied = await applyRemoteChange(
-          dbTableName,
-          'upsert',
-          recordId,
-          JSON.stringify(record),
-          typeof updatedAt === 'string' ? updatedAt : new Date(updatedAt as number).toISOString(),
-          snapshot.device
-        );
+        const wasApplied = await applySnapshotRecord(dbTableName, record, snapshot);
 
         if (wasApplied) {
           applied++;
@@ -567,6 +581,164 @@ async function bootstrapFromSnapshot(remoteDevice: string): Promise<PullResult> 
     if (isSyncError(error) && error.kind === 'auth') throw error; // 401 → propagate up
     console.error(`[SyncEngine] Failed to load snapshot ${latestSnapshot}:`, error);
     return { applied: 0, tables: new Set() };
+  }
+}
+
+// ============================================================================
+// Catch-up for newly known synced tables
+// ============================================================================
+
+/**
+ * An older app version skips entries of synced tables it does not know yet and
+ * still advances its watermark past them, and compaction may since have folded
+ * them into a peer's snapshot. So the device records which synced tables it has
+ * caught up on (seeded by the schema migration), and any synced table missing
+ * from that set is replayed once from every peer's latest snapshot and
+ * remaining journals, applying only that table's rows through applyRemoteChange.
+ * Watermarks are never touched, so nothing else is re-applied. A table is
+ * recorded only after the whole replay succeeded; a failure leaves it unrecorded
+ * and the next sync retries.
+ */
+async function catchUpNewTables(): Promise<PullResult> {
+  const result: PullResult = { applied: 0, tables: new Set() };
+
+  const recorded = parseCaughtUpTables(await getSyncConfig(CAUGHT_UP_TABLES_CONFIG_KEY));
+  if (!recorded) {
+    // Not seeded by the migration: nothing is known to be missing, so start tracking.
+    await setSyncConfig(CAUGHT_UP_TABLES_CONFIG_KEY, JSON.stringify([...SYNCED_TABLES].sort()));
+    return result;
+  }
+
+  const pending = new Set([...SYNCED_TABLES].filter((table) => !recorded.has(table)));
+  if (pending.size === 0) return result;
+
+  try {
+    await replayTables(pending, result);
+    await setSyncConfig(
+      CAUGHT_UP_TABLES_CONFIG_KEY,
+      JSON.stringify([...new Set([...recorded, ...pending])].sort())
+    );
+    console.log(`[SyncEngine] Caught up on ${[...pending].join(', ')}`);
+  } catch (error) {
+    if (isSyncError(error) && error.kind === 'auth') throw error; // 401 → propagate to sync()
+    console.error('[SyncEngine] Catch-up on new synced tables failed, will retry:', error);
+  }
+  return result;
+}
+
+function parseCaughtUpTables(raw: string | null): Set<string> | null {
+  if (raw === null) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.every((table) => typeof table === 'string')) {
+      return new Set(parsed);
+    }
+  } catch {
+    // Unparseable: treated like a missing value.
+  }
+  return null;
+}
+
+/** Replay `pending` tables from every peer, snapshot first and then its journals. */
+async function replayTables(pending: ReadonlySet<string>, result: PullResult): Promise<void> {
+  if (!backend) return;
+
+  // A peer may have only a snapshot left (its folder gone after compaction), so
+  // peers come from both the device folders and the snapshot names.
+  const peers = new Set(await listDeviceFolders());
+  const latestSnapshot = new Map<string, { name: string; seq: number }>();
+  for (const { name } of await backend.list('snapshots')) {
+    const match = /^(.+)_(\d+)\.json$/.exec(name);
+    if (!match || !DEVICE_ID_RE.test(match[1])) continue;
+    const [, peer, seqText] = match;
+    const seq = Number(seqText);
+    peers.add(peer);
+    // Numeric, not lexical: seqs are not zero-padded in snapshot names.
+    if (seq > (latestSnapshot.get(peer)?.seq ?? -1)) latestSnapshot.set(peer, { name, seq });
+  }
+  peers.delete(deviceId);
+
+  for (const peer of peers) {
+    const snapshot = latestSnapshot.get(peer);
+    if (snapshot) await replaySnapshot(snapshot.name, pending, result);
+    await replayJournals(peer, pending, result);
+  }
+}
+
+async function replaySnapshot(
+  name: string,
+  pending: ReadonlySet<string>,
+  result: PullResult
+): Promise<void> {
+  if (!backend) return;
+
+  const content = await backend.readText(`snapshots/${name}`);
+  if (content === null) throw new Error(`Snapshot ${name} disappeared before it could be read`);
+
+  let snapshot: SnapshotFile;
+  try {
+    snapshot = JSON.parse(content) as SnapshotFile;
+  } catch (error) {
+    console.error(`[SyncEngine] Skipping unreadable snapshot ${name}:`, error);
+    return;
+  }
+  if (snapshot.version !== 1 || !snapshot.tables) return;
+
+  for (const [key, records] of Object.entries(snapshot.tables)) {
+    const table = camelToSnakeTable(key);
+    if (!pending.has(table) || !Array.isArray(records)) continue;
+    for (const record of records as Array<Record<string, unknown>>) {
+      if (await applySnapshotRecord(table, record, snapshot)) {
+        result.applied++;
+        result.tables.add(table);
+      }
+    }
+  }
+}
+
+/** Replay every journal file of `peer`, ignoring the watermark. */
+async function replayJournals(
+  peer: string,
+  pending: ReadonlySet<string>,
+  result: PullResult
+): Promise<void> {
+  if (!backend) return;
+
+  const files = (await backend.list(peer))
+    .map((entry) => entry.name)
+    .filter((name) => name.endsWith('.json') && name !== 'meta.json')
+    .sort();
+
+  for (const fileName of files) {
+    const content = await backend.readText(`${peer}/${fileName}`);
+    if (content === null) throw new Error(`Journal ${peer}/${fileName} disappeared before it could be read`);
+
+    let journal: JournalFile;
+    try {
+      journal = JSON.parse(content) as JournalFile;
+    } catch (error) {
+      console.error(`[SyncEngine] Skipping unreadable journal ${peer}/${fileName}:`, error);
+      continue;
+    }
+    if (journal.version !== 1 || !Array.isArray(journal.entries)) continue;
+
+    for (const entry of journal.entries) {
+      if (!pending.has(entry.table)) continue;
+      if (entry.op !== 'upsert' && entry.op !== 'delete') continue;
+
+      const wasApplied = await applyRemoteChange(
+        entry.table,
+        entry.op,
+        entry.id,
+        entry.data ? JSON.stringify(entry.data) : null,
+        entry.ts,
+        entry.device
+      );
+      if (wasApplied) {
+        result.applied++;
+        result.tables.add(entry.table);
+      }
+    }
   }
 }
 
