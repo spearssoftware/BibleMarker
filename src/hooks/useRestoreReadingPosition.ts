@@ -6,7 +6,7 @@
  * useSavedPositionStore so a shifted measurement is never stored.
  */
 
-import { useEffect, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useReadingPositionStore } from '@/stores/readingPositionStore';
 import { useSavedPositionStore } from '@/stores/savedPositionStore';
@@ -53,6 +53,11 @@ export function useRestoreReadingPosition(
     });
   }, []);
 
+  // When anchoring must end. Outlives effect re-runs: a second translation
+  // finishing or the content element being re-keyed re-runs the effect
+  // mid-anchoring, and those are exactly the layout changes anchoring is for.
+  const anchorDeadlineRef = useRef<number | null>(null);
+
   useEffect(() => {
     const { pendingRestore, settleRestore } = useSavedPositionStore.getState();
     if (!pendingRestore) return;
@@ -97,6 +102,7 @@ export function useRestoreReadingPosition(
     };
 
     function onTakeOver() {
+      anchorDeadlineRef.current = null;
       stopAnchoring();
       useSavedPositionStore.getState().settleRestore();
     }
@@ -104,14 +110,17 @@ export function useRestoreReadingPosition(
     frame = requestAnimationFrame(() => {
       frame = null;
       const stillPending = useSavedPositionStore.getState().pendingRestore !== null;
-      const scrolledAway = container.scrollTop > UNSCROLLED_THRESHOLD;
+      const resuming = anchorDeadlineRef.current !== null;
+      const scrolledAway = !resuming && container.scrollTop > UNSCROLLED_THRESHOLD;
       const jumpUnderWay = useBibleStore.getState().navSelectedVerse !== null;
       if (!stillPending || scrolledAway || jumpUnderWay) {
+        anchorDeadlineRef.current = null;
         settleRestore();
         return;
       }
 
       place();
+      anchorDeadlineRef.current ??= Date.now() + ANCHOR_WINDOW_MS;
 
       if (typeof ResizeObserver !== 'undefined') {
         observer = new ResizeObserver(place);
@@ -122,11 +131,12 @@ export function useRestoreReadingPosition(
       );
       document.addEventListener('keydown', onTakeOver);
       timer = setTimeout(() => {
+        anchorDeadlineRef.current = null;
         stopAnchoring();
         // A reader who never scrolls produces no tracker report to save this verse.
         settleRestore();
         useSavedPositionStore.getState().save(book, chapter, verse);
-      }, ANCHOR_WINDOW_MS);
+      }, Math.max(0, anchorDeadlineRef.current - Date.now()));
     });
 
     return () => {

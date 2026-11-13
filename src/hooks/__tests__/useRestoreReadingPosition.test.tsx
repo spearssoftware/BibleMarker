@@ -239,6 +239,27 @@ describe('useRestoreReadingPosition', () => {
     expect(useSavedPositionStore.getState().pendingRestore).toBeNull();
   });
 
+  it('keeps anchoring when the effect re-runs mid-window', () => {
+    setPending(16);
+    const { container, content } = makeContainer();
+    const { rerender } = renderRestore(container, content);
+    flushFrames();
+    expect(container.scrollTop).toBe(1450);
+
+    // A second translation finishing changes the verse range and re-runs the effect.
+    vi.advanceTimersByTime(500);
+    shift = 50;
+    rerender({ content, opts: { ...readyOpts, maxVerse: 31 } });
+    flushFrames();
+    expect(container.scrollTop).toBe(1500);
+    expect(useSavedPositionStore.getState().pendingRestore).not.toBeNull();
+
+    // The window is not restarted by the re-run.
+    vi.advanceTimersByTime(1500);
+    expect(useSavedPositionStore.getState().pendingRestore).toBeNull();
+    expect(useSavedPositionStore.getState().saved).toEqual(position(16));
+  });
+
   it('saves the restored verse when the anchoring window ends, then follows the reader', () => {
     setPending(16);
     const { container, content } = makeContainer();
