@@ -101,8 +101,8 @@ Verse numbers:
 
 The translation band:
 
-- In Read, when exactly one translation is showing, has loaded and has no error, the band naming it is not shown. The translation's short name is already on the top-bar chip.
-- While that translation is loading, or shows an error or the KJV fallback notice, the band is shown as today.
+- In Read, when exactly one translation is showing and it has no error or KJV fallback notice, the band naming it is not shown, including while it loads. The translation's short name is already on the top-bar chip. The band is hidden while loading because every uncached chapter sets "loading" on each chapter turn, so a band shown then would flash in and out and shift the text.
+- When that translation shows an error or the KJV fallback notice, the band is shown as today.
 - With two or three translations, and in Discover and Study, the band is unchanged.
 
 ### 3c. Hiding top bar
@@ -146,6 +146,7 @@ Applies in Read only, at every screen size.
 - **A sync changes the preferences row while the app is running:** text settings on screen do not change until the next launch; a change the reader makes afterwards is saved as usual.
 - **Mode changes to Discover or Study while "Aa" is open:** the "Verse numbers" toggle disappears from the panel and numbers show.
 - **Translation count changes from one to two in Read:** the band appears.
+- **One translation in Read is loading a chapter:** no band (the skeleton rows already show the load); the band appears only if the load ends in an error or the KJV fallback notice.
 - **Very short chapter that does not scroll** (for example Psalm 117): the bar never hides.
 - **Bar hidden, then the device rotates or the window resizes:** the bar is shown.
 - **Bar hidden when a side panel opens** (the mark editor from a tapped word, Settings from a shortcut): the bar is shown and stays shown while the panel is open.
@@ -186,7 +187,7 @@ Applies in Read only, at every screen size.
 10. In Read with "Verse numbers" off, no verse number is visible; switching to Discover shows them; switching back to Read hides them again.
 11. In Read with "Verse numbers" off, a highlight made by selecting text appears on the selected words.
 11a. Criterion 1 passes with "Verse numbers" off.
-12. In Read with one loaded translation, the band with the translation's full name is not in the page; with two translations it is; in Study with one translation it is.
+12. In Read with one translation and no error or fallback notice, the band with the translation's full name is not in the page, including while the chapter loads; with an error or fallback notice it is; with two translations it is; in Study with one translation it is.
 
 3c
 
@@ -216,7 +217,7 @@ Applies in Read only, at every screen size.
 | Verse numbers storage | Synced preferences row, with the other text settings | Same kind of setting as font and size | agent default |
 | Saved verse storage | Its own device localStorage record with book, chapter and verse | No sync cost; cannot go stale when the chapter changes by a path that skips the store | agent default |
 | Restore placement | Saved verse in the middle of the text area, no tint, no animation | Mirrors how the verse is measured | agent default |
-| Translation band in Read | Hidden for one loaded, error-free translation | The chip already names it; errors must stay visible | agent default |
+| Translation band in Read | Hidden for one translation with no error or fallback notice, including while it loads | The chip already names it; errors must stay visible; showing it while loading would flash on every chapter turn | agent default, amended in 3b |
 | Bar while hidden | Overlays the text; text never moves | A resizing text area makes the page jump | agent default |
 | Chapter arrows | Hide and show with the top bar | They are chrome too | agent default |
 

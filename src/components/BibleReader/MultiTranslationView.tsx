@@ -37,7 +37,7 @@ import { useChapterAnalysis } from '@/hooks/useChapterAnalysis';
 import { useDiscoveryStore } from '@/stores/discoveryStore';
 import { useDiscoveryHost } from '@/hooks/useDiscoveryHost';
 import { getKeywordTapHandler } from '@/lib/keywordTap';
-import { useIsStudyMode, useEffectiveMode, useDiscoverAvailable, openDiscoverPanel, verseMenuItems, verseNumbersVisible } from '@/lib/appMode';
+import { useIsStudyMode, useEffectiveMode, useDiscoverAvailable, openDiscoverPanel, verseMenuItems, verseNumbersVisible, translationBandVisible } from '@/lib/appMode';
 import { buildCrossRefKeyByVerse } from '@/lib/chapterAnalysis';
 import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import type { VerseLens } from './VerseText';
@@ -743,6 +743,7 @@ export function MultiTranslationView() {
       )}
 
       {/* Translation headers - sticky */}
+      {translationBandVisible(mode, translationList.length, translationList.some(({ error }) => !!error)) && (
       <div
         className={`grid gap-4 px-4 py-2 bg-scripture-elevated flex-shrink-0 ${gridColsClass}`}
       >
@@ -765,6 +766,7 @@ export function MultiTranslationView() {
           );
         })}
       </div>
+      )}
 
       {/* Verse rows - scrollable container */}
       <div ref={verseContainerRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0 [scrollbar-gutter:stable_both-edges]" onMouseUp={handleMouseUp} onTouchStart={(e) => { swipeTouchStart(e); cancelSelectionCapture(); }} onTouchMove={cancelSelectionCapture} onTouchEnd={(e) => { swipeTouchEnd(e); handleTouchEnd(); }}>

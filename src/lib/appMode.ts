@@ -77,6 +77,16 @@ export function verseNumbersVisible(mode: AppMode, showVerseNumbers: boolean): b
   return mode !== 'read' || showVerseNumbers;
 }
 
+/**
+ * `mode` is the effective mode. Read with exactly one translation drops the
+ * band naming it, unless it shows an error or the fallback notice. Loading does
+ * not bring the band back: every uncached chapter loads, so it would flash in
+ * and out on each chapter turn and shift the text.
+ */
+export function translationBandVisible(mode: AppMode, translationCount: number, hasError: boolean): boolean {
+  return mode !== 'read' || translationCount !== 1 || hasError;
+}
+
 /** Discover exists in Discover and Study, and only while the kill switch is on. */
 export function discoverAvailable(mode: AppMode | null, discoveryEnabled: boolean): boolean {
   return discoveryEnabled && effectiveMode(mode, discoveryEnabled) !== 'read';

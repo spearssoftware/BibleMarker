@@ -9,6 +9,7 @@ import {
   selectMode,
   switchMode,
   toggleDiscoverPanel,
+  translationBandVisible,
   verseMenuItems,
   verseNumbersVisible,
 } from './appMode';
@@ -465,5 +466,20 @@ describe('verseNumbersVisible', () => {
     ['study', true, true],
   ])('mode %s with the preference %s is %s', (mode, preference, expected) => {
     expect(verseNumbersVisible(mode, preference)).toBe(expected);
+  });
+});
+
+describe('translationBandVisible', () => {
+  it.each<[AppMode, number, boolean, boolean]>([
+    ['read', 1, false, false],
+    ['read', 1, true, true],
+    ['read', 2, false, true],
+    ['read', 3, false, true],
+    ['read', 2, true, true],
+    ['discover', 1, false, true],
+    ['study', 1, false, true],
+    ['study', 2, false, true],
+  ])('mode %s with %s translation(s), error %s is %s', (mode, count, hasError, expected) => {
+    expect(translationBandVisible(mode, count, hasError)).toBe(expected);
   });
 });
