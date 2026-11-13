@@ -194,13 +194,40 @@ describe('deletePlan', () => {
     expect(state().dayRows.map((r) => r.id)).toEqual(['p2:1']);
   });
 
-  it('leaves state unchanged when the delete fails', async () => {
+  it('leaves state unchanged when the delete fails before anything was written', async () => {
     useReadingPlanStore.setState({ plans: [plan()], dayRows: [row('p1', 1)] });
     db.deleteReadingPlan.mockRejectedValueOnce(new Error('disk full'));
+    db.getAllReadingPlans.mockResolvedValueOnce([plan()]);
+    db.getAllReadingPlanDays.mockResolvedValueOnce([row('p1', 1)]);
 
     await expect(state().deletePlan('p1')).rejects.toThrow('disk full');
     expect(state().plans).toHaveLength(1);
     expect(state().dayRows).toHaveLength(1);
+  });
+
+  it('reloads from the database when the delete fails partway, then rethrows', async () => {
+    useReadingPlanStore.setState({
+      plans: [plan()],
+      dayRows: [row('p1', 1), row('p1', 2)],
+      loaded: true,
+    });
+    db.deleteReadingPlan.mockRejectedValueOnce(new Error('disk full'));
+    // One day row was deleted before the failure.
+    db.getAllReadingPlans.mockResolvedValueOnce([plan()]);
+    db.getAllReadingPlanDays.mockResolvedValueOnce([row('p1', 2)]);
+
+    await expect(state().deletePlan('p1')).rejects.toThrow('disk full');
+    expect(state().plans.map((p) => p.id)).toEqual(['p1']);
+    expect(state().dayRows.map((r) => r.id)).toEqual(['p1:2']);
+  });
+
+  it('rethrows the delete error even when the reload fails too', async () => {
+    useReadingPlanStore.setState({ plans: [plan()], dayRows: [row('p1', 1)] });
+    db.deleteReadingPlan.mockRejectedValueOnce(new Error('disk full'));
+    db.getAllReadingPlans.mockRejectedValueOnce(new Error('still broken'));
+
+    await expect(state().deletePlan('p1')).rejects.toThrow('disk full');
+    expect(state().plans).toHaveLength(1);
   });
 });
 

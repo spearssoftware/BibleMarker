@@ -8,11 +8,14 @@ export const SCHEDULE_VERSION = 1;
 
 export interface ScheduleDay {
   /** 1-based */
-  day: number;
-  chapters: ChapterRef[];
+  readonly day: number;
+  readonly chapters: ReadonlyArray<Readonly<ChapterRef>>;
 }
 
-const cache = new Map<string, ScheduleDay[]>();
+/** Schedules are cached and shared between callers, so they are read-only. */
+export type Schedule = ReadonlyArray<ScheduleDay>;
+
+const cache = new Map<string, Schedule>();
 
 /**
  * Returns the exclusive end index of each of `days` runs over chapters with the
@@ -50,7 +53,7 @@ export function splitByVerses(verseCounts: readonly number[], days: number): num
 }
 
 /** Splits the selection into `days` contiguous runs of whole chapters, balanced by KJV verse count. */
-export function generateSchedule(scope: ReadingPlanScope, days: number): ScheduleDay[] {
+export function generateSchedule(scope: ReadingPlanScope, days: number): Schedule {
   const chapters = selectionChapters(scope);
   if (!Number.isInteger(days) || days < 1 || days > chapters.length) {
     throw new RangeError(`Choose between 1 and ${chapters.length} days.`);
@@ -64,7 +67,7 @@ export function generateSchedule(scope: ReadingPlanScope, days: number): Schedul
     chapters.map(({ bookId, chapter }) => KJV_VERSE_COUNTS[bookId][chapter - 1]),
     days
   );
-  const schedule = ends.map((end, i) => ({
+  const schedule: Schedule = ends.map((end, i) => ({
     day: i + 1,
     chapters: chapters.slice(i === 0 ? 0 : ends[i - 1], end),
   }));

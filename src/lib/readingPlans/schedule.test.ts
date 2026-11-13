@@ -96,6 +96,21 @@ describe('generateSchedule', () => {
     expect(generateSchedule(scope, 90)).toBe(generateSchedule(scope, 90));
   });
 
+  it('is read-only to callers, since the cached schedule is shared', () => {
+    // Compile-time check only: never called, because it would corrupt the cache.
+    const mutate = (schedule: ReturnType<typeof generateSchedule>) => {
+      // @ts-expect-error the schedule is a ReadonlyArray
+      schedule.push(schedule[0]);
+      // @ts-expect-error day numbers are readonly
+      schedule[0].day = 99;
+      // @ts-expect-error a day's chapters are a ReadonlyArray
+      schedule[0].chapters.push({ bookId: 'John', chapter: 1 });
+      // @ts-expect-error chapter references are readonly
+      schedule[0].chapters[0].chapter = 99;
+    };
+    expect(mutate).toBeTypeOf('function');
+  });
+
   describe('balancing rule', () => {
     it('splits chapters of 10, 10 and 30 verses as [1-2],[3] in 2 days and one each in 3', () => {
       expect(splitByVerses([10, 10, 30], 2)).toEqual([2, 3]);

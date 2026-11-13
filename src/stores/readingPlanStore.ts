@@ -21,7 +21,8 @@ import {
 /**
  * Every action writes to the database first and updates state only after the
  * write succeeds. A failed write throws and leaves state as it was; the caller
- * owns the "couldn't save" message.
+ * owns the "couldn't save" message. The exception is deletePlan, which is several
+ * writes and so reloads from the database when it fails.
  */
 interface ReadingPlanState {
   plans: ReadingPlan[];
@@ -99,7 +100,13 @@ export const useReadingPlanStore = create<ReadingPlanState>()(
       },
 
       deletePlan: async (planId) => {
-        await deleteReadingPlan(planId);
+        try {
+          await deleteReadingPlan(planId);
+        } catch (error) {
+          // The delete is several writes; some may have landed, so show what the database holds.
+          await get().loadPlans().catch(() => {});
+          throw error;
+        }
         set({
           plans: get().plans.filter((p) => p.id !== planId),
           dayRows: get().dayRows.filter((row) => row.planId !== planId),
