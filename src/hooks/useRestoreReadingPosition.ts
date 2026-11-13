@@ -28,6 +28,8 @@ interface RestoreOptions {
 /**
  * The scrollTop that centres the row in the container, or aligns the row's top
  * with the container's top when the row is taller than the container.
+ * `scrollIntoView({ block: 'center' })` is not used because it centres a tall
+ * row too, hiding its first lines, and can scroll ancestors of the container.
  */
 export function restoreScrollTop(
   containerRect: DOMRect,
@@ -40,6 +42,11 @@ export function restoreScrollTop(
   return Math.max(0, rowOffset - (clientHeight - rowRect.height) / 2);
 }
 
+function saveCurrentLocation(verse: number): void {
+  const { currentBook, currentChapter } = useBibleStore.getState();
+  useSavedPositionStore.getState().save(currentBook, currentChapter, verse);
+}
+
 export function useRestoreReadingPosition(
   containerRef: RefObject<HTMLElement | null>,
   contentEl: HTMLElement | null,
@@ -48,8 +55,7 @@ export function useRestoreReadingPosition(
   useEffect(() => {
     return useReadingPositionStore.subscribe((state, prev) => {
       if (state.currentVerse === null || state.currentVerse === prev.currentVerse) return;
-      const { currentBook, currentChapter } = useBibleStore.getState();
-      useSavedPositionStore.getState().save(currentBook, currentChapter, state.currentVerse);
+      saveCurrentLocation(state.currentVerse);
     });
   }, []);
 
@@ -69,9 +75,7 @@ export function useRestoreReadingPosition(
       anchorDeadlineRef.current = null;
       settleRestore();
       const current = useReadingPositionStore.getState().currentVerse ?? fallbackVerse;
-      if (current === undefined || current === null) return;
-      const { currentBook, currentChapter } = useBibleStore.getState();
-      useSavedPositionStore.getState().save(currentBook, currentChapter, current);
+      if (current !== undefined) saveCurrentLocation(current);
     };
 
     if (pendingRestore.book !== book || pendingRestore.chapter !== chapter) {
@@ -95,19 +99,15 @@ export function useRestoreReadingPosition(
       return;
     }
 
-    let frame: number | null = null;
-    let timer: ReturnType<typeof setTimeout> | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     let observer: ResizeObserver | undefined;
     let unsubscribeJump: (() => void) | undefined;
     const takeOverEvents = ['wheel', 'touchstart', 'mousedown'] as const;
 
     const stopAnchoring = () => {
-      if (timer !== null) clearTimeout(timer);
-      timer = null;
+      clearTimeout(timer);
       observer?.disconnect();
-      observer = undefined;
       unsubscribeJump?.();
-      unsubscribeJump = undefined;
       takeOverEvents.forEach((type) => container.removeEventListener(type, onTakeOver));
       document.removeEventListener('keydown', onTakeOver);
     };
@@ -128,8 +128,7 @@ export function useRestoreReadingPosition(
       );
     };
 
-    frame = requestAnimationFrame(() => {
-      frame = null;
+    const frame = requestAnimationFrame(() => {
       const stillPending = useSavedPositionStore.getState().pendingRestore !== null;
       const resuming = anchorDeadlineRef.current !== null;
       const scrolledAway = !resuming && container.scrollTop > UNSCROLLED_THRESHOLD;
@@ -163,7 +162,7 @@ export function useRestoreReadingPosition(
     });
 
     return () => {
-      if (frame !== null) cancelAnimationFrame(frame);
+      cancelAnimationFrame(frame);
       stopAnchoring();
     };
   }, [containerRef, contentEl, ready, minVerse, maxVerse, book, chapter]);
