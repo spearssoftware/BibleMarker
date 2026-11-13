@@ -21,7 +21,8 @@ vi.mock('@/lib/textSettings', async importOriginal => ({
 afterEach(cleanup);
 
 const STUDY_ONLY = ['Symbol Position', 'Multi-Word Keyword Marking', 'Symbol Visibility', 'Symbol Size'];
-const EVERY_MODE = ['Font Size', 'Scripture Font', 'Theme', 'Accessibility'];
+const EVERY_MODE = ['Theme', 'Accessibility'];
+const MOVED_TO_TEXT_OPTIONS = ['Font Size', 'Scripture Font'];
 
 function renderIn(mode: AppMode) {
   useAppModeStore.setState({ mode });
@@ -37,6 +38,14 @@ describe('AppearanceSection modes', () => {
     }
   });
 
+  it.each<AppMode>(['read', 'discover', 'study'])('no longer has Font Size or Scripture Font in %s', mode => {
+    renderIn(mode);
+
+    for (const name of MOVED_TO_TEXT_OPTIONS) {
+      expect(screen.queryByRole('heading', { name })).toBeNull();
+    }
+  });
+
   it.each<AppMode>(['read', 'discover'])('hides the Study-only settings in %s', mode => {
     const { container } = renderIn(mode);
 
@@ -47,6 +56,7 @@ describe('AppearanceSection modes', () => {
       expect(screen.getByRole('heading', { name })).toBeTruthy();
     }
     expect(container.querySelectorAll('.border-t')).toHaveLength(EVERY_MODE.length - 1);
+    expect(container.querySelector('.space-y-0')?.firstElementChild?.classList.contains('border-t')).toBe(false);
   });
 });
 

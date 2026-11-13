@@ -41,6 +41,7 @@ vi.mock('@/lib/sync', () => ({
   getSyncStatusMessage: () => '',
 }));
 vi.mock('@/components/Search', () => ({ Search: () => null }));
+vi.mock('../TextOptionsPanel', () => ({ TextOptionsPanel: () => <div data-testid="text-options-panel" /> }));
 vi.mock('../ExportPopover', () => ({ ExportPopover: () => null }));
 vi.mock('@/components/shared/SyncStatusIndicator', () => ({ SyncDetailsPanel: () => null }));
 const unifiedPickerProps = vi.hoisted(() => ({ current: null as { currentVerse: number } | null }));
@@ -122,5 +123,54 @@ describe('NavigationBar', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Settings' }));
     expect(usePanelStore.getState().activePanel).toBe('settings');
     expect(screen.queryByRole('menu')).toBeNull();
+  });
+});
+
+describe('NavigationBar text options', () => {
+  it('has an "Aa" button and no menu item on a wide layout', async () => {
+    await act(async () => { render(<NavigationBar />); });
+    const button = screen.getByRole('button', { name: 'Text options' });
+    expect(button.textContent).toBe('Aa');
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.queryByRole('menuitem', { name: 'Text options' })).toBeNull();
+  });
+
+  it('opens the panel from the "Aa" button and toggles it closed', async () => {
+    await act(async () => { render(<NavigationBar />); });
+    const button = screen.getByRole('button', { name: 'Text options' });
+    fireEvent.click(button);
+    expect(screen.getByRole('dialog', { name: 'Text options' })).toBeTruthy();
+    expect(screen.getByTestId('text-options-panel')).toBeTruthy();
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(button);
+    expect(screen.queryByRole('dialog', { name: 'Text options' })).toBeNull();
+  });
+
+  it('has no button and lists the menu item just above Settings on a narrow layout', async () => {
+    usePanelStore.setState({ orientation: 'vertical' });
+    await act(async () => { render(<NavigationBar />); });
+    expect(screen.queryByRole('button', { name: 'Text options' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    const items = screen.getAllByRole('menuitem').map(item => item.textContent?.replace('Aa', '').trim());
+    const at = items.indexOf('Text options');
+    expect(at).toBeGreaterThanOrEqual(0);
+    expect(items[at + 1]).toBe('Settings');
+  });
+
+  it('opens the panel from the menu item and closes the menu', async () => {
+    usePanelStore.setState({ orientation: 'vertical' });
+    await act(async () => { render(<NavigationBar />); });
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Text options/ }));
+    expect(screen.queryByRole('menu', { name: 'More actions' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Text options' })).toBeTruthy();
+  });
+
+  it('closes the panel when another top-bar menu opens', async () => {
+    await act(async () => { render(<NavigationBar />); });
+    fireEvent.click(screen.getByRole('button', { name: 'Text options' }));
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.queryByRole('dialog', { name: 'Text options' })).toBeNull();
+    expect(screen.getByRole('menu', { name: 'More actions' })).toBeTruthy();
   });
 });

@@ -1,8 +1,8 @@
 /**
- * Appearance settings tab — font size, scripture font, symbol position/size/
- * visibility, multi-word marking, theme, and accessibility. Reads appearance
- * state from the annotation store; font, theme and High Contrast changes go
- * through the shared handlers in `textSettings`.
+ * Appearance settings tab — symbol position/size/visibility, multi-word
+ * marking, theme, and accessibility. Font size and scripture font live in the
+ * reader's "Aa" panel. Theme and High Contrast changes go through the shared
+ * handlers in `textSettings`.
  */
 
 import { useAnnotationStore } from '@/stores/annotationStore';
@@ -20,14 +20,9 @@ import {
 } from '@/lib/theme';
 import { SegmentedControl, ToggleSwitch } from '@/components/shared';
 import {
-  FONT_SIZE_OPTIONS,
-  SCRIPTURE_FONTS,
   THEME_OPTIONS,
-  changeFontSize,
   changeHighContrast,
-  changeScriptureFont,
   changeTheme,
-  type FontSizeValue,
 } from '@/lib/textSettings';
 import { useIsStudyMode } from '@/lib/appMode';
 import { MARKING_STYLE_OPTIONS, type MarkingStyle } from '@/types';
@@ -35,8 +30,6 @@ import { MARKING_STYLE_OPTIONS, type MarkingStyle } from '@/types';
 export function AppearanceSection() {
   const isStudyMode = useIsStudyMode();
   const {
-    fontSize,
-    scriptureFont,
     theme,
     highContrast,
     symbolPosition,
@@ -97,49 +90,8 @@ export function AppearanceSection() {
   return (
     <div role="tabpanel" id="settings-tabpanel-appearance" aria-labelledby="settings-tab-appearance">
       <div className="space-y-0">
-        <div className="p-4">
-          <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Font Size</h3>
-          <SegmentedControl<FontSizeValue>
-            columns={4}
-            ariaLabel="Font size"
-            value={fontSize}
-            onChange={changeFontSize}
-            options={FONT_SIZE_OPTIONS}
-          />
-          <p className="text-xs text-scripture-muted mt-2">
-            Adjust the text size for Bible reading
-          </p>
-        </div>
-
-        <div className="border-t border-scripture-border/30 my-4"></div>
-
-        <div className="p-4">
-          <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Scripture Font</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {SCRIPTURE_FONTS.map((f) => (
-              <button
-                key={f.id}
-                onClick={() => changeScriptureFont(f.id)}
-                className={`px-3 py-3 rounded-lg text-sm transition-all duration-200 text-left
-                          ${scriptureFont === f.id
-                            ? 'bg-scripture-accent text-scripture-bg shadow-md'
-                            : 'bg-scripture-elevated hover:bg-scripture-border/50 border border-scripture-border/50 text-scripture-text'
-                          }`}
-              >
-                <span className="block font-ui text-xs mb-1 opacity-70">{f.label}</span>
-                <span style={{ fontFamily: f.stack }} className="text-base italic">The Word</span>
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-scripture-muted mt-2">
-            Choose the font used for Bible text
-          </p>
-        </div>
-
         {isStudyMode && (
           <>
-          <div className="border-t border-scripture-border/30 my-4"></div>
-
           <div className="p-4">
             <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Symbol Position</h3>
             <SegmentedControl<SymbolPosition>
@@ -227,10 +179,10 @@ export function AppearanceSection() {
               How large symbol marks appear relative to the word. Increase so more of the mark shows around short words.
             </p>
           </div>
+
+          <div className="border-t border-scripture-border/30 my-4"></div>
           </>
         )}
-
-        <div className="border-t border-scripture-border/30 my-4"></div>
 
         <div className="p-4">
           <h3 className="text-base font-ui font-semibold text-scripture-text mb-4">Theme</h3>

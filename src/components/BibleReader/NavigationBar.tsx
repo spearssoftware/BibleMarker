@@ -15,6 +15,7 @@ import { Search } from '@/components/Search';
 import { TranslationPicker, UnifiedPicker } from './pickers';
 import { ExportPopover } from './ExportPopover';
 import { ModeSwitch } from './ModeSwitch';
+import { TextOptionsPanel } from './TextOptionsPanel';
 import { usePanelStore } from '@/stores/panelStore';
 import { ToolbarPopover } from '@/components/shared';
 import { SyncDetailsPanel } from '@/components/shared/SyncStatusIndicator';
@@ -40,6 +41,8 @@ export function NavigationBar() {
   const [showExportPopover, setShowExportPopover] = useState(false);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const [showModeMenu, setShowModeMenu] = useState(false);
+  const [showTextOptions, setShowTextOptions] = useState(false);
+  const wide = usePanelStore(s => s.orientation === 'horizontal');
   const [showSyncPanel, setShowSyncPanel] = useState(false);
 
   // Sync status now lives in the overflow menu (keeps the top bar uncluttered).
@@ -50,9 +53,10 @@ export function NavigationBar() {
   const translationButtonRef = useRef<HTMLButtonElement>(null);
   const referenceButtonRef = useRef<HTMLButtonElement>(null);
   const overflowButtonRef = useRef<HTMLButtonElement>(null);
+  const textOptionsButtonRef = useRef<HTMLButtonElement>(null);
 
   // Lock scroll when any picker is open (but not for dropdowns - they use lockScroll: false in useModal)
-  const anyPickerOpen = showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker || showUnifiedPicker || showExportPopover || showOverflowMenu || showModeMenu || showSyncPanel;
+  const anyPickerOpen = showBookPicker || showChapterPicker || showVersePicker || showTranslationPicker || showUnifiedPicker || showExportPopover || showOverflowMenu || showModeMenu || showTextOptions || showSyncPanel;
   // Note: Individual pickers use useModal with lockScroll: false, so scroll locking here is optional
   // Keeping this commented for now as dropdowns shouldn't lock scroll
   // useScrollLock(anyPickerOpen);
@@ -143,6 +147,7 @@ export function NavigationBar() {
       setShowUnifiedPicker(false);
       setShowOverflowMenu(false);
       setShowModeMenu(false);
+      setShowTextOptions(false);
     };
 
     // Keyboard shortcut for search (Cmd/Ctrl+F)
@@ -175,6 +180,7 @@ export function NavigationBar() {
     setShowUnifiedPicker(false);
     setShowOverflowMenu(false);
     setShowModeMenu(false);
+    setShowTextOptions(false);
     setShowExportPopover(false);
     setShowSyncPanel(false);
     setShowSearch(false);
@@ -310,6 +316,32 @@ export function NavigationBar() {
 
         {/* Right: overflow menu and next chapter (sync moved into the overflow menu) */}
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          {wide && (
+            <button
+              ref={textOptionsButtonRef}
+              data-text-options
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                togglePanel(showTextOptions, setShowTextOptions);
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              className={`px-3 py-2 rounded-lg font-ui font-semibold text-sm transition-all duration-200
+                         border border-scripture-border/30 touch-target h-[36px] flex items-center justify-center
+                         select-none
+                         ${showTextOptions
+                           ? 'bg-scripture-accent text-scripture-bg shadow-md'
+                           : 'hover:bg-scripture-elevated hover:border-scripture-border/50'}`}
+              aria-label="Text options"
+              aria-haspopup="dialog"
+              aria-expanded={showTextOptions}
+            >
+              Aa
+            </button>
+          )}
           <ModeSwitch
             menuOpen={showModeMenu}
             onMenuOpenChange={(open) => {
@@ -488,6 +520,17 @@ export function NavigationBar() {
               </svg>
               Export page…
             </button>
+            {!wide && (
+              <button
+                role="menuitem"
+                onClick={() => { setShowOverflowMenu(false); setShowTextOptions(true); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left
+                           text-scripture-text hover:bg-scripture-elevated transition-colors min-h-[44px]"
+              >
+                <span className="w-5 flex-shrink-0 text-center text-base font-semibold text-scripture-muted" aria-hidden="true">Aa</span>
+                Text options
+              </button>
+            )}
             <button
               role="menuitem"
               onClick={() => { setShowOverflowMenu(false); usePanelStore.getState().openPanel('settings'); }}
@@ -501,6 +544,20 @@ export function NavigationBar() {
               Settings
             </button>
           </div>
+        </ToolbarPopover>
+      )}
+
+      {/* Text options — anchored under the "Aa" button, or the ⋯ button on narrow layouts */}
+      {showTextOptions && (
+        <ToolbarPopover
+          triggerRef={wide ? textOptionsButtonRef : overflowButtonRef}
+          alignment="right"
+          width={320}
+          label="Text options"
+          onClose={() => setShowTextOptions(false)}
+          panelClassName="p-4 max-h-[80vh] overflow-y-auto custom-scrollbar"
+        >
+          <TextOptionsPanel />
         </ToolbarPopover>
       )}
 
