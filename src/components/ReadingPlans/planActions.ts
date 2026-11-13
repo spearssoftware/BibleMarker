@@ -3,6 +3,7 @@ import type { ChapterRef } from '@/lib/readingPlans';
 import { useReadingPlanStore } from '@/stores/readingPlanStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { toast } from '@/stores/toastStore';
+import { confirmDialog } from '@/stores/confirmDialogStore';
 
 export const SAVE_ERROR = "Couldn't save your reading plan. Try again.";
 
@@ -35,4 +36,15 @@ export const removePlan = (planId: string) =>
 
 export function goToChapter(ref: ChapterRef): void {
   useBibleStore.getState().setLocation(ref.bookId, ref.chapter);
+}
+
+/** Asks first; resolves true only when the plan was confirmed and deleted. */
+export async function confirmAndRemovePlan(planId: string): Promise<boolean> {
+  const confirmed = await confirmDialog({
+    title: 'Delete this plan?',
+    message: 'Your marks and notes in the text are not affected.',
+    confirmLabel: 'Delete',
+    cancelLabel: 'Cancel',
+  });
+  return confirmed && removePlan(planId);
 }
