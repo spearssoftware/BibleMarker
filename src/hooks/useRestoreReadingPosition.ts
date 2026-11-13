@@ -26,8 +26,9 @@ interface RestoreOptions {
 }
 
 /**
- * The scrollTop that centres the row in the container, or aligns the row's top
- * with the container's top when the row is taller than the container.
+ * The scrollTop that centres the row in the part of the container not covered
+ * at the top by `topInset` px (the overlaid top bar), or aligns the row's top
+ * with the bottom edge of that cover when the row is taller than what is left.
  * `scrollIntoView({ block: 'center' })` is not used because it centres a tall
  * row too, hiding its first lines, and can scroll ancestors of the container.
  */
@@ -35,11 +36,13 @@ export function restoreScrollTop(
   containerRect: DOMRect,
   rowRect: DOMRect,
   scrollTop: number,
-  clientHeight: number
+  clientHeight: number,
+  topInset = 0
 ): number {
-  const rowOffset = scrollTop + rowRect.top - containerRect.top;
-  if (rowRect.height >= clientHeight) return rowOffset;
-  return Math.max(0, rowOffset - (clientHeight - rowRect.height) / 2);
+  const rowOffset = scrollTop + rowRect.top - containerRect.top - topInset;
+  const visible = clientHeight - topInset;
+  if (rowRect.height >= visible) return Math.max(0, rowOffset);
+  return Math.max(0, rowOffset - (visible - rowRect.height) / 2);
 }
 
 function saveCurrentLocation(verse: number): void {
@@ -131,7 +134,8 @@ export function useRestoreReadingPosition(
         container.getBoundingClientRect(),
         row.getBoundingClientRect(),
         container.scrollTop,
-        container.clientHeight
+        container.clientHeight,
+        parseFloat(getComputedStyle(container).scrollPaddingTop) || 0
       );
     };
 

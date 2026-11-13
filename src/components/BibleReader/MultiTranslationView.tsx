@@ -31,7 +31,7 @@ import { getBookById } from '@/types';
 import { useCurrentVerseTracker } from '@/hooks/useCurrentVerseTracker';
 import { useRestoreReadingPosition } from '@/hooks/useRestoreReadingPosition';
 import { useHidingChrome } from '@/hooks/useHidingChrome';
-import { useChromeStore, useTopBarHidden } from '@/stores/chromeStore';
+import { useChromeStore } from '@/stores/chromeStore';
 import { isRevealTarget } from '@/lib/hidingChrome';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { usePanelStore } from '@/stores/panelStore';
@@ -48,6 +48,8 @@ import type { Annotation, Chapter, SectionHeading, Note, ChapterTitle } from '@/
 import { LAYOUT_REKEY_MS } from './layoutConstants';
 
 const KJV_FALLBACK_ERROR_PREFIX = 'Showing KJV';
+/** Stands in for the top bar's height until NavigationBar publishes it. */
+const TOP_CHROME_FALLBACK = 'calc(env(safe-area-inset-top, 0px) + 56px)';
 
 export function MultiTranslationView() {
   const { activeView, loadActiveView, addTranslation, setChaptersByTranslation } = useMultiTranslationStore();
@@ -586,8 +588,14 @@ export function MultiTranslationView() {
     chapter: currentChapter,
   });
   useHidingChrome(verseContainerRef, verseContentEl);
-  const topInset = useChromeStore(state => state.topInset);
-  const topBarIsHidden = useTopBarHidden();
+  // True when the tap that is about to click began on a text selection: that tap only clears it.
+  const selectionAtPressRef = useRef(false);
+  const notePress = useCallback(() => {
+    const sel = window.getSelection();
+    const container = verseContainerRef.current;
+    selectionAtPressRef.current = selectionAtPressRef.current
+      || (!!sel && !sel.isCollapsed && !!sel.anchorNode && !!container?.contains(sel.anchorNode));
+  }, []);
 
   useEffect(() => {
     // Reset loading refs when book/chapter changes
@@ -678,7 +686,9 @@ export function MultiTranslationView() {
     // Marks, cross-references, lens hits and verse numbers stop the event or
     // are excluded by isRevealTarget; anything open holds the bar shown, so a
     // tap that closes a menu never doubles as a reveal.
-    if (!e.defaultPrevented && isRevealTarget(e.target as Element)) {
+    const clearedSelection = selectionAtPressRef.current;
+    selectionAtPressRef.current = false;
+    if (!clearedSelection && !e.defaultPrevented && isRevealTarget(e.target as Element)) {
       useChromeStore.getState().reveal();
     }
 
@@ -750,7 +760,7 @@ export function MultiTranslationView() {
           ? 'sticky z-10 motion-safe:transition-[top] motion-safe:duration-200 motion-reduce:transition-none'
           : 'flex-shrink-0'
       }`}
-      style={readHides ? { top: topBarIsHidden ? 'env(safe-area-inset-top, 0px)' : topInset } : undefined}
+      style={readHides ? { top: `var(--top-chrome-offset, ${TOP_CHROME_FALLBACK})` } : undefined}
     >
       {translationList.map(({ translation, isLoading, error }) => {
         const isFallback = error?.startsWith(KJV_FALLBACK_ERROR_PREFIX);
@@ -797,8 +807,10 @@ export function MultiTranslationView() {
       {/* Verse rows - scrollable container */}
       <div
         ref={verseContainerRef}
-        className="flex-1 overflow-y-auto custom-scrollbar min-h-0 [scrollbar-gutter:stable_both-edges]"
-        style={readHides ? { scrollPaddingTop: topInset } : undefined}
+        className={`flex-1 overflow-y-auto custom-scrollbar min-h-0 [scrollbar-gutter:stable_both-edges]${readHides ? ' top-chrome-scrollbar' : ''}`}
+        style={readHides ? { scrollPaddingTop: `var(--top-chrome-inset, ${TOP_CHROME_FALLBACK})` } : undefined}
+        onMouseDownCapture={notePress}
+        onTouchStartCapture={notePress}
         onMouseUp={handleMouseUp}
         onTouchStart={(e) => { swipeTouchStart(e); cancelSelectionCapture(); }}
         onTouchMove={cancelSelectionCapture}
@@ -806,7 +818,7 @@ export function MultiTranslationView() {
       >
         {readHides && (
           <>
-            <div aria-hidden style={{ height: topInset || 'calc(env(safe-area-inset-top, 0px) + 56px)' }} />
+            <div aria-hidden style={{ height: `var(--top-chrome-inset, ${TOP_CHROME_FALLBACK})` }} />
             {chapterTitleSection}
             {translationBand}
           </>

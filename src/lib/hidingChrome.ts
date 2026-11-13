@@ -10,6 +10,16 @@ import { topBarCanHide } from '@/lib/appMode';
 export const HIDE_AFTER_SCROLL_PX = 48;
 /** Upward travel before the bar returns. */
 export const SHOW_AFTER_SCROLL_UP_PX = 8;
+/**
+ * How long after the last scroll event, or after an input that produced none,
+ * a scroll still counts as the reader's. Long enough to bridge the gap between
+ * events during iOS momentum scrolling after the finger lifts.
+ */
+export const ARMED_IDLE_MS = 200;
+/** Keys that scroll the reader. */
+export const SCROLL_KEYS: ReadonlySet<string> = new Set([
+  'PageUp', 'PageDown', 'Home', 'End', ' ', 'Spacebar', 'ArrowUp', 'ArrowDown',
+]);
 /** At or above this scroll offset the reader counts as at the top of the chapter. */
 export const TOP_OF_CHAPTER_PX = 4;
 
@@ -24,7 +34,7 @@ export interface ScrollSample {
   scrollTop: number;
   scrollHeight: number;
   clientHeight: number;
-  /** A wheel, touch, pointer or key input armed this scroll, as opposed to code moving the text. */
+  /** A scroll gesture is in progress (see ARMED_IDLE_MS), as opposed to code moving the text. */
   userDriven: boolean;
   /** A text selection is in progress or exists. */
   selecting: boolean;
@@ -66,9 +76,13 @@ export function topBarHidden({ mode, scrollHidden, held, panelOpen, hasSelection
 
 const NOT_A_REVEAL_TARGET =
   'a,button,input,textarea,select,[role="button"],[contenteditable="true"],' +
-  '.verse-number,[data-annotation-ids],.cross-ref,.lens-connector,.annotation-remove';
+  '[data-chrome-ignore],.verse-number,[data-annotation-ids],.cross-ref,.lens-connector,.annotation-remove';
 
-/** Whether a tap on `el` is plain text that does nothing else, so it may reveal the bar. */
+/**
+ * Whether a tap on `el` is plain text that does nothing else, so it may reveal
+ * the bar. `data-chrome-ignore` marks full-screen backdrops: a tap that closes
+ * a popup is not a reveal.
+ */
 export function isRevealTarget(el: Element): boolean {
   return !el.closest(NOT_A_REVEAL_TARGET);
 }

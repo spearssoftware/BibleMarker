@@ -133,6 +133,7 @@ describe('isRevealTarget', () => {
     ['a marked word', '<span data-annotation-ids="a1"><span id="t">word</span></span>'],
     ['a cross-reference', '<span class="cross-ref"><span id="t">x</span></span>'],
     ['a lens connector', '<span class="lens-connector"><span id="t">x</span></span>'],
+    ['a full-screen backdrop', '<div data-chrome-ignore><span id="t">x</span></div>'],
     ['a remove control', '<span class="annotation-remove"><span id="t">x</span></span>'],
   ])('rejects %s', (_label, html) => {
     expect(isRevealTarget(el(html, '#t'))).toBe(false);

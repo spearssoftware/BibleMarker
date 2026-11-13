@@ -500,7 +500,7 @@ describe('Toolbar', () => {
 
     beforeEach(() => {
       useAppModeStore.setState({ mode: 'read' });
-      useChromeStore.setState({ scrollHidden: false, topInset: 0, holds: {} });
+      useChromeStore.setState({ scrollHidden: false, holds: {} });
     });
 
     it('hide with the bar and stop taking taps, but stay in the tab order', () => {

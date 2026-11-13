@@ -35,6 +35,7 @@ export function VerseNumberMenu({
       {/* Backdrop */}
       <div
         className="fixed inset-0 z-40 bg-scripture-scrim/20"
+        data-chrome-ignore
         onClick={onClose}
         aria-hidden="true"
       />

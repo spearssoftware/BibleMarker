@@ -1,7 +1,6 @@
 import { useRef, useState, useEffect, type ReactNode } from 'react';
 import { usePanelStore } from '@/stores/panelStore';
 import { topBarCanHide, useBottomBarVisible, useEffectiveMode } from '@/lib/appMode';
-import { useChromeStore } from '@/stores/chromeStore';
 import { SplitDivider } from './SplitDivider';
 
 const TOOLBAR_FALLBACK_PX = 60;
@@ -27,8 +26,7 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
 
   const barVisible = useBottomBarVisible();
   // Read's top bar overlays the page, so a side panel starts below it.
-  const topInset = useChromeStore(state => state.topInset);
-  const panelTopPad = topBarCanHide(useEffectiveMode()) && orientation === 'horizontal' ? topInset : 0;
+  const panelTopPad = topBarCanHide(useEffectiveMode()) && orientation === 'horizontal' ? 'var(--top-chrome-inset, 0px)' : 0;
 
   const showPanel = activePanel && !isCollapsed && panel;
   const isHorizontal = orientation === 'horizontal';

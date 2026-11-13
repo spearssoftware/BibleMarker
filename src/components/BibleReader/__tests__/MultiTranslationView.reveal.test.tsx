@@ -46,14 +46,13 @@ function tap(parent: HTMLElement, html: string) {
 }
 
 beforeEach(() => {
-  vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
   useAppModeStore.setState({ mode: 'read' });
   useBibleStore.setState({ currentBook: 'JHN', currentChapter: 3 });
   useMultiTranslationStore.setState({
     activeView: { id: 'v', name: 'v', translationIds: ['sword-KJV'], createdAt: new Date(), updatedAt: new Date() } as never,
     loadActiveView: vi.fn(),
   });
-  useChromeStore.setState({ scrollHidden: false, topInset: 0, holds: {} });
+  useChromeStore.setState({ scrollHidden: false, holds: {} });
 });
 
 afterEach(() => {
@@ -86,5 +85,29 @@ describe('MultiTranslationView tap to reveal', () => {
     vi.spyOn(window, 'getSelection').mockReturnValue({ isCollapsed: false, toString: () => 'word' } as Selection);
     tap(scroller, '<p><span id="t">In the beginning</span></p>');
     expect(useChromeStore.getState().scrollHidden).toBe(true);
+  });
+
+  it('does not reveal on a tap on a popup backdrop', async () => {
+    const { scroller } = await setup();
+    tap(scroller, '<div data-chrome-ignore><span id="t"></span></div>');
+    expect(useChromeStore.getState().scrollHidden).toBe(true);
+  });
+
+  it('does not reveal on the tap that clears a text selection', async () => {
+    const { scroller } = await setup();
+    const text = document.createElement('p');
+    text.textContent = 'In the beginning';
+    scroller.appendChild(text);
+    const spy = vi.spyOn(window, 'getSelection');
+    spy.mockReturnValue({ isCollapsed: false, anchorNode: text.firstChild, toString: () => 'In' } as unknown as Selection);
+    fireEvent.mouseDown(text);
+    // By the time click fires the selection has collapsed.
+    spy.mockReturnValue({ isCollapsed: true, anchorNode: text.firstChild, toString: () => '' } as unknown as Selection);
+    fireEvent.click(text);
+    expect(useChromeStore.getState().scrollHidden).toBe(true);
+    // The next plain tap reveals again.
+    fireEvent.mouseDown(text);
+    fireEvent.click(text);
+    expect(useChromeStore.getState().scrollHidden).toBe(false);
   });
 });

@@ -5,7 +5,7 @@ import { useChromeStore } from '../chromeStore';
 const holds = () => Object.keys(useChromeStore.getState().holds);
 
 beforeEach(() => {
-  useChromeStore.setState({ scrollHidden: false, topInset: 0, holds: {} });
+  useChromeStore.setState({ scrollHidden: false, holds: {} });
 });
 
 describe('useChromeStore holds', () => {
@@ -38,10 +38,5 @@ describe('useChromeStore visibility', () => {
     useChromeStore.getState().setScrollHidden(true);
     useChromeStore.getState().reveal();
     expect(useChromeStore.getState().scrollHidden).toBe(false);
-  });
-
-  it('stores the measured inset', () => {
-    useChromeStore.getState().setTopInset(64);
-    expect(useChromeStore.getState().topInset).toBe(64);
   });
 });

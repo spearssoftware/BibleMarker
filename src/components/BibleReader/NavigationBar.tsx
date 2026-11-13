@@ -78,16 +78,36 @@ export function NavigationBar({ banners }: NavigationBarProps) {
   const hidden = useTopBarHidden();
   const reveal = useChromeStore(s => s.reveal);
   const chromeRef = useRef<HTMLDivElement>(null);
+  // The reader and side panel read the bar's height from CSS variables, so a
+  // hide or show restyles them without re-rendering any verse.
   useLayoutEffect(() => {
     const el = chromeRef.current;
+    const root = document.documentElement;
     if (!overlays || !el) return;
-    const { setTopInset } = useChromeStore.getState();
-    // offsetHeight ignores the slide transform.
-    setTopInset(el.offsetHeight);
-    const observer = new ResizeObserver(() => setTopInset(el.offsetHeight));
-    observer.observe(el);
-    return () => observer.disconnect();
+    const publish = () => {
+      // offsetHeight ignores the slide transform.
+      const height = `${el.offsetHeight}px`;
+      root.style.setProperty('--top-chrome-inset', height);
+      root.style.setProperty('--top-chrome-offset', hidden ? 'env(safe-area-inset-top, 0px)' : height);
+    };
+    publish();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(publish) : null;
+    observer?.observe(el);
+    return () => observer?.disconnect();
+  }, [overlays, hidden]);
+  useEffect(() => {
+    if (!overlays) return;
+    const root = document.documentElement;
+    return () => {
+      root.style.removeProperty('--top-chrome-inset');
+      root.style.removeProperty('--top-chrome-offset');
+    };
   }, [overlays]);
+  // A hidden bar must not keep focus: Space or Enter would activate an invisible control.
+  useEffect(() => {
+    const active = document.activeElement;
+    if (hidden && active instanceof HTMLElement && chromeRef.current?.contains(active)) active.blur();
+  }, [hidden]);
 
   const [translations, setTranslations] = useState<ApiTranslation[]>([]);
   const currentVerse = useReadingPositionStore((s) => s.currentVerse);

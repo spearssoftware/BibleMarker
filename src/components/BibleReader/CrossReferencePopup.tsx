@@ -69,7 +69,8 @@ export function CrossReferencePopup({
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 z-40" 
+        className="fixed inset-0 z-40"
+        data-chrome-ignore
         onClick={onClose}
       />
       

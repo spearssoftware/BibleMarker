@@ -123,6 +123,19 @@ describe('restoreScrollTop', () => {
   it('aligns the top of a row taller than the container', () => {
     expect(restoreScrollTop(rect(0, 200), rect(1500, 400), 0, 200)).toBe(1500);
   });
+
+  it('centres a short row in the area below the top inset', () => {
+    // 200px container, 60px covered: the visible 140px centres a 40px row at 60 + 50.
+    expect(restoreScrollTop(rect(0, 200), rect(1500, 40), 0, 200, 60)).toBe(1500 - 60 - 50);
+  });
+
+  it('aligns a row taller than the visible area to the inset', () => {
+    expect(restoreScrollTop(rect(0, 200), rect(1500, 150), 0, 200, 60)).toBe(1440);
+  });
+
+  it('never returns a negative scrollTop', () => {
+    expect(restoreScrollTop(rect(0, 200), rect(10, 150), 0, 200, 60)).toBe(0);
+  });
 });
 
 describe('useRestoreReadingPosition', () => {

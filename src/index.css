@@ -327,6 +327,11 @@ select:focus-visible {
     background-color: var(--scripture-bg);
   }
   
+  /* Read's scroller starts under the fixed top bar; keep the track clear of it. */
+  .top-chrome-scrollbar::-webkit-scrollbar-track {
+    margin-top: var(--top-chrome-inset, 0px);
+  }
+
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background-color: var(--scripture-muted);
     border-radius: 9999px;

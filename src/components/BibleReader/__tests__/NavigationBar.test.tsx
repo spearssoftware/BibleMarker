@@ -57,8 +57,8 @@ vi.mock('../pickers', () => ({
 const locationButton = () => screen.getByRole('button', { name: /Current location/ });
 
 beforeEach(() => {
-  vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
-  useChromeStore.setState({ scrollHidden: false, topInset: 0, holds: {} });
+  useChromeStore.setState({ scrollHidden: false, holds: {} });
+  document.documentElement.removeAttribute('style');
   useBibleStore.setState({ currentBook: 'JHN', currentChapter: 3 });
   useReadingPositionStore.setState({ currentVerse: null, verseTrackingPaused: false });
   useAppModeStore.setState({ mode: 'read' });
@@ -246,12 +246,11 @@ describe('NavigationBar hiding', () => {
   it('reveals without changing the scroller or its spacer (criterion 15)', async () => {
     const offsetHeight = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(64);
     function Harness() {
-      const inset = useChromeStore(s => s.topInset);
       return (
         <>
           <NavigationBar />
-          <div data-testid="scroller" style={{ scrollPaddingTop: inset }}>
-            <div data-testid="spacer" style={{ height: inset }} />
+          <div data-testid="scroller" style={{ scrollPaddingTop: 'var(--top-chrome-inset)' }}>
+            <div data-testid="spacer" style={{ height: 'var(--top-chrome-inset)' }} />
           </div>
         </>
       );
@@ -266,7 +265,68 @@ describe('NavigationBar hiding', () => {
     expect(chrome().hasAttribute('data-hidden')).toBe(false);
     expect(scroller.outerHTML).toBe(before.html);
     expect(scroller.scrollTop).toBe(before.top);
-    expect(useChromeStore.getState().topInset).toBe(64);
+    expect(rootVar('--top-chrome-inset')).toBe('64px');
     offsetHeight.mockRestore();
   });
+
+  describe('published CSS variables', () => {
+    beforeEach(() => {
+      vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(64);
+    });
+    afterEach(() => { vi.restoreAllMocks(); });
+
+    it('sets the inset and an offset equal to it while the bar is shown', async () => {
+      await act(async () => { render(<NavigationBar />); });
+      expect(rootVar('--top-chrome-inset')).toBe('64px');
+      expect(rootVar('--top-chrome-offset')).toBe('64px');
+    });
+
+    it('moves the offset to the safe-area inset while hidden, keeping the inset', async () => {
+      await act(async () => { render(<NavigationBar />); });
+      act(() => { useChromeStore.setState({ scrollHidden: true }); });
+      expect(rootVar('--top-chrome-inset')).toBe('64px');
+      expect(rootVar('--top-chrome-offset')).toBe('env(safe-area-inset-top, 0px)');
+    });
+
+    it('removes both outside Read and on unmount', async () => {
+      const view = render(<NavigationBar />);
+      await act(async () => { await Promise.resolve(); });
+      act(() => { useAppModeStore.setState({ mode: 'study' }); });
+      expect(rootVar('--top-chrome-inset')).toBe('');
+      expect(rootVar('--top-chrome-offset')).toBe('');
+      act(() => { useAppModeStore.setState({ mode: 'read' }); });
+      expect(rootVar('--top-chrome-inset')).toBe('64px');
+      view.unmount();
+      expect(rootVar('--top-chrome-inset')).toBe('');
+      expect(rootVar('--top-chrome-offset')).toBe('');
+    });
+
+    it('never sets them in Study', async () => {
+      useAppModeStore.setState({ mode: 'study' });
+      await act(async () => { render(<NavigationBar />); });
+      expect(rootVar('--top-chrome-inset')).toBe('');
+    });
+
+    it('blurs a control inside the bar when it hides, and leaves outside focus alone', async () => {
+      await act(async () => { render(<NavigationBar />); });
+      const inside = screen.getByRole('button', { name: 'More actions' });
+      inside.focus();
+      expect(document.activeElement).toBe(inside);
+      // Hiding is gated by the focus-reveal, so hide from the store directly.
+      act(() => { useChromeStore.setState({ scrollHidden: true }); });
+      expect(document.activeElement).not.toBe(inside);
+    });
+
+    it('does not blur focus outside the bar when it hides', async () => {
+      await act(async () => { render(<><NavigationBar /><button data-testid="outside" /></>); });
+      const outside = screen.getByTestId('outside');
+      outside.focus();
+      act(() => { useChromeStore.setState({ scrollHidden: true }); });
+      expect(document.activeElement).toBe(outside);
+    });
+  });
 });
+
+function rootVar(name: string): string {
+  return document.documentElement.style.getPropertyValue(name);
+}
