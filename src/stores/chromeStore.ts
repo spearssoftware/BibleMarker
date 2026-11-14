@@ -6,7 +6,7 @@
 
 import { useEffect } from 'react';
 import { create } from 'zustand';
-import { useEffectiveMode } from '@/lib/appMode';
+import { topBarCanHide, useEffectiveMode } from '@/lib/appMode';
 import { topBarHidden } from '@/lib/hidingChrome';
 import { usePanelStore } from '@/stores/panelStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
@@ -44,9 +44,11 @@ export function useChromeHold(key: string, active: boolean): void {
 
 export function useTopBarHidden(): boolean {
   const mode = useEffectiveMode();
-  const scrollHidden = useChromeStore((s) => s.scrollHidden);
-  const held = useChromeStore((s) => Object.keys(s.holds).length > 0);
-  const panelOpen = usePanelStore((s) => s.activePanel !== null && !s.isCollapsed);
-  const hasSelection = useAnnotationStore((s) => s.selection !== null);
+  // Outside Read the answer is always false, so those subscribers never re-render for these values.
+  const canHide = topBarCanHide(mode);
+  const scrollHidden = useChromeStore((s) => canHide && s.scrollHidden);
+  const held = useChromeStore((s) => canHide && Object.keys(s.holds).length > 0);
+  const panelOpen = usePanelStore((s) => canHide && s.activePanel !== null && !s.isCollapsed);
+  const hasSelection = useAnnotationStore((s) => canHide && s.selection !== null);
   return topBarHidden({ mode, scrollHidden, held, panelOpen, hasSelection });
 }
