@@ -20,8 +20,15 @@ export const ARMED_IDLE_MS = 200;
 export const SCROLL_KEYS: ReadonlySet<string> = new Set([
   'PageUp', 'PageDown', 'Home', 'End', ' ', 'Spacebar', 'ArrowUp', 'ArrowDown',
 ]);
-/** At or above this scroll offset the reader counts as at the top of the chapter. */
+/** At or below this scroll offset the reader counts as at the top of the chapter. */
 export const TOP_OF_CHAPTER_PX = 4;
+
+/** Whether a non-empty text selection starts inside `container`. */
+export function selectionInside(container: HTMLElement): boolean {
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed) return false;
+  return !!selection.anchorNode && container.contains(selection.anchorNode);
+}
 
 export interface ScrollTrack {
   hidden: boolean;

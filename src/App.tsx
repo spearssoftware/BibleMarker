@@ -125,9 +125,10 @@ export default function App() {
       onDismiss={() => setUpdateBannerDismissed(true)}
     />
   ) : null;
-  const modesBannerShowing = modesBannerPending && !showWelcome && !showTranslationLibrary && !showTour;
+  const onboardingShowing = showWelcome || showTranslationLibrary || showTour;
+  const modesBannerShowing = modesBannerPending && !onboardingShowing;
   useChromeHold('banner', updateBanner !== null || modesBannerShowing);
-  useChromeHold('onboarding', showWelcome || showTranslationLibrary || showTour);
+  useChromeHold('onboarding', onboardingShowing);
 
   // Initialize theme on mount (before other initialization)
   useEffect(() => {
@@ -136,7 +137,7 @@ export default function App() {
 
   // Set up keyboard shortcuts for navigation (arrow keys, J/K)
   useKeyboardShortcuts({
-    enabled: !isCheckingOnboarding && !showWelcome && !showTranslationLibrary && !showTour,
+    enabled: !isCheckingOnboarding && !onboardingShowing,
     onModeShortcut: handleModeShortcut,
   });
 

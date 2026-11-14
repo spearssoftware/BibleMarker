@@ -25,11 +25,10 @@ export function SplitLayout({ children, panel }: SplitLayoutProps) {
   const [toolbarHeight, setToolbarHeight] = useState(TOOLBAR_FALLBACK_PX);
 
   const barVisible = useBottomBarVisible();
-  // Read's top bar overlays the page, so a side panel starts below it.
-  const panelTopPad = topBarCanHide(useEffectiveMode()) && orientation === 'horizontal' ? 'var(--top-chrome-inset, 0px)' : 0;
-
   const showPanel = activePanel && !isCollapsed && panel;
   const isHorizontal = orientation === 'horizontal';
+  // Read's top bar overlays the page, so a side panel starts below it.
+  const panelTopPad = topBarCanHide(useEffectiveMode()) && isHorizontal ? 'var(--top-chrome-inset, 0px)' : 0;
 
   // Measure container — reads orientation from store directly so the observer is stable
   useEffect(() => {

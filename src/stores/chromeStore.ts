@@ -6,7 +6,7 @@
 
 import { useEffect } from 'react';
 import { create } from 'zustand';
-import { topBarCanHide, useEffectiveMode } from '@/lib/appMode';
+import { useEffectiveMode } from '@/lib/appMode';
 import { topBarHidden } from '@/lib/hidingChrome';
 import { usePanelStore } from '@/stores/panelStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
@@ -42,13 +42,11 @@ export function useChromeHold(key: string, active: boolean): void {
   }, [key, active, setHold]);
 }
 
-/** Selectors fold in the mode so Discover and Study subscribers never re-render on chrome changes. */
 export function useTopBarHidden(): boolean {
   const mode = useEffectiveMode();
-  const canHide = topBarCanHide(mode);
-  const scrollHidden = useChromeStore((s) => canHide && s.scrollHidden);
-  const held = useChromeStore((s) => canHide && Object.keys(s.holds).length > 0);
-  const panelOpen = usePanelStore((s) => canHide && s.activePanel !== null && !s.isCollapsed);
-  const hasSelection = useAnnotationStore((s) => canHide && s.selection !== null);
+  const scrollHidden = useChromeStore((s) => s.scrollHidden);
+  const held = useChromeStore((s) => Object.keys(s.holds).length > 0);
+  const panelOpen = usePanelStore((s) => s.activePanel !== null && !s.isCollapsed);
+  const hasSelection = useAnnotationStore((s) => s.selection !== null);
   return topBarHidden({ mode, scrollHidden, held, panelOpen, hasSelection });
 }

@@ -15,15 +15,9 @@ import { useAnnotationStore } from '@/stores/annotationStore';
 import { usePanelStore } from '@/stores/panelStore';
 import { useChromeStore } from '@/stores/chromeStore';
 import { useEffectiveMode, topBarCanHide } from '@/lib/appMode';
-import { nextScrollTrack, ARMED_IDLE_MS, SCROLL_KEYS, type ScrollTrack } from '@/lib/hidingChrome';
+import { nextScrollTrack, selectionInside, ARMED_IDLE_MS, SCROLL_KEYS, type ScrollTrack } from '@/lib/hidingChrome';
 
 const START: ScrollTrack = { hidden: false, lastTop: 0, travel: 0 };
-
-function selectionInside(container: HTMLElement): boolean {
-  const selection = window.getSelection();
-  if (!selection || selection.isCollapsed) return false;
-  return !!selection.anchorNode && container.contains(selection.anchorNode);
-}
 
 export function useHidingChrome(containerRef: RefObject<HTMLElement | null>, contentEl: HTMLElement | null) {
   const book = useBibleStore(s => s.currentBook);
@@ -31,7 +25,6 @@ export function useHidingChrome(containerRef: RefObject<HTMLElement | null>, con
   const mode = useEffectiveMode();
   const isRead = topBarCanHide(mode);
   const orientation = usePanelStore(s => s.orientation);
-  const held = useChromeStore(s => Object.keys(s.holds).length > 0);
   const panelOpen = usePanelStore(s => s.activePanel !== null && !s.isCollapsed);
   const hasSelection = useAnnotationStore(s => s.selection !== null);
 
@@ -48,7 +41,20 @@ export function useHidingChrome(containerRef: RefObject<HTMLElement | null>, con
     disarm();
     trackRef.current = { ...START, lastTop: containerRef.current?.scrollTop ?? 0 };
     useChromeStore.getState().reveal();
-  }, [book, chapter, mode, orientation, held, panelOpen, hasSelection, containerRef, disarm]);
+  }, [book, chapter, mode, orientation, panelOpen, hasSelection, containerRef, disarm]);
+
+  // Subscribed outside React so a hold changing does not re-render the chapter view.
+  useEffect(() => {
+    let held = Object.keys(useChromeStore.getState().holds).length > 0;
+    return useChromeStore.subscribe((s) => {
+      const nowHeld = Object.keys(s.holds).length > 0;
+      if (nowHeld === held) return;
+      held = nowHeld;
+      disarm();
+      trackRef.current = { ...START, lastTop: containerRef.current?.scrollTop ?? 0 };
+      s.reveal();
+    });
+  }, [containerRef, disarm]);
 
   useEffect(() => {
     if (!isRead) return;

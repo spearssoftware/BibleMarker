@@ -32,7 +32,7 @@ import { useCurrentVerseTracker } from '@/hooks/useCurrentVerseTracker';
 import { useRestoreReadingPosition } from '@/hooks/useRestoreReadingPosition';
 import { useHidingChrome } from '@/hooks/useHidingChrome';
 import { useChromeStore } from '@/stores/chromeStore';
-import { isRevealTarget } from '@/lib/hidingChrome';
+import { isRevealTarget, selectionInside } from '@/lib/hidingChrome';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { usePanelStore } from '@/stores/panelStore';
 import { useTextSelection, type TranslationChapter } from '@/hooks/useTextSelection';
@@ -603,10 +603,8 @@ export function MultiTranslationView() {
   // True when the tap that is about to click began on a text selection: that tap only clears it.
   const selectionAtPressRef = useRef(false);
   const notePress = useCallback(() => {
-    const sel = window.getSelection();
     const container = verseContainerRef.current;
-    selectionAtPressRef.current = selectionAtPressRef.current
-      || (!!sel && !sel.isCollapsed && !!sel.anchorNode && !!container?.contains(sel.anchorNode));
+    selectionAtPressRef.current = selectionAtPressRef.current || (!!container && selectionInside(container));
   }, []);
 
   useEffect(() => {
@@ -696,8 +694,8 @@ export function MultiTranslationView() {
 
     // A tap on plain text that nothing else claimed brings the top bar back.
     // Marks, cross-references, lens hits and verse numbers stop the event or
-    // are excluded by isRevealTarget; anything open holds the bar shown, so a
-    // tap that closes a menu never doubles as a reveal.
+    // are excluded by isRevealTarget; popups with `data-chrome-ignore` backdrops
+    // are too, so a tap that closes one never doubles as a reveal.
     const clearedSelection = selectionAtPressRef.current;
     selectionAtPressRef.current = false;
     if (!clearedSelection && !e.defaultPrevented && isRevealTarget(e.target as Element)) {

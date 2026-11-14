@@ -45,6 +45,56 @@ const TOOLS: { type: 'keywords' | 'observe' | 'analyze' | 'reference'; icon: str
   { type: 'reference', icon: '📖', label: 'Study Tools' },
 ];
 
+/** Its own component so the top bar hiding re-renders only the arrows, not the whole toolbar. */
+function ChapterArrows({ arrowBottom }: { arrowBottom: string }) {
+  const { previousChapter, nextChapter, canGoNext, canGoPrevious } = useBibleStore();
+  // The arrows hide with the top bar but stay tabbable; focusing one shows both.
+  const arrowsHidden = useTopBarHidden();
+  const reveal = useChromeStore(s => s.reveal);
+  const arrowHiddenClass = arrowsHidden ? 'opacity-0 pointer-events-none' : '';
+
+  return (
+    <>
+      {/* Chapter arrows — faint, floated at the screen edges (YouVersion-style),
+          so they take no layout space. Sit just above the bottom tab bar. */}
+      <button
+        onClick={() => previousChapter()}
+        disabled={!canGoPrevious()}
+        onFocus={reveal}
+        className={`fixed left-0 z-20 pl-0.5 pr-2 py-3 text-scripture-muted/40 hover:text-scripture-text
+                   disabled:opacity-0 transition-opacity motion-reduce:!transition-none touch-target ${arrowHiddenClass}`}
+        style={{
+          bottom: arrowBottom,
+          left: 'env(safe-area-inset-left, 0px)',
+          transition: 'bottom 300ms ease-out, opacity 150ms',
+        }}
+        aria-label="Previous chapter"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <button
+        onClick={() => nextChapter()}
+        disabled={!canGoNext()}
+        onFocus={reveal}
+        className={`fixed right-0 z-20 pr-0.5 pl-2 py-3 text-scripture-muted/40 hover:text-scripture-text
+                   disabled:opacity-0 transition-opacity motion-reduce:!transition-none touch-target ${arrowHiddenClass}`}
+        style={{
+          bottom: arrowBottom,
+          right: 'calc(env(safe-area-inset-right, 0px) + var(--reader-inset-right, 0px))',
+          transition: 'right 300ms ease-out, bottom 300ms ease-out, opacity 150ms',
+        }}
+        aria-label="Next chapter"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+    </>
+  );
+}
+
 export function Toolbar() {
   const {
     setActiveTool,
@@ -54,11 +104,6 @@ export function Toolbar() {
     toolbarVisible,
   } = useAnnotationStore();
 
-  const { previousChapter, nextChapter, canGoNext, canGoPrevious } = useBibleStore();
-  // The arrows hide with the top bar but stay tabbable; focusing one shows both.
-  const arrowsHidden = useTopBarHidden();
-  const reveal = useChromeStore(s => s.reveal);
-  const arrowHiddenClass = arrowsHidden ? 'opacity-0 pointer-events-none' : '';
   const { createTextAnnotation, createSymbolAnnotation, createAnnotationsAcrossTranslations, loadAnnotations, quickHighlight } = useAnnotations();
   const { presets, loadPresets, markPresetUsed, updatePreset, removePreset } = useMarkingPresetStore();
   const activeStudyId = useEffectiveStudyId();
@@ -373,42 +418,7 @@ export function Toolbar() {
 
   return (
     <>
-      {/* Chapter arrows — faint, floated at the screen edges (YouVersion-style),
-          so they take no layout space. Sit just above the bottom tab bar. */}
-      <button
-        onClick={() => previousChapter()}
-        disabled={!canGoPrevious()}
-        onFocus={reveal}
-        className={`fixed left-0 z-20 pl-0.5 pr-2 py-3 text-scripture-muted/40 hover:text-scripture-text
-                   disabled:opacity-0 transition-opacity motion-reduce:!transition-none touch-target ${arrowHiddenClass}`}
-        style={{
-          bottom: arrowBottom,
-          left: 'env(safe-area-inset-left, 0px)',
-          transition: 'bottom 300ms ease-out, opacity 150ms',
-        }}
-        aria-label="Previous chapter"
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
-      <button
-        onClick={() => nextChapter()}
-        disabled={!canGoNext()}
-        onFocus={reveal}
-        className={`fixed right-0 z-20 pr-0.5 pl-2 py-3 text-scripture-muted/40 hover:text-scripture-text
-                   disabled:opacity-0 transition-opacity motion-reduce:!transition-none touch-target ${arrowHiddenClass}`}
-        style={{
-          bottom: arrowBottom,
-          right: 'calc(env(safe-area-inset-right, 0px) + var(--reader-inset-right, 0px))',
-          transition: 'right 300ms ease-out, bottom 300ms ease-out, opacity 150ms',
-        }}
-        aria-label="Next chapter"
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
-      </button>
+      <ChapterArrows arrowBottom={arrowBottom} />
 
       <div className="fixed left-0 right-0 z-30"
            style={{
