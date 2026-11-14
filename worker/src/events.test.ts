@@ -147,14 +147,14 @@ describe('handleEvents — validation', () => {
     expect(res.status).toBe(202);
   });
 
-  it('accepts the mode_chosen event name', async () => {
-    const { env } = envWith();
-    const res = await handleEvents(
-      req({ ...VALID_BODY, events: [{ name: 'mode_chosen', feature: 'mode_read' }] }),
-      env
-    );
-    expect(res.status).toBe(202);
-  });
+  it.each(['mode_chosen', 'plan_started', 'plan_day_completed'])(
+    'accepts the %s event name',
+    async (name) => {
+      const { env } = envWith();
+      const res = await handleEvents(req({ ...VALID_BODY, events: [{ name }] }), env);
+      expect(res.status).toBe(202);
+    }
+  );
 
   it('rejects an event name outside the allowlist', async () => {
     const { env } = envWith();

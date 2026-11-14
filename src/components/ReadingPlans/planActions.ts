@@ -3,6 +3,7 @@ import type { ChapterRef } from '@/lib/readingPlans';
 import { useReadingPlanStore } from '@/stores/readingPlanStore';
 import { useBibleStore } from '@/stores/bibleStore';
 import { toast } from '@/stores/toastStore';
+import { track } from '@/lib/telemetry';
 import { confirmDialog } from '@/stores/confirmDialogStore';
 
 export const SAVE_ERROR = "Couldn't save your reading plan. Try again.";
@@ -19,11 +20,24 @@ export async function runPlanAction(fn: () => Promise<unknown>): Promise<boolean
   }
 }
 
+/** Counts an opt-in event, but only for a write that went through. */
+async function trackAfterSave(event: 'plan_started' | 'plan_day_completed', saved: Promise<boolean>) {
+  const ok = await saved;
+  if (ok) track(event);
+  return ok;
+}
+
 export const startPlan = (scope: ReadingPlanScope, days: number) =>
-  runPlanAction(() => useReadingPlanStore.getState().createPlan(scope, days));
+  trackAfterSave(
+    'plan_started',
+    runPlanAction(() => useReadingPlanStore.getState().createPlan(scope, days))
+  );
 
 export const markDayComplete = (planId: string, day: number) =>
-  runPlanAction(() => useReadingPlanStore.getState().completeDay(planId, day));
+  trackAfterSave(
+    'plan_day_completed',
+    runPlanAction(() => useReadingPlanStore.getState().completeDay(planId, day))
+  );
 
 export const unmarkDay = (planId: string, day: number) =>
   runPlanAction(() => useReadingPlanStore.getState().uncompleteDay(planId, day));

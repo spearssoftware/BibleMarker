@@ -29,6 +29,8 @@ const EVENT_NAMES = new Set([
   'lens_toggled',
   'discovery_checklist_completed',
   'mode_chosen',
+  'plan_started',
+  'plan_day_completed',
 ]);
 
 /** Mirrored from `src/lib/platform.ts` platform tags. */
