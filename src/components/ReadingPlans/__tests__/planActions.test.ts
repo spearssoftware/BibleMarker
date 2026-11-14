@@ -5,8 +5,8 @@ vi.mock('@/lib/telemetry', () => ({ track }));
 
 const store = vi.hoisted(() => ({
   createPlan: vi.fn(async () => ({})),
-  completeDay: vi.fn(async () => {}),
-  uncompleteDay: vi.fn(async () => {}),
+  completeDay: vi.fn(async () => true),
+  uncompleteDay: vi.fn(async () => true),
 }));
 vi.mock('@/stores/readingPlanStore', () => ({
   useReadingPlanStore: { getState: () => store },
@@ -37,6 +37,12 @@ describe('planActions telemetry', () => {
   it('counts a completed day after the save succeeds', async () => {
     expect(await markDayComplete('p1', 1)).toBe(true);
     expect(track).toHaveBeenCalledExactlyOnceWith('plan_day_completed');
+  });
+
+  it('does not count a day that was already complete', async () => {
+    store.completeDay.mockResolvedValueOnce(false);
+    expect(await markDayComplete('p1', 1)).toBe(true);
+    expect(track).not.toHaveBeenCalled();
   });
 
   it('does not count a day that failed to save', async () => {

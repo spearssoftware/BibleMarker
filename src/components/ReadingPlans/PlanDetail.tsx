@@ -25,6 +25,7 @@ export function PlanDetail({ planId, onBack, onNavigate }: PlanDetailProps) {
   const done = useMemo(() => (plan ? completedDays(plan, dayRows) : new Set<number>()), [plan, dayRows]);
 
   const listRef = useRef<HTMLDivElement>(null);
+  const inFlightRef = useRef(new Set<number>());
   const firstIncompleteRef = useRef<number | null>(null);
   if (firstIncompleteRef.current === null) {
     let day = 1;
@@ -48,8 +49,15 @@ export function PlanDetail({ planId, onBack, onNavigate }: PlanDetailProps) {
 
   if (!plan || !supported) return null;
 
-  const toggle = (day: number, checked: boolean) =>
-    checked ? markDayComplete(plan.id, day) : unmarkDay(plan.id, day);
+  const toggle = async (day: number, checked: boolean) => {
+    if (inFlightRef.current.has(day)) return;
+    inFlightRef.current.add(day);
+    try {
+      await (checked ? markDayComplete(plan.id, day) : unmarkDay(plan.id, day));
+    } finally {
+      inFlightRef.current.delete(day);
+    }
+  };
 
   const handleDelete = async () => {
     if (await confirmAndRemovePlan(plan.id)) onBack();

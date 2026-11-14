@@ -31,12 +31,16 @@ interface ReadingPlanState {
 
   loadPlans: () => Promise<void>;
   createPlan: (scope: ReadingPlanScope, days: number, today?: string) => Promise<ReadingPlan>;
-  completeDay: (planId: string, day: number) => Promise<void>;
+  /** Resolves true when a row was written, false when the day was already complete or is being completed. */
+  completeDay: (planId: string, day: number) => Promise<boolean>;
   uncompleteDay: (planId: string, day: number) => Promise<void>;
   /** Moves the start date so the first incomplete day is due today. No-op unless the plan is behind. */
   shiftDates: (planId: string, today?: string) => Promise<void>;
   deletePlan: (planId: string) => Promise<void>;
 }
+
+/** Day ids with a completion write in flight, so a second call cannot write the same row. */
+const completing = new Set<string>();
 
 export const useReadingPlanStore = create<ReadingPlanState>()(
   persist(
@@ -74,11 +78,17 @@ export const useReadingPlanStore = create<ReadingPlanState>()(
           throw new RangeError(`Day ${day} is not part of this reading plan.`);
         }
         const id = readingPlanDayId(planId, day);
-        if (get().dayRows.some((row) => row.id === id)) return;
-        const now = new Date();
-        const row: ReadingPlanDay = { id, planId, day, completedAt: now, updatedAt: now };
-        await saveReadingPlanDay(row);
-        set({ dayRows: [...get().dayRows, row] });
+        if (completing.has(id) || get().dayRows.some((row) => row.id === id)) return false;
+        completing.add(id);
+        try {
+          const now = new Date();
+          const row: ReadingPlanDay = { id, planId, day, completedAt: now, updatedAt: now };
+          await saveReadingPlanDay(row);
+          set({ dayRows: [...get().dayRows, row] });
+          return true;
+        } finally {
+          completing.delete(id);
+        }
       },
 
       uncompleteDay: async (planId, day) => {

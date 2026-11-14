@@ -11,6 +11,8 @@ const db = vi.hoisted(() => ({
   deleteReadingPlan: vi.fn(async (_id: string) => {}),
 }));
 vi.mock('@/lib/database', () => db);
+const track = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/telemetry', () => ({ track }));
 
 import type { ReadingPlan, ReadingPlanDay } from '@/types';
 import { PlanDetail } from '../PlanDetail';
@@ -78,6 +80,15 @@ describe('PlanDetail', () => {
     fireEvent.click(box('Day 2: John 2'));
     await waitFor(() => expect(box('Day 2: John 2').checked).toBe(false));
     expect(db.deleteReadingPlanDay).toHaveBeenCalledWith('p1:2');
+  });
+
+  it('writes and counts a day once when the box is tapped twice', async () => {
+    renderDetail();
+    fireEvent.click(box('Day 2: John 2'));
+    fireEvent.click(box('Day 2: John 2'));
+    await waitFor(() => expect(box('Day 2: John 2').checked).toBe(true));
+    expect(db.saveReadingPlanDay).toHaveBeenCalledTimes(1);
+    expect(track).toHaveBeenCalledTimes(1);
   });
 
   it('leaves the box as it was and shows the toast when saving fails', async () => {

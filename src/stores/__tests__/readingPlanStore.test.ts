@@ -95,10 +95,18 @@ describe('completeDay and uncompleteDay', () => {
     expect(state().dayRows.map((r) => r.id)).toEqual(['p1:3']);
   });
 
-  it('is idempotent', async () => {
-    await state().completeDay('p1', 3);
-    await state().completeDay('p1', 3);
+  it('reports whether it wrote and is idempotent', async () => {
+    expect(await state().completeDay('p1', 3)).toBe(true);
+    expect(await state().completeDay('p1', 3)).toBe(false);
 
+    expect(db.saveReadingPlanDay).toHaveBeenCalledTimes(1);
+    expect(state().dayRows).toHaveLength(1);
+  });
+
+  it('writes once when called twice before the first write finishes', async () => {
+    const results = await Promise.all([state().completeDay('p1', 3), state().completeDay('p1', 3)]);
+
+    expect(results.sort()).toEqual([false, true]);
     expect(db.saveReadingPlanDay).toHaveBeenCalledTimes(1);
     expect(state().dayRows).toHaveLength(1);
   });

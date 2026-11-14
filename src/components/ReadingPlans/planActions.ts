@@ -20,24 +20,21 @@ export async function runPlanAction(fn: () => Promise<unknown>): Promise<boolean
   }
 }
 
-/** Counts an opt-in event, but only for a write that went through. */
-async function trackAfterSave(event: 'plan_started' | 'plan_day_completed', saved: Promise<boolean>) {
-  const ok = await saved;
-  if (ok) track(event);
+export const startPlan = async (scope: ReadingPlanScope, days: number) => {
+  const ok = await runPlanAction(() => useReadingPlanStore.getState().createPlan(scope, days));
+  if (ok) track('plan_started');
   return ok;
-}
+};
 
-export const startPlan = (scope: ReadingPlanScope, days: number) =>
-  trackAfterSave(
-    'plan_started',
-    runPlanAction(() => useReadingPlanStore.getState().createPlan(scope, days))
-  );
-
-export const markDayComplete = (planId: string, day: number) =>
-  trackAfterSave(
-    'plan_day_completed',
-    runPlanAction(() => useReadingPlanStore.getState().completeDay(planId, day))
-  );
+/** Resolves true when the day is saved as complete; the event is counted only for the call that wrote it. */
+export const markDayComplete = async (planId: string, day: number) => {
+  let wrote = false;
+  const ok = await runPlanAction(async () => {
+    wrote = await useReadingPlanStore.getState().completeDay(planId, day);
+  });
+  if (ok && wrote) track('plan_day_completed');
+  return ok;
+};
 
 export const unmarkDay = (planId: string, day: number) =>
   runPlanAction(() => useReadingPlanStore.getState().uncompleteDay(planId, day));
