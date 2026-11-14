@@ -14,15 +14,17 @@ const chapterKey = (book: string, chapter: number) => `${book}:${chapter}`;
 
 /**
  * The reading plans that apply to the open chapter, plus the action that
- * completes a plan's day from the chapter's end. A completed day is remembered
- * until the reader leaves the chapter, so its strip and confirmation stay put
- * even though the plan's current day has moved on.
+ * completes a plan's day from the chapter's end. A plan shown on the chapter
+ * keeps its entry until the reader leaves, even when its current day moves on
+ * (completed here, from the panel, or by sync), so the text above and below the
+ * reader's position never changes height under them.
  */
 export function useReaderPlans(book: string, chapter: number) {
   const plans = useReadingPlanStore((s) => s.plans);
   const dayRows = useReadingPlanStore((s) => s.dayRows);
   const key = chapterKey(book, chapter);
   const [completed, setCompleted] = useState<JustCompleted>({ key, byPlan: {} });
+  const [seen, setSeen] = useState<JustCompleted>({ key, byPlan: {} });
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
 
   // A→B→A must not bring the first visit's marks back, so leaving the chapter clears them.
@@ -37,10 +39,25 @@ export function useReaderPlans(book: string, chapter: number) {
 
   const today = todayLocal();
   const justCompleted = completed.key === key ? completed.byPlan : undefined;
+  const seenByPlan = seen.key === key ? seen.byPlan : undefined;
   const entries = useMemo(
-    () => chapterPlanEntries({ plans, dayRows, book, chapter, today, justCompleted: justCompleted ?? {} }),
-    [plans, dayRows, book, chapter, today, justCompleted]
+    () =>
+      chapterPlanEntries({
+        plans,
+        dayRows,
+        book,
+        chapter,
+        today,
+        justCompleted: { ...seenByPlan, ...justCompleted },
+      }),
+    [plans, dayRows, book, chapter, today, seenByPlan, justCompleted]
   );
+
+  // Days shown here are held as if completed here: once one is done, its entry stays as "completed".
+  // Recorded during render, so no render ever lacks an entry that the one before it had.
+  if (seen.key !== key || entries.some((e) => seenByPlan?.[e.planId] !== e.day)) {
+    setSeen({ key, byPlan: { ...seenByPlan, ...Object.fromEntries(entries.map((e) => [e.planId, e.day])) } });
+  }
 
   const complete = useCallback(
     async (planId: string, day: number) => {

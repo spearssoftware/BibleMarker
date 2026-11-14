@@ -48,6 +48,7 @@ import type { Annotation, Chapter, SectionHeading, Note, ChapterTitle } from '@/
 import { LAYOUT_REKEY_MS } from './layoutConstants';
 import { ReaderPlanStrip, ReaderPlanEndActions } from '@/components/ReadingPlans';
 import { useReaderPlans } from '@/hooks/useReaderPlans';
+import { useStripScrollCompensation } from '@/hooks/useStripScrollCompensation';
 
 const KJV_FALLBACK_ERROR_PREFIX = 'Showing KJV';
 /** Stands in for the top bar's height until NavigationBar publishes it. */
@@ -583,6 +584,12 @@ export function MultiTranslationView() {
   const { entries: planEntries, complete: completePlanDay, pending: pendingPlans } =
     useReaderPlans(currentBook, currentChapter);
   const showPlans = trackerRange.ready && planEntries.length > 0;
+  useStripScrollCompensation(
+    verseContainerRef,
+    verseContentEl,
+    `${currentBook}:${currentChapter}`,
+    showPlans ? planEntries.length : 0
+  );
   useCurrentVerseTracker(verseContainerRef, verseContentEl, {
     locationKey: `${currentBook}:${currentChapter}`,
     ...trackerRange,

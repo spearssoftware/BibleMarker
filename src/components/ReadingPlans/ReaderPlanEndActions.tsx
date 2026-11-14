@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { getBookById } from '@/types/bible';
 import type { ChapterPlanEntry } from '@/lib/readingPlans';
 import { readingLabel } from '@/lib/readingPlans';
@@ -16,40 +17,67 @@ interface EntryActionsProps extends Omit<ReaderPlanEndActionsProps, 'entries'> {
 }
 
 function EntryActions({ entry, onComplete, pending }: EntryActionsProps) {
-  if (entry.kind === 'completed') {
-    const { next } = entry;
-    return (
-      <>
-        <p className="text-scripture-text">Day {entry.day} complete.</p>
-        {next && (
-          <>
-            <p className="text-sm text-scripture-muted">Next: {readingLabel(next)}</p>
-            <Button variant="secondary" onClick={() => goToChapter(next.chapters[0])}>
-              Read on
-            </Button>
-          </>
-        )}
-      </>
-    );
-  }
+  const rootRef = useRef<HTMLDivElement>(null);
+  const confirmationRef = useRef<HTMLParagraphElement>(null);
+  const pressedRef = useRef(false);
+  const completed = entry.kind === 'completed';
 
-  const { nextInDay } = entry;
-  if (nextInDay) {
-    const bookName = getBookById(nextInDay.bookId)?.name ?? nextInDay.bookId;
+  // The pressed button is replaced by the confirmation, so focus would fall to the page.
+  // Only a completion made with this button moves focus; one that arrives from elsewhere does not.
+  useEffect(() => {
+    if (!completed || !pressedRef.current) return;
+    pressedRef.current = false;
+    const target = rootRef.current?.querySelector('button') ?? confirmationRef.current;
+    target?.focus({ preventScroll: true });
+  }, [completed]);
+
+  const body = () => {
+    if (entry.kind === 'completed') {
+      const { next } = entry;
+      return next ? (
+        <>
+          <p className="text-sm text-scripture-muted">Next: {readingLabel(next)}</p>
+          <Button variant="secondary" onClick={() => goToChapter(next.chapters[0])}>
+            Read on
+          </Button>
+        </>
+      ) : null;
+    }
+
+    const { nextInDay } = entry;
+    if (nextInDay) {
+      const bookName = getBookById(nextInDay.bookId)?.name ?? nextInDay.bookId;
+      return (
+        <Button variant="primary" onClick={() => goToChapter(nextInDay)}>
+          Continue to {bookName} {nextInDay.chapter}
+        </Button>
+      );
+    }
     return (
-      <Button variant="primary" onClick={() => goToChapter(nextInDay)}>
-        Continue to {bookName} {nextInDay.chapter}
+      <Button
+        variant="primary"
+        disabled={pending.has(entry.planId)}
+        onClick={() => {
+          pressedRef.current = true;
+          onComplete(entry.planId, entry.day);
+        }}
+      >
+        Mark day {entry.day} complete
       </Button>
     );
-  }
+  };
+
   return (
-    <Button
-      variant="primary"
-      disabled={pending.has(entry.planId)}
-      onClick={() => onComplete(entry.planId, entry.day)}
-    >
-      Mark day {entry.day} complete
-    </Button>
+    <div ref={rootRef} className="space-y-2">
+      <div aria-live="polite">
+        {entry.kind === 'completed' && (
+          <p ref={confirmationRef} tabIndex={-1} className="text-scripture-text focus:outline-none">
+            Day {entry.day} complete.
+          </p>
+        )}
+      </div>
+      {body()}
+    </div>
   );
 }
 
@@ -58,7 +86,7 @@ export function ReaderPlanEndActions({ entries, onComplete, pending }: ReaderPla
   return (
     <div className="select-none mt-6 space-y-4" data-reader-plan-actions>
       {entries.map((entry) => (
-        <section key={entry.planId} aria-label={entry.name} className="space-y-2">
+        <section key={entry.planId} aria-label={entry.name}>
           <EntryActions entry={entry} onComplete={onComplete} pending={pending} />
         </section>
       ))}

@@ -86,6 +86,40 @@ describe('reader plan strip and end actions', () => {
     expect(screen.queryByText('Day 1 complete.')).toBeNull();
   });
 
+  it('announces the confirmation in a live region that was already on the page and focuses "Read on"', async () => {
+    setPlans(makePlan());
+    const { container } = render(<Harness />);
+    const region = container.querySelector('[aria-live="polite"]') as HTMLElement;
+    expect(region).toBeTruthy();
+    expect(region.textContent).toBe('');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark day 1 complete' }));
+
+    await waitFor(() => expect(region.textContent).toBe('Day 1 complete.'));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Read on' }));
+  });
+
+  it('focuses the confirmation when there is nothing to read on to', async () => {
+    setPlans(makePlan({ scope: { kind: 'book', bookId: 'Phlm' }, days: 1 }));
+    useBibleStore.setState({ currentBook: 'Phlm', currentChapter: 1 });
+    render(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mark day 1 complete' }));
+
+    const confirmation = await screen.findByText('Day 1 complete.');
+    expect(document.activeElement).toBe(confirmation);
+  });
+
+  it('does not take focus when the day was completed from elsewhere', async () => {
+    setPlans(makePlan());
+    render(<Harness />);
+    useReadingPlanStore.setState({
+      dayRows: [{ id: 'p1:1', planId: 'p1', day: 1, completedAt: new Date(0), updatedAt: new Date(0) }],
+    });
+
+    await screen.findByText('Day 1 complete.');
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it('says nothing more after the last day is completed', async () => {
     setPlans(makePlan({ scope: { kind: 'book', bookId: 'Phlm' }, days: 1 }));
     useBibleStore.setState({ currentBook: 'Phlm', currentChapter: 1 });
@@ -107,6 +141,17 @@ describe('reader plan strip and end actions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue to Haggai 2' }));
     expect(useBibleStore.getState().currentBook).toBe('Hag');
     expect(useBibleStore.getState().currentChapter).toBe(2);
+  });
+
+  it('keeps showing a plan on the chapter after its day is ticked elsewhere', async () => {
+    setPlans(makePlan());
+    render(<Harness />);
+    useReadingPlanStore.setState({
+      dayRows: [{ id: 'p1:1', planId: 'p1', day: 1, completedAt: new Date(0), updatedAt: new Date(0) }],
+    });
+
+    await screen.findByText('Day 1 complete.');
+    expect(stripText('John in 21 days · Day 1 · John 1')).toBeTruthy();
   });
 
   it('shows nothing on a chapter no plan is on', () => {

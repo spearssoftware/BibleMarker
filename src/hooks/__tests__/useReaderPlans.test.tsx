@@ -65,6 +65,25 @@ describe('useReaderPlans', () => {
     expect(result.current.entries[0]).toMatchObject({ kind: 'completed', day: 1 });
   });
 
+  it('never renders an empty list between the store write and the confirmation', async () => {
+    markSucceeds();
+    const lengths: number[] = [];
+    const { result } = renderHook(() => {
+      const value = useReaderPlans('John', 1);
+      lengths.push(value.entries.length);
+      return value;
+    });
+    await act(async () => { await result.current.complete('p1', 1); });
+    expect(lengths.every((n) => n === 1)).toBe(true);
+  });
+
+  it('keeps the entry as completed when the day is ticked elsewhere', () => {
+    const { result } = renderHook(() => useReaderPlans('John', 1));
+    expect(result.current.entries[0].kind).toBe('current');
+    act(() => useReadingPlanStore.setState({ dayRows: [row] }));
+    expect(result.current.entries[0]).toMatchObject({ kind: 'completed', day: 1 });
+  });
+
   it('stays current after a failed mark', async () => {
     markDayComplete.mockResolvedValue(false);
     const { result } = renderHook(() => useReaderPlans('John', 1));
