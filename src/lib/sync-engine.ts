@@ -456,14 +456,7 @@ async function pullFromDevice(remoteDevice: string): Promise<PullResult> {
         if (!SYNCED_TABLES.has(entry.table)) continue;
         if (entry.op !== 'upsert' && entry.op !== 'delete') continue;
 
-        const wasApplied = await applyRemoteChange(
-          entry.table,
-          entry.op,
-          entry.id,
-          entry.data ? JSON.stringify(entry.data) : null,
-          entry.ts,
-          entry.device
-        );
+        const wasApplied = await applyPendingChange(entry);
 
         if (wasApplied) {
           applied++;
@@ -548,14 +541,7 @@ function latestSnapshotsByDevice(names: readonly string[]): Map<string, { name: 
 }
 
 /** One change to apply through applyRemoteChange. */
-interface PendingChange {
-  table: string;
-  id: string;
-  op: 'upsert' | 'delete';
-  data: unknown;
-  ts: string;
-  device: string;
-}
+type PendingChange = Omit<ChangeEntry, 'seq'>;
 
 /** A snapshot record as an upsert, with the id and timestamp bootstrap uses. */
 function snapshotRecordChange(
@@ -583,15 +569,6 @@ function applyPendingChange(change: PendingChange): Promise<boolean> {
     change.ts,
     change.device
   );
-}
-
-/** Apply one snapshot record as an upsert through the normal newest-wins path. */
-function applySnapshotRecord(
-  table: string,
-  record: Record<string, unknown>,
-  snapshot: SnapshotFile
-): Promise<boolean> {
-  return applyPendingChange(snapshotRecordChange(table, record, snapshot));
 }
 
 /**
@@ -626,7 +603,7 @@ async function bootstrapFromSnapshot(remoteDevice: string): Promise<PullResult> 
       if (!SYNCED_TABLES.has(dbTableName)) continue;
 
       for (const record of records as Array<Record<string, unknown>>) {
-        const wasApplied = await applySnapshotRecord(dbTableName, record, snapshot);
+        const wasApplied = await applyPendingChange(snapshotRecordChange(dbTableName, record, snapshot));
 
         if (wasApplied) {
           applied++;

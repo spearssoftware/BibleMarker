@@ -110,6 +110,14 @@ class FakeDatabase {
       return this.store.changeLog.filter((entry) => entry.flushed === 0).map((entry) => ({ ...entry }));
     }
 
+    const byField = /^SELECT id FROM (\w+) WHERE json_extract\(data, '\$\.(\w+)'\) = \?$/.exec(text);
+    if (byField) {
+      const [, table, field] = byField;
+      return [...tableRows(this.store, table).values()]
+        .filter((row) => (JSON.parse(String(row.data)) as Row)[field] === params[0])
+        .map((row) => ({ id: row.id }));
+    }
+
     const select = /^SELECT ([\w, ]+) FROM (\w+)(?: WHERE id = \?)?$/.exec(text);
     if (!select) return [];
     const columns = splitList(select[1]);

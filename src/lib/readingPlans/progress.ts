@@ -1,5 +1,5 @@
 import type { ReadingPlan, ReadingPlanDay } from '@/types/readingPlan';
-import { isValidScope, selectionChapters } from './chapters';
+import { chapterCount, isValidScope } from './chapters';
 import { daysBehind, isValidDateString } from './dates';
 import { SCHEDULE_VERSION, generateSchedule } from './schedule';
 import type { ScheduleDay } from './schedule';
@@ -20,7 +20,7 @@ export function isSupportedPlan(plan: ReadingPlan): boolean {
     isValidScope(plan.scope) &&
     Number.isInteger(plan.days) &&
     plan.days >= 1 &&
-    plan.days <= selectionChapters(plan.scope).length &&
+    plan.days <= chapterCount(plan.scope) &&
     isValidDateString(plan.startDate)
   );
 }
@@ -60,10 +60,11 @@ export function sortPlans(
   plans: readonly ReadingPlan[],
   dayRows: readonly ReadingPlanDay[]
 ): ReadingPlan[] {
-  const finished = (plan: ReadingPlan) =>
-    isSupportedPlan(plan) && completedDays(plan, dayRows).size >= plan.days;
-  const created = (plan: ReadingPlan) => new Date(plan.createdAt).getTime();
-  return [...plans].sort(
-    (a, b) => Number(finished(a)) - Number(finished(b)) || created(b) - created(a)
-  );
+  const keyed = plans.map((plan) => ({
+    plan,
+    finished: Number(isSupportedPlan(plan) && completedDays(plan, dayRows).size >= plan.days),
+    created: new Date(plan.createdAt).getTime(),
+  }));
+  keyed.sort((a, b) => a.finished - b.finished || b.created - a.created);
+  return keyed.map(({ plan }) => plan);
 }

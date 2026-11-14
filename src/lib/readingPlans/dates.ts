@@ -29,9 +29,7 @@ export function todayLocal(now: Date = new Date()): string {
 
 /** Moves a date by calendar fields, so daylight-saving changes cannot shift it. */
 export function addDays(date: string, n: number): string {
-  const match = DATE_PATTERN.exec(date);
-  if (!match) throw new RangeError(`Invalid date "${date}"; expected YYYY-MM-DD.`);
-  return formatUtc(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + n));
+  return formatUtc(parseUtc(date) + n * MS_PER_DAY);
 }
 
 /** Whole calendar days from `a` to `b`; negative when `b` is earlier. */

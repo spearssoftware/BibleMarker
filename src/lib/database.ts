@@ -780,11 +780,13 @@ export async function deleteReadingPlanDay(id: string): Promise<void> {
 
 /** Deletes the plan and the day rows this device has for it, each logged for sync. */
 export async function deleteReadingPlan(id: string): Promise<void> {
-  const days = await getAllReadingPlanDays();
-  for (const row of days) {
-    if (row.planId === id) await deleteReadingPlanDay(row.id);
-  }
   const mod = await sqlite();
+  const db = await mod.getSqliteDb();
+  const days = await db.select<{ id: string }[]>(
+    `SELECT id FROM reading_plan_days WHERE json_extract(data, '$.planId') = ?`,
+    [id],
+  );
+  for (const row of days) await deleteReadingPlanDay(row.id);
   await mod.sqliteDeleteFromTable('reading_plans', id);
   await logChange('reading_plans', 'delete', id);
 }

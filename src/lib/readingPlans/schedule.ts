@@ -54,14 +54,14 @@ export function splitByVerses(verseCounts: readonly number[], days: number): num
 
 /** Splits the selection into `days` contiguous runs of whole chapters, balanced by KJV verse count. */
 export function generateSchedule(scope: ReadingPlanScope, days: number): Schedule {
+  const key = `${scope.kind}:${scope.kind === 'book' ? scope.bookId : ''}:${days}`;
+  const cached = cache.get(key);
+  if (cached) return cached;
+
   const chapters = selectionChapters(scope);
   if (!Number.isInteger(days) || days < 1 || days > chapters.length) {
     throw new RangeError(`Choose between 1 and ${chapters.length} days.`);
   }
-
-  const key = `${scope.kind}:${scope.kind === 'book' ? scope.bookId : ''}:${days}`;
-  const cached = cache.get(key);
-  if (cached) return cached;
 
   const ends = splitByVerses(
     chapters.map(({ bookId, chapter }) => KJV_VERSE_COUNTS[bookId][chapter - 1]),

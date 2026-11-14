@@ -1,4 +1,4 @@
-import { BIBLE_BOOKS, KJV_VERSE_COUNTS, getBookById } from '@/types/bible';
+import { BIBLE_BOOKS, KJV_VERSE_COUNTS, getBookById, getNTBooks, getOTBooks } from '@/types/bible';
 import type { BookInfo } from '@/types/bible';
 import type { ReadingPlanScope } from '@/types/readingPlan';
 
@@ -19,9 +19,9 @@ function booksFor(scope: ReadingPlanScope): BookInfo[] {
     case 'bible':
       return BIBLE_BOOKS;
     case 'ot':
-      return BIBLE_BOOKS.filter((b) => b.testament === 'OT');
+      return getOTBooks();
     case 'nt':
-      return BIBLE_BOOKS.filter((b) => b.testament === 'NT');
+      return getNTBooks();
     case 'book':
       return BIBLE_BOOKS.filter((b) => b.id === scope.bookId);
   }
@@ -37,6 +37,15 @@ export function selectionChapters(scope: ReadingPlanScope): ChapterRef[] {
   );
 }
 
+/** Number of chapters in the selection, without building the list. */
+export function chapterCount(scope: ReadingPlanScope): number {
+  return booksFor(scope).reduce((sum, book) => sum + KJV_VERSE_COUNTS[book.id].length, 0);
+}
+
+export function bookName(bookId: string): string {
+  return getBookById(bookId)?.name ?? bookId;
+}
+
 export function selectionName(scope: ReadingPlanScope): string {
   switch (scope.kind) {
     case 'bible':
@@ -46,6 +55,6 @@ export function selectionName(scope: ReadingPlanScope): string {
     case 'nt':
       return 'New Testament';
     case 'book':
-      return getBookById(scope.bookId)?.name ?? scope.bookId;
+      return bookName(scope.bookId);
   }
 }

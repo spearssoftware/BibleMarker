@@ -20,6 +20,7 @@ import type { EntityNote } from '@/types';
 import type { KeywordExclusion } from '@/types';
 import type { ReadingPlan, ReadingPlanDay } from '@/types';
 import { isValidDateString } from './readingPlans/dates';
+import { readingPlanDayId } from './readingPlans/progress';
 import type { VerseRef } from '@/types';
 import { HIGHLIGHT_COLORS, isKnownSymbolKey } from '@/types';
 
@@ -705,7 +706,7 @@ export function validateReadingPlanDay(row: unknown): ReadingPlanDay {
   if (!Number.isInteger(r.day) || r.day < 1) {
     throw new ValidationError('Reading plan day must have a day >= 1', 'day', r.day);
   }
-  if (r.id !== `${r.planId}:${r.day}`) {
+  if (r.id !== readingPlanDayId(r.planId, r.day)) {
     throw new ValidationError('Reading plan day id must be {planId}:{day}', 'id', r.id);
   }
   validateDate(r.completedAt, 'completedAt');
