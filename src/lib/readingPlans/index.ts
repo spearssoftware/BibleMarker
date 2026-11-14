@@ -1,3 +1,4 @@
+export * from './chapterPlans';
 export * from './chapters';
 export * from './dates';
 export * from './labels';
