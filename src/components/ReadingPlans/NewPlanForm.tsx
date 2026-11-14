@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { BIBLE_BOOKS } from '@/types';
 import type { ReadingPlanScope } from '@/types';
 import { Button, Input, ReadOnlyField, SegmentedControl, Select } from '@/components/shared';
@@ -36,6 +36,7 @@ export function NewPlanForm({ onCancel, onCreated }: NewPlanFormProps) {
   const [bookId, setBookId] = useState(() => useBibleStore.getState().currentBook);
   const [daysText, setDaysText] = useState('');
   const [saving, setSaving] = useState(false);
+  const submittingRef = useRef(false);
 
   const scope: ReadingPlanScope = kind === 'book' ? { kind, bookId } : { kind };
   const chapterCount = selectionChapters(scope).length;
@@ -46,9 +47,11 @@ export function NewPlanForm({ onCancel, onCreated }: NewPlanFormProps) {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!valid || saving) return;
+    if (!valid || submittingRef.current) return;
+    submittingRef.current = true;
     setSaving(true);
     const ok = await startPlan(scope, days);
+    submittingRef.current = false;
     setSaving(false);
     if (ok) onCreated();
   };
@@ -89,7 +92,7 @@ export function NewPlanForm({ onCancel, onCreated }: NewPlanFormProps) {
               type="button"
               aria-pressed={daysText === String(value)}
               onClick={() => setDaysText(String(value))}
-              className={`px-3 py-1.5 text-sm font-ui rounded-lg transition-colors ${
+              className={`min-h-[44px] px-3 py-1.5 text-sm font-ui rounded-lg transition-colors ${
                 daysText === String(value)
                   ? 'bg-scripture-accent text-scripture-bg'
                   : 'bg-scripture-elevated text-scripture-text hover:bg-scripture-border/50'

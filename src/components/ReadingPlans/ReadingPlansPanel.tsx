@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/shared';
 import { useReadingPlanStore } from '@/stores/readingPlanStore';
-import { planProgress, sortPlans, todayLocal } from '@/lib/readingPlans';
+import { planProgress, sortPlans } from '@/lib/readingPlans';
+import { useTodayLocal } from '@/hooks/useTodayLocal';
 import { NewPlanForm } from './NewPlanForm';
 import { PlanCard } from './PlanCard';
 import { PlanDetail } from './PlanDetail';
@@ -20,9 +21,22 @@ export function ReadingPlansPanel({ onNavigate }: ReadingPlansPanelProps) {
   const loadPlans = useReadingPlanStore((state) => state.loadPlans);
   const [view, setView] = useState<View>({ kind: 'list' });
 
-  useEffect(() => {
-    void loadPlans();
+  const [loadFailed, setLoadFailed] = useState(false);
+  const today = useTodayLocal();
+
+  const load = useCallback(() => {
+    loadPlans().catch((error) => {
+      console.error('Loading reading plans failed:', error);
+      setLoadFailed(true);
+    });
   }, [loadPlans]);
+
+  useEffect(load, [load]);
+
+  const retry = () => {
+    setLoadFailed(false);
+    load();
+  };
 
   const showList = useCallback(() => setView({ kind: 'list' }), []);
 
@@ -38,10 +52,20 @@ export function ReadingPlansPanel({ onNavigate }: ReadingPlansPanelProps) {
     );
   }
 
-  if (!loaded) return null;
+  if (!loaded && loadFailed) {
+    return (
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
+        <p role="alert" className="text-sm text-scripture-error">
+          Couldn't load your reading plans.
+        </p>
+        <Button variant="secondary" onClick={retry}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
 
-  // Recomputed each render, so a date change while the app is open applies on the next one.
-  const today = todayLocal();
+  if (!loaded) return null;
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
@@ -57,15 +81,17 @@ export function ReadingPlansPanel({ onNavigate }: ReadingPlansPanelProps) {
           <Button variant="primary" onClick={() => setView({ kind: 'new' })}>
             New plan
           </Button>
-          {sortPlans(plans, dayRows).map((plan) => (
-            <PlanCard
-              key={plan.id}
-              plan={plan}
-              progress={planProgress(plan, dayRows, today)}
-              onOpen={() => setView({ kind: 'detail', planId: plan.id })}
-              onNavigate={onNavigate}
-            />
-          ))}
+          <ul className="space-y-3">
+            {sortPlans(plans, dayRows).map((plan) => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                progress={planProgress(plan, dayRows, today)}
+                onOpen={() => setView({ kind: 'detail', planId: plan.id })}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </ul>
         </>
       )}
     </div>

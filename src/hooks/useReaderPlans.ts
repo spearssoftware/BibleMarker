@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useBibleStore } from '@/stores/bibleStore';
 import { useReadingPlanStore } from '@/stores/readingPlanStore';
 import { markDayComplete } from '@/components/ReadingPlans/planActions';
-import { chapterPlanEntries, todayLocal } from '@/lib/readingPlans';
+import { chapterPlanEntries } from '@/lib/readingPlans';
+import { useTodayLocal } from '@/hooks/useTodayLocal';
 
 interface JustCompleted {
   /** The chapter these marks were made on, as `book:chapter`. */
@@ -37,7 +38,7 @@ export function useReaderPlans(book: string, chapter: number) {
     []
   );
 
-  const today = todayLocal();
+  const today = useTodayLocal();
   const justCompleted = completed.key === key ? completed.byPlan : undefined;
   const seenByPlan = seen.key === key ? seen.byPlan : undefined;
   const entries = useMemo(

@@ -81,6 +81,29 @@ describe('ReadingPlansPanel', () => {
     expect(screen.queryByText('No reading plans yet.')).toBeNull();
   });
 
+  it('shows an error with Try again when loading fails, and recovers', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    db.getAllReadingPlans.mockRejectedValueOnce(new Error('db locked'));
+    await mountPanel();
+
+    const message = screen.getByText("Couldn't load your reading plans.");
+    expect(message.className).toContain('text-scripture-error');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await act(async () => {});
+    expect(screen.queryByText("Couldn't load your reading plans.")).toBeNull();
+    expect(screen.getByText('No reading plans yet.')).toBeTruthy();
+  });
+
+  it('lists plans as list items with a heading each', async () => {
+    db.plans.set('a', makePlan('a', { createdAt: new Date(1000) }));
+    db.plans.set('b', makePlan('b', { days: 14, createdAt: new Date(2000) }));
+    await mountPanel();
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.getAllByRole('heading').map((h) => h.textContent)).toEqual(['John in 14 days', 'John in 21 days']);
+  });
+
   it('starts a plan end to end and lists it', async () => {
     await mountPanel();
     fireEvent.click(screen.getByRole('button', { name: 'New plan' }));

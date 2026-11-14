@@ -17,21 +17,23 @@ interface PlanCardProps {
 export function PlanCard({ plan, progress, onOpen, onNavigate }: PlanCardProps) {
   if (progress.status === 'unsupported') {
     return (
-      <div className={CARD_CLASSES}>
-        <div className="font-medium text-scripture-text break-words">{planName(plan)}</div>
+      <li className={CARD_CLASSES}>
+        <h3 className="font-medium text-scripture-text break-words">{planName(plan)}</h3>
         <p className="text-sm text-scripture-muted">This plan needs a newer version of BibleMarker.</p>
         <Button variant="destructive" size="sm" onClick={() => confirmAndRemovePlan(plan.id)}>
           Delete plan
         </Button>
-      </div>
+      </li>
     );
   }
 
   return (
-    <div className={CARD_CLASSES}>
-      <Button variant="ghost" size="sm" onClick={onOpen} className="text-left break-words">
-        {planName(plan)}
-      </Button>
+    <li className={CARD_CLASSES}>
+      <h3>
+        <Button variant="ghost" size="sm" onClick={onOpen} className="text-left break-words">
+          {planName(plan)}
+        </Button>
+      </h3>
 
       {progress.status === 'finished' ? (
         <p className="text-sm text-scripture-muted">Finished</p>
@@ -65,6 +67,6 @@ export function PlanCard({ plan, progress, onOpen, onNavigate }: PlanCardProps) 
           </Button>
         </>
       )}
-    </div>
+    </li>
   );
 }

@@ -130,6 +130,24 @@ describe('NewPlanForm', () => {
     expect(plan.days).toBe(21);
   });
 
+  it('saves once when Start plan is submitted twice in the same tick', async () => {
+    const onCreated = vi.fn();
+    render(<NewPlanForm onCancel={vi.fn()} onCreated={onCreated} />);
+    chooseBook('John');
+    typeDays('21');
+    const form = startButton().closest('form') as HTMLFormElement;
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+    expect(db.saveReadingPlan).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives the day chips a 44px touch target', () => {
+    render(<NewPlanForm onCancel={vi.fn()} onCreated={vi.fn()} />);
+    expect(screen.getByRole('button', { name: '90' }).className).toContain('min-h-[44px]');
+  });
+
   it('keeps the form and shows the toast when saving fails', async () => {
     db.saveReadingPlan.mockRejectedValueOnce(new Error('disk full'));
     vi.spyOn(console, 'error').mockImplementation(() => {});
