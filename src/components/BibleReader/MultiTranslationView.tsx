@@ -46,6 +46,8 @@ import type { ConnectorHit } from '@/lib/chapterAnalysis';
 import type { VerseLens } from './VerseText';
 import type { Annotation, Chapter, SectionHeading, Note, ChapterTitle } from '@/types';
 import { LAYOUT_REKEY_MS } from './layoutConstants';
+import { ReaderPlanStrip, ReaderPlanEndActions } from '@/components/ReadingPlans';
+import { useReaderPlans } from '@/hooks/useReaderPlans';
 
 const KJV_FALLBACK_ERROR_PREFIX = 'Showing KJV';
 /** Stands in for the top bar's height until NavigationBar publishes it. */
@@ -578,6 +580,9 @@ export function MultiTranslationView() {
     const ready = !loading && matched && max >= min;
     return { ready, minVerse: ready ? min : 1, maxVerse: ready ? max : 1 };
   }, [translationChapters, currentBook, currentChapter]);
+  const { entries: planEntries, complete: completePlanDay, pending: pendingPlans } =
+    useReaderPlans(currentBook, currentChapter);
+  const showPlans = trackerRange.ready && planEntries.length > 0;
   useCurrentVerseTracker(verseContainerRef, verseContentEl, {
     locationKey: `${currentBook}:${currentChapter}`,
     ...trackerRange,
@@ -824,6 +829,7 @@ export function MultiTranslationView() {
           </>
         )}
           <div key={layoutKey} ref={setVerseContentEl} className={`px-6 py-4 space-y-1.5`}>
+            {showPlans && <ReaderPlanStrip entries={planEntries} />}
             {sortedVerseNumbers.map(verseNum => {
               const heading = getHeadingBefore(verseNum);
               const verseNotes = getVerseNotes(verseNum);
@@ -1040,6 +1046,10 @@ export function MultiTranslationView() {
             </div>
           );
           })}
+
+          {showPlans && (
+            <ReaderPlanEndActions entries={planEntries} onComplete={completePlanDay} pending={pendingPlans} />
+          )}
 
           {/* Copyright notices */}
           {translationList.some(({ translation }) => translation.copyright) && (

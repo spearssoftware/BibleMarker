@@ -5,3 +5,5 @@
  */
 
 export { ReadingPlansPanel } from './ReadingPlansPanel';
+export { ReaderPlanStrip } from './ReaderPlanStrip';
+export { ReaderPlanEndActions } from './ReaderPlanEndActions';
