@@ -101,7 +101,7 @@ describe('PlanDetail', () => {
     expect(onNavigate).toHaveBeenCalledTimes(1);
   });
 
-  it('opens scrolled to the first incomplete day', () => {
+  it('scrolls only the list to the first incomplete day, keeping the header outside it', () => {
     useReadingPlanStore.setState({ dayRows: [dayRow(1), dayRow(2), dayRow(3)] });
     const offsetTop = vi
       .spyOn(HTMLElement.prototype, 'offsetTop', 'get')
@@ -109,8 +109,24 @@ describe('PlanDetail', () => {
         return Number(this.dataset.day ?? 0) * 100;
       });
     renderDetail();
-    const scroller = document.querySelector('.overflow-y-auto') as HTMLElement;
+    const scrollers = document.querySelectorAll('.overflow-y-auto');
+    expect(scrollers).toHaveLength(1);
+    const scroller = scrollers[0] as HTMLElement;
     expect(scroller.scrollTop).toBe(400);
+    expect(scroller.contains(screen.getByRole('button', { name: 'Back' }))).toBe(false);
+    expect(scroller.contains(screen.getByRole('button', { name: 'Delete plan' }))).toBe(false);
+    offsetTop.mockRestore();
+  });
+
+  it('does not scroll when day 1 is the first incomplete day', () => {
+    const offsetTop = vi
+      .spyOn(HTMLElement.prototype, 'offsetTop', 'get')
+      .mockImplementation(function (this: HTMLElement) {
+        return Number(this.dataset.day ?? 0) * 100;
+      });
+    renderDetail();
+    const scroller = document.querySelector('.overflow-y-auto') as HTMLElement;
+    expect(scroller.scrollTop).toBe(0);
     offsetTop.mockRestore();
   });
 
