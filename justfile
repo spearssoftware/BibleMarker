@@ -113,6 +113,20 @@ ios-dev:
 ios-build:
     pnpm run ios:build
 
+# Build a branch, tag or SHA on GitHub Actions and upload it to TestFlight.
+testflight ref="main":
+    gh workflow run testflight.yml -f ref="$1"
+
+# Rewrite a TestFlight build's What to Test without rebuilding (build number, or "newest"; ref is the branch or tag that was built).
+testflight-notes build ref="main":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "$1" = newest ]; then
+        gh workflow run testflight-notes.yml -f newest=true -f ref="$2"
+    else
+        gh workflow run testflight-notes.yml -f build_number="$1" -f ref="$2"
+    fi
+
 # Run the app on an Android emulator or device.
 android-dev:
     pnpm run android:dev

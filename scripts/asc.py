@@ -1,6 +1,5 @@
 """Shared App Store Connect API plumbing: ES256 token minting and a REST client
-with token refresh and retries. Used by testflight-notes.py and the store
-submission scripts.
+with token refresh and retries. Used by the store submission scripts.
 """
 import base64
 import http.client
