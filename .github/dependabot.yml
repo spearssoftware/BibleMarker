@@ -1,5 +1,8 @@
 version: 2
 
+# A release is proposed only once it is a week old, so a compromised version has
+# time to be pulled before it reaches a PR. Security updates are not delayed.
+#
 # Every directory with its own lockfile needs an entry here. worker/ was missing
 # one until 2026-10, which left its dependency alerts with no PR to fix them.
 updates:
@@ -7,6 +10,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     labels:
       - dependencies
@@ -34,6 +39,8 @@ updates:
     directory: /worker
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     labels:
       - dependencies
@@ -48,6 +55,8 @@ updates:
     directory: /src-tauri
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     labels:
       - dependencies
@@ -70,6 +79,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     labels:
       - dependencies
