@@ -78,38 +78,16 @@ jobs:
           # leave it with a single subject.
           fetch-depth: 50
 
-      - name: Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.x"
-
-      - name: Install dependencies
-        run: python3 -m pip install --quiet --disable-pip-version-check cryptography
-
-      - name: Set up App Store Connect API key
-        env:
-          API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
-          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-        run: |
-          mkdir -p ~/.appstoreconnect/private_keys
-          echo "$API_KEY" | base64 --decode > "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8"
-
+      # The notes header format ("<ref> @ <sha>  (build <n>)") is shared with
+      # spearssoftware/apple-release; scripts/submit_ios.py finds release
+      # builds by its "app-v<v> @ " prefix.
       - name: Write TestFlight release notes
-        env:
-          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          NOTES_BRANCH: ${{ inputs.ref }}
-          BUILD_NUMBER: ${{ inputs.build_number }}
-          NEWEST: ${{ inputs.newest }}
-        run: |
-          # Both flags are forwarded as given; the script owns the rule that
-          # exactly one of them must be set, so a manual dispatch with both
-          # filled in fails loudly instead of one silently winning here.
-          ARGS=(--bundle-id app.biblemarker --branch "$NOTES_BRANCH")
-          if [ "$NEWEST" = "true" ]; then
-            ARGS+=(--newest)
-          fi
-          if [ -n "$BUILD_NUMBER" ]; then
-            ARGS+=(--build-number "$BUILD_NUMBER")
-          fi
-          python3 scripts/testflight-notes.py "${ARGS[@]}"
+        uses: spearssoftware/apple-release/notes@v1
+        with:
+          bundle-id: app.biblemarker
+          build-number: ${{ inputs.build_number }}
+          newest: ${{ inputs.newest || false }}
+          branch: ${{ inputs.ref }}
+          key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          private-key: ${{ secrets.APP_STORE_CONNECT_API_KEY }}

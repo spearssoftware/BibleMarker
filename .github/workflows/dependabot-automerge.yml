@@ -1,0 +1,47 @@
+name: dependabot-automerge
+
+# Turns on GitHub auto-merge for Dependabot minor and patch PRs. GitHub then
+# merges the PR only once every required status check passes; this workflow
+# never merges anything itself. Major updates are left for review.
+#
+# Fails closed: enablePullRequestAutoMerge is refused when the repository has
+# "Allow auto-merge" off, or when main has no required checks for the PR to
+# wait on. Either way the PR stays open and nothing merges.
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - id: meta
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+
+      - name: Enable auto-merge
+        if: steps.meta.outputs.update-type != 'version-update:semver-major'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_ID: ${{ github.event.pull_request.node_id }}
+        run: |
+          gh api graphql -f id="$PR_ID" -f query='
+            mutation($id: ID!) {
+              enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: SQUASH}) {
+                pullRequest { number autoMergeRequest { enabledAt } }
+              }
+            }'
+
+      - name: Leave major update for review
+        if: steps.meta.outputs.update-type == 'version-update:semver-major'
+        env:
+          DEPS: ${{ steps.meta.outputs.dependency-names }}
+          FROM: ${{ steps.meta.outputs.previous-version }}
+          TO: ${{ steps.meta.outputs.new-version }}
+        run: echo "::notice::Major update ($DEPS $FROM -> $TO), left for review"
